@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Latest blocks</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      a { margin-right: 12px; }
+      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+      th { background: #f6f6f6; }
+      .muted { color: #666; font-size: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+  </head>
+  <body>
+    <h1>Latest blocks</h1>
+    <div id="nav" class="muted"></div>
+
+    <p class="muted">Non-authoritative mirror of indexed RPC data.</p>
+
+    <div id="root">Loading...</div>
+
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      function shortHash(h) {
+        if (!h) return '';
+        return String(h).slice(0, 12) + '…' + String(h).slice(-6);
+      }
+
+      async function load() {
+        const r = await fetch('/api/blocks?limit=50');
+        const j = await r.json();
+        const rows = (j.blocks || []);
+
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>height</th>
+              <th>hash</th>
+              <th>time</th>
+              <th>tx_count</th>
+              <th>res_minted</th>
+              <th>winner</th>
+              <th>draw_candidate_root</th>
+            </tr>
+          </thead>
+        `;
+
+        const tbody = document.createElement('tbody');
+        for (const b of rows) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${b.height}</td>
+            <td><a href="${ExplorerRoutes.blockPath(b.block_hash)}">${shortHash(b.block_hash)}</a></td>
+            <td>${b.time}</td>
+            <td>${b.tx_count}</td>
+            <td>${b.rigor_res_minted}</td>
+            <td>${shortHash(b.rigor_winner)}</td>
+            <td class="muted">${shortHash(b.draw_candidate_root)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+
+        const el = document.getElementById('root');
+        el.innerHTML = '';
+        el.appendChild(table);
+      }
+
+      load().catch((e) => {
+        document.getElementById('root').textContent = 'Failed: ' + String(e);
+      });
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

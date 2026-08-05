@@ -1,0 +1,106 @@
+.convergence-panel {
+  border: 1px solid #c8d8e8;
+  background: #f7fafc;
+  border-radius: 6px;
+  padding: 16px;
+  max-width: 1100px;
+  margin: 16px 0;
+}
+
+.convergence-panel h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.convergence-panel dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 8px 16px;
+  font-size: 14px;
+}
+
+.convergence-panel dt {
+  font-weight: 600;
+  color: #333;
+}
+
+.convergence-panel dd {
+  margin: 0;
+}
+
+.convergence-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  border: 1px solid #bbb;
+  background: #fff;
+}
+
+.convergence-status-winner {
+  border-color: #8fdc5a;
+  background: #f2ffe9;
+}
+
+.convergence-status-candidate {
+  border-color: #8cc8ff;
+  background: #eaf6ff;
+}
+
+.convergence-root-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.convergence-root-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  flex: 1 1 320px;
+}
+
+.convergence-copy-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.convergence-copy-btn:hover {
+  background: #f0f0f0;
+}
+
+.convergence-candidate-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 8px;
+  margin: 0;
+  list-style: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.convergence-candidate-list li {
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.convergence-candidate-list li:last-child {
+  border-bottom: none;
+}
+
+.convergence-rpc-notice {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 4px solid #607d8b;
+  background: #eceff1;
+  font-size: 13px;
+  color: #37474f;
+}

@@ -1,0 +1,5 @@
+# OpuHash frozen test vectors (64 KiB buffer, 256 mix rounds).
+# Each line: base_hash_hex (header id) <space> expected_pow_hash_hex (GetOpusHashFromBaseHash).
+
+0000000000000000000000000000000000000000000000000000000000000001 0cc4ff55b1598a19689b97bd06cdb7c6abe8799bfd5e1554fbe44b606c265780
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff 4e96acde7248b3483051a3233a261b7e25cbfc41851093d71a2fde437124d4f7

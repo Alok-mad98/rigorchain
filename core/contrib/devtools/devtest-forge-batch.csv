@@ -1,0 +1,1 @@
+batch_id,timestamp,txid,convergence_amount,is_in_mempool,mempool_fee,convergence_priority,confirm_height,blocks_to_confirm,status,error_msg

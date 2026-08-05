@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RES events</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      a { margin-right: 12px; }
+      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; vertical-align: top; }
+      th { background: #f6f6f6; }
+      .muted { color: #666; font-size: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+  </head>
+  <body>
+    <h1>RES events</h1>
+    <div id="nav" class="muted"></div>
+    <p class="muted">Candidate rows from indexed <code>getconvergenceresult</code>.</p>
+    <div id="root">Loading...</div>
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      function shortHash(h) {
+        if (!h) return '';
+        h = String(h);
+        return h.slice(0, 12) + '…' + h.slice(-6);
+      }
+      async function load() {
+        const r = await fetch('/api/res/events?limit=200&eligible_only=1');
+        const j = await r.json();
+        const events = j.events || [];
+
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead>
+            <tr>
+              <th>block_height</th>
+              <th>convergence_txid</th>
+              <th>draw_eligible</th>
+                <th>mint_amount</th>
+              <th>committed_root</th>
+              <th>computed_root</th>
+            </tr>
+          </thead>
+        `;
+
+        const tbody = document.createElement('tbody');
+        for (const e of events) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${e.block_height}</td>
+            <td><a href="${ExplorerRoutes.txPath(e.convergence_txid)}">${shortHash(e.convergence_txid)}</a></td>
+            <td>${String(e.draw_eligible)}</td>
+            <td>${e.mint_amount}</td>
+            <td class="muted">${shortHash(e.committed_root)}</td>
+            <td class="muted">${shortHash(e.computed_root)}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+
+        const root = document.getElementById('root');
+        root.innerHTML = '';
+        root.appendChild(table);
+      }
+      load().catch((e) => {
+        document.getElementById('root').textContent = 'Failed: ' + String(e);
+      });
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>
+

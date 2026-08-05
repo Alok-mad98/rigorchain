@@ -1,0 +1,47 @@
+{
+  "source": "/home/user/.cursor/workspace",
+  "method": "resize/format convert only; white bg->alpha; watermark outside circle dropped",
+  "icns_method": "png_icns_container",
+  "files": {
+    "rigor-wallet-1024.png": {
+      "sha256": "7565fc0e44e96ab85046ffc25eec4d5dcc35d89eb7629cd567c9961e4730c87c",
+      "bytes": 682001
+    },
+    "rigor-wallet-256.png": {
+      "sha256": "af385074f6dcd37c5cadd9acf98f8493094bb6f94808cdbd2a46cb0f088a9fa3",
+      "bytes": 76573
+    },
+    "rigor-wallet-256x256.png": {
+      "sha256": "af385074f6dcd37c5cadd9acf98f8493094bb6f94808cdbd2a46cb0f088a9fa3",
+      "bytes": 76573
+    },
+    "rigor-wallet-512.png": {
+      "sha256": "3bebae890d233b005349ef31a146607078e8939821b58e8f22fb7cb6cfa02e27",
+      "bytes": 256542
+    },
+    "rigor-wallet-512x512.png": {
+      "sha256": "3bebae890d233b005349ef31a146607078e8939821b58e8f22fb7cb6cfa02e27",
+      "bytes": 256542
+    },
+    "rigor-wallet-linux-256.png": {
+      "sha256": "af385074f6dcd37c5cadd9acf98f8493094bb6f94808cdbd2a46cb0f088a9fa3",
+      "bytes": 76573
+    },
+    "rigor-wallet.icns": {
+      "sha256": "2693931ccd1c6f1ac4e65004c740e0423586acecd3509cfd58ce52f52e6b938a",
+      "bytes": 1049099
+    },
+    "rigor-wallet.png": {
+      "sha256": "7565fc0e44e96ab85046ffc25eec4d5dcc35d89eb7629cd567c9961e4730c87c",
+      "bytes": 682001
+    },
+    "rigor.ico": {
+      "sha256": "b25e67525b83fc892126d46cb8b02ceaff31d0e2b17fed321d8ceb82b2920259",
+      "bytes": 119657
+    },
+    "rigorappicon1.png": {
+      "sha256": "8b9d576d11227e68d61fd5480bf581ceadd8b329eadcf96ddc8b0cc2cbc501e9",
+      "bytes": 88637
+    }
+  }
+}

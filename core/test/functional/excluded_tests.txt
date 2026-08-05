@@ -1,0 +1,9 @@
+# Functional tests excluded from default CI / full test_runner until adapted for Rigor (witness v0/v1 only, Ed25519-first policy, etc.).
+# Passed to test_runner.py as repeated --exclude=... arguments.
+
+example_test.py
+
+# --- Not in this file (C++ unit tests): upstream Bitcoin script tests removed from src/Makefile.test.include ---
+# script_tests.cpp + test/data/script_tests.json — assumes legacy secp256k1 ECDSA script vectors
+# script_p2sh_tests.cpp — P2PK/P2PKH/P2SH signing & verification
+# multisig_tests.cpp — bare CHECKMULTISIG with secp pubkeys

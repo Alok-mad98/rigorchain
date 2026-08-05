@@ -1,0 +1,49 @@
+{
+  "task": "TASK-WALLET-RELEASE-002",
+  "canonical_symbol": "D+C",
+  "equivalence_claimed": false,
+  "assets": [
+    {
+      "id": "linux-desktop-icon",
+      "path": "core/share/pixmaps/rigor-wallet.xpm",
+      "format": "xpm",
+      "symbol": "D+C"
+    },
+    {
+      "id": "windows-installer-icon",
+      "path": "core/share/pixmaps/rigor.ico",
+      "format": "ico",
+      "symbol": "D+C"
+    },
+    {
+      "id": "qt-application-icon",
+      "path": "core/src/qt/res/icons/rigor.ico",
+      "format": "ico",
+      "symbol": "D+C"
+    },
+    {
+      "id": "qt-application-png",
+      "path": "core/src/qt/res/icons/rigor.png",
+      "format": "png",
+      "symbol": "D+C"
+    },
+    {
+      "id": "nsis-wizard-bmp",
+      "path": "core/share/pixmaps/nsis-wizard.bmp",
+      "format": "bmp",
+      "symbol": "D+C"
+    },
+    {
+      "id": "nsis-header-bmp",
+      "path": "core/share/pixmaps/nsis-header.bmp",
+      "format": "bmp",
+      "symbol": "D+C"
+    }
+  ],
+  "forbidden_legacy": [
+    "arda.ico",
+    "bitcoin.ico",
+    "bitcoin*.xpm",
+    "bitcoin*.png"
+  ]
+}

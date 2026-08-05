@@ -1,0 +1,1 @@
+PLACEHOLDER — installer wizard images (NSIS/DMG, PROGRAM-006)

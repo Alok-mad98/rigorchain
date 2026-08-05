@@ -1,0 +1,164 @@
+import fs from "node:fs";
+import path from "node:path";
+import type { Config } from "./config";
+import type { ChainStateRow } from "./db";
+import { rpc } from "./rpcCli";
+
+/** Freeze baseline — display only; never derived or inferred at runtime. */
+export const EQUIVALENCE_CLAIMED = false as const;
+
+/** Closed testnet genesis (frozen infrastructure baseline). */
+export const FROZEN_TESTNET_GENESIS_HASH =
+  "dc14491196188457f5e2d9f5951e38b788a1c714dd606225b7490dafa9ef8bca";
+
+const EXPECTED_TESTNET_CHAIN = "test";
+
+export type ComplianceMismatches = {
+  root_mismatch: boolean;
+  chain_mismatch: boolean;
+  genesis_mismatch: boolean;
+  indexer_mismatch: boolean;
+};
+
+export type CompliancePayload = {
+  chain_name: string;
+  network_type: string;
+  network: string;
+  genesis_hash: string;
+  genesis_hash_short: string;
+  explorer_version: string;
+  build_timestamp: string;
+  equivalence_claimed: false;
+  mismatches: ComplianceMismatches;
+  mismatch_active: boolean;
+  mismatch_messages: string[];
+};
+
+function shortHash(hash: string): string {
+  if (!hash || hash.length < 20) return hash;
+  return `${hash.slice(0, 12)}…${hash.slice(-6)}`;
+}
+
+function readExplorerVersion(): string {
+  try {
+    const pkgPath = path.join(__dirname, "..", "package.json");
+    const raw = fs.readFileSync(pkgPath, "utf8");
+    const pkg = JSON.parse(raw) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+function chainDisplayName(config: Config): string {
+  if (process.env.EXPLORER_CHAIN_NAME) return process.env.EXPLORER_CHAIN_NAME;
+  return config.network === "testnet" ? "Rigor testnet (closed)" : "Rigor mainnet";
+}
+
+function networkTypeLabel(config: Config): string {
+  if (process.env.EXPLORER_NETWORK_TYPE) return process.env.EXPLORER_NETWORK_TYPE;
+  return config.network === "testnet" ? "closed testnet" : "mainnet";
+}
+
+function expectedGenesisHash(config: Config): string | null {
+  const fromEnv = process.env.EXPECTED_GENESIS_HASH?.trim();
+  if (fromEnv) return fromEnv;
+  if (config.network === "testnet") return FROZEN_TESTNET_GENESIS_HASH;
+  return process.env.EXPECTED_MAINNET_GENESIS_HASH?.trim() ?? null;
+}
+
+export async function buildCompliancePayload(config: Config, chainState: ChainStateRow): Promise<CompliancePayload> {
+  const mismatch_messages: string[] = [];
+  let chain_mismatch = false;
+  let genesis_mismatch = false;
+  let indexer_mismatch = false;
+
+  const root_mismatch = Boolean(chainState.critical_root_mismatch);
+
+  let genesis_hash = "";
+  let nodeChain: string | null = null;
+  let nodeHeight = -1;
+  let nodeBestHash: string | null = null;
+  let nodeHashAtIndexerHeight: string | null = null;
+
+  try {
+    const [genesisFromRpc, blockchainInfo] = await Promise.all([
+      rpc.getblockhash(config, 0),
+      rpc.getblockchaininfo(config),
+    ]);
+    genesis_hash = typeof genesisFromRpc === "string" ? genesisFromRpc : String(genesisFromRpc ?? "");
+    nodeChain = typeof blockchainInfo?.chain === "string" ? blockchainInfo.chain : null;
+    nodeHeight = Number(blockchainInfo?.blocks ?? -1);
+    nodeBestHash = typeof blockchainInfo?.bestblockhash === "string" ? blockchainInfo.bestblockhash : null;
+
+    const expectedGenesis = expectedGenesisHash(config);
+    if (expectedGenesis && genesis_hash && genesis_hash !== expectedGenesis) {
+      genesis_mismatch = true;
+      mismatch_messages.push(
+        `Genesis mismatch: node reports ${shortHash(genesis_hash)}; expected ${shortHash(expectedGenesis)}.`,
+      );
+    }
+
+    if (config.network === "testnet" && nodeChain && nodeChain !== EXPECTED_TESTNET_CHAIN) {
+      chain_mismatch = true;
+      mismatch_messages.push(`Chain mismatch: node chain="${nodeChain}"; expected "${EXPECTED_TESTNET_CHAIN}".`);
+    }
+  } catch (e) {
+    indexer_mismatch = true;
+    mismatch_messages.push(`RPC unavailable for compliance checks: ${String(e)}`);
+  }
+
+  const indexerHeight = Number(chainState.last_height);
+  const indexerTipHash = chainState.last_block_hash;
+
+  if (nodeHeight >= 0 && indexerHeight >= 0) {
+    const lag = Math.max(0, nodeHeight - indexerHeight);
+    if (lag > 0) {
+      indexer_mismatch = true;
+      mismatch_messages.push(`Indexer lag: node height ${nodeHeight}, indexer height ${indexerHeight} (${lag} blocks behind).`);
+    }
+  }
+
+  if (indexerHeight >= 0 && indexerTipHash && nodeHeight >= indexerHeight) {
+    try {
+      nodeHashAtIndexerHeight = await rpc.getblockhash(config, indexerHeight);
+      if (nodeHashAtIndexerHeight && nodeHashAtIndexerHeight !== indexerTipHash) {
+        indexer_mismatch = true;
+        mismatch_messages.push(
+          `Indexer tip mismatch at height ${indexerHeight}: DB hash ${shortHash(indexerTipHash)} ≠ node ${shortHash(nodeHashAtIndexerHeight)}.`,
+        );
+      }
+    } catch {
+      // Covered by RPC error path above when genesis/info already failed.
+    }
+  }
+
+  if (root_mismatch) {
+    mismatch_messages.unshift(
+      "Root mismatch: draw_candidate_root_committed ≠ draw_candidate_root_computed (explorer critical flag).",
+    );
+  }
+
+  const mismatches: ComplianceMismatches = {
+    root_mismatch,
+    chain_mismatch,
+    genesis_mismatch,
+    indexer_mismatch,
+  };
+
+  const mismatch_active = root_mismatch || chain_mismatch || genesis_mismatch || indexer_mismatch;
+
+  return {
+    chain_name: chainDisplayName(config),
+    network_type: networkTypeLabel(config),
+    network: chainState.network,
+    genesis_hash,
+    genesis_hash_short: shortHash(genesis_hash),
+    explorer_version: readExplorerVersion(),
+    build_timestamp: process.env.EXPLORER_BUILD_TIMESTAMP ?? "development",
+    equivalence_claimed: EQUIVALENCE_CLAIMED,
+    mismatches,
+    mismatch_active,
+    mismatch_messages,
+  };
+}

@@ -1,0 +1,82 @@
+.status-dashboard {
+  max-width: 1200px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.status-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 14px 16px;
+}
+
+.status-card h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 6px;
+}
+
+.status-card dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(140px, 42%) 1fr;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+
+.status-card dt {
+  font-weight: 600;
+  color: #444;
+}
+
+.status-card dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.status-draw-banner {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #90a4ae;
+  background: #eceff1;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-rpc-disclaimer {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-left: 4px solid #37474f;
+  background: #f5f5f5;
+  font-size: 13px;
+}
+
+.status-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.status-muted {
+  color: #666;
+  font-size: 12px;
+}
+
+.status-dist {
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.status-updated {
+  font-size: 12px;
+  color: #666;
+  margin-top: 8px;
+}

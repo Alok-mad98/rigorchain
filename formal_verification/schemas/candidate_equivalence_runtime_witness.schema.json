@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rigor.local/schemas/candidate_equivalence_runtime_witness.schema.json",
+  "title": "CandidateEquivalenceRuntimeWitness",
+  "description": "JSON schema for PROOF-026 runtime golden-vector snapshots and witness comparison exports (h<=501 partial materialization baseline).",
+  "type": "object",
+  "required": [
+    "harness_version",
+    "equivalence_claimed",
+    "coq_equiv_runtime",
+    "draw_equivalence",
+    "observation_height",
+    "fvr_mirror_layers",
+    "summary",
+    "vectors"
+  ],
+  "properties": {
+    "harness_version": {
+      "type": "string",
+      "description": "Harness report version tag (e.g. proof-006-0.1)."
+    },
+    "equivalence_claimed": {
+      "type": "boolean",
+      "const": false,
+      "description": "Global equivalence claim; must remain false per PROOF-009 honesty boundary."
+    },
+    "coq_equiv_runtime": {
+      "type": "string",
+      "enum": ["NOT_ESTABLISHED"],
+      "description": "Coq-runtime correspondence status."
+    },
+    "draw_equivalence": {
+      "type": "string",
+      "enum": ["PROHIBITED"],
+      "description": "FVR-M draw prohibition; draw evidence cannot contribute to closure."
+    },
+    "observation_height": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Regtest chain height at observation time (baseline h=501)."
+    },
+    "fvr_mirror_layers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["FVR-B", "FVR-C", "FVR-F", "FVR-G", "FVR-H", "FVR-I", "FVR-N"]
+      },
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "description": "Runtime mirror RPC layers mapped to CEE_Runtime evidence."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "pass", "fail", "partial", "not_executed"],
+      "properties": {
+        "total": { "type": "integer", "const": 12 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "partial": { "type": "integer", "minimum": 0 },
+        "not_executed": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "vectors": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "vector_id",
+          "verification_status",
+          "mismatch_count",
+          "materialized",
+          "evidence_category"
+        ],
+        "properties": {
+          "vector_id": {
+            "type": "string",
+            "pattern": "^GV-(ORU|RES|DRAW|STATE)-[0-9]{4}$"
+          },
+          "verification_status": {
+            "type": "string",
+            "enum": [
+              "GVR_PASS",
+              "GVR_FAIL",
+              "GVR_PARTIAL",
+              "GVR_NOT_EXECUTED"
+            ]
+          },
+          "mismatch_count": { "type": "integer", "minimum": 0 },
+          "height_required": { "type": "integer", "minimum": 0 },
+          "materialized": { "type": "boolean" },
+          "evidence_category": {
+            "type": "string",
+            "enum": [
+              "CEE_Runtime",
+              "CEE_GoldenVector",
+              "CEE_Coq",
+              "CEE_Invariant",
+              "CEE_Audit",
+              "CEE_DrawProhibited"
+            ]
+          },
+          "runtime_witness": {
+            "type": "object",
+            "description": "Optional per-vector runtime witness comparison payload.",
+            "properties": {
+              "coq_trace_hash": { "type": "string" },
+              "runtime_trace_hash": { "type": "string" },
+              "aligned_fields": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "blocking_reasons": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

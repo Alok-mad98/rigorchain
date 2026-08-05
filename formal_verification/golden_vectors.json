@@ -1,0 +1,103 @@
+{
+  "validation_timestamp": "2026-05-12T18:45:00Z",
+  "validation_type": "Python-CPP_Cross_Validation",
+  "status": "PASS",
+  "total_tests": 8,
+  "passed": 8,
+  "failed": 0,
+  "cpp_implementation": "OpenSSL_SHA256d",
+  "python_implementation": "hashlib_sha256d",
+  "sigma_revision": "Sigma-CR-01",
+  "sigma_input_layout": {
+    "[0..31]":  "txid_i",
+    "[32..63]": "ConvergenceRoot (C)",
+    "[64..95]": "bind_commit = Hash256(B_{h-10} || LE32(target_prev))",
+    "[96..99]": "LE32(height)",
+    "total":    100
+  },
+  "test_vectors": [
+    {
+      "test_name": "ConvergenceRoot_empty",
+      "txids": [],
+      "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "test_name": "ConvergenceRoot_single",
+      "txids": ["8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"],
+      "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "test_name": "ConvergenceRoot_two",
+      "txids": [
+        "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+        "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+      ],
+      "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
+    },
+    {
+      "test_name": "ConvergenceRoot_multiple",
+      "txids": [
+        "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+        "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+        "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+        "9953051d0daf36399447027f1ff4ceee27161c808c610b3f961ea3805ab3e793",
+        "a14e2895f7b9e1e7b37f82b38e345462a36edfa6dbce70939cc1bfc6a74ddd5e"
+      ],
+      "convergence_root": "79062b073611e817c71d349446d999a120a0e91b5a511ea21c0e09ee7459768b"
+    },
+    {
+      "test_name": "ConvergenceRoot_order_invariance",
+      "txids": [
+        "9953051d0daf36399447027f1ff4ceee27161c808c610b3f961ea3805ab3e793",
+        "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+        "a14e2895f7b9e1e7b37f82b38e345462a36edfa6dbce70939cc1bfc6a74ddd5e",
+        "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+        "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+      ],
+      "convergence_root": "79062b073611e817c71d349446d999a120a0e91b5a511ea21c0e09ee7459768b"
+    },
+    {
+      "test_name": "PCORBHash_basic",
+      "txid": "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+      "bind_hash": "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+      "height": 100,
+      "target_prev": 486604799,
+      "convergence_root": "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+      "pcorb_hash": "9b49ad9a7d9c6eee09485a164683ebfa45ef5f4013224dd3f7742531bcb900ae"
+    },
+    {
+      "test_name": "PCORBHash_different_height",
+      "txid": "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+      "bind_hash": "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+      "height": 999999,
+      "target_prev": 486604799,
+      "convergence_root": "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+      "pcorb_hash": "7f0c04059615e7ca4168a75e00d3316ae7ec12c4f327da84bba077a3b72f7801"
+    },
+    {
+      "test_name": "PCORBHash_different_target",
+      "txid": "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+      "bind_hash": "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+      "height": 100,
+      "target_prev": 503391045,
+      "convergence_root": "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+      "pcorb_hash": "400e98761d53a0fb5f9891cc9dcb0bab8e8a24ea88aadd550a289704f9b92bf0"
+    }
+  ],
+  "validation_notes": "Cross-validation performed with real C++ implementation using OpenSSL SHA256d. All byte-level comparisons passed. Sigma-CR-01: target_prev is folded into bind_commit = Hash256(B_{h-10} || LE32(target_prev)) which occupies slot [64..95] of the 100-byte sigma input, closing the cross-difficulty replay vector. PCORBHash_basic vs PCORBHash_different_target now differ, demonstrating per-target domain separation.",
+  "consensus_critical": true,
+  "issues_fixed": [
+    {
+      "issue": "LE64 height encoding sign extension",
+      "description": "C++ int type caused sign extension in right-shift operations",
+      "fix": "Added explicit static_cast<uint64_t>(height) before bit shifts",
+      "impact": "Critical - would have caused consensus divergence on heights > 0"
+    },
+    {
+      "issue": "Sigma-CR-01 cross-difficulty replay (target_prev not committed)",
+      "description": "Pre-revision sigma input did not include target_prev; on per-block retargeting algorithms (ASERT) a valid Ed25519 proof signed under target_prev = T could be replayed against an alternate-difficulty header (target_prev = T') because the σ digest collided.",
+      "fix": "Folded target_prev into the existing 32-byte B_{h-10} slot via bind_commit = Hash256(B_{h-10} || LE32(target_prev)). 100-byte invariant and deterministic serialization preserved.",
+      "impact": "Critical - would have allowed cross-difficulty replay on retargeting-per-block chains."
+    }
+  ]
+}

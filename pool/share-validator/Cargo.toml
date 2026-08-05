@@ -1,0 +1,23 @@
+[package]
+name = "share-validator"
+version = "0.1.0"
+edition = "2021"
+description = "RIGOR pool stack share and block validation layer (TASK-MINING-008)"
+license = "MIT"
+readme = "README.md"
+
+[features]
+default = []
+postgres = ["rigor-pool-pg/postgres"]
+
+[dependencies]
+block-assembler = { path = "../block-assembler" }
+rigor-pool-pg = { path = "../rigor-pool-pg" }
+hex = "0.4"
+rigor-gbt = { path = "../rigor-gbt" }
+serde = { version = "1.0", features = ["derive"] }
+sha2 = "0.10"
+thiserror = "1.0"
+
+[dev-dependencies]
+serde_json = "1.0"

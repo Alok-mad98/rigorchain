@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RES amount</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      .muted { color: #666; font-size: 12px; }
+      a { margin-right: 12px; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+  </head>
+  <body>
+    <h1>RES amount</h1>
+    <div id="nav" class="muted"></div>
+
+    <p class="muted">
+      RES minted total is derived from indexed <code>res_mints</code> rows.
+    </p>
+
+    <pre id="root" class="mono">Loading...</pre>
+
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      function atomsToRes(amount_atoms) {
+        const a = BigInt(String(amount_atoms));
+        const base = 100n; // 100 atoms per 1.00 RES
+        const int = a / base;
+        const frac = a % base;
+        return `${int}.${frac.toString().padStart(2, '0')}`;
+      }
+
+      async function load() {
+        const r = await fetch('/api/chain/tip');
+        const j = await r.json();
+        const stats = j.stats || {};
+        const atoms = stats.res_mint_total_atoms ?? "0";
+        document.getElementById('root').textContent = JSON.stringify({ res_mint_total_atoms: atoms, res_mint_total_display: atomsToRes(atoms) }, null, 2);
+      }
+      load().catch((e) => document.getElementById('root').textContent = 'Failed: ' + String(e));
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,4 @@
+test/cache/
+src/obj/build.h
+src/qt/forms/ui_*.h
+src/qt/moc_*.cpp

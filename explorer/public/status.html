@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chain status</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/convergence-panel.css" />
+    <link rel="stylesheet" href="/status-dashboard.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      .muted { color: #666; font-size: 12px; }
+      a { margin-right: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+    <script src="/status.js"></script>
+  </head>
+  <body>
+    <h1>Chain status</h1>
+    <div id="nav" class="muted"></div>
+    <p class="muted">Read-only global chain overview. Values mirror rigord RPC and indexed explorer data.</p>
+
+    <div id="status-root" class="status-dashboard">Loading…</div>
+
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+      StatusDashboard.load().catch((e) => {
+        document.getElementById('status-root').textContent = 'Failed: ' + String(e);
+      });
+      setInterval(() => StatusDashboard.load().catch(() => {}), 30000);
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

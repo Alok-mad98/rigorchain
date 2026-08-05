@@ -1,0 +1,99 @@
+/* RIGOR Explorer compliance layer (TASK-EXPLORER-002) — display only */
+
+:root {
+  --rigor-compliance-banner-bg: #7f1d1d;
+  --rigor-compliance-banner-fg: #fecaca;
+  --rigor-compliance-badge-bg: #1e3a5f;
+  --rigor-compliance-badge-fg: #dbeafe;
+  --rigor-compliance-footer-bg: #111827;
+  --rigor-compliance-footer-fg: #9ca3af;
+  --rigor-compliance-footer-border: #374151;
+}
+
+body.rigor-compliance-has-banner {
+  padding-top: 3.25rem;
+}
+
+#rigor-compliance-banner {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  background: var(--rigor-compliance-banner-bg);
+  color: var(--rigor-compliance-banner-fg);
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  border-bottom: 2px solid #ef4444;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+#rigor-compliance-banner.rigor-compliance-banner--active {
+  display: block;
+}
+
+#rigor-compliance-banner strong {
+  color: #fff;
+}
+
+#rigor-compliance-banner ul {
+  margin: 0.35rem 0 0 1.25rem;
+  padding: 0;
+}
+
+#rigor-compliance-header {
+  margin-bottom: 1rem;
+}
+
+#rigor-compliance-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  background: var(--rigor-compliance-badge-bg);
+  color: var(--rigor-compliance-badge-fg);
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+#rigor-compliance-badge .rigor-badge-label {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+}
+
+#rigor-compliance-footer {
+  margin-top: 2.5rem;
+  padding: 1rem 0 1.5rem;
+  border-top: 1px solid var(--rigor-compliance-footer-border);
+  background: var(--rigor-compliance-footer-bg);
+  color: var(--rigor-compliance-footer-fg);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+#rigor-compliance-footer .rigor-footer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  margin-bottom: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+#rigor-compliance-footer .rigor-footer-disclaimer {
+  margin: 0.5rem 0;
+  max-width: 52rem;
+}
+
+#rigor-compliance-footer .rigor-footer-equivalence {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #fbbf24;
+}

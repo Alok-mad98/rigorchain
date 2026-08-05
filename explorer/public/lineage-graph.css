@@ -1,0 +1,156 @@
+.lineage-graph-panel {
+  border: 1px solid #c5cae9;
+  border-radius: 8px;
+  background: #f8f9ff;
+  padding: 14px 16px;
+  margin: 16px 0;
+  max-width: 1100px;
+}
+
+.lineage-graph-panel h2 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.lineage-graph-notice {
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  border-left: 4px solid #5c6bc0;
+  background: #e8eaf6;
+  font-size: 12px;
+}
+
+.lineage-graph-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px 14px;
+  font-size: 12px;
+  margin-bottom: 14px;
+}
+
+.lineage-graph-summary dt {
+  font-weight: 600;
+  color: #444;
+}
+
+.lineage-graph-summary dd {
+  margin: 0;
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.lineage-graph-canvas {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 12px 0;
+}
+
+.lineage-graph-branch-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.lineage-graph-node {
+  border: 2px solid #9fa8da;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 12px;
+  min-width: 160px;
+  max-width: 280px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.lineage-graph-node a {
+  color: #283593;
+  word-break: break-all;
+}
+
+.lineage-graph-node.state-Candidate {
+  border-color: #90a4ae;
+}
+
+.lineage-graph-node.state-Winner {
+  border-color: #ffb300;
+  background: #fff8e1;
+}
+
+.lineage-graph-node.state-Minted,
+.lineage-graph-node.state-Confirmed {
+  border-color: #66bb6a;
+  background: #f1f8e9;
+}
+
+.lineage-graph-node.state-Orphaned {
+  border-color: #e57373;
+  background: #ffebee;
+}
+
+.lineage-graph-node.state-Revoked {
+  border-color: #ab47bc;
+  background: #f3e5f5;
+}
+
+.lineage-graph-node-kind {
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #555;
+}
+
+.lineage-graph-node-state {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: #eceff1;
+}
+
+.lineage-graph-arrow {
+  color: #5c6bc0;
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 0;
+}
+
+.lineage-graph-legend {
+  margin-top: 12px;
+  font-size: 12px;
+}
+
+.lineage-graph-legend ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.lineage-graph-pcorb {
+  margin-top: 10px;
+  font-size: 11px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.lineage-graph-pcorb table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.lineage-graph-pcorb th,
+.lineage-graph-pcorb td {
+  border: 1px solid #ddd;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.lineage-graph-mint-outputs {
+  margin-top: 8px;
+  font-size: 12px;
+}

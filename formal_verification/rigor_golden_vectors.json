@@ -1,0 +1,317 @@
+{
+  "version": "1.3",
+  "specification": "RIGOR_CONSENSUS_GOLDEN_VECTORS_FINAL_LOCK",
+  "description": "Consensus-critical golden vectors for the Rigor protocol. Version 1.3 (SECURITY-001-A8 / Sigma-PoW-01): σ slot [64..95] is the parent block hash B_{h-1} verbatim; target_prev no longer enters the preimage; the draw is deferred one block.",
+  "timestamp": "2026-05-12T18:45:00Z",
+  "sigma_revision": "Sigma-PoW-01",
+  "vectors": [
+    {
+      "id": "FR-001",
+      "name": "Convergeroot_basic_two",
+      "module": "ConvergenceRoot",
+      "input": {
+        "txids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ]
+      },
+      "expected": {
+        "sorted_txids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ],
+        "Convergeroot": "499d0d3b39373fb9b7b0f399b7411f7af213d91c32624280e995ae0f8eb776fb"
+      }
+    },
+    {
+      "id": "FR-002",
+      "name": "Convergeroot_order_independent",
+      "module": "ConvergenceRoot",
+      "input": {
+        "txids": [
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "expected": {
+        "Convergeroot": "499d0d3b39373fb9b7b0f399b7411f7af213d91c32624280e995ae0f8eb776fb",
+        "sorted_txids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ]
+      }
+    },
+    {
+      "id": "FR-003",
+      "name": "Convergeroot_single",
+      "module": "ConvergenceRoot",
+      "input": {
+        "txids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      },
+      "expected": {
+        "Convergeroot": "0000000000000000000000000000000000000000000000000000000000000000",
+        "sorted_txids": [
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        ]
+      }
+    },
+    {
+      "id": "HASH-001",
+      "name": "rigor_hash_basic",
+      "module": "PCORBHash",
+      "sigma_revision": "Sigma-PoW-01",
+      "input": {
+        "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bind_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "height": 100,
+        "target_prev": 486604799,
+        "Converge_root": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "expected": {
+        "hash": "5740e14a4960ce8b03f8aceeeb4f1aa4bbf2fff1434b3e767b5d330bdb8f0160",
+        "note": "SECURITY-001-A8: bind_hash field is B_{h-1} verbatim; target_prev ignored for σ"
+      }
+    },
+    {
+      "id": "HASH-002",
+      "name": "rigor_hash_endian_lock",
+      "module": "PCORBHash",
+      "input": {
+        "height": 1,
+        "target_prev": 1
+      },
+      "expected": {
+        "serialized_height": "0100000000000000",
+        "serialized_target": "01000000"
+      }
+    },
+    {
+      "id": "INEQ-001",
+      "name": "inequality_true",
+      "module": "Inequality",
+      "input": {
+        "h": "0100000000000000000000000000000000000000000000000000000000000000",
+        "T_int": 1766847064778384329583297500742918515827483896875618958121606201292619776,
+        "f": 1
+      },
+      "expected": {
+        "result": true
+      },
+      "note": "RFC-014 v1.1: T is supplied explicitly by this vector (2^240 here); the constitutional value is floor(2^240 / MIN_CONVERGENCE_AMOUNT), H=1 (forward hash byte order), f=1"
+    },
+    {
+      "id": "INEQ-002",
+      "name": "inequality_false",
+      "module": "Inequality",
+      "input": {
+        "h": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "T_int": 1766847064778384329583297500742918515827483896875618958121606201292619776,
+        "f": 1
+      },
+      "expected": {
+        "result": false
+      }
+    },
+    {
+      "id": "INEQ-003",
+      "name": "inequality_equal_fail",
+      "module": "Inequality",
+      "input": {
+        "h": "0100000000000000000000000000000000000000000000000000000000000000",
+        "T_int": 1,
+        "f": 1
+      },
+      "expected": {
+        "result": false
+      },
+      "note": "Strict inequality: H == T·f must be false (H=1, T=1, f=1)"
+    },
+    {
+      "id": "WIN-001",
+      "name": "winner_basic",
+      "module": "WinnerSelection",
+      "sigma_revision": "Sigma-PoW-01",
+      "input": {
+        "candidates": [
+          {
+            "txid": "aa00000000000000000000000000000000000000000000000000000000000000",
+            "bind_hash": "bb00000000000000000000000000000000000000000000000000000000000000",
+            "height": 100,
+            "target_prev": 486604799,
+            "convergence_amount": 400000000000000
+          },
+          {
+            "txid": "bb00000000000000000000000000000000000000000000000000000000000000",
+            "bind_hash": "bb00000000000000000000000000000000000000000000000000000000000000",
+            "height": 100,
+            "target_prev": 486604799,
+            "convergence_amount": 400000000000000
+          }
+        ],
+        "Converge_root": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "winner": "aa00000000000000000000000000000000000000000000000000000000000000",
+        "sigma": [
+          "988d8b22c244bc5797aa45e1dcf5f55a0ad0987e4f7011f561036f97db7e3743",
+          "fe27fa169797011ff8f9e867ea43d4313c69938c48d5a2ad78c9bde262b2e351"
+        ],
+        "note": "SECURITY-001-A8: all candidates share one B_{h-1}; σ recomputed under Sigma-PoW-01. Weight sits above the SECURITY-001-A9-C per-draw saturation point (65536*W = 2,097,152 ORU) so eligibility stays deterministic and this vector keeps testing winner selection, not draw odds. σ is unchanged: the weight is not a σ input."
+      }
+    },
+    {
+      "id": "WIN-002",
+      "name": "winner_tie_xor",
+      "module": "WinnerSelection",
+      "sigma_revision": "Sigma-PoW-01",
+      "input": {
+        "candidates": [
+          {
+            "txid": "0f00000000000000000000000000000000000000000000000000000000000000",
+            "bind_hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+            "height": 100,
+            "target_prev": 486604799,
+            "convergence_amount": 400000000000000
+          },
+          {
+            "txid": "f000000000000000000000000000000000000000000000000000000000000000",
+            "bind_hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+            "height": 100,
+            "target_prev": 486604799,
+            "convergence_amount": 400000000000000
+          }
+        ],
+        "Converge_root": "ff00000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "winner": "0f00000000000000000000000000000000000000000000000000000000000000",
+        "sigma": [
+          "32cedf5df9f1d062c7662d1daa60f387cadca6ff5aea96022127956fe6c5233c",
+          "8b75bef9811cbba8f8a07a20f9c0e39b5b7d4df65917bc1d9da2d779660708dd"
+        ],
+        "note": "SECURITY-001-A8: all candidates share one B_{h-1}; σ recomputed under Sigma-PoW-01. Weight sits above the SECURITY-001-A9-C per-draw saturation point (65536*W = 2,097,152 ORU) so eligibility stays deterministic and this vector keeps testing winner selection, not draw odds. σ is unchanged: the weight is not a σ input."
+      }
+    },
+    {
+      "id": "ORB-001",
+      "name": "ORB_valid",
+      "module": "ORBProof",
+      "input": {
+        "Converge_txid": "aa00000000000000000000000000000000000000000000000000000000000000",
+        "Converge_root": "bb00000000000000000000000000000000000000000000000000000000000000",
+        "in_F": true,
+        "inequality": true
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ORB-002",
+      "name": "ORB_not_in_F",
+      "module": "ORBProof",
+      "input": {
+        "Converge_txid": "aa00000000000000000000000000000000000000000000000000000000000000",
+        "Converge_root": "bb00000000000000000000000000000000000000000000000000000000000000",
+        "in_F": false,
+        "inequality": true
+      },
+      "expected": {
+        "valid": false,
+        "error": "bad-ORB-Convergence-not-in-Convergenceroot-set"
+      }
+    },
+    {
+      "id": "ORB-003",
+      "name": "ORB_root_mismatch",
+      "module": "ORBProof",
+      "input": {
+        "proof_root": "aa00000000000000000000000000000000000000000000000000000000000000",
+        "block_root": "bb00000000000000000000000000000000000000000000000000000000000000",
+        "in_F": true,
+        "inequality": true
+      },
+      "expected": {
+        "valid": false
+      }
+    },
+    {
+      "id": "DS-001",
+      "name": "dual_mint",
+      "module": "DualSemantics",
+      "input": {
+        "input_asset": [
+          "ORI"
+        ],
+        "has_proof": true
+      },
+      "expected": {
+        "mode": "mint",
+        "counted": true
+      }
+    },
+    {
+      "id": "DS-002",
+      "name": "dual_claim",
+      "module": "DualSemantics",
+      "input": {
+        "input_asset": [
+          "ORB"
+        ],
+        "has_proof": false
+      },
+      "expected": {
+        "mode": "claim",
+        "counted": false
+      }
+    },
+    {
+      "id": "DS-003",
+      "name": "dual_mixed_reject",
+      "module": "DualSemantics",
+      "input": {
+        "input_asset": [
+          "ORI",
+          "ORB"
+        ],
+        "has_proof": true
+      },
+      "expected": {
+        "valid": false,
+        "error": "mixed-asset-output"
+      }
+    }
+  ],
+  "metadata": {
+    "immutable": true,
+    "consensus_critical": true,
+    "bit_exact_required": true,
+    "notes": "These vectors are the consensus DNA. Code can change, but as long as vectors remain unchanged, the protocol will not fork.",
+    "v1_1_changelog": [
+      "Sigma-CR-01: target_prev folded into bind_commit (slot [64..95]).",
+      "HASH-001 expected.hash recomputed (was: 236fb92e... now: 0548e787...).",
+      "WIN-001 expected.winner re-derived (was: bb00.. now: aa00..); sigma values exposed for cross-validation.",
+      "WIN-002 expected.winner unchanged by coincidence (f000..); sigma values exposed; note added explaining tie-break is no longer reached."
+    ]
+  },
+  "amendment": {
+    "id": "SECURITY-001-A / A-6",
+    "rfc": "RFC-014 v1.1",
+    "res_probability_target_int": 17668470647783843295832975007429185158274838968756189581216062012,
+    "res_probability_target_hex": "00000000002af31dc4611873bf3f70834acdae9f0f4f534f5d60585a5f1c1a3c",
+    "regenerated_by": "formal_verification/tools/regenerate_golden_vectors_a6.py",
+    "reason": "RES_PROBABILITY_TARGET unit correction made the eligibility filter non-vacuous; WinnerSelection vectors at the 1 ORU minimum weight no longer produce a winner deterministically."
+  },
+  "amendment_a8": {
+    "id": "SECURITY-001-A / A-8",
+    "codename": "Sigma-PoW-01",
+    "sigma_preimage": "txid || C || B_{h-1} || LE32(payout_height)",
+    "removed": [
+      "bind_commit",
+      "CONVERGENCE_DRAW_BIND_DEPTH",
+      "bootstrap_bind window"
+    ]
+  }
+}

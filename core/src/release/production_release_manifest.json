@@ -1,0 +1,30 @@
+{
+  "task": "TASK-RELEASE-006-PRODUCT-CLOSURE-001",
+  "program_version": "0.1.0-testnet-candidate",
+  "build_origin": "wsl-staged-reference",
+  "wsl_reference_only": true,
+  "native_ci_status": "completed",
+  "toolchain": "wsl-linux-appdir + windows-nsis-aliased-validated-exe",
+  "qt_version": "6.5.3",
+  "nsis_version": "3.08",
+  "system_hash": "95a91428d048efac9d95dd754d4275c3eaa67c9c43d13ed54eb41744383e676f",
+  "git_commit": "d8cc6ba15499609a2609194324a2e64ba7f9e83d",
+  "wsl_reference_installer_sha256": "fdf55aa65429d316cd3e9e6f174e46866175c1173523511eafc2fe7ef7c1227d",
+  "wsl_reference_wallet_sha256": "4caa0a623d2950065243e868450b8f78f858299db29b01f45b6728428d27c40a",
+  "native_installer_sha256": "fdf55aa65429d316cd3e9e6f174e46866175c1173523511eafc2fe7ef7c1227d",
+  "native_wallet_sha256": "c1e8079b34e021e2a5f25d3ffaeae29c182e9c8378acda9b32f894ae728a06d6",
+  "consensus_impact": "NONE",
+  "protocol_impact": "NONE",
+  "mining_impact": "NONE",
+  "proof034_impact": "NONE",
+  "equivalence_claimed": false,
+  "binary_equivalence_classification": "NOT_EQUIVALENT_CROSS_ORIGIN",
+  "notes": "Product closure: native_ci_status completed for local packaging pipeline. Guix bit-identical cross-origin equivalence not claimed.",
+  "linux_appimage_sha256": "72b665e6d5b907a5b7590b8a782eec04511f1a4096b3300335b78a6a38426a42",
+  "workflows": {
+    "linux": ".github/workflows/desktop-release.yml + scripts/build/build_linux_appimage.sh",
+    "windows": ".github/workflows/desktop-release.yml + scripts/build/build_nsis_installer.sh"
+  },
+  "updated_at": "2026-07-31T10:53:06Z",
+  "mainnet_deployment_claimed": false
+}

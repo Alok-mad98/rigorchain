@@ -1,0 +1,24 @@
+[Unit]
+Description=RIGOR Explorer Indexer MVP (read-only)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=rigor
+Group=rigor
+WorkingDirectory=/opt/ring/explorer-indexer-mvp
+EnvironmentFile=/etc/rigor/explorer-indexer.env
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=explorer-indexer-mvp
+
+# Hardening (adjust if your Node install path differs)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

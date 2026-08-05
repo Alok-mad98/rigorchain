@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Block detail</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/convergence-panel.css" />
+    <link rel="stylesheet" href="/lineage-graph.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      a { margin-right: 12px; }
+      .muted { color: #666; font-size: 12px; }
+      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+      th { background: #f6f6f6; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+    <script src="/convergence-panel.js"></script>
+    <script src="/lineage-graph.js"></script>
+  </head>
+  <body>
+    <h1>Block detail</h1>
+    <div id="nav" class="muted"></div>
+
+    <div id="root">Loading...</div>
+
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      function shortHash(h) {
+        if (!h) return '';
+        return String(h).slice(0, 12) + '…' + String(h).slice(-6);
+      }
+
+      async function load() {
+        const hash = ExplorerRoutes.blockHash();
+        if (!hash) {
+          document.getElementById('root').textContent = 'Missing block hash in URL.';
+          return;
+        }
+        const r = await fetch('/api/block/' + encodeURIComponent(hash));
+        if (!r.ok) {
+          document.getElementById('root').textContent = 'Block not found.';
+          return;
+        }
+        const j = await r.json();
+
+        const b = j.block;
+        const panel = j.convergence_panel;
+        const lineageGraph = j.lineage_graph;
+        const txs = j.txs || [];
+
+        const root = document.getElementById('root');
+        root.innerHTML = `
+          ${ConvergencePanel.renderBlockPanel(panel, ExplorerRoutes)}
+          ${lineageGraph ? LineageGraph.renderLineagePanel(lineageGraph, ExplorerRoutes) : ''}
+
+          <h2>Header</h2>
+          <pre class="mono">${JSON.stringify(b, null, 2)}</pre>
+
+          <h2>Transactions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>txid</th>
+                <th>wtxid</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${txs.map((t, idx) => `
+                <tr>
+                  <td>${idx}</td>
+                  <td><a href="${ExplorerRoutes.txPath(t.txid)}">${shortHash(t.txid)}</a></td>
+                  <td class="muted">${shortHash(t.wtxid)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+        ConvergencePanel.bindCopyButtons(root);
+      }
+
+      load().catch((e) => {
+        document.getElementById('root').textContent = 'Failed: ' + String(e);
+      });
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

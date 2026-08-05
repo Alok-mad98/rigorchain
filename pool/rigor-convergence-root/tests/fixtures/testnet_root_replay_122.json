@@ -1,0 +1,1224 @@
+{
+  "count": 122,
+  "blocks": [
+    {
+      "height": 1500,
+      "hash": "542f0dad0b3983abe24f7ea2faf1500d2ed695cd352b27897cdb9b6ca99df0cf",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d74106f6d63f519754105a31e2cde838dcb84a6935460bd47538bbe18b4909a4",
+        "da949e156da6ecef781d751c3dced8500400e4b393c6bf8fa318b89bd769ba1d"
+      ]
+    },
+    {
+      "height": 1501,
+      "hash": "8179b0db10e94b9bf93016b49c97a408a707a905ed55948ee435f9c0ee82cd21",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "0c24859ea8395af7d6b75471aa45f5f82d5600c422b354b70e1eeff8c4ec3d89",
+        "c5fb5a8fb297caab0420e0f0f0860869113c5ff66e9fef18d539580e4337e8e7"
+      ]
+    },
+    {
+      "height": 1502,
+      "hash": "46df092fae85893f63919616b25658944e00aa6e2c3e0618b8441d1878c7e101",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "c992d30780ec5b137268eff480a9b7a8ce3844624a00352ec937bd3d7d5dd69b",
+        "0952400eebafd87c10605ce3dc305932e5f6d1aa2c9db5baf31ce50d9e8ae8b0"
+      ]
+    },
+    {
+      "height": 1503,
+      "hash": "db4214b4c6a3015eebc853f2e672599dc1a8a1432d9101d113921a3b3db717af",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "65366357b1b311ef80bacdf63b3f1925daecdb035e63199c1952ce3e38869013",
+        "cd03f3e62eb61882c6c0212196623a4b2798e1355d7022f7ae0e80ca5248fffc"
+      ]
+    },
+    {
+      "height": 1504,
+      "hash": "bce50333a56c65702825f2cc8cf926333699ba7b26374c67ece01f67fe70b742",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b555a399300ab1801ebb5c6fe473e1af5f1a9d513da3ecfb9b20ddd465f7b5c9",
+        "83c409963da7756adddfc1b4bdc5147162867dc5c2897838034af3744b13e474"
+      ]
+    },
+    {
+      "height": 1505,
+      "hash": "c9222986ebbf8821cebba22d3f3da2074182b410fb86c06b727883867cbbb7a7",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "a39dbd0651364f7916c7cd6bae5711e3d2d22deec9e3190b2924b6d22f018f93",
+        "df946dc3f5c5bfa1dd6d33eca4b5b2f1b18c411c28368c13757e4bb8dd85cf33"
+      ]
+    },
+    {
+      "height": 1506,
+      "hash": "b10da117d48fe1c87be96ef913b82cfacd8fb9f95b1d7afda3845edb958749a6",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "77d7b9214529c3167eda9bcc3a94f41cd47f376c463f66f8248a9a933a149ca7",
+        "c69879cbccfa52a64c23210cba0eca883709ec6bbdf4619ee13cbaa3ebc555a4"
+      ]
+    },
+    {
+      "height": 1507,
+      "hash": "ae3dff4c68b3f187d72e1c8ba7ea6a96defa3c98c9162c85aa9ebb9afbb49809",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f56623032db33005188990c64d6449439d69a1639390f9f46eee34c5d6c1c99c",
+        "563ad95091e3c81ce17047c74250ce57a3b7f0b16c654f25eba1fa159c025ea0"
+      ]
+    },
+    {
+      "height": 1508,
+      "hash": "10101bef3269f2056ec2d2ede002033f0033a983c78a6b1ad53bff7024faddb1",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "79483103a00d6f564b43f06e465115acac1360176999ddce00b31bb16fc38666",
+        "7f95c001f0cab87e1a38f42f8758e348c1b62141c0275ba99fa6b6d3e6045947"
+      ]
+    },
+    {
+      "height": 1509,
+      "hash": "c73b4decf02d261166d486a5c06e82881d45b9ace2825797e34386b1fbb1656e",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "77d5f468b56c8f57d8c198271f5a385f404d0b773388c746896f0e1aaf8a3724",
+        "1cd3bb14bcebe580c42601b708b2ad086ab749ed0276a52939d1503c58b90b7c"
+      ]
+    },
+    {
+      "height": 1510,
+      "hash": "f9d9c9bc4fc2ddca0e89b5f646d98d22d4e5fc3c89eaaefb7128003ab6e43c55",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "1e2f1ff5d8dc566eb547d78bb14e201523fe8e4e7fa41cf8f772ef976cbf572d",
+        "c8167d3161df37f934b443904697ab96bb9833d3458fec95f8809018e41d30aa"
+      ]
+    },
+    {
+      "height": 1511,
+      "hash": "b6e8398fcff6ac7287766deb07ae3845ec2620eb49a74d2ab0352a252eb4bc9a",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "e2c3182f21e74a69e3ca69ff6726d4c1713c1bac56a1e47a0e31de9a8002c8a4",
+        "062915b5407adf9bc0bffe05a463fe68a410c2c40de9de1b8dc597f1bcd3dcf9"
+      ]
+    },
+    {
+      "height": 1512,
+      "hash": "b5ca7aadc1a61ab4fd0810d26185d53c2781243142a125a90658d0cb2b443fe9",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f73238b486d40d17acc7200e245df9587a08f2d28dd6af6680435cb577374297",
+        "d40fa193e3554554dcc8d14a1c5e15df1b4ecd040f92517853e391e7d01deaa4"
+      ]
+    },
+    {
+      "height": 1513,
+      "hash": "0c4aa3dd2494a44be14b1a1caa030ee761d00107731f51cc02882c3a3bec765c",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "98fe7687bcf8e3b74c3e83167d32df1a4c358ba98164893e0333796c027d241b",
+        "a18dae64fd7c666f587a8cf3f3250abc55c8bd5c93c06aa4d290018195b7d9c5"
+      ]
+    },
+    {
+      "height": 1514,
+      "hash": "254e33a82a58488fde4d9f36b149e356dff32782955f666a71b606fe4b33529e",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d8b762340f2450d6da0df078dc024e3040535a203ec620dbc88b94523732df29",
+        "07f3cb757aa1eef9ffc3f2233d5a0b90befd16d41dcaaffe9e6fa96df418aff4"
+      ]
+    },
+    {
+      "height": 1515,
+      "hash": "2160339a3f1eed8813608479509c3f41ab489c44f74876345ab367a74383b997",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f9e598d31b5c2f7d68a3b7c09173af64ae9f2c6d8dc629189520580c94e347d9",
+        "ccdabacafcef8b9238d0cc273938d08ce1a97baf4b428d84841a735a9f668d14"
+      ]
+    },
+    {
+      "height": 1516,
+      "hash": "808d192fca86a87c1774007705a79de474739686e19cc7bba0fa41d87452b759",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "04143ca72a49cd1085afb67dd5486f556d704c51fa068011123575e232ba7869",
+        "dc311f8cdb8a80086e94b3387ced1c0a6b3216781b4e18f1ec6d25f7dfd29d6d"
+      ]
+    },
+    {
+      "height": 1517,
+      "hash": "d1d0f31f02230ee398916e37335bd9e41ac49aed935c1f6a4aae135c9850e08a",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "3971962fb05163543bf3eb3ca43bd20be3887fb35a056393b3568b2783d975bf",
+        "4bd9ca093f1a0bdbdc0f4d564499c255679d440def971087c4e0a1c0d9c53569"
+      ]
+    },
+    {
+      "height": 1518,
+      "hash": "a559267075ae8e5f5e937d9cd6b378c1169b133e2d58f075621a98dad5b9e449",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "fba4297d9d104d7e52db78c3ada7ad22ba78c0094d9d43968b6741c332c894d0",
+        "d676a493e29e21fc132ccb0c5f363804493bb9e984cabba893efe30771d5c05a"
+      ]
+    },
+    {
+      "height": 1519,
+      "hash": "3472af40043b6b13a4abb992514d5173f339fb4faf0d02ff4b186d4aae5557ab",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f6fea010642519a267d2b70b7dd4a539294a5a9f9afb0fbc7bfe8d6bf8b88471",
+        "f0896334f62f92ca7040e49872bfffb6ed6f7bc89b2907c18f607aa433ecec68"
+      ]
+    },
+    {
+      "height": 1520,
+      "hash": "e7720220ac6cfa014cbabf534dfd8a9efa2f5391d7e3cc144f19599b443bc95b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "9fd03e36d503b7111586b8eab7e98ce3fc17deebfdbd235d95693d1a4663df10",
+        "c9a8938651ea78e01453fefbf1c6710c6af1d5769d828d3e496fd33f6d5c97e7"
+      ]
+    },
+    {
+      "height": 1521,
+      "hash": "4e53c43f49608ccd2a842b8ecbd9db2c588bd5955c61629303f16a7a05d02086",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "eaf6e4269211312fd6618bef9baa6565596145e9d648a40c2da3a516cdb0aee9",
+        "0e81e408213d9a762f15d0b5304a5999bb7d4c425cfe64bfc717629ab6136bf2"
+      ]
+    },
+    {
+      "height": 1522,
+      "hash": "e55dc8092c75a1677977551e32be543ae435ce3f0fdd3f04668bc68b89e7fb68",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "6e170ec7c0a5e16ea9f570fe319a64fd0543f362d6bba299a8660b12a2ee8190",
+        "ef2c4fb9851464f2226d19e1801da869c7eb88fb633090c7c904d6e08156c2d8"
+      ]
+    },
+    {
+      "height": 1523,
+      "hash": "8411672857fb9d2abaabf5b5d0be99a7b8724444aaa0b0cce478717afa107550",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d5cc17e8b1c8274d3dcd6dcee7c376036f17f18915ce64193adb65fbef75030a",
+        "faa1056238594f3a074b63ba69f092ab6500176e8cb205d6f52f60584005636a"
+      ]
+    },
+    {
+      "height": 1524,
+      "hash": "735a7fd6d3673d2f5607f42671e64cc1366d1c23e45a5836b7f5f98b9f548452",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5a015df5685f3e5b312bd13d85405fb2a02e163d7640731370c6b33b57b97d23",
+        "cb2ad329912f9af7af6cdb06112032d2455adbfbc8e312aeae7d5e5e158d7b5f"
+      ]
+    },
+    {
+      "height": 1525,
+      "hash": "f16e1706bf2d0368162fe1abcba0f96b9ca283632d5091013d86fb14135a974b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "0d47fccb097c5841c4cfdb2242ddb2e4e56eef5390bfaae49d202933491f790b",
+        "caa3dbc0aabda293394db464080acc8bdfe79f6f2aefea91ffbb3b5844e19697"
+      ]
+    },
+    {
+      "height": 1526,
+      "hash": "3e8763ad6a60941d165c025dbf73273796ac9c4e8476c5789cabe3361807690c",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "ce94ac57658e449233e29b700db905d30850b6ed9b204742d08f0bef6ee1d0c9",
+        "92f7b5ec3a46400e4a0ee8eaa4467f4ac871e89874af65feffebcce1f5401116"
+      ]
+    },
+    {
+      "height": 1527,
+      "hash": "4e3e32af21c3af37e527683ccdb16ec4eb7f6f7f8486806573755a68d3cf7e50",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "8ee06457a2ce0f69ba85d0b30786efa65230b2e6286a3e4527e328c21a5ee540",
+        "b2ad03a4176144e68992b2411da9763f983ecdb030efd553f1bc7517d3605817"
+      ]
+    },
+    {
+      "height": 1528,
+      "hash": "3f4b71f34d6825576b7c0ebac6ee9116003799b27b826105d2aee3be18e4d607",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "be726c40f8abbad7b3605fb10657ae5fb350cf232b76d22495a0e37a1a0d513f",
+        "e8d5e1ed721687f59c936eac17218095dba8017fc57473371d1ec47fc843ff72"
+      ]
+    },
+    {
+      "height": 1529,
+      "hash": "e22cdf73d891350121d9901a6ff34d8c060c7775eaf17e2ddeeee9a26f4320aa",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "c8f3a62ad665f591e077b98ccc7fe0c8508ff1169da2247abf98e7dbe3aa1640",
+        "1a18352e0994b629e842a772948fe964349fdb2ffb53665a141a737647f85043"
+      ]
+    },
+    {
+      "height": 1530,
+      "hash": "079c6b1547af255551bfba3e75780e3d2952bc2afd5feca0bd828ac4903c8b78",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "83cab8c7cd0f5c450939d7ce4fef44bebbe7755950691ed0cbc359f67cd25d5b",
+        "8a74b9fbae49ad25990eb1de44cf99e787513a87b9a8869398d2fae2b8d503ae"
+      ]
+    },
+    {
+      "height": 1531,
+      "hash": "4518172c367771fc12fe25f7bb0eceab100efd95471e5222998b1166a11364f1",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "2adee1e0c478b315e2f87d993df85d431ef6cb20c5431cc1e1f9e036a2e7f8ea",
+        "49def147dc5d481d09ec17c8d8c6089f81e333b6c33b7d9858f33581d766dce8"
+      ]
+    },
+    {
+      "height": 1532,
+      "hash": "89a4d0f8ffbf8dfda8a6deab1e1a2af97343c32f3bfd6801248abd69c48a0bda",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "27e13cbfde4aec9ce9fb694d108570fd2899592f3a153db8ede6a296be20d163",
+        "7e79104e0e622e056d20dc09d08986912570329c1ed50177c790572460530907"
+      ]
+    },
+    {
+      "height": 1533,
+      "hash": "ae038cb68e7a29eb10107cfdb948daf514b408cbeb53471a6461abb5107c47c1",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "a85749ca7c2cd26b48878e21a98d1407f369fa7cd3fa3727a38327a39c42f0ff",
+        "9faba99325b814bd54c9fae290b7306a306d8f9d413e7c70c8078e8177838713"
+      ]
+    },
+    {
+      "height": 1534,
+      "hash": "45bb0d673bb414125ea9e0c178a95cdb4a67e19b8c8248e3f10928953e9cb75d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "2edb6900614c394deb5efeddfd18f7b6d53eb61f9401d8781ea00a6d1eb72160",
+        "ad07447d6f1f14023768f99369622b3a54e23507db0b0b294badc79318d39e4a"
+      ]
+    },
+    {
+      "height": 1535,
+      "hash": "f2cd53547a673bbb82caee228de74bae08c429c0d490e08ca2ee9ebb818e7144",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "dd61056cc2459ed1d4061a7216f6ca61e32129be68081af96427e65e293e125a",
+        "d29974526c46a601ad4b8664a7c44955d11f717a085550a089161cc47fcaa28c"
+      ]
+    },
+    {
+      "height": 1536,
+      "hash": "dc4282643e51e41cec43d3fc2b8df90a809df0eb3e2f941e5fed77113b6851a8",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "8c6802ae8edcb57be54094c47ca187045e0422f6990225ee5000edc49b3283b1",
+        "7eecdefab8cce369f46f6c9d9a424020e8b819c6f18a954fb3ddcf89f7e99bc0"
+      ]
+    },
+    {
+      "height": 1537,
+      "hash": "0354f9cb3a09ba2a99bf4cc2562f279c37284e593a9e7dd5022d42abacbef455",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "be94de89eaeec14e06bda7cd09cde04e0032d5e2002f64d43f8ee333d700eef8",
+        "4f3797c50e2d6f9c123f6b9ec70ea03da2d4fa379cc588e34426b96ffd780398"
+      ]
+    },
+    {
+      "height": 1538,
+      "hash": "8deb240b64946b22b00d99a489e33de40aeacef89496e61da46512793852f433",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "c81968ad48849b1aebccc164df51efcd64b812d04c38733a9c1a254239c4104d",
+        "cacbb87c0cf987349a29e76721bfed497725070692cae971e5a43e71e96b2ad2"
+      ]
+    },
+    {
+      "height": 1539,
+      "hash": "1815fb2049ea831dcbf62a1c921bcf525262c868a23a9566fd243d6714ac510d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b9d82f3019b2762aff8677ff38e3787889baa01507456337300949f45b5a1cbb",
+        "d44bd16f3b4f8ba4c5dc556888eab7eb2f2b3c3f0496500287a40b276db4da77"
+      ]
+    },
+    {
+      "height": 1540,
+      "hash": "132872d324d4726eba652abcc1d6b865705138a055812852a2eb1316a2de2c10",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d7e4e8c7077d8a243b2707a6f3aa125c7ed8f54a5049a60bb3389eeeeac5e1de",
+        "7e6c0f550055afea35a0e724e720ce5bd10817f315e2dec3e6854db5a75db298"
+      ]
+    },
+    {
+      "height": 1541,
+      "hash": "ec0818369bfc2ecaab6d07e543104d2c6584ac0e0f2ed92d71d95b71c93b4f68",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "278d9fcd5d8d2a6a19eb5cda096220547b3322012d51ba0f61f1f653d498e537",
+        "b2a3de062f68190bf4602ba9e7e8495bdc34b5593bc99ca6705ceb7cada5493d"
+      ]
+    },
+    {
+      "height": 1542,
+      "hash": "eb80769607c5e6354c6bf1d192c65c0ee178c6f64092376b630ed8c09f78040f",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "0c93a8f56c6b2a5f15b47a84a853261887567a25a0e5551fc45022588f62ad68",
+        "3b0e894893c8ee8e0490372d5f90da88b5cc491b53fecbdf58c169d700ef9620"
+      ]
+    },
+    {
+      "height": 1543,
+      "hash": "712f1588bb18a5d51d6bb6d208ec54ad3b0c8e5ea1f19454b2e5b064f681d143",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f3132f71db02f43081d70a1af404a670cd5a2d5cc365c8c8959161ce14c20b13",
+        "6d9130126b8bdd7eda3e38f89522ccdcf562b9257932f442bdd4f98603d626b8"
+      ]
+    },
+    {
+      "height": 1544,
+      "hash": "a289429db75e1cf8dbb59707ccdaaf90dcb258ce4dd7d43613d6bef64e17eec9",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "a48710e559c09f9719fab944b70cab3934bddf793c0870afe7146152d1d4db6b",
+        "8038fc17d06e2b4d94010f0e25542744fcd99f6eaf043079ca7ab4320975703e"
+      ]
+    },
+    {
+      "height": 1545,
+      "hash": "5cde14dbef4a88cc20c27e69fdfcea2a995826bf3aeddd97117e986d56be3771",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "1e58ea847c525ff5a71e0d6ffc2d9be482bc1ed3423be767635f5f5c2506da0d",
+        "1a6f1b63b1def151a63108d1d750d819ca29c724c4c282ac49215ecfdb6f8614"
+      ]
+    },
+    {
+      "height": 1546,
+      "hash": "625a87f4b9390b20ce3bb179126ee6a2f8d2b7816d49330ee338e7ca21423008",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d0d3afe4124015f4e4b17187394f2a780f8dd712fe18b2dd1be78a989ff7b866",
+        "67737a6bd2c0b05007fd729e4ca5ded283651af02ac91e3b72c4e89099b1d132"
+      ]
+    },
+    {
+      "height": 1547,
+      "hash": "fd22e6e8ccd9531db20e01ed0dca241f2a4f321fc9bca8aa4d383da9c3580bd9",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "557acee2cb1d1261bdfbf6c7ce8f4bf619eee97cb81f2420a8b5ce727362f403",
+        "8d59c5cb3193916123121dc55f454f1e2df224558d02625cc15eb0c1f5141f40"
+      ]
+    },
+    {
+      "height": 1548,
+      "hash": "861d41210e912e4fa3579614a9728df525daeacb59be9f5080e395c2d5e28c21",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b85984e83b790b0dee0ef04d3427e9887cc6f3e36aec6af826e38df7381764a7",
+        "8c1e6481c052a2164acbeaf403fc3c897bb62d5a2d7bc89266cc3c13c3ac2b66"
+      ]
+    },
+    {
+      "height": 1549,
+      "hash": "03c1998802adf8fafa8842706e4454da09903370d34998e0f97535bf7cab6e5d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "0f82bd1fd3edc8fa1ea1b4bf760aa539613fd4814a7749fce836bd2359b1d044",
+        "a013d19de9d00f0a8fb6fd1595a428a6c31701fe49a5b92a5723ae54c3c6ef37"
+      ]
+    },
+    {
+      "height": 1550,
+      "hash": "8a14b31be059ed8f6a43fdffe53f2ceb31c1b8cd07f8866469868df7f928ca44",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "cc1a8ff4aa760a77955b8f10855fa3725c9f2e3da5804d905b8fea1fec3e4094",
+        "a2de71c66b7927a8990cbb21ff43f1d51dfc94b471aedadd2f3bfab49f8f235c"
+      ]
+    },
+    {
+      "height": 1551,
+      "hash": "1f5d424ce84e051a0113276b7fe31deb784110c5e900817a5f447a74719e1474",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "2eeb31c37c4ed98c4c618312e6b90527cb384d1266d34f1f6f23a626be0fd126",
+        "a32b71e2129a43adbbaa4a414a565e420528e2e4e4c6049982f70603f08858b3"
+      ]
+    },
+    {
+      "height": 1552,
+      "hash": "5c7c164ec91d1705e82fa371b592ff6b5df956919ba36f4e07416ed3ed283162",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b8173c735fbd3bc6d3ec3841e71146dacd362d1beed989905b3e56804f597fd4",
+        "a864f482c07e540dafb014eeea4eccc433082554901ecca26813ebc23ecfa88f"
+      ]
+    },
+    {
+      "height": 1553,
+      "hash": "98369d78d73945af345ba213b708f65afc6a75403e986e3617f40762764421f3",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b46f2d72c38e441793506d23ee1d5de553281f1f4d5c8049d1a0fd9a9baba9aa",
+        "e00ba30f8b9215db723d98f6fb2fa4b22009ea910b6bf12ce7ea2fceef968bd4"
+      ]
+    },
+    {
+      "height": 1554,
+      "hash": "8d14fcc7c00b9dafa57ff9738e64ed50bec0a254d54795168fa836cb5ff74879",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5a538bc1bf14a4247b0d454aed1e500a240bf57939d089b7b1bc0af7eb3aa9ec",
+        "c7d5467050d9bac1801439fa9e82d10eee0bedc17a94385adf27bbc530528bc6"
+      ]
+    },
+    {
+      "height": 1555,
+      "hash": "1ba3828cf93b5253908c1db070e1e3164dbd80f720d390be02650401a20e7e0e",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "c0bfb6461bfe3325016689ec1e3ca5fe4a85ad5b7a564da4d43a26930123665d",
+        "1ee0bc19b53b3721cd6be000615386aeb9abbb6c9839847d8705ab808937930c"
+      ]
+    },
+    {
+      "height": 1556,
+      "hash": "ae4ae33da5a29f0b0933c849c70ec92812df1139f8d1284b2e083063f1049552",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f1e3d32cb99fc490c04588b4b05a2c142fbc8de308d00ff68fe0bd66ef3fb680",
+        "c3489c99d1d4d3d4fa1ef8c0a7baec69294c4eb0df0a40a3a49fad11cb0a869c"
+      ]
+    },
+    {
+      "height": 1557,
+      "hash": "12add7f7f22de3e7533782f20846fbe372345fdf8a864ebb8896d234315a649d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "c1d71db3468f7fc9f5119ea7af0ff02051a42fb107803a1f4dccc2d48310d2b1",
+        "56ee61f7cb3e14bc5887ba7bf8c1ce03fbb70c5c16693cd5c2e77ef550c25bef"
+      ]
+    },
+    {
+      "height": 1558,
+      "hash": "b78b1a58137a8471e8ea05ecc0eabfe070dc5baacf017aa0a427cbcc907f3085",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "53d91bc2b4f221685ea1ce1bf1e58fc7494bc4779163a866099924d3356c8f6a",
+        "2bc785225d625e1387cc94906e4031a3756b4c3f61dadfa1a7a688c2ab1205fb"
+      ]
+    },
+    {
+      "height": 1559,
+      "hash": "463b782001dd4ca292ce100726b304d5b23cb0192b74cd2f8d4488559af67fcb",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "3323cdabc88f837ccf780142308e8d6f963c17fc6c6cc8d54f60027a470bae54",
+        "ef221f7ed3c4b03570c9decb5eb1caf4e4556c3c89fcb639c7f8d920eb6a1f76"
+      ]
+    },
+    {
+      "height": 1560,
+      "hash": "d7ae90c6954eed46e84eb79033212260768c9716046a85a4be588234566ecee6",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "05b72118826b46a4c7abbc38b0da8ba1e256be2a9b04af5d7dd8fb65b475c042",
+        "d5b498a815c45f3bc5699d4073f3ea517af1c18e103a08bdb4019d49456bcc6d"
+      ]
+    },
+    {
+      "height": 1561,
+      "hash": "27d9eeb06651432e95837473b739dbc6f1165289810ae9e51e55bfce168757d5",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5ed9f7b9f4d2608501babe55872fe743960624cc19f7e2ac31b12dcafe4fee9b",
+        "469a68186611f76e24ecbb708d3b12c5f4485847dd90770c3d5b4d51851ccc8b"
+      ]
+    },
+    {
+      "height": 1562,
+      "hash": "435cd92e4fc133745a94de782d2e1e5591646ce1ac45052e6e1812c8e5632005",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "22004ec91356e7aed0a2f3d7abf3bb4c1362f61d14a8e6de8952e87136a6e5b5",
+        "c87b6f3d93a3b1865cb0f19a23df5d0b2055ad9bdd100e193a62c7631b5a2c03"
+      ]
+    },
+    {
+      "height": 1563,
+      "hash": "92e5044ef36b403b252a80db53f67d7e9c7606647fabbac62f938ca9bb43bbd7",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "e1a61ffcb29de2728b6c6ffd44ed416d72bce83a351cb7c9c77f7fd71c292f20",
+        "dc07ab802feaf48c0be7224b54585368248026cedfee6bb5b540e740f4c73967"
+      ]
+    },
+    {
+      "height": 1564,
+      "hash": "c9a31f5d740201ab19cc722bf548b33aa260e52c505e5d34ee868b0c6c7b49ef",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "32ae66fbf08bb3f8a69d37b4e16ec1aa184876db0e68a41f6073b07145ca727d",
+        "eae191bfd5c465b8b9549276090adb5e72d3ff9ca64985a356a95cc8b5f77e62"
+      ]
+    },
+    {
+      "height": 1565,
+      "hash": "bd0c49b2a9ae60a6d7525043f29643755a9c9b0bca98d6a5517899d15f0f052d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "2aeaa07dd7b56054d8712c5262b09f44d671f7a106dc6ad8fdac7a89ef447cad",
+        "a6f00273007f449428a2355301d11230d5b7f3d68e445eb562ab85f9c8b5a273"
+      ]
+    },
+    {
+      "height": 1566,
+      "hash": "9fb5c8007939860e4e00990ac6b6d3b15764bfaaa723bcc765c59b25813bf546",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5de80b25f5e6ff9ff04365fb6b76b3bab90238dbaca5e8d99c666ee382cbc606",
+        "ed3b836543f72f7b5552cc57dbac71dca066d1742594148632f7f4e3cf98b525"
+      ]
+    },
+    {
+      "height": 1567,
+      "hash": "18b63d590f6680c3b21f37b922894eb1e022fb2d9a65fead6387258afc5ca7ea",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "db82678cc3e45e26f2b6fb001e2ff9bb44efa664ea0737677ad20b3288d7b589",
+        "3c2d589831d26ea7d43f67f4c4a1ac8233ca42cda654586f7247cf670bd55fd7"
+      ]
+    },
+    {
+      "height": 1568,
+      "hash": "7d9f0fdd2cdd08ae2e8ab242f48232de9820fea4f029f2b8f1fa3c4832f23294",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "54aec48cf40c73ca795afa4c88337dea42b3011250ba63a07dc0867245210095",
+        "22051f6e284207f23e7072ed758d96ba13c401902fb7647f7eace3aba73d1bfd"
+      ]
+    },
+    {
+      "height": 1569,
+      "hash": "128c31913c19ff1f1fd4a75a2078398fdcafc2a03aadda0cd38ab9abc0270f82",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "395d539016c631eab167708f4561db7a8dff3767f3b4c7ea0da2cede9c9ba778",
+        "19dc0a241fc045e46da3206ce1772f58d29b13c18a6f48668d98478f3c4eb4fe"
+      ]
+    },
+    {
+      "height": 1570,
+      "hash": "6859f201b1b0b1d4d175e1e5aa3a57e9b510d396f6582f29299ac04f6b36c366",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "6f78a1bf93a24d939ffd205a7db246ed78ef88fc03a6d5ba42c8f7ad638a2da6",
+        "59e672e7cf0cf4b652d19ef0289ea4aa3396b00b91c5b0949eacc469425fd11f"
+      ]
+    },
+    {
+      "height": 1571,
+      "hash": "8aa0baf58df30c0fcfd0d1773f89add2055bf6c0db046d7097f35dd3143a7789",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "fde2133755b79b4a0ac5e957df83efdecefbeff96c705d7ffd407747ba848c93",
+        "200b6fc210d539a29c37323e847d310a8555495f11cf442a8914f5e0ac7fb2a8"
+      ]
+    },
+    {
+      "height": 1572,
+      "hash": "238cf85aae294461e499c5b800a5803b3014479318a8e611aec320096538860f",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "80da51d5f29d0d30503f74611f002d11d6c21c0b65ab0fc12c2493e6f7065f94",
+        "0e98fccc76d029d28de4d41bb43fb8359f47e03efd5e96a61eca66a36ea3749f"
+      ]
+    },
+    {
+      "height": 1573,
+      "hash": "a069a2829eac607e553c7a443ce76e470963f26a7c45d6a34555c6c6a4bbccc4",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "48b2bf8f0e195a97728a495d969e0031aece0c6afe1d9490f5401948387b0444",
+        "2caf1eb1962ccb8592bc64379cbf8269e2bbc0e00abb2c9651d46a7eb6629014"
+      ]
+    },
+    {
+      "height": 1574,
+      "hash": "e525bed8d6015443da01bf0731ee7346c5e021df922efce06a319b1c87dcfd23",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "776d6dcda02b78a0510152d247a921bb64152dcf7b653924c26a2b4fdf39862b",
+        "dfa54f5c52d93e2255f25b18698ed85f8a26180e84c315954bf91927aa38c76b"
+      ]
+    },
+    {
+      "height": 1575,
+      "hash": "262e615ecce1b0828bd3ffa6bfd8e69fe675f1aed53473c2b06ec3cfc98bf93e",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "3fb671d2f0d2df68f189261a9eb5c7e77e11fafa8cfdd418cf9c123ffe6d0c14",
+        "abfd08d67ff4f8b589cc3e3f7ead297da86d3b9a5a01aa2f63733f445ea56777"
+      ]
+    },
+    {
+      "height": 1576,
+      "hash": "7ac151c4d894f5cd259b936d351b746c639563378f2710b5d888456d1b12056a",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "cce24b1e8818d9890b556f70c4b0f85ef24a1ba44c059af78453f6be261d2005",
+        "443d382783271fdc071813bde1a4486ff67bfeac2cf5819fd53a58a3363585e2"
+      ]
+    },
+    {
+      "height": 1577,
+      "hash": "c64619c4d5518e051db3ac35aed7566a0bc68050e8752e2e6ce71efc10efee4e",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "627407dc4cf69e04540ed6f9073dcbb3f67c7f81603417d887a28060917c6ded",
+        "cfdc4509f88fee689fcbe892349e16bfafa20e5025f46c23aa5f21e580c4269e"
+      ]
+    },
+    {
+      "height": 1578,
+      "hash": "2b477106247565ffc43de66de35a54e74b5ebe01c1134a0c01ecf844789cd904",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f68d04ea2db920ee114a2b41bccdffaf2a5663f88115e25dc99a94b635b587a3",
+        "22816d15ea4d809c4901855c9fbbe3a00657196a031f9e008f496be8e19e196d"
+      ]
+    },
+    {
+      "height": 1579,
+      "hash": "9c1470ca5f03aada3b5c40450acb5a657c33503b6f6f8d4acf35b3d3b22a062b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "fdc5ed761b4ed4a2fd893cdd3912ea4376eed8c3bcf0d5e084f7fdcca0c21f52",
+        "a4b9a99798644ece919f1c470b171c2017d052cad2abb6778f8db20b51aa6b4f"
+      ]
+    },
+    {
+      "height": 1580,
+      "hash": "42f5faca813a2c7a9e1aceec6e8222839cbf669a050f0758254ccd71f5b07dc9",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "f5f82dd4ae299b0cc871623f32a73496c952fb76932eafd74484f86a1c77fce7",
+        "6ddb2f5143272d14877fa393d1513e139a3f315be2540286b2fa20cbb613a3a9"
+      ]
+    },
+    {
+      "height": 1581,
+      "hash": "e0ea7deea7eb9bd907568b366d167e05cbb754f62b52375abe50fdebf9b48fe0",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "38234f6686f0cd35af161360beeef9e9299d281590a9dc9dbb5e275353317d51",
+        "09fe8899e9e81ef58c92f0ef68a779ce42d41f4a0e90bd200ec8c567724dda99"
+      ]
+    },
+    {
+      "height": 1582,
+      "hash": "b6d5071187b036dcd0a7f687165cbdf1501b2d206598a7acca84a609b9e13bb2",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "410ac79284858707a911798a783b384878481a71c5baf4f70889e45d83889ea3",
+        "6057ec1a451734e35049e2e69ec8e802d7635a709a550f460d2572247a5a1236"
+      ]
+    },
+    {
+      "height": 1583,
+      "hash": "f37b54a31d13eb0356b9d79f75cc2ee22e0c8a6376a3a38c55b7d464fbe35ce5",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d999124f497b84fc4a77a39e782dc0827b0030bc5eb36a84f05a6aacf025bafc",
+        "113c0bce4be7ba5517f1cdb96cba6e4855ca2bb0a5c5e879faccee9da57c76ec"
+      ]
+    },
+    {
+      "height": 1584,
+      "hash": "21408742db09a923e6738054384ac2ba368c3efda0a5d04dca37b2ba826e8f42",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5edd96470af542f95675b483b093b8d32585b00d7ba5bb125da441737097b8f2",
+        "ba75e0e85d85148f389cfe999cfc60601f3e09314da59a8a1ef2bec42af0f55e"
+      ]
+    },
+    {
+      "height": 1585,
+      "hash": "e843d9e7557d140a2074b44f30b1ef70460c12c04409d36cf416dc2e49329384",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "39a8856ca2f9333d44d79c1e1c5d0256651e245ea14d80ee7a643630481b1048",
+        "58f9ecf1bfc098f1303d55f9cddd967f05fd3811add63166cfc9142e8ccab51f"
+      ]
+    },
+    {
+      "height": 1586,
+      "hash": "66cbdf5bc87e73a3c2e0d2b1e43ef32c47b6e41b1e724e9b32603714432faa6c",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "e88a947bb97337ed619e73367f1eccce83f1e6159fbe8204383abaffcce60c99",
+        "aa9a5c76a0b205a7b546cfc3a228f2bf77b3669a46e202319404bbf9c51555d5"
+      ]
+    },
+    {
+      "height": 1587,
+      "hash": "d645e3ab0feab46861779208d960fad9e7ce68e10aaca92e5b21a53a0114e4d4",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "1907bc9395e0cb2b50d8707537e79c4ea8773698a566d0358eb137a5a02e3bd7",
+        "6236016b6d2dc1097bf5fc49d00ab8ccc165d6e469d58e52c766a0afc2eefeab"
+      ]
+    },
+    {
+      "height": 1588,
+      "hash": "87337fa01b2cc4605a423473dbed4184e8b0bb72048a69351f705244e2439373",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "edc7652634db55d27b342d83f27176affe21838a51207d37b59a8598a2d2b617",
+        "e7aa12cb04ee4901c536f56e751ad878cbf5c4f9a376cfe9e3e3a21c38fb8339"
+      ]
+    },
+    {
+      "height": 1589,
+      "hash": "da2145b1ff641f039a8c2a226e116c0cb3861d9398db0cb867047ef159b9c1bd",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "37e250e17ea311023db644c3b86e7b06ab4af3b6506a4c287c972e85e7337f70",
+        "b251e99488d3cf28afd84d60c0898e0612ddadbc8dfde1856a2d4d48f12875d4"
+      ]
+    },
+    {
+      "height": 1590,
+      "hash": "4bfc9bb87529be89e7956d73a4305f33dfa177e39c50fe87836391be0f88bfc7",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b2180b5cddbb692f7c482dbbecddb021710d19e16add0e902370509ecb69292e",
+        "49d281abe6effc68f8bc7e674c027b1b492fe6633fdcd680f030d1f507966295"
+      ]
+    },
+    {
+      "height": 1591,
+      "hash": "47b7a7d243ad31ef044e2f084a266a6884a49f139e90a6784f71934699b76377",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "e087cb02fc5471b2ba72c86ac9e7fa49267d9efb6327d34451e37ec9d10029a7",
+        "2d0e8b018879341adb952117ac11ce7c561dcda196e653da01118ecbde446d33"
+      ]
+    },
+    {
+      "height": 1592,
+      "hash": "cc56389cfa1a9fadcfd5af7cfe96d119819f2886e2518bbf2aeffb3c60c58fc6",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "54048919ea5123b462584a2e23a44d062c86b9f48191dfe5e437af56cbc7cbed",
+        "a765b7e9540558c9f6342b05de293cac7634c012e955621874b908948690cd62"
+      ]
+    },
+    {
+      "height": 1593,
+      "hash": "dbcbe6f37264746dc790ecc603330c0585a01d56d4296f2b13751cd450c881fb",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "343aee4f0b930883d278e99a0d85a9169e8630e1f9013e03c2fb18c76b03b56f",
+        "6d998de4ee7fcd862566eb389f880bc71caeeab1cf887425bb36c2d93e39d61a"
+      ]
+    },
+    {
+      "height": 1594,
+      "hash": "c59873335e389863ce0d376f9e699f30dfd299f5978159e8ec6e9ef2fcebde38",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "b586d22d777ea8ab5f5c55fefffce143f5386f01cfc31399b31abd4ee732c816",
+        "16757981b5b1add002a71ebdcacefd318c4d77a84cffc99646e5c3e58e873147"
+      ]
+    },
+    {
+      "height": 1595,
+      "hash": "7bc99e09f68588e048cbb2ac7a3d49916df663d8d86cbb8f350cce843fe95261",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "ee1212af4324b80b0d44478d8cfc43c6e6bf13d9ae7ce97097dbae6b41606db1",
+        "50788afec670b9f3ee57facec38942a11bafef17975139880cde161b89bf3a79"
+      ]
+    },
+    {
+      "height": 1596,
+      "hash": "98a68535117caf4ac334ad9d4234b94a07d563c2fcf5d165214204323af96e0f",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "87c48204cbf603ab58122eca3e4bda0c2b7dc947aa84c660def2a9af2c7db968",
+        "1abc6ae731c3edfd4a1cd357add2efd5647b635173fc2a4b645ee4ce28942b51"
+      ]
+    },
+    {
+      "height": 1597,
+      "hash": "4582c06713e7f8245c37c771727dcf537bf5496a84095658f0c0df9309d99305",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "45d7927d388c150f258231f594e2d07b5f75856584d036912c6ee26351e2a8c7",
+        "786941c854ab5982455ced2b37020fded63c3026b717f9a0603d3d77b070675b"
+      ]
+    },
+    {
+      "height": 1598,
+      "hash": "03c95c2f9e1c67a16fff11a1b63b41ed197f3666f7ce488566478a7e12437aab",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "bdba31765403aaa80367fafd0e0107069a809f9f62499906933b366145c3e839",
+        "29085a8ce0403004d9bd44a13773312e4a0d011beedb5a39fa6c0a9a7183d6b5"
+      ]
+    },
+    {
+      "height": 1599,
+      "hash": "83a43c770a719041d8a76360ae1cd0ce01ece4693873ffbefb177a9dfc72df08",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "673ad19cffe45e84c1339cb7bacec3be143d573d57686123b483ab99e9b89bcf",
+        "b21d7ecd6458e97d94d1bf2cc715d2b430246174473920ffd461655952027d3c"
+      ]
+    },
+    {
+      "height": 1600,
+      "hash": "c52e27640fb620502a85576e5b693d89ca2331eaeab905ef4c2d3996124f05d3",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "47f394a6904352e6e1bde502187f6c4af400a343d3438ecc3f1d8d3c05559527",
+        "5a96a9c3452a3de10ddb1e2ee6fc93bcfef90a93a6fcfdc8cfc20780333e87fe"
+      ]
+    },
+    {
+      "height": 1601,
+      "hash": "b6ada59a66948e74b9977f8d9fa856e3250c867a2cf25023cfde74a5119781d8",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "30aa85e902bbfa26209be40aaae898698ab547a7f0f9330db58d8c9b490265ec",
+        "a035bb7b6a3513ec7ff991372b6f7b5ce4d0a411f6cbfc1da8c948d7770b90ff"
+      ]
+    },
+    {
+      "height": 1602,
+      "hash": "f303613ca1264abf7ba5b0ec0e8e9cfd6ba75e16edc722ee1e311becc8272d50",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "2022bf827392e577e408fb8329e37be05008721e6ca357861211b4f54c758773",
+        "d04360bff769c4370524c0d6d98ff7814877fb5ec35edf0d0afea345f994c15b"
+      ]
+    },
+    {
+      "height": 1603,
+      "hash": "8732e4f2b3cd9641e870efbd3e415cee13ad7cfe65306f3a7e3dc9112ab6b3f2",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "65f77c4f64fcb6c55d08c651b75ea30530d2f2699dffd35f1268451e8e5d667b",
+        "9cc886e73e32cbad32260b67b27bddaa6f1a4a49ee0ff46694af214de871736b"
+      ]
+    },
+    {
+      "height": 1604,
+      "hash": "c78684d6bd791c9bb94beb20ea604c3441808322f9b9edde472e73c3d7cd6a98",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "74b44930bf2cd023efd58856256529b26a61f5bdf2da66fb1c7fce0cf78557d5",
+        "31fa84433004b4e5d266fb43b15afe6d7e7b65ba2fa75506028d695182a951c4"
+      ]
+    },
+    {
+      "height": 1605,
+      "hash": "5f91ca3630adaf68b63fef1e4f5c072aaba42b60607ddc62e46c80e6a478fc80",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "944fc450ce73aa9d2278dd0666d364419ca5f05d01fc4b9a363bdbb92599382a",
+        "52377b5d3f823a844e8c86f3666cb6dfb89aa972296111dfb6042cb14e348dee"
+      ]
+    },
+    {
+      "height": 1606,
+      "hash": "36cde1848c02718924d5ea8d8f71f63d4bc060a49b3272e29812975f37e742e1",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "3e6afb34ebb0951f0823e3b64d504bbd65f488db952e71a520ff6dbd76abd6d6",
+        "4e37be589fe08e959b9ce2a6ac82a2b0b02b1eb0520c5ea88df6927841d1443b"
+      ]
+    },
+    {
+      "height": 1607,
+      "hash": "ba97d84a1e5dace3b4c3ed576c64417aaf6f4eb4ade694a4b6513faa78dcad1b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "93818b39d315a6203874840daf66ded254ea3b87c277eda4d0c884b4ad41b101",
+        "338f5de13787fb21e0f1127b7dd5573bba2e65dbc32b75d4a25b0c681db2e246"
+      ]
+    },
+    {
+      "height": 1608,
+      "hash": "fa796d6f768afc0d1398448d57d6bf4260008d7045ff309a95f82bcf187aff42",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "5e4dc58481cdc47e7dbba3b0bf284fd0a5e4ee1eddfd30aaa11429747ab71d0c",
+        "5e8558fe5ef55363ce0a0344c737bbb1cb1e7c38e72c4f26775cefdb4172554f"
+      ]
+    },
+    {
+      "height": 1609,
+      "hash": "6797270a933c2afad953c6b1d747157f121b23e1ba1cda0628e279cc0da75c6d",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "fbddc6fbbc658a652c91dd9a64bb704c886299ea1c55df3235a01831b7e38fab",
+        "7eb29984127ae6fed28cb6464dc822d49d26dc3053ba5f9a5d7356e2ada9e5ed"
+      ]
+    },
+    {
+      "height": 1610,
+      "hash": "b9b652476e8a90bc687c3fbfdaf302dc4477ad75c58995b79852af7a18677e5a",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "49522c24cecac086fdd79857ac4db380ec9aaf0fc2866462ae9a2178e995e8b0",
+        "e251f9bcbf994f06f918ee085d7c1474b65b09bdc3d85e1c77d56243f8d22c30"
+      ]
+    },
+    {
+      "height": 1611,
+      "hash": "da2fc520702aeb068fc77ff87c9a3ed6c6e24b39d1ec4034be4f72d311e63737",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "67c10f4fe2d9fdf9d5fa89e0363402d19557415507d93876d8b592298a1cd2b9",
+        "f71a53a45282b5f35bc5f6ff07de7cf182887752631c0d6c9aa3c30e0f673f8d"
+      ]
+    },
+    {
+      "height": 1612,
+      "hash": "b2884e2924c183a566431c04134100c55960444593707b753b8b7075f68ef01c",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "a638bed22432e9085fa9ec9bc06fbb8b8fa2565018504e0666606248544b5edc",
+        "d9cdc4e792469ade7cabf154f60136969ab3361b8fadfd7d608bd21604221336"
+      ]
+    },
+    {
+      "height": 1613,
+      "hash": "e95032bbd3cd3ec2167d7b56542d8ba47f120d9bdb47cd8f73733c9110224549",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "09e3b8137695c074836b45801bf9e5cbc7ae123315ea9887c87b2d38b8fcc9a7",
+        "61569b16c71ca7dfd319ca5db7b4be48553c0fd563f16e8a7c99687eeb5af7f9"
+      ]
+    },
+    {
+      "height": 1614,
+      "hash": "fab96a9e35ffd7499f9b4ceb4094ab045311bd0cd5234e8ccb61015e6b213917",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "7175f8b557f0a8bbf2484e9086011a1a29e1a7cec38794fd72a3f99ada96cf32",
+        "9ebdf99f3257bbf0d642ee394546c6ace8052696267f4db056a35d3e0b7e783e"
+      ]
+    },
+    {
+      "height": 1615,
+      "hash": "9aa8dfd969227629b85498c8269a19741bac8cc5ab90c5aafeeaa7d6b3739ff8",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "d0c7fd95a5b80320d867212f515e5fb2ba51bdb26028483dfd8a18e4c7beb864",
+        "b69d68a8210ff93833dc34c81f53b083170b2a49c9f667cb16beb7ad41625fb5"
+      ]
+    },
+    {
+      "height": 1616,
+      "hash": "903bec44bd05fd6c16c0fb2c5e019c9be948ac6e13c7564069ac4dbe3c1d9c92",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "7866e0e577e76e649f706b39efef582c3e7b232f60375c5a3fa993ec1e7a0e64",
+        "d3c2556f6abe15444747dac9595b451bb58e47f156510dc12e9c92aa5822ef47"
+      ]
+    },
+    {
+      "height": 1617,
+      "hash": "1eae98484e3e95d284821fb7f577d249d567df4d0e9f20c8dbb35d4b771e0c1b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "58d5a9dc5a369a3df29e8218c76b510899c18f3514b9a0cb733ef25bfc77f27c",
+        "ebc828e751173942a794974d7fe192f1686abac4ddb7a02abfbcfed1f7537940"
+      ]
+    },
+    {
+      "height": 1618,
+      "hash": "8823d105f8a633fc4e6bc40e4c36580a1c2cb49a745a58bb0faff8c8a83da2aa",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "3ef669f72c3d3f404ecb844b6350cf2734f0bea481086426810e946403e6b876",
+        "437257918d61a3d1e9656efbd6b576cdc1ed34c077ae63b22408c434f68cd211"
+      ]
+    },
+    {
+      "height": 1619,
+      "hash": "974719135f0a1c0944c3ff888a3a0458fe729f6b073cab7658b8116be1331c4b",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "a9138a50d0762dbe5b2c84f9abe583c5bbb56972a02315d643ca1c12f58b5162",
+        "8c0e1360e3af128c3f088cc187cb35e9875bc54f9a4b89c734f6c2a6d96fed57"
+      ]
+    },
+    {
+      "height": 1620,
+      "hash": "b6a8937ab20ba74044916cf6c5a1400339cf5e32719652c7f12b443997563267",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "288ed6ce2ea51738e5b24e300ff5ef2da741c41afbb8ec585726cb95f5214532",
+        "a2c0bfcba0831bf846730af02b2914dd8b2b325602e78c5d779100a40de2402e"
+      ]
+    },
+    {
+      "height": 1621,
+      "hash": "66c07d10a6487e8704c61e5f5c1cb8b5504d927a0b03a32ebc022f0a142281de",
+      "convergence_root_set_size": 0,
+      "rigord_root_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "gbt_convergence_txids": [
+        "38b5036bcbea72ced09c7d95026733eb7ad480c4d67db54c2708760568f5df60"
+      ]
+    }
+  ]
+}

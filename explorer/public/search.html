@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Search</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      .muted { color: #666; font-size: 12px; }
+      a { margin-right: 12px; }
+      input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
+      .error { color: #b00020; margin-top: 12px; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+  </head>
+  <body>
+    <h1>Search</h1>
+    <div id="nav" class="muted"></div>
+    <p class="muted">Block hash, txid, or RIGOR bech32 address (trg1… / rg1…).</p>
+    <form id="form" method="get" action="/search">
+      <p>
+        <input id="q" name="q" placeholder="txid, block hash, or address" autocomplete="off" />
+        <button type="submit">Go</button>
+      </p>
+    </form>
+    <p id="error" class="error" hidden></p>
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        const el = document.getElementById('error');
+        el.textContent = err;
+        el.hidden = false;
+      }
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

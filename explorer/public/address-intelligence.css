@@ -1,0 +1,116 @@
+.address-page {
+  max-width: 1100px;
+}
+
+.address-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fafafa;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+
+.address-card h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  border-bottom: 1px solid #e5e5e5;
+  padding-bottom: 6px;
+}
+
+.address-card dl {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.address-card dt {
+  font-weight: 600;
+  color: #444;
+}
+
+.address-card dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.address-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.address-balance-box {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fff;
+}
+
+.address-balance-box.oru {
+  border-left: 4px solid #8cc8ff;
+}
+
+.address-balance-box.res {
+  border-left: 4px solid #8fdc5a;
+}
+
+.address-table-wrap {
+  overflow-x: auto;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.address-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.address-table th,
+.address-table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.address-table th {
+  background: #f0f0f0;
+  position: sticky;
+  top: 0;
+}
+
+.address-notice {
+  margin: 14px 0;
+  padding: 10px 12px;
+  border-left: 4px solid #455a64;
+  background: #eceff1;
+  font-size: 13px;
+}
+
+.address-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.address-tag-oru {
+  color: #1565c0;
+  font-weight: 600;
+}
+
+.address-tag-res {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.address-pagination {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.address-pagination button {
+  margin-right: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+}

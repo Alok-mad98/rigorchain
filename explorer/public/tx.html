@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tx detail</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/convergence-panel.css" />
+    <link rel="stylesheet" href="/witness-panel.css" />
+    <link rel="stylesheet" href="/converge-proof-panel.css" />
+    <link rel="stylesheet" href="/lineage-graph.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      a { margin-right: 12px; }
+      .muted { color: #666; font-size: 12px; }
+      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; vertical-align: top; }
+      th { background: #f6f6f6; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+      .tag { padding: 2px 6px; border-radius: 4px; font-size: 12px; border: 1px solid #ddd; background: #fafafa; }
+      .tag-oru { background: #eaf6ff; border-color: #8cc8ff; }
+      .tag-res { background: #f2ffe9; border-color: #8fdc5a; }
+    </style>
+    <script src="/explorer-routes.js"></script>
+    <script src="/convergence-panel.js"></script>
+    <script src="/witness-panel.js"></script>
+    <script src="/converge-proof-panel.js"></script>
+    <script src="/lineage-graph.js"></script>
+  </head>
+  <body>
+    <h1>Tx detail</h1>
+    <div id="nav" class="muted"></div>
+
+    <div id="root">Loading...</div>
+
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      function shortHash(h) {
+        if (!h) return '';
+        return String(h).slice(0, 12) + '…' + String(h).slice(-6);
+      }
+
+      function atomsToOru(amount_atoms) {
+        const a = BigInt(String(amount_atoms));
+        const base = 100000000n;
+        const int = a / base;
+        const frac = a % base;
+        return `${int}.${frac.toString().padStart(8, '0')}`;
+      }
+
+      function atomsToRes(amount_atoms) {
+        const a = BigInt(String(amount_atoms));
+        const base = 100n;
+        const int = a / base;
+        const frac = a % base;
+        return `${int}.${frac.toString().padStart(2, '0')}`;
+      }
+
+      async function load() {
+        const txid = ExplorerRoutes.txid();
+        if (!txid) {
+          document.getElementById('root').textContent = 'Missing txid in URL.';
+          return;
+        }
+        const r = await fetch('/api/tx/' + encodeURIComponent(txid));
+        if (!r.ok) {
+          document.getElementById('root').textContent = 'Transaction not found.';
+          return;
+        }
+        const j = await r.json();
+        const tx = j.tx;
+        const panel = j.convergence_panel;
+        const witnessPanel = j.witness_panel;
+        const convergeProofPanel = j.converge_proof_panel;
+        const lineageGraph = j.lineage_graph;
+
+        const voutRows = (j.vout || []).map((o) => {
+          const tagClass = o.asset_kind === 'RES' ? 'tag-res' : (o.asset_kind === 'ORU' ? 'tag-oru' : '');
+          const tag = o.asset_kind === 'RES' ? `RES` : (o.asset_kind === 'ORU' ? 'ORU' : o.asset_kind);
+          const valueStr = o.asset_kind === 'RES' ? atomsToRes(o.value_atoms) : (o.asset_kind === 'ORU' ? atomsToOru(o.value_atoms) : '0');
+          const addrLink = o.address
+            ? `<a href="${ExplorerRoutes.addressPath(o.address)}">${o.address}</a>`
+            : '';
+          return `<tr>
+            <td>${o.vout_index}</td>
+            <td><span class="tag ${tagClass}">${tag}</span></td>
+            <td>${valueStr}</td>
+            <td>${addrLink}</td>
+            <td class="mono">${o.program_hex ?? ''}</td>
+          </tr>`;
+        }).join('');
+
+        const root = document.getElementById('root');
+        root.innerHTML = `
+          ${ConvergencePanel.renderTxPanel(panel, ExplorerRoutes)}
+          ${witnessPanel ? WitnessPanel.renderWitnessPanel(witnessPanel, ExplorerRoutes) : ''}
+          ${convergeProofPanel ? ConvergeProofPanel.renderConvergeProofPanel(convergeProofPanel, ExplorerRoutes) : ''}
+          ${lineageGraph ? LineageGraph.renderLineagePanel(lineageGraph, ExplorerRoutes) : ''}
+
+          <h2>Header</h2>
+          <pre class="mono">${JSON.stringify(tx, null, 2)}</pre>
+
+          <h2>Inputs</h2>
+          <pre class="mono">${JSON.stringify(j.vin || [], null, 2)}</pre>
+
+          <h2>Outputs</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>vout</th>
+                <th>asset</th>
+                <th>amount</th>
+                <th>address</th>
+                <th>program_hex</th>
+              </tr>
+            </thead>
+            <tbody>${voutRows}</tbody>
+          </table>
+
+        `;
+        ConvergencePanel.bindCopyButtons(root);
+      }
+
+      load().catch((e) => {
+        document.getElementById('root').textContent = 'Failed: ' + String(e);
+      });
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Address</title>
+    <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/convergence-panel.css" />
+    <link rel="stylesheet" href="/address-intelligence.css" />
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      .muted { color: #666; font-size: 12px; }
+      a { margin-right: 12px; }
+      input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
+    </style>
+    <script src="/explorer-routes.js"></script>
+    <script src="/convergence-panel.js"></script>
+    <script src="/address-intelligence.js"></script>
+  </head>
+  <body>
+    <h1>Address intelligence</h1>
+    <div id="nav" class="muted"></div>
+    <p class="muted">Read-only ORU/RES address view. Balances are never merged.</p>
+    <p>
+      <input id="addr" placeholder="trg… bech32 address" />
+      <button id="go" type="button">Lookup</button>
+    </p>
+    <div id="address-root" class="address-page muted">Loading…</div>
+    <script>
+      ExplorerRoutes.installCanonicalLink();
+      ExplorerRoutes.mountNav('nav');
+
+      const input = document.getElementById('addr');
+      const pathAddr = ExplorerRoutes.address();
+      if (pathAddr) {
+        input.value = pathAddr;
+        AddressIntelligence.load(1).catch((e) => {
+          document.getElementById('address-root').textContent = 'Failed: ' + String(e);
+        });
+      } else {
+        document.getElementById('address-root').textContent = 'Enter an address or use /address/{bech32}.';
+      }
+
+      document.getElementById('go').addEventListener('click', () => {
+        const addr = input.value.trim();
+        if (!addr) return;
+        window.location.href = ExplorerRoutes.addressPath(addr);
+      });
+    </script>
+    <script src="/compliance.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+# Build products
+**/*.o
+**/*.a
+**/*.so
+**/*.dylib
+**/*.exe
+**/*.lo
+**/*.la
+**/.libs/
+**/.deps/
+**/node_modules/
+**/target/
+**/__pycache__/
+**/*.pyc
+
+# Autotools / configure noise (never commit generated)
+**/Makefile
+**/Makefile.in
+**/config.status
+**/config.log
+**/libtool
+**/autom4te.cache/
+
+# Runtime / secrets / evidence that must never ship
+**/.pgdata/
+**/.mining-test/
+**/.slowtest/
+**/.runtime/
+**/*.dump
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa*
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+# public-history candidate: keep source hidden by generic rules
+!contrib/guix/patches/*.patch
+!depends/patches/**/*.patch
+!core/depends/patches/**/*.patch
+!core/src/qt/rigorwallet/ui_readiness.h
+!core/src/util/ui_change_type.h
+PUBLIC_HISTORY_CANDIDATE_MANIFEST.md
+PUBLIC_HISTORY_CANDIDATE_BUILD.log
