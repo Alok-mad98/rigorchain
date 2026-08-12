@@ -379,6 +379,11 @@ void BitcoinAmountField::setDisplayUnit(BitcoinUnit new_unit)
     unit->setValue(QVariant::fromValue(new_unit));
 }
 
+void BitcoinAmountField::setUnitSelectorVisible(bool visible)
+{
+    unit->setVisible(visible);
+}
+
 void BitcoinAmountField::setSingleStep(const CAmount& step)
 {
     amount->setSingleStep(step);

@@ -28,7 +28,7 @@ void VerificationNotice::buildNotices()
     const BrandInfo brand = WalletIdentity::brand();
     m_experimentalBanner->showBanner(
         WarningLevel::Info,
-        tr("%1 is on an experimental network. Advanced verification status is available under Diagnostics.")
+        tr("%1 is experimental software. Always verify balances and Convergence results against your own full node.")
             .arg(brand.productName));
 }
 

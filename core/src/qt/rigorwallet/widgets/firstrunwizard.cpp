@@ -8,6 +8,7 @@
 #include <consensus/convergenceres.h>
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
+#include <qt/guiutil.h>
 #include <qt/rigorwallet/explorer/explorerclient.h>
 #include <qt/rigorwallet/ui_readiness.h>
 #include <qt/rigorwallet/walletidentity.h>
@@ -15,11 +16,12 @@
 
 #include <interfaces/node.h>
 
-#include <QCoreApplication>
+#include <QDialogButtonBox>
 #include <QLabel>
+#include <QPushButton>
 #include <QSettings>
+#include <QStackedWidget>
 #include <QVBoxLayout>
-#include <QWizardPage>
 
 namespace RigorWallet {
 
@@ -39,61 +41,107 @@ void FirstRunWizard::markCompleted()
 }
 
 FirstRunWizard::FirstRunWizard(ClientModel* clientModel, WalletModel* walletModel, QWidget* parent)
-    : QWizard(parent),
+    : QDialog(parent),
       m_clientModel(clientModel),
       m_walletModel(walletModel)
 {
     setWindowTitle(tr("Welcome to %1").arg(WalletIdentity::brand().productName));
-    setWizardStyle(QWizard::ModernStyle);
-    setPixmap(QWizard::LogoPixmap, QPixmap());
-    setOption(QWizard::NoBackButtonOnStartPage, true);
+    setMinimumWidth(520);
+    GUIUtil::ApplyRigorDialogChrome(this);
     buildPages();
 }
 
 void FirstRunWizard::buildPages()
 {
-    auto* welcome = new QWizardPage(this);
-    welcome->setTitle(tr("Welcome"));
+    auto* layout = new QVBoxLayout(this);
+    m_stack = new QStackedWidget(this);
+
+    auto* welcome = new QWidget(this);
     auto* welcomeLayout = new QVBoxLayout(welcome);
     auto* welcomeText = new QLabel(
-        tr("<p><b>%1</b> helps you hold ORU and RES, send payments, and participate in convergence.</p>"
-           "<p>This short setup checks that your node and optional explorer are ready.</p>")
+        tr("<p><b>Welcome to %1</b></p>"
+           "<p>Your wallet connects to the <b>RIGOR</b> network.</p>"
+           "<p>Initial synchronization is required before balances and Convergence status appear.</p>"
+           "<p><b>ORU</b> — Proof-of-Work security and economic coordination asset.<br>"
+           "<b>RES</b> — Independent scarce resource, minted only through Convergence (not mined).</p>")
             .arg(WalletIdentity::brand().productName),
         welcome);
     welcomeText->setWordWrap(true);
     welcomeLayout->addWidget(welcomeText);
-    addPage(welcome);
+    m_stack->addWidget(welcome);
 
-    auto* checks = new QWizardPage(this);
-    checks->setTitle(tr("System readiness"));
+    auto* checks = new QWidget(this);
     auto* checksLayout = new QVBoxLayout(checks);
+    auto* syncNote = new QLabel(
+        tr("<p><b>Blockchain Status</b></p>"
+           "<p>Waiting for synchronization…</p>"
+           "<p>Network: <b>RIGOR Mainnet</b> (or the network you selected).</p>"
+           "<p>ORU balance and RES Convergence status will appear after the chain syncs.</p>"),
+        checks);
+    syncNote->setWordWrap(true);
+    checksLayout->addWidget(syncNote);
     m_nodeStatus = new QLabel(checks);
     m_explorerStatus = new QLabel(checks);
+    m_explorerStatus->setVisible(false); // Explorer/indexer status is Advanced tooling, not first-run UX
     m_convergenceStatus = new QLabel(checks);
-    for (QLabel* label : {m_nodeStatus, m_explorerStatus, m_convergenceStatus}) {
+    for (QLabel* label : {m_nodeStatus, m_convergenceStatus}) {
         label->setWordWrap(true);
         checksLayout->addWidget(label);
     }
-    connect(this, &QWizard::currentIdChanged, this, [this](int) { refreshStatusPage(); });
-    addPage(checks);
+    m_stack->addWidget(checks);
 
-    auto* ready = new QWizardPage(this);
-    ready->setTitle(tr("Ready"));
+    auto* ready = new QWidget(this);
     auto* readyLayout = new QVBoxLayout(ready);
     auto* readyText = new QLabel(
-        tr("<p>Your wallet is ready to use.</p>"
+        tr("<p>Your wallet is ready to use after sync completes.</p>"
            "<ul>"
-           "<li><b>Receive</b> — get ORU from others</li>"
-           "<li><b>Convergence</b> — commit ORU toward protocol selection</li>"
-           "<li><b>History</b> — review transactions and mints</li>"
+           "<li><b>Overview</b> — balances</li>"
+           "<li><b>Send / Receive</b> — move ORU or RES</li>"
+           "<li><b>Transactions</b> — history</li>"
+           "<li><b>Convergence</b> — commit ORU, wait for the Convergence period, view RES minted</li>"
            "</ul>"
-           "<p>Advanced system details are available under <b>Diagnostics</b>.</p>"),
+           "<p>The script is the compliance layer.</p>"),
         ready);
     readyText->setWordWrap(true);
     readyLayout->addWidget(readyText);
-    addPage(ready);
+    m_stack->addWidget(ready);
 
-    connect(this, &QWizard::accepted, this, &FirstRunWizard::markCompleted);
+    layout->addWidget(m_stack);
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
+    QPushButton* backBtn = buttons->addButton(tr("Back"), QDialogButtonBox::ResetRole);
+    QPushButton* nextBtn = buttons->addButton(tr("Next"), QDialogButtonBox::AcceptRole);
+    QPushButton* finishBtn = buttons->addButton(tr("Finish"), QDialogButtonBox::ApplyRole);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(backBtn, &QPushButton::clicked, this, &FirstRunWizard::onBack);
+    connect(nextBtn, &QPushButton::clicked, this, &FirstRunWizard::onNext);
+    connect(finishBtn, &QPushButton::clicked, this, &FirstRunWizard::onFinish);
+    layout->addWidget(buttons);
+
+    showStep(0);
+}
+
+void FirstRunWizard::showStep(int index)
+{
+    m_step = index;
+    m_stack->setCurrentIndex(index);
+    if (index == 1) refreshStatusPage();
+}
+
+void FirstRunWizard::onBack()
+{
+    if (m_step > 0) showStep(m_step - 1);
+}
+
+void FirstRunWizard::onNext()
+{
+    if (m_step < m_stack->count() - 1) showStep(m_step + 1);
+}
+
+void FirstRunWizard::onFinish()
+{
+    markCompleted();
+    accept();
 }
 
 void FirstRunWizard::refreshStatusPage()
@@ -101,9 +149,9 @@ void FirstRunWizard::refreshStatusPage()
     if (!m_nodeStatus) return;
 
     if (!m_clientModel) {
-        m_nodeStatus->setText(tr("<b>Node</b>: Not connected."));
-        m_explorerStatus->setText(tr("<b>Explorer</b>: Configure later in Settings."));
-        m_convergenceStatus->setText(tr("<b>Convergence</b>: Unavailable until the node is connected."));
+        m_nodeStatus->setText(tr("<b>Node</b>: Not connected yet — synchronization will start when the node is online."));
+        m_explorerStatus->setText(tr("<b>Explorer</b>: Optional — configure later in Settings."));
+        m_convergenceStatus->setText(tr("<b>RES Convergence</b>: Available after ORU acquisition and sync."));
         return;
     }
 
@@ -113,9 +161,9 @@ void FirstRunWizard::refreshStatusPage()
     if (peers > 0 || Params().IsMockableChain()) {
         m_nodeStatus->setText(tr("<b>Node</b>: Connected — height %1%2.")
                                   .arg(height)
-                                  .arg(syncing ? tr(", syncing") : QString()));
+                                  .arg(syncing ? tr(", synchronizing") : QString()));
     } else {
-        m_nodeStatus->setText(tr("<b>Node</b>: Waiting for network peers. You can continue; sync will resume when connected."));
+        m_nodeStatus->setText(tr("<b>Node</b>: Waiting for network peers. You can continue; sync resumes when connected."));
     }
 
     if (ExplorerClient::isConfigured()) {
@@ -126,11 +174,13 @@ void FirstRunWizard::refreshStatusPage()
             m_explorerStatus->setText(tr("<b>Explorer</b>: Configured but unreachable. Check the URL in Settings."));
         }
     } else {
-        m_explorerStatus->setText(tr("<b>Explorer</b>: Not configured (optional). Add a base URL in Settings to enable indexed verification."));
+        m_explorerStatus->setText(tr("<b>Explorer</b>: Not configured (optional)."));
     }
 
     const QString minAmt = BitcoinUnits::format(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT);
-    m_convergenceStatus->setText(tr("<b>Convergence</b>: Minimum amount %1 ORU. RES mint is not guaranteed.").arg(minAmt));
+    m_convergenceStatus->setText(
+        tr("<b>RES Convergence</b>: Available after ORU acquisition. Minimum %1 ORU. RES mint is not guaranteed.")
+            .arg(minAmt));
 }
 
 } // namespace RigorWallet

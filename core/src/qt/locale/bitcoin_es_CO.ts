@@ -735,7 +735,7 @@ Solo es posible firmar con direcciones de tipo legacy.</translation>
         <translation type="unfinished">&amp;Mostrar</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
             <numerusform>%n conexión activa con la red de Rigor.</numerusform>

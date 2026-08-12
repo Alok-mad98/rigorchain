@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# EXAMPLE backup helper for a rigord datadir.
+# Copy to the host, edit DATADIR/DEST, test restore before relying on it.
+# Does not stop the node by default — for LevelDB consistency prefer
+# "rigor-cli stop" then copy, or filesystem snapshot, then restart.
+set -euo pipefail
+
+DATADIR="${DATADIR:-/var/lib/rigord}"
+DEST="${DEST:-/var/backups/rigord}"
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+OUT="${DEST}/rigord-${STAMP}.tar.gz"
+
+mkdir -p "${DEST}"
+# Prefer offline copy:
+#   rigor-cli stop
+#   tar ...
+#   systemctl start rigord
+tar -C "$(dirname "${DATADIR}")" -czf "${OUT}" "$(basename "${DATADIR}")"
+echo "Wrote ${OUT}"
+# Optional: find "${DEST}" -name 'rigord-*.tar.gz' -mtime +14 -delete

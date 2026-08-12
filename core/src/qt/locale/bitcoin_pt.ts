@@ -756,7 +756,7 @@ Assinar só é possível com endereços do tipo "legado".</translation>
         <translation type="unfinished">Mo&amp;strar</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
             <numerusform>%n conexão ativa na rede Rigor.</numerusform>

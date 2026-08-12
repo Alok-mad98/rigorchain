@@ -54,6 +54,7 @@ CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _m
     platformStyle(_platformStyle)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
 
     // context menu
     contextMenu = new QMenu(this);

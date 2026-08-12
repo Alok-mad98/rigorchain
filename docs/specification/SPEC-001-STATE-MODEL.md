@@ -196,13 +196,16 @@ mints at the same height; or RES created without valid draw outcome.
 **Definition:** A finite map from unspent outpoints `(txid, index)` to output
 records `(nValue, scriptPubKey)`. Asset type and state semantics are **derived**
 by parsing script and witness data; no parallel asset field exists in output storage.
+Script is the compliance layer: classification is script-derived; legitimacy still
+requires conservation, convergence / mint predicates, and deterministic consensus checks.
 
 **Why consensus depends on it:** Transaction validity is UTXO-based. Every spend
 MUST reference an existing unspent output; every output MUST satisfy conservation
 and script rules.
 
 **Failure condition:** Spend of non-existent or already-spent outpoint; negative
-output value; or asset semantics that cannot be derived from script alone.
+output value; or an asset class that cannot be classified from script / witness
+structure (legitimacy failures are reported under the applicable CR / SI).
 
 ---
 
@@ -397,7 +400,7 @@ Transition = Commit ∘ SupplyUpdate ∘ Draw ∘ Transactions ∘ Header
 | **Header** | `S(h)`, block header | Verify PoW, timestamps, difficulty update |
 | **Transactions** | UTXO at `h`, block tx list | Apply spends and creates; update UTXO scratch |
 | **Draw** | Classified convergence candidates | Compute root, digests, eligibility, winner |
-| **SupplyUpdate** | Draw outcome, burns, subsidy | Update `S_ORU`, `S_RES` |
+| **SupplyUpdate** | Draw outcome, convergence commitments, subsidy | Update `S_ORU`, `S_RES` |
 | **Commit** | Scratch state | Persist `S(h+1)` |
 
 Invalidity at any phase MUST abort the transition and leave `S(h)` unchanged.
@@ -427,7 +430,7 @@ Placeholder invariant catalog (superseded by authoritative [SPEC-005 Consensus I
 | **SI-008** | Chainwork monotonicity | Cumulative chainwork strictly increases along the active chain |
 | **SI-009** | Draw–mint coherence | RES mint in block `h` exists iff draw produced authorized winner and supply headroom |
 | **SI-010** | Replay bind integrity | σ and mint proofs use correct `bind_commit`, height, and bootstrap stand-in when `h < k` |
-| **SI-011** | Script-as-asset | Asset type is derivable from script only; no persisted parallel asset field in outputs |
+| **SI-011** | Script-as-compliance | Asset *class* is derivable from script; no persisted parallel asset field; legitimacy via consensus |
 | **SI-012** | Identity domain | Consensus references use transaction identity (txid), not witness-weighted alternate ids |
 | **SI-013** | Deterministic transition | Identical `(S(h), Block(h+1))` yields identical accept/reject and identical `S(h+1)` when accepted |
 

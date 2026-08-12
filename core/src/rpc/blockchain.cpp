@@ -4182,6 +4182,49 @@ static RPCHelpMan getconvergencestatus()
     };
 }
 
+static RPCHelpMan getconvergencestats()
+{
+    return RPCHelpMan{"getconvergencestats",
+        "\nReturn chain-wide Convergence network statistics for the active tip.\n"
+        "\nPresentation / wallet Network Statistics only. Does not change consensus rules.\n"
+        "\nCounts are derived from the tip W-window (node state; W = CONVERGENCE_DRAW_WINDOW).\n"
+        "ORU amounts are sat-style atoms; RES amounts are RES atoms (100.00 RES = 10000).\n",
+        {},
+        RPCResult{RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "active_convergences", "Convergence candidates in the tip W-window (paid + unpaid)"},
+                {RPCResult::Type::NUM, "active_oru", "Sum of ORU committed by those candidates (sat-style atoms)"},
+                {RPCResult::Type::NUM, "pending_windows", "Unpaid candidates still in the tip draw set F"},
+                {RPCResult::Type::NUM, "total_res_minted", "Cumulative RES minted on the active chain (RES atoms)"},
+                {RPCResult::Type::NUM, "best_height", "Active tip height"},
+            }},
+        RPCExamples{HelpExampleCli("getconvergencestats", "")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+        {
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            ChainstateManager& chainman = EnsureChainman(node);
+
+            ConvergenceNetworkStats stats;
+            {
+                LOCK(cs_main);
+                const CBlockIndex* tip = chainman.ActiveChain().Tip();
+                CHECK_NONFATAL(tip);
+                if (!GetConvergenceNetworkStats(*tip, chainman.GetParams().GetConsensus(), stats) || !stats.valid) {
+                    throw JSONRPCError(RPC_INTERNAL_ERROR, "unable to compute convergence network statistics");
+                }
+            }
+
+            UniValue result(UniValue::VOBJ);
+            result.pushKV("active_convergences", static_cast<int64_t>(stats.active_convergences));
+            result.pushKV("active_oru", static_cast<int64_t>(stats.active_oru));
+            result.pushKV("pending_windows", static_cast<int64_t>(stats.pending_windows));
+            result.pushKV("total_res_minted", static_cast<int64_t>(stats.total_res_minted));
+            result.pushKV("best_height", stats.best_height);
+            return result;
+        },
+    };
+}
+
 UniValue CreateUTXOSnapshot(
     NodeContext& node,
     Chainstate& chainstate,
@@ -4406,6 +4449,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &getblockconvergence},
         {"blockchain", &getconvergenceresult},
         {"blockchain", &getconvergencestatus},
+        {"blockchain", &getconvergencestats},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

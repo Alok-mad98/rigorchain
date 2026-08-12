@@ -16,10 +16,10 @@
 
 namespace wallet {
 
-CAmount OruNetworkFeeForVsize(const CFeeRate& feerate, int vbytes)
+CAmount OruNetworkFeeForSizeBytes(const CFeeRate& feerate, int size_bytes)
 {
-    if (vbytes <= 0) return 0;
-    return feerate.GetFee(vbytes);
+    if (size_bytes <= 0) return 0;
+    return feerate.GetFee(size_bytes);
 }
 
 bool WalletHasSpendableOruForFee(const CWallet& wallet, const CCoinControl* coin_control)

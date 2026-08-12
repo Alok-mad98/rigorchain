@@ -627,25 +627,22 @@ int scanhash_sha256d(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 	int i;
 
 	/*
-	 * pdata[] is the cpuminer internal SHA256 midstate layout (native LE per word).
-	 * Consensus header id and submitblock use the same 80-byte network serialization
-	 * as cpu-miner.c submit_upstream_work (be32enc each word). OpuHash must hash
-	 * those wire bytes, not the raw pdata memory layout.
+	 * pdata[] is the cpuminer internal word layout. submit_upstream_work serializes
+	 * the header with le32enc; OpuHash MUST hash those exact same 80 wire bytes.
+	 *
+	 * Digest limbs must match Bitcoin UintToArith256: ReadLE32 at digest+4*i
+	 * (data[0]=least significant). The old BE-reversed load treated the wrong end as
+	 * most-significant → ~50% false positives rejected by the node as high-hash.
 	 */
 	for (i = 0; i < 19; i++)
-		be32enc(wire + 4 * i, pdata[i]);
+		le32enc(wire + 4 * i, pdata[i]);
 
 	do {
 		pdata[19] = ++n;
-		be32enc(wire + 4 * 19, pdata[19]);
+		le32enc(wire + 4 * 19, pdata[19]);
 		opus_hash(wire, digest);
-		for (i = 0; i < 8; i++) {
-			const uint8_t *w = digest + 4 * (7 - i);
-			hash[i] = ((uint32_t)w[0] << 24) |
-				  ((uint32_t)w[1] << 16) |
-				  ((uint32_t)w[2] << 8) |
-				  ((uint32_t)w[3]);
-		}
+		for (i = 0; i < 8; i++)
+			hash[i] = le32dec(digest + 4 * i);
 		if (hash[7] <= Htarg) {
 			if (fulltest(hash, ptarget)) {
 				if (opt_debug_pow) {

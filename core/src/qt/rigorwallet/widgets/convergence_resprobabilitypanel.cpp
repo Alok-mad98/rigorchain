@@ -8,6 +8,7 @@
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/rigortheme.h>
 
+#include <consensus/rigor_consensus_lock.h>
 #include <interfaces/node.h>
 
 #include <univalue.h>
@@ -31,7 +32,7 @@ ConvergenceResProbabilityPanel::ConvergenceResProbabilityPanel(QWidget* parent)
                            RigorTheme::colorHex(p.borderSubtle)));
 
     auto* layout = new QVBoxLayout(this);
-    auto* title = new QLabel(tr("RES Probability %1").arg(AssetContext::authorityLabel(DataAuthority::Node)), this);
+    auto* title = new QLabel(tr("RES Probability"), this);
     title->setStyleSheet(QStringLiteral("font-weight: bold;"));
     layout->addWidget(title);
 
@@ -55,7 +56,7 @@ void ConvergenceResProbabilityPanel::refresh()
 {
     if (!m_clientModel) {
         m_targetLabel->setText(tr("Selection target: —"));
-        m_windowLabel->setText(tr("Convergence window: —"));
+        m_windowLabel->setText(tr("Consensus window W = %1 blocks").arg(Consensus::CONVERGENCE_DRAW_WINDOW));
         return;
     }
 
@@ -69,24 +70,25 @@ void ConvergenceResProbabilityPanel::refresh()
     } catch (...) {
     }
     m_targetLabel->setText(tr("Selection target: %1").arg(target_display));
+    m_windowLabel->setText(tr("Consensus window W = %1 blocks (height-based countdown only)")
+                               .arg(Consensus::CONVERGENCE_DRAW_WINDOW));
 
     try {
         UniValue r = m_clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
         if (r.isObject()) {
-            const QString wp = QString::fromStdString(r["window_progress"].getValStr());
-            const double wpp = r["window_progress_percent"].get_real();
-            m_windowLabel->setText(tr("Current convergence window: %1 (%2%)")
-                                       .arg(wp)
-                                       .arg(wpp, 0, 'f', 2));
-            const int last_res = r["last_res_height"].getInt<int>();
             const int tip = r["tip_height"].getInt<int>();
-            m_outcomeLabel->setText(tr("Expected cadence information: last RES at height %1, tip %2. "
-                                       "At most one RES per block; mint is not guaranteed.")
+            const int last_res = r["last_res_height"].getInt<int>();
+            m_outcomeLabel->setText(tr("Tip height %1. Last RES mint height %2. "
+                                       "Per-entry W = %3 tracking is shown in the RES CONVERGENCE panel above. "
+                                       "At most one RES per block; mint is not guaranteed. "
+                                       "RES is not a mining reward.")
+                                        .arg(tip)
                                         .arg(last_res)
-                                        .arg(tip));
+                                        .arg(Consensus::CONVERGENCE_DRAW_WINDOW));
         }
     } catch (...) {
-        m_windowLabel->setText(tr("Convergence window: unavailable"));
+        m_outcomeLabel->setText(tr("Node status unavailable. W = %1 remains the consensus window width.")
+                                    .arg(Consensus::CONVERGENCE_DRAW_WINDOW));
     }
 }
 

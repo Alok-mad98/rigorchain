@@ -189,6 +189,7 @@ static bool ErrorSettingsRead(const bilingual_str& error, const std::vector<std:
         return true;
     default:
         assert(false);
+        return true; // silence -Wreturn-type (assert may be compiled out)
     }
 }
 
@@ -296,7 +297,6 @@ void BitcoinApplication::createSplashScreen(const NetworkStyle *networkStyle)
 {
     assert(!m_splash);
     m_splash = new SplashScreen(networkStyle);
-    m_splashTimer.start();
     m_splash->show();
 }
 
@@ -369,7 +369,8 @@ void BitcoinApplication::requestShutdown()
     // no event loop is running.
     window->unsubscribeFromCoreSignals();
     // Request node shutdown, which can interrupt long operations, like
-    // rescanning a wallet.
+    // rescanning a wallet. Also wakes solo-miner GBT longpoll / HTTP workers
+    // before setClientModel waits on in-flight RPC.
     node().startShutdown();
     // Unsetting the client model can cause the current thread to wait for node
     // to complete an operation, like wait for a RPC execution to complete.
@@ -445,13 +446,9 @@ void BitcoinApplication::initializeResult(bool success, interfaces::BlockAndHead
     // Set exit result.
     returnValue = success ? EXIT_SUCCESS : EXIT_FAILURE;
     if (success) {
-        // Keep splash visible at least 30s when shown (startup may finish sooner).
-        const qint64 min_splash_ms = 30000;
-        const qint64 wait_ms =
-            m_splash ? qMax(qint64(0), min_splash_ms - m_splashTimer.elapsed()) : 0;
-        QTimer::singleShot(wait_ms, this, [this, tip_info]() {
-            showMainWindowAfterSplash(tip_info);
-        });
+        // Bitcoin Core cadence: show the main window as soon as AppInitMain succeeds.
+        // Branded splash is dismissed immediately (no artificial hold).
+        showMainWindowAfterSplash(tip_info);
     } else {
         requestShutdown();
     }
@@ -570,6 +567,7 @@ int GuiMain(int argc, char* argv[])
     // Now that QSettings are accessible, initialize translations
     QTranslator qtTranslatorBase, qtTranslator, translatorBase, translator;
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
+    GUIUtil::SetupUiFonts(GetLangTerritory());
 
     // Show help message immediately after parsing command-line options (for "-lang") and setting locale,
     // but before showing splash screen.
@@ -619,6 +617,7 @@ int GuiMain(int argc, char* argv[])
     QApplication::setApplicationName(networkStyle->getAppName());
     // Re-initialize translations after changing application name (language in network-specific settings can be different)
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
+    GUIUtil::SetupUiFonts(GetLangTerritory());
 
 #ifdef ENABLE_WALLET
     /// 8. URI IPC sending

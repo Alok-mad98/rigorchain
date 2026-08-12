@@ -307,8 +307,16 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">金额</translation>
     </message>
     <message>
+        <source>Enter an ORU address (e.g. %1)</source>
+        <translation>请输入一个 ORU 地址（例如 %1）</translation>
+    </message>
+    <message>
+        <source>Enter a RES address (e.g. %1)</source>
+        <translation>请输入一个 RES 地址（例如 %1）</translation>
+    </message>
+    <message>
         <source>Enter a Rigor address (e.g. %1)</source>
-        <translation type="unfinished">请输入一个比特币地址 (例如 %1)</translation>
+        <translation type="obsolete">请输入一个比特币地址 (例如 %1)</translation>
     </message>
     <message>
         <source>Unroutable</source>
@@ -734,10 +742,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">显示(&amp;H)</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
-            <numerusform>%n active connection(s) to Rigor network.</numerusform>
+            <numerusform>%n 条到RIGOR网络的活动连接</numerusform>
         </translation>
     </message>
     <message>
@@ -1262,7 +1270,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the arda network, as detailed below.</source>
-        <translation type="unfinished">近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与比特币网络完全同步后更正。详情如下</translation>
+        <translation type="unfinished">近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与RIGOR网络完全同步后更正。详情如下</translation>
     </message>
     <message>
         <source>Attempting to spend bitcoins that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
@@ -1501,7 +1509,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Connect to the Rigor network through a SOCKS5 proxy.</source>
-        <translation type="unfinished">通过 SOCKS5 代理连接比特币网络。</translation>
+        <translation type="unfinished">通过 SOCKS5 代理连接RIGOR网络。</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1561,7 +1569,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>&amp;Unit to show amounts in:</source>
-        <translation type="unfinished">比特币金额单位(&amp;U):</translation>
+        <translation type="unfinished">金额单位(&amp;U):</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
@@ -1581,7 +1589,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Connect to the Rigor network through a separate SOCKS5 proxy for Tor onion services.</source>
-        <translation type="unfinished">连接比特币网络时专门为Tor onion服务使用另一个 SOCKS5 代理。</translation>
+        <translation type="unfinished">连接RIGOR网络时专门为Tor onion服务使用另一个 SOCKS5 代理。</translation>
     </message>
     <message>
         <source>Use separate SOCKS&amp;5 proxy to reach peers via Tor onion services:</source>
@@ -1685,7 +1693,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Rigor network after a connection is established, but this process has not completed yet.</source>
-        <translation type="unfinished">现在显示的消息可能是过期的。在连接上比特币网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+        <translation type="unfinished">现在显示的消息可能是过期的。在连接上RIGOR网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -2473,7 +2481,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Rigor network.</source>
-        <translation type="unfinished">可在支付请求上备注一条信息，在打开支付请求时可以看到。注意:该消息不是通过比特币网络传送。</translation>
+        <translation type="unfinished">可在支付请求上备注一条信息，在打开支付请求时可以看到。注意:该消息不是通过RIGOR网络传送。</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2778,7 +2786,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     </message>
     <message>
         <source>When there is less transaction volume than space in the blocks, miners as well as relaying nodes may enforce a minimum fee. Paying only this minimum fee is just fine, but be aware that this can result in a never confirming transaction once there is more demand for arda transactions than the network can process.</source>
-        <translation type="unfinished">当交易量小于可用区块空间时，矿工和中继节点可能会执行最低手续费率限制。按照这个最低费率来支付手续费也是可以的，但请注意，一旦交易需求超出比特币网络能处理的限度，你的交易可能永远也无法确认。</translation>
+        <translation type="unfinished">当交易量小于可用区块空间时，矿工和中继节点可能会执行最低手续费率限制。按照这个最低费率来支付手续费也是可以的，但请注意，一旦交易需求超出RIGOR网络能处理的限度，你的交易可能永远也无法确认。</translation>
     </message>
     <message>
         <source>A too low fee might result in a never confirming transaction (read the tooltip)</source>
@@ -3091,7 +3099,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     </message>
     <message>
         <source>A message that was attached to the rigor: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Rigor network.</source>
-        <translation type="unfinished">rigor: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过比特币网络传输。</translation>
+        <translation type="unfinished">rigor: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过RIGOR网络传输。</translation>
     </message>
 </context>
 <context>
@@ -3534,6 +3542,30 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     <message>
         <source>Amount removed from or added to balance.</source>
         <translation type="unfinished">从余额增加或移除的金额。</translation>
+    </message>
+    <message>
+        <source>ORU Transfer</source>
+        <translation>ORU 转账</translation>
+    </message>
+    <message>
+        <source>RES Transfer</source>
+        <translation>RES 转账</translation>
+    </message>
+    <message>
+        <source>Mint</source>
+        <translation>铸造</translation>
+    </message>
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
+    <message>
+        <source>Unexpected Mixed ORU/RES</source>
+        <translation>异常 ORU/RES 混合</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>未知</translation>
     </message>
 </context>
 <context>

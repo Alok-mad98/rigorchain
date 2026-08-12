@@ -1,6 +1,8 @@
 # SECURITY-001-A / A-8 — σ grinding, and binding the draw to proof of work
 
-**Status:** implemented (C++ / pool / formal / live RFCs); awaiting maintainer `make` + functional suite
+**Status:** **CLOSED** (code / pool / formal / RFCs complete; process closed under TASK-MAINNET-CLOSURE-001)
+**Prior status:** implemented; awaiting maintainer `make` + functional suite
+**Closure:** 2026-08-05 — Sigma-PoW-01 live (`σ = Hash256(txid‖C‖B_{h-1}‖LE32(h))`, deferred draw). Dual `selection.cpp` archive linkage removed from `libbitcoin_node` (consensus-only). Operator re-verification: local `make` + RES functional suite (user-run; see MAINNET_GO_NO_GO_CHECKLIST).
 **Scope:** consensus (σ preimage, draw timing, block connect, block template), RPC surface, mining
 pool, formal spec, functional and unit tests, documentation
 **Chain impact:** invalidating. Merges with the A-5/A-6/A-7 chain reset; no separate reset.

@@ -6,8 +6,10 @@
 
 #include <coins.h>
 #include <consensus/convergenceres.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <consensus/statetag.h>
 #include <script/interpreter.h>
+#include <script/standard.h>
 
 namespace wallet {
 
@@ -45,6 +47,27 @@ bool BuildWalletInputView(const CWallet& wallet, const CWalletTx& wtx, CCoinsVie
 
 } // namespace
 
+TxSemanticKind ClassifyTxSemanticFromOutputs(const CTransaction& tx)
+{
+    // Never infer ResMint here: a full-balance RES send of RES_REWARD_AMOUNT + ORU
+    // change has the same output shape as a body mint. ResMint (and maturity) require
+    // ClassifyTxSemantic with input prevouts. Incoming payments only need a UI label.
+    bool has_res{false};
+    bool has_oru{false};
+    for (const CTxOut& out : tx.vout) {
+        const AssetType a = AssetTypeFromScriptPubKey(out.scriptPubKey);
+        if (a == ASSET_RES) has_res = true;
+        else if (a == ASSET_ORU) has_oru = true;
+    }
+    if (has_res) {
+        return TxSemanticKind::ResTransfer;
+    }
+    if (has_oru) {
+        return TxSemanticKind::OruTransfer;
+    }
+    return TxSemanticKind::Unknown;
+}
+
 TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache& inputs)
 {
     if (tx.vin.empty()) {
@@ -56,6 +79,22 @@ TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache&
         return TxSemanticKind::Unknown;
     }
 
+    // Dual-pool RES spends (POOL-T RES + POOL-F ORU fee inputs) are normal: GetInputAsset
+    // returns RES whenever any RES prevout is present. Do NOT treat that as MixedInputDomain.
+    if (Consensus::IsConvergenceTx(tx) && input_asset == Consensus::ASSET_ID_ORU) {
+        return TxSemanticKind::OruConvergence;
+    }
+    if (Consensus::IsRESMintTx(tx, inputs)) {
+        return TxSemanticKind::ResMint;
+    }
+    if (Consensus::IsRESSpendTx(tx, inputs)) {
+        return TxHasResClaimOutput(tx) ? TxSemanticKind::ResClaim : TxSemanticKind::ResTransfer;
+    }
+    if (Consensus::IsORUTransferTx(tx, inputs)) {
+        return TxSemanticKind::OruTransfer;
+    }
+
+    // Leftover: both asset domains present but no RFC-003 class matched (should be rare).
     bool has_oru = false;
     bool has_res = false;
     for (const CTxIn& in : tx.vin) {
@@ -68,19 +107,6 @@ TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache&
     }
     if (has_oru && has_res) {
         return TxSemanticKind::MixedInputDomain;
-    }
-
-    if (Consensus::IsConvergenceTx(tx) && input_asset == Consensus::ASSET_ID_ORU) {
-        return TxSemanticKind::OruConvergence;
-    }
-    if (Consensus::IsRESMintTx(tx, inputs)) {
-        return TxSemanticKind::ResMint;
-    }
-    if (Consensus::IsRESSpendTx(tx, inputs)) {
-        return TxHasResClaimOutput(tx) ? TxSemanticKind::ResClaim : TxSemanticKind::ResTransfer;
-    }
-    if (Consensus::IsORUTransferTx(tx, inputs)) {
-        return TxSemanticKind::OruTransfer;
     }
     return TxSemanticKind::Unknown;
 }
@@ -99,10 +125,11 @@ TxSemanticKind ClassifyWalletTxSemantic(const CWallet& wallet, const CWalletTx& 
 
     CCoinsView empty;
     CCoinsViewCache inputs(&empty);
-    if (!BuildWalletInputView(wallet, wtx, inputs)) {
-        return TxSemanticKind::Unknown;
+    if (BuildWalletInputView(wallet, wtx, inputs)) {
+        return ClassifyTxSemantic(*wtx.tx, inputs);
     }
-    return ClassifyTxSemantic(*wtx.tx, inputs);
+    // Incoming txs: parent UTXOs are not in this wallet (and are spent on-chain).
+    return ClassifyTxSemanticFromOutputs(*wtx.tx);
 }
 
 std::string TxSemanticCanonicalLabel(TxSemanticKind kind)
@@ -114,7 +141,7 @@ std::string TxSemanticCanonicalLabel(TxSemanticKind kind)
     case TxSemanticKind::ResTransfer: return "RES Transfer";
     case TxSemanticKind::ResMint: return "RES Mint";
     case TxSemanticKind::ResClaim: return "RES Claim";
-    case TxSemanticKind::MixedInputDomain: return "Mixed Input Domain";
+    case TxSemanticKind::MixedInputDomain: return "Unexpected Mixed ORU/RES";
     case TxSemanticKind::Unknown: return "Unknown";
     }
     return "Unknown";

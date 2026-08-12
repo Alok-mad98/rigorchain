@@ -33,6 +33,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 DiagnosticsPage::DiagnosticsPage(const PlatformStyle* platformStyle, QWidget* parent)
@@ -45,6 +47,11 @@ DiagnosticsPage::DiagnosticsPage(const PlatformStyle* platformStyle, QWidget* pa
     auto* title = new QLabel(tr("System Diagnostics"), this);
     title->setStyleSheet(QStringLiteral("font-size: 16px; font-weight: 600;"));
     outer->addWidget(title);
+    auto* subtitle = new QLabel(
+        tr("Developer and protocol tooling. Convergence Details preserves fields removed from the user Convergence page."),
+        this);
+    subtitle->setWordWrap(true);
+    outer->addWidget(subtitle);
 
     m_warningBanner = new RigorWallet::WarningBanner(this);
     outer->addWidget(m_warningBanner);
@@ -96,6 +103,27 @@ DiagnosticsPage::DiagnosticsPage(const PlatformStyle* platformStyle, QWidget* pa
         QMessageBox::information(this, tr("Export complete"),
             tr("Diagnostics bundle written to:\n%1").arg(dir));
     });
+
+    m_refreshDebounce = new QTimer(this);
+    m_refreshDebounce->setSingleShot(true);
+    m_refreshDebounce->setInterval(500);
+    connect(m_refreshDebounce, &QTimer::timeout, this, &DiagnosticsPage::refreshAll);
+}
+
+void DiagnosticsPage::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    scheduleRefresh();
+}
+
+void DiagnosticsPage::scheduleRefresh()
+{
+    if (!isVisible()) return;
+    if (!m_refreshDebounce) {
+        refreshAll();
+        return;
+    }
+    m_refreshDebounce->start();
 }
 
 void DiagnosticsPage::setClientModel(ClientModel* model)
@@ -109,13 +137,13 @@ void DiagnosticsPage::setClientModel(ClientModel* model)
 
     if (clientModel) {
         connect(clientModel, &ClientModel::numBlocksChanged, this, [this](int, const QDateTime&, double, SyncType, SynchronizationState) {
-            refreshAll();
+            scheduleRefresh();
         });
         connect(clientModel, &ClientModel::numConnectionsChanged, this, [this](int) {
-            refreshAll();
+            scheduleRefresh();
         });
     }
-    refreshAll();
+    scheduleRefresh();
 }
 
 void DiagnosticsPage::setWalletModel(WalletModel* model)
@@ -126,14 +154,16 @@ void DiagnosticsPage::setWalletModel(WalletModel* model)
     if (m_releaseGatePanel) m_releaseGatePanel->setWalletModel(model);
 
     if (walletModel) {
-        connect(walletModel, &WalletModel::encryptionStatusChanged, this, [this]() { refreshAll(); });
-        connect(walletModel, &WalletModel::walletStateRevisionChanged, this, [this](quint64) { refreshAll(); });
+        connect(walletModel, &WalletModel::encryptionStatusChanged, this, [this]() { scheduleRefresh(); });
+        connect(walletModel, &WalletModel::walletStateRevisionChanged, this, [this](quint64) { scheduleRefresh(); });
     }
-    refreshAll();
+    scheduleRefresh();
 }
 
 void DiagnosticsPage::refreshAll()
 {
+    // Advanced Diagnostics is rarely open; skip RPC fan-out when the page is hidden.
+    if (!isVisible()) return;
     if (m_nodePanel) m_nodePanel->refresh();
     if (m_walletPanel) m_walletPanel->refresh();
     if (m_explorerPanel) m_explorerPanel->refresh();

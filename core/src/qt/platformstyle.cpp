@@ -8,6 +8,7 @@
 #include <QColor>
 #include <QImage>
 #include <QPalette>
+#include <QSize>
 
 static const struct {
     const char *platformId;
@@ -19,7 +20,9 @@ static const struct {
     const bool useExtraSpacing;
 } platform_styles[] = {
     {"macosx", false, true, true},
-    {"windows", true, false, false},
+    // Rigor dark chrome: black+alpha toolbar/tx icons must be colorized on Windows too
+    // (otherwise Send/Receive/History/Convergence/mined pickaxe stay black on #1A1A1D).
+    {"windows", true, true, false},
     /* Other: linux, unix, ... */
     {"other", true, true, false}
 };
@@ -43,9 +46,15 @@ void MakeSingleColorImage(QImage& img, const QColor& colorbase)
 QIcon ColorizeIcon(const QIcon& ico, const QColor& colorbase)
 {
     QIcon new_ico;
-    for (const QSize& sz : ico.availableSizes())
+    QList<QSize> sizes = ico.availableSizes();
+    // QIcon(":/path.png") sometimes reports empty availableSizes(); still colorize common sizes.
+    if (sizes.isEmpty()) {
+        sizes = {QSize(16, 16), QSize(24, 24), QSize(32, 32), QSize(64, 64)};
+    }
+    for (const QSize& sz : sizes)
     {
         QImage img(ico.pixmap(sz).toImage());
+        if (img.isNull()) continue;
         MakeSingleColorImage(img, colorbase);
         new_ico.addPixmap(QPixmap::fromImage(img));
     }

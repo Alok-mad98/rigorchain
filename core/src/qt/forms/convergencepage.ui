@@ -704,7 +704,7 @@
              </widget>
             </item>
             <item row="4" column="0">
-             <widget class="QLabel" name="labelMarketMintCostTitle">
+             <widget class="QLabel" name="labelMarketTipTitle">
               <property name="text">
                <string>Tip height</string>
               </property>
@@ -968,7 +968,7 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>RES rewards follow consensus (convergenceres / convergence_logic). This wallet does not estimate win probability or expected value.</string>
+          <string>RES mint outcomes follow deterministic consensus rules. This wallet does not estimate selection probability or expected value.</string>
          </property>
         </widget>
        </item>

@@ -740,11 +740,11 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">Ε&amp;μφάνιση</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
-            <numerusform>%n active connection(s) to Rigor network.</numerusform>
-            <numerusform>%n active connection(s) to Rigor network.</numerusform>
+            <numerusform>%n active connection(s) to RIGOR network.</numerusform>
+            <numerusform>%n active connection(s) to RIGOR network.</numerusform>
         </translation>
     </message>
     <message>

@@ -21,7 +21,9 @@
 #include <math.h>
 #include <pthread.h>
 #include <unistd.h>
+#ifndef WIN32
 #include <sys/resource.h>
+#endif
 #include <signal.h>
 #include <errno.h>
 #include <curl/curl.h>
@@ -29,7 +31,6 @@
 
 #include "compat.h"
 #include "miner.h"
-#include "sha2.h"
 #include "opus_hash.h"
 #include "arith_uint256.h"
 
@@ -107,6 +108,7 @@ static const char *algo_names[] = {
 
 bool opt_debug = false;
 bool opt_debug_pow = false;
+bool opt_verbose = false;
 bool opt_protocol = false;
 static bool opt_benchmark = false;
 bool opt_redirect = true;
@@ -121,6 +123,8 @@ static bool opt_background = false;
 static bool opt_quiet = false;
 static int opt_retries = -1;
 static int opt_fail_pause = 30;
+/** Pause this many seconds after each accepted block (Alpha: keep Qt wallet responsive). */
+static int opt_submit_delay = 0;
 int opt_timeout = 0;
 static int opt_scantime = 5;
 static enum algos opt_algo = ALGO_SCRYPT;
@@ -132,7 +136,17 @@ static char *rpc_userpass;
 static char *rpc_user, *rpc_pass;
 static int pk_script_size;
 static unsigned char pk_script[42];
+static char *coinbase_addr;
 static char coinbase_sig[101] = "";
+
+/* User-mode solo mining dashboard state (hidden behind --verbose for developers). */
+static bool ux_node_connected = false;
+static bool ux_mining_running = false;
+static int ux_height;
+static int64_t ux_reward_sat;
+static char ux_last_block[32] = "-";
+static char ux_status_line[96] = "Starting";
+static time_t ux_last_status_print;
 char *opt_cert;
 char *opt_proxy;
 long opt_proxy_type;
@@ -149,6 +163,8 @@ static pthread_mutex_t stats_lock;
 static unsigned long accepted_count = 0L;
 static unsigned long rejected_count = 0L;
 static double *thr_hashrates;
+
+static pthread_mutex_t ux_print_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static bool opus_hash_selftest(void)
 {
@@ -203,7 +219,7 @@ Options:\n\
   -a, --algo=ALGO       specify the algorithm to use\n\
                           scrypt    scrypt(1024, 1, 1) (default)\n\
                           scrypt:N  scrypt(N, 1, 1)\n\
-                          sha256d   SHA-256d\n\
+                          sha256d   RIGOR path: header SHA256d then OpuHash (use this)\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
@@ -225,7 +241,9 @@ Options:\n\
       --no-stratum      disable X-Stratum support\n\
       --no-redirect     ignore requests to change the URL of the mining server\n\
   -q, --quiet           disable per-thread hashmeter output\n\
-  -D, --debug           enable debug output\n\
+      --submit-delay=N  sleep N seconds after each accepted block (eases wallet UI under easy PoW)\n\
+  -v, --verbose         developer verbose output (GBT, LONGPOLL, RPC, self-test)\n\
+  -D, --debug           enable debug output (implies --verbose)\n\
       --debug-pow       log header hash and OpuHash digest for each found nonce (vs rigord -debugpowcompare)\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
 #ifdef HAVE_SYSLOG_H
@@ -250,7 +268,7 @@ static char const short_options[] =
 #ifdef HAVE_SYSLOG_H
 	"S"
 #endif
-	"a:c:Dhp:Px:qr:R:s:t:T:o:u:O:V";
+	"a:c:Dhp:Px:qr:R:s:t:T:o:u:O:Vv";
 
 static struct option const options[] = {
 	{ "algo", 1, NULL, 'a' },
@@ -276,6 +294,7 @@ static struct option const options[] = {
 	{ "quiet", 0, NULL, 'q' },
 	{ "retries", 1, NULL, 'r' },
 	{ "retry-pause", 1, NULL, 'R' },
+	{ "submit-delay", 1, NULL, 1017 },
 	{ "scantime", 1, NULL, 's' },
 #ifdef HAVE_SYSLOG_H
 	{ "syslog", 0, NULL, 'S' },
@@ -285,6 +304,7 @@ static struct option const options[] = {
 	{ "url", 1, NULL, 'o' },
 	{ "user", 1, NULL, 'u' },
 	{ "userpass", 1, NULL, 'O' },
+	{ "verbose", 0, NULL, 'v' },
 	{ "version", 0, NULL, 'V' },
 	{ 0, 0, 0, 0 }
 };
@@ -304,6 +324,9 @@ struct work {
 	/* Rigor: convergence_txids for computing convergence_root */
 	char **convergence_txids;
 	int convergence_txid_count;
+	/* Prefer GBT "convergence_root" (exact bytes node expects) when present. */
+	unsigned char convergence_root[32];
+	bool has_convergence_root;
 
 	/* Rigor: previous block hash for querying nBits */
 	char *prevblockhash;
@@ -311,6 +334,9 @@ struct work {
 
 	/* PoW: nBits from GBT (used to construct target via SetCompact) */
 	uint32_t nbits;
+
+	/* Coinbase subsidy+fees from GBT (satoshis); for user-mode reward display */
+	int64_t coinbasevalue;
 };
 
 static struct work g_work;
@@ -318,6 +344,217 @@ static time_t g_work_time;
 static pthread_mutex_t g_work_lock;
 static bool submit_old = false;
 static char *lp_id;
+
+static double ux_total_hashrate(void)
+{
+	double hashrate = 0.;
+	int i;
+
+	if (!thr_hashrates || opt_n_threads <= 0)
+		return 0.;
+	pthread_mutex_lock(&stats_lock);
+	for (i = 0; i < opt_n_threads; i++)
+		hashrate += thr_hashrates[i];
+	pthread_mutex_unlock(&stats_lock);
+	return hashrate;
+}
+
+static void ux_format_hashrate(char *buf, size_t buflen, double hashrate)
+{
+	if (hashrate >= 1e6)
+		snprintf(buf, buflen, "%.0f KH/s", 1e-3 * hashrate);
+	else
+		snprintf(buf, buflen, "%.2f KH/s", 1e-3 * hashrate);
+}
+
+static void ux_format_reward(char *buf, size_t buflen, int64_t sat)
+{
+	double oru = sat / 100000000.0;
+	if (fabs(oru - floor(oru + 0.5)) < 1e-6)
+		snprintf(buf, buflen, "%.0f ORU", oru);
+	else
+		snprintf(buf, buflen, "%.8f ORU", oru);
+}
+
+static void ux_emit(const char *text)
+{
+#ifdef CPUMINER_STDERR_LOG_LOCK
+	pthread_mutex_lock(&applog_lock);
+#endif
+	fputs(text, stderr);
+	fflush(stderr);
+#ifdef CPUMINER_STDERR_LOG_LOCK
+	pthread_mutex_unlock(&applog_lock);
+#endif
+}
+
+/* Default alpha UX: one atomic status board (aligned, no developer internals). */
+static void user_print_status(void)
+{
+	char hr[32];
+	char height_buf[32];
+	char buf[1024];
+	const char *mode;
+	const char *node;
+	const char *wallet;
+	const char *mining;
+	const char *payout;
+
+	if (opt_verbose)
+		return;
+
+	pthread_mutex_lock(&ux_print_lock);
+
+	ux_format_hashrate(hr, sizeof(hr), ux_total_hashrate());
+	if (ux_height > 0)
+		snprintf(height_buf, sizeof(height_buf), "%d", ux_height);
+	else
+		snprintf(height_buf, sizeof(height_buf), "-");
+
+	mode = have_stratum ? "Pool Mining" : "Solo Mining";
+	node = ux_node_connected ? "Connected" : "Connecting...";
+	if (have_stratum)
+		wallet = "N/A (pool)";
+	else
+		wallet = ux_node_connected ? "Connected" : "Connecting...";
+	mining = ux_mining_running ? "Running" : "Starting";
+	payout = (coinbase_addr && coinbase_addr[0]) ? coinbase_addr : "(from node template)";
+
+	snprintf(buf, sizeof(buf),
+		"\n"
+		"--------------------------------\n"
+		"RIGOR Miner\n"
+		"--------------------------------\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %lu\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"--------------------------------\n",
+		"Mode", mode,
+		"Node", node,
+		"Wallet", wallet,
+		"Mining", mining,
+		"Height", height_buf,
+		"Hashrate", hr,
+		"Blocks found", accepted_count,
+		"Last block", ux_last_block,
+		"Payout", payout,
+		"Status", ux_status_line);
+	ux_emit(buf);
+	time(&ux_last_status_print);
+
+	pthread_mutex_unlock(&ux_print_lock);
+}
+
+/* Periodic heartbeat — one line, not a full board reprint. */
+static void user_print_heartbeat(void)
+{
+	char hr[32];
+	char buf[256];
+
+	if (opt_verbose)
+		return;
+
+	pthread_mutex_lock(&ux_print_lock);
+	ux_format_hashrate(hr, sizeof(hr), ux_total_hashrate());
+	snprintf(buf, sizeof(buf),
+		"[mining] height %d | %s | blocks %lu | %s\n",
+		ux_height > 0 ? ux_height : 0,
+		hr,
+		accepted_count,
+		ux_status_line);
+	ux_emit(buf);
+	time(&ux_last_status_print);
+	pthread_mutex_unlock(&ux_print_lock);
+}
+
+static void user_print_status_throttled(int interval_sec)
+{
+	time_t now;
+
+	if (opt_verbose)
+		return;
+	time(&now);
+	if (ux_last_status_print && (now - ux_last_status_print) < interval_sec)
+		return;
+	user_print_heartbeat();
+}
+
+static void user_print_block_found(int height, int64_t reward)
+{
+	char reward_buf[48];
+	char height_buf[32];
+	char buf[384];
+
+	if (opt_verbose)
+		return;
+
+	if (reward > 0)
+		ux_format_reward(reward_buf, sizeof(reward_buf), reward);
+	else
+		snprintf(reward_buf, sizeof(reward_buf), "-");
+	if (height > 0)
+		snprintf(height_buf, sizeof(height_buf), "%d", height);
+	else
+		snprintf(height_buf, sizeof(height_buf), "-");
+
+	pthread_mutex_lock(&ux_print_lock);
+	snprintf(buf, sizeof(buf),
+		"\n"
+		"--------------------------------\n"
+		"Block found!\n"
+		"%-16s %s\n"
+		"%-16s %s\n"
+		"%-16s Confirmed by node\n"
+		"--------------------------------\n",
+		"Height", height_buf,
+		"Reward", reward_buf,
+		"Status");
+	ux_emit(buf);
+	time(&ux_last_status_print);
+	pthread_mutex_unlock(&ux_print_lock);
+}
+
+static void user_print_block_rejected(const char *reason)
+{
+	char buf[512];
+
+	if (opt_verbose)
+		return;
+
+	pthread_mutex_lock(&ux_print_lock);
+	snprintf(buf, sizeof(buf),
+		"\n"
+		"--------------------------------\n"
+		"Block rejected\n"
+		"%-16s %s\n"
+		"%-16s Mining continues\n"
+		"--------------------------------\n",
+		"Reason", reason ? reason : "unknown",
+		"Status");
+	ux_emit(buf);
+	time(&ux_last_status_print);
+	pthread_mutex_unlock(&ux_print_lock);
+}
+
+static void ux_note_work(const struct work *work)
+{
+	if (!work)
+		return;
+	ux_node_connected = true;
+	ux_mining_running = true;
+	if (work->height > 0)
+		ux_height = work->height;
+	if (work->coinbasevalue > 0)
+		ux_reward_sat = work->coinbasevalue;
+	snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
+}
 
 static inline void work_free(struct work *w)
 {
@@ -477,40 +714,38 @@ static int gbt_extract_coinbase_vin0_scriptsig(const unsigned char *tx, int txle
 	return (int)ss_len;
 }
 
-/* Rigor: Compare two txid hex strings for sorting (uint256 memcmp order).
- * This implements the sorting order required by Rigor convergence_root calculation.
- * The hex string representation of uint256 matches memcmp order when compared lexicographically.
+/*
+ * GBT / RPC hash hex uses Bitcoin Core uint256::GetHex (display order = reversed
+ * internal m_data). Coinbase ConvergenceRoot and Hash256(F) use wire/internal bytes.
+ * Convert display hex → native with hex2bin + memrev (same as previousblockhash).
  */
+static bool gbt_hash_hex_to_native(unsigned char *out, const char *hex)
+{
+	if (!hex || strlen(hex) != 64 || !hex2bin(out, hex, 32))
+		return false;
+	memrev(out, 32);
+	return true;
+}
+
+/* Rigor: Compare two GBT txid hex strings for uint256 memcmp order (internal bytes). */
 static int txid_compare(const void *a, const void *b)
 {
 	const char *txid_a = *(const char **)a;
 	const char *txid_b = *(const char **)b;
 	unsigned char bin_a[32], bin_b[32];
-	if (txid_a && strlen(txid_a) == 64)
-		hex2bin(bin_a, txid_a, 32);
-	else
+	if (!gbt_hash_hex_to_native(bin_a, txid_a))
 		memset(bin_a, 0, 32);
-	if (txid_b && strlen(txid_b) == 64)
-		hex2bin(bin_b, txid_b, 32);
-	else
+	if (!gbt_hash_hex_to_native(bin_b, txid_b))
 		memset(bin_b, 0, 32);
 	return memcmp(bin_a, bin_b, 32);
 }
 
-/* Rigor: Compute convergence_root from txids according to Rigor consensus rules.
+/* Rigor: Compute convergence_root from GBT txid hex (display order) → native root bytes.
  *
  * Algorithm (from consensus/convergence_root.cpp):
  * 1. If fewer than 2 txids, convergence_root is all-zero (32 bytes)
- * 2. Sort txids in ascending order (uint256 memcmp order)
- * 3. Concatenate all txids in their raw binary form (32 bytes each)
- * 4. Compute Hash256 (double SHA256) of the concatenated data
- *
- * This function implements the normative convergence_root calculation that miners
- * must perform to match the node's consensus validation.
- *
- * @param txids Array of hex-encoded txid strings (64 chars each)
- * @param count Number of txids in the array
- * @param root_out Output buffer (32 bytes) for the computed convergence_root
+ * 2. Sort txids by raw uint256 memcmp (internal / wire order)
+ * 3. Concatenate raw 32-byte txids and Hash256
  */
 static void compute_convergence_root(char **txids, int count, unsigned char *root_out)
 {
@@ -519,19 +754,101 @@ static void compute_convergence_root(char **txids, int count, unsigned char *roo
 	if (count < 2)
 		return;
 
-	/* Sort txids by hex string (which is uint256 memcmp order) */
 	qsort(txids, count, sizeof(char*), txid_compare);
 
-	/* Concatenate all txids and compute Hash256 */
+	/* Concatenate native txids and compute Hash256 */
 	unsigned char *concat = malloc(count * 32);
+	if (!concat) {
+		memset(root_out, 0, 32);
+		return;
+	}
 	for (int i = 0; i < count; i++) {
-		if (txids[i] && strlen(txids[i]) == 64) {
-			hex2bin(concat + i * 32, txids[i], 32);
-		}
+		if (!gbt_hash_hex_to_native(concat + i * 32, txids[i]))
+			memset(concat + i * 32, 0, 32);
 	}
 
 	sha256d(root_out, concat, count * 32);
 	free(concat);
+}
+
+/* Prefer GBT-provided root; else recompute from convergence_txids (N<2 → zeros). */
+static void resolve_convergence_root(const struct work *work, unsigned char *root_out)
+{
+	if (work->has_convergence_root) {
+		memcpy(root_out, work->convergence_root, 32);
+		return;
+	}
+	compute_convergence_root(work->convergence_txids, work->convergence_txid_count, root_out);
+}
+
+/**
+ * Append BIP34 height push matching CScript() << height (no padding).
+ * Returns bytes written into out, or -1 if out_max too small.
+ */
+static int gbt_push_bip34_height(unsigned char *out, int out_max, int height)
+{
+	int n;
+	int len = 0;
+
+	if (out_max < 1)
+		return -1;
+	if (height == 0) {
+		out[0] = 0x00; /* OP_0 */
+		return 1;
+	}
+	if (height >= 1 && height <= 16) {
+		out[0] = (unsigned char)(height + 0x50); /* OP_1 .. OP_16 */
+		return 1;
+	}
+	/* Minimal CScriptNum push (same shape as Bitcoin Core for positive heights). */
+	{
+		unsigned char payload[9];
+		int plen = 0;
+		for (n = height; n; n >>= 8) {
+			payload[plen++] = n & 0xff;
+			if (plen >= (int)sizeof(payload))
+				return -1;
+		}
+		if (payload[plen - 1] & 0x80)
+			payload[plen++] = 0;
+		if (out_max < 1 + plen)
+			return -1;
+		out[0] = (unsigned char)plen;
+		memcpy(out + 1, payload, (size_t)plen);
+		return 1 + plen;
+	}
+}
+
+/**
+ * Build Rigor coinbase scriptSig: BIP34 height + OP_PUSHBYTES_32 + convergence_root.
+ * Writes length-prefixed script into cbtx starting at offset 41 (compact size length byte).
+ * Returns total tx offset after scriptSig (42 + script_len), or -1 on error.
+ */
+static int gbt_write_coinbase_scriptsig(unsigned char *cbtx, int cbtx_cap,
+					const struct work *work)
+{
+	unsigned char script[1 + 9 + 1 + 32];
+	int script_len = 0;
+	int hlen;
+	unsigned char root[32];
+
+	hlen = gbt_push_bip34_height(script, (int)sizeof(script), work->height);
+	if (hlen < 0)
+		return -1;
+	script_len = hlen;
+	if (script_len + 1 + 32 > (int)sizeof(script))
+		return -1;
+	resolve_convergence_root(work, root);
+	script[script_len++] = 0x20; /* OP_PUSHBYTES_32 */
+	memcpy(script + script_len, root, 32);
+	script_len += 32;
+
+	/* scriptSig length is a single-byte compact size for these sizes (< 253). */
+	if (script_len >= 253 || 42 + script_len > cbtx_cap)
+		return -1;
+	cbtx[41] = (unsigned char)script_len;
+	memcpy(cbtx + 42, script, (size_t)script_len);
+	return 42 + script_len;
 }
 
 static bool gbt_work_decode(const json_t *val, struct work *work)
@@ -598,12 +915,27 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 			conv_script_len = flen;
 	}
 
-	/* Rigor GBT: Parse convergence_txids for computing convergence_root */
+	/* Rigor GBT: exact ConvergenceRoot the coinbase must commit (preferred).
+	 * Field is uint256::GetHex (display); coinbase needs native/wire bytes. */
+	work->has_convergence_root = false;
+	memset(work->convergence_root, 0, sizeof(work->convergence_root));
+	tmp = json_object_get(val, "convergence_root");
+	if (tmp && json_is_string(tmp)) {
+		const char *root_hex = json_string_value(tmp);
+		if (gbt_hash_hex_to_native(work->convergence_root, root_hex)) {
+			work->has_convergence_root = true;
+			if (opt_debug)
+				applog(LOG_DEBUG, "GBT convergence_root=%s (native for coinbase)", root_hex);
+		}
+	}
+
+	/* Rigor GBT: Parse convergence_txids (fallback if convergence_root missing). */
 	tmp = json_object_get(val, "convergence_txids");
 	if (tmp && json_is_array(tmp)) {
 		int n = json_array_size(tmp);
 		work->convergence_txid_count = n;
-		applog(LOG_INFO, "DEBUG: Received %d convergence_txids from GBT", n);
+		if (opt_debug)
+			applog(LOG_DEBUG, "GBT convergence_txids count=%d", n);
 		if (n > 0) {
 			work->convergence_txids = calloc(n, sizeof(char*));
 			for (int i = 0; i < n; i++) {
@@ -616,12 +948,8 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 				}
 			}
 		} else {
-			/* Empty array: set count to 0, txids remains NULL */
 			work->convergence_txids = NULL;
-			applog(LOG_INFO, "DEBUG: convergence_txids array is empty");
 		}
-	} else {
-		applog(LOG_INFO, "DEBUG: convergence_txids field not found in GBT response");
 	}
 
 	/* Rigor GBT: Get previous block hash to query its nBits for RIGOR commitment */
@@ -711,6 +1039,22 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 			sscanf(bits_hex, "%x", &bits_val);
 			bits = bits_val;
 			work->nbits = bits_val; /* Store nBits for SetCompact */
+			/* Log when height/bits change (LONGPOLL can refresh the same template often). */
+			{
+				static unsigned int s_last_bits;
+				static int s_last_height = -1;
+				if (bits_val != s_last_bits || work->height != s_last_height) {
+					s_last_bits = bits_val;
+					s_last_height = work->height;
+					/* ASCII only: Windows consoles often use CP936 and mangle UTF-8 punctuation. */
+					if (opt_verbose)
+						applog(LOG_INFO, "GBT nBits=0x%08x height=%d (OK if ~0x1e01xxxx; BAD if 0x207fffff)",
+						       bits_val, work->height);
+				}
+			}
+			if (bits_val == 0x207fffffu) {
+				applog(LOG_ERR, "EASY DIFFICULTY (powLimit): wipe THIS install blocks+chainstate and upgrade rigor-wallet/rigord");
+			}
 		} else {
 			applog(LOG_ERR, "JSON invalid bits length");
 			goto out;
@@ -745,6 +1089,10 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 	 * commitment, which would be rejected as bad-convergence-missing.
 	 */
 	const bool prefer_local_coinbase = (pk_script_size > 0);
+	tmp = json_object_get(val, "coinbasevalue");
+	if (tmp && json_is_number(tmp))
+		work->coinbasevalue = json_is_integer(tmp) ? json_integer_value(tmp)
+							   : (int64_t)json_number_value(tmp);
 	tmp = json_object_get(val, "coinbasetxn");
 	if (tmp && !prefer_local_coinbase) {
 		const char *cbtx_hex = json_string_value(json_object_get(tmp, "data"));
@@ -785,6 +1133,7 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 			goto out;
 		}
 		cbvalue = json_is_integer(tmp) ? json_integer_value(tmp) : json_number_value(tmp);
+		work->coinbasevalue = cbvalue;
 		cbtx = malloc(8192);
 		le32enc((uint32_t *)cbtx, 1); /* version */
 		cbtx[4] = 1; /* in-counter */
@@ -806,44 +1155,27 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 				}
 			}
 			if (scriptsig_tpl_len > 0) {
+				/* Node template already has BIP34 height + ConvergenceRoot; do not append. */
 				cbtx[41] = (unsigned char)scriptsig_tpl_len;
 				memcpy(cbtx + 42, scriptsig_tpl, (size_t)scriptsig_tpl_len);
 				cbtx_size = 42 + scriptsig_tpl_len;
-				/* Rigor: always append convergence_root even when using template */
-				unsigned char convergence_root[32];
-				compute_convergence_root(work->convergence_txids, work->convergence_txid_count, convergence_root);
-				char conv_root_hex[65];
-				bin2hex(conv_root_hex, convergence_root, 32);
-				applog(LOG_INFO, "DEBUG: Appending convergence_root to coinbase: %s", conv_root_hex);
-				cbtx[cbtx_size++] = 0x20; /* OP_PUSHBYTES_32 */
-				memcpy(cbtx + cbtx_size, convergence_root, 32);
-				cbtx_size += 32;
-				cbtx[41] = cbtx_size - 42; /* update scriptsig length */
+				if (opt_debug)
+					applog(LOG_DEBUG, "Using GBT coinbasetxn scriptSig (%d bytes)", scriptsig_tpl_len);
 			} else {
-				cbtx_size = 43;
-				/* BIP 34: height in coinbase */
-				if (work->height >= 1 && work->height <= 16) {
-					/* Use OP_1-OP_16 to conform to Bitcoin's implementation. */
-					cbtx[42] = work->height + 0x50;
-					cbtx[cbtx_size++] = 0x00; /* OP_0; pads to 2 bytes */
-				} else {
-					for (n = work->height; n; n >>= 8) {
-						cbtx[cbtx_size++] = n & 0xff;
-						if (n < 0x100 && n >= 0x80)
-							cbtx[cbtx_size++] = 0;
-					}
-					cbtx[42] = cbtx_size - 43;
+				/* Local build: height + OP_PUSHBYTES_32(root) only (no OP_0 pad). */
+				cbtx_size = gbt_write_coinbase_scriptsig(cbtx, 8192, work);
+				if (cbtx_size < 0) {
+					applog(LOG_ERR, "Failed to build coinbase scriptSig (height=%d)", work->height);
+					goto out;
 				}
-				/* Rigor: convergence root in scriptSig (computed from convergence_txids). */
-				unsigned char convergence_root[32];
-				compute_convergence_root(work->convergence_txids, work->convergence_txid_count, convergence_root);
-				char conv_root_hex[65];
-				bin2hex(conv_root_hex, convergence_root, 32);
-				applog(LOG_INFO, "DEBUG: Appending convergence_root to coinbase (local): %s", conv_root_hex);
-				cbtx[cbtx_size++] = 0x20; /* OP_PUSHBYTES_32 */
-				memcpy(cbtx + cbtx_size, convergence_root, 32);
-				cbtx_size += 32;
-				cbtx[41] = cbtx_size - 42; /* scriptsig length */
+				if (opt_debug) {
+					unsigned char root[32];
+					char conv_root_hex[65];
+					resolve_convergence_root(work, root);
+					bin2hex(conv_root_hex, root, 32);
+					applog(LOG_DEBUG, "Built coinbase scriptSig height=%d root=%s",
+					       work->height, conv_root_hex);
+				}
 			}
 		}
 		le32enc((uint32_t *)(cbtx+cbtx_size), 0xffffffff); /* sequence */
@@ -920,11 +1252,14 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 			cbtx[cbtx_size++] = (prev_nbits >> 8) & 0xff;
 			cbtx[cbtx_size++] = (prev_nbits >> 16) & 0xff;
 			cbtx[cbtx_size++] = (prev_nbits >> 24) & 0xff;
-			applog(LOG_INFO, "Rigor commitment: tag=RIGR prev_nbits=0x%08x (template bits=0x%08x)", prev_nbits, bits);
+			if (opt_debug)
+				applog(LOG_DEBUG, "Rigor commitment: tag=RIGR prev_nbits=0x%08x (template bits=0x%08x)",
+				       prev_nbits, bits);
 		}
 		le32enc((uint32_t *)(cbtx+cbtx_size), 0); /* lock time */
 		cbtx_size += 4;
-		coinbase_append = true;
+		/* Rigor coinbase scriptSig is frozen (height + root only); never append aux/sig. */
+		coinbase_append = false;
 	}
 coinbase_built:
 	if (coinbase_append) {
@@ -1026,7 +1361,8 @@ coinbase_built:
 	}
 
 	/* assemble block header */
-	work->data[0] = swab32(version);
+	/* Native LE word; le32enc in scan/submit yields Bitcoin header serialization. */
+	work->data[0] = version;
 	/* prevhash is already in little-endian wire format after reversal - copy directly */
 	memcpy(work->data + 1, prevhash, 32);
 
@@ -1040,29 +1376,24 @@ coinbase_built:
 	for (i = 0; i < 8; i++)
 		work->data[9 + i] = le32dec((uint32_t *)merkle_tree[0] + i);
 	work->data[17] = curtime;  /* curtime from GBT is already correct, no byte swap needed */
-	work->data[18] = le32dec(&bits);
+	work->data[18] = bits;     /* host uint32; le32enc on submit/scan → wire LE */
 	memset(work->data + 19, 0x00, 52);
 	work->data[20] = 0x80000000;
 	work->data[31] = 0x00000280;
 
-	/* === MINING DEBUG === */
-	applog(LOG_INFO, "=== MINING DEBUG ===");
-	applog(LOG_INFO, "Header.nBits = 0x%08x", work->data[18]);
-	applog(LOG_INFO, "GBT bits = 0x%08x", bits);
-	{
+	/* Verbose header dump only with -D / --debug-pow */
+	if (opt_debug || opt_debug_pow) {
 		char hexbuf[65];
-		bin2hex(hexbuf, (unsigned char*)merkle_tree[0], 32);
-		applog(LOG_INFO, "MerkleRoot = %s", hexbuf);
-	}
-	/* Debug: Print serialized 80-byte block header in hex */
-	{
 		unsigned char wire[80];
-		int i;
-		for (i = 0; i < 20; i++)
-			le32enc(wire + 4 * i, work->data[i]);
 		char header_hex[161];
+		int di;
+		applog(LOG_DEBUG, "Header.nBits=0x%08x GBT bits=0x%08x", work->data[18], bits);
+		bin2hex(hexbuf, (unsigned char*)merkle_tree[0], 32);
+		applog(LOG_DEBUG, "MerkleRoot=%s", hexbuf);
+		for (di = 0; di < 20; di++)
+			le32enc(wire + 4 * di, work->data[di]);
 		bin2hex(header_hex, wire, 80);
-		applog(LOG_INFO, "Serialized 80-byte header: %s", header_hex);
+		applog(LOG_DEBUG, "Header80=%s", header_hex);
 	}
 
 	/* === RIGOR MINER DEBUG === */
@@ -1098,7 +1429,7 @@ coinbase_built:
 
 		/* Convergence root */
 		unsigned char conv_root[32];
-		compute_convergence_root(work->convergence_txids, work->convergence_txid_count, conv_root);
+		resolve_convergence_root(work, conv_root);
 		char conv_root_hex[65];
 		bin2hex(conv_root_hex, conv_root, 32);
 
@@ -1127,13 +1458,14 @@ coinbase_built:
 		/* Copy arith_uint256 to work->target (uint32_t[8]) */
 		for (i = 0; i < 8; i++)
 			work->target[i] = arith_target.data[i];
-		/* Debug: Print target from SetCompact with raw array values */
-		char target_hex[65];
-		arith_uint256_to_hex(&arith_target, target_hex);
-		applog(LOG_INFO, "Target (from SetCompact): %s", target_hex);
-		applog(LOG_INFO, "Target raw array: [%08x %08x %08x %08x %08x %08x %08x %08x]",
-		       work->target[0], work->target[1], work->target[2], work->target[3],
-		       work->target[4], work->target[5], work->target[6], work->target[7]);
+		if (opt_debug) {
+			char target_hex[65];
+			arith_uint256_to_hex(&arith_target, target_hex);
+			applog(LOG_DEBUG, "Target (from SetCompact): %s", target_hex);
+			applog(LOG_DEBUG, "Target raw array: [%08x %08x %08x %08x %08x %08x %08x %08x]",
+			       work->target[0], work->target[1], work->target[2], work->target[3],
+			       work->target[4], work->target[5], work->target[6], work->target[7]);
+		}
 	}
 
 	tmp = json_object_get(val, "workid");
@@ -1168,29 +1500,66 @@ out:
 	return rc;
 }
 
-static void share_result(int result, const char *reason)
+static void share_result(int result, const char *reason, int height, int64_t reward)
 {
 	char s[345];
 	double hashrate;
 	int i;
+	/* Stale multi-thread races — not a consensus failure; keep stats quiet. */
+	const bool soft = !result && reason &&
+		(!strcmp(reason, "inconclusive") ||
+		 !strcmp(reason, "duplicate") ||
+		 !strcmp(reason, "duplicate-inconclusive") ||
+		 !strcmp(reason, "inconclusive-not-best-prevblk"));
 
 	hashrate = 0.;
 	pthread_mutex_lock(&stats_lock);
 	for (i = 0; i < opt_n_threads; i++)
 		hashrate += thr_hashrates[i];
-	result ? accepted_count++ : rejected_count++;
+	if (result)
+		accepted_count++;
+	else if (!soft)
+		rejected_count++;
 	pthread_mutex_unlock(&stats_lock);
-	
-	sprintf(s, hashrate >= 1e6 ? "%.0f" : "%.2f", 1e-3 * hashrate);
-	applog(LOG_INFO, "accepted: %lu/%lu (%.2f%%), %s khash/s %s",
-		   accepted_count,
-		   accepted_count + rejected_count,
-		   100. * accepted_count / (accepted_count + rejected_count),
-		   s,
-		   result ? "(yay!!!)" : "(booooo)");
 
-	if (opt_debug && reason)
-		applog(LOG_DEBUG, "DEBUG: reject reason: %s", reason);
+	if (soft) {
+		if (opt_debug)
+			applog(LOG_DEBUG, "stale/race submit ignored: %s", reason);
+		return;
+	}
+
+	sprintf(s, hashrate >= 1e6 ? "%.0f" : "%.2f", 1e-3 * hashrate);
+	if (result) {
+		if (!opt_verbose) {
+			int show_height = height > 0 ? height : ux_height;
+			int64_t show_reward = reward > 0 ? reward : ux_reward_sat;
+
+			snprintf(ux_last_block, sizeof(ux_last_block), "Accepted");
+			snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
+			user_print_block_found(show_height, show_reward);
+			user_print_status();
+		} else {
+			applog(LOG_INFO, "block accepted: %lu ok / %lu hard-fail (%.2f%%), %s khash/s",
+				   accepted_count,
+				   accepted_count + rejected_count,
+				   (accepted_count + rejected_count)
+					   ? 100. * accepted_count / (accepted_count + rejected_count)
+					   : 0.,
+				   s);
+		}
+	} else {
+		snprintf(ux_last_block, sizeof(ux_last_block), "Rejected");
+		snprintf(ux_status_line, sizeof(ux_status_line), "Block rejected — mining continues");
+		if (!opt_verbose) {
+			user_print_block_rejected(reason);
+		} else {
+			applog(LOG_ERR, "block rejected: %s | %lu ok / %lu hard-fail, %s khash/s",
+				   reason ? reason : "unknown",
+				   accepted_count,
+				   accepted_count + rejected_count,
+				   s);
+		}
+	}
 }
 
 static bool submit_upstream_work(CURL *curl, struct work *work)
@@ -1235,15 +1604,19 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 		char *req;
 		uint32_t data_wire[20];
 
-		/* Encode header to wire format without modifying work->data */
-		for (i = 0; i < ARRAY_SIZE(work->data); i++)
+		/* Encode 80-byte header only (do not walk work->data[32] into a 20-word buffer). */
+		for (i = 0; i < 20; i++)
 			le32enc(data_wire + i, work->data[i]);
 		bin2hex(data_str, (unsigned char *)data_wire, 80);
+		if (opt_debug) {
+			applog(LOG_DEBUG, "submit nTime=%u nBits=0x%08x nonce=0x%08x",
+			       work->data[17], work->data[18], work->data[19]);
+		}
 		for (i = 0; i < 8; i++)
 			le32enc(target_be + i, work->target[7 - i]);
 		bin2hex(target_str, (unsigned char *)target_be, 32);
-		applog(LOG_INFO, "DEBUG: submitblock header=%s target=%s",
-		       data_str, target_str);
+		if (opt_debug)
+			applog(LOG_DEBUG, "submitblock header=%s target=%s", data_str, target_str);
 		if (work->workid) {
 			char *params;
 			val = json_object();
@@ -1268,10 +1641,11 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 			goto out;
 		}
 
-		/* Debug: Log RPC response */
-		char *res_str = json_dumps(val, 0);
-		applog(LOG_INFO, "RPC response: %s", res_str);
-		free(res_str);
+		if (opt_debug) {
+			char *dbg = json_dumps(val, 0);
+			applog(LOG_DEBUG, "RPC response: %s", dbg);
+			free(dbg);
+		}
 
 		res = json_object_get(val, "result");
 		if (json_is_object(res)) {
@@ -1286,16 +1660,17 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 				iter = json_object_iter_next(res, iter);
 			}
 			res_str = json_dumps(res, 0);
-			share_result(sumres, res_str);
+			share_result(sumres, res_str, work->height, work->coinbasevalue);
 			free(res_str);
 		} else
-			share_result(json_is_null(res), json_string_value(res));
+			share_result(json_is_null(res), json_string_value(res),
+				     work->height, work->coinbasevalue);
 
 		json_decref(val);
 	} else {
 		/* build hex string */
 		uint32_t data_wire[20];
-		for (i = 0; i < ARRAY_SIZE(work->data); i++)
+		for (i = 0; i < 20; i++)
 			le32enc(data_wire + i, work->data[i]);
 		bin2hex(data_str, (unsigned char *)data_wire, sizeof(data_wire));
 
@@ -1313,7 +1688,8 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 
 		res = json_object_get(val, "result");
 		reason = json_object_get(val, "reject-reason");
-		share_result(json_is_true(res), reason ? json_string_value(reason) : NULL);
+		share_result(json_is_true(res), reason ? json_string_value(reason) : NULL,
+			     work->height, work->coinbasevalue);
 
 		json_decref(val);
 	}
@@ -1365,7 +1741,8 @@ start:
 	}
 
 	if (have_gbt && allow_getwork && !val && err == CURLE_OK) {
-		applog(LOG_INFO, "getblocktemplate failed, falling back to getwork");
+		if (opt_verbose)
+			applog(LOG_INFO, "getblocktemplate failed, falling back to getwork");
 		have_gbt = false;
 		goto start;
 	}
@@ -1381,6 +1758,13 @@ start:
 		}
 	} else
 		rc = work_decode(json_object_get(val, "result"), work);
+
+	if (rc) {
+		bool first = !ux_node_connected;
+		ux_note_work(work);
+		if (!opt_verbose && first)
+			user_print_status();
+	}
 
 	if (opt_debug && rc) {
 		timeval_subtract(&diff, &tv_end, &tv_start);
@@ -1423,14 +1807,29 @@ static bool workio_get_work(struct workio_cmd *wc, CURL *curl)
 	/* obtain new work from bitcoin via JSON-RPC */
 	while (!get_upstream_work(curl, ret_work)) {
 		if (unlikely((opt_retries >= 0) && (++failures > opt_retries))) {
-			applog(LOG_ERR, "json_rpc_call failed, terminating workio thread");
+			if (!opt_verbose)
+				applog(LOG_ERR,
+				       "Cannot connect to local RIGOR node.\n"
+				       "Please start rigor-wallet or rigord first.");
+			else
+				applog(LOG_ERR, "json_rpc_call failed, terminating workio thread");
 			free(ret_work);
 			return false;
 		}
 
 		/* pause, then restart work-request loop */
-		applog(LOG_ERR, "json_rpc_call failed, retry after %d seconds",
-			opt_fail_pause);
+		if (!opt_verbose) {
+			snprintf(ux_status_line, sizeof(ux_status_line),
+				 "Waiting to reconnect to node");
+			applog(LOG_ERR,
+			       "Cannot connect to local RIGOR node.\n"
+			       "Please start rigor-wallet or rigord first.\n"
+			       "Retrying in %d seconds...",
+			       opt_fail_pause);
+		} else {
+			applog(LOG_ERR, "json_rpc_call failed, retry after %d seconds",
+				opt_fail_pause);
+		}
 		sleep(opt_fail_pause);
 	}
 
@@ -1755,11 +2154,13 @@ static void *miner_thread(void *userdata)
 				hashes_done / (diff.tv_sec + 1e-6 * diff.tv_usec);
 			pthread_mutex_unlock(&stats_lock);
 		}
-		if (!opt_quiet) {
+		if (opt_verbose && !opt_quiet) {
 			sprintf(s, thr_hashrates[thr_id] >= 1e6 ? "%.0f" : "%.2f",
 				1e-3 * thr_hashrates[thr_id]);
 			applog(LOG_INFO, "thread %d: %lu hashes, %s khash/s",
 				thr_id, hashes_done, s);
+		} else if (!opt_verbose && thr_id == 0) {
+			user_print_status_throttled(15);
 		}
 		if (opt_benchmark && thr_id == opt_n_threads - 1) {
 			double hashrate = 0.;
@@ -1772,8 +2173,13 @@ static void *miner_thread(void *userdata)
 		}
 
 		/* if nonce found, submit work */
-		if (rc && !opt_benchmark && !submit_work(mythr, &work))
-			break;
+		if (rc && !opt_benchmark) {
+			if (!submit_work(mythr, &work))
+				break;
+			/* Pace solo mining so the GUI node is not flooded (easy Alpha PoW). */
+			if (opt_submit_delay > 0)
+				sleep(opt_submit_delay);
+		}
 	}
 
 out:
@@ -1827,7 +2233,8 @@ start:
 		sprintf(lp_url, "%s%s%s", rpc_url, need_slash ? "/" : "", copy_start);
 	}
 
-	applog(LOG_INFO, "Long-polling activated for %s", lp_url);
+	if (opt_verbose)
+		applog(LOG_INFO, "Long-polling activated for %s", lp_url);
 
 	while (1) {
 		json_t *val, *res, *soval;
@@ -1849,7 +2256,9 @@ start:
 		}
 		if (likely(val)) {
 			bool rc;
-			applog(LOG_INFO, "LONGPOLL pushed new work");
+			static uint32_t s_lp_prev[8];
+			static int s_lp_height = -1;
+			static int s_lp_same;
 			res = json_object_get(val, "result");
 			soval = json_object_get(res, "submitold");
 			submit_old = soval ? json_is_true(soval) : false;
@@ -1860,6 +2269,41 @@ start:
 			else
 				rc = work_decode(res, &g_work);
 			if (rc) {
+				int same = (s_lp_height == g_work.height &&
+					    !memcmp(s_lp_prev, g_work.data, 32));
+				memcpy(s_lp_prev, g_work.data, 32);
+				s_lp_height = g_work.height;
+				if (same) {
+					/*
+					 * Same tip+height: node longpoll woke for template refresh
+					 * (ASERT/UpdateTime nBits, mempool tick) — not a new block.
+					 * Brief backoff avoids busy-spin; mining continues on current work.
+					 * Unrelated to ORU Convergence; expected between accepted blocks.
+					 */
+					if (++s_lp_same == 1) {
+						if (opt_verbose)
+							applog(LOG_INFO, "LONGPOLL same tip (nBits/time refresh); backing off 2s");
+						else {
+							snprintf(ux_status_line, sizeof(ux_status_line),
+								 "Waiting for new block template");
+							/* Status text updates on next heartbeat; avoid spam. */
+						}
+					} else if ((s_lp_same % 30) == 0) {
+						if (opt_verbose)
+							applog(LOG_INFO, "LONGPOLL still same tip x%d (normal while waiting for next block)", s_lp_same);
+					}
+					pthread_mutex_unlock(&g_work_lock);
+					json_decref(val);
+					sleep(2);
+					continue;
+				}
+				s_lp_same = 0;
+				if (opt_verbose)
+					applog(LOG_INFO, "LONGPOLL pushed new work");
+				else {
+					ux_note_work(&g_work);
+					snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
+				}
 				time(&g_work_time);
 				restart_threads();
 			}
@@ -1913,7 +2357,8 @@ static bool stratum_handle_response(char *buf)
 		goto out;
 
 	share_result(json_is_true(res_val),
-		err_val ? json_string_value(json_array_get(err_val, 1)) : NULL);
+		err_val ? json_string_value(json_array_get(err_val, 1)) : NULL,
+		0, 0);
 
 	ret = true;
 out:
@@ -1931,7 +2376,12 @@ static void *stratum_thread(void *userdata)
 	stratum.url = tq_pop(mythr->q, NULL);
 	if (!stratum.url)
 		goto out;
-	applog(LOG_INFO, "Starting Stratum on %s", stratum.url);
+	if (opt_verbose)
+		applog(LOG_INFO, "Starting Stratum on %s", stratum.url);
+	else {
+		snprintf(ux_status_line, sizeof(ux_status_line), "Connecting to pool");
+		user_print_status_throttled(5);
+	}
 
 	while (1) {
 		int failures = 0;
@@ -2109,11 +2559,21 @@ static void parse_arg(int key, char *arg, char *pname)
 	case 'q':
 		opt_quiet = true;
 		break;
+	case 'v':
+		opt_verbose = true;
+		break;
 	case 'D':
 		opt_debug = true;
+		opt_verbose = true;
 		break;
 	case 1016:
 		opt_debug_pow = true;
+		break;
+	case 1017:			/* --submit-delay */
+		v = atoi(arg);
+		if (v < 0 || v > 3600)
+			show_usage_and_exit(1);
+		opt_submit_delay = v;
 		break;
 	case 'p':
 		free(rpc_pass);
@@ -2274,6 +2734,8 @@ static void parse_arg(int key, char *arg, char *pname)
 				pname, arg);
 			show_usage_and_exit(1);
 		}
+		free(coinbase_addr);
+		coinbase_addr = strdup(arg);
 		break;
 	case 1015:			/* --coinbase-sig */
 		if (strlen(arg) + 1 > sizeof(coinbase_sig)) {
@@ -2402,22 +2864,29 @@ int main(int argc, char *argv[])
 		applog(LOG_ERR, "OpusHash self-test failed. Ref hash mismatch.");
 		return 1;
 	}
-	applog(LOG_INFO, "OpusHash self-test passed.");
+	if (opt_verbose)
+		applog(LOG_INFO, "OpusHash self-test passed.");
 
 	{
 		unsigned char rigor_magic[4];
 		rigor_testnet_message_start_fill(rigor_magic);
-		applog(LOG_INFO,
-		       "Rigor testnet P2P magic (pchMessageStart): %02x%02x%02x%02x — "
-		       "minerd uses JSON-RPC only; use these bytes if you add wire P2P",
-		       (unsigned)rigor_magic[0],
-		       (unsigned)rigor_magic[1],
-		       (unsigned)rigor_magic[2],
-		       (unsigned)rigor_magic[3]);
+		if (opt_verbose)
+			applog(LOG_INFO,
+			       "Rigor testnet P2P magic (pchMessageStart): %02x%02x%02x%02x - "
+			       "minerd uses JSON-RPC only; use these bytes if you add wire P2P",
+			       (unsigned)rigor_magic[0],
+			       (unsigned)rigor_magic[1],
+			       (unsigned)rigor_magic[2],
+			       (unsigned)rigor_magic[3]);
 		if (!rigor_testnet_message_start_eq(rigor_magic)) {
 			applog(LOG_ERR, "Rigor testnet P2P magic self-check failed (internal error)");
 			return 1;
 		}
+	}
+
+	if (!opt_verbose) {
+		snprintf(ux_status_line, sizeof(ux_status_line), "Connecting to node");
+		user_print_status();
 	}
 
 	flags = opt_benchmark || (strncasecmp(rpc_url, "https://", 8) &&
@@ -2544,15 +3013,29 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	applog(LOG_INFO, "%d miner threads started, "
-		"using '%s' algorithm.",
-		opt_n_threads,
-		algo_names[opt_algo]);
+	ux_mining_running = true;
+	if (opt_verbose) {
+		if (opt_algo == ALGO_SHA256D) {
+			applog(LOG_INFO, "%d miner threads started, using OpuHash "
+				"(CLI algo name 'sha256d' = header SHA256d + OpuHash mix).",
+				opt_n_threads);
+		} else {
+			applog(LOG_INFO, "%d miner threads started, using '%s' algorithm.",
+				opt_n_threads, algo_names[opt_algo]);
+		}
+	} else {
+		snprintf(ux_status_line, sizeof(ux_status_line),
+			 ux_node_connected ? "Mining normally" : "Connecting to node");
+		/* Full board already printed at startup / first work; avoid duplicate. */
+	}
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL);
 
-	applog(LOG_INFO, "workio thread dead, exiting.");
+	if (opt_verbose)
+		applog(LOG_INFO, "workio thread dead, exiting.");
+	else
+		stderr_msg("Miner stopped.\n");
 
 	return 0;
 }

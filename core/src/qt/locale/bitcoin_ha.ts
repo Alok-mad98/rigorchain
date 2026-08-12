@@ -171,7 +171,7 @@ zaka iya shiga ne kawai da adiresoshin 'na musamman' kawai.</translation>
         </translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
             <numerusform />

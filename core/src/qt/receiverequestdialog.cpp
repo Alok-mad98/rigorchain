@@ -23,6 +23,7 @@ ReceiveRequestDialog::ReceiveRequestDialog(QWidget* parent)
       ui(new Ui::ReceiveRequestDialog)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
     GUIUtil::handleCloseWindowShortcut(this);
 }
 

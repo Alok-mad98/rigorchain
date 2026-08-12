@@ -52,7 +52,13 @@ WalletFrame::WalletFrame(const PlatformStyle* _platformStyle, QWidget* parent)
 
     auto* empty = new RigorWallet::EmptyStateWidget(no_wallet_group);
     empty->setHeading(tr("Welcome to %1").arg(RigorWallet::WalletIdentity::brand().productName));
-    empty->setBody(tr("Open an existing wallet or create a new one to get started."));
+    empty->setBody(tr(
+        "Your wallet connects to the RIGOR network.\n\n"
+        "Create or open a wallet to continue.\n"
+        "Initial synchronization is required before ORU balances and RES Convergence status appear.\n\n"
+        "Blockchain Status: Waiting for synchronization…\n"
+        "Network: RIGOR Mainnet\n"
+        "RES Convergence: Available after ORU acquisition"));
     empty->setActionText(tr("Create a new wallet"));
     connect(empty, &RigorWallet::EmptyStateWidget::actionTriggered, this, &WalletFrame::createWalletButtonClicked);
     no_wallet_layout->addWidget(empty, 0, Qt::AlignCenter);
@@ -208,6 +214,13 @@ void WalletFrame::gotoVerifyMessageTab(QString addr)
     WalletView *walletView = currentWalletView();
     if (walletView)
         walletView->gotoVerifyMessageTab(addr);
+}
+
+void WalletFrame::gotoKeyManagement()
+{
+    WalletView *walletView = currentWalletView();
+    if (walletView)
+        walletView->gotoKeyManagement();
 }
 
 void WalletFrame::gotoLoadPSBT(bool from_clipboard)

@@ -19,6 +19,7 @@ CreateWalletDialog::CreateWalletDialog(QWidget* parent) :
     ui(new Ui::CreateWalletDialog)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
     ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Create"));
     ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
     ui->wallet_name_line_edit->setFocus(Qt::ActiveWindowFocusReason);

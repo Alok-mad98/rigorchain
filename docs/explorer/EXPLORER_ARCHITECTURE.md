@@ -20,7 +20,7 @@ Provide a **protocol-correct**, **read-only** indexing and visibility layer for 
 
 | Principle | Explorer obligation |
 |-----------|---------------------|
-| Script-as-asset | Classify ORU/RES from `scriptPubKey` / RPC decode — never from a parallel `asset` column in UTXO storage |
+| Script-as-compliance | Classify ORU/RES from `scriptPubKey` / RPC decode — never from a parallel `asset` column in UTXO storage; explorer display is not consensus truth |
 | Node is truth | All indexed facts derivable from STABLE RPC + frozen decode rules |
 | txid identity | Convergence, draw, F-set, convergence lineage keyed by **txid** |
 | No consensus in API | REST/API layer is presentation + query only |

@@ -41,7 +41,7 @@ useful to us.
 
 ## What we already know
 
-Read [docs/FORMAL-VERIFICATION-VERDICT.md](./docs/FORMAL-VERIFICATION-VERDICT.md) §3 before
+Read [docs/verification/FORMAL-VERIFICATION-VERDICT.md](docs/verification/FORMAL-VERIFICATION-VERDICT.md) §3 before
 reporting. It states plainly which properties are machine-checked and which are not — in
 particular there is no mechanized refinement between the Coq model and the C++ node, and
 the draw is modeled as a function rather than as a game, so no theorem bounds an attacker's

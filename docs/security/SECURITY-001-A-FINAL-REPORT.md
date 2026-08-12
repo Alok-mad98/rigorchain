@@ -174,7 +174,7 @@ Detail and residual gaps: ``docs/formal/SECURITY-001-A6-COQ-REPORT.md``.
 | C++ unit tests | `./src/test/test_bitcoin` | ✅ **745/745, `*** No errors detected`** |
 | Functional | `make check` | ✅ **TOTAL 3 / PASS 3 / FAIL 0 / ERROR 0** |
 
-User-executed 2026-08-02 20:49–20:52, `cd ./core`, chain exit code 0. Logs:
+User-executed 2026-08-02 20:49–20:52, `cd core` (from repository root), chain exit code 0. Logs:
 `/tmp/a6_build.log`, `/tmp/a6_unit.log`, `/tmp/a6_check.log`.
 
 ```

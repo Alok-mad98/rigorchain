@@ -382,7 +382,6 @@ libbitcoin_node_a_SOURCES = \
   consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \
   consensus/rigor_res.cpp \
-  consensus/selection.cpp \
   consensus/state_snapshot.cpp \
   consensus/replay_snapshot.cpp \
   consensus/state_diff.cpp \
@@ -656,6 +655,8 @@ crypto_libbitcoin_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
 #
 
 # consensus #
+# selection.cpp: SINGLE OWNERSHIP in libbitcoin_consensus only (TASK-MAINNET-CLOSURE-001).
+# Do not also list it under libbitcoin_node_a_SOURCES — dual archives caused link-order ambiguity.
 libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
@@ -697,6 +698,7 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/res_proof.h \
   consensus/res_mint_witness.cpp \
   consensus/res_mint_witness.h \
+  script/rigor_classify.cpp \
   script/interpreter.cpp \
   script/interpreter.h \
   script/script.cpp \
@@ -1042,6 +1044,7 @@ libbitcoinkernel_la_SOURCES = \
   randomenv.cpp \
   scheduler.cpp \
   script/interpreter.cpp \
+  script/rigor_classify.cpp \
   script/script.cpp \
   script/script_error.cpp \
   script/sigcache.cpp \

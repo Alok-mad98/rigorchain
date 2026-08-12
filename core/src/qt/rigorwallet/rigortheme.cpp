@@ -52,7 +52,9 @@ Typography RigorTheme::typography()
     t.balancePx = 24;
     t.labelPx = 12;
     t.statusEnumPx = 12;
-    t.uiFontFamily = QStringLiteral("Segoe UI, Ubuntu, Cantarell, sans-serif");
+    t.uiFontFamily = QStringLiteral(
+        "Segoe UI, Microsoft YaHei UI, Microsoft YaHei, Noto Sans SC, "
+        "Noto Sans CJK SC, WenQuanYi Micro Hei, Ubuntu, Cantarell, sans-serif");
     t.monoFontFamily = QStringLiteral("Roboto Mono, Consolas, monospace");
     return t;
 }

@@ -12,6 +12,7 @@
 #include <util/string.h>
 #include <util/system.h>
 #include <util/time.h>
+#include <validation.h> // g_best_block_cv — wake GBT longpoll on InterruptRPC
 
 #include <boost/signals2/signal.hpp>
 
@@ -300,6 +301,10 @@ void InterruptRPC()
         LogPrint(BCLog::RPC, "Interrupting RPC\n");
         // Interrupt e.g. running longpolls
         g_rpc_running = false;
+        // Wake getblocktemplate longpoll waiters immediately. Without this, wait_until
+        // can block until its 1-minute timeout while StopHTTPServer waits for the
+        // request — GUI shows "shutting down" forever (solo miner + -server=1).
+        g_best_block_cv.notify_all();
     });
 }
 

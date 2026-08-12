@@ -387,6 +387,37 @@ bool GetConvergenceDrawSetForBlock(const CBlockIndex& block_index,
     ConvergenceDrawSet& out);
 
 /**
+ * Chain-wide Convergence network statistics (GUI / RPC display only — not consensus).
+ *
+ * Derived from the tip's W-window contributions + cumulative RES mint index.
+ * Cached by tip hash; refreshed on tip connect/disconnect (O(W) worst case, never a full chain scan).
+ */
+struct ConvergenceNetworkStats {
+    int64_t active_convergences{0}; //!< All convergence candidates in the tip W-window (paid + unpaid)
+    CAmount active_oru{0};          //!< Sum of their ORU amounts (sat-style atoms)
+    int64_t pending_windows{0};     //!< Unpaid candidates still in tip draw set F
+    CAmount total_res_minted{0};    //!< Cumulative RES minted (RES atoms; 100.00 RES = 10000)
+    int best_height{-1};            //!< Active tip height
+    uint256 tip_hash{};
+    bool valid{false};
+};
+
+/**
+ * Read Convergence network stats for `tip`, using a process-local tip-hash cache.
+ * Rebuilds from window contribution cache / disk when tip changes or cache is cold (restart-safe).
+ */
+bool GetConvergenceNetworkStats(const CBlockIndex& tip,
+    const Consensus::Params& consensus_params,
+    ConvergenceNetworkStats& out) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Force recompute for the new tip (ConnectTip). No-op if tip is null. */
+void RefreshConvergenceNetworkStatsCache(const CBlockIndex* tip,
+    const Consensus::Params& consensus_params) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
+
+/** Mark stats cache stale (DisconnectTip / reorg). */
+void InvalidateConvergenceNetworkStatsCache();
+
+/**
  * SECURITY-001-A9-C: the convergence set a block with this body, built on `parent`, commits — the
  * set that the NEXT block draws from, spanning the whole CONVERGENCE_DRAW_WINDOW.
  *

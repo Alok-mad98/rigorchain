@@ -128,7 +128,7 @@ Runtime archive verification is the empirical ground-truth collection for the 2.
 
 **ORU and RES are dual-asset system only under frozen protocol rules.**
 
-ORU and RES semantics, issuance paths, convergence-linked mint behavior, and script-as-asset classification are governed exclusively by the frozen Protocol Layer. No domain may introduce parallel asset models, account balances as truth sources, synthetic token semantics, or alternate issuance mechanisms.
+ORU and RES semantics, issuance paths, convergence-linked mint behavior, and script-as-compliance classification are governed exclusively by the frozen Protocol Layer. No domain may introduce parallel asset models, account balances as truth sources, synthetic token semantics, RES-as-mining-reward narratives, or alternate issuance mechanisms.
 
 ---
 

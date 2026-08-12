@@ -36,6 +36,7 @@ CRYPTO (Rigor):
 */
 
 #include <wallet/reuse_domain.h>
+#include <wallet/tx_semantic.h>
 #include <wallet/wallet.h>
 
 #include <blockfilter.h>
@@ -1510,54 +1511,86 @@ void CWallet::UpdateConvergenceStateForBlock(const interfaces::BlockInfo& block)
 
     const int tip_height = block.height;
     const int maturity_delta = Params().GetConsensus().nCoinbaseMaturity;
+    const int W = Consensus::CONVERGENCE_DRAW_WINDOW;
 
     WalletBatch batch(GetDatabase());
 
-    for (auto& item : mapWallet) {
-        CWalletTx& wtx = item.second;
-        ConvergenceRecord rec;
-        if (!LoadConvergenceRecordFromMapValue(wtx, rec)) continue;
-        if (rec.state != ConvergenceState::WON_PENDING) continue;
-        if (rec.maturity_height >= 0 && tip_height >= rec.maturity_height) {
-            rec.state = ConvergenceState::WON_CONFIRMED;
-            ApplyConvergenceRecordToMapValue(rec, wtx.mapValue);
-            wtx.MarkDirty();
-            batch.WriteTx(wtx);
-        }
-    }
+    auto persist = [&](CWalletTx& wtx, const ConvergenceRecord& rec) {
+        ApplyConvergenceRecordToMapValue(rec, wtx.mapValue);
+        wtx.MarkDirty();
+        batch.WriteTx(wtx);
+    };
 
-    for (size_t i = 0; i < block.data->vtx.size(); ++i) {
-        const CTransactionRef& ptx = block.data->vtx[i];
-        const uint256& txid = ptx->GetHash();
-        auto wit = mapWallet.find(txid);
+    // Mark inclusion for convergences that land in this block (competition starts; no LOST yet).
+    // Draw paid at height h uses F over [h-W, h-1], so a tx included at h is not eligible in h's draw.
+    for (const CTransactionRef& ptx : block.data->vtx) {
+        auto wit = mapWallet.find(ptx->GetHash());
         if (wit == mapWallet.end()) continue;
-
         ConvergenceRecord rec;
         if (!LoadConvergenceRecordFromMapValue(wit->second, rec)) continue;
         if (!Consensus::IsConvergenceTx(*ptx)) continue;
 
-        rec.included_height = block.height;
-
-        if (rec.state == ConvergenceState::LOST || rec.state == ConvergenceState::WON_CONFIRMED) {
+        if (rec.state == ConvergenceState::WON_PENDING || rec.state == ConvergenceState::WON_CONFIRMED) {
             continue;
         }
+        bool dirty = false;
+        if (rec.included_height != tip_height) {
+            rec.included_height = tip_height;
+            dirty = true;
+        }
+        if (rec.state == ConvergenceState::CREATED ||
+            rec.state == ConvergenceState::BROADCASTED ||
+            rec.state == ConvergenceState::LOST ||
+            rec.state == ConvergenceState::MATURING) {
+            // LOST heals premature loss from pre-window wallet logic.
+            rec.state = ConvergenceState::INCLUDED;
+            rec.maturity_height = -1;
+            dirty = true;
+        }
+        if (dirty) persist(wit->second, rec);
+    }
+
+    // Advance every tracked convergence: heal premature LOST, detect win in-window, finalize LOST.
+    for (auto& item : mapWallet) {
+        CWalletTx& wtx = item.second;
+        ConvergenceRecord rec;
+        if (!LoadConvergenceRecordFromMapValue(wtx, rec)) continue;
+
         if (rec.state == ConvergenceState::WON_PENDING) {
-            ApplyConvergenceRecordToMapValue(rec, wit->second.mapValue);
-            wit->second.MarkDirty();
-            batch.WriteTx(wit->second);
+            if (rec.maturity_height >= 0 && tip_height >= rec.maturity_height) {
+                rec.state = ConvergenceState::WON_CONFIRMED;
+                persist(wtx, rec);
+            }
+            continue;
+        }
+        if (rec.state == ConvergenceState::WON_CONFIRMED) continue;
+        if (rec.included_height < 0) continue;
+
+        const int final_height = rec.included_height + W;
+
+        // Heal stale LOST while the W-window is still open.
+        if (rec.state == ConvergenceState::LOST && tip_height < final_height) {
+            rec.state = ConvergenceState::INCLUDED;
+            rec.maturity_height = -1;
+            persist(wtx, rec);
+        }
+
+        if (rec.state != ConvergenceState::INCLUDED && rec.state != ConvergenceState::MATURING) {
+            continue; // LOST past finalization, or other terminal/non-competing states
+        }
+
+        if (chain().convergenceDrawIsWinner(*block.data, block.height, block.hash, item.first)) {
+            rec.state = ConvergenceState::WON_PENDING;
+            rec.maturity_height = tip_height + maturity_delta;
+            persist(wtx, rec);
             continue;
         }
 
-        const bool won = chain().convergenceDrawIsWinner(*block.data, block.height, block.hash, txid);
-        if (won) {
-            rec.state = ConvergenceState::WON_PENDING;
-            rec.maturity_height = block.height + maturity_delta;
-        } else {
+        // Last payout height that can still include this candidate is inclusion + W.
+        if (tip_height >= final_height) {
             rec.state = ConvergenceState::LOST;
+            persist(wtx, rec);
         }
-        ApplyConvergenceRecordToMapValue(rec, wit->second.mapValue);
-        wit->second.MarkDirty();
-        batch.WriteTx(wit->second);
     }
 }
 
@@ -3669,6 +3702,38 @@ bool CWallet::IsTxImmatureCoinBase(const CWalletTx& wtx) const
 
     // note GetBlocksToMaturity is 0 for non-coinbase tx
     return GetTxBlocksToMaturity(wtx) > 0;
+}
+
+int CWallet::GetTxBlocksToResMintMaturity(const CWalletTx& wtx) const
+{
+    AssertLockHeld(cs_wallet);
+
+    // Coinbase RES uses GetTxBlocksToMaturity / IsTxImmatureCoinBase.
+    if (wtx.IsCoinBase()) {
+        return 0;
+    }
+
+    // WALLET DESIGN LOCK: body RES *mint* is immature until nCoinbaseMaturity;
+    // RES transfers / change are not. Mis-applying mint maturity to transfers hid
+    // mempool RES change from both AvailableCredit and ImmatureCredit (not in chain yet).
+    // Incoming payments lack prevouts → ClassifyWalletTxSemantic falls back to ResTransfer
+    // (never ResMint); do not re-infer mint from "RES out, no wallet RES in".
+    const TxSemanticKind kind = ClassifyWalletTxSemantic(*this, wtx);
+    if (kind != TxSemanticKind::ResMint) {
+        return 0;
+    }
+
+    const int chain_depth = GetTxDepthInMainChain(wtx);
+    if (chain_depth < 0) {
+        return 0;
+    }
+    return std::max(0, (Params().GetConsensus().nCoinbaseMaturity + 1) - chain_depth);
+}
+
+bool CWallet::IsTxImmatureResMint(const CWalletTx& wtx) const
+{
+    AssertLockHeld(cs_wallet);
+    return GetTxBlocksToResMintMaturity(wtx) > 0;
 }
 
 bool CWallet::IsCrypted() const

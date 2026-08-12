@@ -18,7 +18,7 @@ export function ProtocolCard({ variant }: Props) {
         </header>
         <p>
           RIGOR is a UTXO-based deterministic state machine: S<sub>t+1</sub> = F(S<sub>t</sub>, T<sub>t</sub>).
-          No global account state. Asset classes ORU and RES are inferred from scriptPubKey.
+          No global account state. Script is the compliance layer: ORU/RES class from scriptPubKey; legitimacy via consensus.
         </p>
       </article>
     );
@@ -59,7 +59,7 @@ export function ProtocolCard({ variant }: Props) {
           <span className="tag">FORGE</span>
           <h3>Convergence pathway</h3>
         </header>
-        <p>MTH burn (minimum convergence ORU commitment) → draw eligibility → RES mint when predicates pass.</p>
+        <p>ORU burn (convergence) → deterministic eligibility → consensus winner → RES mint when predicates pass. RES is not mined.</p>
         <p className="math-block">P(success) = 2<sup>−16</sup> = 1/65536 per hash-space unit</p>
         <ForgeStatus convergence={state.convergence_status} />
       </article>

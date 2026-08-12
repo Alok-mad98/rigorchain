@@ -760,7 +760,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">보여주기</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
             <numerusform>비트코인 네트워크에 활성화된 %n연결</numerusform>

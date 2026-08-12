@@ -52,7 +52,7 @@ Protocol
 │   ├── DurinHash PoW (reference)
 │   └── 80-byte header invariant
 └── UTXO
-    ├── Script-as-asset
+    ├── Script-as-compliance
     └── Transaction model
 ```
 

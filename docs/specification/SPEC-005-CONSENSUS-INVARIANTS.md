@@ -218,7 +218,8 @@ Economic quantities are defined in [SPEC-002](./SPEC-002-ECONOMIC-MODEL.md).
 S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 ```
 
-where `R(h+1)` is the frozen block subsidy and `C(h+1)` is the converge burn sum.
+where `R(h+1)` is the frozen block subsidy and `C(h+1)` is the converge sum
+(ORU committed by convergence transactions).
 
 **Failure condition:** Supply counters violate the recurrence after a block
 accepted as valid.
@@ -403,7 +404,7 @@ others whose truth is required for it to hold or be meaningfully stated.
 **Economic chain:**
 
 - **CI-020** (ORU non-negativity) **depends on** **CI-021** (ORU recurrence).
-  Non-negativity is meaningful only when subsidy and burn are correctly applied.
+  Non-negativity is meaningful only when subsidy and convergence commitments are correctly applied.
 
 - **CI-023** (RES cap) **depends on** **CI-022** (RES recurrence).
   Cap enforcement presumes correct per-block mint accounting.
@@ -522,12 +523,12 @@ This document supersedes those placeholders with authoritative **CI-*** invarian
 | SI-003 | CI-020 |
 | SI-004 | CI-023 |
 | SI-005 | CI-040 |
-| SI-006 | CI-021 (burn component) |
+| SI-006 | CI-021 (convergence component) |
 | SI-007 | CI-024 |
 | SI-008 | CI-002 (chainwork aspect) |
 | SI-009 | CI-033 |
 | SI-010 | CI-032 (bind component) |
-| SI-011 | CR-023 / script-as-asset (transaction rule) |
+| SI-011 | CR-023 / script-as-compliance (transaction rule) |
 | SI-012 | Identity domain (txid; transaction rule) |
 | SI-013 | CI-012, CI-003 |
 

@@ -1,0 +1,27 @@
+# EXAMPLE alert rules — tune thresholds after baseline soak.
+groups:
+  - name: rigor-seed
+    rules:
+      - alert: RigordHostDown
+        expr: up{job="node"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host metrics target down"
+
+      - alert: RigordDiskLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk free < 15% on seed"
+
+      - alert: RigordP2PUnreachable
+        expr: probe_success{job="blackbox_p2p"} == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "P2P TCP probe failed"

@@ -166,8 +166,8 @@ S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 |-------|----------------|
 | **Specification** | CI-021, CR-030..CR-033 |
 | **Formal model** | `RIGOR_FORMAL_STATE_MODEL` supply recurrence; `CONSENSUS_TRANSITION_SYSTEM` §7 |
-| **Coq** | `cb_oru_subsidy`, `cb_oru_burn_delta` (partial); `rs_oru_supply` step theorems (`THM-05` family) |
-| **Runtime witness** | `oru_subsidy_block`, `oru_converge_burn_block`, `oru_supply_cumulative`; FVR-E ORU-L* checks |
+| **Coq** | `cb_oru_subsidy`, `cb_oru_burn_delta` (formal field name; product term: converge sum); `rs_oru_supply` step theorems (`THM-05` family) |
+| **Runtime witness** | `oru_subsidy_block`, `oru_converge_burn_block` (runtime key; product term: converge sum), `oru_supply_cumulative`; FVR-E ORU-L* checks |
 
 ### 5.2 RES recurrence
 

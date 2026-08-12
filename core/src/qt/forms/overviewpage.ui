@@ -88,7 +88,7 @@
                </size>
               </property>
               <property name="toolTip">
-               <string>The displayed information may be out of date. Your wallet automatically synchronizes with the Rigor network after a connection is established, but this process has not completed yet.</string>
+               <string>Blockchain Status: Waiting for synchronization… Network: RIGOR. ORU balances and RES Convergence status appear after sync. RES Convergence is available after ORU acquisition.</string>
               </property>
               <property name="text">
                <string/>
@@ -373,7 +373,7 @@
                </size>
               </property>
               <property name="toolTip">
-               <string>The displayed information may be out of date. Your wallet automatically synchronizes with the Rigor network after a connection is established, but this process has not completed yet.</string>
+               <string>Blockchain Status: Waiting for synchronization… Network: RIGOR. ORU balances and RES Convergence status appear after sync. RES Convergence is available after ORU acquisition.</string>
               </property>
               <property name="text">
                <string/>

@@ -144,6 +144,7 @@ BITCOIN_TESTS =\
   test/runtime_supply_phase5_summary_tests.cpp \
   test/runtime_vector_harness_tests.cpp \
   test/convergence_consensus_tests.cpp \
+  test/convergence_window_ui_tests.cpp \
   test/convergence_root_tests.cpp \
   test/rpc_tests.cpp \
   test/sanity_tests.cpp \

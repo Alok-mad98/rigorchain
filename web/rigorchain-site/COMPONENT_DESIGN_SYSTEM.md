@@ -96,7 +96,7 @@ Props: `source: 'rpc' | 'explorer' | 'static' | 'manifest'`
 | `oru` | Conservation, subsidy path 1000→125 |
 | `res` | Conservation, cap, mint path |
 | `forge` | MTH burn threshold, \|F\|≥2, PCORB |
-| `utxo` | Script-as-asset |
+| `utxo` | Script-as-compliance |
 
 **Layout:**
 

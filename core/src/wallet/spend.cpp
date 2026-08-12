@@ -38,6 +38,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <optional>
 #include <policy/feerate.h>
 
 using interfaces::FoundBlock;
@@ -78,9 +79,10 @@ TxSize CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *walle
         return TxSize{-1, -1};
     }
     CTransaction ctx(txNew);
-    int64_t vsize = rigor::GetTransactionSizeBytes(ctx);
+    // RIGOR Fee Mechanism FINAL LOCK §1.2: fee sizing uses serialized bytes, not BIP141 vsize.
+    int64_t size_bytes = rigor::GetTransactionSizeBytes(ctx);
     int64_t weight = GetTransactionWeight(ctx);
-    return TxSize{vsize, weight};
+    return TxSize{size_bytes, weight};
 }
 
 TxSize CalculateMaximumSignedTxSize(const CTransaction &tx, const CWallet *wallet, const CCoinControl* coin_control)
@@ -197,9 +199,12 @@ util::Result<PreSelectedInputs> FetchSelectedInputs(const CWallet& wallet, const
                 return util::Error{strprintf(_("Invalid pre-selected input %s"), outpoint.ToString())};
             }
             txout = ptr_wtx->tx->vout.at(outpoint.n);
-            // WALLET_SAFETY_BOUNDARY_V1: immature coinbase outputs cannot be spent (includes locked RES).
+            // WALLET_SAFETY_BOUNDARY_V1: immature coinbase / locked body RES mint cannot be spent.
             if (ptr_wtx->IsCoinBase() && wallet.IsTxImmatureCoinBase(*ptr_wtx)) {
                 return util::Error{strprintf(_("Pre-selected input %s is immature coinbase and cannot be spent yet. Suggestion: wait for %d more confirmations."), outpoint.ToString(), wallet.GetTxBlocksToMaturity(*ptr_wtx))};
+            }
+            if (AssetTypeFromScriptPubKey(txout.scriptPubKey) == ASSET_RES && wallet.IsTxImmatureResMint(*ptr_wtx)) {
+                return util::Error{strprintf(_("Pre-selected input %s is immature RES and cannot be spent yet. Suggestion: wait for %d more confirmations."), outpoint.ToString(), wallet.GetTxBlocksToResMintMaturity(*ptr_wtx))};
             }
             input_bytes = CalculateMaximumSignedInputSize(txout, &wallet, &coin_control);
         } else {
@@ -337,6 +342,11 @@ CoinsResult AvailableCoins(const CWallet& wallet,
 
             if (wallet.IsSpent(outpoint))
                 continue;
+
+            // Immature body RES *mint* only (transfers/change are spendable when confirmed).
+            if (AssetTypeFromScriptPubKey(output.scriptPubKey) == ASSET_RES && wallet.IsTxImmatureResMint(wtx)) {
+                continue;
+            }
 
             isminetype mine = wallet.IsMine(output);
 
@@ -883,6 +893,94 @@ ARCHITECTURE:
 - Wallet constructs transactions ONLY; consensus decides RES outcome
 */
 
+/** Result of Bitcoin-style ORU fee/change finalization (shared by ORU + RES dual-pool). */
+struct OruFeeFinalizeResult {
+    CAmount fee{0};
+    TxSize tx_sizes{};
+};
+
+/**
+ * Align ORU network-fee/change with Bitcoin Core CreateTransaction: estimate signed
+ * serialized size, then raise/lower the ORU change output so paid fee meets feerate.
+ * Fee domain is ORU-only: current_fee = oru_in - GetValueOut(ASSET_ORU).
+ */
+static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
+        CWallet& wallet,
+        CMutableTransaction& txNew,
+        const CCoinControl& coin_control,
+        int& n_oru_change_pos,
+        const CFeeRate& feerate,
+        CAmount oru_in,
+        CAmount min_viable_change,
+        const CFeeRate& dust_relay_fee) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    AssertLockHeld(wallet.cs_wallet);
+
+    auto oru_out = [&]() { return CTransaction(txNew).GetValueOut(ASSET_ORU); };
+
+    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txNew), &wallet, &coin_control);
+    if (tx_sizes.size_bytes == -1) {
+        return util::Error{_("Missing solving data for estimating transaction size")};
+    }
+    CAmount fee_needed = OruNetworkFeeForSizeBytes(feerate, tx_sizes.size_bytes);
+    CAmount current_fee = oru_in - oru_out();
+
+    if (current_fee < 0) {
+        return util::Error{Untranslated(STR_INTERNAL_BUG("Fee paid < 0"))};
+    }
+
+    // Overpay: increase ORU change to match fee_needed.
+    if (n_oru_change_pos != -1 && fee_needed < current_fee) {
+        auto& change = txNew.vout.at(n_oru_change_pos);
+        change.nValue += current_fee - fee_needed;
+        current_fee = oru_in - oru_out();
+        if (fee_needed != current_fee) {
+            return util::Error{Untranslated(STR_INTERNAL_BUG("Change adjustment: Fee needed != fee paid"))};
+        }
+    }
+
+    // Underpay (size rose after change): reduce ORU change, or drop it into the fee.
+    if (n_oru_change_pos != -1 && fee_needed > current_fee) {
+        auto& change = txNew.vout.at(n_oru_change_pos);
+        const CAmount diff = fee_needed - current_fee;
+        if (change.nValue > diff) {
+            change.nValue -= diff;
+            current_fee = oru_in - oru_out();
+            if (change.nValue < min_viable_change || IsDust(change, dust_relay_fee)) {
+                current_fee += change.nValue;
+                txNew.vout.erase(txNew.vout.begin() + n_oru_change_pos);
+                n_oru_change_pos = -1;
+                current_fee = oru_in - oru_out();
+            }
+        } else {
+            current_fee += change.nValue;
+            txNew.vout.erase(txNew.vout.begin() + n_oru_change_pos);
+            n_oru_change_pos = -1;
+            current_fee = oru_in - oru_out();
+        }
+    }
+
+    if (fee_needed > current_fee) {
+        return util::Error{_("Insufficient funds")};
+    }
+
+    return OruFeeFinalizeResult{current_fee, tx_sizes};
+}
+
+/** After signing: ensure paid ORU fee still meets MinFeeMet_ORU (serialized byte size). */
+static std::optional<bilingual_str> CheckSignedOruFeeCoversSize(
+        const CTransaction& tx,
+        CAmount current_fee,
+        const CFeeRate& feerate)
+{
+    const int64_t signed_bytes = rigor::GetTransactionSizeBytes(tx);
+    const CAmount fee_for_signed = OruNetworkFeeForSizeBytes(feerate, signed_bytes);
+    if (current_fee < fee_for_signed) {
+        return _("Transaction fee too low for final size");
+    }
+    return std::nullopt;
+}
+
 /** RES send: POOL-T (RES) + POOL-F (ORU fee). See docs/freeze/WALLET_SEMANTIC_FREEZE.md */
 static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPool(
         CWallet& wallet,
@@ -1044,7 +1142,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPo
 
     fee_coin_params.tx_noinputs_size = transfer_params.tx_noinputs_size + transfer_sel->GetWeight() + DUMMY_NESTED_P2WPKH_INPUT_SIZE;
     const CAmount not_input_fees = fee_coin_params.m_effective_feerate.GetFee(fee_coin_params.tx_noinputs_size);
-    const CAmount fee_target = not_input_fees + OruNetworkFeeForVsize(fee_coin_params.m_effective_feerate, DUMMY_NESTED_P2WPKH_INPUT_SIZE);
+    const CAmount fee_target = not_input_fees + OruNetworkFeeForSizeBytes(fee_coin_params.m_effective_feerate, DUMMY_NESTED_P2WPKH_INPUT_SIZE);
 
     CoinsResult oru_available;
     if (coin_control.m_allow_other_inputs) {
@@ -1080,29 +1178,28 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPo
     }
     DiscourageFeeSniping(txNew, res_fast, wallet.chain(), wallet.GetLastBlockHash(), wallet.GetLastBlockHeight());
 
-    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txNew), &wallet, &coin_control);
-    if (tx_sizes.vsize == -1) {
-        return util::Error{_("Missing solving data for estimating transaction size")};
-    }
-    const CAmount fee_needed = OruNetworkFeeForVsize(fee_coin_params.m_effective_feerate, tx_sizes.vsize);
+    // POOL-F: same Bitcoin-style ORU change + fee finalize as ORU CreateTransactionInternal.
     const CAmount oru_in = fee_sel->GetSelectedValue();
-    // No ORU recipient outputs yet — all leftover ORU after fee_needed is change (do not also add GetChange).
-    CAmount oru_change_amount = oru_in - fee_needed;
-    CAmount current_fee = fee_needed;
-    if (oru_change_amount < fee_coin_params.min_viable_change) {
-        oru_change_amount = 0;
-        current_fee = oru_in; // overpay rather than create dust ORU change
-    }
-
+    const CAmount oru_change_amount = fee_sel->GetChange(fee_coin_params.min_viable_change, fee_coin_params.m_change_fee);
     int nOruChangePos = -1;
     if (oru_change_amount > 0) {
         txNew.vout.push_back(CTxOut(oru_change_amount, scriptOruChange));
         nOruChangePos = static_cast<int>(txNew.vout.size()) - 1;
     }
 
-    if (current_fee < 0 || oru_in < current_fee) {
-        return util::Error{Untranslated(STR_INTERNAL_BUG("ORU fee accounting invalid"))};
+    auto fee_fin = FinalizeOruNetworkFeeAndChange(
+            wallet, txNew, coin_control, nOruChangePos, fee_coin_params.m_effective_feerate, oru_in,
+            fee_coin_params.min_viable_change, wallet.chain().relayDustFee());
+    if (!fee_fin) {
+        // Map generic insufficient-funds to ORU fee-domain wording for RES sends.
+        const bilingual_str& err = util::ErrorString(fee_fin);
+        if (err.original == "Insufficient funds") {
+            return util::Error{_("Insufficient ORU for network fee")};
+        }
+        return util::Error{err};
     }
+    const CAmount current_fee = fee_fin->fee;
+    const TxSize tx_sizes = fee_fin->tx_sizes;
 
     // Pre-sign wallet validation: RES conservation + ORU-only fee domain.
     {
@@ -1136,6 +1233,11 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPo
     if ((sign && GetTransactionWeight(*tx) > MAX_STANDARD_TX_WEIGHT) ||
         (!sign && tx_sizes.weight > MAX_STANDARD_TX_WEIGHT)) {
         return util::Error{_("Transaction too large")};
+    }
+    if (sign) {
+        if (auto chk = CheckSignedOruFeeCoversSize(*tx, current_fee, fee_coin_params.m_effective_feerate)) {
+            return util::Error{*chk};
+        }
     }
     if (current_fee > wallet.m_default_max_tx_fee) {
         return util::Error{TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED)};
@@ -1384,53 +1486,20 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     }
     DiscourageFeeSniping(txNew, res_fast, wallet.chain(), wallet.GetLastBlockHash(), wallet.GetLastBlockHeight());
 
-    // Calculate the transaction fee
-    TxSize tx_sizes = CalculateMaximumSignedTxSize(CTransaction(txNew), &wallet, &coin_control);
-    int nBytes = tx_sizes.vsize;
-    if (nBytes == -1) {
-        return util::Error{_("Missing solving data for estimating transaction size")};
-    }
-    CAmount fee_needed = coin_selection_params.m_effective_feerate.GetFee(nBytes);
-    const CAmount output_value = CalculateOutputValue(txNew);
-    Assume(recipients_sum + change_amount == output_value);
-    CAmount current_fee = result.GetSelectedValue() - output_value;
+    // Shared ORU fee/change finalize (same helper as RES dual-pool POOL-F).
+    const CAmount oru_in = result.GetSelectedValue();
+    Assume(recipients_sum + change_amount == CalculateOutputValue(txNew));
 
-    // Sanity check that the fee cannot be negative as that means we have more output value than input value
-    if (current_fee < 0) {
-        return util::Error{Untranslated(STR_INTERNAL_BUG("Fee paid < 0"))};
+    auto fee_fin = FinalizeOruNetworkFeeAndChange(
+            wallet, txNew, coin_control, nChangePosInOut, coin_selection_params.m_effective_feerate, oru_in,
+            coin_selection_params.min_viable_change, wallet.chain().relayDustFee());
+    if (!fee_fin) {
+        return util::Error{util::ErrorString(fee_fin)};
     }
-
-    // If there is a change output and we overpay the fees then increase the change to match the fee needed
-    if (nChangePosInOut != -1 && fee_needed < current_fee) {
-        auto& change = txNew.vout.at(nChangePosInOut);
-        change.nValue += current_fee - fee_needed;
-        current_fee = result.GetSelectedValue() - CalculateOutputValue(txNew);
-        if (fee_needed != current_fee) {
-            return util::Error{Untranslated(STR_INTERNAL_BUG("Change adjustment: Fee needed != fee paid"))};
-        }
-    }
-
-    // If there is a change output and we underpay (size estimate rose), reduce change to cover the fee.
-    if (nChangePosInOut != -1 && fee_needed > current_fee) {
-        auto& change = txNew.vout.at(nChangePosInOut);
-        const CAmount diff = fee_needed - current_fee;
-        if (change.nValue > diff) {
-            change.nValue -= diff;
-            current_fee = result.GetSelectedValue() - CalculateOutputValue(txNew);
-            if (change.nValue < coin_selection_params.min_viable_change || IsDust(change, wallet.chain().relayDustFee())) {
-                current_fee += change.nValue;
-                txNew.vout.erase(txNew.vout.begin() + nChangePosInOut);
-                nChangePosInOut = -1;
-                current_fee = result.GetSelectedValue() - CalculateOutputValue(txNew);
-            }
-        } else {
-            // Consume entire change as fee.
-            current_fee += change.nValue;
-            txNew.vout.erase(txNew.vout.begin() + nChangePosInOut);
-            nChangePosInOut = -1;
-            current_fee = result.GetSelectedValue() - CalculateOutputValue(txNew);
-        }
-    }
+    CAmount current_fee = fee_fin->fee;
+    TxSize tx_sizes = fee_fin->tx_sizes;
+    int nBytes = tx_sizes.size_bytes;
+    CAmount fee_needed = OruNetworkFeeForSizeBytes(coin_selection_params.m_effective_feerate, nBytes);
 
     // Reduce output values for subtractFeeFromAmount
     if (coin_selection_params.m_subtract_fee_outputs) {
@@ -1465,7 +1534,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
             }
             ++i;
         }
-        current_fee = result.GetSelectedValue() - CalculateOutputValue(txNew);
+        current_fee = oru_in - CTransaction(txNew).GetValueOut(ASSET_ORU);
         if (fee_needed != current_fee) {
             return util::Error{Untranslated(STR_INTERNAL_BUG("SFFO: Fee needed != fee paid"))};
         }
@@ -1493,6 +1562,11 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         (!sign && tx_sizes.weight > MAX_STANDARD_TX_WEIGHT))
     {
         return util::Error{_("Transaction too large")};
+    }
+    if (sign) {
+        if (auto chk = CheckSignedOruFeeCoversSize(*tx, current_fee, coin_selection_params.m_effective_feerate)) {
+            return util::Error{*chk};
+        }
     }
 
     if (current_fee > wallet.m_default_max_tx_fee) {

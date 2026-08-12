@@ -30,139 +30,157 @@
 #include <QScreen>
 
 namespace {
-/** Same pale gold as the splash ring / inscription (~#E3C58B). */
-const QColor SPLASH_STATUS_GOLD(0xE3, 0xC5, 0x8B);
+/** Pale gold accent (~#E3C58B). */
+const QColor SPLASH_GOLD(0xE3, 0xC5, 0x8B);
+const QColor SPLASH_BG(0x0C, 0x0C, 0x0E);
+const QColor SPLASH_TEXT(0xF2, 0xF0, 0xEA);
+const QColor SPLASH_MUTED(0xB8, 0xB0, 0xA0);
 
-/** Bottom status line (~2× app default point size); weight stays Normal. */
 QFont SplashScreenStatusFont()
 {
     QFont f = QApplication::font();
     if (f.pointSizeF() > 0.0) {
-        f.setPointSizeF(f.pointSizeF() * 2.0);
+        f.setPointSizeF(f.pointSizeF() * 1.5);
     } else if (f.pixelSize() > 0) {
-        f.setPixelSize(f.pixelSize() * 2);
+        f.setPixelSize(static_cast<int>(f.pixelSize() * 1.5));
     } else {
-        f.setPointSizeF(18.0);
+        f.setPointSizeF(14.0);
     }
     f.setWeight(QFont::Normal);
     return f;
+}
+
+/** Production splash: logo + RIGOR Wallet product copy (no mining-reward / lottery / burn wording). */
+QPixmap BuildProductionSplash(const NetworkStyle* networkStyle, qreal devicePixelRatio)
+{
+    const int W = 720;
+    const int H = 480;
+    QPixmap pixmap(static_cast<int>(W * devicePixelRatio), static_cast<int>(H * devicePixelRatio));
+    pixmap.setDevicePixelRatio(devicePixelRatio);
+    pixmap.fill(SPLASH_BG);
+
+    QPainter p(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setRenderHint(QPainter::TextAntialiasing, true);
+
+    // Soft vignette
+    QRadialGradient glow(QPointF(W * 0.35, H * 0.42), W * 0.55);
+    glow.setColorAt(0.0, QColor(80, 40, 10, 90));
+    glow.setColorAt(1.0, QColor(0, 0, 0, 0));
+    p.fillRect(QRect(0, 0, W, H), glow);
+
+    // Official app icon
+    const QSize iconPx(280, 280);
+    QPixmap icon = networkStyle->getAppIcon().pixmap(QSize(
+        static_cast<int>(iconPx.width() * devicePixelRatio),
+        static_cast<int>(iconPx.height() * devicePixelRatio)));
+    icon.setDevicePixelRatio(devicePixelRatio);
+    const int iconX = 36;
+    const int iconY = (H - iconPx.height()) / 2 - 10;
+    p.drawPixmap(iconX, iconY, iconPx.width(), iconPx.height(), icon);
+
+    const int textX = 340;
+    int y = 70;
+
+    QFont titleFont = QApplication::font();
+    titleFont.setBold(true);
+    titleFont.setPointSizeF(28.0);
+    p.setFont(titleFont);
+    p.setPen(SPLASH_GOLD);
+    p.drawText(textX, y, QStringLiteral("RIGOR Wallet"));
+    y += 42;
+
+    QFont body = QApplication::font();
+    body.setPointSizeF(11.5);
+    p.setFont(body);
+    p.setPen(SPLASH_TEXT);
+
+    auto drawBlock = [&](const QString& heading, const QString& bodyText) {
+        QFont h = body;
+        h.setBold(true);
+        h.setPointSizeF(12.5);
+        p.setFont(h);
+        p.setPen(SPLASH_GOLD);
+        p.drawText(textX, y, heading);
+        y += 20;
+        p.setFont(body);
+        p.setPen(SPLASH_MUTED);
+        QRect r(textX, y, W - textX - 36, 48);
+        p.drawText(r, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, bodyText);
+        y += 52;
+    };
+
+    drawBlock(QStringLiteral("ORU"),
+              QStringLiteral("Proof-of-Work Security Asset"));
+    drawBlock(QStringLiteral("RES"),
+              QStringLiteral("Independent Scarce Resource — minted only through Convergence"));
+
+    p.setFont(body);
+    p.setPen(SPLASH_GOLD);
+    QRect compliance(textX, y, W - textX - 36, 36);
+    p.drawText(compliance, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
+               QStringLiteral("The script is the compliance layer."));
+    y += 40;
+
+    // Version + dual MIT copyright (Bitcoin Core provenance + RIGOR). Use QChar to avoid
+    // UTF-8 mojibake (e.g. "Â©") when the source encoding is misinterpreted.
+    const QString copyMark = QString(QChar(0x00A9));
+    const QString versionStr = QString::fromStdString(FormatFullVersion());
+
+    QFont verFont = body;
+    verFont.setBold(true);
+    verFont.setPointSizeF(11.0);
+    p.setFont(verFont);
+    p.setPen(SPLASH_GOLD);
+    p.drawText(textX, y, QStringLiteral("Version %1").arg(versionStr));
+    y += 20;
+
+    QFont small = body;
+    small.setPointSizeF(9.0);
+    p.setFont(small);
+    p.setPen(SPLASH_MUTED);
+    p.drawText(textX, y, QStringLiteral("%1 2009-2026 The Bitcoin Core developers").arg(copyMark));
+    y += 16;
+    p.drawText(textX, y, QStringLiteral("%1 2026- The RIGOR developers").arg(copyMark));
+    y += 16;
+    p.drawText(textX, y, QStringLiteral("License: MIT"));
+
+    const QString& titleAddText = networkStyle->getTitleAddText();
+    if (!titleAddText.isEmpty()) {
+        QFont net = small;
+        net.setBold(true);
+        p.setFont(net);
+        p.setPen(SPLASH_GOLD);
+        p.drawText(W - 120, 28, titleAddText);
+    }
+
+    p.end();
+    return pixmap;
 }
 } // namespace
 
 SplashScreen::SplashScreen(const NetworkStyle* networkStyle)
     : QWidget()
 {
-    // set reference point, paddings
-    int paddingRight            = 50;
-    int paddingTop              = 50;
-    int titleVersionVSpace      = 17;
-    int titleCopyrightVSpace    = 40;
-
-    float fontFactor            = 1.0;
-    float devicePixelRatio      = 1.0;
+    float devicePixelRatio = 1.0;
     devicePixelRatio = static_cast<QGuiApplication*>(QCoreApplication::instance())->devicePixelRatio();
 
-    // define text to place
-    QString titleText       = RigorWallet::WalletIdentity::brand().productName;
-    QString versionText     = QString("Version %1").arg(QString::fromStdString(FormatFullVersion()));
-    QString copyrightText = QString::fromUtf8(
-        "\xc2\xa9 2026 The Rigor Core developers.");
-    const QString& titleAddText    = networkStyle->getTitleAddText();
+    QString titleText = RigorWallet::WalletIdentity::brand().productName;
+    const QString& titleAddText = networkStyle->getTitleAddText();
 
-    QString font            = QApplication::font().toString();
+    // Always compose the production product splash (logo + ORU/RES + compliance).
+    // Do not use legacy Bitcoin-era splash art as the primary surface.
+    pixmap = BuildProductionSplash(networkStyle, devicePixelRatio);
 
-    // Prefer a custom splash image resource. Fallback to legacy painted splash.
-    QPixmap custom_splash(QStringLiteral(":/images/splash-screen"));
-    if (!custom_splash.isNull()) {
-        pixmap = custom_splash;
-        pixmap.setDevicePixelRatio(devicePixelRatio);
-    } else {
-        // create a bitmap according to device pixelratio
-        QSize splashSize(480*devicePixelRatio,320*devicePixelRatio);
-        pixmap = QPixmap(splashSize);
+    setWindowTitle(titleText + (titleAddText.isEmpty() ? QString() : QStringLiteral(" ") + titleAddText));
 
-        // change to HiDPI if it makes sense
-        pixmap.setDevicePixelRatio(devicePixelRatio);
-
-        QPainter fallbackPaint(&pixmap);
-        fallbackPaint.setPen(QColor(100,100,100));
-
-        // draw a slightly radial gradient
-        QRadialGradient gradient(QPoint(0,0), splashSize.width()/devicePixelRatio);
-        gradient.setColorAt(0, Qt::white);
-        gradient.setColorAt(1, QColor(247,247,247));
-        QRect rGradient(QPoint(0,0), splashSize);
-        fallbackPaint.fillRect(rGradient, gradient);
-
-        // draw the rigor icon, expected size of PNG: 1024x1024
-        QRect rectIcon(QPoint(-150,-122), QSize(430,430));
-        const QSize requiredSize(1024,1024);
-        QPixmap icon(networkStyle->getAppIcon().pixmap(requiredSize));
-        fallbackPaint.drawPixmap(rectIcon, icon);
-        fallbackPaint.end();
-    }
-
-    QPainter pixPaint(&pixmap);
-    pixPaint.setPen(QColor(100,100,100));
-
-    // check font size and drawing with
-    pixPaint.setFont(QFont(font, 33*fontFactor));
-    QFontMetrics fm = pixPaint.fontMetrics();
-    int titleTextWidth = GUIUtil::TextWidth(fm, titleText);
-    if (titleTextWidth > 176) {
-        fontFactor = fontFactor * 176 / titleTextWidth;
-    }
-
-    pixPaint.setFont(QFont(font, 33*fontFactor));
-    fm = pixPaint.fontMetrics();
-    titleTextWidth  = GUIUtil::TextWidth(fm, titleText);
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight,paddingTop,titleText);
-
-    pixPaint.setFont(QFont(font, 15*fontFactor));
-
-    // if the version string is too long, reduce size
-    fm = pixPaint.fontMetrics();
-    int versionTextWidth  = GUIUtil::TextWidth(fm, versionText);
-    if(versionTextWidth > titleTextWidth+paddingRight-10) {
-        pixPaint.setFont(QFont(font, 10*fontFactor));
-        titleVersionVSpace -= 5;
-    }
-    pixPaint.drawText(pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight+2,paddingTop+titleVersionVSpace,versionText);
-
-    // draw copyright stuff
-    {
-        pixPaint.setFont(QFont(font, 10*fontFactor));
-        const int x = pixmap.width()/devicePixelRatio-titleTextWidth-paddingRight;
-        const int y = paddingTop+titleCopyrightVSpace;
-        QRect copyrightRect(x, y, pixmap.width() - x - paddingRight, pixmap.height() - y);
-        pixPaint.drawText(copyrightRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, copyrightText);
-    }
-
-    // draw additional text if special network
-    if(!titleAddText.isEmpty()) {
-        QFont boldFont = QFont(font, 10*fontFactor);
-        boldFont.setWeight(QFont::Bold);
-        pixPaint.setFont(boldFont);
-        fm = pixPaint.fontMetrics();
-        int titleAddTextWidth  = GUIUtil::TextWidth(fm, titleAddText);
-        pixPaint.drawText(pixmap.width()/devicePixelRatio-titleAddTextWidth-10,15,titleAddText);
-    }
-
-    pixPaint.end();
-
-    // Set window title
-    setWindowTitle(titleText + " " + titleAddText);
-
-    // Resize window and move to center of desktop, disallow resizing
-    QRect r(QPoint(), QSize(pixmap.size().width()/devicePixelRatio,pixmap.size().height()/devicePixelRatio));
+    QRect r(QPoint(), QSize(pixmap.size().width() / devicePixelRatio, pixmap.size().height() / devicePixelRatio));
     resize(r.size());
     setFixedSize(r.size());
-    // Splash content is a fixed pixmap; do not allow maximize (empty margins when enlarged).
     setWindowFlag(Qt::WindowMaximizeButtonHint, false);
     move(QGuiApplication::primaryScreen()->geometry().center() - r.center());
 
     installEventFilter(this);
-
     GUIUtil::handleCloseWindowShortcut(this);
 }
 
@@ -188,7 +206,6 @@ void SplashScreen::shutdown()
 void SplashScreen::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::WindowStateChange && isMaximized()) {
-        // Title-bar double-click / platform quirks can still maximize without the button.
         showNormal();
     }
     QWidget::changeEvent(event);
@@ -210,7 +227,7 @@ static void InitMessage(SplashScreen *splash, const std::string &message)
         Qt::QueuedConnection,
         Q_ARG(QString, QString::fromStdString(message)),
         Q_ARG(int, Qt::AlignBottom|Qt::AlignHCenter),
-        Q_ARG(QColor, SPLASH_STATUS_GOLD));
+        Q_ARG(QColor, SPLASH_GOLD));
     assert(invoked);
 }
 
@@ -224,7 +241,6 @@ static void ShowProgress(SplashScreen *splash, const std::string &title, int nPr
 
 void SplashScreen::subscribeToCoreSignals()
 {
-    // Connect signals to client
     m_handler_init_message = m_node->handleInitMessage(std::bind(InitMessage, this, std::placeholders::_1));
     m_handler_show_progress = m_node->handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     m_handler_init_wallet = m_node->handleInitWallet([this]() { handleLoadWallet(); });
@@ -243,7 +259,6 @@ void SplashScreen::handleLoadWallet()
 
 void SplashScreen::unsubscribeFromCoreSignals()
 {
-    // Disconnect signals from client
     m_handler_init_message->disconnect();
     m_handler_show_progress->disconnect();
     for (const auto& handler : m_connected_wallet_handlers) {
@@ -274,6 +289,6 @@ void SplashScreen::paintEvent(QPaintEvent *event)
 
 void SplashScreen::closeEvent(QCloseEvent *event)
 {
-    shutdown(); // allows an "emergency" shutdown during startup
+    shutdown();
     event->ignore();
 }

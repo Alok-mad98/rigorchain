@@ -1,43 +1,334 @@
-# Build products
-**/*.o
-**/*.a
-**/*.so
-**/*.dylib
-**/*.exe
-**/*.lo
-**/*.la
-**/.libs/
-**/.deps/
-**/node_modules/
-**/target/
-**/__pycache__/
-**/*.pyc
+# Ignore compiled binaries
+core/src/qt/bitcoin-qt
+core/src/qt/test/test_bitcoin-qt
+core/src/test/fuzz/fuzz
+core/src/test/test_bitcoin
+core/src/rigord
+core/src/bitcoind
+core/src/bitcoin-wallet
+core/src/rigor-cli
+core/src/rigor-tx
+core/src/rigor-wallet
+core/src/bitcoin-cli
+core/src/bitcoin-tx
+core/src/bitcoin-util
+core/src/qt/rigor-qt
+core/src/qt/test/test_rigor-qt
+# Qt auto-generated meta-object files
+core/src/qt/*.moc
+core/src/qt/moc_*.cpp
+core/src/qt/test/moc_*.cpp
+core/src/qt/forms/ui_*.h
+*.tar.gz
 
-# Autotools / configure noise (never commit generated)
-**/Makefile
-**/Makefile.in
-**/config.status
-**/config.log
-**/libtool
-**/autom4te.cache/
+*.exe
+*.pdb
+src/bitcoin
+src/bitcoind
+src/bitcoin-cli
+src/bitcoin-gui
+src/bitcoin-node
+src/bitcoin-tx
+src/bitcoin-util
+src/bitcoin-chainstate
+src/bitcoin-wallet
+src/test/fuzz/fuzz
+src/test/test_bitcoin
+src/qt/test/test_bitcoin-qt
 
-# Runtime / secrets / evidence that must never ship
-**/.pgdata/
-**/.mining-test/
-**/.slowtest/
-**/.runtime/
-**/*.dump
-.env
-.env.*
-!.env.example
-*.pem
-*.key
-id_rsa*
+# autoreconf
+Makefile.in
+aclocal.m4
+autom4te.cache/
+build-aux/config.guess
+build-aux/config.sub
+build-aux/depcomp
+build-aux/install-sh
+build-aux/ltmain.sh
+build-aux/m4/libtool.m4
+build-aux/m4/lt~obsolete.m4
+build-aux/m4/ltoptions.m4
+build-aux/m4/ltsugar.m4
+build-aux/m4/ltversion.m4
+build-aux/missing
+build-aux/compile
+build-aux/test-driver
+config.cache
+config.log
+config.status
+configure
+libtool
+src/config/bitcoin-config.h
+src/config/bitcoin-config.h.in
+src/config/stamp-h1
+src/obj
+share/setup.nsi
+share/qt/Info.plist
 
-# Editor / OS
-.DS_Store
-*.swp
+src/qt/*.moc
+src/qt/moc_*.cpp
+src/qt/forms/ui_*.h
+
+src/qt/test/moc*.cpp
+
+src/qt/bitcoin-qt.config
+src/qt/bitcoin-qt.creator
+src/qt/bitcoin-qt.creator.user
+src/qt/bitcoin-qt.files
+src/qt/bitcoin-qt.includes
+
+.deps
+.dirstamp
+.libs
+.*.swp
 *~
+*.bak
+*.rej
+*.orig
+*.pyc
+*.o
+*.o-*
+*.a
+*.pb.cc
+*.pb.h
+*.dat
+
+*.log
+*.trs
+*.dmg
+
+*.json.h
+*.raw.h
+
+# Only ignore unexpected patches
+*.patch
+!contrib/guix/patches/*.patch
+!depends/patches/**/*.patch
+
+#libtool object files
+*.lo
+*.la
+
+# Compilation and Qt preprocessor part
+*.qm
+Makefile
+!depends/Makefile
+src/qt/bitcoin-qt
+Bitcoin-Qt.app
+
+# Qt Creator
+Makefile.am.user
+
+# Unit-tests
+Makefile.test
+bitcoin-qt_test
+
+# Resources cpp
+qrc_*.cpp
+
+# Mac specific
+.DS_Store
+build
+
+# Previous releases
+releases
+
+#lcov
+*.gcno
+*.gcda
+/*.info
+test_bitcoin.coverage/
+total.coverage/
+fuzz.coverage/
+coverage_percent.txt
+/cov_tool_wrapper.sh
+qa-assets/
+
+#build tests
+linux-coverage-build
+linux-build
+win32-build
+test/config.ini
+test/cache/*
+test/.mypy_cache/
+
+!src/leveldb*/Makefile
+
+/doc/doxygen/
+
+libbitcoinconsensus.pc
+contrib/devtools/split-debug.sh
+
+# Output from running db4 installation
+db4/
+
+# clang-check
+*.plist
+
+osx_volname
+dist/
+
+/guix-build-*
+
+/ci/scratch/
+# ===== ArdaChain Custom =====
+
+# core dump
+core.*
+
+# build
+build/
+# depends/
+
+# binaries
+*.o
+*.a
+*.so
+
+# temp
+tmp/
+.tmp-*
+.devtest-*
+
+# data
+nodes/
+*.dat
+*.blk
+chainstate/
+# Ignore compiled binaries
+src/rigord
+src/rigor-cli
+src/qt/rigor-qt
+src/qt/test/test_rigor-qt
+*.o
+*.a
+core/src/qt/rigor-qt
+core/src/qt/test/test_rigor-qt
+
+# Local source for regenerating app icon (see res/icons/build_app_icon.py)
+core/src/qt/res/icons/_source_appicon.png
+artifacts/
+
+# Local LR burn-in harness outputs (LevelDB; multi-GB). See docs/freeze/README_LR_ARTIFACTS.md
+docs/freeze/lr_artifacts_final/
+
+# Optional STEP-0201 baseline archives when STEP0201_ARCHIVE_BASE points inside repo
+.step0201-baselines/
+
+# Forensic stress-lab harness outputs (tmpdir + LevelDB + logs; local-only)
+forensic_combine_evidence/
+
+# TASK-RES-CORE-FUNCTIONAL-TEST sealed runs (see scripts/freeze/archive_task_res_core_functional.sh)
+docs/freeze/task_res_core_functional_artifacts/
+
+# Local runtime data (chain datadirs, soak logs, devtest artifacts)
+.runtime/
+
+# Cursor / IDE local state (never publish)
+.cursor/
+.cursorignore
+*.code-workspace
+
+# Local simulation / campaign outputs (regenerate via harnesses)
+**/out/
+contrib/testing/**/out/
+contrib/testing/**/*.log
+.runtime/**
+
+# Nested Qt moc (moc_*.cpp under qt/ only covered top-level historically)
+**/moc_*.cpp
+**/ui_*.h
+**/*.moc
+
+# TASK-GIT-003 migration workspace (local-only extraction artifacts)
+.migration/
+
+# TASK-GIT-004 generated release env (regenerate via scripts/generate_release_tags.sh)
+.release/version.env
+
+# TASK-GIT-003 / TASK-GIT-005 migration & clean export workspaces
+.migration/rigorchain_clean_export/
+
+# Node / Next.js MVP projects (explorer-indexer-mvp, wallet-observer-mvp)
+node_modules/
+.next/
+.env.local
+
+# Coq build artifacts (formal_verification/coq)
+formal_verification/coq/**/*.vo
+formal_verification/coq/**/*.vos
+formal_verification/coq/**/*.vok
+formal_verification/coq/**/*.glob
+formal_verification/coq/**/*.aux
+formal_verification/coq/**/.lia.cache
+formal_verification/coq/CoqMakefile
+formal_verification/coq/CoqMakefile.conf
+formal_verification/coq/CoqMakefile.conf.conf
+formal_verification/coq/.CoqMakefile.*
+# coq_makefile -f _CoqProject -o Makefile.coq regenerates these; _CoqProject is the only source.
+formal_verification/coq/Makefile.coq
+formal_verification/coq/Makefile.coq.conf
+formal_verification/coq/**/.Makefile*.d
+formal_verification/coq/**/Makefile.conf
+# Extraction.v output.
+formal_verification/coq/rigor.ml
+formal_verification/coq/rigor.mli
+
+# Local build/cache/tooling artifacts (keep on disk; never commit)
+**/target/
+.lia.cache
+.nia.cache
+.tools/
+.release/
+simulation/**/state_trace.jsonl
+replay/convergence_drift_report.json
+
+# Compiled binaries that were previously tracked (TASK-HYGIENE-001)
+core/src/compute_rfc001_vectors
+formal_verification/cpp/bin/
+cpuminer/minerd
+mini_node
+rigor-qt-prototype/rigor-qt-prototype
+
+# Chain datadirs produced by the shell test harnesses. A datadir is live state,
+# not evidence: LevelDB files, lock files and wallets have no business in git.
+.mining-test/
+.slowtest/
+
+# Database clusters and dumps. SECURITY-002: a PostgreSQL data directory was
+# committed here, publishing the SCRAM verifier from pg_authid.
+**/.pgdata/
+*.dump
+
+# Alpha release binary packages (publish via GitHub Release assets only)
+release/linux/*.deb
+release/linux/*.AppImage
+release/linux/*.AppDir/
+release/linux/*.tar.gz
+release/windows/*.exe
+release/**/*.zip
+*.deb
+*.AppImage
+
+# Sync/build noise
+docs/release/.alpha_sync_manifest.json
+**/__pycache__/
+*.pyc
+core/configure~
+*.patch
+# Historical release dump noise (not part of alpha product surface)
+docs/release/RELEASE-00*/
+docs/release/RELEASE-005*
+docs/release/RELEASE-006*
+docs/release/RELEASE-007*
+docs/release/RELEASE-008*
+docs/release/PRODUCT_SHA256SUMS.txt
+contrib/testing/release006*/
+contrib/testing/release007*/
+contrib/testing/release008*/
+contrib/testing/post_proof034*/
+contrib/testing/m0*/
+contrib/testing/m1*/
 # public-history candidate: keep source hidden by generic rules
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch

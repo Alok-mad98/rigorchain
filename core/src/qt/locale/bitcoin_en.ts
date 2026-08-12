@@ -818,11 +818,11 @@ Signing is only possible with addresses of the type &apos;legacy&apos;.</source>
     </message>
     <message numerus="yes">
         <location line="+117"/>
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
-            <numerusform>%n active connection to Rigor network.</numerusform>
-            <numerusform>%n active connections to Rigor network.</numerusform>
+            <numerusform>%n active connection to RIGOR network.</numerusform>
+            <numerusform>%n active connections to RIGOR network.</numerusform>
         </translation>
     </message>
     <message>

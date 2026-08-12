@@ -7,6 +7,7 @@
 
 #include <QFrame>
 
+class ClientModel;
 class QLabel;
 class WalletModel;
 
@@ -20,10 +21,12 @@ class ConvergenceOverviewPanel : public QFrame
 public:
     explicit ConvergenceOverviewPanel(QWidget* parent = nullptr);
 
+    void setClientModel(ClientModel* model);
     void setWalletModel(WalletModel* model);
     void refresh();
 
 private:
+    ClientModel* m_clientModel{nullptr};
     WalletModel* m_walletModel{nullptr};
     QLabel* m_activityLabel{nullptr};
     QLabel* m_historicalLabel{nullptr};

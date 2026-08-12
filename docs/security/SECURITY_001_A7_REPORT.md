@@ -1,6 +1,8 @@
 # SECURITY-001-A / A-7 — RES spending paths and the ConvergeProof signature
 
-**Status:** implemented, awaiting review
+**Status:** **CLOSED** (code complete; process closed under TASK-MAINNET-CLOSURE-001)
+**Prior status:** implemented, awaiting review
+**Closure:** 2026-08-05 — PCORB script-path spend removed; Witness v1 RES is key-path only; mint witness 6-item path retained. Operator re-verification: local `make` + RES functional suite (user-run; see MAINNET_GO_NO_GO_CHECKLIST).
 **Scope:** consensus (script verification, proof parsing, mint witness), relay policy, wallet RPC surface, mining pool, formal spec, off-chain tooling
 **Chain impact:** invalidating. Merges with the A-5/A-6 chain reset; no separate reset.
 

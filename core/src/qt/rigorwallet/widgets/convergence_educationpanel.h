@@ -7,8 +7,6 @@
 
 #include <QFrame>
 
-class QTextBrowser;
-
 namespace RigorWallet {
 
 class ConvergenceEducationPanel : public QFrame

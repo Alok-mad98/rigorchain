@@ -17,8 +17,6 @@
 #include <QCoreApplication>
 #include <QString>
 
-#include <QCoreApplication>
-
 namespace RigorWallet {
 
 BrandInfo WalletIdentity::brand()
@@ -71,26 +69,46 @@ QString WalletIdentity::aboutComplianceHtml()
     const BuildInfo buildInfo = WalletIdentity::build();
 
     QString html;
+    html += QStringLiteral("<p><b>%1</b></p>").arg(b.productName.toHtmlEscaped());
+    html += QStringLiteral("<p>%1</p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "A sovereign Bitcoin-derived blockchain wallet.").toHtmlEscaped());
+
+    html += QStringLiteral("<p><b>%1</b></p>").arg(QCoreApplication::translate(
+        "WalletIdentity", "Two native assets:").toHtmlEscaped());
+    html += QStringLiteral("<p><b>ORU</b><br>%1</p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "Proof-of-work security and economic coordination asset.").toHtmlEscaped());
+    html += QStringLiteral("<p><b>RES</b><br>%1</p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "Independent scarce resource.").toHtmlEscaped());
+    html += QStringLiteral("<p>%1</p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "RES is minted through deterministic consensus allocation. RES is not mined.").toHtmlEscaped());
+    html += QStringLiteral("<p><i>%1</i></p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "The script is the compliance layer.").toHtmlEscaped());
+
     html += QStringLiteral("<hr>");
-    html += QStringLiteral("<p><b>%1</b></p>").arg(b.protocolName.toHtmlEscaped());
-    html += QStringLiteral("<p>%1</p>").arg(b.stateMachineLabel.toHtmlEscaped());
-    html += QStringLiteral("<p><i>%1</i></p>").arg(b.verificationStatus.toHtmlEscaped());
+    html += QStringLiteral("<p><b>%1</b> %2</p>")
+                .arg(QCoreApplication::translate("WalletIdentity", "Version").toHtmlEscaped(),
+                     QString::fromStdString(FormatFullVersion()).toHtmlEscaped());
+    {
+        const QString copy = QString(QChar(0x00A9));
+        html += QStringLiteral("<p>Copyright %1 2009-2026 The Bitcoin Core developers</p>").arg(copy);
+        html += QStringLiteral("<p>Copyright %1 2026- The RIGOR developers</p>").arg(copy);
+    }
+    html += QStringLiteral("<p>%1</p>").arg(QCoreApplication::translate(
+        "WalletIdentity",
+        "License: MIT").toHtmlEscaped());
+
     html += QStringLiteral("<p>%1</p>").arg(equivalenceDisclaimer().toHtmlEscaped());
 
-    html += QStringLiteral("<p>%1<br>%2</p>")
-                .arg(QString::fromStdString(FormatFullVersion()).toHtmlEscaped(),
-                     v.clientName.toHtmlEscaped());
+    html += QStringLiteral("<p>%1</p>").arg(v.clientName.toHtmlEscaped());
 
     if (!buildInfo.buildSuffix.isEmpty()) {
         html += QStringLiteral("<p><small>Build: %1</small></p>").arg(buildInfo.buildSuffix.toHtmlEscaped());
     }
-
-    html += QStringLiteral("<p><small>");
-    html += QStringLiteral("<a href=\"https://github.com/rigor-chain/rigor/blob/master/docs/rfcs/RFC-000-consensus-constitution.md\">RFC-000</a> · ");
-    html += QStringLiteral("<a href=\"https://github.com/rigor-chain/rigor/blob/master/docs/rfcs/RFC-000A-rigor-implementation-bible.md\">RFC-000A</a> · ");
-    html += QStringLiteral("<a href=\"https://github.com/rigor-chain/rigor/blob/master/docs/rfcs/RFC-001-deterministic-selection.md\">RFC-001</a> · ");
-    html += QStringLiteral("<a href=\"https://github.com/rigor-chain/rigor/blob/master/docs/rfcs/RFC-002-supply-evolution.md\">RFC-002</a>");
-    html += QStringLiteral("</small></p>");
 
     return html;
 }

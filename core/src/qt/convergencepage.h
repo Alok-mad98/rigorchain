@@ -12,6 +12,11 @@ class ClientModel;
 class PlatformStyle;
 class WalletModel;
 
+QT_BEGIN_NAMESPACE
+class QTimer;
+class QShowEvent;
+QT_END_NAMESPACE
+
 namespace Ui {
 class ConvergencePage;
 }
@@ -19,15 +24,13 @@ class ConvergencePage;
 namespace RigorWallet {
 class ConvergenceEducationPanel;
 class ConvergenceOverviewPanel;
+class ConvergenceLifecyclePanel;
+class ConvergenceStartPanel;
+class ConvergenceNetworkPanel;
 class ConvergenceResProbabilityPanel;
 class ConvergenceHistoryPanel;
-class ConvergenceExplorerHooks;
 class WarningBanner;
 }
-
-QT_BEGIN_NAMESPACE
-class QLabel;
-QT_END_NAMESPACE
 
 /** Standalone convergence (ORU) page — see WALLET DESIGN LOCK in overviewpage.cpp */
 class ConvergencePage : public QWidget
@@ -41,22 +44,29 @@ public:
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
 
+protected:
+    void showEvent(QShowEvent* event) override;
+
 private:
     Ui::ConvergencePage* ui;
     ClientModel* clientModel{nullptr};
     WalletModel* walletModel{nullptr};
     const PlatformStyle* m_platform_style{nullptr};
 
-    QLabel* m_convergenceSafetyLabel{nullptr};
-
     RigorWallet::ConvergenceEducationPanel* m_educationPanel{nullptr};
+    RigorWallet::ConvergenceLifecyclePanel* m_lifecyclePanel{nullptr};
+    RigorWallet::ConvergenceStartPanel* m_startPanel{nullptr};
+    RigorWallet::ConvergenceNetworkPanel* m_networkPanel{nullptr};
     RigorWallet::ConvergenceOverviewPanel* m_overviewPanel{nullptr};
     RigorWallet::ConvergenceResProbabilityPanel* m_resProbabilityPanel{nullptr};
     RigorWallet::WarningBanner* m_warningBanner{nullptr};
     RigorWallet::ConvergenceHistoryPanel* m_historyPanel{nullptr};
-    RigorWallet::ConvergenceExplorerHooks* m_explorerHooks{nullptr};
+    QTimer* m_refreshDebounce{nullptr};
 
     void applyConvergenceTheme();
+    /** Coalesce tip/wallet signals; no-op when page is not visible. */
+    void scheduleUiRefresh();
+    void refreshVisibleUi();
     void refreshPhaseCPanels();
     void updateRecoveryWarnings();
     void updateConvergenceAvailability();

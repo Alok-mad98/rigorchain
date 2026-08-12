@@ -1,6 +1,7 @@
 <!DOCTYPE RCC><RCC version="1.0">
     <qresource prefix="/icons">
         <file alias="rigor">res/icons/rigor.png</file>
+        <file alias="rigor.svg">res/icons/rigor.svg</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="send">res/icons/send.png</file>
         <file alias="connect_0">res/icons/connect0.png</file>
@@ -90,6 +91,6 @@
     <qresource prefix="/images">
         <file alias="wallet-background">res/images/wallet-background.png</file>
         <file alias="wallet-background-dark">res/images/wallet-background-dark.png</file>
-        <file alias="splash-screen">res/images/splash-screen.png</file>
+        <!-- Splash is painted at runtime (splashscreen.cpp); no bitmap splash shipped. -->
     </qresource>
 </RCC>

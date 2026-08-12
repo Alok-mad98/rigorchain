@@ -32,7 +32,7 @@ Specification  →  Formal Model  →  Proof  →  Runtime Alignment Evidence
 |----|-------|--------|-------------|
 | **SPEC-000** | [Consensus Specification](./SPEC-000-CONSENSUS-SPECIFICATION.md) | **ESTABLISHED** (skeleton) | Scope, system model, consensus objectives, assumptions, trust anchors, non-goals, formal-verification relationship, freeze compatibility |
 | **SPEC-001** | [State Model](./SPEC-001-STATE-MODEL.md) | **ESTABLISHED** | State categories, minimal consensus state, runtime/observational/external state, transition model, SI placeholders, FVR boundary, freeze compatibility |
-| **SPEC-002** | [Economic Model (ORU/RES)](./SPEC-002-ECONOMIC-MODEL.md) | **ESTABLISHED** | ORU subsidy/burn recurrence, RES mint/cap recurrence, falsifiable economic invariants, diagnostic cross-checks (non-authoritative), freeze compatibility |
+| **SPEC-002** | [Economic Model (ORU/RES)](./SPEC-002-ECONOMIC-MODEL.md) | **ESTABLISHED** | ORU subsidy/convergence recurrence, RES mint/cap recurrence, falsifiable economic invariants, diagnostic cross-checks (non-authoritative), freeze compatibility |
 | **SPEC-003** | [Consensus Rules](./SPEC-003-CONSENSUS-RULES.md) | **ESTABLISHED** | Seven-layer validation hierarchy, CR-001..CR-063 predicates, failure model, FVR boundary, freeze compatibility |
 | **SPEC-004** | [Trust Anchors](./SPEC-004-TRUST-ANCHORS.md) | **ESTABLISHED** | Hashing/PoW/clock/network/storage/draw anchors, A-1..A-5 open audit registry, failure conditions, freeze compatibility |
 | **SPEC-005** | [Consensus Invariants](./SPEC-005-CONSENSUS-INVARIANTS.md) | **ESTABLISHED** | CI-CONSENSUS/STATE/ECONOMIC/DRAW/FREEZE invariants, dependency graph, FVR boundary, SI→CI mapping, freeze compatibility |

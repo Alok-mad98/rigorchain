@@ -307,8 +307,16 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">金额</translation>
     </message>
     <message>
+        <source>Enter an ORU address (e.g. %1)</source>
+        <translation>请输入一个 ORU 地址（例如 %1）</translation>
+    </message>
+    <message>
+        <source>Enter a RES address (e.g. %1)</source>
+        <translation>请输入一个 RES 地址（例如 %1）</translation>
+    </message>
+    <message>
         <source>Enter a Rigor address (e.g. %1)</source>
-        <translation type="unfinished">请输入一个比特币地址 (例如 %1)</translation>
+        <translation type="obsolete">请输入一个比特币地址 (例如 %1)</translation>
     </message>
     <message>
         <source>Mining pool documentation</source>
@@ -447,6 +455,18 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     <message>
         <source>Browse transaction history</source>
         <translation type="unfinished">浏览交易历史</translation>
+    </message>
+    <message>
+        <source>&amp;Convergence</source>
+        <translation>汇聚(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Convergence: spend ORU, track the W=32 lifecycle, and view RES minted results</source>
+        <translation>汇聚：花费 ORU，跟踪 W=32 生命周期，并查看 RES 铸币结果</translation>
+    </message>
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
     </message>
     <message>
         <source>E&amp;xit</source>
@@ -794,10 +814,10 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">显示(&amp;H)</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Rigor network.</source>
+        <source>%n active connection(s) to RIGOR network.</source>
         <extracomment>A substring of the tooltip.</extracomment>
         <translation type="unfinished">
-            <numerusform>%n 条到比特币网络的活动连接</numerusform>
+            <numerusform>%n 条到RIGOR网络的活动连接</numerusform>
         </translation>
     </message>
     <message>
@@ -1168,7 +1188,11 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>%1 will download and store a copy of the Rigor block chain.</source>
-        <translation type="unfinished">%1 将会下载并存储比特币区块链。</translation>
+        <translation type="vanished">%1 将会下载并存储 RIGOR 区块链。</translation>
+    </message>
+    <message>
+        <source>%1 will download and store a copy of the RIGOR blockchain.</source>
+        <translation>%1 将会下载并存储 RIGOR 区块链。</translation>
     </message>
     <message>
         <source>The wallet will also be stored in this directory.</source>
@@ -1196,7 +1220,11 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2 GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
-        <translation type="unfinished">当你单击确认后，%1 将会从%4在%3年创始时最早的交易开始，下载并处理完整的 %4 区块链 (%2 GB)。</translation>
+        <translation type="vanished">当你单击确认后，%1 将会从创世区块开始下载并处理 RIGOR 区块链（约 %2 GB，创世年份 %3）。</translation>
+    </message>
+    <message>
+        <source>When you click OK, %1 will begin to download and process the RIGOR blockchain (%2 GB) starting from genesis (%3).</source>
+        <translation>当你单击确认后，%1 将会从创世区块开始下载并处理 RIGOR 区块链（约 %2 GB，创世年份 %3）。</translation>
     </message>
     <message>
         <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
@@ -1245,7 +1273,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the arda network, as detailed below.</source>
-        <translation type="unfinished">近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与比特币网络完全同步后更正。详情如下</translation>
+        <translation type="unfinished">近期交易可能尚未显示，因此当前余额可能不准确。以上信息将在与RIGOR网络完全同步后更正。详情如下</translation>
     </message>
     <message>
         <source>Attempting to spend bitcoins that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
@@ -1484,7 +1512,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Connect to the Rigor network through a SOCKS5 proxy.</source>
-        <translation type="unfinished">通过 SOCKS5 代理连接比特币网络。</translation>
+        <translation type="unfinished">通过 SOCKS5 代理连接RIGOR网络。</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1544,7 +1572,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>&amp;Unit to show amounts in:</source>
-        <translation type="unfinished">比特币金额单位(&amp;U):</translation>
+        <translation type="unfinished">金额单位(&amp;U):</translation>
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
@@ -1564,7 +1592,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>Connect to the Rigor network through a separate SOCKS5 proxy for Tor onion services.</source>
-        <translation type="unfinished">连接比特币网络时专门为Tor onion服务使用另一个 SOCKS5 代理。</translation>
+        <translation type="unfinished">连接RIGOR网络时专门为Tor onion服务使用另一个 SOCKS5 代理。</translation>
     </message>
     <message>
         <source>Use separate SOCKS&amp;5 proxy to reach peers via Tor onion services:</source>
@@ -1680,7 +1708,7 @@ Signing is only possible with addresses of the type 'legacy'.</source>
     </message>
     <message>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Rigor network after a connection is established, but this process has not completed yet.</source>
-        <translation type="unfinished">现在显示的消息可能是过期的。在连接上比特币网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
+        <translation type="unfinished">现在显示的消息可能是过期的。在连接上RIGOR网络节点后，您的钱包将自动与网络同步，但是这个过程还没有完成。</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -2468,7 +2496,7 @@ For more information on using this console, type %6.
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Rigor network.</source>
-        <translation type="unfinished">可在支付请求上备注一条信息，在打开支付请求时可以看到。注意:该消息不是通过比特币网络传送。</translation>
+        <translation type="unfinished">可在支付请求上备注一条信息，在打开支付请求时可以看到。注意:该消息不是通过RIGOR网络传送。</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2773,7 +2801,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     </message>
     <message>
         <source>When there is less transaction volume than space in the blocks, miners as well as relaying nodes may enforce a minimum fee. Paying only this minimum fee is just fine, but be aware that this can result in a never confirming transaction once there is more demand for arda transactions than the network can process.</source>
-        <translation type="unfinished">当交易量小于可用区块空间时，矿工和中继节点可能会执行最低手续费率限制。按照这个最低费率来支付手续费也是可以的，但请注意，一旦交易需求超出比特币网络能处理的限度，你的交易可能永远也无法确认。</translation>
+        <translation type="unfinished">当交易量小于可用区块空间时，矿工和中继节点可能会执行最低手续费率限制。按照这个最低费率来支付手续费也是可以的，但请注意，一旦交易需求超出RIGOR网络能处理的限度，你的交易可能永远也无法确认。</translation>
     </message>
     <message>
         <source>A too low fee might result in a never confirming transaction (read the tooltip)</source>
@@ -3086,7 +3114,7 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     </message>
     <message>
         <source>A message that was attached to the rigor: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Rigor network.</source>
-        <translation type="unfinished">rigor: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过比特币网络传输。</translation>
+        <translation type="unfinished">rigor: URI 附带的备注信息，将会和交易一起存储，备查。 注意：该消息不会通过RIGOR网络传输。</translation>
     </message>
 </context>
 <context>
@@ -3420,6 +3448,11 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
         <source>false</source>
         <translation type="unfinished">否</translation>
     </message>
+
+    <message>
+        <source>Convergence protocol (ORU committed to consensus convergence output; not a normal pay-to-address)</source>
+        <translation>汇聚协议（ORU 已提交到共识汇聚输出；非普通付款地址）</translation>
+    </message>
 </context>
 <context>
     <name>TransactionDescDialog</name>
@@ -3529,6 +3562,36 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
     <message>
         <source>Amount removed from or added to balance.</source>
         <translation type="unfinished">从余额增加或移除的金额。</translation>
+    </message>
+
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
+    <message>
+        <source>ORU Transfer</source>
+        <translation>ORU 转账</translation>
+    </message>
+    <message>
+        <source>RES Transfer</source>
+        <translation>RES 转账</translation>
+    </message>
+    <message>
+        <source>Mint</source>
+        <translation>铸造</translation>
+    </message>
+    <message>
+        <source>Unexpected Mixed ORU/RES</source>
+        <translation>异常 ORU/RES 混合</translation>
+    </message>
+    <message>
+        <source>Unknown</source>
+        <translation>未知</translation>
+    </message>
+
+    <message>
+        <source>Convergence (ORU protocol commitment; not a pay-to-address)</source>
+        <translation>汇聚（ORU 协议承诺；非普通付款地址）</translation>
     </message>
 </context>
 <context>
@@ -3691,6 +3754,11 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
         <source>to</source>
         <translation type="unfinished">到</translation>
     </message>
+
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
 </context>
 <context>
     <name>WalletFrame</name>
@@ -3795,7 +3863,12 @@ Go to File &gt; Open Wallet to load a wallet.
         <source>Can't display address</source>
         <translation type="unfinished">无法显示地址</translation>
     </message>
-    </context>
+    
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
+</context>
 <context>
     <name>WalletView</name>
     <message>
@@ -4711,6 +4784,115 @@ Unable to restore backup of wallet.</source>
     <message>
         <source>Settings file could not be written</source>
         <translation type="unfinished">无法写入设置文件</translation>
+    </message>
+</context>
+<context>
+    <name>ConvergencePage</name>
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
+
+    <message>
+        <source>Convergence pending: %1</source>
+        <translation>汇聚待确认：%1</translation>
+    </message>
+
+    <message>
+        <source>Convergence consumes ORU permanently. An Res mint is not guaranteed. This action cannot be undone after the transaction is broadcast.
+
+Do you want to continue?</source>
+        <translation>汇聚会永久消耗 ORU。RES 铸币不保证发生。交易广播后无法撤销。
+
+是否继续？</translation>
+    </message>
+
+    <message>
+        <source>Convergence transaction broadcast. Res minting is probabilistic; check convergence_status in getwalletinfo when the transaction confirms.</source>
+        <translation>汇聚交易已广播。RES 铸币由共识决定；交易确认后可在 getwalletinfo 的 convergence_status 中查看。</translation>
+    </message>
+
+    <message>
+        <source>Convergence requires a wallet with spending keys. Watch-only wallets cannot create convergence transactions.</source>
+        <translation>汇聚需要带私钥的钱包。仅观察钱包无法创建汇聚交易。</translation>
+    </message>
+
+    <message>
+        <source>ConvergenceRoot set |F|</source>
+        <translation>汇聚根集合 |F|</translation>
+    </message>
+
+    <message>
+        <source>Convergence stats</source>
+        <translation>汇聚统计</translation>
+    </message>
+
+    <message>
+        <source>Convergence since last RES</source>
+        <translation>距上次 RES 的汇聚</translation>
+    </message>
+
+    <message>
+        <source>Convergence amount</source>
+        <translation>汇聚金额</translation>
+    </message>
+
+    <message>
+        <source>Convergence tx status</source>
+        <translation>汇聚交易状态</translation>
+    </message>
+</context>
+<context>
+    <name>ConvergenceWizard</name>
+    <message>
+        <source>Convergence Wizard</source>
+        <translation>汇聚向导</translation>
+    </message>
+
+    <message>
+        <source>Convergence</source>
+        <translation>汇聚</translation>
+    </message>
+
+    <message>
+        <source>Convergence permanently commits ORU under consensus rules. A RES mint may follow deterministic selection but is never guaranteed.</source>
+        <translation>汇聚会按共识规则永久锁定 ORU。之后可能产生 RES 铸币，但绝不保证。</translation>
+    </message>
+
+    <message>
+        <source>Convergence transaction broadcast. Track status in Convergence History.</source>
+        <translation>汇聚交易已广播。请在汇聚历史中跟踪状态。</translation>
+    </message>
+</context>
+<context>
+    <name>RigorWallet::ConvergenceOverviewPanel</name>
+    <message>
+        <source>Convergence Overview %1</source>
+        <translation>汇聚概览 %1</translation>
+    </message>
+
+    <message>
+        <source>Convergence activity: —</source>
+        <translation>汇聚活动：—</translation>
+    </message>
+
+    <message>
+        <source>Convergence activity: %1 total in wallet history (W = %2).</source>
+        <translation>汇聚活动：钱包历史共 %1 笔（W = %2）。</translation>
+    </message>
+</context>
+<context>
+    <name>RigorWallet::DiagnosticsConvergencePanel</name>
+    <message>
+        <source>Convergence %1</source>
+        <translation>汇聚 %1</translation>
+    </message>
+</context>
+<context>
+    <name>DiagnosticsPage</name>
+    <message>
+        <source>Convergence pending: %1</source>
+        <translation>汇聚待确认：%1</translation>
     </message>
 </context>
 </TS>

@@ -6,6 +6,8 @@
 
 #include <qt/walletmodel.h>
 
+#include <consensus/convergenceres.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <wallet/tx_semantic.h>
 
 #include <uint256.h>
@@ -23,10 +25,10 @@ ConvergenceUserStatus ConvergenceWalletData::mapStateString(const QString& state
     if (state == QLatin1String("BROADCASTED") || state == QLatin1String("CREATED")) {
         return ConvergenceUserStatus::Pending;
     }
-    if (state == QLatin1String("INCLUDED")) {
+    if (state == QLatin1String("INCLUDED") || state == QLatin1String("MATURING")) {
         return ConvergenceUserStatus::Included;
     }
-    if (state == QLatin1String("MATURING") || state == QLatin1String("LOST")) {
+    if (state == QLatin1String("LOST")) {
         return ConvergenceUserStatus::Completed;
     }
     if (state == QLatin1String("WON_PENDING") || state == QLatin1String("WON_CONFIRMED")) {
@@ -39,13 +41,13 @@ QString ConvergenceWalletData::statusLabel(ConvergenceUserStatus status)
 {
     switch (status) {
     case ConvergenceUserStatus::Pending:
-        return QCoreApplication::translate("ConvergenceWalletData", "Pending");
+        return QCoreApplication::translate("ConvergenceWalletData", "Submitted");
     case ConvergenceUserStatus::Included:
-        return QCoreApplication::translate("ConvergenceWalletData", "Included");
+        return QCoreApplication::translate("ConvergenceWalletData", "Active window");
     case ConvergenceUserStatus::Completed:
-        return QCoreApplication::translate("ConvergenceWalletData", "Completed");
+        return QCoreApplication::translate("ConvergenceWalletData", "No RES mint");
     case ConvergenceUserStatus::Minted:
-        return QCoreApplication::translate("ConvergenceWalletData", "Minted");
+        return QCoreApplication::translate("ConvergenceWalletData", "RES minted");
     case ConvergenceUserStatus::Failed:
         return QCoreApplication::translate("ConvergenceWalletData", "Failed");
     }
@@ -76,7 +78,7 @@ static int mintBlockHeight(WalletModel* walletModel, const uint256& txid)
     return -1;
 }
 
-std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletModel* walletModel)
+std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletModel* walletModel, int tip_height)
 {
     std::vector<ConvergenceHistoryRow> rows;
     if (!walletModel) return rows;
@@ -92,29 +94,91 @@ std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletMod
         }
     }
 
+    std::vector<QString> row_states;
     for (const interfaces::WalletTx& wtx : txs) {
         if (!isConvergenceWalletTx(wtx)) continue;
         ConvergenceHistoryRow row;
         row.txid = QString::fromStdString(wtx.tx->GetHash().GetHex());
         row.timestamp = wtx.time;
-        row.oru_amount = -wtx.debit_oru;
+        // Invested ORU = convergence output value (not -debit: debit_oru is already >= 0).
+        row.oru_amount = Consensus::GetConvergenceAmount(*wtx.tx);
+        if (row.oru_amount <= 0) {
+            const CAmount net_out = wtx.debit_oru - wtx.credit_oru;
+            row.oru_amount = net_out > 0 ? net_out : wtx.debit_oru;
+        }
         const QString state = mapValueStr(wtx, "convergence_state");
         row.status = state.isEmpty() ? ConvergenceUserStatus::Pending : mapStateString(state);
         row.status_label = statusLabel(row.status);
         const QString inc = mapValueStr(wtx, "convergence_included_height");
         if (!inc.isEmpty()) row.block_height = inc.toInt();
-        if (row.block_height >= 0) {
-            const auto it = mint_by_height.find(row.block_height);
-            if (it != mint_by_height.end()) {
-                row.linked_mint_txid = it->second;
-                if (row.status == ConvergenceUserStatus::Completed ||
-                    row.status == ConvergenceUserStatus::Included) {
-                    row.status = ConvergenceUserStatus::Minted;
-                    row.status_label = statusLabel(row.status);
-                }
+        row_states.push_back(state);
+        rows.push_back(std::move(row));
+    }
+
+    // Each body RES mint credits exactly one winner. Overlapping W-windows must not all claim
+    // the same mint height (that double-counted Success/100 in history while balance stayed 100).
+    for (const auto& mint_kv : mint_by_height) {
+        const int mint_h = mint_kv.first;
+        const QString& mint_txid = mint_kv.second;
+        int best = -1;
+        for (size_t i = 0; i < rows.size(); ++i) {
+            const ConvergenceHistoryRow& cand = rows[i];
+            if (cand.block_height < 0) continue;
+            if (mint_h < cand.block_height || mint_h > cand.block_height + Consensus::CONVERGENCE_DRAW_WINDOW) {
+                continue;
+            }
+            if (cand.res_amount > 0) continue; // already claimed another mint
+            if (best < 0) {
+                best = static_cast<int>(i);
+                continue;
+            }
+            const ConvergenceHistoryRow& cur = rows[best];
+            const bool cand_won = (cand.status == ConvergenceUserStatus::Minted);
+            const bool cur_won = (cur.status == ConvergenceUserStatus::Minted);
+            if (cand_won != cur_won) {
+                if (cand_won) best = static_cast<int>(i);
+                continue;
+            }
+            // Prefer the larger Convergence stake when wallet state does not distinguish.
+            if (cand.oru_amount > cur.oru_amount) {
+                best = static_cast<int>(i);
+            } else if (cand.oru_amount == cur.oru_amount && cand.block_height < cur.block_height) {
+                best = static_cast<int>(i);
             }
         }
-        rows.push_back(std::move(row));
+        if (best < 0) continue;
+        ConvergenceHistoryRow& row = rows[best];
+        row.linked_mint_txid = mint_txid;
+        row.result_block = mint_h;
+        row.res_amount = Consensus::RES_REWARD_AMOUNT;
+        row.status = ConvergenceUserStatus::Minted;
+        row.status_label = statusLabel(row.status);
+    }
+
+    for (size_t i = 0; i < rows.size(); ++i) {
+        ConvergenceHistoryRow& row = rows[i];
+        const QString& state = row_states[i];
+        const bool allocated = (row.status == ConvergenceUserStatus::Minted) || (row.res_amount > 0);
+        // Only treat LOST as final once the W-window has closed (guards premature wallet LOST).
+        const bool explicit_loss =
+            (state == QLatin1String("LOST")) && row.block_height >= 0 &&
+            tip_height >= row.block_height + Consensus::CONVERGENCE_DRAW_WINDOW && !allocated;
+
+        const bool won = allocated;
+        row.window = wallet::BuildConvergenceUiWindow(row.block_height, tip_height, won, explicit_loss);
+        // While still in-window, override a premature LOST status label for the lifecycle row.
+        if (!won && !explicit_loss && state == QLatin1String("LOST") &&
+            (row.window.lifecycle == wallet::ConvergenceUiLifecycle::ActiveWindow ||
+             row.window.lifecycle == wallet::ConvergenceUiLifecycle::FinalizationPending)) {
+            row.status = ConvergenceUserStatus::Included;
+            row.status_label = statusLabel(row.status);
+        }
+        row.lifecycle = row.window.lifecycle;
+        // Prefer lifecycle-derived label for active tracking.
+        if (row.lifecycle == wallet::ConvergenceUiLifecycle::ActiveWindow ||
+            row.lifecycle == wallet::ConvergenceUiLifecycle::FinalizationPending) {
+            row.status_label = QString::fromUtf8(wallet::ConvergenceUiLifecycleLabel(row.lifecycle));
+        }
     }
 
     std::sort(rows.begin(), rows.end(), [](const ConvergenceHistoryRow& a, const ConvergenceHistoryRow& b) {
@@ -144,6 +208,11 @@ const ConvergenceHistoryRow* ConvergenceWalletData::pendingRow(const std::vector
 {
     for (const ConvergenceHistoryRow& r : rows) {
         if (r.status == ConvergenceUserStatus::Pending) return &r;
+        if (r.lifecycle == wallet::ConvergenceUiLifecycle::Submitted ||
+            r.lifecycle == wallet::ConvergenceUiLifecycle::ActiveWindow ||
+            r.lifecycle == wallet::ConvergenceUiLifecycle::FinalizationPending) {
+            return &r;
+        }
     }
     return nullptr;
 }

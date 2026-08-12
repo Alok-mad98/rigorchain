@@ -1,46 +1,57 @@
-# Rigor documentation (root entry)
+# RIGOR documentation
 
-## Terminology (Middle-earth naming)
+Public entry points for the protocol. Historical development records live under
+[`archive/`](./archive/) and are not required to understand the current design.
 
-| Name | Role in consensus / narrative |
-|------|--------------------------------|
-| **OpuHash** | Consensus proof-of-work: compute-heavy digest from the block header id (see `core/src/pow_opus.cpp`). Immovable, auditable work that anchors the chain. |
-| **ConvergenceDrawCandidates** | The **reconvergenced sword**: the protocol object carrying the convergence **result** — in code, `struct ConvergenceDrawCandidates` with `root` (the **hilt**: candidate Merkle root committed in CVGE) and `hash` (the **blade**: per-tx digest where used off-chain). Metaphor: shards of intent tempered into one edge the network can wield. |
-| **Reconvergence** | The function that hashes `(txid, bind, height, target_prev)` into an **ConvergenceDrawCandidatesResult** — “reconvergence the shards” rather than “run a weighted selection”; semantics are deterministic from chain context, not a wager. |
+## Start here
 
-**Dual-native asset protocol (ORU + RES)** — witness versions, asset isolation, RES mint vs transfer:
+| Document | Purpose |
+|----------|---------|
+| [WHITEPAPER.md](./WHITEPAPER.md) | Protocol narrative |
+| [architecture/ARCHITECTURE.md](./architecture/ARCHITECTURE.md) | Implementation constraints |
+| [MAINNET_PROTOCOL_FREEZE_DECLARATION.md](./MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | Consensus freeze status |
+| [verification/FORMAL-VERIFICATION-VERDICT.md](./verification/FORMAL-VERIFICATION-VERDICT.md) | What is (and is not) proved |
 
-- **[Protocol design → `core/doc/protocol_design.md`](../core/doc/protocol_design.md)**
+## Normative rules
 
-Related:
+| Path | Contents |
+|------|----------|
+| [rfc/](./rfc/) | RFC-000 constitution; RFC-008 / RFC-009 mathematics & serialization; RFC-014 draw target |
+| [specification/](./specification/) | State model, consensus rules, invariants, trust anchors |
 
-- [convergence / RES consensus (v3)](../core/doc/convergence-consensus-v1.md)
-- [Mining pools: GBT, coinbase, RES mint binding](../core/doc/mining-pool-gbt.md)
+## Security
 
-The full developer doc index lives under [`core/doc/README.md`](../core/doc/README.md).
+| Path | Contents |
+|------|----------|
+| [security/PRODUCTION_SECURITY_MODEL.md](./security/PRODUCTION_SECURITY_MODEL.md) | Production security model |
+| [security/SECURITY-001-A-FINAL-REPORT.md](./security/SECURITY-001-A-FINAL-REPORT.md) | Pre-mainnet remediation summary |
+| [security/SECURITY_001_A7_REPORT.md](./security/SECURITY_001_A7_REPORT.md) | A-7 closure |
+| [security/SECURITY_001_A8_REPORT.md](./security/SECURITY_001_A8_REPORT.md) | A-8 closure |
+| [security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md](./security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md) | Current terminology |
 
----
+Task-level drafts and intermediate audits: [`archive/security/`](./archive/security/).
 
-## Mainnet node RPC hardening
+## Domain guides
 
-Any **internet-adjacent or production-leaning** mainnet node should start from the hardened template:
+| Path | Contents |
+|------|----------|
+| [mining/](./mining/) | Pool / GBT / assembler specs |
+| [explorer/](./explorer/) | Explorer architecture and display rules |
+| [wallet/](./wallet/) | Wallet RPC / UI minimum specs |
+| [rigor-qt/](./rigor-qt/) | Desktop GUI notes |
+| [infrastructure/](./infrastructure/) | Deployment topology |
+| [constitution/](./constitution/) | Execution constitution |
+| [SCRIPT_STRUCTURE.md](./SCRIPT_STRUCTURE.md) | Script / witness structure reference |
 
-- **``core/contrib/ops/rigor-rpc-production.conf.example``** — `server=1`, loopback-only `rpcbind` / `rpcallowip`, and `rpcauth` guidance. Copy to your datadir (as `bitcoin.conf` / `rigor.conf`) or pass `-conf=`. Keys under **`[main]`** apply only to mainnet; the file also includes **`[regtest]`** so the same layout can be smoke-tested locally with `-regtest`.
+## Archives
 
-**Generate `rpcauth`** (from the `core/` tree):
+| Path | Contents |
+|------|----------|
+| [archive/proof/](./archive/proof/) | PROOF-000 … PROOF-034 development series |
+| [archive/security/](./archive/security/) | Historical SECURITY-001 task records |
+| [archive/architecture/](./archive/architecture/) | Large knowledge-base snapshots |
+| [archive/mining/](./archive/mining/) | Pilot / task mining docs |
 
-```bash
-cd /path/to/ring/core
-python3 share/rpcauth/rpcauth.py YOUR_RPC_USER
-```
+## Developer build docs
 
-Paste the printed `rpcauth=...` line into the config (under the correct `[chain]` section). More detail: [`core/share/rpcauth/README.md`](../core/share/rpcauth/README.md).
-
-Testnet / ops scripts: ``core/contrib/ops/README.md``.
-
-## Release checklist: checkpoints and chainwork
-
-Before tagging a **mainnet** release after the chain has grown:
-
-1. **Checkpoints** — In [`core/src/kernel/chainparams.cpp`](../core/src/kernel/chainparams.cpp) (`CMainParams::checkpointData`), add `{height, uint256S("0x...")}` rows using `rigor-cli getblockhash <height>` on a synced honest node. Keep heights monotonic; wrong hashes fork new installs off the network.
-2. **`nMinimumChainWork` / `defaultAssumeValid`** — Bump from `getblockchaininfo` / `getblockhash` per the comments next to those fields in the same file (must not set `nMinimumChainWork` above the real tip’s chainwork).
+Node build and RPC hardening: [`../core/doc/`](../core/doc/).

@@ -70,7 +70,10 @@ namespace {
 // don't add private key handling cmd's to the history
 const QStringList historyFilter = QStringList()
     << "importprivkey"
+    << "importrigorprivkey"
+    << "importdescriptors"
     << "importmulti"
+    << "dumpprivkey"
     << "sethdseed"
     << "signmessagewithprivkey"
     << "signrawtransactionwithkey"
@@ -868,15 +871,17 @@ void RPCConsole::clear(bool keep_prompt)
 #else
     QFontInfo fixedFontInfo(GUIUtil::fixedPitchFont());
 #endif
+    // Dark console palette — match wallet Send/Receive chrome (readable on #1A1A1D).
     ui->messagesWidget->document()->setDefaultStyleSheet(
         QString(
+                "body { color: #E6E6E6; background-color: #1A1A1D; }"
                 "table { }"
-                "td.time { color: #808080; font-size: %2; padding-top: 3px; } "
-                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; } "
-                "td.cmd-request { color: #006060; } "
-                "td.cmd-error { color: red; } "
-                ".secwarning { color: red; }"
-                "b { color: #006060; } "
+                "td.time { color: #A0A0A0; font-size: %2; padding-top: 3px; } "
+                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; color: #E6E6E6; } "
+                "td.cmd-request { color: #5EC8C8; } "
+                "td.cmd-error { color: #FF6B6B; } "
+                ".secwarning { color: #FF6B6B; }"
+                "b { color: #FFB86A; } "
             ).arg(fixedFontInfo.family(), QString("%1pt").arg(consoleFontSize))
         );
 

@@ -20,6 +20,7 @@ EditAddressDialog::EditAddressDialog(Mode _mode, QWidget* parent)
       mode(_mode)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
 
     GUIUtil::setupAddressWidget(ui->addressEdit, this);
 

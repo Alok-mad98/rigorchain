@@ -20,6 +20,7 @@
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
+#include <node/auto_res_mint.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
 #include <rpc/mining.h>
@@ -28,6 +29,8 @@
 #include <rpc/util.h>
 #include <script/descriptor.h>
 #include <script/script.h>
+#include <script/standard.h>
+#include <util/strencodings.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
 #include <shutdown.h>
@@ -711,12 +714,16 @@ static RPCHelpMan getblocktemplate()
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
     if (!chainman.GetParams().IsTestChain()) {
+        const bool solo = gArgs.GetBoolArg("-solomining", false);
         const CConnman& connman = EnsureConnman(node);
-        if (connman.GetNodeCount(ConnectionDirection::Both) == 0) {
+        // Alpha / local solo: allow GBT with zero peers when -solomining=1 (RPC policy only).
+        if (connman.GetNodeCount(ConnectionDirection::Both) == 0 && !solo) {
             throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
         }
 
-        if (active_chainstate.IsInitialBlockDownload()) {
+        // Fresh Alpha mainnet tip is genesis (below MinimumChainWork) so IBD stays true
+        // until peers sync; solo mining must skip that gate too.
+        if (active_chainstate.IsInitialBlockDownload() && !solo) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
         }
     }
@@ -752,21 +759,36 @@ static RPCHelpMan getblocktemplate()
             checktxtime = std::chrono::steady_clock::now() + std::chrono::minutes(1);
 
             WAIT_LOCK(g_best_block_mutex, lock);
-            while (g_best_block == hashWatchedChain && IsRPCRunning())
+            // LoadChainTip() does not call UpdateTip(), so g_best_block can stay null after
+            // startup/restart. A null/mismatched g_best_block makes longpoll return immediately
+            // and miners spin ("LONGPOLL pushed new work" flood).
+            if (g_best_block.IsNull()) {
+                g_best_block = hashWatchedChain;
+            }
+            // Poll at most every 500ms so InterruptRPC/shutdown is noticed quickly even if
+            // g_best_block_cv notify is missed — otherwise HTTP worker join hangs forever and
+            // the Qt "shutting down…" window never closes (solo miner longpoll).
+            while (g_best_block == hashWatchedChain && IsRPCRunning() && !ShutdownRequested())
             {
-                if (g_best_block_cv.wait_until(lock, checktxtime) == std::cv_status::timeout)
+                const auto slice = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+                const auto wait_cap = (slice < checktxtime) ? slice : checktxtime;
+                if (g_best_block_cv.wait_until(lock, wait_cap) == std::cv_status::timeout)
                 {
-                    // Timeout: Check transactions for update
-                    // without holding the mempool lock to avoid deadlocks
-                    if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP)
+                    if (!IsRPCRunning() || ShutdownRequested())
                         break;
-                    checktxtime += std::chrono::seconds(10);
+                    if (std::chrono::steady_clock::now() >= checktxtime) {
+                        // Minute-scale timeout: Check transactions for update
+                        // without holding the mempool lock to avoid deadlocks
+                        if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP)
+                            break;
+                        checktxtime += std::chrono::seconds(10);
+                    }
                 }
             }
         }
         ENTER_CRITICAL_SECTION(cs_main);
 
-        if (!IsRPCRunning())
+        if (!IsRPCRunning() || ShutdownRequested())
             throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Shutting down");
         // TODO: Maybe recheck connections/IBD and (if something wrong) send an expires-immediately template to stop miners?
     }
@@ -1166,6 +1188,41 @@ static RPCHelpMan submitheader()
     };
 }
 
+static RPCHelpMan getautomintfundaddress()
+{
+    return RPCHelpMan{
+        "getautomintfundaddress",
+        "Return the bech32 P2WSH address that funds automatic body RES mints (AutoResMintBootstrap).\n"
+        "When a convergence draw has a winner, CreateNewBlock spends a UTXO at this script to attach the "
+        "required RES mint. Solo mainnet operators must send a small amount of ORU here (mempool is enough "
+        "if the fund tx is selected into the same template), set -miningresfeeaddr to a witness-v1 RES "
+        "address, then resume GBT mining.\n",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "", {
+                {RPCResult::Type::STR, "address", "Bech32 P2WSH fund address"},
+                {RPCResult::Type::STR_HEX, "scriptPubKey", "Hex-encoded scriptPubKey"},
+                {RPCResult::Type::STR, "note", "Operational hint"},
+            }},
+        RPCExamples{
+            HelpExampleCli("getautomintfundaddress", "")
+          + HelpExampleRpc("getautomintfundaddress", "")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            const CScript& spk = AutoResMintBootstrapScriptPubKey();
+            CTxDestination dest;
+            if (!ExtractDestination(spk, dest)) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to extract automint fund destination");
+            }
+            UniValue r{UniValue::VOBJ};
+            r.pushKV("address", EncodeDestination(dest));
+            r.pushKV("scriptPubKey", HexStr(spk));
+            r.pushKV("note",
+                "sendtoaddress <address> 1.0 with fee_rate, set -miningresfeeaddr=<rg1p…>, restart node, resume miner");
+            return r;
+        },
+    };
+}
+
 void RegisterMiningRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1175,6 +1232,7 @@ void RegisterMiningRPCCommands(CRPCTable& t)
         {"mining", &getblocktemplate},
         {"mining", &submitblock},
         {"mining", &submitheader},
+        {"mining", &getautomintfundaddress},
 
         {"hidden", &generatetoaddress},
         {"hidden", &generatetodescriptor},

@@ -238,6 +238,7 @@ void SendCoinsEntry::setSendAsset(AssetType asset)
     if (asset == ASSET_RES) {
         ui->checkboxSubtractFeeFromAmount->setChecked(false);
     }
+    GUIUtil::updateAddressWidgetPlaceholder(ui->payTo, asset);
 }
 
 void SendCoinsEntry::changeEvent(QEvent* e)

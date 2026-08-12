@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <net.h>
 #include <netaddress.h>
+#include <primitives/transaction.h>
 #include <util/check.h>
 #include <util/fs.h>
 
@@ -67,8 +68,10 @@ namespace GUIUtil
     // Return a monospace font
     QFont fixedPitchFont(bool use_embedded_font = false);
 
-    // Set up widget for address
+    // Set up widget for address entry (default ORU / Bech32 placeholder).
     void setupAddressWidget(QValidatedLineEdit *widget, QWidget *parent);
+    /** Refresh pay-to placeholder for the selected send asset (ORU Bech32 / RES Bech32m). */
+    void updateAddressWidgetPlaceholder(QValidatedLineEdit* widget, AssetType asset);
 
     /**
      * Connects an additional shortcut to a QAbstractButton. Works around the
@@ -125,6 +128,22 @@ namespace GUIUtil
      * Loads the font from the file specified by file_name, aborts if it fails.
      */
     void LoadFont(const QString& file_name);
+
+    /**
+     * Load optional CJK/UI fonts from known system paths and set QApplication
+     * font families so Chinese (and other CJK) glyphs render instead of tofu boxes.
+     * Safe to call more than once (e.g. after network-specific -lang reload).
+     */
+        /**
+     * Load optional CJK/UI fonts from known system paths and set QApplication
+     * font families so Chinese (and other CJK) glyphs render instead of tofu boxes.
+     * Safe to call more than once (e.g. after network-specific -lang reload).
+     * @param lang_territory UI language like "zh_CN" (from -lang / settings); empty uses system locale.
+     */
+    void SetupUiFonts(const QString& lang_territory = QString());
+
+    /** CSS font-family list for stylesheets (includes CJK fallbacks when available). */
+    QString UiFontFamilyCss();
 
     /**
      * Classify a native Segwit receive address for UI (ORU vs Res on Rigor).
@@ -454,6 +473,12 @@ namespace GUIUtil
 
     /** Rigor wallet-wide dark chrome (main window, wallet stack, RPC console). */
     void ApplyRigorWalletChrome(QMainWindow* mainWindow, QWidget* walletFrame, QWidget* rpcConsole);
+
+    /** High-contrast control stylesheet for dialogs (Create Wallet, etc.). */
+    QString RigorDialogControlStylesheet();
+
+    /** Apply accessible dialog chrome (inputs/buttons/checkboxes) to any QWidget. */
+    void ApplyRigorDialogChrome(QWidget* dialog);
 
 } // namespace GUIUtil
 

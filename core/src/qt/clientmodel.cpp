@@ -225,9 +225,14 @@ void ClientModel::TipChanged(SynchronizationState sync_state, interfaces::BlockT
         WITH_LOCK(m_cached_tip_mutex, m_cached_tip_blocks = tip.block_hash;);
     }
 
-    // Throttle GUI notifications about (a) blocks during initial sync, and (b) both blocks and headers during reindex.
-    const bool throttle = (sync_state != SynchronizationState::POST_INIT && synctype == SyncType::BLOCK_SYNC) || sync_state == SynchronizationState::INIT_REINDEX;
-    const int64_t now = throttle ? GetTimeMillis() : 0;
+    // Throttle GUI tip signals. Bitcoin Core only throttles during IBD/reindex; on RIGOR Alpha
+    // solo-mining (easy PoW) POST_INIT can still deliver many tips per second and freeze Qt.
+    // Always rate-limit BLOCK_SYNC paints; header sync/reindex keep the previous policy.
+    // Cached tip fields above are still updated every call so polls see the latest height.
+    const bool throttle =
+        synctype == SyncType::BLOCK_SYNC ||
+        sync_state == SynchronizationState::INIT_REINDEX;
+    const int64_t now = GetTimeMillis();
     int64_t& nLastUpdateNotification = synctype != SyncType::BLOCK_SYNC ? nLastHeaderTipUpdateNotification : nLastBlockTipUpdateNotification;
     if (throttle && now < nLastUpdateNotification + count_milliseconds(MODEL_UPDATE_DELAY)) {
         return;

@@ -18,6 +18,7 @@ OpenURIDialog::OpenURIDialog(const PlatformStyle* platformStyle, QWidget* parent
                                                                                     m_platform_style(platformStyle)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
     ui->pasteButton->setIcon(m_platform_style->SingleColorIcon(":/icons/editpaste"));
     QObject::connect(ui->pasteButton, &QAbstractButton::clicked, ui->uriEdit, &QLineEdit::paste);
 

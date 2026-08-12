@@ -59,7 +59,7 @@ ORU MUST satisfy:
 
 - Conservation across non-coinbase transactions (inputs equal outputs plus fees)
 - Non-negative output values
-- Script-derived asset identity (no parallel asset field in output storage)
+- Script-classified asset identity (no parallel asset field in output storage); legitimacy enforced by consensus validation
 
 ### 1.3 RES (Reserve Energy Standard)
 
@@ -90,11 +90,12 @@ RIGOR operates a **dual-asset** model:
 
 | Asset | Role | Supply mechanism |
 |-------|------|------------------|
-| ORU | Base operational asset | Subsidy minus Converge destruction |
-| RES | Reserve asset | Convergence draw mint (bounded) |
+| ORU | PoW security and economic coordination asset | Subsidy minus Converge destruction |
+| RES | Independent scarce resource (not mined) | Convergence draw mint (bounded) |
 
-Assets MUST be inferred from **scriptPubKey** and witness structure (script-as-asset).
-Consensus MUST NOT persist asset type as a separate field in `CTxOut` storage.
+Asset *class* MUST be inferred from **scriptPubKey** and witness structure (script as
+compliance layer). Asset *legitimacy* MUST additionally satisfy the consensus rules for
+that class. Consensus MUST NOT persist asset type as a separate field in `CTxOut` storage.
 
 ### 1.6 Protocol Freeze Statement
 

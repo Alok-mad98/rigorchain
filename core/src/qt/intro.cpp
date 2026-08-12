@@ -135,9 +135,9 @@ Intro::Intro(QWidget *parent, int64_t blockchain_size_gb, int64_t chain_state_si
     ui->lblExplanation1->setText(ui->lblExplanation1->text()
         .arg(RigorWallet::WalletIdentity::brand().productName)
         .arg(m_blockchain_size_gb)
-        .arg(2009)
-        .arg(tr("Rigor"))
+        .arg(2026)
     );
+    GUIUtil::ApplyRigorDialogChrome(this);
     ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(RigorWallet::WalletIdentity::brand().productName));
 
     const int min_prune_target_GB = std::ceil(MIN_DISK_SPACE_FOR_BLOCK_FILES / 1e9);
@@ -389,7 +389,7 @@ void Intro::UpdatePruneLabels(bool prune_checked)
         //: Explanatory text on the capability of the current prune target.
         tr("(sufficient to restore backups %n day(s) old)", "", expected_backup_days));
     ui->sizeWarningLabel->setText(
-        tr("%1 will download and store a copy of the Rigor block chain.").arg(RigorWallet::WalletIdentity::brand().productName) + " " +
+        tr("%1 will download and store a copy of the RIGOR blockchain.").arg(RigorWallet::WalletIdentity::brand().productName) + " " +
         storageRequiresMsg.arg(m_required_space_gb) + " " +
         tr("The wallet will also be stored in this directory.")
     );

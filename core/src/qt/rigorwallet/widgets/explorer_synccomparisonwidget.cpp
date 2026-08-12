@@ -32,7 +32,7 @@ ExplorerSyncComparisonWidget::ExplorerSyncComparisonWidget(QWidget* parent)
     m_indexedLabel = new QLabel(this);
     m_diffLabel = new QLabel(this);
     m_diffLabel->setWordWrap(true);
-    form->addRow(tr("Node height %1:").arg(AssetContext::authorityLabel(DataAuthority::Node)), m_nodeLabel);
+    form->addRow(tr("Node height:"), m_nodeLabel);
     form->addRow(tr("Indexed height %1:").arg(AssetContext::authorityLabel(DataAuthority::Indexed)), m_indexedLabel);
     form->addRow(tr("Difference:"), m_diffLabel);
     layout->addLayout(form);

@@ -5,6 +5,7 @@
 #include <chain.h>
 #include <clientversion.h>
 #include <core_io.h>
+#include <crypto/ed25519_provider.h>
 #include <hash.h>
 #include <interfaces/chain.h>
 #include <key_io.h>
@@ -18,15 +19,19 @@
 #include <uint256.h>
 #include <util/bip32.h>
 #include <util/fs.h>
+#include <util/strencodings.h>
 #include <util/time.h>
 #include <util/translation.h>
 #include <wallet/rpc/util.h>
 #include <wallet/wallet.h>
 
+#include <algorithm>
+#include <array>
 #include <cstdint>
 #include <fstream>
-#include <tuple>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include <univalue.h>
 
@@ -111,31 +116,183 @@ static void EnsureBlockDataFromTime(const CWallet& wallet, int64_t timestamp)
     }
 }
 
+static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, const int64_t timestamp) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+
+namespace {
+
+/** Build checksummed descriptor string for a bare descriptor without '#'. */
+std::string ChecksumDescriptor(const std::string& bare)
+{
+    const std::string checksum = GetDescriptorChecksum(bare);
+    if (checksum.empty()) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Failed to compute descriptor checksum");
+    }
+    return bare + "#" + checksum;
+}
+
+enum class RigorImportAsset {
+    AUTO,
+    ORU,
+    RES,
+};
+
+RigorImportAsset ParseRigorImportAsset(const std::string& s)
+{
+    if (s.empty() || s == "auto" || s == "AUTO") return RigorImportAsset::AUTO;
+    if (s == "ORU" || s == "oru") return RigorImportAsset::ORU;
+    if (s == "RES" || s == "res") return RigorImportAsset::RES;
+    throw JSONRPCError(RPC_INVALID_PARAMETER, "asset must be auto, ORU, or RES");
+}
+
+/**
+ * Import a raw private key into a descriptor wallet as wpkh() (ORU) or res() (RES).
+ * Returns {success, asset, descriptor, address, warnings?}.
+ */
+UniValue ImportRigorPrivKeyToDescriptorWallet(CWallet& wallet, const std::string& str_secret,
+                                             const std::string& label, RigorImportAsset asset,
+                                             bool f_rescan)
+{
+    if (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import private keys to a wallet with private keys disabled");
+    }
+    if (!wallet.IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Descriptor wallet required; use importrigorprivkey / importdescriptors");
+    }
+
+    WalletRescanReserver reserver(wallet);
+    if (f_rescan && wallet.chain().havePruned()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
+    }
+    if (f_rescan && !reserver.reserve(/*with_passphrase=*/true)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
+    }
+
+    std::string bare_desc;
+    std::string asset_name;
+    std::string address_str;
+
+    const CKey secp_key = DecodeSecret(str_secret);
+    const bool looks_wif = secp_key.IsValid();
+    const bool looks_res_hex = IsHex(str_secret) && str_secret.size() == ed25519::SECRETKEY_SIZE * 2;
+
+    if (asset == RigorImportAsset::AUTO) {
+        if (looks_wif) asset = RigorImportAsset::ORU;
+        else if (looks_res_hex) asset = RigorImportAsset::RES;
+        else {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               "Unrecognized key: expected WIF (ORU/wpkh) or 64-byte Ed25519 secret hex (RES/res)");
+        }
+    }
+
+    if (asset == RigorImportAsset::ORU) {
+        if (!secp_key.IsValid()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid WIF private key for ORU (wpkh) import");
+        }
+        if (!secp_key.IsCompressed()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Only compressed keys are accepted for ORU (wpkh)");
+        }
+        bare_desc = "wpkh(" + EncodeSecret(secp_key) + ")";
+        asset_name = "ORU";
+        address_str = EncodeDestination(WitnessV0KeyHash(secp_key.GetPubKey().GetID()));
+    } else {
+        assert(asset == RigorImportAsset::RES);
+        if (!looks_res_hex) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                               "Invalid RES key: expected 64-byte Ed25519 secret key hex (128 hex chars)");
+        }
+        const std::vector<unsigned char> secret_bytes = ParseHex(str_secret);
+        std::array<unsigned char, ed25519::PUBKEY_SIZE> pubkey{};
+        std::array<unsigned char, ed25519::SECRETKEY_SIZE> secret_out{};
+        if (!ed25519::SeedToKeypair(Span<const unsigned char>{secret_bytes.data(), ed25519::SEED_SIZE},
+                                    pubkey, secret_out)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Ed25519 secret for RES (res) import");
+        }
+        if (!std::equal(secret_out.begin(), secret_out.end(), secret_bytes.begin())) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "RES secret hex is not a valid Ed25519 seed||pubkey secret");
+        }
+        bare_desc = "res(" + HexStr(secret_bytes) + ")";
+        asset_name = "RES";
+        address_str = EncodeDestination(WitnessV1Res{XOnlyPubKey{Span<const unsigned char>{pubkey.data(), pubkey.size()}}});
+    }
+
+    const std::string desc = ChecksumDescriptor(bare_desc);
+
+    UniValue request(UniValue::VOBJ);
+    request.pushKV("desc", desc);
+    request.pushKV("timestamp", 1);
+    request.pushKV("active", false);
+    if (!label.empty()) {
+        request.pushKV("label", label);
+    }
+
+    UniValue import_result(UniValue::VOBJ);
+    {
+        LOCK(wallet.m_relock_mutex);
+        LOCK(wallet.cs_wallet);
+        EnsureWalletIsUnlocked(wallet);
+        import_result = ProcessDescriptorImport(wallet, request, /*timestamp=*/1);
+        wallet.ConnectScriptPubKeyManNotifiers();
+    }
+
+    if (!import_result["success"].get_bool()) {
+        if (import_result.exists("error")) {
+            throw import_result["error"];
+        }
+        throw JSONRPCError(RPC_WALLET_ERROR, "Descriptor import failed");
+    }
+
+    if (f_rescan) {
+        wallet.RescanFromTime(1, reserver, /*update=*/true);
+        wallet.ResubmitWalletTransactions(/*relay=*/false, /*force=*/true);
+        if (wallet.IsAbortingRescan()) {
+            throw JSONRPCError(RPC_MISC_ERROR, "Rescan aborted by user.");
+        }
+    }
+
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("success", true);
+    result.pushKV("asset", asset_name);
+    result.pushKV("descriptor", desc);
+    result.pushKV("address", address_str);
+    if (import_result.exists("warnings")) {
+        result.pushKV("warnings", import_result["warnings"]);
+    }
+    return result;
+}
+
+} // namespace
+
 RPCHelpMan importprivkey()
 {
     return RPCHelpMan{"importprivkey",
-                "\nAdds a private key (as returned by dumpprivkey) to your wallet. Requires a new wallet backup.\n"
-                "Hint: use importmulti to import more than one private key.\n"
+                "\nCompatibility alias: import a private key into a RIGOR descriptor wallet.\n"
+                "\nPreferred RPC: \"importrigorprivkey\" (explicit asset hint + structured result).\n"
+                "This command performs the same auto-detect import on descriptor wallets:\n"
+                "  - WIF (32-byte secret, Base58Check) → wpkh() → Bech32 ORU (Witness v0)\n"
+                "  - 64-byte Ed25519 secret hex (128 hex chars) → res() → Bech32m RES (Witness v1)\n"
+                "\nRIGOR does not create legacy wallets. A legacy import path remains only if a\n"
+                "migrated non-descriptor wallet is loaded.\n"
+                "To export private material later, use \"listdescriptors true\" (not dumpprivkey).\n"
             "\nNote: This call can take over an hour to complete if rescan is true, during that time, other rpc calls\n"
             "may report that the imported key exists but related transactions are still missing, leading to temporarily incorrect/bogus balances and unspent outputs until rescan completes.\n"
             "The rescan parameter can be set to false if the key was never used to create transactions. If it is set to false,\n"
             "but the key was used to create transactions, rescanblockchain needs to be called with the appropriate block range.\n"
             "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {
-                    {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "The private key (see dumpprivkey)"},
+                    {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "WIF (ORU) or 64-byte Ed25519 secret hex (RES)"},
                     {"label", RPCArg::Type::STR, RPCArg::DefaultHint{"current label if address exists, otherwise \"\""}, "An optional label"},
                     {"rescan", RPCArg::Type::BOOL, RPCArg::Default{true}, "Scan the chain and mempool for wallet transactions."},
                 },
-                RPCResult{RPCResult::Type::NONE, "", ""},
+                RPCResult{RPCResult::Type::NONE, "", "Null on success; prefer importrigorprivkey for a structured result"},
                 RPCExamples{
-            "\nDump a private key\n"
-            + HelpExampleCli("dumpprivkey", "\"myaddress\"") +
-            "\nImport the private key with rescan\n"
-            + HelpExampleCli("importprivkey", "\"mykey\"") +
+            "\nPrefer importrigorprivkey (structured):\n"
+            + HelpExampleCli("importrigorprivkey", "\"cVa...\" \"\" true ORU") +
+            "\nCompat alias — ORU WIF:\n"
+            + HelpExampleCli("importprivkey", "\"cVa...\"") +
+            "\nCompat alias — RES Ed25519 secret hex:\n"
+            + HelpExampleCli("importprivkey", "\"0123...ab\"") +
             "\nImport using a label and without rescan\n"
             + HelpExampleCli("importprivkey", "\"mykey\" \"testing\" false") +
-            "\nImport using default blank label and without rescan\n"
-            + HelpExampleCli("importprivkey", "\"mykey\" \"\" false") +
             "\nAs a JSON-RPC call\n"
             + HelpExampleRpc("importprivkey", "\"mykey\", \"testing\", false")
                 },
@@ -148,34 +305,34 @@ RPCHelpMan importprivkey()
         throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import private keys to a wallet with private keys disabled");
     }
 
+    const std::string str_secret = request.params[0].get_str();
+    const std::string str_label{LabelFromValue(request.params[1])};
+    bool f_rescan = true;
+    if (!request.params[2].isNull()) f_rescan = request.params[2].get_bool();
+
+    // Descriptor-first path (RIGOR wallets).
+    if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        ImportRigorPrivKeyToDescriptorWallet(*pwallet, str_secret, str_label, RigorImportAsset::AUTO, f_rescan);
+        return UniValue::VNULL;
+    }
+
     EnsureLegacyScriptPubKeyMan(*pwallet, true);
 
     WalletRescanReserver reserver(*pwallet);
-    bool fRescan = true;
     {
         LOCK(pwallet->cs_wallet);
 
         EnsureWalletIsUnlocked(*pwallet);
 
-        std::string strSecret = request.params[0].get_str();
-        const std::string strLabel{LabelFromValue(request.params[1])};
-
-        // Whether to perform rescan after import
-        if (!request.params[2].isNull())
-            fRescan = request.params[2].get_bool();
-
-        if (fRescan && pwallet->chain().havePruned()) {
-            // Exit early and print an error.
-            // If a block is pruned after this check, we will import the key(s),
-            // but fail the rescan with a generic error.
+        if (f_rescan && pwallet->chain().havePruned()) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Rescan is disabled when blocks are pruned");
         }
 
-        if (fRescan && !reserver.reserve()) {
+        if (f_rescan && !reserver.reserve()) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
         }
 
-        CKey key = DecodeSecret(strSecret);
+        CKey key = DecodeSecret(str_secret);
         if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key encoding");
 
         CPubKey pubkey = key.GetPubKey();
@@ -184,31 +341,79 @@ RPCHelpMan importprivkey()
         {
             pwallet->MarkDirty();
 
-            // We don't know which corresponding address will be used;
-            // label all new addresses, and label existing addresses if a
-            // label was passed.
             for (const auto& dest : GetAllDestinationsForKey(pubkey)) {
                 if (!request.params[1].isNull() || !pwallet->FindAddressBookEntry(dest)) {
-                    pwallet->SetAddressBook(dest, strLabel, AddressPurpose::RECEIVE);
+                    pwallet->SetAddressBook(dest, str_label, AddressPurpose::RECEIVE);
                 }
             }
 
-            // Use timestamp of 1 to scan the whole chain
             if (!pwallet->ImportPrivKeys({{vchAddress, key}}, 1)) {
                 throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
             }
 
-            // Add the wpkh script for this key if possible
             if (pubkey.IsCompressed()) {
                 pwallet->ImportScripts({GetScriptForDestination(WitnessV0KeyHash(vchAddress))}, /*timestamp=*/0);
             }
         }
     }
-    if (fRescan) {
+    if (f_rescan) {
         RescanWallet(*pwallet, reserver);
     }
 
     return UniValue::VNULL;
+},
+    };
+}
+
+RPCHelpMan importrigorprivkey()
+{
+    return RPCHelpMan{"importrigorprivkey",
+                "\nPrimary RPC to import a RIGOR private key into a descriptor wallet as the correct script descriptor.\n"
+                "\nAutomatic detection (or force with \"asset\"):\n"
+                "  - WIF (32-byte secret, Base58Check) → wpkh() → Bech32 ORU (Witness v0)\n"
+                "  - 64-byte Ed25519 secret hex (128 hex chars) → res() → Bech32m RES (Witness v1)\n"
+                "\n\"importprivkey\" is a compatibility alias with the same auto-detect path (null result).\n"
+                "To back up or move keys later, export with \"listdescriptors true\" (not dumpprivkey).\n"
+                "\nNote: RIGOR does not use Bitcoin Taproot tr() for RES. Use res() only.\n"
+                "Requires a new wallet backup after import.\n",
+                {
+                    {"privkey", RPCArg::Type::STR, RPCArg::Optional::NO, "WIF (ORU) or 64-byte Ed25519 secret hex (RES)"},
+                    {"label", RPCArg::Type::STR, RPCArg::Default{""}, "An optional label"},
+                    {"rescan", RPCArg::Type::BOOL, RPCArg::Default{true}, "Scan the chain and mempool for wallet transactions"},
+                    {"asset", RPCArg::Type::STR, RPCArg::Default{"auto"}, "Force asset mapping: auto, ORU, or RES"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::BOOL, "success", "Whether the import succeeded"},
+                        {RPCResult::Type::STR, "asset", "ORU or RES"},
+                        {RPCResult::Type::STR, "descriptor", "Checksummed descriptor that was imported"},
+                        {RPCResult::Type::STR, "address", "Primary address for the imported key"},
+                        {RPCResult::Type::ARR, "warnings", /*optional=*/true, "Warning messages, if any",
+                        {
+                            {RPCResult::Type::STR, "", ""},
+                        }},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("importrigorprivkey", "\"cVa...\" \"\" true ORU")
+                    + HelpExampleCli("importrigorprivkey", "\"0123...ab\" \"cold-res\" true RES")
+                    + HelpExampleRpc("importrigorprivkey", "\"cVa...\", \"\", true, \"auto\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    const std::string str_secret = request.params[0].get_str();
+    const std::string str_label{LabelFromValue(request.params[1])};
+    bool f_rescan = true;
+    if (!request.params[2].isNull()) f_rescan = request.params[2].get_bool();
+    const RigorImportAsset asset = request.params[3].isNull()
+        ? RigorImportAsset::AUTO
+        : ParseRigorImportAsset(request.params[3].get_str());
+
+    return ImportRigorPrivKeyToDescriptorWallet(*pwallet, str_secret, str_label, asset, f_rescan);
 },
     };
 }
@@ -642,23 +847,41 @@ RPCHelpMan importwallet()
 RPCHelpMan dumpprivkey()
 {
     return RPCHelpMan{"dumpprivkey",
-                "\nReveals the private key corresponding to 'address'.\n"
-                "Then the importprivkey can be used with this output\n",
+                "\nDeprecated / unsupported on RIGOR descriptor wallets.\n"
+                "\nRIGOR wallets are descriptor-first (Bech32 ORU / Bech32m RES). Address-to-key\n"
+                "dump is a legacy-wallet API and is not the supported backup path.\n"
+                "\nUse instead:\n"
+                "  - Export: \"listdescriptors true\" (or GUI Key Management → Export Descriptor with private)\n"
+                "  - Re-import: \"importrigorprivkey\" / \"importdescriptors\" (\"importprivkey\" is a compat alias)\n"
+                "\nThis RPC remains registered so callers receive an explicit redirect instead of a silent failure.\n"
+                "On a migrated legacy (non-descriptor) wallet only, the historical address dump still runs.\n",
                 {
-                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The bitcoin address for the private key"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Wallet address (legacy wallets only; ignored on descriptor wallets)"},
                 },
                 RPCResult{
-                    RPCResult::Type::STR, "key", "The private key"
+                    RPCResult::Type::STR, "key", "Private key (legacy wallets only; descriptor wallets always error)"
                 },
                 RPCExamples{
-                    HelpExampleCli("dumpprivkey", "\"myaddress\"")
-            + HelpExampleCli("importprivkey", "\"mykey\"")
-            + HelpExampleRpc("dumpprivkey", "\"myaddress\"")
+            "\nSupported export on descriptor wallets:\n"
+            + HelpExampleCli("listdescriptors", "true") +
+            "\nRe-import a single key:\n"
+            + HelpExampleCli("importrigorprivkey", "\"cVa...\" \"\" true ORU") +
+            "\nDeprecated (errors on descriptor wallets):\n"
+            + HelpExampleCli("dumpprivkey", "\"myaddress\"")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
     const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) return UniValue::VNULL;
+
+    if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        throw JSONRPCError(RPC_WALLET_ERROR,
+            "dumpprivkey is not supported on descriptor wallets. "
+            "Export private key material with \"listdescriptors true\" "
+            "(GUI: Settings → Advanced → Key Management → Export Descriptor, include private). "
+            "Re-import with \"importrigorprivkey\" or \"importdescriptors\". "
+            "\"importprivkey\" remains a compatibility alias for single-key import.");
+    }
 
     const LegacyScriptPubKeyMan& spk_man = EnsureConstLegacyScriptPubKeyMan(*pwallet);
 
@@ -1515,12 +1738,8 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             throw JSONRPCError(RPC_WALLET_ERROR, "Combo descriptors cannot be set to active");
         }
 
-        // If the wallet disabled private keys, abort if private keys exist
-        if (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && !keys.keys.empty()) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import private keys to a wallet with private keys disabled");
-        }
-
         // Need to ExpandPrivate to check if private keys are available for all pubkeys
+        // (includes Rigor res() Ed25519 secrets in res_v1_program_to_ed_secret).
         FlatSigningProvider expand_keys;
         std::vector<CScript> scripts;
         if (!parsed_desc->Expand(0, keys, scripts, expand_keys)) {
@@ -1528,8 +1747,17 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
         }
         parsed_desc->ExpandPrivate(0, keys, expand_keys);
 
-        // Check if all private keys are provided
-        bool have_all_privkeys = !expand_keys.keys.empty();
+        const bool has_secp_privkeys = !expand_keys.keys.empty();
+        const bool has_res_privkeys = !expand_keys.res_v1_program_to_ed_secret.empty();
+        const bool has_any_privkeys = has_secp_privkeys || has_res_privkeys;
+
+        // If the wallet disabled private keys, abort if private keys exist (secp or RES Ed25519).
+        if (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS) && has_any_privkeys) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import private keys to a wallet with private keys disabled");
+        }
+
+        // Check if all private keys are provided for secp origins; pure res(secret) has no secp origins.
+        bool have_all_privkeys = has_any_privkeys;
         for (const auto& entry : expand_keys.origins) {
             const CKeyID& key_id = entry.first;
             CKey key;
@@ -1541,7 +1769,10 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
 
         // If private keys are enabled, check some things.
         if (!wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-           if (keys.keys.empty()) {
+           // Descriptor wallets may store ORU keys in keys.keys (wpkh) or RES secrets on the
+           // descriptor / expand_keys.res_v1_program_to_ed_secret (res()). Reject pubkey-only
+           // imports into spendable wallets.
+           if (!has_any_privkeys && keys.keys.empty()) {
                 throw JSONRPCError(RPC_WALLET_ERROR, "Cannot import descriptor without private keys to a wallet with private keys enabled");
            }
            if (!have_all_privkeys) {
@@ -1748,7 +1979,10 @@ RPCHelpMan listdescriptors()
 {
     return RPCHelpMan{
         "listdescriptors",
-        "\nList descriptors imported into a descriptor-enabled wallet.\n",
+        "\nList descriptors imported into a descriptor-enabled wallet.\n"
+        "\nThis is the supported way to export wallet key material on RIGOR.\n"
+        "Use \"listdescriptors true\" instead of dumpprivkey for private backups\n"
+        "(cold storage / offline only). Public export (default) is safe for watch-only import.\n",
         {
             {"private", RPCArg::Type::BOOL, RPCArg::Default{false}, "Show private descriptors."}
         },

@@ -15,8 +15,8 @@
 This document is the **authoritative economic specification** for RIGOR’s two
 assets **ORU** and **RES**.
 
-It defines **what the system SHOULD do** regarding supply, minting, burning, and
-caps. It does not describe how any implementation computes these values, and it
+It defines **what the system SHOULD do** regarding supply, minting, convergence
+commitments, and caps. It does not describe how any implementation computes these values, and it
 does not claim equivalence to runtime artifacts.
 
 This document is specification-only:
@@ -32,7 +32,7 @@ This document is specification-only:
 
 This specification covers only the **economic layer** of consensus:
 
-- ORU subsidy and burn accounting
+- ORU subsidy and convergence accounting
 - RES mint accounting and cap enforcement
 - Falsifiable economic invariants and failure conditions
 - Diagnostic cross-checks (explicitly **non-authoritative**)
@@ -58,10 +58,10 @@ Out of scope:
 For each block at height `h ≥ 1`:
 
 - `R(h) ∈ ℤ≥0` is the **ORU block subsidy** at height `h` (from the frozen subsidy schedule).
-- `C(h) ∈ ℤ≥0` is the **ORU converge burn sum** for block `h`:
-  the sum of ORU amounts destroyed by all valid Converge transactions in that block.
+- `C(h) ∈ ℤ≥0` is the **ORU converge sum** for block `h`:
+  the sum of ORU amounts committed by all valid **convergence transactions** in that block.
 - `M(h) ∈ {0,1}` is the **RES mint indicator** for block `h`:
-  `M(h)=1` iff a RES mint is authorized and successfully created in block `h`.
+  `M(h)=1` iff **RES is minted** (authorized and successfully created) in block `h`.
 
 ### 2.3 Immutable economic constants (frozen)
 
@@ -70,7 +70,7 @@ freeze declaration:
 
 | Symbol | Meaning | Frozen value |
 |--------|---------|--------------|
-| `RES_REWARD_AMOUNT` | RES minted per successful draw | `100.00 RES` (= `10,000` atoms) |
+| `RES_REWARD_AMOUNT` | RES minted per successful deterministic consensus allocation | `100.00 RES` (= `10,000` atoms) |
 | `RES_MAX_SUPPLY` | Maximum total RES supply | `21,000,000 RES` (= `2,100,000,000` atoms) |
 | `CONVERGENCE_DRAW_MIN_TXS_FOR_RES` | Draw participation gate on candidate set `F` | `1` (i.e. `|F| ≥ 1`) |
 | `MIN_CONVERGENCE_AMOUNT` | Minimum ORU converged per candidate tx | `1 ORU` |
@@ -133,19 +133,19 @@ with:
 \]
 
 **Falsifiable failure condition:** A block is invalid if, after applying its
-subsidy and burn accounting per the law above, it would require
+subsidy and convergence accounting per the law above, it would require
 `S_ORU(h) < 0`.
 
-### 4.3 ORU burn accounting (authoritative)
+### 4.3 ORU convergence accounting (authoritative)
 
-`C(h)` MUST equal the sum of all ORU amounts destroyed by valid Converge
-transactions in block `h`.
+`C(h)` MUST equal the sum of all ORU amounts committed by valid **convergence transactions**
+in block `h`.
 
 **Falsifiable failure conditions:**
 
 - A block is invalid if it causes `C(h)` to include any amount not backed by a
-  valid Converge destruction event.
-- A block is invalid if a valid Converge destruction event is omitted from `C(h)`.
+  valid convergence commitment event.
+- A block is invalid if a valid convergence commitment event is omitted from `C(h)`.
 
 ### 4.4 ORU subsidy schedule (authoritative, parameterized)
 
@@ -282,7 +282,7 @@ The following are intended to be provable once the corresponding formal models
 and invariants are defined (no claim of completion here):
 
 - ORU recurrence correctness given a formal definition of `R(h)` and `C(h)`
-- ORU non-negativity (subject to validity predicates on burns and outputs)
+- ORU non-negativity (subject to validity predicates on convergence commitments and outputs)
 - RES recurrence, single-mint restriction, and cap preservation
 - Monotonicity of cumulative supplies
 

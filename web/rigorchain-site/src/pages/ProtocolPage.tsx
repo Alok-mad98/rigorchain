@@ -30,8 +30,8 @@ export function ProtocolPage() {
       <section className="card prose-section">
         <h2>Consensus</h2>
         <p>
-          Block production uses <strong>DurinHash</strong> proof-of-work over an unchanged 80-byte header.
-          Mining discovers valid blocks; validation applies deterministic morphism F. No production
+          Block production uses <strong>OpuHash</strong> proof-of-work over an unchanged 80-byte header.
+          Mining discovers valid blocks and secures ordering; it does not mint RES. No production
           mainnet finality is claimed.
         </p>
       </section>
@@ -39,10 +39,10 @@ export function ProtocolPage() {
       <section className="card prose-section">
         <h2>Convergence draw</h2>
         <ol>
-          <li>Build candidate set F from convergence-shaped transactions (|F| ≥ 2 for draw).</li>
-          <li>Compute convergence root over sorted txids.</li>
-          <li>Evaluate σ digest per candidate; winner from integer selection rule (P = 1/65536).</li>
-          <li>RES mint when PCORB witness and cap predicates pass.</li>
+          <li>Burn ORU via a convergence transaction (≥ 1 ORU); declare the RES receive key.</li>
+          <li>Form the candidate set over a 32-block sliding window (deferred draw).</li>
+          <li>Compute deterministic eligibility and winner selection from σ (not a lottery).</li>
+          <li>Mint RES only when consensus mint predicates and the supply cap pass.</li>
         </ol>
       </section>
 
@@ -52,15 +52,17 @@ export function ProtocolPage() {
           <strong>σ (sigma)</strong> — cryptographic selection witness binding the winner to F.
         </p>
         <p>
-          <strong>PCORB</strong> — structured verification vector in the RES mint body (layout + Ed25519).
+          <strong>RES mint witness</strong> — structured verification vector in the mint transaction,
+          checked by consensus (see RFC-008 / RFC-009).
         </p>
       </section>
 
       <section className="card prose-section">
         <h2>UTXO model</h2>
         <p>
-          Script-as-asset: asset class inferred from scriptPubKey. No parallel asset field in storage. No
-          global account state as consensus truth.
+          Script is the compliance layer: asset class is inferred from scriptPubKey; legitimacy
+          requires UTXO commitments and consensus validation. No parallel asset field in storage.
+          No global account state as consensus truth.
         </p>
       </section>
 

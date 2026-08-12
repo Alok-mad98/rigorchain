@@ -56,6 +56,7 @@ QT_MOC_CPP = \
   qt/moc_guiutil.cpp \
   qt/moc_initexecutor.cpp \
   qt/moc_intro.cpp \
+  qt/moc_keymanagementdialog.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
   qt/moc_modaloverlay.cpp \
@@ -99,6 +100,9 @@ QT_MOC_CPP = \
   qt/rigorwallet/widgets/moc_convergencestatuspanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_educationpanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_overviewpanel.cpp \
+  qt/rigorwallet/widgets/moc_convergence_lifecyclepanel.cpp \
+  qt/rigorwallet/widgets/moc_convergence_startpanel.cpp \
+  qt/rigorwallet/widgets/moc_convergence_networkpanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_resprobabilitypanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_historypanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_explorerhooks.cpp \
@@ -157,6 +161,7 @@ BITCOIN_QT_H = \
   qt/guiutil.h \
   qt/initexecutor.h \
   qt/intro.h \
+  qt/keymanagementdialog.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
   qt/macos_appnap.h \
@@ -214,6 +219,9 @@ BITCOIN_QT_H = \
   qt/rigorwallet/convergence/convergence_wallet_data.h \
   qt/rigorwallet/widgets/convergence_educationpanel.h \
   qt/rigorwallet/widgets/convergence_overviewpanel.h \
+  qt/rigorwallet/widgets/convergence_lifecyclepanel.h \
+  qt/rigorwallet/widgets/convergence_startpanel.h \
+  qt/rigorwallet/widgets/convergence_networkpanel.h \
   qt/rigorwallet/widgets/convergence_resprobabilitypanel.h \
   qt/rigorwallet/widgets/convergence_historypanel.h \
   qt/rigorwallet/widgets/convergence_explorerhooks.h \
@@ -244,9 +252,10 @@ QT_RES_FONTS = \
 QT_RES_ICONS = \
   qt/res/icons/add.png \
   qt/res/icons/address-book.png \
-  qt/res/icons/bitcoin.ico \
-  qt/res/icons/bitcoin_testnet.ico \
-  qt/res/icons/bitcoin.png \
+  qt/res/icons/rigor.ico \
+  qt/res/icons/rigor_testnet.ico \
+  qt/res/icons/rigor.png \
+  qt/res/icons/rigor.svg \
   qt/res/icons/chevron.png \
   qt/res/icons/clock1.png \
   qt/res/icons/clock2.png \
@@ -330,6 +339,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/editaddressdialog.cpp \
   qt/convergencepage.cpp \
   qt/diagnosticspage.cpp \
+  qt/keymanagementdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
   qt/paymentserver.cpp \
@@ -365,6 +375,9 @@ BITCOIN_QT_WALLET_CPP = \
   qt/rigorwallet/convergence/convergence_wallet_data.cpp \
   qt/rigorwallet/widgets/convergence_educationpanel.cpp \
   qt/rigorwallet/widgets/convergence_overviewpanel.cpp \
+  qt/rigorwallet/widgets/convergence_lifecyclepanel.cpp \
+  qt/rigorwallet/widgets/convergence_startpanel.cpp \
+  qt/rigorwallet/widgets/convergence_networkpanel.cpp \
   qt/rigorwallet/widgets/convergence_resprobabilitypanel.cpp \
   qt/rigorwallet/widgets/convergence_historypanel.cpp \
   qt/rigorwallet/widgets/convergence_explorerhooks.cpp \

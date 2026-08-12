@@ -54,7 +54,11 @@ UI MUST:
 - show locked RES
 */
 
-/** Confirmations required to treat convergence as fully included for competition UI (result is known at block inclusion). */
+/**
+ * Legacy competition-confirmations counter for older status strings.
+ * RES outcome is NOT known at inclusion: the candidate competes across
+ * CONVERGENCE_DRAW_WINDOW (=32) subsequent draws (A-9C).
+ */
 static constexpr int CONVERGENCE_COMPETITION_CONFIRMATIONS = 1;
 
 enum class ConvergenceState : uint8_t {

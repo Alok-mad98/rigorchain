@@ -21,9 +21,9 @@ present in:
 
 - `doc/replay-reconciliation-sop.md` — operator SOP for cross-node reconciliation
   (locks, tip, flush policy, RPC usage; STEP-0103).
-- Project root `.cursorrules` — bedrock invariants (UTXO-supreme, script-as-asset,
+- Project root `.cursorrules` — bedrock invariants (UTXO-supreme, script-as-compliance,
   no account model, no admin keys).
-- `ARCHITECTURE.md` — script-as-asset + storage invariant.
+- `ARCHITECTURE.md` — script-as-compliance + storage invariant.
 - RIGOR AI EXECUTION CONSTITUTION — RULE-1 (determinism), RULE-2 (replay
   equivalence), RULE-3 (no hidden order dependence), RULE-4 (minimal
   consensus surface), RULE-5 (consensus > performance).

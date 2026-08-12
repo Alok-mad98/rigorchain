@@ -7,10 +7,11 @@
 
 #include <qt/rigorwallet/widgets/convergence_educationpanel.h>
 #include <qt/rigorwallet/widgets/convergence_overviewpanel.h>
+#include <qt/rigorwallet/widgets/convergence_lifecyclepanel.h>
+#include <qt/rigorwallet/widgets/convergence_startpanel.h>
+#include <qt/rigorwallet/widgets/convergence_networkpanel.h>
 #include <qt/rigorwallet/widgets/convergence_resprobabilitypanel.h>
 #include <qt/rigorwallet/widgets/convergence_historypanel.h>
-#include <qt/rigorwallet/widgets/convergence_explorerhooks.h>
-#include <qt/rigorwallet/widgets/convergence_wizard.h>
 #include <qt/rigorwallet/widgets/warningbanner.h>
 #include <qt/rigorwallet/rigortheme.h>
 #include <qt/rigorwallet/convergence/convergence_wallet_data.h>
@@ -41,6 +42,7 @@
 #include <QFormLayout>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QShowEvent>
 #include <QString>
 #include <QTimer>
 
@@ -78,53 +80,83 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
 
     applyConvergenceTheme();
 
-    m_convergenceSafetyLabel = new QLabel(QString(), ui->frameConverge);
-    m_convergenceSafetyLabel->setWordWrap(true);
-    m_convergenceSafetyLabel->setVisible(false);
-    m_convergenceSafetyLabel->setObjectName(QStringLiteral("labelConvergenceNetworkWarn"));
-    ui->formLayoutConverge->insertRow(0, m_convergenceSafetyLabel);
-
-    ui->convergeAmount->setDisplayUnit(BitcoinUnit::ORU);
-    ui->convergeAmount->SetAllowEmpty(true);
-
+    // Legacy .ui spend form is replaced by ConvergenceStartPanel (Bitcoin-simple UX).
+    // Keep widgets compiled/hidden so Diagnostics can still own protocol detail elsewhere.
+    if (ui->frameConverge) ui->frameConverge->setVisible(false);
+    if (ui->labelConvergeDisclaimer) {
+        ui->labelConvergeDisclaimer->setText(
+            tr("Protocol details: Settings → Advanced → System Diagnostics → Convergence Details."));
+    }
     connect(ui->pushButtonConverge, &QPushButton::clicked, this, &ConvergencePage::onSendConvergenceClicked);
     connect(ui->convergeAmount, &BitcoinAmountField::valueChanged, this, &ConvergencePage::updateQuadraticFeeHint);
 
-    ui->formLayoutConverge->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    ui->formLayoutConverge->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
-    ui->formLayoutConverge->setHorizontalSpacing(16);
-    ui->labelMinConvergeTitle->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    ui->labelMinConverge->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    ui->labelConvergeAmountTitle->setAlignment(Qt::AlignRight | Qt::AlignTop);
-
+    // User Convergence page: My Convergence → Network → warnings → Start → history.
+    // Protocol/debug panels remain compiled and are surfaced under System Diagnostics.
     m_educationPanel = new RigorWallet::ConvergenceEducationPanel(this);
+    m_educationPanel->setVisible(false);
+    m_lifecyclePanel = new RigorWallet::ConvergenceLifecyclePanel(this);
+    m_networkPanel = new RigorWallet::ConvergenceNetworkPanel(this);
+    m_startPanel = new RigorWallet::ConvergenceStartPanel(this);
     m_overviewPanel = new RigorWallet::ConvergenceOverviewPanel(this);
+    m_overviewPanel->setVisible(false);
     m_resProbabilityPanel = new RigorWallet::ConvergenceResProbabilityPanel(this);
+    m_resProbabilityPanel->setVisible(false);
     m_warningBanner = new RigorWallet::WarningBanner(this);
     m_historyPanel = new RigorWallet::ConvergenceHistoryPanel(this);
-    m_explorerHooks = new RigorWallet::ConvergenceExplorerHooks(this);
 
     if (ui->verticalLayoutConvergeScroll) {
-        ui->verticalLayoutConvergeScroll->insertWidget(0, m_educationPanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(1, m_overviewPanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(2, m_resProbabilityPanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(3, m_warningBanner);
-        ui->verticalLayoutConvergeScroll->insertWidget(4, m_historyPanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(5, m_explorerHooks);
+        ui->verticalLayoutConvergeScroll->insertWidget(0, m_lifecyclePanel);
+        ui->verticalLayoutConvergeScroll->insertWidget(1, m_networkPanel);
+        ui->verticalLayoutConvergeScroll->insertWidget(2, m_warningBanner);
+        ui->verticalLayoutConvergeScroll->insertWidget(3, m_startPanel);
+        ui->verticalLayoutConvergeScroll->addWidget(m_historyPanel);
+        ui->verticalLayoutConvergeScroll->addWidget(m_educationPanel);
+        ui->verticalLayoutConvergeScroll->addWidget(m_overviewPanel);
+        ui->verticalLayoutConvergeScroll->addWidget(m_resProbabilityPanel);
     }
 
-    auto* wizardButton = new QPushButton(tr("Start Convergence Wizard…"), ui->frameConverge);
-    wizardButton->setObjectName(QStringLiteral("pushButtonConvergenceWizard"));
-    ui->formLayoutConverge->addRow(wizardButton);
-    connect(wizardButton, &QPushButton::clicked, this, [this]() {
-        if (!walletModel || !clientModel) return;
-        RigorWallet::ConvergenceWizard wizard(walletModel, clientModel, this);
-        if (wizard.exec() == QDialog::Accepted) {
-            refreshPhaseCPanels();
-            updateConvergenceRoundPanels();
-            updateConvergenceStatusDisplay();
-        }
+    // Hide explorer-style / protocol frames from the user Convergence page.
+    if (ui->frameNetwork) ui->frameNetwork->setVisible(false);
+    if (ui->frameRoundTable) ui->frameRoundTable->setVisible(false);
+    if (ui->frameDraw) ui->frameDraw->setVisible(false);
+    if (ui->frameMarket) ui->frameMarket->setVisible(false);
+
+    m_refreshDebounce = new QTimer(this);
+    m_refreshDebounce->setSingleShot(true);
+    m_refreshDebounce->setInterval(400);
+    connect(m_refreshDebounce, &QTimer::timeout, this, &ConvergencePage::refreshVisibleUi);
+
+    connect(m_startPanel, &RigorWallet::ConvergenceStartPanel::convergenceSubmitted, this, [this]() {
+        refreshVisibleUi();
     });
+}
+
+void ConvergencePage::showEvent(QShowEvent* event)
+{
+    QWidget::showEvent(event);
+    scheduleUiRefresh();
+}
+
+void ConvergencePage::scheduleUiRefresh()
+{
+    if (!isVisible()) return;
+    if (!m_refreshDebounce) {
+        refreshVisibleUi();
+        return;
+    }
+    m_refreshDebounce->start();
+}
+
+void ConvergencePage::refreshVisibleUi()
+{
+    if (!isVisible()) return;
+    updateContextPanels();
+    updateConvergenceRoundPanels();
+    updateMarketPanel();
+    updateMinConvergenceDisplay();
+    updateConvergenceStatusDisplay();
+    updateConvergenceNetworkSafety();
+    refreshPhaseCPanels();
 }
 
 ConvergencePage::~ConvergencePage()
@@ -147,7 +179,7 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot {"
         "  background: %1;"
         "  color: %2;"
-        "  font-family: \"Segoe UI\", \"Roboto\", \"Inter\", sans-serif;"
+        "  font-family: %9;"
         "}"
         "QWidget#ConvergencePageRoot QLabel { color: %2; }"
         "QWidget#ConvergencePageRoot QLabel#labelSectionNetwork,"
@@ -222,7 +254,8 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QLabel#labelConvergeMaturityCountdown { color: %7; font-weight: 600; }"
         ).arg(bg, text, surface, border, muted, critical,
               RigorWallet::RigorTheme::colorHex(p.accent),
-              RigorWallet::RigorTheme::colorHex(p.accentHover)));
+              RigorWallet::RigorTheme::colorHex(p.accentHover),
+              GUIUtil::UiFontFamilyCss()));
 }
 
 void ConvergencePage::updateConvergenceAvailability()
@@ -237,14 +270,10 @@ void ConvergencePage::setClientModel(ClientModel* model)
     clientModel = model;
     if (model) {
         connect(model, &ClientModel::numBlocksChanged, this, [this](int, const QDateTime&, double, SyncType, SynchronizationState) {
-            updateContextPanels();
-            updateConvergenceRoundPanels();
-            updateMarketPanel();
-            updateMinConvergenceDisplay();
-            updateConvergenceStatusDisplay();
-            refreshPhaseCPanels();
+            scheduleUiRefresh();
         });
         connect(model, &ClientModel::numConnectionsChanged, this, [this](int) {
+            if (!isVisible()) return;
             updateContextPanels();
             updateConvergenceNetworkSafety();
         });
@@ -253,13 +282,13 @@ void ConvergencePage::setClientModel(ClientModel* model)
             setMonospacedConvergenceFont(model->getOptionsModel()->getUseEmbeddedMonospacedFont());
         }
     }
-    updateContextPanels();
-    updateConvergenceRoundPanels();
-    updateMarketPanel();
-    updateConvergenceNetworkSafety();
-    updateMinConvergenceDisplay();
     if (m_resProbabilityPanel) m_resProbabilityPanel->setClientModel(model);
-    refreshPhaseCPanels();
+    if (m_lifecyclePanel) m_lifecyclePanel->setClientModel(model);
+    if (m_networkPanel) m_networkPanel->setClientModel(model);
+    if (m_startPanel) m_startPanel->setClientModel(model);
+    if (m_overviewPanel) m_overviewPanel->setClientModel(model);
+    if (m_historyPanel) m_historyPanel->setClientModel(model);
+    scheduleUiRefresh();
 }
 
 void ConvergencePage::setWalletModel(WalletModel* model)
@@ -267,33 +296,28 @@ void ConvergencePage::setWalletModel(WalletModel* model)
     walletModel = model;
     updateConvergenceAvailability();
     if (model && model->getOptionsModel()) {
-        ui->convergeAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
+        // Page amount field is hidden; wizard locks to ORU. Keep field on ORU if ever re-enabled.
+        ui->convergeAmount->setDisplayUnit(BitcoinUnit::ORU);
         connect(model, &WalletModel::walletStateRevisionChanged, this, [this](quint64) {
-            updateConvergenceNetworkSafety();
-            updateConvergenceRoundPanels();
-            updateConvergenceStatusDisplay();
-            refreshPhaseCPanels();
+            scheduleUiRefresh();
         });
         connect(model, &WalletModel::balanceSnapshotStaleChanged, this, [this](bool) {
-            updateConvergenceStatusDisplay();
-            refreshPhaseCPanels();
+            scheduleUiRefresh();
         });
         connect(model, &WalletModel::notifyWatchonlyChanged, this, [this](bool) {
             updateConvergenceAvailability();
-            updateConvergenceRoundPanels();
-            updateQuadraticFeeHint();
+            if (isVisible()) {
+                updateQuadraticFeeHint();
+                scheduleUiRefresh();
+            }
         });
-        updateMinConvergenceDisplay();
-        updateConvergenceStatusDisplay();
         updateQuadraticFeeHint();
     }
-    updateConvergenceNetworkSafety();
-    updateContextPanels();
-    updateConvergenceRoundPanels();
-    updateMarketPanel();
+    if (m_lifecyclePanel) m_lifecyclePanel->setWalletModel(model);
+    if (m_startPanel) m_startPanel->setWalletModel(model);
     if (m_overviewPanel) m_overviewPanel->setWalletModel(model);
     if (m_historyPanel) m_historyPanel->setWalletModel(model);
-    refreshPhaseCPanels();
+    scheduleUiRefresh();
 }
 
 void ConvergencePage::setMonospacedConvergenceFont(bool use_embedded_font)
@@ -543,57 +567,19 @@ void ConvergencePage::updateQuadraticFeeHint()
 
 void ConvergencePage::updateConvergenceNetworkSafety()
 {
-    if (!m_convergenceSafetyLabel || !ui->pushButtonConverge) return;
-
-    bool network_ok = false;
-    QString warn;
-    if (!walletModel || !clientModel) {
-        warn = tr("Cannot verify network or wallet state.");
-    } else {
-        const int peers = clientModel->getNumConnections();
-        const int blocks = clientModel->getNumBlocks();
-        const int headers = clientModel->getHeaderTipHeight();
-        const bool ibd = clientModel->node().isInitialBlockDownload();
-        if (peers <= 0 && !Params().IsMockableChain()) {
-            warn = tr("No network peers — connect before converging ORU.");
-        } else if (ibd) {
-            warn = tr("Syncing… — wait until initial sync finishes before converging ORU.");
-        } else if (headers < 0 || blocks != headers) {
-            warn = tr("Syncing… — local chain height does not match the network tip yet.");
-        } else {
-            network_ok = true;
-        }
-    }
-
-    m_convergenceSafetyLabel->setText(warn);
-    m_convergenceSafetyLabel->setVisible(!network_ok && walletModel && clientModel);
-    if (!network_ok && walletModel && clientModel) {
-        m_convergenceSafetyLabel->setStyleSheet(QStringLiteral("QLabel { color: #FF4D4D; }"));
-    } else {
-        m_convergenceSafetyLabel->setStyleSheet(QString());
-    }
-
-    const bool can_convergence = walletModel && !walletModel->wallet().privateKeysDisabled();
-    ui->pushButtonConverge->setEnabled(network_ok && can_convergence && walletModel && clientModel);
-    ui->pushButtonConverge->setToolTip(network_ok ? QString() : warn);
+    // Offline / sync gating is owned by ConvergenceStartPanel; keep page banner in sync.
+    if (m_startPanel) m_startPanel->refresh();
     updateRecoveryWarnings();
 }
 
 void ConvergencePage::refreshPhaseCPanels()
 {
+    if (m_lifecyclePanel) m_lifecyclePanel->refresh();
+    if (m_networkPanel) m_networkPanel->refresh();
+    if (m_startPanel) m_startPanel->refresh();
     if (m_overviewPanel) m_overviewPanel->refresh();
     if (m_resProbabilityPanel) m_resProbabilityPanel->refresh();
     if (m_historyPanel) m_historyPanel->refresh();
-    if (m_explorerHooks && walletModel) {
-        const auto rows = RigorWallet::ConvergenceWalletData::buildHistory(walletModel);
-        QString convergence_txid;
-        QString mint_txid;
-        if (const auto* latest = RigorWallet::ConvergenceWalletData::latestRow(rows)) {
-            convergence_txid = latest->txid;
-            mint_txid = latest->linked_mint_txid;
-        }
-        m_explorerHooks->setTargetTxids(convergence_txid, mint_txid);
-    }
     updateRecoveryWarnings();
 }
 
@@ -611,41 +597,30 @@ void ConvergencePage::updateRecoveryWarnings()
 
     const int peers = clientModel->getNumConnections();
     if (peers <= 0 && !Params().IsMockableChain()) {
-        msg = tr("Node offline — connect to the network before converging.");
+        msg = tr("Wallet is offline. Connect to the RIGOR network before starting Convergence.");
         level = RigorWallet::WarningLevel::Critical;
     } else if (clientModel->node().isInitialBlockDownload()) {
-        msg = tr("Node syncing — wait for initial block download to finish.");
+        msg = tr("Syncing — wait until the wallet finishes catching up.");
         level = RigorWallet::WarningLevel::Warning;
     } else if (walletModel->wallet().privateKeysDisabled()) {
-        msg = tr("Wallet locked for spending — unlock to run convergence.");
+        msg = tr("Wallet locked for spending — unlock to start Convergence.");
         level = RigorWallet::WarningLevel::Warning;
     } else {
         const auto rows = RigorWallet::ConvergenceWalletData::buildHistory(walletModel);
         if (const auto* pending = RigorWallet::ConvergenceWalletData::pendingRow(rows)) {
-            msg = tr("Convergence pending: %1").arg(pending->txid.left(16) + QStringLiteral("…"));
+            msg = tr("Convergence in progress: %1").arg(pending->txid.left(16) + QStringLiteral("…"));
             level = RigorWallet::WarningLevel::Verification;
         } else {
             interfaces::ConvergenceUiSnapshot snap;
             if (walletModel->wallet().tryGetConvergenceUiSnapshot(snap) && snap.has_convergence) {
                 const QString st = QString::fromStdString(snap.status_text);
                 if (st.contains(QLatin1String("Locked"), Qt::CaseInsensitive)) {
-                    msg = tr("Mint delayed — RES locked until maturity: %1").arg(st);
+                    msg = tr("RES not ready yet: %1").arg(st);
                     level = RigorWallet::WarningLevel::Warning;
                 }
             }
         }
-        if (msg.isEmpty() && ui->convergeAmount) {
-            bool ok = false;
-            const CAmount amt = ui->convergeAmount->value(&ok);
-            if (ok && amt > 0) {
-                const auto balances = walletModel->getCachedBalance();
-                const CAmount oru_avail = balances.oru_balance + balances.oru_unconfirmed_balance;
-                if (amt > oru_avail) {
-                    msg = tr("Insufficient ORU for the entered convergence amount.");
-                    level = RigorWallet::WarningLevel::Critical;
-                }
-            }
-        }
+        // Amount entry / insufficient-ORU validation lives in ConvergenceStartPanel.
     }
 
     if (msg.isEmpty()) {
@@ -673,7 +648,7 @@ QString humanizeConvergenceStatus(const QString& raw)
         return QCoreApplication::translate("ConvergencePage", "Pending confirmation");
     }
     if (upper == QLatin1String("LOST")) {
-        return QCoreApplication::translate("ConvergencePage", "Not selected");
+        return QCoreApplication::translate("ConvergencePage", "No RES minted");
     }
     return raw;
 }
@@ -709,12 +684,9 @@ void ConvergencePage::updateMinConvergenceDisplay()
         ui->labelMinConverge->setText(tr("—"));
         return;
     }
+    // Always show consensus minimum in ORU (1 ORU); do not use mORU/Tharn display units here.
     const CAmount min_amt = Consensus::MIN_CONVERGENCE_AMOUNT;
-    if (walletModel && walletModel->getOptionsModel()) {
-        ui->labelMinConverge->setText(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), min_amt));
-    } else {
-        ui->labelMinConverge->setText(BitcoinUnits::format(BitcoinUnit::ORU, min_amt));
-    }
+    ui->labelMinConverge->setText(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt));
     updateQuadraticFeeHint();
 }
 
@@ -758,8 +730,8 @@ void ConvergencePage::onSendConvergenceClicked()
         if (r != QMessageBox::Yes) return;
     }
 
-    const auto r2 = QMessageBox::question(this, tr("Confirm convergence"),
-        tr("Convergence consumes ORU permanently. An Res mint is not guaranteed. This action cannot be undone after the transaction is broadcast.\n\nDo you want to continue?"),
+    const auto r2 = QMessageBox::question(this, tr("Confirm Convergence"),
+        tr("Convergence uses ORU permanently. RES is not guaranteed. This cannot be undone after broadcast.\n\nContinue?"),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (r2 != QMessageBox::Yes) return;
 
@@ -772,10 +744,11 @@ void ConvergencePage::onSendConvergenceClicked()
     const auto ret = walletModel->sendConvergenceOru(amt);
     if (ret.status == WalletModel::OK) {
         QMessageBox::information(this, tr("Convergence"),
-            tr("Convergence transaction broadcast. Res minting is probabilistic; check convergence_status in getwalletinfo when the transaction confirms."));
+            tr("Convergence submitted. Track progress and the result on this page. RES is not guaranteed."));
         ui->convergeAmount->clear();
         updateQuadraticFeeHint();
         updateConvergenceRoundPanels();
         updateConvergenceStatusDisplay();
+        refreshPhaseCPanels();
     }
 }

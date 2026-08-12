@@ -165,14 +165,19 @@ CAmount CachedTxGetImmatureCreditForAsset(const CWallet& wallet, const CWalletTx
 {
     AssertLockHeld(wallet.cs_wallet);
 
-    if (!wallet.IsTxImmatureCoinBase(wtx) || !wallet.IsTxInMainChain(wtx)) {
+    const bool immature_coinbase = wallet.IsTxImmatureCoinBase(wtx);
+    const bool immature_res = (asset == ASSET_RES) && wallet.IsTxImmatureResMint(wtx);
+    if ((!immature_coinbase && !immature_res) || !wallet.IsTxInMainChain(wtx)) {
         return 0;
     }
 
     CAmount nCredit = 0;
+    const uint256 hashTx = wtx.GetHash();
     for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
         const CTxOut& txout = wtx.tx->vout[i];
         if (AssetTypeFromScriptPubKey(txout.scriptPubKey) != asset) continue;
+        // Spent mint outputs must not remain in Pending while change is also counted.
+        if (wallet.IsSpent(COutPoint(hashTx, i))) continue;
         nCredit += OutputGetCredit(wallet, txout, filter);
         if (!MoneyRange(nCredit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
@@ -184,6 +189,9 @@ CAmount CachedTxGetCreditForAsset(const CWallet& wallet, const CWalletTx& wtx, A
 {
     AssertLockHeld(wallet.cs_wallet);
 
+    // Immature coinbase: match legacy ORU behavior (history uses an unmatured special-case).
+    // Immature body RES must still appear in credit_res for transaction history; spendability is
+    // gated only via AvailableCredit / ImmatureCredit.
     if (wallet.IsTxImmatureCoinBase(wtx)) {
         return 0;
     }
@@ -244,7 +252,9 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
     if (wallet.IsTxImmatureCoinBase(wtx))
         return 0;
 
-    if (allow_cache && wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].m_cached[filter]) {
+    // Immature body RES mint: do not cache a blended total (ORU change may be spendable).
+    const bool immature_res_mint = wallet.IsTxImmatureResMint(wtx);
+    if (allow_cache && !immature_res_mint && wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].m_cached[filter]) {
         return wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].m_value[filter];
     }
 
@@ -254,6 +264,9 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
     uint256 hashTx = wtx.GetHash();
     for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
         const CTxOut& txout = wtx.tx->vout[i];
+        if (immature_res_mint && AssetTypeFromScriptPubKey(txout.scriptPubKey) == ASSET_RES) {
+            continue;
+        }
         if (!wallet.IsSpent(COutPoint(hashTx, i))
             && !OutputBlockedByOruReuse(wallet, txout.scriptPubKey, allow_used_addresses)) {
             nCredit += OutputGetCredit(wallet, txout, filter);
@@ -262,7 +275,7 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
         }
     }
 
-    if (allow_cache) {
+    if (allow_cache && !immature_res_mint) {
         wtx.m_amounts[CWalletTx::AVAILABLE_CREDIT].Set(filter, nCredit);
         wtx.m_is_cache_empty = false;
     }
@@ -276,6 +289,8 @@ static CAmount CachedTxGetAvailableCreditForAsset(const CWallet& wallet, const C
     AssertLockHeld(wallet.cs_wallet);
 
     if (wallet.IsTxImmatureCoinBase(wtx))
+        return 0;
+    if (asset == ASSET_RES && wallet.IsTxImmatureResMint(wtx))
         return 0;
 
     const bool avoid_reuse_active = EffectiveAvoidReuseForAsset(
@@ -517,6 +532,9 @@ std::map<CTxDestination, AddressNativeBalances> GetAddressBalancesByAsset(const 
 
             for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
                 const auto& output = wtx.tx->vout[i];
+                if (AssetTypeFromScriptPubKey(output.scriptPubKey) == ASSET_RES && wallet.IsTxImmatureResMint(wtx)) {
+                    continue;
+                }
                 CTxDestination addr;
                 if (!wallet.IsMine(output))
                     continue;

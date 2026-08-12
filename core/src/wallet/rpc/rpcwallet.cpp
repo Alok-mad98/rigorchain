@@ -361,8 +361,8 @@ static RPCHelpMan createwallet()
         "\nCreates and loads a new wallet.\n",
         {
             {"wallet_name", RPCArg::Type::STR, RPCArg::Optional::NO, "The name for the new wallet. If this is a path, the wallet will be created at the path location."},
-            {"disable_private_keys", RPCArg::Type::BOOL, RPCArg::Default{false}, "Disable the possibility of private keys (only watchonlys are possible in this mode)."},
-            {"blank", RPCArg::Type::BOOL, RPCArg::Default{false}, "Create a blank wallet. A blank wallet has no keys or HD seed. One can be set using sethdseed."},
+            {"disable_private_keys", RPCArg::Type::BOOL, RPCArg::Default{false}, "Watch-only / cold-storage online wallet: disable private keys (no spending keys stored). Equivalent to watch_only=true in RIGOR docs."},
+            {"blank", RPCArg::Type::BOOL, RPCArg::Default{false}, "Create a blank wallet. A blank wallet has no keys or HD seed. Import descriptors later (required for watch-only cold storage)."},
             {"passphrase", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "Encrypt the wallet with this passphrase."},
             {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{false}, "ORU only: track witness-v0 address reuse and treat clean/dirty ORU coins differently. RES is unaffected."},
             {"descriptors", RPCArg::Type::BOOL, RPCArg::Default{true}, "Must be true (default). Descriptor wallets are mandatory; legacy wallet creation is disabled."},
@@ -844,6 +844,7 @@ RPCHelpMan walletdisplayaddress();
 // backup
 RPCHelpMan dumpprivkey();
 RPCHelpMan importprivkey();
+RPCHelpMan importrigorprivkey();
 RPCHelpMan importaddress();
 RPCHelpMan importpubkey();
 RPCHelpMan dumpwallet();
@@ -930,6 +931,7 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &importdescriptors},
         {"wallet", &importmulti},
         {"wallet", &importprivkey},
+        {"wallet", &importrigorprivkey},
         {"wallet", &importprunedfunds},
         {"wallet", &importpubkey},
         {"wallet", &importwallet},

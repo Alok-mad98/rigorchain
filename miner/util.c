@@ -427,8 +427,21 @@ json_t *json_rpc_call(CURL *curl, const char *url,
 	if (rc) {
 		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_rc);
 		if (!((flags & JSON_RPC_LONGPOLL) && rc == CURLE_OPERATION_TIMEDOUT) &&
-		    !((flags & JSON_RPC_QUIET_404) && http_rc == 404))
-			applog(LOG_ERR, "HTTP request failed: %s", curl_err_str);
+		    !((flags & JSON_RPC_QUIET_404) && http_rc == 404)) {
+			if (!opt_verbose &&
+			    (rc == CURLE_COULDNT_CONNECT ||
+			     strstr(curl_err_str, "Connection refused") ||
+			     strstr(curl_err_str, "Failed to connect") ||
+			     strstr(curl_err_str, "Couldn't connect"))) {
+				applog(LOG_ERR,
+				       "Cannot connect to local RIGOR node.\n"
+				       "Please start rigor-wallet or rigord first.");
+			} else if (!opt_verbose) {
+				applog(LOG_ERR, "Cannot reach the RIGOR node. Check that it is running and RPC is enabled.");
+			} else {
+				applog(LOG_ERR, "HTTP request failed: %s", curl_err_str);
+			}
+		}
 		if (curl_err && (flags & JSON_RPC_QUIET_404) && http_rc == 404)
 			*curl_err = CURLE_OK;
 		goto err_out;

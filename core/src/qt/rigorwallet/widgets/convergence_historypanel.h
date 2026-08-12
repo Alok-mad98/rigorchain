@@ -7,6 +7,7 @@
 
 #include <QFrame>
 
+class ClientModel;
 class QStackedWidget;
 class QTableWidget;
 class WalletModel;
@@ -15,7 +16,7 @@ namespace RigorWallet {
 
 class EmptyStateWidget;
 
-/** Convergence history with mint linking (BUILD-22 / BUILD-23). */
+/** User Convergence history: Date, Txid, ORU, Result, RES minted. */
 class ConvergenceHistoryPanel : public QFrame
 {
     Q_OBJECT
@@ -23,10 +24,12 @@ class ConvergenceHistoryPanel : public QFrame
 public:
     explicit ConvergenceHistoryPanel(QWidget* parent = nullptr);
 
+    void setClientModel(ClientModel* model);
     void setWalletModel(WalletModel* model);
     void refresh();
 
 private:
+    ClientModel* m_clientModel{nullptr};
     WalletModel* m_walletModel{nullptr};
     QStackedWidget* m_stack{nullptr};
     EmptyStateWidget* m_empty{nullptr};

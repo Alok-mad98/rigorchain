@@ -19,6 +19,7 @@ public:
     static QString whatIsRes();
     static QString whatIsConvergence();
     static QString whySeparate();
+    static QString whatIsPowOrdering();
     static QString fullHelpHtml();
 };
 

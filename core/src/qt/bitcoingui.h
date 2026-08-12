@@ -152,6 +152,11 @@ private:
     QAction* encryptWalletAction = nullptr;
     QAction* backupWalletAction = nullptr;
     QAction* changePassphraseAction = nullptr;
+    QAction* m_key_management_action{nullptr};
+    QAction* m_advanced_mode_action{nullptr};
+    QMenu* m_advanced_menu{nullptr};
+    QList<QAction*> m_window_rpc_actions;
+    QAction* m_tray_node_window_action{nullptr};
     QAction* aboutQtAction = nullptr;
     QAction* openRPCConsoleAction = nullptr;
     QAction* openAction = nullptr;
@@ -202,6 +207,9 @@ private:
 
     /** Enable or disable all wallet-related actions */
     void setWalletActionsEnabled(bool enabled);
+
+    /** Show/hide developer diagnostics under Advanced Mode */
+    void updateAdvancedModeVisibility(bool enabled);
 
     /** Connect core signals to GUI client */
     void subscribeToCoreSignals();

@@ -129,8 +129,23 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
 
     strHTML += "<b>" + tr("Status") + ":</b> " + FormatTxStatus(status, inMempool);
     strHTML += "<br>";
-    strHTML += "<b>" + tr("Type") + ":</b> " +
-        QString::fromStdString(wallet::TxSemanticCanonicalLabel(wtx.semantic)) + "<br>";
+    // Prefer Bitcoin-style role for coinbase; otherwise RFC-003 semantic label.
+    strHTML += "<b>" + tr("Type") + ":</b> ";
+    if (wtx.is_coinbase || rec->type == TransactionRecord::Generated) {
+        strHTML += tr("Mined");
+    } else if (rec->type == TransactionRecord::SendToAddress ||
+               rec->type == TransactionRecord::SendToOther) {
+        strHTML += tr("Sent to");
+    } else if (rec->type == TransactionRecord::RecvWithAddress) {
+        strHTML += tr("Received with");
+    } else if (rec->type == TransactionRecord::RecvFromOther) {
+        strHTML += tr("Received from");
+    } else if (rec->type == TransactionRecord::SendToSelf) {
+        strHTML += tr("Payment to yourself");
+    } else {
+        strHTML += QString::fromStdString(wallet::TxSemanticCanonicalLabel(wtx.semantic));
+    }
+    strHTML += "<br>";
 
     strHTML += "<b>" + tr("Date") + ":</b> " + (nTime ? GUIUtil::dateTimeStr(nTime) : "") + "<br>";
 
@@ -309,9 +324,39 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
             if (nTxFee > 0)
                 strHTML += "<b>" + tr("Fee") + " (ORU):</b> " +
                     BitcoinUnits::formatFeeOruHtml(-nTxFee, unit) + "<br>";
-            if (wtx.change > 0) {
-                strHTML += "<b>" + tr("Change") + ":</b> " +
-                    BitcoinUnits::formatAmountHtmlForAsset(rec->amount_asset, wtx.change, unit) + "<br>";
+            // Dual-pool RES sends can have both RES change and ORU fee change; list each.
+            if ((wtx.debit_res > 0 || wtx.debit_oru > 0) && !fAllToMe) {
+                CAmount change_oru = 0;
+                CAmount change_res = 0;
+                for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+                    if (!wtx.txout_is_mine[i] || wtx.tx->vout[i].nValue <= 0) continue;
+                    const AssetType a = AssetTypeFromScriptPubKey(wtx.tx->vout[i].scriptPubKey);
+                    if (a == ASSET_ORU) change_oru += wtx.tx->vout[i].nValue;
+                    else if (a == ASSET_RES) change_res += wtx.tx->vout[i].nValue;
+                }
+                if (change_res > 0) {
+                    strHTML += "<b>" + tr("Change") + " (RES):</b> " +
+                        BitcoinUnits::formatAmountHtmlForAsset(ASSET_RES, change_res, unit) + "<br>";
+                }
+                if (change_oru > 0) {
+                    strHTML += "<b>" + tr("Change") + " (ORU):</b> " +
+                        BitcoinUnits::formatAmountHtmlForAsset(ASSET_ORU, change_oru, unit) + "<br>";
+                }
+            } else if (wtx.change > 0) {
+                AssetType change_asset = ASSET_ORU;
+                for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+                    if (!wtx.txout_is_mine[i] || wtx.tx->vout[i].nValue <= 0) continue;
+                    change_asset = AssetTypeFromScriptPubKey(wtx.tx->vout[i].scriptPubKey);
+                    if (change_asset == ASSET_ORU) break;
+                }
+                QString change_label = tr("Change");
+                if (change_asset == ASSET_ORU && (wtx.debit_res > 0 || rec->amount_asset == ASSET_RES)) {
+                    change_label = tr("Change") + " (ORU)";
+                } else if (change_asset == ASSET_RES) {
+                    change_label = tr("Change") + " (RES)";
+                }
+                strHTML += "<b>" + change_label + ":</b> " +
+                    BitcoinUnits::formatAmountHtmlForAsset(change_asset, wtx.change, unit) + "<br>";
             }
         }
         else

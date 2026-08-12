@@ -111,7 +111,7 @@ void WalletController::closeAllWallets(QWidget* parent)
     m_wallets.clear();
 }
 
-WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wallet> wallet)
+WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wallet> wallet, bool emit_added, bool start_poll)
 {
     QMutexLocker locker(&m_mutex);
 
@@ -145,8 +145,10 @@ WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wal
     // WalletModel::startPollBalance needs to be called in a thread managed by
     // Qt because of startTimer. Considering the current thread can be a RPC
     // thread, better delegate the calling to Qt with Qt::AutoConnection.
-    const bool called = QMetaObject::invokeMethod(wallet_model, "startPollBalance");
-    assert(called);
+    if (start_poll) {
+        const bool called = QMetaObject::invokeMethod(wallet_model, "startPollBalance");
+        assert(called);
+    }
 
     connect(wallet_model, &WalletModel::unload, this, [this, wallet_model] {
         // Defer removeAndDeleteWallet when no modal widget is active.
@@ -165,9 +167,24 @@ WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wal
     // Re-emit coinsSent signal from wallet model.
     connect(wallet_model, &WalletModel::coinsSent, this, &WalletController::coinsSent);
 
-    Q_EMIT walletAdded(wallet_model);
+    if (emit_added) {
+        Q_EMIT walletAdded(wallet_model);
+    }
 
     return wallet_model;
+}
+
+void WalletController::finishLoadWallets(const std::vector<WalletModel*>& models)
+{
+    for (WalletModel* wallet_model : models) {
+        if (!wallet_model) continue;
+        // walletAdded builds Overview first (fast); remaining tabs load on idle timers.
+        Q_EMIT walletAdded(wallet_model);
+        // Defer balance poll so the overview can paint before getBalances work.
+        QTimer::singleShot(0, wallet_model, [wallet_model] {
+            QTimer::singleShot(0, wallet_model, &WalletModel::startPollBalance);
+        });
+    }
 }
 
 void WalletController::removeAndDeleteWallet(WalletModel* wallet_model)
@@ -378,11 +395,18 @@ void LoadWalletsActivity::load()
         tr("Loading wallets…"));
 
     QTimer::singleShot(0, worker(), [this] {
+        // Build WalletModel(s) on the activity thread without blocking the GUI on
+        // WalletView construction / balance poll (those freeze the indeterminate
+        // "Loading wallets…" dialog). Notify the GUI after the dialog closes.
+        std::vector<WalletModel*> models;
         for (auto& wallet : node().walletLoader().getWallets()) {
-            m_wallet_controller->getOrCreateWallet(std::move(wallet));
+            models.push_back(m_wallet_controller->getOrCreateWallet(std::move(wallet), /*emit_added=*/false, /*start_poll=*/false));
         }
 
-        QTimer::singleShot(0, this, [this] { Q_EMIT finished(); });
+        QTimer::singleShot(0, this, [this, models] {
+            Q_EMIT finished();
+            m_wallet_controller->finishLoadWallets(models);
+        });
     });
 }
 

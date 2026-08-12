@@ -53,7 +53,7 @@ before the next layer is evaluated. Reordering layers is a specification violati
 | **1** | Header Validation | Block header structure, PoW, difficulty, timestamps |
 | **2** | Chain Context Validation | Height, parent linkage, frozen parameters, protocol version |
 | **3** | Transaction Validation | UTXO spends, conservation, script, coinbase |
-| **4** | ORU Supply Validation | Subsidy, converge burn, ORU recurrence (see SPEC-002) |
+| **4** | ORU Supply Validation | Subsidy, converge sum, ORU recurrence (see SPEC-002) |
 | **5** | RES Draw Validation | Candidate set, eligibility, winner, mint authorization (RFC-015) |
 | **6** | State Transition Validation | Deterministic successor, UTXO and supply recurrence (see SPEC-001) |
 | **7** | Commit Validation | Persist successor state, update chain tip, replay/reorg consistency |
@@ -212,11 +212,13 @@ value is negative.
 
 ---
 
-### CR-023: Asset Type Derivable
+### CR-023: Asset Class Derivable
 
-**Purpose:** Asset identity MUST be inferred from script parsing alone (script-as-asset).
+**Purpose:** Asset *class* MUST be inferred from `scriptPubKey` and witness structure
+(script as compliance layer). Script classification does not replace the remaining
+consensus checks that establish legitimacy for that class.
 
-**Failure condition:** An output's asset type cannot be derived from `scriptPubKey`
+**Failure condition:** An output's asset class cannot be derived from `scriptPubKey`
 and witness structure; or consensus relies on a persisted asset field parallel to
 script storage.
 
@@ -437,7 +439,7 @@ S_RES(h+1) ≠ S_RES(h) + RES_REWARD_AMOUNT · M(h+1)
 MUST hold at `h+1` if they held at `h` and the block is valid.
 
 **Failure condition:** Any SI invariant violated at `State(h+1)` that is implied
-by valid transition from `State(h)` (e.g., chain continuity, script-as-asset,
+by valid transition from `State(h)` (e.g., chain continuity, script-as-compliance,
 identity domain, draw–mint coherence).
 
 ---

@@ -9,16 +9,17 @@ write anything.
 The hard constraints
 --------------------
 
-These come from [ARCHITECTURE.md](./ARCHITECTURE.md) and are not open to case-by-case
+These come from [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) and are not open to case-by-case
 negotiation.
 
 **Storage is immutable.** `CTxOut` does not change. No asset field, no tag, no parallel
 identifier stored alongside an output. The on-chain layout stays byte-for-byte compatible
 with Bitcoin Core's.
 
-**Assets are parsed, not persisted.** An output's asset is derived by parsing its
-`scriptPubKey` every time it is needed. If a patch requires reading an asset label out of
-the UTXO set, the design is wrong.
+**Assets are classified by script, enforced by consensus.** An output's asset *class* is
+derived by parsing its `scriptPubKey` every time it is needed; legitimacy still requires
+the full consensus path. If a patch requires reading an asset label out of the UTXO set,
+the design is wrong. Script is the compliance layer, not a substitute for validation.
 
 **Witness v0 and v1 only.** P2WPKH, P2WSH, and the v1 RES program. No Taproot or BIP341
 semantics, no hidden state machines, no dynamic storage execution model.
@@ -36,10 +37,10 @@ discretionary mint. Script lock is final.
 Changing consensus
 ------------------
 
-Consensus rules are frozen; see `MAINNET_PROTOCOL_FREEZE_DECLARATION.md`. A change to
+Consensus rules are frozen; see [docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md](docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md). A change to
 anything under `core/src/consensus/` needs more than a pull request:
 
-1. **An RFC** in [docs/rfc/](./docs/rfc) stating the rule change normatively, including the
+1. **An RFC** in [docs/rfc/](docs/rfc/) stating the rule change normatively, including the
    exact byte layouts and arithmetic. `RFC-008` and `RFC-009` are the models to follow.
 2. **A stated reason.** Security fixes and demonstrated incorrectness qualify. "Cleaner" or
    "more general" does not.
@@ -51,7 +52,7 @@ anything under `core/src/consensus/` needs more than a pull request:
    something the model covers, update the model.
 
 Note that the Coq development and the C++ node are not mechanically connected — see
-[docs/FORMAL-VERIFICATION-VERDICT.md](./docs/FORMAL-VERIFICATION-VERDICT.md) §3. Keeping them
+[docs/verification/FORMAL-VERIFICATION-VERDICT.md](docs/verification/FORMAL-VERIFICATION-VERDICT.md) §3. Keeping them
 in agreement is a manual obligation that falls on whoever changes either side.
 
 Workflow

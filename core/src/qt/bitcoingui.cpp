@@ -234,6 +234,16 @@ RigorGUI::RigorGUI(interfaces::Node& node, const PlatformStyle *_platformStyle, 
     GUIUtil::ApplyRigorWalletChrome(this, nullptr, rpcConsole);
 #endif
 
+    // Icons were created before dark palette/chrome; recolor to WindowText (#E6E6E6).
+    overviewAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/overview"))));
+    sendCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/send"))));
+    receiveCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/receiving_addresses"))));
+    historyAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/history"))));
+    diagnosticsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/export"))));
+    if (convergenceAction) {
+        convergenceAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/convergence"))));
+    }
+
     GUIUtil::handleCloseWindowShortcut(this);
 }
 
@@ -289,18 +299,20 @@ void RigorGUI::createActions()
     tabGroup->addAction(historyAction);
 
     convergenceAction = new QAction(platformStyle->SingleColorIcon(QStringLiteral(":/icons/convergence")), tr("&Convergence"), this);
-    convergenceAction->setStatusTip(tr("Convergence ORU (Res draw participation)"));
+    convergenceAction->setStatusTip(tr("Convergence: commit ORU, wait for the Convergence period, and view RES minted results"));
     convergenceAction->setToolTip(convergenceAction->statusTip());
     convergenceAction->setCheckable(true);
     convergenceAction->setShortcut(QKeySequence(QStringLiteral("Alt+5")));
     tabGroup->addAction(convergenceAction);
 
-    diagnosticsAction = new QAction(platformStyle->SingleColorIcon(QStringLiteral(":/icons/export")), tr("&Diagnostics"), this);
-    diagnosticsAction->setStatusTip(tr("System diagnostics — node, wallet, convergence, and verification status"));
+    // Diagnostics stay available under Settings → Advanced when Advanced Mode is on (not primary nav).
+    diagnosticsAction = new QAction(platformStyle->SingleColorIcon(QStringLiteral(":/icons/export")), tr("System &Diagnostics…"), this);
+    diagnosticsAction->setStatusTip(tr("Developer diagnostics — node, wallet, explorer, and verification status"));
     diagnosticsAction->setToolTip(diagnosticsAction->statusTip());
     diagnosticsAction->setCheckable(true);
     diagnosticsAction->setShortcut(QKeySequence(QStringLiteral("Alt+6")));
     tabGroup->addAction(diagnosticsAction);
+    diagnosticsAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -343,6 +355,15 @@ void RigorGUI::createActions()
     backupWalletAction->setStatusTip(tr("Backup wallet to another location"));
     changePassphraseAction = new QAction(tr("&Change Passphrase…"), this);
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
+    m_key_management_action = new QAction(tr("&Key Management…"), this);
+    m_key_management_action->setStatusTip(tr("Import private keys or descriptors; export cold-storage descriptors"));
+    m_advanced_mode_action = new QAction(tr("Enable &Advanced Mode"), this);
+    m_advanced_mode_action->setStatusTip(tr("Show System Diagnostics (explorer/indexer panels)"));
+    m_advanced_mode_action->setCheckable(true);
+    {
+        QSettings settings;
+        m_advanced_mode_action->setChecked(settings.value(QStringLiteral("rigor/advancedMode"), false).toBool());
+    }
     signMessageAction = new QAction(tr("Sign &message…"), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Rigor addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message…"), this);
@@ -352,11 +373,11 @@ void RigorGUI::createActions()
     m_load_psbt_clipboard_action = new QAction(tr("Load PSBT from &clipboard…"), this);
     m_load_psbt_clipboard_action->setStatusTip(tr("Load Partially Signed Rigor Transaction from clipboard"));
 
-    openRPCConsoleAction = new QAction(tr("Node window"), this);
-    openRPCConsoleAction->setStatusTip(tr("Open node debugging and diagnostic console"));
-    // initially disable the debug window menu item
+    openRPCConsoleAction = new QAction(tr("&Node Window…"), this);
+    openRPCConsoleAction->setStatusTip(tr("Open node information, peers, and the RPC console"));
     openRPCConsoleAction->setEnabled(false);
     openRPCConsoleAction->setObjectName("openRPCConsoleAction");
+    openRPCConsoleAction->setVisible(true);
 
     usedSendingAddressesAction = new QAction(tr("&Sending addresses"), this);
     usedSendingAddressesAction->setStatusTip(tr("Show the list of used sending addresses and labels"));
@@ -411,6 +432,12 @@ void RigorGUI::createActions()
         connect(encryptWalletAction, &QAction::triggered, walletFrame, &WalletFrame::encryptWallet);
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
+        connect(m_key_management_action, &QAction::triggered, walletFrame, &WalletFrame::gotoKeyManagement);
+        connect(m_advanced_mode_action, &QAction::toggled, this, [this](bool enabled) {
+            QSettings settings;
+            settings.setValue(QStringLiteral("rigor/advancedMode"), enabled);
+            updateAdvancedModeVisibility(enabled);
+        });
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(m_load_psbt_action, &QAction::triggered, [this]{ gotoLoadPSBT(); });
@@ -529,8 +556,17 @@ void RigorGUI::createMenuBar()
     {
         settings->addAction(encryptWalletAction);
         settings->addAction(changePassphraseAction);
+        settings->addAction(backupWalletAction);
+        settings->addAction(m_restore_wallet_action);
         settings->addSeparator();
         settings->addAction(m_mask_values_action);
+        settings->addSeparator();
+        m_advanced_menu = settings->addMenu(tr("&Advanced"));
+        m_advanced_menu->addAction(m_advanced_mode_action);
+        m_advanced_menu->addSeparator();
+        m_advanced_menu->addAction(m_key_management_action);
+        m_advanced_menu->addAction(diagnosticsAction);
+        m_advanced_menu->addAction(openRPCConsoleAction);
         settings->addSeparator();
     }
     settings->addAction(optionsAction);
@@ -576,6 +612,7 @@ void RigorGUI::createMenuBar()
     }
 
     window_menu->addSeparator();
+    m_window_rpc_actions.clear();
     for (RPCConsole::TabTypes tab_type : rpcConsole->tabs()) {
         QAction* tab_action = window_menu->addAction(rpcConsole->tabTitle(tab_type));
         tab_action->setShortcut(rpcConsole->tabShortcut(tab_type));
@@ -583,6 +620,7 @@ void RigorGUI::createMenuBar()
             rpcConsole->setTabFocus(tab_type);
             showDebugWindow();
         });
+        m_window_rpc_actions.append(tab_action);
     }
 
     QMenu *help = appMenuBar->addMenu(tr("&Help"));
@@ -590,6 +628,8 @@ void RigorGUI::createMenuBar()
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
+
+    updateAdvancedModeVisibility(m_advanced_mode_action && m_advanced_mode_action->isChecked());
 }
 
 void RigorGUI::createToolBars()
@@ -605,7 +645,7 @@ void RigorGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(convergenceAction);
-        toolbar->addAction(diagnosticsAction);
+        // Diagnostics intentionally omitted from primary navigation (Advanced Mode only).
         overviewAction->setChecked(true);
 
 #ifdef ENABLE_WALLET
@@ -825,6 +865,7 @@ void RigorGUI::setWalletActionsEnabled(bool enabled)
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    if (m_key_management_action) m_key_management_action->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -832,6 +873,32 @@ void RigorGUI::setWalletActionsEnabled(bool enabled)
     openAction->setEnabled(enabled);
     m_close_wallet_action->setEnabled(enabled);
     m_close_all_wallets_action->setEnabled(enabled);
+}
+
+void RigorGUI::updateAdvancedModeVisibility(bool enabled)
+{
+    if (diagnosticsAction) {
+        diagnosticsAction->setVisible(enabled);
+        // Keep off the primary toolbar; Advanced menu only.
+        if (!enabled && diagnosticsAction->isChecked() && overviewAction) {
+            overviewAction->trigger();
+        }
+    }
+    // Node Window + Window-menu Information/Console/Peers/Network Traffic stay
+    // available for full-node operators (previous Alpha EXE behavior). Only the
+    // Diagnostics page remains gated behind Advanced Mode.
+    if (openRPCConsoleAction) {
+        openRPCConsoleAction->setVisible(true);
+    }
+    if (m_key_management_action) {
+        m_key_management_action->setVisible(true);
+    }
+    for (QAction* action : m_window_rpc_actions) {
+        if (action) action->setVisible(true);
+    }
+    if (m_tray_node_window_action) {
+        m_tray_node_window_action->setVisible(true);
+    }
 }
 
 void RigorGUI::createTrayIcon()
@@ -876,6 +943,10 @@ void RigorGUI::createTrayIconMenu()
     QAction* options_action = trayIconMenu->addAction(optionsAction->text(), optionsAction, &QAction::trigger);
     options_action->setMenuRole(QAction::PreferencesRole);
     QAction* node_window_action = trayIconMenu->addAction(openRPCConsoleAction->text(), openRPCConsoleAction, &QAction::trigger);
+    m_tray_node_window_action = node_window_action;
+    if (m_tray_node_window_action) {
+        m_tray_node_window_action->setVisible(true);
+    }
     QAction* quit_action{nullptr};
 #ifndef Q_OS_MACOS
     // Note: On macOS, the Dock icon's menu already has Quit action.
@@ -1036,7 +1107,7 @@ void RigorGUI::updateNetworkState()
 
     if (m_node.getNetworkActive()) {
         //: A substring of the tooltip.
-        tooltip = tr("%n active connection(s) to Rigor network.", "", count);
+        tooltip = tr("%n active connection(s) to RIGOR network.", "", count);
     } else {
         //: A substring of the tooltip.
         tooltip = tr("Network activity disabled.");
@@ -1287,12 +1358,12 @@ void RigorGUI::message(const QString& title, QString message, unsigned int style
 void RigorGUI::changeEvent(QEvent *e)
 {
     if (e->type() == QEvent::PaletteChange) {
-        overviewAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/overview")));
-        sendCoinsAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/send")));
-        receiveCoinsAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/receiving_addresses")));
-        historyAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/history")));
-        diagnosticsAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/export")));
-        convergenceAction->setIcon(platformStyle->SingleColorIcon(QStringLiteral(":/icons/convergence")));
+        overviewAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/overview"))));
+        sendCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/send"))));
+        receiveCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/receiving_addresses"))));
+        historyAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/history"))));
+        diagnosticsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/export"))));
+        convergenceAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/convergence"))));
     }
 
     QMainWindow::changeEvent(e);

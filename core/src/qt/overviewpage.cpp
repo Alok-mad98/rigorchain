@@ -31,7 +31,7 @@ RES RULES LOCK
 - Convergence can happen in any block
 - RES is NOT guaranteed per block
 - At most ONE RES per block
-- Body RES mint is not immature coinbase; ORU coinbase maturity is separate
+- Body RES mint is immature until nCoinbaseMaturity (same depth as ORU coinbase); transfers are not
 
 WALLET MUST:
 
@@ -48,10 +48,8 @@ WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 #include <qt/overviewpage.h>
 #include <qt/forms/ui_overviewpage.h>
 
-#include <qt/rigorwallet/widgets/verificationnotice.h>
 #include <qt/rigorwallet/widgets/orubalancepanel.h>
 #include <qt/rigorwallet/widgets/resbalancepanel.h>
-#include <qt/rigorwallet/widgets/convergencestatuspanel.h>
 #include <qt/rigorwallet/assetbadge.h>
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/rigortheme.h>
@@ -112,7 +110,8 @@ public:
         int halfheight = (mainRect.height() - 2*ypad)/2;
         QRect amountRect(mainRect.left() + xspace, mainRect.top()+ypad, mainRect.width() - xspace, halfheight);
         QRect addressRect(mainRect.left() + xspace, mainRect.top()+ypad+halfheight, mainRect.width() - xspace, halfheight);
-        icon = platformStyle->SingleColorIcon(icon);
+        // Always recolor with WindowText so mined/pickaxe icons stay visible on dark chrome.
+        icon = platformStyle->TextColorIcon(icon);
         icon.paint(painter, decorationRect);
 
         QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
@@ -214,8 +213,20 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
-    m_verificationNotice = new RigorWallet::VerificationNotice(this);
-    ui->topLayout->insertWidget(0, m_verificationNotice);
+    m_syncStatusBanner = new QLabel(this);
+    m_syncStatusBanner->setObjectName(QStringLiteral("RigorSyncStatusBanner"));
+    m_syncStatusBanner->setWordWrap(true);
+    m_syncStatusBanner->setText(tr(
+        "<b>Blockchain Status</b><br>"
+        "Waiting for synchronization…<br>"
+        "Network: <b>RIGOR Mainnet</b><br>"
+        "RES Convergence: Available after ORU acquisition"));
+    m_syncStatusBanner->setStyleSheet(QStringLiteral(
+        "QLabel#RigorSyncStatusBanner {"
+        "  background: #1A1A1D; color: #E6E6E6; border: 1px solid #2C2C30;"
+        "  border-radius: 6px; padding: 10px;"
+        "}"));
+    ui->topLayout->insertWidget(0, m_syncStatusBanner);
 
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = m_platform_style->SingleColorIcon(QStringLiteral(":/icons/warning"));
@@ -239,7 +250,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 
     m_oruPanel = new RigorWallet::ORUBalancePanel(this);
     m_resPanel = new RigorWallet::RESBalancePanel(this);
-    m_convergencePanel = new RigorWallet::ConvergenceStatusPanel(this);
 
     auto* dualAssetHost = new QWidget(this);
     auto* dualLayout = new QVBoxLayout(dualAssetHost);
@@ -247,7 +257,6 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     dualLayout->setSpacing(RigorWallet::RigorTheme::spacing().sectionGap);
     dualLayout->addWidget(m_oruPanel);
     dualLayout->addWidget(m_resPanel);
-    dualLayout->addWidget(m_convergencePanel);
 
     if (ui->verticalLayout_4) {
         ui->verticalLayout_4->insertWidget(2, dualAssetHost);
@@ -292,9 +301,6 @@ void OverviewPage::setBalance(const interfaces::WalletBalances& balances)
     }
     if (m_resPanel) {
         m_resPanel->setBalances(balances, m_privacy);
-    }
-    if (m_convergencePanel) {
-        m_convergencePanel->refresh();
     }
 }
 
@@ -354,7 +360,6 @@ void OverviewPage::setWalletModel(WalletModel *model)
         });
 
         m_resPanel->setWalletModel(model);
-        m_convergencePanel->setWalletModel(model);
 
         connect(model->getOptionsModel(), &OptionsModel::displayUnitChanged, this, &OverviewPage::updateDisplayUnit);
 
@@ -416,6 +421,9 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
 {
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+    if (m_syncStatusBanner) {
+        m_syncStatusBanner->setVisible(fShow);
+    }
 }
 
 void OverviewPage::setMonospacedFont(bool use_embedded_font)

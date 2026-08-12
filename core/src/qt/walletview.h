@@ -61,19 +61,28 @@ private:
     //!
     WalletModel* const walletModel;
 
-    OverviewPage *overviewPage;
-    ConvergencePage *convergencePage;
-    DiagnosticsPage *diagnosticsPage;
-    QWidget *transactionsPage;
-    ReceiveCoinsDialog *receiveCoinsPage;
-    SendCoinsDialog *sendCoinsPage;
-    AddressBookPage *usedSendingAddressesPage;
-    AddressBookPage *usedReceivingAddressesPage;
+    OverviewPage *overviewPage{nullptr};
+    ConvergencePage *convergencePage{nullptr};
+    DiagnosticsPage *diagnosticsPage{nullptr};
+    QWidget *transactionsPage{nullptr};
+    ReceiveCoinsDialog *receiveCoinsPage{nullptr};
+    SendCoinsDialog *sendCoinsPage{nullptr};
+    AddressBookPage *usedSendingAddressesPage{nullptr};
+    AddressBookPage *usedReceivingAddressesPage{nullptr};
 
-    TransactionView *transactionView;
+    TransactionView *transactionView{nullptr};
 
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
+    bool m_deferred_build_started{false};
+    bool m_deferred_pages_ready{false};
+
+    void buildDeferredPages();
+    void ensureHistoryPage();
+    void ensureReceiveSendPages();
+    void ensureConvergenceDiagnosticsPages();
+    void ensureAllPages();
+    void applyClientModelToPages();
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
@@ -93,6 +102,8 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+    /** Descriptor-first key import/export (cold storage) */
+    void gotoKeyManagement();
 
     /** Show incoming transaction notification for new transactions.
 

@@ -11,16 +11,10 @@
 #include <qt/walletmodel.h>
 
 #include <interfaces/wallet.h>
-#include <wallet/tx_semantic.h>
 
-#include <qt/rigorwallet/explorer/explorerclient.h>
-
-#include <QDesktopServices>
 #include <QFont>
 #include <QGridLayout>
 #include <QLabel>
-#include <QPushButton>
-#include <QUrl>
 #include <QVBoxLayout>
 
 namespace RigorWallet {
@@ -49,17 +43,17 @@ RESBalancePanel::RESBalancePanel(QWidget* parent)
 
     auto* confirmedTitle = new QLabel(tr("Confirmed"), this);
     auto* pendingTitle = new QLabel(tr("Pending"), this);
-    auto* mintedTitle = new QLabel(tr("Historical Minted"), this);
-    mintedTitle->setToolTip(tr("Lifetime RES mint credits in this wallet (node-derived transaction history)."));
+    auto* totalTitle = new QLabel(tr("Total"), this);
+    totalTitle->setToolTip(tr("Confirmed + Pending (current wallet RES balance)."));
 
     m_confirmedValue = new QLabel(QStringLiteral("—"), this);
     m_pendingValue = new QLabel(QStringLiteral("—"), this);
-    m_mintedValue = new QLabel(QStringLiteral("—"), this);
+    m_totalValue = new QLabel(QStringLiteral("—"), this);
 
     QFont valueFont = GUIUtil::fixedPitchFont(false);
     valueFont.setBold(true);
     valueFont.setPixelSize(RigorTheme::typography().balancePx);
-    for (QLabel* v : {m_confirmedValue, m_pendingValue, m_mintedValue}) {
+    for (QLabel* v : {m_confirmedValue, m_pendingValue, m_totalValue}) {
         v->setFont(valueFont);
         v->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     }
@@ -68,23 +62,14 @@ RESBalancePanel::RESBalancePanel(QWidget* parent)
     grid->addWidget(m_confirmedValue, 0, 1);
     grid->addWidget(pendingTitle, 1, 0);
     grid->addWidget(m_pendingValue, 1, 1);
-    grid->addWidget(mintedTitle, 2, 0);
-    grid->addWidget(m_mintedValue, 2, 1);
+    grid->addWidget(totalTitle, 2, 0);
+    grid->addWidget(m_totalValue, 2, 1);
     layout->addLayout(grid);
-
-    m_openMintExplorer = new QPushButton(tr("Open latest mint in Explorer (indexed)"), this);
-    m_openMintExplorer->setEnabled(false);
-    connect(m_openMintExplorer, &QPushButton::clicked, this, [this]() {
-        const QString url = ExplorerClient::browseMintUrl(m_latestMintTxid);
-        if (!url.isEmpty()) QDesktopServices::openUrl(QUrl(url));
-    });
-    layout->addWidget(m_openMintExplorer);
 }
 
 void RESBalancePanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
-    refreshHistoricalMinted();
 }
 
 void RESBalancePanel::applyTheme()
@@ -109,39 +94,15 @@ void RESBalancePanel::applyTheme()
                       .arg(RigorTheme::colorHex(p.textPrimary)));
 }
 
-void RESBalancePanel::refreshHistoricalMinted()
-{
-    if (!m_walletModel) {
-        m_mintedValue->setText(QStringLiteral("—"));
-        m_latestMintTxid.clear();
-        m_openMintExplorer->setEnabled(false);
-        return;
-    }
-    CAmount minted_total = 0;
-    int64_t latest_time = 0;
-    m_latestMintTxid.clear();
-    const std::set<interfaces::WalletTx> txs = m_walletModel->wallet().getWalletTxs();
-    for (const interfaces::WalletTx& wtx : txs) {
-        if (wtx.semantic == wallet::TxSemanticKind::ResMint) {
-            minted_total += wtx.credit_res;
-            if (wtx.time >= latest_time) {
-                latest_time = wtx.time;
-                m_latestMintTxid = QString::fromStdString(wtx.tx->GetHash().GetHex());
-            }
-        }
-    }
-    m_mintedValue->setText(BitcoinUnits::formatResWithPrivacy(minted_total, BitcoinUnits::SeparatorStyle::ALWAYS, false));
-    m_openMintExplorer->setEnabled(ExplorerClient::isConfigured() && !m_latestMintTxid.isEmpty());
-}
-
 void RESBalancePanel::setBalances(const interfaces::WalletBalances& balances, bool privacy)
 {
     const CAmount confirmed = balances.res_balance + balances.res_watch_only_balance;
     const CAmount pending = balances.res_locked_balance + balances.res_immature_watch_only_balance
         + balances.res_unconfirmed_balance + balances.res_unconfirmed_watch_only_balance;
+    const CAmount total = confirmed + pending;
     m_confirmedValue->setText(BitcoinUnits::formatResWithPrivacy(confirmed, BitcoinUnits::SeparatorStyle::ALWAYS, privacy));
     m_pendingValue->setText(BitcoinUnits::formatResWithPrivacy(pending, BitcoinUnits::SeparatorStyle::ALWAYS, privacy));
-    refreshHistoricalMinted();
+    m_totalValue->setText(BitcoinUnits::formatResWithPrivacy(total, BitcoinUnits::SeparatorStyle::ALWAYS, privacy));
 }
 
 } // namespace RigorWallet

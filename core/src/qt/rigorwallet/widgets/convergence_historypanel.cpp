@@ -4,12 +4,17 @@
 
 #include <qt/rigorwallet/widgets/convergence_historypanel.h>
 
+#include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/convergence/convergence_wallet_data.h>
 #include <qt/rigorwallet/rigortheme.h>
 #include <qt/rigorwallet/widgets/emptystatewidget.h>
 #include <qt/walletmodel.h>
+
+#include <consensus/amount.h>
+#include <consensus/rigor_consensus_lock.h>
+#include <wallet/convergence_window_ui.h>
 
 #include <QDateTime>
 #include <QHeaderView>
@@ -21,10 +26,36 @@
 namespace RigorWallet {
 
 namespace {
-QString TruncateMiddleHex(const QString& hex)
+QString UserStatusLabel(const ConvergenceHistoryRow& row)
 {
-    if (hex.size() <= 25) return hex;
-    return hex.left(12) + QStringLiteral("\u2026") + hex.right(12);
+    switch (row.lifecycle) {
+    case wallet::ConvergenceUiLifecycle::CompletedAllocated:
+    case wallet::ConvergenceUiLifecycle::CompletedNoAllocation:
+        return QObject::tr("Completed");
+    case wallet::ConvergenceUiLifecycle::Submitted:
+    case wallet::ConvergenceUiLifecycle::ActiveWindow:
+    case wallet::ConvergenceUiLifecycle::FinalizationPending:
+        return QObject::tr("In progress");
+    }
+    return QObject::tr("In progress");
+}
+
+QString UserResultLabel(const ConvergenceHistoryRow& row)
+{
+    switch (row.lifecycle) {
+    case wallet::ConvergenceUiLifecycle::CompletedAllocated: {
+        const CAmount atoms = row.res_amount > 0 ? row.res_amount : Consensus::RES_REWARD_AMOUNT;
+        return QString::number(static_cast<double>(atoms) / Consensus::RES_COIN, 'f', 2) +
+               QStringLiteral(" RES minted");
+    }
+    case wallet::ConvergenceUiLifecycle::CompletedNoAllocation:
+        return QObject::tr("No RES minted");
+    case wallet::ConvergenceUiLifecycle::Submitted:
+    case wallet::ConvergenceUiLifecycle::ActiveWindow:
+    case wallet::ConvergenceUiLifecycle::FinalizationPending:
+        return QObject::tr("Waiting for confirmation");
+    }
+    return QObject::tr("Waiting for confirmation");
 }
 } // namespace
 
@@ -33,25 +64,25 @@ ConvergenceHistoryPanel::ConvergenceHistoryPanel(QWidget* parent)
 {
     setObjectName(QStringLiteral("RigorConvergenceHistory"));
     auto* layout = new QVBoxLayout(this);
-    auto* title = new QLabel(tr("Convergence History %1").arg(AssetContext::authorityLabel(DataAuthority::Wallet)), this);
+    auto* title = new QLabel(tr("History"), this);
     title->setStyleSheet(QStringLiteral("font-weight: bold;"));
     layout->addWidget(title);
 
     m_stack = new QStackedWidget(this);
     m_empty = new EmptyStateWidget(m_stack);
-    m_empty->setHeading(tr("No convergence history yet"));
-    m_empty->setBody(tr("When you submit a convergence transaction, it will appear here with status and any linked RES mint."));
+    m_empty->setHeading(tr("No Convergence history yet"));
+    m_empty->setBody(tr("When you start a Convergence, it will appear here with status and result."));
 
     auto* tablePage = new QWidget(m_stack);
     auto* tableLayout = new QVBoxLayout(tablePage);
     tableLayout->setContentsMargins(0, 0, 0, 0);
-    m_table = new QTableWidget(0, 5, tablePage);
+    // User columns: Date, ORU, Status, Result (block/digest/candidate details → Diagnostics)
+    m_table = new QTableWidget(0, 4, tablePage);
     m_table->setHorizontalHeaderLabels({
-        tr("Txid"),
-        tr("Height"),
+        tr("Date"),
+        tr("ORU"),
         tr("Status"),
-        tr("Linked mint"),
-        tr("Time"),
+        tr("Result"),
     });
     m_table->horizontalHeader()->setStretchLastSection(true);
     m_table->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -62,6 +93,12 @@ ConvergenceHistoryPanel::ConvergenceHistoryPanel(QWidget* parent)
     m_stack->addWidget(m_empty);
     m_stack->addWidget(tablePage);
     layout->addWidget(m_stack);
+}
+
+void ConvergenceHistoryPanel::setClientModel(ClientModel* model)
+{
+    m_clientModel = model;
+    refresh();
 }
 
 void ConvergenceHistoryPanel::setWalletModel(WalletModel* model)
@@ -78,7 +115,8 @@ void ConvergenceHistoryPanel::refresh()
         return;
     }
 
-    const auto rows = ConvergenceWalletData::buildHistory(m_walletModel);
+    const int tip = m_clientModel ? m_clientModel->getNumBlocks() : -1;
+    const auto rows = ConvergenceWalletData::buildHistory(m_walletModel, tip);
     if (rows.empty()) {
         m_stack->setCurrentWidget(m_empty);
         return;
@@ -89,18 +127,20 @@ void ConvergenceHistoryPanel::refresh()
     m_table->setRowCount(static_cast<int>(rows.size()));
     int i = 0;
     for (const ConvergenceHistoryRow& row : rows) {
-        auto* tx_item = new QTableWidgetItem(TruncateMiddleHex(row.txid));
-        tx_item->setToolTip(row.txid);
-        m_table->setItem(i, 0, tx_item);
-        m_table->setItem(i, 1, new QTableWidgetItem(row.block_height >= 0 ? QString::number(row.block_height) : tr("—")));
-        m_table->setItem(i, 2, new QTableWidgetItem(row.status_label));
-        const QString mint = row.linked_mint_txid.isEmpty() ? tr("—") : TruncateMiddleHex(row.linked_mint_txid);
-        auto* mint_item = new QTableWidgetItem(mint);
-        if (!row.linked_mint_txid.isEmpty()) {
-            mint_item->setToolTip(tr("Convergence → Mint\n%1 → %2").arg(row.txid, row.linked_mint_txid));
+        m_table->setItem(i, 0, new QTableWidgetItem(GUIUtil::dateTimeStr(QDateTime::fromSecsSinceEpoch(row.timestamp))));
+
+        QString oru = tr("—");
+        if (row.oru_amount > 0) {
+            oru = QString::number(static_cast<double>(row.oru_amount) / COIN, 'f', 2) + QStringLiteral(" ORU");
         }
-        m_table->setItem(i, 3, mint_item);
-        m_table->setItem(i, 4, new QTableWidgetItem(GUIUtil::dateTimeStr(QDateTime::fromSecsSinceEpoch(row.timestamp))));
+        auto* oru_item = new QTableWidgetItem(oru);
+        if (!row.txid.isEmpty()) {
+            oru_item->setToolTip(row.txid);
+        }
+        m_table->setItem(i, 1, oru_item);
+
+        m_table->setItem(i, 2, new QTableWidgetItem(UserStatusLabel(row)));
+        m_table->setItem(i, 3, new QTableWidgetItem(UserResultLabel(row)));
         ++i;
     }
     setUpdatesEnabled(true);

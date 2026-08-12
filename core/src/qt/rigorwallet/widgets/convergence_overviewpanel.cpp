@@ -4,11 +4,14 @@
 
 #include <qt/rigorwallet/widgets/convergence_overviewpanel.h>
 
+#include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/convergence/convergence_wallet_data.h>
 #include <qt/rigorwallet/rigortheme.h>
 #include <qt/walletmodel.h>
+
+#include <consensus/rigor_consensus_lock.h>
 
 #include <QLabel>
 #include <QVBoxLayout>
@@ -32,7 +35,7 @@ ConvergenceOverviewPanel::ConvergenceOverviewPanel(QWidget* parent)
                       .arg(RigorTheme::colorHex(p.bgSurface), RigorTheme::colorHex(p.borderSubtle)));
 
     auto* layout = new QVBoxLayout(this);
-    auto* title = new QLabel(tr("Convergence Overview %1").arg(AssetContext::authorityLabel(DataAuthority::Node)), this);
+    auto* title = new QLabel(tr("Convergence Overview"), this);
     title->setStyleSheet(QStringLiteral("font-weight: bold;"));
     layout->addWidget(title);
 
@@ -46,6 +49,12 @@ ConvergenceOverviewPanel::ConvergenceOverviewPanel(QWidget* parent)
     }
 }
 
+void ConvergenceOverviewPanel::setClientModel(ClientModel* model)
+{
+    m_clientModel = model;
+    refresh();
+}
+
 void ConvergenceOverviewPanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
@@ -54,6 +63,7 @@ void ConvergenceOverviewPanel::setWalletModel(WalletModel* model)
 
 void ConvergenceOverviewPanel::refresh()
 {
+    const int tip = m_clientModel ? m_clientModel->getNumBlocks() : -1;
     if (!m_walletModel) {
         m_activityLabel->setText(tr("Convergence activity: —"));
         m_historicalLabel->setText(tr("Historical count: —"));
@@ -62,13 +72,14 @@ void ConvergenceOverviewPanel::refresh()
         return;
     }
 
-    const auto rows = ConvergenceWalletData::buildHistory(m_walletModel);
+    const auto rows = ConvergenceWalletData::buildHistory(m_walletModel, tip);
     const int pending = ConvergenceWalletData::countByStatus(rows, ConvergenceUserStatus::Pending);
     const int historical = ConvergenceWalletData::historicalCount(rows);
     const ConvergenceHistoryRow* latest = ConvergenceWalletData::latestRow(rows);
     const ConvergenceHistoryRow* pending_row = ConvergenceWalletData::pendingRow(rows);
 
-    m_activityLabel->setText(tr("Convergence activity: %1 total in wallet history.").arg(historical));
+    m_activityLabel->setText(tr("Convergence activity: %1 total in wallet history.")
+                                 .arg(historical));
     m_historicalLabel->setText(tr("Historical convergence count: %1").arg(historical));
     if (latest) {
         m_latestLabel->setText(tr("Latest convergence: %1 (%2)")
@@ -77,12 +88,14 @@ void ConvergenceOverviewPanel::refresh()
         m_latestLabel->setText(tr("Latest convergence: none"));
     }
     if (pending_row) {
-        m_pendingLabel->setText(tr("Pending convergence: %1 (%2 pending total)")
+        m_pendingLabel->setText(tr("Active / pending: %1 (%2) — tip height %3")
                                     .arg(TruncateMiddleHex(pending_row->txid))
-                                    .arg(pending));
+                                    .arg(pending_row->status_label)
+                                    .arg(tip >= 0 ? QString::number(tip) : tr("—")));
     } else {
         m_pendingLabel->setText(tr("Pending convergence: none"));
     }
+    Q_UNUSED(pending);
 }
 
 } // namespace RigorWallet

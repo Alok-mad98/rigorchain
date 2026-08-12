@@ -44,4 +44,5 @@ bool PeerTableSortProxy::lessThan(const QModelIndex& left_index, const QModelInd
         return left_stats.cleanSubVer.compare(right_stats.cleanSubVer) < 0;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return false; // silence -Wreturn-type (assert may be compiled out)
 }

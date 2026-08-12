@@ -10,7 +10,6 @@
 #include <QFrame>
 
 class QLabel;
-class QPushButton;
 class WalletModel;
 
 namespace RigorWallet {
@@ -28,15 +27,12 @@ public:
 
 private:
     void applyTheme();
-    void refreshHistoricalMinted();
 
     WalletModel* m_walletModel{nullptr};
     QLabel* m_titleLabel{nullptr};
     QLabel* m_confirmedValue{nullptr};
     QLabel* m_pendingValue{nullptr};
-    QLabel* m_mintedValue{nullptr};
-    QPushButton* m_openMintExplorer{nullptr};
-    QString m_latestMintTxid;
+    QLabel* m_totalValue{nullptr};
 };
 
 } // namespace RigorWallet

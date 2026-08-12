@@ -84,6 +84,8 @@ public Q_SLOTS:
     void gotoSignMessageTab(QString addr = "");
     /** Show Sign/Verify Message dialog and switch to verify message tab */
     void gotoVerifyMessageTab(QString addr = "");
+    /** Descriptor key import/export */
+    void gotoKeyManagement();
 
     /** Load Partially Signed Rigor Transaction */
     void gotoLoadPSBT(bool from_clipboard = false);

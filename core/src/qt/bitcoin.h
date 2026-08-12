@@ -17,7 +17,6 @@
 #include <optional>
 
 #include <QApplication>
-#include <QElapsedTimer>
 
 class RigorGUI;
 class ClientModel;
@@ -113,8 +112,6 @@ private:
 
     void startThread();
     void showMainWindowAfterSplash(interfaces::BlockAndHeaderTipInfo tip_info);
-
-    QElapsedTimer m_splashTimer;
 };
 
 int GuiMain(int argc, char* argv[]);

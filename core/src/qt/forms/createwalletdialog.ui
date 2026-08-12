@@ -82,10 +82,10 @@
          <bool>true</bool>
         </property>
         <property name="toolTip">
-         <string>Disable private keys for this wallet. Wallets with private keys disabled will have no private keys and cannot have an HD seed or imported private keys. This is ideal for watch-only wallets.</string>
+         <string>Create a watch-only / cold-storage online wallet. No private keys are stored; import public descriptors to monitor ORU and RES balances.</string>
         </property>
         <property name="text">
-         <string>Disable Private Keys</string>
+         <string>Watch-only (disable private keys)</string>
         </property>
        </widget>
       </item>

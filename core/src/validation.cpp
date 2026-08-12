@@ -59,6 +59,7 @@
 #include <kernel/cs_main.h>
 #include <logging.h>
 #include <logging/timer.h>
+#include <limits>
 #include <map>
 // #include <names/main.h>
 #include <node/blockstorage.h>
@@ -202,7 +203,9 @@ using node::UnlinkPrunedFiles;
 /** Maximum kilobytes for transactions to store for processing during reorg */
 static const unsigned int MAX_DISCONNECTED_TX_POOL_SIZE = 20000;
 /** Time to wait between writing blocks/block index to disk. */
-static constexpr std::chrono::hours DATABASE_WRITE_INTERVAL{1};
+/** Time between block-index writes. Alpha solo mining can produce many tips/minute; a 1h
+ *  interval meant Task Manager kills lost unflushed tips and restarted at genesis. */
+static constexpr std::chrono::minutes DATABASE_WRITE_INTERVAL{1};
 /** Time to wait between flushing chainstate to disk. */
 static constexpr std::chrono::hours DATABASE_FLUSH_INTERVAL{24};
 /** Maximum age of our tip for us to be considered current for fee estimation */
@@ -2488,6 +2491,99 @@ bool GetConvergenceDrawSetForBlock(const CBlockIndex& block_index,
     return BuildConvergenceDrawSetFromUndo(source_block, block_index.nHeight, source_undo, consensus_params, tail, out);
 }
 
+namespace {
+/** Process-local tip-hash cache for getconvergencestats / Convergence Network GUI. */
+Mutex g_convergence_network_stats_mutex;
+ConvergenceNetworkStats g_convergence_network_stats GUARDED_BY(g_convergence_network_stats_mutex);
+
+/**
+ * Rebuild stats from the tip W-window. Uses GetBlockWindowContribution (warmed by ConnectBlock)
+ * so a cold restart costs at most O(W) block/undo reads — never a full-chain scan.
+ */
+bool ComputeConvergenceNetworkStats(const CBlockIndex& tip,
+    const Consensus::Params& consensus_params,
+    ConvergenceNetworkStats& out) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
+{
+    out = ConvergenceNetworkStats{};
+    out.best_height = tip.nHeight;
+    out.tip_hash = tip.GetBlockHash();
+
+    const int window_first = std::max(0, tip.nHeight - Consensus::CONVERGENCE_DRAW_WINDOW + 1);
+    for (const CBlockIndex* p = &tip; p != nullptr && p->nHeight >= window_first; p = p->pprev) {
+        BlockWindowContribution contribution;
+        if (!GetBlockWindowContribution(*p, consensus_params, contribution)) {
+            return false;
+        }
+        for (const ConvergenceDrawCandidate& candidate : contribution.candidates) {
+            ++out.active_convergences;
+            if (candidate.weight > static_cast<uint64_t>(std::numeric_limits<CAmount>::max()) ||
+                out.active_oru > std::numeric_limits<CAmount>::max() - static_cast<CAmount>(candidate.weight)) {
+                return false;
+            }
+            out.active_oru += static_cast<CAmount>(candidate.weight);
+        }
+    }
+
+    ConvergenceDrawSet draw_set;
+    if (GetConvergenceDrawSetForBlock(tip, consensus_params, draw_set) && draw_set.IsSet()) {
+        out.pending_windows = static_cast<int64_t>(draw_set.candidates.size());
+    } else {
+        // Incomplete/unavailable draw near storage failure: report zero pending rather than inventing.
+        out.pending_windows = 0;
+    }
+
+    const CAmount res_total = GetChainResMintTotal(&tip);
+    if (res_total < 0) return false;
+    out.total_res_minted = res_total;
+    out.valid = true;
+    return true;
+}
+} // namespace
+
+bool GetConvergenceNetworkStats(const CBlockIndex& tip,
+    const Consensus::Params& consensus_params,
+    ConvergenceNetworkStats& out)
+{
+    AssertLockHeld(::cs_main);
+    const uint256 tip_hash = tip.GetBlockHash();
+    {
+        LOCK(g_convergence_network_stats_mutex);
+        if (g_convergence_network_stats.valid && g_convergence_network_stats.tip_hash == tip_hash) {
+            out = g_convergence_network_stats;
+            return true;
+        }
+    }
+
+    ConvergenceNetworkStats computed;
+    if (!ComputeConvergenceNetworkStats(tip, consensus_params, computed)) {
+        out = ConvergenceNetworkStats{};
+        return false;
+    }
+
+    LOCK(g_convergence_network_stats_mutex);
+    g_convergence_network_stats = computed;
+    out = computed;
+    return true;
+}
+
+void RefreshConvergenceNetworkStatsCache(const CBlockIndex* tip,
+    const Consensus::Params& consensus_params)
+{
+    AssertLockHeld(::cs_main);
+    if (tip == nullptr) {
+        InvalidateConvergenceNetworkStatsCache();
+        return;
+    }
+    ConvergenceNetworkStats unused;
+    (void)GetConvergenceNetworkStats(*tip, consensus_params, unused);
+}
+
+void InvalidateConvergenceNetworkStatsCache()
+{
+    LOCK(g_convergence_network_stats_mutex);
+    g_convergence_network_stats = ConvergenceNetworkStats{};
+}
+
 ConvergenceDrawSet GetTemplateConvergenceDrawSet(const CBlock& block,
     const CBlockIndex* parent,
     const CCoinsViewCache& view_at_block_entry,
@@ -3525,6 +3621,9 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     m_chain.SetTip(*pindexDelete->pprev);
 
     UpdateTip(pindexDelete->pprev);
+    // Stats cache is tip-keyed; invalidate then refresh for the new tip (reorg-safe).
+    InvalidateConvergenceNetworkStatsCache();
+    RefreshConvergenceNetworkStatsCache(m_chain.Tip(), m_chainman.GetConsensus());
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     GetMainSignals().BlockDisconnected(pblock, pindexDelete);
@@ -3654,6 +3753,8 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     // Update m_chain & related variables.
     m_chain.SetTip(*pindexNew);
     UpdateTip(pindexNew);
+    // Warm Convergence Network stats for GUI/RPC (O(W); uses window contribution cache).
+    RefreshConvergenceNetworkStatsCache(pindexNew, m_chainman.GetConsensus());
     LogPrint(BCLog::VALIDATION,
              "Rigor: block accepted as chain tip: hash=%s height=%d nBits=0x%08x log2_work=%.8f\n",
              pindexNew->GetBlockHash().ToString(),
@@ -4014,6 +4115,10 @@ bool Chainstate::ActivateBestChain(BlockValidationState& state, std::shared_ptr<
     CheckBlockIndex();
 
     // Write changes periodically to disk, after relay.
+    // Never ALWAYS-flush on every tip: under -solomining / easy PoW that stalls validation
+    // and freezes Qt. DATABASE_WRITE_INTERVAL is already 1 minute (not Bitcoin's 1h) so
+    // abrupt Task Manager kills lose at most ~1 minute of tips; full flush still runs on
+    // shutdown / critical cache pressure via FlushStateToDisk(PERIODIC) paths.
     if (!FlushStateToDisk(state, FlushStateMode::PERIODIC)) {
         return false;
     }
@@ -4436,8 +4541,14 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
 
     // Check proof of work
     const Consensus::Params& consensusParams = chainman.GetConsensus();
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
-        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits", "incorrect proof of work");
+    const unsigned int expected_nbits = GetNextWorkRequired(pindexPrev, &block, consensusParams);
+    if (block.nBits != expected_nbits) {
+        LogPrintf("ERROR: bad-diffbits: got=0x%08x expect=0x%08x nTime=%u height=%d\n",
+                  block.nBits, expected_nbits, block.nTime, nHeight);
+        return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "bad-diffbits",
+                             strprintf("incorrect proof of work (got=0x%08x expect=0x%08x nTime=%u)",
+                                       block.nBits, expected_nbits, block.nTime));
+    }
     // OpuHash uses the header id only. Allow callers (e.g. block template assembly)
     // to skip PoW checks while still enforcing contextual nBits.
     if (fCheckPOW && !CheckProofOfWork(block, block.nBits, consensusParams)) {

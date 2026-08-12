@@ -373,31 +373,61 @@ QString TransactionTableModel::lookupAddress(const std::string &address, bool to
 
 QString TransactionTableModel::formatTxType(const TransactionRecord *rec) const
 {
+    // Bitcoin Core style role labels (Sent to / Received with / Mined), with RIGOR
+    // semantic overrides where the Bitcoin type alone is ambiguous (mint / CVG / RES).
     QString typeText;
-    switch (rec->semantic) {
-    case wallet::TxSemanticKind::OruCoinbase:
-        typeText = tr("ORU Transfer");
+    switch (rec->type) {
+    case TransactionRecord::Generated:
+        typeText = tr("Mined");
         break;
-    case wallet::TxSemanticKind::OruTransfer:
-        typeText = tr("ORU Transfer");
+    case TransactionRecord::RecvWithAddress:
+        typeText = tr("Received with");
         break;
-    case wallet::TxSemanticKind::OruConvergence:
+    case TransactionRecord::RecvFromOther:
+        typeText = tr("Received from");
+        break;
+    case TransactionRecord::SendToAddress:
+    case TransactionRecord::SendToOther:
+        typeText = tr("Sent to");
+        break;
+    case TransactionRecord::SendToSelf:
+        typeText = tr("Payment to yourself");
+        break;
+    case TransactionRecord::SendToConverge:
         typeText = tr("Convergence");
         break;
-    case wallet::TxSemanticKind::ResTransfer:
-        typeText = tr("RES Transfer");
+    case TransactionRecord::Other:
+    default:
+        typeText = tr("Unknown");
         break;
+    }
+    switch (rec->semantic) {
     case wallet::TxSemanticKind::ResMint:
         typeText = tr("Mint");
         break;
+    case wallet::TxSemanticKind::OruConvergence:
+        if (rec->type != TransactionRecord::SendToConverge) {
+            typeText = tr("Convergence");
+        }
+        break;
+    case wallet::TxSemanticKind::ResTransfer:
     case wallet::TxSemanticKind::ResClaim:
-        typeText = tr("RES Transfer");
+        // Keep asset-specific wording for RES rows that used a generic send/recv type.
+        if (rec->type == TransactionRecord::SendToAddress ||
+            rec->type == TransactionRecord::SendToOther ||
+            rec->type == TransactionRecord::SendToSelf) {
+            typeText = tr("RES Transfer");
+        } else if (rec->type == TransactionRecord::RecvWithAddress ||
+                   rec->type == TransactionRecord::RecvFromOther) {
+            typeText = tr("RES Transfer");
+        }
         break;
     case wallet::TxSemanticKind::MixedInputDomain:
-        typeText = tr("Mixed Input Domain");
+        typeText = tr("Unexpected Mixed ORU/RES");
         break;
+    case wallet::TxSemanticKind::OruCoinbase:
+    case wallet::TxSemanticKind::OruTransfer:
     case wallet::TxSemanticKind::Unknown:
-        typeText = tr("Unknown");
         break;
     }
     const RigorWallet::AssetBadgeKind badge = RigorWallet::AssetContext::badgeKindFromSemantic(rec->semantic);

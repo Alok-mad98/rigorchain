@@ -286,20 +286,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     const Consensus::Params& consensus = chainparams.GetConsensus();
     coinbaseTx.vout[0].nValue = nFeesOru + GetBlockSubsidy(nHeight, consensus);
-    // Coinbase scriptSig (ConvergenceRoot v1): canonical CScript() << height << 32-byte root; see
-    // consensus/convergence_root.cpp header (binding chain + pitfall list). Res mint must not read this.
-    // ConvergenceRoot is defined against UTXO at *block entry* (same as ConnectBlock), not the
-    // mid-assembly `m_assemble_coins` view after UpdateCoins.
-    //
-    // A-9-C: C spans the whole draw window, not just this block, because it is a σ input for the
-    // draw the NEXT block pays. It must be byte-identical to the value ConnectBlock derives via
-    // BuildConvergenceDrawSet, or every block this node produces is rejected as
-    // bad-cb-convergence-root. Both sides therefore go through the same builder.
-    CCoinsViewCache view_convergence_root_at_entry(&m_chainstate.CoinsTip());
-    const uint256 convergence_root =
-        GetTemplateConvergenceRoot(*pblock, pindexPrev, view_convergence_root_at_entry, consensus);
-    coinbaseTx.vin[0].scriptSig =
-        CScript() << nHeight << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+    // Placeholder scriptSig: ConvergenceRoot C is written AFTER optional auto-mint insertion.
+    // FinalizeWindowedDrawSet excludes winners already paid by a mint in this block
+    // (BlockPaidWinner), so C computed before mint insertion disagrees with ConnectBlock and
+    // fails TestBlockValidity with bad-cb-convergence-root on payout blocks.
+    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << std::vector<unsigned char>(32, 0);
     const CScript res_fee_script = ResolveMiningResFeeScript(scriptPubKeyResFeeIn, chainparams);
     if (nFeesRes > 0) {
         if (res_fee_script.empty()) {
@@ -364,6 +355,19 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                 mint_ref->GetHash().ToString(),
                 static_cast<unsigned>(ins_pos));
         }
+    }
+
+    // Coinbase scriptSig (ConvergenceRoot v1): canonical CScript() << height << 32-byte root.
+    // Must match ConnectBlock's BuildConvergenceDrawSet over the FINAL vtx[] (including auto-mint).
+    // ConvergenceRoot is defined against UTXO at *block entry*, not mid-assembly m_assemble_coins.
+    {
+        CCoinsViewCache view_convergence_root_at_entry(&m_chainstate.CoinsTip());
+        const uint256 convergence_root =
+            GetTemplateConvergenceRoot(*pblock, pindexPrev, view_convergence_root_at_entry, consensus);
+        CMutableTransaction mtx_cb(*pblock->vtx[0]);
+        mtx_cb.vin[0].scriptSig =
+            CScript() << nHeight << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+        pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
     }
 
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);

@@ -1,0 +1,25 @@
+# EXAMPLE seed-node rigord.conf — copy to datadir; never commit real rpcauth.
+# P2P public; RPC loopback only.
+
+server=1
+listen=1
+daemon=1
+
+# Adjust to published mainnet P2P port if different in chainparams.
+port=8760
+
+rpcbind=127.0.0.1
+rpcallowip=127.0.0.1
+# rpcauth=user:salt$hash
+
+# Seeds: no wallet
+disablewallet=1
+
+# Explorer backends may need txindex=1 (then do not prune).
+# txindex=1
+# prune=0
+
+# Optional fixed peers during bootstrap:
+# addnode=seed02.example.org
+
+logtimestamps=1

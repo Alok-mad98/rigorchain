@@ -460,14 +460,19 @@ namespace {
 UniValue SpendableBucketsForAsset(const CWallet& wallet, AssetType asset)
 {
     UniValue o(UniValue::VOBJ);
-    const AssetBalanceDetail cur = GetAssetBalance(wallet, asset, 0, true);
+    // Match Overview: trusted = depth>=1; untrusted_pending includes own 0-conf change.
+    const AssetBalanceDetail conf = GetAssetBalance(wallet, asset, /*min_depth=*/1, true);
+    const AssetBalanceDetail all = GetAssetBalance(wallet, asset, /*min_depth=*/0, true);
     const CAmount immature = GetAssetImmatureBalance(wallet, asset, ISMINE_SPENDABLE);
-    o.pushKV("trusted", ValueFromAmountAsset(cur.trusted, asset));
-    o.pushKV("untrusted_pending", ValueFromAmountAsset(cur.pending, asset));
+    const CAmount untrusted_pending = (all.trusted - conf.trusted) + all.pending;
+    o.pushKV("trusted", ValueFromAmountAsset(conf.trusted, asset));
+    o.pushKV("untrusted_pending", ValueFromAmountAsset(untrusted_pending, asset));
     o.pushKV("immature", ValueFromAmountAsset(immature, asset));
     if (wallet.IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE) && OruReuseSemanticsApply(asset)) {
-        const AssetBalanceDetail full = GetAssetBalance(wallet, asset, 0, false);
-        const CAmount used = (full.trusted + full.pending) - (cur.trusted + cur.pending);
+        const AssetBalanceDetail full_conf = GetAssetBalance(wallet, asset, 1, false);
+        const AssetBalanceDetail full_all = GetAssetBalance(wallet, asset, 0, false);
+        const CAmount full_pending = (full_all.trusted - full_conf.trusted) + full_all.pending;
+        const CAmount used = (full_conf.trusted + full_pending) - (conf.trusted + untrusted_pending);
         o.pushKV("used", ValueFromAmountAsset(used, asset));
     }
     return o;

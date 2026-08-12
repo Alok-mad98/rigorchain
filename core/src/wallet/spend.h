@@ -20,7 +20,8 @@ namespace wallet {
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const CWallet* pwallet, const CCoinControl* coin_control);
 int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoint, const SigningProvider* pwallet, bool can_grind_r, const CCoinControl* coin_control);
 struct TxSize {
-    int64_t vsize{-1};
+    /** RIGOR FINAL LOCK §1.2: serialized wire size in bytes (not BIP141 vsize). */
+    int64_t size_bytes{-1};
     int64_t weight{-1};
 };
 

@@ -30,8 +30,8 @@ constexpr AssetType NETWORK_FEE_ASSET = ASSET_ORU;
  */
 constexpr CAmount DEPRECATED_RES_FEE_UNIT_SCALE = COIN / RES_COIN;
 
-/** Fee in ORU base units for a serialized transaction size at an ORU sat/vB feerate. */
-CAmount OruNetworkFeeForVsize(const CFeeRate& feerate, int vbytes);
+/** Fee in ORU base units for a serialized transaction size (FINAL LOCK §1.2 bytes) at an ORU sat/byte feerate. */
+CAmount OruNetworkFeeForSizeBytes(const CFeeRate& feerate, int size_bytes);
 
 /** True when the wallet can fund the ORU fee pool (spendable ORU UTXOs exist). */
 bool WalletHasSpendableOruForFee(const CWallet& wallet, const CCoinControl* coin_control);

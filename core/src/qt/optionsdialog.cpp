@@ -38,6 +38,7 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
       ui(new Ui::OptionsDialog)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
 
     /* Main elements init */
     ui->databaseCache->setMinimum(nMinDbCache);
@@ -115,6 +116,11 @@ OptionsDialog::OptionsDialog(QWidget* parent, bool enableWallet)
     ui->lang->addItem(QString("(") + tr("default") + QString(")"), QVariant(""));
     for (const QString &langStr : translations.entryList())
     {
+        // Prefer zh_CN over bare "zh" (duplicate Simplified Chinese without country).
+        if (langStr == QLatin1String("zh")) {
+            continue;
+        }
+
         QLocale locale(langStr);
 
         /** check if the locale name consists of 2 parts (language_country) */

@@ -21,10 +21,8 @@ namespace Ui {
 }
 
 namespace RigorWallet {
-class VerificationNotice;
 class ORUBalancePanel;
 class RESBalancePanel;
-class ConvergenceStatusPanel;
 }
 
 QT_BEGIN_NAMESPACE
@@ -66,10 +64,9 @@ private:
 
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;
-    RigorWallet::VerificationNotice* m_verificationNotice{nullptr};
     RigorWallet::ORUBalancePanel* m_oruPanel{nullptr};
     RigorWallet::RESBalancePanel* m_resPanel{nullptr};
-    RigorWallet::ConvergenceStatusPanel* m_convergencePanel{nullptr};
+    QLabel* m_syncStatusBanner{nullptr};
 
 private Q_SLOTS:
     void LimitTransactionRows();

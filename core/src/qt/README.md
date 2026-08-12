@@ -1,10 +1,10 @@
 This directory contains the source code for the Rigor Core graphical user interface (GUI). It uses the [Qt](https://www1.qt.io/developers/) cross-platform framework.
 
-The current precise version for Qt 5 is specified in [qt.mk](../../depends/packages/qt.mk).
+The current precise version for Qt 5 is specified in [qt.mk](/depends/packages/qt.mk).
 
 ## Compile and run
 
-See build instructions: [Unix](../../doc/build-unix.md), [macOS](../../doc/build-osx.md), [Windows](../../doc/build-windows.md), [FreeBSD](../../doc/build-freebsd.md), [NetBSD](../../doc/build-netbsd.md), [OpenBSD](../../doc/build-openbsd.md)
+See build instructions: [Unix](/doc/build-unix.md), [macOS](/doc/build-osx.md), [Windows](/doc/build-windows.md), [FreeBSD](/doc/build-freebsd.md), [NetBSD](/doc/build-netbsd.md), [OpenBSD](/doc/build-openbsd.md)
 
 When following your systems build instructions, make sure to install the `Qt` dependencies.
 
@@ -22,7 +22,7 @@ To run:
 
 #### locale/
 
-- Contains translations. They are periodically updated and an effort is made to support as many languages as possible. The process of contributing translations is described in [doc/translation_process.md](../../doc/translation_process.md).
+- Contains translations. They are periodically updated and an effort is made to support as many languages as possible. The process of contributing translations is described in [doc/translation_process.md](/doc/translation_process.md).
 
 #### res/
 
@@ -70,9 +70,9 @@ To run:
 
 ## Contribute
 
-See [CONTRIBUTING.md](../../../CONTRIBUTING.md) for general guidelines.
+See [CONTRIBUTING.md](/CONTRIBUTING.md) for general guidelines.
 
-**Note:** Do not change `local/bitcoin_en.ts`. It is updated [automatically](../../doc/translation_process.md#writing-code-with-translations).
+**Note:** Do not change `local/bitcoin_en.ts`. It is updated [automatically](/doc/translation_process.md#writing-code-with-translations).
 
 ## Using Qt Creator as an IDE
 

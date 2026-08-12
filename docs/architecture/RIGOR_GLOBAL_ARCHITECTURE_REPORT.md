@@ -21,16 +21,16 @@ This document is the authoritative system-level architecture review of the RIGOR
 
 RIGOR is a **script-native, self-proving cryptoeconomic state machine** built on a Bitcoin Core–derived node (`rigord`). Its architecture rests on a single constitutional principle:
 
-> **Script-as-Asset** — asset type is inferred from `scriptPubKey` at parse time; `CTxOut` storage is unchanged.
+> **Script is the compliance layer** — asset *class* is inferred from `scriptPubKey` at parse time; `CTxOut` storage is unchanged; legitimacy requires UTXO commitments, script rules, economic proofs, and deterministic verification.
 
 The system implements a closed dual-asset economy:
 
 | Asset | Role | Script container |
 |-------|------|------------------|
-| **ORU** (Operational Resource Unit) | PoW subsidy, fees, convergence (burn) domain | Witness v0; CVG2 witness v1 for convergence |
-| **RES** (Reward / Settlement) | Selection-derived issuance, capped supply | Witness v1 (32-byte program, no CVG2 prefix) |
+| **ORU** (Operational Resource Unit) | PoW security and economic coordination (subsidy, fees, RES burn cost) | Witness v0; CVG2 witness v1 for convergence |
+| **RES** (Reserve / scarce resource) | Independent scarce issuance via consensus draw — **not mined** | Witness v1 (32-byte program, no CVG2 prefix) |
 
-**Convergence** (implementation term; replaces whitepaper FORGE/BURN semantics) destroys ORU via CVG2 outputs. A deterministic draw over eligible convergence transactions selects a winner; a **PCORB** witness authorizes exactly one RES mint per block when predicates pass.
+**Convergence** destroys ORU via CVG2 outputs. A deterministic consensus allocation over eligible convergence transactions selects a winner; a RES mint witness authorizes exactly one RES mint per awarded height when predicates pass. PoW does not create RES; PoW provides irreversible ordering for fair allocation.
 
 The stack separates into four layers (§2). Consensus truth lives exclusively in Layer 1. Layer 2 operationalizes mining and pool infrastructure as a **non-consensus mirror** of frozen rules. Layers 3 and 4 observe and experiment without authority.
 
@@ -62,7 +62,7 @@ The stack separates into four layers (§2). Consensus truth lives exclusively in
 3. No Taproot/BIP341 semantics; StateTag classification, not script VM execution.
 4. Convergence outputs excluded from UTXO set (burn on connect).
 5. At most one scoring RES mint per block; RES never from coinbase body alone.
-6. Integer-only arithmetic; `RES_PROBABILITY_TARGET = 2^240` for draw inequality.
+6. Integer-only arithmetic; windowed `RES_PROBABILITY_TARGET` for the draw inequality (see RFC-014).
 
 **Normative references:** `docs/rfcs/RFC-000-consensus-constitution.md`, `RFC-000A-rigor-implementation-bible.md`, `RFC-001-deterministic-selection.md`, `RFC-002-supply-evolution.md`, `core/doc/rigor_consensus_pipeline.md`, `core/doc/convergence-consensus-v1.md`.
 

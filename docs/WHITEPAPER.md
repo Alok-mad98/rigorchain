@@ -47,22 +47,22 @@ While PROOF-034 executes (mining a regtest archive to height ≥ 2 100 001), all
 
 ### 2.1 Consensus and storage model
 
-RIGOR stores value in standard UTXO outputs `(nValue, scriptPubKey)`. Asset class is **inferred from script**, not stored in a parallel field. This preserves script-as-asset architecture: the locking script is the authoritative definition of asset type.
+RIGOR stores value in standard UTXO outputs `(nValue, scriptPubKey)`. Asset *class* is **inferred from script**, not stored in a parallel field. The locking script is the **compliance layer**: it states the conditions under which an output may exist and be spent. Legitimacy still requires UTXO commitments, consensus validation, and (for RES) economic proofs — script parsing alone is not a complete definition of asset legitimacy.
 
 ### 2.2 Native assets: ORU and RES
 
 | Asset | Script path | Role |
 |-------|-------------|------|
-| **ORU** | Witness v0 | Primary subsidy asset; halving at catalogued epoch heights |
-| **RES** | Witness v1 (RNG) | Secondary emission asset; cap and mint rules at height gates |
+| **ORU** | Witness v0 | Proof-of-work security and economic coordination asset (subsidy, fees, RES participation cost) |
+| **RES** | Witness v1 | Independent scarce resource; allocated by deterministic convergence draw; **not mined** |
 
-Both are **native** to the protocol—not external tokens, not account balances.
+Both are **native** to the protocol—not external tokens, not account balances. PoW does not create RES; PoW provides irreversible ordering for fair RES allocation.
 
 ### 2.3 Mining (OpuHash)
 
 **Mining exists** as the proof-of-work layer that discovers valid blocks. OpuHash is the consensus PoW function. **CPU mining** is a valid participation path via `rigor-miner-agent` and Stratum job distribution.
 
-Mining supplies **state transition inputs** (valid blocks). It does not define convergence or mint semantics.
+Mining supplies **state transition inputs** (valid blocks) and secures ordering. It does not mint RES and does not define convergence or mint semantics.
 
 ### 2.4 Convergence (selection system)
 

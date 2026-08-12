@@ -77,12 +77,20 @@ std::unique_ptr<WalletDatabase> MakeWalletDatabase(const std::string& name, cons
 
 //! -paytxfee default
 constexpr CAmount DEFAULT_PAY_TX_FEE = 0;
-//! -fallbackfee default
-static const CAmount DEFAULT_FALLBACK_FEE = 0;
 //! -discardfee default
 static const CAmount DEFAULT_DISCARD_FEE = 10000;
 //! -mintxfee default
 static const CAmount DEFAULT_TRANSACTION_MINFEE = 1000;
+/**
+ * -fallbackfee default (ORU sat/kvB).
+ *
+ * RIGOR Fee Mechanism (FINAL LOCK) requires network fees in ORU (POOL-F) but does not
+ * prescribe wallet estimate sources. On a young / low-traffic chain the smart-fee
+ * estimator often has no data; Bitcoin Core's DEFAULT_FALLBACK_FEE=0 then blocks all
+ * Recommended sends. Use the same floor as -mintxfee so ORU/RES dual-pool sends can
+ * proceed; override with -fallbackfee=0 to restore the hard-fail behavior.
+ */
+static const CAmount DEFAULT_FALLBACK_FEE = DEFAULT_TRANSACTION_MINFEE;
 //! -consolidatefeerate default
 static const CAmount DEFAULT_CONSOLIDATE_FEERATE{10000}; // 10 sat/vbyte
 /**
@@ -479,6 +487,13 @@ public:
      */
     int GetTxBlocksToMaturity(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     bool IsTxImmatureCoinBase(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /**
+     * Body RES *mint* maturity: same depth as nCoinbaseMaturity.
+     * RES transfers / change are not immature (WALLET DESIGN LOCK).
+     * Name retains "ResMint" for call-site compatibility.
+     */
+    int GetTxBlocksToResMintMaturity(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool IsTxImmatureResMint(const CWalletTx& wtx) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! check whether we support the named feature
     bool CanSupportFeature(enum WalletFeature wf) const override EXCLUSIVE_LOCKS_REQUIRED(cs_wallet) { AssertLockHeld(cs_wallet); return IsFeatureSupported(nWalletVersion, wf); }
@@ -650,12 +665,12 @@ public:
      * cannot fund the transaction otherwise. */
     bool m_spend_zero_conf_change{DEFAULT_SPEND_ZEROCONF_CHANGE};
     bool m_signal_rbf{DEFAULT_WALLET_RBF};
-    bool m_allow_fallback_fee{true}; //!< will be false if -fallbackfee=0
+    bool m_allow_fallback_fee{true}; //!< false only when -fallbackfee=0 (explicit disable)
     CFeeRate m_min_fee{DEFAULT_TRANSACTION_MINFEE}; //!< Override with -mintxfee
     /**
      * If fee estimation does not have enough data to provide estimates, use this fee instead.
-     * Has no effect if not using fee estimation
-     * Override with -fallbackfee
+     * Has no effect if not using fee estimation. Default equals -mintxfee (see DEFAULT_FALLBACK_FEE).
+     * Override with -fallbackfee (0 disables Recommended-fee sends until estimates exist).
      */
     CFeeRate m_fallback_fee{DEFAULT_FALLBACK_FEE};
 

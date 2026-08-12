@@ -60,7 +60,7 @@ Bindings: `getblockchaininfo`, `/api/status` — see [API_BINDING_LAYER.md](./AP
 | RES | Conservation + mint cap |
 | FORGE | MTH burn threshold → RES eligibility path |
 | Consensus | DurinHash PoW, 80-byte header |
-| UTXO | Script-as-asset |
+| UTXO | Script-as-compliance |
 
 Static MD from `content/protocol.md` + optional `LiveProtocolStrip`.
 

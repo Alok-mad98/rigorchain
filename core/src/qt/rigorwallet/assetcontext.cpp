@@ -134,7 +134,8 @@ QString AssetContext::authorityLabel(DataAuthority authority)
 {
     switch (authority) {
     case DataAuthority::Node:
-        return QStringLiteral("(node)");
+        // Product overview panels: plain "ORU" / "RES" / "Convergence" (no "(node)").
+        return {};
     case DataAuthority::Indexed:
         return QStringLiteral("(indexed)");
     case DataAuthority::Wallet:
@@ -142,12 +143,14 @@ QString AssetContext::authorityLabel(DataAuthority authority)
     case DataAuthority::Simulation:
         return QStringLiteral("(simulation)");
     }
-    return QStringLiteral("(node)");
+    return {};
 }
 
 QString AssetContext::panelTitle(WalletAssetContext ctx, DataAuthority authority)
 {
-    return displayName(ctx) + QStringLiteral(" ") + authorityLabel(authority);
+    const QString auth = authorityLabel(authority);
+    if (auth.isEmpty()) return displayName(ctx);
+    return displayName(ctx) + QStringLiteral(" ") + auth;
 }
 
 } // namespace RigorWallet

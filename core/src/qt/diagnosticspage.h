@@ -11,6 +11,11 @@ class ClientModel;
 class PlatformStyle;
 class WalletModel;
 
+QT_BEGIN_NAMESPACE
+class QTimer;
+class QShowEvent;
+QT_END_NAMESPACE
+
 namespace RigorWallet {
 class WarningBanner;
 class DiagnosticsNodePanel;
@@ -35,13 +40,18 @@ public:
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
 
+protected:
+    void showEvent(QShowEvent* event) override;
+
 private:
+    void scheduleRefresh();
     void refreshAll();
     void updateWarnings();
 
     ClientModel* clientModel{nullptr};
     WalletModel* walletModel{nullptr};
     const PlatformStyle* m_platform_style{nullptr};
+    QTimer* m_refreshDebounce{nullptr};
 
     RigorWallet::WarningBanner* m_warningBanner{nullptr};
     RigorWallet::DiagnosticsNodePanel* m_nodePanel{nullptr};

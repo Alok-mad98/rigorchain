@@ -56,6 +56,9 @@ public:
     /** Change unit used to display amount. */
     void setDisplayUnit(BitcoinUnit new_unit);
 
+    /** Show or hide the ORU subdivision unit combo (ORU / mORU / uORU / Tharn). */
+    void setUnitSelectorVisible(bool visible);
+
     /** ORU uses COIN-scale display units (BitcoinUnits); Res uses 2-decimal native units (see consensus/res_amount.h). */
     void setSendAsset(AssetType asset);
 

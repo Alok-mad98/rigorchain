@@ -36,7 +36,7 @@ DiagnosticsNodePanel::DiagnosticsNodePanel(QWidget* parent)
 
     auto* layout = new QVBoxLayout(this);
     auto* header = new QHBoxLayout();
-    auto* title = new QLabel(tr("Node %1").arg(AssetContext::authorityLabel(DataAuthority::Node)), this);
+    auto* title = new QLabel(tr("Node"), this);
     title->setStyleSheet(QStringLiteral("font-weight: bold;"));
     m_badge = new StatusBadge(this);
     header->addWidget(title);

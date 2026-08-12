@@ -5,16 +5,19 @@
 #ifndef BITCOIN_QT_RIGORWALLET_WIDGETS_FIRSTRUNWIZARD_H
 #define BITCOIN_QT_RIGORWALLET_WIDGETS_FIRSTRUNWIZARD_H
 
-#include <QWizard>
+#include <QDialog>
 
 class ClientModel;
 class WalletModel;
 class QLabel;
+class QStackedWidget;
 
 namespace RigorWallet {
 
-/** First-launch readiness checks — presentation only, no backend changes. */
-class FirstRunWizard : public QWizard
+/** First-launch readiness checks — presentation only, no backend changes.
+ *  Implemented as QDialog (not QWizard): depends Qt is built with -no-feature-wizard.
+ */
+class FirstRunWizard : public QDialog
 {
     Q_OBJECT
 
@@ -24,15 +27,23 @@ public:
     static bool shouldShow();
     static void markCompleted();
 
+private Q_SLOTS:
+    void onBack();
+    void onNext();
+    void onFinish();
+
 private:
     void buildPages();
+    void showStep(int index);
     void refreshStatusPage();
 
     ClientModel* m_clientModel{nullptr};
     WalletModel* m_walletModel{nullptr};
+    QStackedWidget* m_stack{nullptr};
     QLabel* m_nodeStatus{nullptr};
     QLabel* m_explorerStatus{nullptr};
     QLabel* m_convergenceStatus{nullptr};
+    int m_step{0};
 };
 
 } // namespace RigorWallet

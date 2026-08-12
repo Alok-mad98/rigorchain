@@ -42,9 +42,11 @@ void ConvergenceWizard::buildSteps()
     s1->addWidget(new QLabel(tr("Step 1: Select ORU amount to convergence"), step1));
     s1->addWidget(new QLabel(ConvergenceEducation::whatIsConvergence(), step1));
     m_amountField = new BitcoinAmountField(step1);
-    if (m_walletModel && m_walletModel->getOptionsModel()) {
-        m_amountField->setDisplayUnit(m_walletModel->getOptionsModel()->getDisplayUnit());
-    }
+    // Convergence minimum is 1 ORU; lock display to ORU and hide mORU/uORU/Tharn.
+    m_amountField->setDisplayUnit(BitcoinUnit::ORU);
+    m_amountField->setUnitSelectorVisible(false);
+    m_amountField->SetMinValue(Consensus::MIN_CONVERGENCE_AMOUNT);
+    m_amountField->setSingleStep(COIN);
     s1->addWidget(m_amountField);
     m_stack->addWidget(step1);
 
@@ -62,7 +64,7 @@ void ConvergenceWizard::buildSteps()
     auto* s3 = new QVBoxLayout(step3);
     s3->addWidget(new QLabel(tr("Step 3: Confirmation"), step3));
     m_confirmLabel = new QLabel(
-        tr("Convergence permanently consumes ORU. A RES mint may follow protocol rules but is never guaranteed."),
+        tr("Convergence permanently commits ORU under consensus rules. A RES mint may follow deterministic selection but is never guaranteed."),
         step3);
     m_confirmLabel->setWordWrap(true);
     s3->addWidget(m_confirmLabel);
@@ -104,10 +106,9 @@ void ConvergenceWizard::refreshReviewStep()
         m_reviewLabel->setText(tr("Enter a valid amount in Step 1."));
         return;
     }
-    const BitcoinUnit unit = m_walletModel->getOptionsModel()->getDisplayUnit();
     m_reviewLabel->setText(tr("Amount: %1\nMinimum: %2\nNetwork fee: none for convergence\nParameters are reported by your node.")
-                               .arg(BitcoinUnits::formatWithUnit(unit, amt))
-                               .arg(BitcoinUnits::formatWithUnit(unit, Consensus::MIN_CONVERGENCE_AMOUNT)));
+                               .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, amt))
+                               .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT)));
 }
 
 bool ConvergenceWizard::validateAmount(CAmount& amount_out)

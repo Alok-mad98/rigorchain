@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# TASK-MAINNET-PRODUCT-ALPHA-001 / Windows PE — cross-build real PE binaries
+# No consensus / RFC / RES model changes.
+#
+# Produces:
+#   dist/alpha/windows/staging/rigor-wallet.exe
+#   dist/alpha/windows/staging/rigord.exe
+#   dist/alpha/windows/staging/rigor-miner.exe
+#   dist/alpha/windows/staging/rigor-cli.exe (optional)
+#
+# Requires: mingw-w64, make, network for depends downloads.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CORE="${REPO_ROOT}/core"
+DEPENDS="${CORE}/depends"
+HOST=x86_64-w64-mingw32
+STAGING="${REPO_ROOT}/dist/alpha/windows/staging"
+JOBS="${JOBS:-$(nproc)}"
+SKIP_DEPENDS="${SKIP_DEPENDS:-0}"
+SKIP_CORE="${SKIP_CORE:-0}"
+SKIP_MINER="${SKIP_MINER:-0}"
+
+log() { printf '[win-pe] %s\n' "$*"; }
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || { log "ERROR: missing $1"; exit 1; }
+}
+
+need_cmd make
+need_cmd "${HOST}-g++"
+need_cmd "${HOST}-gcc"
+
+mkdir -p "${STAGING}"
+
+# --- depends (Boost, Qt, libevent, curl, …) ---
+if [[ "${SKIP_DEPENDS}" != "1" ]]; then
+  log "Building depends HOST=${HOST} (long)…"
+  make -C "${DEPENDS}" HOST="${HOST}" -j"${JOBS}"
+else
+  log "Skipping depends (SKIP_DEPENDS=1)"
+fi
+
+CONFIG_SITE="${DEPENDS}/${HOST}/share/config.site"
+if [[ ! -f "${CONFIG_SITE}" ]]; then
+  log "ERROR: ${CONFIG_SITE} missing — depends incomplete"
+  exit 1
+fi
+
+# libsodium is required by configure.ac but is not a core/depends package.
+# Install a static mingw build into the depends prefix when missing.
+SODIUM_PC="${DEPENDS}/${HOST}/lib/pkgconfig/libsodium.pc"
+if [[ ! -f "${SODIUM_PC}" ]]; then
+  log "ERROR: ${SODIUM_PC} missing — cross-install libsodium into depends prefix first"
+  log "  (see .runtime/alpha-local-stack/libsodium-mingw/ or build_alpha_windows_libsodium.sh)"
+  exit 1
+fi
+
+# --- Core PE (rigord, rigor-cli, rigor-qt → rigor-wallet) ---
+# Out-of-tree configure requires an unconfigured source tree. If Linux in-tree
+# config exists, distclean first (Linux bins remain in dist/alpha/linux/).
+if [[ "${SKIP_CORE}" != "1" ]]; then
+  log "Configuring + building core for ${HOST}…"
+  cd "${CORE}"
+  if [[ ! -f ./configure ]]; then
+    ./autogen.sh
+  fi
+  if [[ -f ./config.status ]]; then
+    log "In-tree config.status present — make distclean (required for mingw VPATH/host switch)"
+    make distclean || true
+  fi
+  BUILD_DIR="${CORE}/build-mingw-alpha"
+  rm -rf "${BUILD_DIR}"
+  mkdir -p "${BUILD_DIR}"
+  cd "${BUILD_DIR}"
+  CONFIG_SITE="${CONFIG_SITE}" "${CORE}/configure" \
+    --prefix=/ \
+    --host="${HOST}" \
+    --with-gui=qt5 \
+    --enable-reduce-exports \
+    --disable-bench \
+    --disable-tests \
+    --disable-gui-tests \
+    --without-miniupnpc \
+    --without-libs
+  make -j"${JOBS}"
+  for cand in \
+    "${BUILD_DIR}/src/qt/rigor-qt.exe" \
+    "${BUILD_DIR}/src/qt/.libs/rigor-qt.exe"; do
+    [[ -f "$cand" ]] && cp -a "$cand" "${STAGING}/rigor-wallet.exe" && break
+  done
+  for cand in \
+    "${BUILD_DIR}/src/rigord.exe" \
+    "${BUILD_DIR}/src/.libs/rigord.exe"; do
+    [[ -f "$cand" ]] && cp -a "$cand" "${STAGING}/rigord.exe" && break
+  done
+  for cand in \
+    "${BUILD_DIR}/src/rigor-cli.exe" \
+    "${BUILD_DIR}/src/.libs/rigor-cli.exe"; do
+    [[ -f "$cand" ]] && cp -a "$cand" "${STAGING}/rigor-cli.exe" && break
+  done
+else
+  log "Skipping core (SKIP_CORE=1)"
+fi
+
+# --- Miner PE ---
+if [[ "${SKIP_MINER}" != "1" ]]; then
+  log "Cross-building rigor-miner (cpuminer)…"
+  MINER="${REPO_ROOT}/cpuminer"
+  cd "${MINER}"
+  [[ -f configure ]] || ./autogen.sh
+  if [[ -f ./config.status ]]; then
+    make distclean || true
+  fi
+  # libcurl must already be in depends prefix (scripts/alpha/build_alpha_windows_curl.sh).
+  if [[ ! -f "${DEPENDS}/${HOST}/lib/libcurl.a" ]]; then
+    log "ERROR: ${DEPENDS}/${HOST}/lib/libcurl.a missing — run scripts/alpha/build_alpha_windows_curl.sh"
+    exit 1
+  fi
+  # CURL_STATICLIB required for static libcurl. Schannel deps go in LIBS so
+  # AC_CHECK_LIB(curl) can resolve curl_easy_init. Unset CONFIG_SITE.
+  # Static-link winpthread so rigor-miner.exe does not need libwinpthread-1.dll on Windows.
+  CURL_WIN_LIBS="-lws2_32 -lcrypt32 -lbcrypt -lsecur32 -lwldap32 -lwinmm"
+  env -u CONFIG_SITE ./configure --host="${HOST}" --build="$(gcc -dumpmachine 2>/dev/null || echo x86_64-pc-linux-gnu)" \
+    CC="${HOST}-gcc" CXX="${HOST}-g++" \
+    CPPFLAGS="-DCURL_STATICLIB -I${DEPENDS}/${HOST}/include" \
+    LDFLAGS="-L${DEPENDS}/${HOST}/lib -static-libgcc" \
+    LIBS="${CURL_WIN_LIBS}" \
+    PTHREAD_LIBS="-Wl,-Bstatic -lpthread -lwinpthread -Wl,-Bdynamic" \
+    2>&1 | tee /tmp/minerd-mingw-configure.log | tail -40
+  make -j"${JOBS}"
+  # Ensure pthread is static even if automake still injects -lpthread early.
+  if x86_64-w64-mingw32-objdump -p minerd.exe 2>/dev/null | grep -qi 'libwinpthread'; then
+    log "Relinking miner without dynamic libwinpthread…"
+    rm -f minerd.exe
+    x86_64-w64-mingw32-g++ -g -O2 \
+      -L"${DEPENDS}/${HOST}/lib" -static-libgcc \
+      -o minerd.exe \
+      minerd-cpu-miner.o minerd-util.o minerd-sha2.o minerd-scrypt.o minerd-opus_hash.o minerd-arith_uint256.o \
+      minerd-sha2-x64.o minerd-scrypt-x64.o \
+      compat/jansson/libjansson.a \
+      -Wl,-Bstatic -lcurl -lpthread -lwinpthread \
+      -Wl,-Bdynamic \
+      ${CURL_WIN_LIBS}
+  fi
+  if x86_64-w64-mingw32-objdump -p minerd.exe 2>/dev/null | grep -qi 'libwinpthread'; then
+    log "ERROR: rigor-miner still depends on libwinpthread-1.dll"
+    exit 1
+  fi
+  for cand in "${MINER}/minerd.exe"; do
+    if [[ -f "$cand" ]]; then
+      cp -a "$cand" "${STAGING}/rigor-miner.exe"
+      break
+    fi
+  done
+  if [[ ! -f "${STAGING}/rigor-miner.exe" ]]; then
+    log "ERROR: miner PE missing — see /tmp/minerd-mingw-configure.log"
+    exit 1
+  fi
+fi
+
+# --- PE gate ---
+log "Verifying PE staging…"
+bash "${REPO_ROOT}/scripts/alpha/verify_windows_pe.sh" "${STAGING}"
+
+log "Staging complete:"
+ls -la "${STAGING}"

@@ -416,6 +416,11 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
                 else
                     entry.pushKV("category", "generate");
             }
+            else if (AssetTypeFromScriptPubKey(wtx.tx->vout.at(static_cast<size_t>(r.vout)).scriptPubKey) == ASSET_RES &&
+                     wallet.IsTxImmatureResMint(wtx))
+            {
+                entry.pushKV("category", "immature");
+            }
             else
             {
                 entry.pushKV("category", "receive");
@@ -980,7 +985,7 @@ RPCHelpMan rescanblockchain()
 RPCHelpMan abortrescan()
 {
     return RPCHelpMan{"abortrescan",
-                "\nStops current wallet rescan triggered by an RPC call, e.g. by an importprivkey call.\n"
+                "\nStops current wallet rescan triggered by an RPC call, e.g. by an importrigorprivkey / importprivkey call.\n"
                 "Note: Use \"getwalletinfo\" to query the scanning progress.\n",
                 {},
                 RPCResult{RPCResult::Type::BOOL, "", "Whether the abort was successful"},

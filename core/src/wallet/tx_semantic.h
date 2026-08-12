@@ -36,6 +36,12 @@ TxSemanticKind ClassifyWalletTxSemantic(const CWallet& wallet, const CWalletTx& 
 /** Classify from an input UTXO view (consensus StateTag helpers). Returns Unknown when prevouts are missing. */
 TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache& inputs);
 
+/**
+ * Fallback when wallet lacks input prevouts (typical incoming payment).
+ * RES-bearing outputs → ResTransfer (never ResMint: mint needs input view for maturity).
+ */
+TxSemanticKind ClassifyTxSemanticFromOutputs(const CTransaction& tx);
+
 /** Canonical English presentation label (Qt/RPC). */
 std::string TxSemanticCanonicalLabel(TxSemanticKind kind);
 

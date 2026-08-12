@@ -18,6 +18,7 @@
 #include <qt/platformstyle.h>
 #include <qt/receivecoinsdialog.h>
 #include <qt/sendcoinsdialog.h>
+#include <qt/keymanagementdialog.h>
 #include <qt/signverifymessagedialog.h>
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
@@ -32,6 +33,7 @@
 #include <QHBoxLayout>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 
 WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platformStyle, QWidget* parent)
@@ -41,24 +43,62 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
 {
     assert(walletModel);
 
-    // Create tabs
+    // Overview first so Load Wallets can return to a responsive main window quickly.
+    // Heavier tabs (history / send / convergence / diagnostics) are built on idle timers.
     overviewPage = new OverviewPage(platformStyle);
     overviewPage->setWalletModel(walletModel);
+    addWidget(overviewPage);
+    setCurrentWidget(overviewPage);
 
-    convergencePage = new ConvergencePage(platformStyle);
-    convergencePage->setWalletModel(walletModel);
+    connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
+    connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::outOfSyncWarningClicked);
+    connect(this, &WalletView::setPrivacy, overviewPage, &OverviewPage::setPrivacy);
 
-    diagnosticsPage = new DiagnosticsPage(platformStyle);
-    diagnosticsPage->setWalletModel(walletModel);
+    connect(walletModel, &WalletModel::message, this, &WalletView::message);
+    connect(walletModel, &WalletModel::encryptionStatusChanged, this, &WalletView::encryptionStatusChanged);
+    connect(walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &WalletView::processNewTransaction);
+    connect(walletModel, &WalletModel::requireUnlock, this, &WalletView::unlockWallet);
+    connect(walletModel, &WalletModel::showProgress, this, &WalletView::showProgress);
+
+    QTimer::singleShot(0, this, &WalletView::buildDeferredPages);
+}
+
+WalletView::~WalletView() = default;
+
+void WalletView::buildDeferredPages()
+{
+    if (m_deferred_pages_ready || m_deferred_build_started) return;
+    m_deferred_build_started = true;
+
+    // One page group per event-loop turn so the UI can paint and Windows does not
+    // mark the process as Not Responding during first wallet attach.
+    QTimer::singleShot(0, this, [this] {
+        ensureHistoryPage();
+        QTimer::singleShot(0, this, [this] {
+            ensureReceiveSendPages();
+            QTimer::singleShot(0, this, [this] {
+                ensureConvergenceDiagnosticsPages();
+                m_deferred_pages_ready = true;
+                if (clientModel) {
+                    applyClientModelToPages();
+                }
+            });
+        });
+    });
+}
+
+void WalletView::ensureHistoryPage()
+{
+    if (transactionsPage) return;
 
     transactionsPage = new QWidget(this);
-    QVBoxLayout *vbox = new QVBoxLayout();
-    QHBoxLayout *hbox_buttons = new QHBoxLayout();
+    auto* vbox = new QVBoxLayout();
+    auto* hbox_buttons = new QHBoxLayout();
     transactionView = new TransactionView(platformStyle, this);
     transactionView->setModel(walletModel);
 
     vbox->addWidget(transactionView);
-    QPushButton *exportButton = new QPushButton(tr("&Export"), this);
+    auto* exportButton = new QPushButton(tr("&Export"), this);
     exportButton->setToolTip(tr("Export the data in the current tab to a file"));
     if (platformStyle->getImagesOnButtons()) {
         exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
@@ -67,76 +107,89 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     hbox_buttons->addWidget(exportButton);
     vbox->addLayout(hbox_buttons);
     transactionsPage->setLayout(vbox);
-
-    receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
-    receiveCoinsPage->setModel(walletModel);
-
-    sendCoinsPage = new SendCoinsDialog(platformStyle);
-    sendCoinsPage->setModel(walletModel);
-
-    usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
-    usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
-
-    usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
-    usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
-
-    addWidget(overviewPage);
     addWidget(transactionsPage);
-    addWidget(receiveCoinsPage);
-    addWidget(sendCoinsPage);
-    addWidget(convergencePage);
-    addWidget(diagnosticsPage);
 
-    connect(overviewPage, &OverviewPage::transactionClicked, this, &WalletView::transactionClicked);
-    // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, transactionView, qOverload<const QModelIndex&>(&TransactionView::focusTransaction));
-
-    connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::outOfSyncWarningClicked);
-
-    connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);
-    // Highlight transaction after send
-    connect(sendCoinsPage, &SendCoinsDialog::coinsSent, transactionView, qOverload<const uint256&>(&TransactionView::focusTransaction));
-
-    // Clicking on "Export" allows to export the transaction list
     connect(exportButton, &QPushButton::clicked, transactionView, &TransactionView::exportClicked);
-
-    // Pass through messages from sendCoinsPage
-    connect(sendCoinsPage, &SendCoinsDialog::message, this, &WalletView::message);
-    // Pass through messages from transactionView
     connect(transactionView, &TransactionView::message, this, &WalletView::message);
-
-    connect(this, &WalletView::setPrivacy, overviewPage, &OverviewPage::setPrivacy);
     connect(this, &WalletView::setPrivacy, this, &WalletView::disableTransactionView);
-
-    // Receive and pass through messages from wallet model
-    connect(walletModel, &WalletModel::message, this, &WalletView::message);
-
-    // Handle changes in encryption status
-    connect(walletModel, &WalletModel::encryptionStatusChanged, this, &WalletView::encryptionStatusChanged);
-
-    // Balloon pop-up for new transaction
-    connect(walletModel->getTransactionTableModel(), &TransactionTableModel::rowsInserted, this, &WalletView::processNewTransaction);
-
-    // Ask for passphrase if needed
-    connect(walletModel, &WalletModel::requireUnlock, this, &WalletView::unlockWallet);
-
-    // Show progress dialog
-    connect(walletModel, &WalletModel::showProgress, this, &WalletView::showProgress);
 }
 
-WalletView::~WalletView() = default;
+void WalletView::ensureReceiveSendPages()
+{
+    if (receiveCoinsPage && sendCoinsPage) return;
+
+    if (!receiveCoinsPage) {
+        receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
+        receiveCoinsPage->setModel(walletModel);
+        addWidget(receiveCoinsPage);
+    }
+    if (!sendCoinsPage) {
+        sendCoinsPage = new SendCoinsDialog(platformStyle);
+        sendCoinsPage->setModel(walletModel);
+        addWidget(sendCoinsPage);
+        connect(sendCoinsPage, &SendCoinsDialog::coinsSent, this, &WalletView::coinsSent);
+        if (transactionView) {
+            connect(sendCoinsPage, &SendCoinsDialog::coinsSent, transactionView, qOverload<const uint256&>(&TransactionView::focusTransaction));
+        }
+        connect(sendCoinsPage, &SendCoinsDialog::message, this, &WalletView::message);
+        if (clientModel) {
+            sendCoinsPage->setClientModel(clientModel);
+        }
+    }
+    if (!usedSendingAddressesPage) {
+        usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
+        usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
+    }
+    if (!usedReceivingAddressesPage) {
+        usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
+        usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
+    }
+}
+
+void WalletView::ensureConvergenceDiagnosticsPages()
+{
+    if (!convergencePage) {
+        convergencePage = new ConvergencePage(platformStyle);
+        convergencePage->setWalletModel(walletModel);
+        addWidget(convergencePage);
+        if (clientModel) {
+            convergencePage->setClientModel(clientModel);
+        }
+    }
+    if (!diagnosticsPage) {
+        diagnosticsPage = new DiagnosticsPage(platformStyle);
+        diagnosticsPage->setWalletModel(walletModel);
+        addWidget(diagnosticsPage);
+        if (clientModel) {
+            diagnosticsPage->setClientModel(clientModel);
+        }
+    }
+}
+
+void WalletView::ensureAllPages()
+{
+    ensureHistoryPage();
+    ensureReceiveSendPages();
+    ensureConvergenceDiagnosticsPages();
+    m_deferred_pages_ready = true;
+}
+
+void WalletView::applyClientModelToPages()
+{
+    if (!clientModel) return;
+    if (overviewPage) overviewPage->setClientModel(clientModel);
+    if (convergencePage) convergencePage->setClientModel(clientModel);
+    if (diagnosticsPage) diagnosticsPage->setClientModel(clientModel);
+    if (sendCoinsPage) sendCoinsPage->setClientModel(clientModel);
+    RigorWallet::ExplorerStatusService::instance().setClientModel(clientModel);
+    if (walletModel) walletModel->setClientModel(clientModel);
+}
 
 void WalletView::setClientModel(ClientModel *_clientModel)
 {
     this->clientModel = _clientModel;
-
-    overviewPage->setClientModel(_clientModel);
-    convergencePage->setClientModel(_clientModel);
-    diagnosticsPage->setClientModel(_clientModel);
-    RigorWallet::ExplorerStatusService::instance().setClientModel(_clientModel);
-    sendCoinsPage->setClientModel(_clientModel);
-    walletModel->setClientModel(_clientModel);
-
+    applyClientModelToPages();
     maybeShowFirstRunWizard();
 }
 
@@ -179,26 +232,31 @@ void WalletView::gotoOverviewPage()
 
 void WalletView::gotoHistoryPage()
 {
+    ensureHistoryPage();
     setCurrentWidget(transactionsPage);
 }
 
 void WalletView::gotoConvergencePage()
 {
+    ensureConvergenceDiagnosticsPages();
     setCurrentWidget(convergencePage);
 }
 
 void WalletView::gotoDiagnosticsPage()
 {
+    ensureConvergenceDiagnosticsPages();
     setCurrentWidget(diagnosticsPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()
 {
+    ensureReceiveSendPages();
     setCurrentWidget(receiveCoinsPage);
 }
 
 void WalletView::gotoSendCoinsPage(QString addr)
 {
+    ensureReceiveSendPages();
     setCurrentWidget(sendCoinsPage);
 
     if (!addr.isEmpty())
@@ -229,8 +287,17 @@ void WalletView::gotoVerifyMessageTab(QString addr)
         signVerifyMessageDialog->setAddress_VM(addr);
 }
 
+void WalletView::gotoKeyManagement()
+{
+    auto* dlg = new KeyManagementDialog(platformStyle, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setModel(walletModel);
+    GUIUtil::ShowModalDialogAsynchronously(dlg);
+}
+
 bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 {
+    ensureReceiveSendPages();
     return sendCoinsPage->handlePaymentRequest(recipient);
 }
 
@@ -288,11 +355,13 @@ void WalletView::unlockWallet()
 
 void WalletView::usedSendingAddresses()
 {
+    ensureReceiveSendPages();
     GUIUtil::bringToFront(usedSendingAddressesPage);
 }
 
 void WalletView::usedReceivingAddresses()
 {
+    ensureReceiveSendPages();
     GUIUtil::bringToFront(usedReceivingAddressesPage);
 }
 
@@ -321,5 +390,7 @@ void WalletView::showProgress(const QString &title, int nProgress)
 
 void WalletView::disableTransactionView(bool disable)
 {
-    transactionView->setDisabled(disable);
+    if (transactionView) {
+        transactionView->setDisabled(disable);
+    }
 }

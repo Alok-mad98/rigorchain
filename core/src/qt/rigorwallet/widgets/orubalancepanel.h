@@ -15,7 +15,8 @@ class QLabel;
 
 namespace RigorWallet {
 
-/** Dedicated ORU balance panel — never mixes RES (BUILD-09). */
+/** Dedicated ORU balance panel — never mixes RES (BUILD-09).
+ *  Rows match RESBalancePanel: Confirmed / Pending / Total. */
 class ORUBalancePanel : public QFrame
 {
     Q_OBJECT
@@ -27,15 +28,12 @@ public:
 
 private:
     void applyTheme();
-    void setRow(int row, const QString& title, QLabel* valueLabel, const QString& amount);
 
     QLabel* m_titleLabel{nullptr};
     QLabel* m_confirmedLabel{nullptr};
-    QLabel* m_unconfirmedLabel{nullptr};
     QLabel* m_pendingLabel{nullptr};
     QLabel* m_totalLabel{nullptr};
     QLabel* m_confirmedValue{nullptr};
-    QLabel* m_unconfirmedValue{nullptr};
     QLabel* m_pendingValue{nullptr};
     QLabel* m_totalValue{nullptr};
 };

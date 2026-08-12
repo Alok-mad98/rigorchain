@@ -409,28 +409,35 @@ public:
     WalletBalances getBalances() override
     {
         WalletBalances result;
-        const auto orum = GetAssetBalance(*m_wallet, ASSET_ORU);
-        const auto res = GetAssetBalance(*m_wallet, ASSET_RES);
-        result.balance = orum.trusted;
-        result.unconfirmed_balance = orum.pending;
+        // Confirmed = trusted at depth >= 1. Pending unconfirmed includes own 0-conf
+        // (trusted mempool change) as well as untrusted mempool credit — otherwise RES
+        // transfer change never appears under Confirmed (min_depth 0) nor Pending.
+        const auto orum_conf = GetAssetBalance(*m_wallet, ASSET_ORU, /*min_depth=*/1);
+        const auto orum_all = GetAssetBalance(*m_wallet, ASSET_ORU, /*min_depth=*/0);
+        const auto res_conf = GetAssetBalance(*m_wallet, ASSET_RES, /*min_depth=*/1);
+        const auto res_all = GetAssetBalance(*m_wallet, ASSET_RES, /*min_depth=*/0);
+        result.balance = orum_conf.trusted;
+        result.unconfirmed_balance = (orum_all.trusted - orum_conf.trusted) + orum_all.pending;
         result.immature_balance = GetAssetImmatureBalance(*m_wallet, ASSET_ORU, ISMINE_SPENDABLE);
         const bool legacy_watch = haveWatchOnly();
         const bool priv_disabled = m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
         result.have_watch_only = legacy_watch || priv_disabled;
         if (result.have_watch_only) {
-            const auto wo_origo = GetAssetBalance(*m_wallet, ASSET_ORU, 0, true, ISMINE_WATCH_ONLY);
-            result.watch_only_balance = wo_origo.trusted;
-            result.unconfirmed_watch_only_balance = wo_origo.pending;
+            const auto wo_origo_conf = GetAssetBalance(*m_wallet, ASSET_ORU, 1, true, ISMINE_WATCH_ONLY);
+            const auto wo_origo_all = GetAssetBalance(*m_wallet, ASSET_ORU, 0, true, ISMINE_WATCH_ONLY);
+            result.watch_only_balance = wo_origo_conf.trusted;
+            result.unconfirmed_watch_only_balance = (wo_origo_all.trusted - wo_origo_conf.trusted) + wo_origo_all.pending;
             result.immature_watch_only_balance = GetAssetImmatureBalance(*m_wallet, ASSET_ORU, ISMINE_WATCH_ONLY);
-            const auto wo_res = GetAssetBalance(*m_wallet, ASSET_RES, 0, true, ISMINE_WATCH_ONLY);
-            result.res_watch_only_balance = wo_res.trusted;
-            result.res_unconfirmed_watch_only_balance = wo_res.pending;
+            const auto wo_res_conf = GetAssetBalance(*m_wallet, ASSET_RES, 1, true, ISMINE_WATCH_ONLY);
+            const auto wo_res_all = GetAssetBalance(*m_wallet, ASSET_RES, 0, true, ISMINE_WATCH_ONLY);
+            result.res_watch_only_balance = wo_res_conf.trusted;
+            result.res_unconfirmed_watch_only_balance = (wo_res_all.trusted - wo_res_conf.trusted) + wo_res_all.pending;
             result.res_immature_watch_only_balance = GetAssetImmatureBalance(*m_wallet, ASSET_RES, ISMINE_WATCH_ONLY);
         }
-        result.oru_balance = orum.trusted;
-        result.oru_unconfirmed_balance = orum.pending;
-        result.res_balance = res.trusted;
-        result.res_unconfirmed_balance = res.pending;
+        result.oru_balance = orum_conf.trusted;
+        result.oru_unconfirmed_balance = (orum_all.trusted - orum_conf.trusted) + orum_all.pending;
+        result.res_balance = res_conf.trusted;
+        result.res_unconfirmed_balance = (res_all.trusted - res_conf.trusted) + res_all.pending;
         result.res_locked_balance = GetAssetImmatureBalance(*m_wallet, ASSET_RES, ISMINE_SPENDABLE);
         return result;
     }

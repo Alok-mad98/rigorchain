@@ -15,16 +15,19 @@
 
 #include <clientversion.h>
 #include <init.h>
+#include <shutdown.h>
 #include <util/system.h>
 #include <util/strencodings.h>
 
 #include <cstdio>
 
 #include <QCloseEvent>
+#include <QColor>
 #include <QLabel>
 #include <QMainWindow>
-#include <QRegularExpression>
+#include <QPalette>
 #include <QString>
+#include <QTextCharFormat>
 #include <QTextCursor>
 #include <QTextTable>
 #include <QVBoxLayout>
@@ -35,6 +38,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
     ui(new Ui::HelpMessageDialog)
 {
     ui->setupUi(this);
+    GUIUtil::ApplyRigorDialogChrome(this);
 
     const QString productName = RigorWallet::WalletIdentity::brand().productName;
     QString version = productName + " " + tr("version") + " " + QString::fromStdString(FormatFullVersion());
@@ -43,29 +47,32 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
     {
         setWindowTitle(tr("About %1").arg(productName));
 
-        std::string licenseInfo = LicenseInfo();
-        /// HTML-format the license message from the core
-        QString licenseInfoHTML = QString::fromStdString(LicenseInfo());
-        // Make URLs clickable
-        QRegularExpression uri(QStringLiteral("<(.*)>"), QRegularExpression::InvertedGreedinessOption);
-        licenseInfoHTML.replace(uri, QStringLiteral("<a href=\"\\1\">\\1</a>"));
-        // Replace newlines with HTML breaks
-        licenseInfoHTML.replace("\n", "<br>");
-
+        // Product About copy only — no Bitcoin Core / upstream MIT dump.
+        const QString compliance = RigorWallet::WalletIdentity::aboutComplianceHtml();
         ui->aboutMessage->setTextFormat(Qt::RichText);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-        text = version + "\n" + QString::fromStdString(FormatParagraph(licenseInfo));
-        const QString compliance = RigorWallet::WalletIdentity::aboutComplianceHtml();
-        ui->aboutMessage->setText(version + "<br><br>" + licenseInfoHTML + compliance);
+        text = version + "\n" + productName;
+        ui->aboutMessage->setText(version + "<br><br>" + compliance);
         ui->aboutMessage->setWordWrap(true);
         ui->helpMessage->setVisible(false);
     } else {
         setWindowTitle(tr("Command-line options"));
+        // Read-only help body: dark surface + light text (overrides dialog Base/Text for inputs).
+        {
+            QPalette help_pal = ui->helpMessage->palette();
+            help_pal.setColor(QPalette::Base, QColor(QStringLiteral("#1A1A1D")));
+            help_pal.setColor(QPalette::Text, QColor(QStringLiteral("#E6E6E6")));
+            ui->helpMessage->setPalette(help_pal);
+        }
+        QTextCharFormat body_fmt;
+        body_fmt.setForeground(QColor(QStringLiteral("#E6E6E6")));
+
         QString header = "Usage:  rigor-qt [command-line options]                     \n";
         QTextCursor cursor(ui->helpMessage->document());
-        cursor.insertText(version);
+        cursor.setCharFormat(body_fmt);
+        cursor.insertText(version, body_fmt);
         cursor.insertBlock();
-        cursor.insertText(header);
+        cursor.insertText(header, body_fmt);
         cursor.insertBlock();
 
         std::string strUsage = gArgs.GetHelpMessage();
@@ -80,7 +87,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
         widths << QTextLength(QTextLength::PercentageLength, 65);
         tf.setColumnWidthConstraints(widths);
 
-        QTextCharFormat bold;
+        QTextCharFormat bold = body_fmt;
         bold.setFontWeight(QFont::Bold);
 
         for (const QString &line : coreOptions.split("\n")) {
@@ -89,10 +96,10 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
                 cursor.currentTable()->appendRows(1);
                 cursor.movePosition(QTextCursor::PreviousCell);
                 cursor.movePosition(QTextCursor::NextRow);
-                cursor.insertText(line.trimmed());
+                cursor.insertText(line.trimmed(), body_fmt);
                 cursor.movePosition(QTextCursor::NextCell);
             } else if (line.startsWith("   ")) {
-                cursor.insertText(line.trimmed()+' ');
+                cursor.insertText(line.trimmed()+' ', body_fmt);
             } else if (line.size() > 0) {
                 //Title of a group
                 if (cursor.currentTable())
@@ -169,5 +176,12 @@ QWidget* ShutdownWindow::showShutdownWindow(QMainWindow* window)
 
 void ShutdownWindow::closeEvent(QCloseEvent *event)
 {
+    // Prefer waiting for a clean exit; if shutdown is stuck (e.g. old solo-miner
+    // longpoll deadlock), allow the user to dismiss after StartShutdown so Task
+    // Manager is not the only escape. Process may still need End Task if hung.
+    if (ShutdownRequested()) {
+        event->accept();
+        return;
+    }
     event->ignore();
 }
