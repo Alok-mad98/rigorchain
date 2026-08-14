@@ -187,7 +187,7 @@ public:
      * that the coordinates correspond to a point on the curve (see IsFullyValid()
      * for that instead).
      *
-     * Note that this is consensus critical as CheckECDSASignature() calls it!
+     * Note that this is consensus critical as signature checkers call it.
      */
     bool IsValid() const
     {
@@ -204,8 +204,9 @@ public:
     }
 
     /**
-     * Verify a DER signature (~72 bytes).
-     * If this public key is not fully valid, the return value will be false.
+     * Verify a detached Ed25519 signature (64 bytes) over `hash`.
+     * Pubkey must be the ORUM wrapper ``0x00 || ed25519_pk`` (33 bytes).
+     * secp256k1/ECDSA is not accepted. Returns false if the key is not valid.
      */
     bool Verify(const uint256& hash, const std::vector<unsigned char>& vchSig) const;
 

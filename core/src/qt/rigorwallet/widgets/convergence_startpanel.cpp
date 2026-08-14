@@ -160,17 +160,18 @@ ConvergenceStartPanel::ConvergenceStartPanel(QWidget* parent)
 void ConvergenceStartPanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceStartPanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceStartPanel::refresh()
 {
+    if (!isVisible()) return;
     updateBalance();
     updateEstimate();
     updateValidation();

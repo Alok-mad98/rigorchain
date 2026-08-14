@@ -13,13 +13,24 @@
 
 #include <univalue.h>
 
+#include <QDebug>
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QLocale>
+#include <QtGlobal>
 #include <QVBoxLayout>
 
 namespace RigorWallet {
 
 namespace {
+int g_network_stats_tip = -2;
+int64_t g_network_active = 0;
+int64_t g_network_oru = 0;
+int64_t g_network_pending = 0;
+int64_t g_network_res = 0;
+int g_network_height = -1;
+bool g_network_stats_ok = false;
+
 QString FormatOruAtoms(int64_t atoms)
 {
     const double oru = static_cast<double>(atoms) / static_cast<double>(COIN);
@@ -80,11 +91,12 @@ ConvergenceNetworkPanel::ConvergenceNetworkPanel(QWidget* parent)
 void ConvergenceNetworkPanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceNetworkPanel::refresh()
 {
+    if (!isVisible()) return;
     if (!m_clientModel) {
         m_activeLabel->setText(tr("Active Convergence: —"));
         m_oruLabel->setText(tr("ORU committed: —"));
@@ -94,23 +106,40 @@ void ConvergenceNetworkPanel::refresh()
         return;
     }
 
+    const int tip = m_clientModel->getNumBlocks();
+    if (g_network_stats_ok && g_network_stats_tip == tip) {
+        m_activeLabel->setText(tr("Active Convergence:\n%1").arg(FormatCount(g_network_active)));
+        m_oruLabel->setText(tr("ORU committed:\n%1").arg(FormatOruAtoms(g_network_oru)));
+        m_pendingLabel->setText(tr("Pending Convergence periods:\n%1").arg(FormatCount(g_network_pending)));
+        m_resLabel->setText(tr("Total RES minted:\n%1").arg(FormatResAtoms(g_network_res)));
+        m_updatedLabel->setText(tr("Last updated:\nBlock %1").arg(FormatCount(g_network_height)));
+        return;
+    }
+
+    QElapsedTimer rpc_timer;
+    rpc_timer.start();
     try {
         UniValue r = m_clientModel->node().executeRpc("getconvergencestats", UniValue(UniValue::VARR), "/");
         if (!r.isObject()) {
             throw std::runtime_error("not an object");
         }
-        const int64_t active = r["active_convergences"].getInt<int64_t>();
-        const int64_t oru = r["active_oru"].getInt<int64_t>();
-        const int64_t pending = r["pending_windows"].getInt<int64_t>();
-        const int64_t res = r["total_res_minted"].getInt<int64_t>();
-        const int height = r["best_height"].getInt<int>();
+        g_network_active = r["active_convergences"].getInt<int64_t>();
+        g_network_oru = r["active_oru"].getInt<int64_t>();
+        g_network_pending = r["pending_windows"].getInt<int64_t>();
+        g_network_res = r["total_res_minted"].getInt<int64_t>();
+        g_network_height = r["best_height"].getInt<int>();
+        g_network_stats_tip = tip;
+        g_network_stats_ok = true;
 
-        m_activeLabel->setText(tr("Active Convergence:\n%1").arg(FormatCount(active)));
-        m_oruLabel->setText(tr("ORU committed:\n%1").arg(FormatOruAtoms(oru)));
-        m_pendingLabel->setText(tr("Pending Convergence periods:\n%1").arg(FormatCount(pending)));
-        m_resLabel->setText(tr("Total RES minted:\n%1").arg(FormatResAtoms(res)));
-        m_updatedLabel->setText(tr("Last updated:\nBlock %1").arg(FormatCount(height)));
+        m_activeLabel->setText(tr("Active Convergence:\n%1").arg(FormatCount(g_network_active)));
+        m_oruLabel->setText(tr("ORU committed:\n%1").arg(FormatOruAtoms(g_network_oru)));
+        m_pendingLabel->setText(tr("Pending Convergence periods:\n%1").arg(FormatCount(g_network_pending)));
+        m_resLabel->setText(tr("Total RES minted:\n%1").arg(FormatResAtoms(g_network_res)));
+        m_updatedLabel->setText(tr("Last updated:\nBlock %1").arg(FormatCount(g_network_height)));
+        qInfo().noquote() << QStringLiteral("[ui-perf] ConvergenceNetworkPanel.getconvergencestats %1ms")
+                                 .arg(rpc_timer.elapsed());
     } catch (...) {
+        g_network_stats_ok = false;
         m_activeLabel->setText(tr("Active Convergence: —"));
         m_oruLabel->setText(tr("ORU committed: —"));
         m_pendingLabel->setText(tr("Pending Convergence periods: —"));

@@ -16,7 +16,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "1c00ff00",
             "height": 200,
@@ -54,8 +54,9 @@ fn assembler_validator_convergence_consistency() {
     let computed = block_assembler::compute_convergence_root(&record.gbt.convergence_txids);
     let committed = hex::decode(&job.coinbase.convergence_root_hex).unwrap();
     assert_eq!(committed, computed);
-    assert!(job.body_mint.reserved);
     assert!(job.body_mint.body_mint_txid.is_none());
+    assert!(!job.body_mint.reserved);
+    assert!(!job.body_mint.mint_required);
 
     let _api = JobSnapshotApi::new(Arc::new(block_assembler::JobCache::new()));
     let _ = validator.get_validation_state(&job.job_id);

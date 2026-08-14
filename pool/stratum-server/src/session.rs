@@ -50,8 +50,12 @@ pub struct SessionManager {
 impl SessionManager {
     /// **Devtest only.** Wraps a shared plaintext password
     /// ([`SharedPasswordAuthenticator`]); `is_production_safe` returns false.
+    /// Uses [`VardiffConfig::devtest`] so easy regtest tips are not 1-share-1-block.
     pub fn new(pool_password: impl Into<String>) -> Self {
-        Self::with_authenticator(Arc::new(SharedPasswordAuthenticator::new(pool_password)))
+        Self::with_authenticator_and_vardiff(
+            Arc::new(SharedPasswordAuthenticator::new(pool_password)),
+            VardiffConfig::devtest(),
+        )
     }
 
     pub fn with_authenticator(auth: Arc<dyn WorkerAuthenticator>) -> Self {
@@ -204,30 +208,40 @@ impl SessionManager {
         self.sessions.read().map(|s| s.len()).unwrap_or(0)
     }
 
-    /// Share target for a session's current difficulty.
+    /// Sum of authorized session difficulties (hashrate proxy for ops status).
+    pub fn authorized_difficulty_sum(&self) -> f64 {
+        self.sessions
+            .read()
+            .map(|sessions| {
+                sessions
+                    .values()
+                    .filter(|s| s.authorized)
+                    .map(|s| if s.difficulty.is_finite() { s.difficulty } else { 0.0 })
+                    .sum()
+            })
+            .unwrap_or(0.0)
+    }
+
+    /// Share target for a session (Bitcoin / mainnet Stratum convention).
     ///
-    /// H-5d: this is the absolute Stratum target (`diff1_target / difficulty`),
-    /// clamped so it is never *harder* than the network target — the old code
-    /// divided the network target by a difficulty that was always 1.0, making a
-    /// share exactly as hard as a block.
+    /// Always `diff1_target / difficulty`. On mainnet the pool share is easier
+    /// than the block. On easy regtest (`0x207fffff`) the same absolute difficulty
+    /// is *harder* than the powLimit block — we **keep** that absolute target
+    /// (do not clamp to the block) so local Alpha behaves like a mainnet pool
+    /// share clock instead of accepting nearly every hash.
     pub fn share_target_for_session(
         &self,
         session_id: u64,
         block_target_hex: &str,
     ) -> Option<[u8; 32]> {
         let session = self.get(session_id)?;
-        let block_target = expand_compact_bits(block_target_hex).ok()?;
-        let share_target = share_target_from_difficulty(session.difficulty);
-        if le_target_gt(&block_target, &share_target) {
-            // Network target is already easier than the pool's share target; use it
-            // so a share is never required to be harder than a block.
-            return Some(block_target);
-        }
-        Some(share_target)
+        let _block_target = expand_compact_bits(block_target_hex).ok()?;
+        Some(share_target_from_difficulty(session.difficulty))
     }
 }
 
 /// Compare two little-endian uint256 targets: `a > b`.
+#[cfg(test)]
 fn le_target_gt(a: &[u8; 32], b: &[u8; 32]) -> bool {
     for i in (0..32).rev() {
         if a[i] != b[i] {
@@ -332,21 +346,21 @@ mod tests {
         );
     }
 
-    /// A share must never be required to be harder than a block: when the network
-    /// target is already easier than the pool's share target, use the network target.
+    /// Absolute Stratum difficulty must not collapse to the regtest powLimit
+    /// target (that made every hash a share).
     #[test]
-    fn share_target_never_harder_than_network_target() {
-        let mgr = hashed_manager();
+    fn devtest_uses_absolute_difficulty_not_powlimit_clamp() {
+        let mgr = SessionManager::new("x");
         mgr.subscribe(1, "agent", 4);
-        for bits in ["207fffff", "1d00ffff"] {
-            let block_target = expand_compact_bits(bits).unwrap();
-            let share_target = mgr.share_target_for_session(1, bits).unwrap();
-            assert!(
-                !le_target_gt(&block_target, &share_target),
-                "{bits}: share target harder than network target"
-            );
-            assert_eq!(share_target, block_target, "{bits}: expected clamp to network target");
-        }
+        let d = mgr.vardiff_config().start_difficulty;
+        assert!(d > 0.0 && d < 1.0, "devtest start is small absolute D for CPU smoke");
+        let block_target = expand_compact_bits("207fffff").unwrap();
+        let share_target = mgr.share_target_for_session(1, "207fffff").unwrap();
+        // Share must be *harder* than powLimit block (smaller target) — mainnet-style.
+        assert!(
+            le_target_gt(&block_target, &share_target),
+            "absolute share target must stay harder than easy regtest block"
+        );
     }
 
     #[test]

@@ -14,7 +14,6 @@ postgres = ["rigor-pool-pg/postgres", "winner-engine/postgres"]
 block-assembler = { path = "../block-assembler" }
 rigor-pool-pg = { path = "../rigor-pool-pg" }
 hex = "0.4"
-mint-engine = { path = "../mint-engine" }
 rigor-gbt = { path = "../rigor-gbt" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

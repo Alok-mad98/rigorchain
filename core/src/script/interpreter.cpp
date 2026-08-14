@@ -402,20 +402,9 @@ static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPu
             return set_error(serror, SCRIPT_ERR_SIG_DER);
         }
         fSuccess = checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, sigversion);
-    } else if (sigversion == SigVersion::WITNESS_V0) {
-        // ORU native P2WPKH / P2WSH-in-witness: secp256k1 ECDSA when pubkeys use BIP340-style 0x02/0x03 encoding.
-        // Rigor ORUM spend keys use ``0x00 || ed25519_pk`` (handled above).
-        // (SigVersion::BASE keeps ECDSA disabled below for legacy scriptSig paths.)
-        const CPubKey pubkey(vchPubKey);
-        if (!pubkey.IsFullyValid() || !pubkey.IsCompressed()) {
-            return set_error(serror, SCRIPT_ERR_SECP256K1_DISABLED);
-        }
-        if (!IsValidSignatureEncoding(vchSig)) {
-            return set_error(serror, SCRIPT_ERR_SIG_DER);
-        }
-        fSuccess = checker.CheckECDSASignature(vchSig, vchPubKey, scriptCode, sigversion);
     } else {
-        // ECDSA is disabled in legacy scriptSig execution on RigorChain
+        // RIGOR: spend signatures are Ed25519 only. secp256k1/ECDSA is never accepted
+        // (legacy scriptSig and witness v0 0x02/0x03 compressed pubkeys included).
         return set_error(serror, SCRIPT_ERR_SECP256K1_DISABLED);
     }
 
@@ -1183,15 +1172,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                                 return set_error(serror, SCRIPT_ERR_SIG_DER);
                             }
                             fOk = checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, sigversion);
-                        } else if (sigversion == SigVersion::WITNESS_V0) {
-                            const CPubKey pk(vchPubKey);
-                            if (!pk.IsFullyValid() || !pk.IsCompressed()) {
-                                return set_error(serror, SCRIPT_ERR_SECP256K1_DISABLED);
-                            }
-                            if (!IsValidSignatureEncoding(vchSig)) {
-                                return set_error(serror, SCRIPT_ERR_SIG_DER);
-                            }
-                            fOk = checker.CheckECDSASignature(vchSig, vchPubKey, scriptCode, sigversion);
                         } else {
                             return set_error(serror, SCRIPT_ERR_SECP256K1_DISABLED);
                         }
@@ -1532,7 +1512,12 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 template <class T>
 bool GenericTransactionSignatureChecker<T>::VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
-    return pubkey.Verify(sighash, vchSig);
+    // Alpha1: ECDSA is not a consensus verifier. Do not call CPubKey::Verify here —
+    // that function is Ed25519 for 0x00||pk32 and must not succeed under the ECDSA name.
+    (void)vchSig;
+    (void)pubkey;
+    (void)sighash;
+    return false;
 }
 
 template <class T>
@@ -1542,28 +1527,17 @@ bool GenericTransactionSignatureChecker<T>::VerifyEd25519Signature(Span<const un
 }
 
 template <class T>
+// Retained as a sealed stub for DummySignatureChecker / PSBT extractors.
+// EvalChecksig never calls this: spend verification is Ed25519 only
+// (SCRIPT_ERR_SECP256K1_DISABLED for secp pubkeys). Always false so a future
+// re-hook cannot accept Ed25519 material through the ECDSA name.
 bool GenericTransactionSignatureChecker<T>::CheckECDSASignature(const std::vector<unsigned char>& vchSigIn, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const
 {
-    CPubKey pubkey(vchPubKey);
-    if (!pubkey.IsValid())
-        return false;
-
-    // Hash type is one byte tacked on to the end of the signature
-    std::vector<unsigned char> vchSig(vchSigIn);
-    if (vchSig.empty())
-        return false;
-    int nHashType = vchSig.back();
-    vchSig.pop_back();
-
-    // Witness sighashes need the amount.
-    if (sigversion == SigVersion::WITNESS_V0 && amount < 0) return HandleMissingData(m_mdb);
-
-    uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
-
-    if (!VerifyECDSASignature(vchSig, pubkey, sighash))
-        return false;
-
-    return true;
+    (void)vchSigIn;
+    (void)vchPubKey;
+    (void)scriptCode;
+    (void)sigversion;
+    return false;
 }
 
 template <class T>
@@ -1732,7 +1706,8 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             exec_script << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(vchPubKey))) << OP_EQUALVERIFY << OP_CHECKSIG;
             return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::WITNESS_V0, checker, execdata, serror);
         } else if (program.size() == WITNESS_V0_KEYHASH_SIZE) {
-            // BIP141 P2WPKH: 20-byte witness v0 program (which encodes Hash160(pubkey))
+            // BIP141 P2WPKH: 20-byte witness v0 program (Hash160(pubkey)). CHECKSIG is Ed25519
+            // only (0x00||ed25519_pk); compressed secp 0x02/0x03 is SCRIPT_ERR_SECP256K1_DISABLED.
             if (stack.size() != 2) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH); // 2 items in witness
             }

@@ -35,7 +35,9 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDialog>
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPalette>
@@ -45,6 +47,7 @@
 #include <QShowEvent>
 #include <QString>
 #include <QTimer>
+#include <QtGlobal>
 
 #include <algorithm>
 #include <string>
@@ -123,7 +126,8 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
 
     m_refreshDebounce = new QTimer(this);
     m_refreshDebounce->setSingleShot(true);
-    m_refreshDebounce->setInterval(400);
+    // Event-driven tip/wallet signals already coalesce; keep debounce Core-like (not sub-second thrash).
+    m_refreshDebounce->setInterval(1500);
     connect(m_refreshDebounce, &QTimer::timeout, this, &ConvergencePage::refreshVisibleUi);
 
     connect(m_startPanel, &RigorWallet::ConvergenceStartPanel::convergenceSubmitted, this, [this]() {
@@ -150,13 +154,29 @@ void ConvergencePage::scheduleUiRefresh()
 void ConvergencePage::refreshVisibleUi()
 {
     if (!isVisible()) return;
-    updateContextPanels();
-    updateConvergenceRoundPanels();
-    updateMarketPanel();
-    updateMinConvergenceDisplay();
-    updateConvergenceStatusDisplay();
+    QElapsedTimer page_timer;
+    page_timer.start();
+
+    // User page: only visible panels. Hidden protocol frames (Network/Round/Market/Draw)
+    // stay compiled for Diagnostics but must not run sync RPC/disk on every tip.
+    if (ui->frameNetwork && ui->frameNetwork->isVisible()) {
+        updateContextPanels();
+    }
+    if (ui->frameRoundTable && ui->frameRoundTable->isVisible()) {
+        updateConvergenceRoundPanels();
+    }
+    if (ui->frameMarket && ui->frameMarket->isVisible()) {
+        updateMarketPanel();
+    }
+    if (ui->frameConverge && ui->frameConverge->isVisible()) {
+        updateMinConvergenceDisplay();
+        updateConvergenceStatusDisplay();
+    }
     updateConvergenceNetworkSafety();
     refreshPhaseCPanels();
+
+    qInfo().noquote() << QStringLiteral("[ui-perf] ConvergencePage.refreshVisibleUi %1ms")
+                             .arg(page_timer.elapsed());
 }
 
 ConvergencePage::~ConvergencePage()
@@ -274,7 +294,10 @@ void ConvergencePage::setClientModel(ClientModel* model)
         });
         connect(model, &ClientModel::numConnectionsChanged, this, [this](int) {
             if (!isVisible()) return;
-            updateContextPanels();
+            // Hidden protocol frames must not run sync RPC on connection flaps.
+            if (ui->frameNetwork && ui->frameNetwork->isVisible()) {
+                updateContextPanels();
+            }
             updateConvergenceNetworkSafety();
         });
         if (model->getOptionsModel()) {
@@ -568,19 +591,23 @@ void ConvergencePage::updateQuadraticFeeHint()
 void ConvergencePage::updateConvergenceNetworkSafety()
 {
     // Offline / sync gating is owned by ConvergenceStartPanel; keep page banner in sync.
-    if (m_startPanel) m_startPanel->refresh();
+    // Single refresh here — refreshPhaseCPanels must not call startPanel->refresh again.
+    if (m_startPanel && m_startPanel->isVisible()) m_startPanel->refresh();
     updateRecoveryWarnings();
 }
 
 void ConvergencePage::refreshPhaseCPanels()
 {
-    if (m_lifecyclePanel) m_lifecyclePanel->refresh();
-    if (m_networkPanel) m_networkPanel->refresh();
-    if (m_startPanel) m_startPanel->refresh();
-    if (m_overviewPanel) m_overviewPanel->refresh();
-    if (m_resProbabilityPanel) m_resProbabilityPanel->refresh();
-    if (m_historyPanel) m_historyPanel->refresh();
-    updateRecoveryWarnings();
+    auto refresh_if_visible = [](QWidget* w, const auto& fn) {
+        if (w && w->isVisible()) fn();
+    };
+    refresh_if_visible(m_lifecyclePanel, [this] { m_lifecyclePanel->refresh(); });
+    refresh_if_visible(m_networkPanel, [this] { m_networkPanel->refresh(); });
+    // startPanel already refreshed in updateConvergenceNetworkSafety when visible
+    refresh_if_visible(m_overviewPanel, [this] { m_overviewPanel->refresh(); });
+    refresh_if_visible(m_resProbabilityPanel, [this] { m_resProbabilityPanel->refresh(); });
+    refresh_if_visible(m_historyPanel, [this] { m_historyPanel->refresh(); });
+    // updateRecoveryWarnings already ran from updateConvergenceNetworkSafety in refreshVisibleUi.
 }
 
 void ConvergencePage::updateRecoveryWarnings()
@@ -606,7 +633,8 @@ void ConvergencePage::updateRecoveryWarnings()
         msg = tr("Wallet locked for spending — unlock to start Convergence.");
         level = RigorWallet::WarningLevel::Warning;
     } else {
-        const auto rows = RigorWallet::ConvergenceWalletData::buildHistory(walletModel);
+        const int tip = clientModel->getNumBlocks();
+        const auto rows = RigorWallet::ConvergenceWalletData::buildHistory(walletModel, tip);
         if (const auto* pending = RigorWallet::ConvergenceWalletData::pendingRow(rows)) {
             msg = tr("Convergence in progress: %1").arg(pending->txid.left(16) + QStringLiteral("…"));
             level = RigorWallet::WarningLevel::Verification;
@@ -750,5 +778,6 @@ void ConvergencePage::onSendConvergenceClicked()
         updateConvergenceRoundPanels();
         updateConvergenceStatusDisplay();
         refreshPhaseCPanels();
+        updateRecoveryWarnings();
     }
 }

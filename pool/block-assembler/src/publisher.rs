@@ -125,7 +125,7 @@ mod tests {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "lp/asm/1",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
             "height": 120,
@@ -158,7 +158,8 @@ mod tests {
         assert_eq!(job.job_id.0, "0000000000000001");
         assert_eq!(job.state, JobState::Active);
         assert_eq!(job.record_id, template.record_id);
-        assert!(job.body_mint.reserved);
+        assert!(!job.body_mint.reserved);
+        assert!(!job.body_mint.mint_required);
         assert!(!job.coinbase.coinb1_hex.is_empty());
     }
 }

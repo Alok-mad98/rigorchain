@@ -50,7 +50,9 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QLatin1String>
+#include <QtGlobal>
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QMessageBox>
@@ -400,6 +402,9 @@ void BitcoinApplication::showMainWindowAfterSplash(interfaces::BlockAndHeaderTip
     delete m_splash;
     m_splash = nullptr;
 
+    QElapsedTimer ui_ready;
+    ui_ready.start();
+
     // Log this only after AppInitMain finishes, as then logging setup is guaranteed complete
     qInfo() << "Platform customization:" << platformStyle->getName();
     clientModel = new ClientModel(node(), optionsModel);
@@ -422,6 +427,8 @@ void BitcoinApplication::showMainWindowAfterSplash(interfaces::BlockAndHeaderTip
     } else {
         window->showMinimized();
     }
+    qInfo().noquote() << QStringLiteral("[ui-perf] first UI ready (post-splash show) %1ms")
+                             .arg(ui_ready.elapsed());
     Q_EMIT windowShown(window);
 
 #ifdef ENABLE_WALLET

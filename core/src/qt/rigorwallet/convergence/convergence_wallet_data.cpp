@@ -17,6 +17,9 @@
 #include <set>
 
 #include <QCoreApplication>
+#include <QDebug>
+#include <QElapsedTimer>
+#include <QtGlobal>
 
 namespace RigorWallet {
 
@@ -82,6 +85,20 @@ std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletMod
 {
     std::vector<ConvergenceHistoryRow> rows;
     if (!walletModel) return rows;
+
+    // Coalesce repeated Convergence panel refreshes (lifecycle/history/overview/warnings)
+    // that previously each rescanned the wallet on the GUI thread.
+    static WalletModel* s_cached_wallet = nullptr;
+    static int s_cached_tip = -2;
+    static uint64_t s_cached_rev = 0;
+    static std::vector<ConvergenceHistoryRow> s_cache;
+    const uint64_t rev = walletModel->wallet().getWalletStateRevision();
+    if (s_cached_wallet == walletModel && s_cached_tip == tip_height && s_cached_rev == rev) {
+        return s_cache;
+    }
+
+    QElapsedTimer build_timer;
+    build_timer.start();
 
     std::map<int, QString> mint_by_height;
     const std::set<interfaces::WalletTx> txs = walletModel->wallet().getWalletTxs();
@@ -184,6 +201,15 @@ std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletMod
     std::sort(rows.begin(), rows.end(), [](const ConvergenceHistoryRow& a, const ConvergenceHistoryRow& b) {
         return a.timestamp > b.timestamp;
     });
+
+    s_cached_wallet = walletModel;
+    s_cached_tip = tip_height;
+    s_cached_rev = rev;
+    s_cache = rows;
+    qInfo().noquote() << QStringLiteral("[ui-perf] ConvergenceWalletData.buildHistory %1ms rows=%2 tip=%3")
+                             .arg(build_timer.elapsed())
+                             .arg(static_cast<qulonglong>(rows.size()))
+                             .arg(tip_height);
     return rows;
 }
 

@@ -2,7 +2,7 @@
 name = "mint-engine"
 version = "0.1.0"
 edition = "2021"
-description = "RIGOR pool RES body mint engine (TASK-MINT-ENGINE-001)"
+description = "LEGACY audit-only RES mint builder (DETACHED from pool runtime; Option A)"
 license = "MIT"
 readme = "README.md"
 

@@ -1,6 +1,9 @@
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 
-use block_assembler::{JobPublisher, JobSnapshotApi};
+use block_assembler::{
+    assemble_solved_block, JobPublisher, JobSnapshotApi, SolvedBlockContext,
+};
 use rigor_gbt::{TemplateCache, TemplateCacheApi, TipHash};
 use share_validator::{
     BlockSubmission, ShareSubmission, ShareValidator, ValidationErrorCode, ValidationResult,
@@ -10,19 +13,21 @@ use crate::audit::{AuditLog, SharedAuditLog};
 use crate::error::{StratumError, StratumResult};
 use crate::jobs::{JobAssignmentEngine, StratumJobEnvelope};
 use crate::metrics::{PoolMetrics, SharedMetrics};
+use crate::notify_hub::{NotifyHub, SharedNotifyHub};
 use crate::payout::SharedPayoutEngine;
 use crate::protocol::{self, StratumResponse};
-use crate::res_mint::{validate_mint_integrity, MintBlockContext, MintEngine};
 use crate::session::{MinerSession, SessionManager};
+use crate::submit::{BlockSubmitter, UnconfiguredBlockSubmitter};
 use crate::telemetry::PoolJobTelemetry;
-use crate::winner::confirm_winner_for_block;
 use crate::winner::{self, WinnerPreview};
 use crate::winner_service::SharedWinnerService;
-use mint_engine::submit::{BlockSubmitter, UnconfiguredBlockSubmitter};
-use mint_engine::telemetry::MintTelemetry;
 use winner_engine::telemetry::WinnerTelemetry;
 use winner_engine::RevocationReason;
 
+/// ORU-only Stratum orchestrator (Option A / TASK-POOL-RES-BOUNDARY-IMPLEMENT-003).
+///
+/// Coordinates GBT → jobs → shares → ORU payout → submitblock.
+/// Does **not** construct, authorize, or trigger RES body mints.
 pub struct StratumOrchestrator {
     pub sessions: Arc<SessionManager>,
     pub jobs: JobAssignmentEngine,
@@ -32,11 +37,15 @@ pub struct StratumOrchestrator {
     pub payout: SharedPayoutEngine,
     pub metrics: SharedMetrics,
     pub audit: SharedAuditLog,
-    pub mint_engine: Arc<MintEngine>,
+    /// Optional draw preview for operator telemetry only — never gates mint construction.
     pub winner: Arc<SharedWinnerService>,
-    /// C-5: authoritative sink for found blocks. Miner credit is booked only after
-    /// this reports success, and it fails closed when unconfigured.
+    /// C-5: authoritative sink for found blocks.
     pub submitter: Arc<dyn BlockSubmitter>,
+    /// Pushes fresh `mining.notify` lines to live connections after tip changes.
+    pub notify_hub: SharedNotifyHub,
+    /// Set after a successful `submitblock` so the GBT poller skips its sleep
+    /// and publishes replacement work immediately (cuts stale-share window).
+    pub work_refresh: AtomicBool,
 }
 
 impl StratumOrchestrator {
@@ -49,22 +58,6 @@ impl StratumOrchestrator {
             templates,
             jobs,
             payout,
-            Arc::new(MintEngine::new(mint_engine::MintEngineConfig::devtest())),
-            Arc::new(SharedWinnerService::memory()),
-        )
-    }
-
-    pub fn with_mint_engine(
-        templates: Arc<TemplateCache>,
-        jobs: Arc<block_assembler::JobCache>,
-        payout: SharedPayoutEngine,
-        mint_engine: Arc<MintEngine>,
-    ) -> Self {
-        Self::with_services(
-            templates,
-            jobs,
-            payout,
-            mint_engine,
             Arc::new(SharedWinnerService::memory()),
         )
     }
@@ -73,39 +66,47 @@ impl StratumOrchestrator {
         templates: Arc<TemplateCache>,
         jobs: Arc<block_assembler::JobCache>,
         payout: SharedPayoutEngine,
-        mint_engine: Arc<MintEngine>,
         winner: Arc<SharedWinnerService>,
     ) -> Self {
         let publisher = JobPublisher::with_defaults(jobs.clone());
         let validator = ShareValidator::with_defaults(jobs.clone(), templates.clone());
         Self {
             sessions: Arc::new(SessionManager::new("x")),
-            jobs: JobAssignmentEngine::new(JobSnapshotApi::new(jobs), TemplateCacheApi::new(templates.clone())),
+            jobs: JobAssignmentEngine::new(
+                JobSnapshotApi::new(jobs),
+                TemplateCacheApi::new(templates.clone()),
+            ),
             validator,
             publisher,
             templates,
             payout,
             metrics: Arc::new(PoolMetrics::default()),
             audit: Arc::new(AuditLog::new(10_000)),
-            mint_engine,
             winner,
             submitter: Arc::new(UnconfiguredBlockSubmitter),
+            notify_hub: Arc::new(NotifyHub::new()),
+            work_refresh: AtomicBool::new(false),
         }
     }
 
-    /// Install the authenticator / vardiff-configured session manager (H-5a/H-5d).
+    pub fn request_work_refresh(&self) {
+        self.work_refresh.store(true, AtomicOrdering::SeqCst);
+    }
+
+    pub fn take_work_refresh(&self) -> bool {
+        self.work_refresh.swap(false, AtomicOrdering::SeqCst)
+    }
+
     pub fn with_sessions(mut self, sessions: Arc<SessionManager>) -> Self {
         self.sessions = sessions;
         self
     }
 
-    /// Install a validated coinbase publisher (C-6b).
     pub fn with_publisher(mut self, publisher: JobPublisher) -> Self {
         self.publisher = publisher;
         self
     }
 
-    /// Install the block submission sink (C-5).
     pub fn with_submitter(mut self, submitter: Arc<dyn BlockSubmitter>) -> Self {
         self.submitter = submitter;
         self
@@ -142,6 +143,8 @@ impl StratumOrchestrator {
             .publish_from_template(&active_tpl)
             .map_err(|e| StratumError::Internal(e.to_string()))?;
 
+        // Draw preview is operator telemetry only. Product surface is always ORU-only:
+        // mint_required forced false; no mint authorize / construction.
         let preview = match self.winner.register_published_job(&active_tpl, job.as_ref()) {
             Ok(()) => match winner::preview_winner(&self.winner, active_tpl.as_ref(), job.as_ref())
             {
@@ -172,41 +175,60 @@ impl StratumOrchestrator {
         self.audit.record(
             "job.publish",
             format!(
-                "job_id={} record_id={} mint_required={} winner={:?}",
-                job.job_id.0, job.record_id, preview.mint_required, preview.winner_txid
+                "job_id={} record_id={} oru_only=true draw_winner={:?}",
+                job.job_id.0, job.record_id, preview.winner_txid
             ),
         );
-        self.metrics.jobs_notified.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.metrics
+            .jobs_notified
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         PoolJobTelemetry::record_job_published(
             active_tpl.as_ref(),
             job.as_ref(),
             true,
             preview.winner_txid.as_deref(),
-            preview.mint_required,
-        );
-
-        MintTelemetry::record_publish_observation(
-            job.as_ref(),
-            preview.mint_required,
-            preview.winner_txid.as_deref(),
+            false, // never advertise mint_required on the mining product surface
         );
 
         let envelope = self.jobs.envelope_from_job_with_preview(
             job.as_ref(),
-            preview.winner_txid.clone(),
-            preview.mint_required,
+            None, // do not surface RES winner as miner payout signal
+            false,
         )?;
+
+        // Push to live sessions (subscribe-only delivery left miners on stale jobs).
+        if let Ok(line) = serde_json::to_string(&envelope.notify) {
+            self.notify_hub.publish_lines(vec![format!("{line}\n")]);
+            self.audit.record(
+                "job.broadcast",
+                format!("job_id={} hub_version={}", envelope.job_id, self.notify_hub.version()),
+            );
+        }
+
         Ok(vec![envelope])
     }
 
+    /// Full tip change: invalidate jobs **and** clear the template cache active slot.
+    /// Use for explicit reorg simulation. Prefer [`Self::invalidate_jobs_on_tip_change`]
+    /// after `GbtAdapter::poll_once`, which already tip-changed + ingested a new ACTIVE.
     pub fn handle_tip_change(&self, new_tip: TipHash) -> StratumResult<()> {
-        let invalidated = self
-            .publisher
-            .on_tip_changed(new_tip.clone())
-            .map_err(|e| StratumError::Internal(e.to_string()))?;
+        self.invalidate_jobs_on_tip_change(new_tip.clone())?;
         self.templates
             .handle_tip_changed(new_tip)
+            .map_err(|e| StratumError::Internal(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Invalidate published jobs / payout / winner state for a tip change **without**
+    /// wiping the template cache. `GbtAdapter::poll_once` already calls
+    /// `TemplateCache::handle_tip_changed` then `ingest`s the replacement ACTIVE;
+    /// calling [`Self::handle_tip_change`] afterwards cleared that ACTIVE and left
+    /// miners on a broadcast job that was immediately Invalidated (mass stale rejects).
+    pub fn invalidate_jobs_on_tip_change(&self, new_tip: TipHash) -> StratumResult<()> {
+        let invalidated = self
+            .publisher
+            .on_tip_changed(new_tip)
             .map_err(|e| StratumError::Internal(e.to_string()))?;
 
         let orphaned_jobs: Vec<std::sync::Arc<block_assembler::PublishedJobSnapshot>> = invalidated
@@ -237,24 +259,20 @@ impl StratumOrchestrator {
             self.audit.record("winner.invalidate.error", e.to_string());
         }
 
-        // REORG-01: reverse FINALIZED PPLNS rounds for orphaned jobs, then orphan shares.
         let _reverse = self.payout.reverse_finalized_for_jobs(&invalidated);
         self.payout.orphan_round_for_jobs(&invalidated);
-        let job_ids: Vec<String> = invalidated.iter().map(|j| j.0.clone()).collect();
-        if let Ok(revoked) = self.mint_engine.revoke_for_jobs(&job_ids) {
-            for rec in revoked {
-                self.audit.record(
-                    "res.mint.revoked",
-                    format!("job={} txid={}", rec.mint_job.job_id, rec.artifact.body_mint_txid),
-                );
-            }
-        }
-        self.metrics.reorg_events.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.metrics
+            .reorg_events
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.audit.record("reorg", "tip changed; jobs invalidated");
         Ok(())
     }
 
-    fn handle_subscribe(&self, session_id: u64, req: &protocol::StratumRequest) -> StratumResult<Vec<String>> {
+    fn handle_subscribe(
+        &self,
+        session_id: u64,
+        req: &protocol::StratumRequest,
+    ) -> StratumResult<Vec<String>> {
         let params = protocol::params_as_strings(&req.params)?;
         let agent = params.first().map(|s| s.as_str()).unwrap_or("");
         if !protocol::requires_opushash_agent(agent) {
@@ -274,22 +292,34 @@ impl StratumOrchestrator {
             hex::encode(&session.extranonce1),
             session.extranonce2_size
         ]);
-        let mut out = vec![protocol::serialize_response(&StratumResponse::ok(req.id.clone(), result))?];
+        let mut out = vec![protocol::serialize_response(&StratumResponse::ok(
+            req.id.clone(),
+            result,
+        ))?];
 
         if let Ok(jobs) = self.jobs.active_jobs() {
             for job in jobs {
-                out.push(serde_json::to_string(&job.notify).map_err(|e| StratumError::Protocol(e.to_string()))? + "\n");
+                out.push(
+                    serde_json::to_string(&job.notify)
+                        .map_err(|e| StratumError::Protocol(e.to_string()))?
+                        + "\n",
+                );
             }
         }
         Ok(out)
     }
 
-    fn handle_authorize(&self, session_id: u64, req: &protocol::StratumRequest) -> StratumResult<Vec<String>> {
+    fn handle_authorize(
+        &self,
+        session_id: u64,
+        req: &protocol::StratumRequest,
+    ) -> StratumResult<Vec<String>> {
         let params = protocol::params_as_strings(&req.params)?;
-        let worker = params.first().ok_or_else(|| StratumError::Protocol("worker required".into()))?;
+        let worker = params
+            .first()
+            .ok_or_else(|| StratumError::Protocol("worker required".into()))?;
         let pass = params.get(1).map(|s| s.as_str()).unwrap_or("");
         if let Err(e) = self.sessions.authorize(session_id, worker, pass) {
-            // H-5a: never leak whether the worker exists or the password was wrong.
             self.audit
                 .record("auth.failed", format!("session={session_id} reason={e}"));
             self.metrics
@@ -308,23 +338,22 @@ impl StratumOrchestrator {
             req.id.clone(),
             serde_json::json!(true),
         ))?];
-        // H-5d: tell the miner its actual share difficulty instead of silently
-        // leaving it equal to the network target.
         if let Some(session) = self.sessions.get(session_id) {
             out.push(protocol::serialize_set_difficulty(session.difficulty)?);
         }
         Ok(out)
     }
 
-    fn handle_submit(&self, session_id: u64, req: &protocol::StratumRequest) -> StratumResult<Vec<String>> {
+    fn handle_submit(
+        &self,
+        session_id: u64,
+        req: &protocol::StratumRequest,
+    ) -> StratumResult<Vec<String>> {
         let session = self
             .sessions
             .get(session_id)
             .ok_or_else(|| StratumError::Unauthorized("unknown session".into()))?;
 
-        // H-5b: the credited identity comes from the authenticated session, never
-        // from the request parameters. Previously `params[0]` was trusted, so any
-        // authorized connection could book shares to any other worker's balance.
         let worker = session
             .authorized_worker()
             .ok_or_else(|| StratumError::Unauthorized("not authorized".into()))
@@ -341,8 +370,6 @@ impl StratumOrchestrator {
         };
 
         let params = protocol::params_as_strings(&req.params)?;
-        // params[0] is the client-claimed worker name. It is only used to detect
-        // and reject impersonation attempts; it is never used for accounting.
         if let Some(claimed) = params.first() {
             if claimed != &worker {
                 self.audit.record(
@@ -360,14 +387,35 @@ impl StratumOrchestrator {
             }
         }
         let worker = worker.as_str();
-        let job_id = params.get(1).ok_or_else(|| StratumError::Protocol("job_id required".into()))?;
-        let extranonce2_hex = params.get(2).ok_or_else(|| StratumError::Protocol("extranonce2 required".into()))?;
+        let job_id = params
+            .get(1)
+            .ok_or_else(|| StratumError::Protocol("job_id required".into()))?;
+        let extranonce2_hex = params
+            .get(2)
+            .ok_or_else(|| StratumError::Protocol("extranonce2 required".into()))?;
         let ntime = u32::from_str_radix(params.get(3).map(|s| s.as_str()).unwrap_or("0"), 16)
             .map_err(|e| StratumError::Protocol(e.to_string()))?;
         let nonce = u32::from_str_radix(params.get(4).map(|s| s.as_str()).unwrap_or("0"), 16)
             .map_err(|e| StratumError::Protocol(e.to_string()))?;
 
-        let envelope = self.jobs.envelope_for_job_id(job_id)?;
+        let envelope = match self.jobs.envelope_for_job_id(job_id) {
+            Ok(e) => e,
+            Err(e) => {
+                // Stale / inactive job after tip change — reject the share, keep session.
+                self.metrics
+                    .shares_rejected
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                self.audit.record(
+                    "share.rejected",
+                    format!("worker={worker} job={job_id} reason=stale_or_inactive err={e}"),
+                );
+                return Ok(vec![protocol::serialize_response(&StratumResponse::err(
+                    req.id.clone(),
+                    21,
+                    "stale job",
+                ))?]);
+            }
+        };
         let share_target = self
             .sessions
             .share_target_for_session(session_id, &envelope.block_target)
@@ -390,7 +438,6 @@ impl StratumOrchestrator {
         let response =
             self.process_validation_result(&session, worker, &result, &envelope, &submission)?;
         let mut out = vec![response];
-        // H-5d: retarget this connection when its share rate drifts from target.
         if result.accepted {
             if let Some(next) = self
                 .sessions
@@ -447,23 +494,26 @@ impl StratumOrchestrator {
             result.share_id.as_deref().unwrap_or(""),
             session.difficulty,
         );
-        self.audit.record("share.accepted", format!("worker={worker} job={}", envelope.job_id));
+        self.audit
+            .record("share.accepted", format!("worker={worker} job={}", envelope.job_id));
 
         if result.is_block_candidate {
-            self.handle_block_candidate(worker, envelope, result, share)?;
+            // Do not tear down the Stratum session if submitblock fails — the share
+            // itself was valid. Block payout is booked only inside handle_block_candidate
+            // after the node accepts (C-5).
+            if let Err(e) = self.handle_block_candidate(worker, envelope, result, share) {
+                self.audit.record(
+                    "block.path_error_nonfatal",
+                    format!("worker={worker} job={} err={e}", envelope.job_id),
+                );
+            }
         }
 
         protocol::serialize_response(&StratumResponse::ok(None, serde_json::json!(true)))
     }
 
-    /// Handle a share that solved the network target.
-    ///
-    /// C-5: block submission is decoupled from RES minting. The block is assembled
-    /// and offered to the node whether or not a mint was required or succeeded, and
-    /// the PPLNS round is finalized **only** after the node accepts it. Previously
-    /// `record_block_found` ran unconditionally while the only `submit_block` call
-    /// sat behind `mint_for_winner`'s `if !preview.mint_required { return }` guard,
-    /// so the pool booked a debt to miners for blocks the network never saw.
+    /// Found-block path: assemble ORU job (opaque GBT txs) and submitblock.
+    /// Never calls mint-engine / try_mint / mint authorization.
     fn handle_block_candidate(
         &self,
         worker: &str,
@@ -486,49 +536,39 @@ impl StratumOrchestrator {
 
         self.audit.record(
             "block.found",
-            format!("worker={worker} job={} pow={:?}", envelope.job_id, result.pow_hash),
+            format!(
+                "worker={worker} job={} pow={:?}",
+                envelope.job_id, result.pow_hash
+            ),
         );
 
-        let block_ctx = MintBlockContext {
+        let block_ctx = SolvedBlockContext {
             extranonce1: share.extranonce1.clone(),
             extranonce2: share.extranonce2.clone(),
             ntime: share.ntime,
             nonce: share.nonce,
         };
 
-        // C-5: winner confirmation and RES minting gate the *mint*, never the block.
-        // Any failure below leaves `mint_block_hex` empty and we fall through to
-        // submitting a mint-less block.
-        let mint_block_hex = self.try_mint(worker, &template, job.as_ref(), &block_ctx);
-
-        let block_hex = match mint_block_hex {
-            Some(hex) => hex,
-            None => {
-                match mint_engine::assemble_block_without_mint(&template, job.as_ref(), &block_ctx)
-                {
-                    Ok(pkg) => pkg.block_hex,
-                    Err(e) => {
-                        // The job reserved a body-mint slot but no mint could be
-                        // produced, so no block satisfying the mined merkle root
-                        // exists. Lose the block loudly; credit nothing.
-                        self.metrics
-                            .blocks_unsubmittable
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        self.audit.record(
-                            "block.unsubmittable",
-                            format!("worker={worker} job={} err={e}", envelope.job_id),
-                        );
-                        return Err(StratumError::Internal(format!(
-                            "C-5: found block for job {} cannot be assembled ({e}); \
-                             no miner credit recorded",
-                            envelope.job_id
-                        )));
-                    }
-                }
+        let block_hex = match assemble_solved_block(&template, job.as_ref(), &block_ctx) {
+            Ok(pkg) => pkg.block_hex,
+            Err(e) => {
+                self.metrics
+                    .blocks_unsubmittable
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                self.audit.record(
+                    "block.unsubmittable",
+                    format!("worker={worker} job={} err={e}", envelope.job_id),
+                );
+                return Err(StratumError::Internal(format!(
+                    "C-5: found block for job {} cannot be assembled ({e}); \
+                     no miner credit recorded",
+                    envelope.job_id
+                )));
             }
         };
 
-        // Local structural pre-check. Advisory only — the node is authoritative.
+        // Advisory only — node is authoritative. allow_res_body_mint reflects that
+        // opaque GBT may already contain a node automint; the pool did not add one.
         let block_val = self.validator.validate_block(BlockSubmission {
             job_id: job_id.clone(),
             record_id: Some(envelope.template_id),
@@ -538,11 +578,13 @@ impl StratumOrchestrator {
         if !block_val.accepted {
             self.audit.record(
                 "block.prevalidation_failed",
-                format!("worker={worker} job={} msg={:?}", envelope.job_id, block_val.message),
+                format!(
+                    "worker={worker} job={} msg={:?}",
+                    envelope.job_id, block_val.message
+                ),
             );
         }
 
-        // C-5: the node's answer is the only thing that may unlock miner credit.
         match self.submitter.submit_block(&block_hex) {
             Ok(()) => {
                 self.metrics
@@ -559,6 +601,8 @@ impl StratumOrchestrator {
                         self.submitter.describe()
                     ),
                 );
+                // Tip advanced — wake GBT poller so miners get a new job ASAP.
+                self.request_work_refresh();
                 Ok(())
             }
             Err(e) => {
@@ -577,85 +621,6 @@ impl StratumOrchestrator {
                     "C-5: submitblock failed for job {} ({e}); no miner credit recorded",
                     envelope.job_id
                 )))
-            }
-        }
-    }
-
-    /// Confirm the draw winner and build the RES body mint if one is authorized.
-    ///
-    /// Returns the assembled block hex on success, `None` when no mint was required
-    /// or the mint could not be produced. Never propagates errors — C-5 requires
-    /// that neither a winner-engine fault nor a mint failure abort block submission.
-    fn try_mint(
-        &self,
-        worker: &str,
-        template: &rigor_gbt::TemplateRecord,
-        job: &block_assembler::PublishedJobSnapshot,
-        block_ctx: &MintBlockContext,
-    ) -> Option<String> {
-        if let Err(e) = confirm_winner_for_block(&self.winner, template, job) {
-            self.audit.record(
-                "winner.confirm.failed",
-                format!("worker={worker} job={} err={e}", job.job_id.0),
-            );
-            return None;
-        }
-
-        let token = match self.winner.authorize_block_found(template, job) {
-            Ok(Some(t)) => t,
-            Ok(None) => {
-                self.audit.record(
-                    "res.mint.skipped",
-                    format!("worker={worker} job={} reason=not_authorized", job.job_id.0),
-                );
-                return None;
-            }
-            Err(e) => {
-                self.audit.record(
-                    "winner.authorize.failed",
-                    format!("worker={worker} job={} err={e}", job.job_id.0),
-                );
-                return None;
-            }
-        };
-
-        match self
-            .mint_engine
-            .mint_for_authorized_winner(&token, template, job, block_ctx)
-        {
-            Ok(Some(outcome)) => {
-                if !validate_mint_integrity(&outcome.artifact) {
-                    self.audit.record(
-                        "res.mint.error",
-                        format!("worker={worker} reason=integrity_check_failed"),
-                    );
-                    return None;
-                }
-                self.metrics
-                    .res_mint_events
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                self.audit.record(
-                    "res.mint",
-                    format!(
-                        "worker={worker} txid={} amount={} submitted={}",
-                        outcome.artifact.body_mint_txid,
-                        outcome.artifact.amount_atoms,
-                        outcome.submitted
-                    ),
-                );
-                Some(outcome.block.block_hex.clone())
-            }
-            Ok(None) => {
-                self.audit.record(
-                    "res.mint.skipped",
-                    format!("worker={worker} job={} reason=not_required", job.job_id.0),
-                );
-                None
-            }
-            Err(e) => {
-                self.audit
-                    .record("res.mint.error", format!("worker={worker} err={e}"));
-                None
             }
         }
     }

@@ -3,9 +3,11 @@
 //! RIGOR pool stack block assembler and JobSnapshot publisher (TASK-MINING-007).
 //!
 //! Consumes `TemplateRecord` from [`rigor_gbt`], assembles coinbase (height‖C),
-//! witness / CVGE / RIGOR commitments, reserves a body-mint placeholder, and
-//! publishes immutable `JobSnapshot` rows with monotonic `job_id` /
-//! `candidate_block_id` pairs.
+//! witness / CVGE / RIGOR commitments, and publishes immutable `JobSnapshot`
+//! rows with monotonic `job_id` / `candidate_block_id` pairs.
+//!
+//! ORU-only (Option A): does **not** reserve RES body-mint merkle placeholders
+//! and does **not** construct RES mint transactions. Node GBT txs are opaque.
 //!
 //! ## Impact
 //!
@@ -26,6 +28,7 @@ pub mod payout_script;
 pub mod placeholder;
 pub mod publisher;
 pub mod script;
+pub mod solved_block;
 pub mod types;
 
 pub use api::JobSnapshotApi;
@@ -33,6 +36,14 @@ pub use pg_adapter::AssemblerPgAdapter;
 pub use assembly::{
     assemble_from_gbt, assemble_from_template, AssemblerConfig, AssemblyArtifact,
     UNSPENDABLE_DEVTEST_PAYOUT_SCRIPT,
+};
+pub use merkle::{
+    build_merkle_branches, build_witness_commitment_script, display_hash_hex_to_native,
+    tx_hash_from_raw, txid_from_tx_bytes, witness_merkle_root_for_block, wtxid_from_tx_bytes,
+};
+pub use solved_block::{
+    assemble_coinbase_raw as assemble_solved_coinbase_raw, assemble_solved_block,
+    normalize_extranonce1, SolvedBlockContext, SolvedBlockPackage,
 };
 pub use cache::JobCache;
 pub use coinbase::{assemble_coinbase, CoinbaseAssembly, CoinbaseConfig};

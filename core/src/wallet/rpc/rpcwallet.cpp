@@ -843,6 +843,8 @@ RPCHelpMan walletdisplayaddress();
 
 // backup
 RPCHelpMan dumpprivkey();
+RPCHelpMan dumporuprivkey();
+RPCHelpMan dumpresprivkey();
 RPCHelpMan importprivkey();
 RPCHelpMan importrigorprivkey();
 RPCHelpMan importaddress();
@@ -914,6 +916,8 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &createwallet},
         {"wallet", &restorewallet},
         {"wallet", &dumpprivkey},
+        {"wallet", &dumporuprivkey},
+        {"wallet", &dumpresprivkey},
         {"wallet", &dumpwallet},
         {"wallet", &encryptwallet},
         {"wallet", &getaddressesbylabel},

@@ -30,10 +30,12 @@
 #include <QColor>
 #include <QDateTime>
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QIcon>
 #include <QLatin1Char>
 #include <QLatin1String>
 #include <QList>
+#include <QtGlobal>
 
 
 // Amount column is right-aligned it contains numbers
@@ -115,6 +117,8 @@ public:
     void refreshWallet(interfaces::Wallet& wallet)
     {
         assert(!m_loaded);
+        QElapsedTimer load_timer;
+        load_timer.start();
         {
             for (const auto& wtx : wallet.getWalletTxs()) {
                 if (TransactionRecord::showTransaction()) {
@@ -123,6 +127,9 @@ public:
             }
         }
         m_loaded = true;
+        qInfo().noquote() << QStringLiteral("[ui-perf] TransactionTableModel.refreshWallet %1ms rows=%2")
+                                 .arg(load_timer.elapsed())
+                                 .arg(cachedWallet.size());
         DispatchNotifications();
     }
 

@@ -13,17 +13,19 @@ This document records **consensus-locked** genesis parameters for each public-st
 ## Mainnet (`CMainParams`)
 
 Constants live in namespace `GenesisLockMainnet` in `chainparams.cpp`.
+**Normative freeze:** RFC-016 (Alpha1 / `v0.1.1-alpha`). This is a new chain, not a hard fork of `v0.1.0-alpha`.
 
 | Field | Value |
 |--------|--------|
 | pszTimestamp | `Selection not computation. Convergence defines state. Naming is consensus.` |
 | scriptPubKey (hex) | `00141111111111111111111111111111111111111111` |
 | nVersion | `1` |
-| nTime | `1778224715` |
-| nBits | `0x207fffff` |
+| nTime | `1786125600` (2026-08-07 18:00:00 UTC) |
+| nBits | `0x1e010000` (~10 min/block at ~28 kH/s OpuHash, typical 8-thread PC) |
 | nNonce | `0` |
 | genesisReward | `1000 * COIN` |
-| hashGenesisBlock | `0x5dd90c30e88b90a1a6ce0b371d4abf8d7283d8a1275f70f9d51a8821048221de` |
+| hashMerkleRoot | `0xccdba6059e3d93d9f9eddc83e17cf358d8181155d39ed4b0526d8cd4439528a8` (unchanged vs `v0.1.0-alpha`; coinbase bytes identical) |
+| hashGenesisBlock | `0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758` |
 
 **RFC-003 / convergence:** Height 0 must carry **zero** non-coinbase convergence weight; optional CVGE commitment must match cumulative 0 (`ContextualCheckBlock` in `validation.cpp`). Genesis coinbase is classified as ordinary coinbase (not spendable via standard wallet paths; RPC rejects `getrawtransaction` on it).
 
@@ -80,4 +82,4 @@ Devtest retains **Bitcoin-era buried heights and one `script_flag_exceptions` en
 ## Audit notes
 
 - `test/functional/test_framework/blocktools.py` subsidy helpers must stay aligned with `GetBlockSubsidy` (regtest base **1000 ORU**, halving interval **150**, max **3** right-shifts).
-- `pow_tests.cpp` ASERT numeric vectors use a **synthetic** anchor time `1774915200` for frozen arithmetic regression; they are **not** the deployed mainnet genesis clock (`1778224715`). See comments in that test.
+- `pow_tests.cpp` ASERT numeric vectors use a **synthetic** anchor time `1774915200` for frozen arithmetic regression; they are **not** the deployed mainnet genesis clock (`1786125600`). See comments in that test.

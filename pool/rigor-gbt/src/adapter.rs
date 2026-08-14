@@ -61,9 +61,12 @@ impl GbtAdapter {
             None
         };
 
-        let (value, raw) = self
-            .rpc
-            .get_block_template(self.last_longpollid.as_deref())?;
+        // Interval poll only — never pass longpollid. Core longpoll holds an HTTP
+        // worker until tip/mempool change and does not abort on client disconnect;
+        // with a short poll interval that soft-deadlocks rigord RPC (LISTEN but no
+        // responses). Solo cpuminer uses longpoll differently (few connections);
+        // the pool poller must stay non-blocking.
+        let (value, raw) = self.rpc.get_block_template(None)?;
 
         let template = GbtTemplate::from_json_value(&value)
             .map_err(|e| GbtError::Rejected(format!("GBT parse error: {e}")))?;

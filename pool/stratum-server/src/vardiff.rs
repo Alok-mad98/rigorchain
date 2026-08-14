@@ -25,6 +25,13 @@ pub struct VardiffConfig {
     pub retarget_share_count: u32,
     /// Never change difficulty by more than this factor in one step.
     pub max_step_factor: f64,
+    /// When the absolute Stratum share target would be *harder* than the network
+    /// target, production (`1.0`) clamps to the network target (share == block).
+    ///
+    /// Values `> 1.0` (devtest/regtest) ease shares to `block_target * ease`
+    /// so local Alpha smoke is not forced into 1-accept → 1-block → tip thrash
+    /// → mass stale rejects. Block candidacy still uses the real network target.
+    pub network_share_ease: f64,
 }
 
 impl Default for VardiffConfig {
@@ -36,11 +43,28 @@ impl Default for VardiffConfig {
             target_share_interval_secs: 10.0,
             retarget_share_count: 20,
             max_step_factor: 4.0,
+            network_share_ease: 1.0,
         }
     }
 }
 
 impl VardiffConfig {
+    /// Local Alpha / regtest — **same absolute Stratum model as mainnet**
+    /// (`share_target = diff1 / difficulty`), not relative-to-`0x207fffff`.
+    ///
+    /// `start_difficulty` is scaled for ~3 kH/s CPU smoke ≈ 1 share / 10 s
+    /// (`D * 2^32 / hashrate ≈ 10`). Production keeps `1024` (see [`Default`]).
+    pub fn devtest() -> Self {
+        Self {
+            start_difficulty: 1e-5,
+            min_difficulty: 1e-6,
+            max_difficulty: 1024.0,
+            target_share_interval_secs: 10.0,
+            network_share_ease: 1.0,
+            ..Self::default()
+        }
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if !(self.min_difficulty.is_finite() && self.min_difficulty > 0.0) {
             return Err("min_difficulty must be finite and > 0".into());
@@ -61,6 +85,9 @@ impl VardiffConfig {
         }
         if !(self.max_step_factor.is_finite() && self.max_step_factor > 1.0) {
             return Err("max_step_factor must be finite and > 1".into());
+        }
+        if !(self.network_share_ease.is_finite() && self.network_share_ease >= 1.0) {
+            return Err("network_share_ease must be finite and >= 1".into());
         }
         Ok(())
     }

@@ -851,6 +851,18 @@ public:
     /* Returns true if HD is enabled */
     bool IsHDEnabled() const;
 
+    /**
+     * RIGOR UX: true when active ORU (BECH32 / wpkh) ScriptPubKeyMans are ranged HD.
+     * Independent of wallet-wide IsHDEnabled(), which is false when RES single-slot SPKMs are active.
+     */
+    bool IsOruHDEnabled() const;
+
+    /**
+     * RIGOR UX: true when active RES (BECH32M / res()) ScriptPubKeyMans use dedicated non-ranged keys.
+     * Intentional dual-asset model — not “HD disabled”.
+     */
+    bool IsResDedicatedKeyMode() const;
+
     /* Returns true if the wallet can give out new addresses. This means it has keys in the keypool or can generate new keys */
     bool CanGetAddresses(bool internal = false) const;
 

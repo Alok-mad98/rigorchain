@@ -85,17 +85,18 @@ ConvergenceLifecyclePanel::ConvergenceLifecyclePanel(QWidget* parent)
 void ConvergenceLifecyclePanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceLifecyclePanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceLifecyclePanel::refresh()
 {
+    if (!isVisible()) return;
     const int period = Consensus::CONVERGENCE_DRAW_WINDOW;
 
     m_windowLabel->setText(

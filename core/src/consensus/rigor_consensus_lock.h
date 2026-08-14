@@ -21,8 +21,26 @@
 namespace Consensus {
 
 /** Hard-forking identifier for this lock bundle (not P2P PROTOCOL_VERSION). */
-inline constexpr int RIGOR_CONSENSUS_LOCK_VERSION = 1;
-static_assert(RIGOR_CONSENSUS_LOCK_VERSION == 1, "Rigor consensus lock version mismatch");
+inline constexpr int RIGOR_CONSENSUS_LOCK_VERSION = 2;
+static_assert(RIGOR_CONSENSUS_LOCK_VERSION == 2, "Rigor consensus lock version mismatch");
+
+// ---------------------------------------------------------------------------
+// On-chain block space (1 MiB hard cap; capacity is entirely on-chain)
+// Aliased as MAX_BLOCK_* in consensus/consensus.h — do not duplicate elsewhere.
+// ---------------------------------------------------------------------------
+
+/** Absolute serialized block ceiling (bytes). */
+inline constexpr unsigned int BLOCK_SERIALIZED_SIZE_LIMIT = 1000000;
+/** Absolute BIP141 block weight ceiling. */
+inline constexpr unsigned int BLOCK_WEIGHT_LIMIT = 1000000;
+/** Absolute block sigops cost ceiling (weight / 50). */
+inline constexpr int64_t BLOCK_SIGOPS_COST_LIMIT = 20000;
+
+static_assert(BLOCK_SERIALIZED_SIZE_LIMIT == 1000000, "Serialized block size locked to 1 MiB");
+static_assert(BLOCK_WEIGHT_LIMIT == 1000000, "Block weight locked to 1_000_000");
+static_assert(BLOCK_SIGOPS_COST_LIMIT == 20000, "Block sigops cost locked to 20_000");
+static_assert(BLOCK_SIGOPS_COST_LIMIT * 50 == static_cast<int64_t>(BLOCK_WEIGHT_LIMIT),
+    "Sigops cost must equal weight/50");
 
 // ---------------------------------------------------------------------------
 // RFC-000 §20.1: Chain Identity Lock

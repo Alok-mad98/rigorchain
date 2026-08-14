@@ -98,17 +98,18 @@ ConvergenceHistoryPanel::ConvergenceHistoryPanel(QWidget* parent)
 void ConvergenceHistoryPanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceHistoryPanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceHistoryPanel::refresh()
 {
+    if (!isVisible()) return;
     m_table->setRowCount(0);
     if (!m_walletModel) {
         m_stack->setCurrentWidget(m_empty);

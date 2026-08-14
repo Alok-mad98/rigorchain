@@ -64,6 +64,7 @@ endif
 # Bitcoin secp256k1 ECDSA in bare/P2SH/non-witness scriptSig paths, which consensus rejects (SCRIPT_ERR_SECP256K1_DISABLED).
 BITCOIN_TESTS =\
   test/addrman_tests.cpp \
+  test/alpha1_genesis_tests.cpp \
   test/allocator_tests.cpp \
   test/amount_tests.cpp \
   test/argsman_tests.cpp \
@@ -129,6 +130,7 @@ BITCOIN_TESTS =\
   test/res_single_spend_path_tests.cpp \
   test/rigor_fee_tests.cpp \
   test/rigor_witness_tx_tests.cpp \
+  test/ed25519_consensus_determinism_tests.cpp \
   test/selection_golden_tests.cpp \
   test/state_diff_tests.cpp \
   test/state_snapshot_tests.cpp \
@@ -185,7 +187,11 @@ BITCOIN_TESTS =\
   test/wallet_listunspent_asset_field_tests.cpp \
   test/wallet_state_determinism_tests.cpp \
   test/wallet_res_single_slot_tests.cpp \
+  test/wallet_privkey_export_tests.cpp \
+  test/wallet_ed25519_key_consistency_tests.cpp \
+  test/wallet_key_model_status_tests.cpp \
   test/wallet_oru_fee_dominance_tests.cpp \
+  test/wallet_send_balance_parity_tests.cpp \
   test/wallet_rpc_amount_domain_tests.cpp \
   test/wallet_rpc_spend_oru_fee_tests.cpp \
   test/wallet_reuse_domain_tests.cpp \

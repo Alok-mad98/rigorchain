@@ -1,8 +1,8 @@
 use std::sync::{Arc, RwLock};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuditEvent {
     pub timestamp: u64,
     pub category: String,

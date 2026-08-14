@@ -1,9 +1,11 @@
 //! # stratum-server
 //!
-//! RIGOR pool Stratum v1 server and full miner submission pipeline (TASK-MINING-009).
+//! RIGOR pool Stratum v1 server and miner submission pipeline (TASK-MINING-009).
 //!
-//! Integrates read-only `rigor-gbt`, `block-assembler`, and `share-validator` without
-//! modifying consensus or upstream crates.
+//! ORU-only product surface (TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 / Option A):
+//! coordinates GBT work, shares, ORU payout, and `submitblock`. Does **not**
+//! construct or authorize RES body mints — those remain node automint / wallet
+//! Convergence paths only.
 //!
 //! ## Impact
 //!
@@ -18,13 +20,14 @@ pub mod difficulty;
 pub mod error;
 pub mod jobs;
 pub mod metrics;
+pub mod notify_hub;
 pub mod orchestrator;
 pub mod payout;
 pub mod pg_adapter;
 pub mod protocol;
-pub mod res_mint;
 pub mod server;
 pub mod session;
+pub mod submit;
 pub mod telemetry;
 pub mod vardiff;
 pub mod winner;
@@ -38,9 +41,7 @@ pub use auth::{
 pub use error::{StratumError, StratumResult};
 pub use jobs::{JobAssignmentEngine, StratumJobEnvelope};
 pub use metrics::{MetricsSnapshot, PoolMetrics, SharedMetrics};
-pub use mint_engine::submit::{
-    BlockSubmitter, RecordingBlockSubmitter, RpcBlockSubmitter, UnconfiguredBlockSubmitter,
-};
+pub use notify_hub::{NotifyHub, SharedNotifyHub};
 pub use orchestrator::StratumOrchestrator;
 pub use payout::{
     difficulty_to_weight, MinerBalance, PayoutEngine, PayoutLedgerSnapshot, PayoutLine, PayoutRound,
@@ -48,10 +49,12 @@ pub use payout::{
 };
 pub use pg_adapter::StratumPgAdapter;
 pub use protocol::{StratumNotify, StratumRequest, StratumResponse};
-pub use res_mint::{BodyMintArtifact, MintEngine, MintEngineConfig};
-pub use winner::RES_REWARD_ATOMS;
 pub use server::{ServerLimits, StratumServer};
 pub use session::{MinerSession, SessionManager, SharedSessionManager};
+pub use submit::{
+    BlockSubmitter, RecordingBlockSubmitter, RpcBlockSubmitter, UnconfiguredBlockSubmitter,
+};
 pub use vardiff::{VardiffConfig, VardiffWindow};
 pub use winner::WinnerPreview;
+pub use winner::RES_REWARD_ATOMS;
 pub use winner_service::SharedWinnerService;

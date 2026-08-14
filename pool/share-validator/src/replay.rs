@@ -142,10 +142,10 @@ mod tests {
             },
             body_mint: BodyMintPlaceholder {
                 slot_index: 2,
-                reserved: true,
+                reserved: false,
                 mint_required: false,
                 body_mint_txid: None,
-                placeholder_txid: "cc".repeat(32),
+                placeholder_txid: String::new(),
             },
             merkle_branch: vec![],
             version: 0x20000000,

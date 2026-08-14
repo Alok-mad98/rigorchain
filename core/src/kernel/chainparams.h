@@ -152,6 +152,7 @@ public:
      */
     struct RegTestOptions {
         std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
+        /** Unused on RIGOR: buried softfork heights are fixed; -testactivationheight is rejected. */
         std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
         bool fastprune{false};
     };

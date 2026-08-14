@@ -1,6 +1,7 @@
 # stratum-server Architecture
 
-**Task:** TASK-MINING-009, TASK-MINING-018
+**Task:** TASK-MINING-009, TASK-MINING-018, TASK-POOL-RES-BOUNDARY-IMPLEMENT-003  
+**Product:** ORU-only Stratum pool (Option A). No mint-engine on the runtime path.
 
 ```mermaid
 flowchart TB
@@ -9,13 +10,11 @@ flowchart TB
     ORCH --> SESS["SessionManager"]
     ORCH --> JOBS["JobAssignmentEngine"]
     ORCH --> VAL["ShareValidator"]
-    ORCH --> PAY["PayoutEngine PPLNS"]
-    ORCH --> WINSVC["SharedWinnerService"]
-    WINSVC --> WERT["WinnerRuntime"]
-    ORCH --> MINT["MintEngine"]
+    ORCH --> PAY["PayoutEngine ORU PPLNS"]
+    ORCH --> SUBMIT["RpcBlockSubmitter"]
+    ORCH --> WINSVC["SharedWinnerService preview only"]
     JOBS --> BA["block-assembler"]
     JOBS --> GBT["rigor-gbt"]
-    WERT --> PG["winner_jobs / mint_jobs PG"]
     ORCH --> MET["PoolMetrics"]
     ORCH --> AUD["AuditLog"]
 ```
@@ -24,26 +23,17 @@ flowchart TB
 
 Draw replay uses `prev_nbits` for Sigma binding; template `bits` is never used as draw RHS.
 
-## Winner preview (TASK-MINING-018)
+## Winner preview (telemetry only)
 
-`publish_jobs_from_active_template` calls:
+`publish_jobs_from_active_template` may surface a draw **preview** for operators.
+Preview never constructs, funds, or submits a RES body mint.
 
-1. `WinnerRuntime::register_published_job` — persist candidate + provisional winner
-2. `WinnerRuntime::preview_winner` — full convergence draw replay
-3. `StratumJobEnvelope.preview_winner_txid` — surfaced on `mining.notify`
+## RES mint (pool path)
 
-Legacy min-txid / `len(F) ≥ 2` heuristic removed from `winner.rs`.
-
-## RES mint
-
-Fired on `is_block_candidate` after share-validator acceptance:
-
-1. `authorize_block_found` → `WinnerRuntime::authorize_mint_for_block`
-2. `mint_for_authorized_winner` with `MintAuthorizationToken`
-3. Body mint disabled when authorization denied or `mint_required == false`
-
-Amount: **100 RES** (`10_000` atoms).
+**NONE.** Pool does not call mint-engine. RES body mint (when required) is assembled by
+`rigord` automint / wallet Convergence. `res_mint_events` remains 0 by design.
 
 ## Reorg
 
-`handle_tip_change` → `winner.invalidate_jobs` → `mint_engine.revoke_for_jobs` → orphan PPLNS shares.
+`handle_tip_change` → invalidate jobs → orphan / reverse PPLNS ORU shares (REORG-01).
+No mint revoke on the pool path.

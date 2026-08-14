@@ -333,10 +333,10 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
 
     if (chainName == CBaseChainParams::MAIN) {
         BOOST_CHECK(consensus.defaultAssumeValid == consensus.hashGenesisBlock);
-        BOOST_CHECK_EQUAL(chainParams->GenesisBlock().nTime, 1778224715U);
+        BOOST_CHECK_EQUAL(chainParams->GenesisBlock().nTime, 1786125600U); // RFC-016 / GenesisLockMainnet::TIMESTAMP
         BOOST_CHECK_EQUAL(
             consensus.hashGenesisBlock,
-            uint256S("0x5dd90c30e88b90a1a6ce0b371d4abf8d7283d8a1275f70f9d51a8821048221de"));
+            uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758"));
     }
 
     // hash genesis is correct

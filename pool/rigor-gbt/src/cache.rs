@@ -48,7 +48,14 @@ impl TemplateCache {
         }
     }
 
-    /// Ingest a validated GBT snapshot. Returns `None` on duplicate `longpollid` dedup.
+    /// Ingest a validated GBT snapshot. Returns `None` on duplicate generation.
+    ///
+    /// Dedup key is `(tip_hash, longpollid)`. Core's `longpollid` is
+    /// `tip_hash || nTransactionsUpdatedLast` — unchanged means the work package
+    /// did not change. Do **not** require identical raw JSON / payload hash:
+    /// `curtime` (and similar) churn on every poll and would otherwise republish
+    /// a new Stratum job every interval, staling the previous one and flooding
+    /// miners with `stale job` rejects.
     pub fn ingest(
         &self,
         template: GbtTemplate,
@@ -65,7 +72,21 @@ impl TemplateCache {
 
         if let Some(existing_id) = inner.longpoll_index.get(&gbt.longpollid).copied() {
             if let Some(existing) = inner.records.get(&existing_id) {
-                if existing.gbt_payload_hash == gbt.gbt_payload_hash {
+                if existing.tip_hash == tip_hash
+                    && matches!(
+                        existing.template_state,
+                        TemplateState::Active | TemplateState::Stale
+                    )
+                {
+                    return Ok(None);
+                }
+            }
+        }
+
+        // Same tip + same longpollid as the current ACTIVE (index miss after archive).
+        if let Some(active_id) = inner.active_id {
+            if let Some(active) = inner.records.get(&active_id) {
+                if active.tip_hash == tip_hash && active.longpollid == gbt.longpollid {
                     return Ok(None);
                 }
             }
@@ -321,7 +342,7 @@ mod tests {
             }}],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
             "height": 100,
@@ -356,6 +377,28 @@ mod tests {
         let template: GbtTemplate = serde_json::from_str(&raw).unwrap();
         assert!(cache.ingest(template.clone(), raw.clone(), tip_a()).unwrap().is_some());
         assert!(cache.ingest(template, raw, tip_a()).unwrap().is_none());
+        assert_eq!(cache.get_template_history().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn same_longpollid_different_curtime_is_deduped() {
+        let cache = TemplateCache::new();
+        let raw1 = sample_raw("lp/stable");
+        let t1: GbtTemplate = serde_json::from_str(&raw1).unwrap();
+        assert!(cache.ingest(t1, raw1, tip_a()).unwrap().is_some());
+
+        // Simulate Core returning the same longpollid with a changed curtime field
+        // (payload hash differs; generation id does not).
+        let raw2 = sample_raw("lp/stable").replacen(
+            "\"height\": 100",
+            "\"height\": 100, \"curtime\": 9999999999",
+            1,
+        );
+        let t2: GbtTemplate = serde_json::from_str(&raw2).unwrap();
+        assert!(
+            cache.ingest(t2, raw2, tip_a()).unwrap().is_none(),
+            "curtime-only churn must not create a new template/job"
+        );
         assert_eq!(cache.get_template_history().unwrap().len(), 1);
     }
 

@@ -25,8 +25,9 @@ pub const MAX_LINE_BYTES: usize = 8 * 1024;
 /// Cap on concurrent connections.
 pub const MAX_CONNECTIONS: usize = 4_096;
 
-/// Socket read timeout — an idle or stalled peer is dropped rather than pinning a thread.
-pub const READ_TIMEOUT: Duration = Duration::from_secs(300);
+/// Socket read timeout — short enough to flush broadcast job notifies between
+/// miner submits (was 300s; that left miners stuck on stale work after tip change).
+pub const READ_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// Socket write timeout — a peer that stops reading cannot block us indefinitely.
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(30);
@@ -176,15 +177,34 @@ fn handle_connection(
     let mut writer = stream;
     let mut line = Vec::with_capacity(512);
     let mut requests = 0u64;
+    let mut seen_notify_version = orch.notify_hub.version();
 
     loop {
+        // Flush any newly published jobs before blocking on the next request.
+        if let Some((ver, lines)) = orch.notify_hub.take_since(seen_notify_version) {
+            for notify_line in lines {
+                writer
+                    .write_all(notify_line.as_bytes())
+                    .map_err(|e| StratumError::Internal(e.to_string()))?;
+            }
+            let _ = writer.flush();
+            seen_notify_version = ver;
+        }
+
         line.clear();
         match read_line_capped(&mut reader, &mut line, limits.max_line_bytes) {
             Ok(0) => return Ok(()),
             Ok(_) => {}
             Err(e) => {
+                let msg = e.to_string();
+                // Read timeout / WouldBlock → flush notifies and keep the session.
+                if is_idle_timeout(&msg) {
+                    continue;
+                }
                 // Drop the connection; never grow a buffer for an abusive peer.
-                let _ = writer.write_all(b"{\"id\":null,\"result\":null,\"error\":[20,\"line too long\",null]}\n");
+                let _ = writer.write_all(
+                    b"{\"id\":null,\"result\":null,\"error\":[20,\"line too long\",null]}\n",
+                );
                 return Err(e);
             }
         }
@@ -211,7 +231,29 @@ fn handle_connection(
                 .write_all(resp.as_bytes())
                 .map_err(|e| StratumError::Internal(e.to_string()))?;
         }
+        let _ = writer.flush();
+
+        // Also flush notifies that arrived during request handling (tip change).
+        if let Some((ver, lines)) = orch.notify_hub.take_since(seen_notify_version) {
+            for notify_line in lines {
+                writer
+                    .write_all(notify_line.as_bytes())
+                    .map_err(|e| StratumError::Internal(e.to_string()))?;
+            }
+            let _ = writer.flush();
+            seen_notify_version = ver;
+        }
     }
+}
+
+fn is_idle_timeout(msg: &str) -> bool {
+    let lower = msg.to_ascii_lowercase();
+    lower.contains("timed out")
+        || lower.contains("timeout")
+        || lower.contains("wouldblock")
+        || lower.contains("resource temporarily unavailable")
+        || lower.contains("os error 11")
+        || lower.contains("os error 35")
 }
 
 /// Read one `\n`-terminated line, refusing to buffer more than `max_bytes`.

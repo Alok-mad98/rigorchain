@@ -21,12 +21,29 @@ pub fn encode_bip34_height(height: u64) -> Vec<u8> {
 }
 
 /// Build coinbase `scriptSig`: height ‖ ConvergenceRoot (exactly two pushes).
+///
+/// RIGOR consensus rejects any trailing scriptSig bytes
+/// (`convergence-root-cb-trailing-script-data`). Stratum extranonces must live
+/// elsewhere (see [`build_extranonce_op_return`]).
 pub fn build_coinbase_scriptsig(height: u64, convergence_root: &[u8; 32]) -> Vec<u8> {
     let height_push = encode_bip34_height(height);
     let mut script = Vec::with_capacity(height_push.len() + 33);
     script.extend_from_slice(&height_push);
     script.push(0x20);
     script.extend_from_slice(convergence_root);
+    script
+}
+
+/// OP_RETURN holding the stratum extranonce gap (`en1‖en2` as opaque bytes).
+///
+/// Keeps ConvergenceRoot `scriptSig` consensus-exact while preserving the classic
+/// Stratum `coinb1|en1|en2|coinb2` splice (gap is the push payload).
+pub fn build_extranonce_op_return(en_gap: usize) -> Vec<u8> {
+    assert!((1..=75).contains(&en_gap), "extranonce gap must fit OP_PUSHDATA");
+    let mut script = Vec::with_capacity(2 + en_gap);
+    script.push(0x6a); // OP_RETURN
+    script.push(en_gap as u8);
+    script.extend(std::iter::repeat_n(0u8, en_gap));
     script
 }
 
@@ -67,5 +84,15 @@ mod tests {
         assert_eq!(script.len(), 10);
         assert_eq!(&script[0..2], &[0x6a, 0x08]);
         assert_eq!(&script[2..6], b"RIGR");
+    }
+
+    #[test]
+    fn extranonce_op_return_is_return_plus_push() {
+        let script = build_extranonce_op_return(8);
+        assert_eq!(script, {
+            let mut s = vec![0x6a, 0x08];
+            s.extend(std::iter::repeat_n(0u8, 8));
+            s
+        });
     }
 }

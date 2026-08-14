@@ -96,12 +96,13 @@ bool MutableTransactionSignatureCreator::CreateSig(const SigningProvider& provid
     if (!key.Sign(hash, vchSig)) {
         return false;
     }
-    // Rigor ORUM keys sign with detached Ed25519 (64 bytes). BIP143 witness v0 still uses the same
-    // sighash + scriptCode as ECDSA P2WPKH; interpreter routes ``0x00||pk32`` pubkeys to Ed25519 verify.
+    // Rigor ORUM keys sign with detached Ed25519 (64 bytes + hashtype). BIP143 witness v0
+    // supplies the message digest (scriptCode + sighash); verification is Ed25519 only.
     if (sigversion == SigVersion::WITNESS_V0 && vchSig.size() == ed25519::SIGNATURE_SIZE) {
         vchSig.push_back((unsigned char)hashtype);
         return true;
     }
+    // DER/ECDSA leftover from Bitcoin Core; consensus rejects secp ECDSA on all script paths.
     if (!CPubKey::NormalizeSignatureDER_LowS(vchSig)) {
         return false;
     }
@@ -251,6 +252,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
         return true;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return false; // silence -Wreturn-type (assert may be compiled out)
 }
 
 static CScript PushAll(const std::vector<valtype>& values)
@@ -502,9 +504,20 @@ public:
 
     bool CheckECDSASignature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override
     {
-        if (m_checker.CheckECDSASignature(scriptSig, vchPubKey, scriptCode, sigversion)) {
-            CPubKey pubkey(vchPubKey);
-            sigdata.signatures.emplace(pubkey.GetID(), SigPair(pubkey, scriptSig));
+        (void)scriptSig;
+        (void)vchPubKey;
+        (void)scriptCode;
+        (void)sigversion;
+        return false;
+    }
+
+    bool CheckEd25519Signature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override
+    {
+        if (m_checker.CheckEd25519Signature(scriptSig, vchPubKey, scriptCode, sigversion)) {
+            if (vchPubKey.size() == CPubKey::COMPRESSED_SIZE && vchPubKey[0] == 0x00) {
+                CPubKey pubkey(vchPubKey);
+                sigdata.signatures.emplace(pubkey.GetID(), SigPair(pubkey, scriptSig));
+            }
             return true;
         }
         return false;
@@ -579,7 +592,7 @@ SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nI
             for (unsigned int i = last_success_key; i < num_pubkeys; ++i) {
                 const valtype& pubkey = solutions[i+1];
                 // We either have a signature for this pubkey, or we have found a signature and it is valid
-                if (data.signatures.count(CPubKey(pubkey).GetID()) || extractor_checker.CheckECDSASignature(sig, pubkey, next_script, sigversion)) {
+                if (data.signatures.count(CPubKey(pubkey).GetID()) || extractor_checker.CheckEd25519Signature(sig, pubkey, next_script, sigversion)) {
                     last_success_key = i + 1;
                     break;
                 }
@@ -661,17 +674,18 @@ public:
     const BaseSignatureChecker& Checker() const override { return DUMMY_CHECKER; }
     bool CreateSig(const SigningProvider& provider, std::vector<unsigned char>& vchSig, const CKeyID& keyid, const CScript& scriptCode, SigVersion sigversion) const override
     {
-        // Create a dummy signature that is a valid DER-encoding
-        vchSig.assign(m_r_len + m_s_len + 7, '\000');
-        vchSig[0] = 0x30;
-        vchSig[1] = m_r_len + m_s_len + 4;
-        vchSig[2] = 0x02;
-        vchSig[3] = m_r_len;
-        vchSig[4] = 0x01;
-        vchSig[4 + m_r_len] = 0x02;
-        vchSig[5 + m_r_len] = m_s_len;
-        vchSig[6 + m_r_len] = 0x01;
-        vchSig[6 + m_r_len + m_s_len] = SIGHASH_ALL;
+        (void)provider;
+        (void)keyid;
+        (void)scriptCode;
+        (void)sigversion;
+        (void)m_r_len;
+        (void)m_s_len;
+        // Alpha1 Ed25519-only: DummySignatureChecker::CheckEd25519Signature requires
+        // detached Ed25519 (64) + hashtype (1). Bitcoin-era DER ECDSA dummies fail
+        // ProduceSignature's final VerifyScript, which made wallet fee sizing return
+        // input_bytes == -1 (Qt useAvailableBalance + sendall CHECK_NONFATAL).
+        vchSig.assign(ed25519::SIGNATURE_SIZE + 1, 0x42);
+        vchSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
         return true;
     }
 };

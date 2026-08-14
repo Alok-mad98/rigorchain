@@ -33,24 +33,13 @@ void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& opti
 {
     if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
 
-    for (const std::string& arg : args.GetArgs("-testactivationheight")) {
-        const auto found{arg.find('@')};
-        if (found == std::string::npos) {
-            throw std::runtime_error(strprintf("Invalid format (%s) for -testactivationheight=name@height.", arg));
-        }
-
-        const auto value{arg.substr(found + 1)};
-        int32_t height;
-        if (!ParseInt32(value, &height) || height < 0 || height >= std::numeric_limits<int>::max()) {
-            throw std::runtime_error(strprintf("Invalid height value (%s) for -testactivationheight=name@height.", arg));
-        }
-
-        const auto deployment_name{arg.substr(0, found)};
-        if (const auto buried_deployment = GetBuriedDeployment(deployment_name)) {
-            options.activation_heights[*buried_deployment] = height;
-        } else {
-            throw std::runtime_error(strprintf("Invalid name (%s) for -testactivationheight=name@height.", arg));
-        }
+    // RIGOR: buried softforks are fixed genesis-active on every network (including
+    // regtest). Reject Bitcoin-style delayed activation overrides so tests cannot
+    // reintroduce height-gated BIP matrices.
+    if (args.IsArgSet("-testactivationheight")) {
+        throw std::runtime_error(
+            "-testactivationheight is disabled on RIGOR; buried softforks are "
+            "genesis-active and cannot be delayed.");
     }
 
     if (!args.IsArgSet("-vbparams")) return;

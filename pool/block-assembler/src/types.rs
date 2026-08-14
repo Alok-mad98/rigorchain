@@ -54,15 +54,16 @@ pub struct CommitmentInfo {
     pub prev_nbits_hex: String,
 }
 
-/// Immutable placeholder reserving vtx[k+1] for future RES body mint (TASK-MINING-007).
+/// Schema remnant: formerly reserved vtx[k+1] for pool-built RES mint.
+/// Under Option A this is never reserved (`reserved=false`, empty placeholder).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct BodyMintPlaceholder {
-    /// Index in assembled vtx (after GBT transactions).
+    /// Informational index after coinbase + opaque GBT txs (not a merkle leaf).
     pub slot_index: usize,
     pub reserved: bool,
     pub mint_required: bool,
     pub body_mint_txid: Option<String>,
-    /// Fixed placeholder txid for merkle pre-image until Mint Engine fills slot.
+    /// Empty under ORU-only assembly; legacy code may still read the field.
     pub placeholder_txid: String,
 }
 

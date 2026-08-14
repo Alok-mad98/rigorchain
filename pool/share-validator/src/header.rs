@@ -1,6 +1,5 @@
 use crate::error::{ValidationErrorCode, ValidatorError, ValidatorResult};
-use crate::opuhash::hash256;
-use block_assembler::PublishedJobSnapshot;
+use block_assembler::{txid_from_tx_bytes, PublishedJobSnapshot};
 
 /// Reconstruct 80-byte block header from job + miner deltas.
 pub fn build_header_bytes(
@@ -11,7 +10,8 @@ pub fn build_header_bytes(
     nonce: u32,
 ) -> ValidatorResult<[u8; 80]> {
     let coinbase_raw = assemble_coinbase_raw(job, extranonce1, extranonce2)?;
-    let coinbase_hash = hash256(&coinbase_raw);
+    // Bitcoin block merkle uses txid (witness stripped), not the full witness blob hash.
+    let coinbase_hash = txid_from_tx_bytes(&coinbase_raw);
     let merkle_root = compute_merkle_root(&coinbase_hash, &job.merkle_branch)?;
 
     let version = job.version;
@@ -29,7 +29,7 @@ pub fn build_header_bytes(
 }
 
 pub fn header_base_hash(header: &[u8; 80]) -> [u8; 32] {
-    hash256(header)
+    crate::opuhash::hash256(header)
 }
 
 pub(crate) fn assemble_coinbase_raw(
@@ -37,36 +37,18 @@ pub(crate) fn assemble_coinbase_raw(
     extranonce1: &[u8],
     extranonce2: &[u8],
 ) -> ValidatorResult<Vec<u8>> {
-    let coinb1 = hex::decode(&job.coinbase.coinb1_hex)
-        .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
-    let coinb2 = hex::decode(&job.coinbase.coinb2_hex)
-        .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
-
-    if extranonce2.len() != job.coinbase.extranonce2_size as usize {
-        return Err(ValidatorError::validation(
-            ValidationErrorCode::ErrMalformedSubmission,
-            format!(
-                "extranonce2 len {} != expected {}",
-                extranonce2.len(),
-                job.coinbase.extranonce2_size
-            ),
-        ));
-    }
-
-    let mut raw = Vec::with_capacity(coinb1.len() + extranonce1.len() + extranonce2.len() + coinb2.len());
-    raw.extend_from_slice(&coinb1);
-    raw.extend_from_slice(extranonce1);
-    raw.extend_from_slice(extranonce2);
-    raw.extend_from_slice(&coinb2);
-    Ok(raw)
+    block_assembler::assemble_solved_coinbase_raw(job, extranonce1, extranonce2).map_err(|e| {
+        ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string())
+    })
 }
 
 fn compute_merkle_root(coinbase_hash: &[u8; 32], branches: &[String]) -> ValidatorResult<[u8; 32]> {
     let mut hash = *coinbase_hash;
     let mut index = 0usize;
     for branch_hex in branches {
-        let branch_bytes = hex::decode(branch_hex)
-            .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
+        let branch_bytes = hex::decode(branch_hex).map_err(|e| {
+            ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string())
+        })?;
         if branch_bytes.len() != 32 {
             return Err(ValidatorError::validation(
                 ValidationErrorCode::ErrMalformedSubmission,
@@ -84,15 +66,16 @@ fn compute_merkle_root(coinbase_hash: &[u8; 32], branches: &[String]) -> Validat
             pair.extend_from_slice(&branch);
             pair.extend_from_slice(&hash);
         }
-        hash = hash256(&pair);
+        hash = crate::opuhash::hash256(&pair);
         index += 1;
     }
     Ok(hash)
 }
 
 fn decode_prevhash(hex_str: &str) -> ValidatorResult<[u8; 32]> {
-    let bytes = hex::decode(hex_str)
-        .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
+    let bytes = hex::decode(hex_str).map_err(|e| {
+        ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string())
+    })?;
     if bytes.len() != 32 {
         return Err(ValidatorError::validation(
             ValidationErrorCode::ErrMalformedSubmission,
@@ -106,8 +89,9 @@ fn decode_prevhash(hex_str: &str) -> ValidatorResult<[u8; 32]> {
 }
 
 fn parse_nbits(bits_hex: &str) -> ValidatorResult<[u8; 4]> {
-    let compact = u32::from_str_radix(bits_hex, 16)
-        .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
+    let compact = u32::from_str_radix(bits_hex, 16).map_err(|e| {
+        ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string())
+    })?;
     Ok(compact.to_le_bytes())
 }
 
@@ -121,13 +105,23 @@ pub fn coinbase_scriptsig_from_submission(
 }
 
 fn extract_vin0_scriptsig(tx: &[u8]) -> ValidatorResult<Vec<u8>> {
-    if tx.len() < 42 {
+    if tx.len() < 10 {
         return Err(ValidatorError::validation(
             ValidationErrorCode::ErrMalformedSubmission,
             "coinbase too short",
         ));
     }
     let mut off = 4usize;
+    // BIP141: version | marker | flag | vin...
+    if tx.len() >= 6 && tx[4] == 0x00 && tx[5] == 0x01 {
+        off = 6;
+    }
+    if off >= tx.len() {
+        return Err(ValidatorError::validation(
+            ValidationErrorCode::ErrMalformedSubmission,
+            "coinbase missing vin",
+        ));
+    }
     let vin_count = tx[off];
     off += 1;
     if vin_count != 1 {
@@ -136,9 +130,27 @@ fn extract_vin0_scriptsig(tx: &[u8]) -> ValidatorResult<Vec<u8>> {
             "expected single coinbase input",
         ));
     }
+    if off + 36 > tx.len() {
+        return Err(ValidatorError::validation(
+            ValidationErrorCode::ErrMalformedSubmission,
+            "coinbase prevout truncated",
+        ));
+    }
     off += 36;
+    if off >= tx.len() {
+        return Err(ValidatorError::validation(
+            ValidationErrorCode::ErrMalformedSubmission,
+            "scriptSig missing",
+        ));
+    }
     let script_len = tx[off] as usize;
     off += 1;
+    if script_len >= 0xfd {
+        return Err(ValidatorError::validation(
+            ValidationErrorCode::ErrMalformedSubmission,
+            "scriptSig length compact size not supported in extractor",
+        ));
+    }
     if off + script_len > tx.len() {
         return Err(ValidatorError::validation(
             ValidationErrorCode::ErrMalformedSubmission,

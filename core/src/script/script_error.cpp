@@ -112,7 +112,7 @@ std::string ScriptErrorString(const ScriptError serror)
         case SCRIPT_ERR_SIG_FINDANDDELETE:
             return "Signature is found in scriptCode";
         case SCRIPT_ERR_SECP256K1_DISABLED:
-            return "secp256k1/ECDSA is disabled for this script path (use witness v0 compressed ECDSA for ORU P2WPKH/P2WSH, or Ed25519 where applicable)";
+            return "secp256k1/ECDSA is disabled; RIGOR spend signatures are Ed25519 only";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

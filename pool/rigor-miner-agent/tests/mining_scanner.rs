@@ -81,6 +81,8 @@ fn scanner_batch_records_hashes() {
         extranonce2_size: 4,
         batch_size: 100,
     });
-    let _ = scanner.scan_batch(&job, &metrics);
-    assert!(metrics.hashes() >= 100);
+    let found = scanner.scan_batch(&job, &metrics);
+    // Early return on a found share is success; otherwise the full batch must hash.
+    assert!(metrics.hashes() >= 1);
+    assert!(found.is_some() || metrics.hashes() >= 100);
 }

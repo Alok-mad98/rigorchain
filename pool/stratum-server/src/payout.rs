@@ -116,11 +116,15 @@ pub struct PayoutLedgerSnapshot {
     pub orphaned_share_count: u64,
     /// Shares consumed by a finalized round (C-6a).
     pub settled_share_count: u64,
+    /// Cumulative ORU retained as pool fee.
+    pub pool_fee_retained_oru: i64,
 }
 
 pub struct PayoutEngine {
     inner: RwLock<PayoutInner>,
     pub round_id: u64,
+    /// Pool fee in basis points (100_00 = 100%). Applied before miner PPLNS split.
+    pub fee_bps: u32,
 }
 
 struct PayoutInner {
@@ -130,10 +134,24 @@ struct PayoutInner {
     next_round_seq: u64,
     blocks_found: u64,
     blocks_orphaned: u64,
+    /// Cumulative ORU retained as pool fee (not miner liability).
+    pool_fee_retained_oru: i64,
 }
 
 impl PayoutEngine {
     pub fn new(round_id: u64) -> Self {
+        Self::with_fee_percent(round_id, 0.0)
+    }
+
+    /// `fee_percent` is in \[0.0, 100.0\]. Values outside that range clamp.
+    pub fn with_fee_percent(round_id: u64, fee_percent: f64) -> Self {
+        let fee_bps = if !fee_percent.is_finite() || fee_percent <= 0.0 {
+            0
+        } else if fee_percent >= 100.0 {
+            10_000
+        } else {
+            (fee_percent * 100.0).round() as u32
+        };
         Self {
             inner: RwLock::new(PayoutInner {
                 shares: Vec::new(),
@@ -142,9 +160,32 @@ impl PayoutEngine {
                 next_round_seq: 1,
                 blocks_found: 0,
                 blocks_orphaned: 0,
+                pool_fee_retained_oru: 0,
             }),
             round_id,
+            fee_bps,
         }
+    }
+
+    /// ORU retained by the pool operator after fee application.
+    pub fn pool_fee_retained_oru(&self) -> i64 {
+        self.inner
+            .read()
+            .map(|i| i.pool_fee_retained_oru)
+            .unwrap_or(0)
+    }
+
+    fn miner_pot_after_fee(&self, coinbase_oru: i64) -> (i64, i64) {
+        if coinbase_oru <= 0 || self.fee_bps == 0 {
+            return (coinbase_oru.max(0), 0);
+        }
+        if self.fee_bps >= 10_000 {
+            return (0, coinbase_oru.max(0));
+        }
+        let pot = coinbase_oru as i128;
+        let fee = (pot * self.fee_bps as i128) / 10_000;
+        let miner = pot - fee;
+        (miner as i64, fee as i64)
     }
 
     pub fn credit_share(&self, worker: &str, job_id: &JobId, share_id: &str, difficulty: f64) {
@@ -203,7 +244,10 @@ impl PayoutEngine {
             seq = inner.next_round_seq;
             inner.next_round_seq += 1;
 
-            let lines = Self::compute_pplns_lines(&inner, coinbase_oru);
+            let (miner_pot, fee_kept) = self.miner_pot_after_fee(coinbase_oru);
+            inner.pool_fee_retained_oru += fee_kept;
+
+            let lines = Self::compute_pplns_lines(&inner, miner_pot);
             for line in &lines {
                 let bal = inner
                     .balances
@@ -342,6 +386,7 @@ impl PayoutEngine {
             active_share_count,
             orphaned_share_count,
             settled_share_count,
+            pool_fee_retained_oru: inner.pool_fee_retained_oru,
         }
     }
 
@@ -465,6 +510,17 @@ mod tests {
         engine.record_block_found_for_job(&job, 1_000_000);
         assert_eq!(engine.balance("alice").unwrap().oru_pending, 250_000);
         assert_eq!(engine.balance("bob").unwrap().oru_pending, 750_000);
+    }
+
+    #[test]
+    fn oru_fee_percent_reduces_miner_pot() {
+        let engine = PayoutEngine::with_fee_percent(1, 10.0); // 10%
+        let job = JobId("j1".into());
+        engine.credit_share("alice", &job, "s1", 10.0);
+        engine.record_block_found_for_job(&job, 1_000_000);
+        assert_eq!(engine.pool_fee_retained_oru(), 100_000);
+        assert_eq!(engine.balance("alice").unwrap().oru_pending, 900_000);
+        assert_eq!(engine.total_liability_oru(), 900_000);
     }
 
     /// C-6a regression: the share window must be consumed on finalize. Before the

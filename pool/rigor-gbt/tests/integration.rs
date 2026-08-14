@@ -14,7 +14,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             }}],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
             "height": 200,

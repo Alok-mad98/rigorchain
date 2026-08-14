@@ -20,7 +20,7 @@ fn fixture(longpoll: &str, conv_a: &str, conv_b: &str) -> (GbtTemplate, String) 
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
             "height": 150,
@@ -91,7 +91,7 @@ fn reorg_invalidates_jobs_and_allows_new_publish() {
 }
 
 #[test]
-fn body_mint_placeholder_is_immutable_and_reserved() {
+fn body_mint_slot_is_never_reserved_oru_only() {
     let template_cache = Arc::new(TemplateCache::new());
     let publisher = JobPublisher::with_defaults(Arc::new(block_assembler::JobCache::new()));
 
@@ -99,17 +99,15 @@ fn body_mint_placeholder_is_immutable_and_reserved() {
     let record = template_cache.ingest(t, raw, tip(1)).unwrap().unwrap();
     let job = publisher.publish_from_template(&record).unwrap();
 
-    assert!(job.body_mint.reserved);
+    assert!(!job.body_mint.reserved);
     assert!(!job.body_mint.mint_required);
     assert!(job.body_mint.body_mint_txid.is_none());
+    assert!(job.body_mint.placeholder_txid.is_empty());
     assert_eq!(job.body_mint.slot_index, 3);
-    let placeholder = job.body_mint.placeholder_txid.clone();
-    let reread = publisher.cache().get_job_by_id(&job.job_id).unwrap().unwrap();
-    assert_eq!(reread.body_mint.placeholder_txid, placeholder);
 
     let (t2, raw2) = fixture("mint/2", &"cc".repeat(32), &"dd".repeat(32));
     let record2 = template_cache.ingest(t2, raw2, tip(1)).unwrap().unwrap();
     let job2 = publisher.publish_from_template(&record2).unwrap();
     assert_ne!(job2.job_id, job.job_id);
-    assert_ne!(job2.body_mint.placeholder_txid, placeholder);
+    assert!(!job2.body_mint.reserved);
 }

@@ -60,8 +60,8 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
     int witnessversion = 0;
     std::vector<unsigned char> witnessprogram;
 
-    // Note this computation is for spending a Segwit v0 P2WPKH output (a 33 bytes
-    // public key + an ECDSA signature). Witness v1 RES uses the branch above.
+    // Dust size model for spending a witness v0 P2WPKH output (33-byte pubkey +
+    // 64-byte Ed25519 sig + hashtype). Witness v1 RES uses the branch above.
     if (txout.scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
         // sum the sizes of the parts of a transaction input
         // with 75% segwit discount applied to the script size.

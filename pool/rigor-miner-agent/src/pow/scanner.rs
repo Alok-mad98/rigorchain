@@ -2,7 +2,7 @@ use crate::job::JobSnapshot;
 use crate::metrics::Metrics;
 
 use super::header::build_header_bytes;
-use super::target::share_target_from_block;
+use super::target::share_target_for_bits;
 use super::traits::{NonceScanner, OpuHashWorker, ShareCandidate, ShareProducer};
 use super::worker::CpuOpuHashWorker;
 use share_validator::expand_compact_bits;
@@ -100,7 +100,7 @@ impl NonceScanner for CpuNonceScanner {
 
 pub fn share_target_for_job(job: &JobSnapshot) -> Option<[u8; 32]> {
     let block_target = expand_compact_bits(&job.notify.nbits).ok()?;
-    Some(share_target_from_block(block_target, job.difficulty))
+    Some(share_target_for_bits(block_target, job.difficulty))
 }
 
 #[cfg(test)]
@@ -123,7 +123,7 @@ mod tests {
                 clean_jobs: false,
             },
             convergence: Default::default(),
-            difficulty: 0.001,
+            difficulty: 1e-5,
             received_at: Instant::now(),
             stale: false,
         }

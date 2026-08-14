@@ -1,15 +1,15 @@
-//! # mint-engine
+//! # mint-engine (LEGACY)
 //!
-//! Production RES body mint engine for the RIGOR mining pool (TASK-MINT-ENGINE-001).
+//! Historical RES body mint builder for the RIGOR mining pool (TASK-MINT-ENGINE-001).
 //!
-//! Builds ORU-funded RES body mint transactions with PCORB witness + Ed25519,
-//! assembles candidate blocks with mint at ``vtx[k+1]``, and optionally submits
-//! via ``submitblock`` RPC.
+//! **Detached from pool runtime** by TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 (Option A).
+//! Production Stratum / pilot no longer depend on this crate. Retained for audit and
+//! offline unit/integration tests of the former builder only.
 //!
 //! ## Impact
 //!
 //! - Consensus: **NONE**
-//! - Protocol: **NONE**
+//! - Pool production path: **NONE** (detached)
 //! - Freeze: **NONE**
 //! - `equivalence_claimed`: **false**
 

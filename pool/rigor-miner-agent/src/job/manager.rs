@@ -64,7 +64,7 @@ impl JobManager {
             stale: HashMap::new(),
             stats: JobStatistics::default(),
             stale_after,
-            default_difficulty: 1.0,
+            default_difficulty: 1e-5,
         }
     }
 

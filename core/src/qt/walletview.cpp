@@ -29,11 +29,14 @@
 #include <util/strencodings.h>
 
 #include <QAction>
+#include <QDebug>
+#include <QElapsedTimer>
 #include <QFileDialog>
 #include <QHBoxLayout>
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QTimer>
+#include <QtGlobal>
 #include <QVBoxLayout>
 
 WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platformStyle, QWidget* parent)
@@ -61,6 +64,7 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     connect(walletModel, &WalletModel::showProgress, this, &WalletView::showProgress);
 
     QTimer::singleShot(0, this, &WalletView::buildDeferredPages);
+    qInfo().noquote() << QStringLiteral("[ui-perf] WalletView constructed (overview attached; deferred pages pending)");
 }
 
 WalletView::~WalletView() = default;
@@ -72,16 +76,20 @@ void WalletView::buildDeferredPages()
 
     // One page group per event-loop turn so the UI can paint and Windows does not
     // mark the process as Not Responding during first wallet attach.
-    QTimer::singleShot(0, this, [this] {
+    QElapsedTimer deferred;
+    deferred.start();
+    QTimer::singleShot(0, this, [this, deferred]() mutable {
         ensureHistoryPage();
-        QTimer::singleShot(0, this, [this] {
+        QTimer::singleShot(0, this, [this, deferred]() mutable {
             ensureReceiveSendPages();
-            QTimer::singleShot(0, this, [this] {
+            QTimer::singleShot(0, this, [this, deferred]() mutable {
                 ensureConvergenceDiagnosticsPages();
                 m_deferred_pages_ready = true;
                 if (clientModel) {
                     applyClientModelToPages();
                 }
+                qInfo().noquote() << QStringLiteral("[ui-perf] WalletView deferred pages ready %1ms")
+                                         .arg(deferred.elapsed());
             });
         });
     });
@@ -232,14 +240,20 @@ void WalletView::gotoOverviewPage()
 
 void WalletView::gotoHistoryPage()
 {
+    QElapsedTimer t;
+    t.start();
     ensureHistoryPage();
     setCurrentWidget(transactionsPage);
+    qInfo().noquote() << QStringLiteral("[ui-perf] WalletView.gotoHistoryPage %1ms").arg(t.elapsed());
 }
 
 void WalletView::gotoConvergencePage()
 {
+    QElapsedTimer t;
+    t.start();
     ensureConvergenceDiagnosticsPages();
     setCurrentWidget(convergencePage);
+    qInfo().noquote() << QStringLiteral("[ui-perf] WalletView.gotoConvergencePage %1ms").arg(t.elapsed());
 }
 
 void WalletView::gotoDiagnosticsPage()

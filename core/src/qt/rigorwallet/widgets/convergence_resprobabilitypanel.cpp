@@ -49,11 +49,12 @@ ConvergenceResProbabilityPanel::ConvergenceResProbabilityPanel(QWidget* parent)
 void ConvergenceResProbabilityPanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceResProbabilityPanel::refresh()
 {
+    if (!isVisible()) return;
     if (!m_clientModel) {
         m_targetLabel->setText(tr("Selection target: —"));
         m_windowLabel->setText(tr("Consensus window W = %1 blocks").arg(Consensus::CONVERGENCE_DRAW_WINDOW));

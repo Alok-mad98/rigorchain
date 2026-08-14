@@ -13,7 +13,9 @@
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
 
+#include <chainparams.h>
 #include <interfaces/node.h>
+#include <key_io.h>
 #include <rpc/protocol.h>
 #include <univalue.h>
 
@@ -47,6 +49,15 @@ QString RpcErrorMessage(const std::exception& e)
     return QString::fromStdString(e.what());
 }
 
+QString DetectAssetLabel(const QString& address)
+{
+    const auto asset = GetAssetTypeFromAddress(address.toStdString(), Params());
+    if (!asset) return QStringLiteral("Unknown / invalid");
+    if (*asset == ASSET_ORU) return QStringLiteral("ORU (Witness v0 / Bech32)");
+    if (*asset == ASSET_RES) return QStringLiteral("RES (Witness v1 / Bech32m)");
+    return QStringLiteral("Unsupported");
+}
+
 } // namespace
 
 KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWidget* parent)
@@ -54,19 +65,29 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
       m_platform_style(platformStyle)
 {
     setWindowTitle(tr("Key Management"));
-    resize(640, 480);
+    resize(640, 520);
     GUIUtil::ApplyRigorDialogChrome(this);
 
     auto* root = new QVBoxLayout(this);
     auto* intro = new QLabel(tr(
         "Descriptor-first key management for ORU (wpkh / Bech32) and RES (res / Bech32m). "
         "Private keys never leave this machine. Prefer exporting public descriptors for watch-only cold storage. "
-        "Use Export Descriptor (include private) instead of dumpprivkey."));
+        "Address-level export is under the Security tab (dumporuprivkey / dumpresprivkey)."));
     intro->setWordWrap(true);
     root->addWidget(intro);
 
-    auto* tabs = new QTabWidget(this);
-    root->addWidget(tabs, 1);
+    {
+        auto* status_box = new QGroupBox(tr("Key Management Status"), this);
+        auto* status_layout = new QVBoxLayout(status_box);
+        m_key_model_status = new QLabel(status_box);
+        m_key_model_status->setWordWrap(true);
+        m_key_model_status->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        status_layout->addWidget(m_key_model_status);
+        root->addWidget(status_box);
+    }
+
+    m_tabs = new QTabWidget(this);
+    root->addWidget(m_tabs, 1);
 
     // --- Import private key ---
     {
@@ -104,7 +125,7 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         m_privkey_status->setWordWrap(true);
         layout->addWidget(m_privkey_status);
         layout->addStretch();
-        tabs->addTab(page, tr("Import Private Key"));
+        m_tabs->addTab(page, tr("Import Private Key"));
     }
 
     // --- Import descriptor ---
@@ -126,7 +147,7 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         m_desc_status = new QLabel(page);
         m_desc_status->setWordWrap(true);
         layout->addWidget(m_desc_status);
-        tabs->addTab(page, tr("Import Descriptor"));
+        m_tabs->addTab(page, tr("Import Descriptor"));
     }
 
     // --- Export cold storage ---
@@ -153,7 +174,57 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         m_desc_export_edit = new QPlainTextEdit(page);
         m_desc_export_edit->setReadOnly(true);
         layout->addWidget(m_desc_export_edit, 1);
-        tabs->addTab(page, tr("Export Descriptor"));
+        m_tabs->addTab(page, tr("Export Descriptor"));
+    }
+
+    // --- Security: Export Private Key ---
+    {
+        auto* page = new QWidget(this);
+        auto* layout = new QVBoxLayout(page);
+
+        auto* warning = new QLabel(tr(
+            "Warning:\n"
+            "Anyone with this private key can control this address.\n\n"
+            "Never share this key."));
+        warning->setWordWrap(true);
+        warning->setObjectName(QStringLiteral("exportPrivKeyWarning"));
+        warning->setStyleSheet(QStringLiteral("QLabel#exportPrivKeyWarning { color: #8a1f1f; font-weight: 600; }"));
+        layout->addWidget(warning);
+
+        layout->addWidget(new QLabel(tr(
+            "Advanced security path only (Settings → Advanced → Security → Export Private Key). "
+            "Not shown on Overview, Receive, Transactions, or Convergence.")));
+
+        auto* form = new QFormLayout();
+        m_export_address_edit = new QLineEdit(page);
+        m_export_address_edit->setPlaceholderText(tr("Owned ORU or RES address"));
+        connect(m_export_address_edit, &QLineEdit::textChanged, this, &KeyManagementDialog::onExportAddressEdited);
+        form->addRow(tr("Address"), m_export_address_edit);
+
+        m_export_asset_label = new QLabel(tr("—"), page);
+        form->addRow(tr("Detected asset"), m_export_asset_label);
+        layout->addLayout(form);
+
+        auto* row = new QHBoxLayout();
+        auto* export_btn = new QPushButton(tr("Export Private Key"), page);
+        connect(export_btn, &QPushButton::clicked, this, &KeyManagementDialog::exportAddressPrivateKey);
+        row->addWidget(export_btn);
+        auto* copy_btn = new QPushButton(tr("Copy Key"), page);
+        connect(copy_btn, &QPushButton::clicked, this, &KeyManagementDialog::copyAddressPrivateKey);
+        row->addWidget(copy_btn);
+        row->addStretch();
+        layout->addLayout(row);
+
+        m_export_key_edit = new QPlainTextEdit(page);
+        m_export_key_edit->setReadOnly(true);
+        m_export_key_edit->setPlaceholderText(tr("Exported key material appears here after confirmation."));
+        layout->addWidget(m_export_key_edit, 1);
+
+        m_export_key_status = new QLabel(page);
+        m_export_key_status->setWordWrap(true);
+        layout->addWidget(m_export_key_status);
+
+        m_tabs->addTab(page, tr("Security / Export Private Key"));
     }
 
     auto* close_btn = new QPushButton(tr("Close"), this);
@@ -164,6 +235,39 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
 void KeyManagementDialog::setModel(WalletModel* model)
 {
     m_model = model;
+    refreshKeyModelStatus();
+}
+
+void KeyManagementDialog::refreshKeyModelStatus()
+{
+    if (!m_key_model_status) return;
+    if (!m_model) {
+        m_key_model_status->setText(tr("No wallet selected."));
+        return;
+    }
+
+    auto& wallet = m_model->wallet();
+    if (wallet.privateKeysDisabled()) {
+        m_key_model_status->setText(tr(
+            "Watch-only wallet (private keys disabled).\n"
+            "ORU / RES key material is not available for export from this wallet."));
+        return;
+    }
+
+    const QString oru_line = wallet.oruHdEnabled()
+                                 ? tr("ORU:\nHD wallet enabled")
+                                 : tr("ORU:\nHD wallet not available");
+    const QString res_line = wallet.resDedicatedKeyMode()
+                                 ? tr("RES:\nDedicated key mode")
+                                 : tr("RES:\nNot configured");
+    m_key_model_status->setText(oru_line + QLatin1Char('\n') + QLatin1Char('\n') + res_line);
+}
+
+void KeyManagementDialog::setActiveTab(Tab tab)
+{
+    if (m_tabs) {
+        m_tabs->setCurrentIndex(static_cast<int>(tab));
+    }
 }
 
 void KeyManagementDialog::importPrivateKey()
@@ -270,4 +374,85 @@ void KeyManagementDialog::exportDescriptors()
 void KeyManagementDialog::copyExport()
 {
     QApplication::clipboard()->setText(m_desc_export_edit->toPlainText());
+}
+
+void KeyManagementDialog::onExportAddressEdited(const QString& text)
+{
+    m_export_asset_label->setText(DetectAssetLabel(text.trimmed()));
+    m_export_key_edit->clear();
+    m_export_key_status->clear();
+}
+
+void KeyManagementDialog::exportAddressPrivateKey()
+{
+    if (!m_model) return;
+
+    const QString address = m_export_address_edit->text().trimmed();
+    if (address.isEmpty()) {
+        m_export_key_status->setText(tr("Enter an address."));
+        return;
+    }
+
+    const auto asset = GetAssetTypeFromAddress(address.toStdString(), Params());
+    if (!asset || (*asset != ASSET_ORU && *asset != ASSET_RES)) {
+        m_export_key_status->setText(tr("Address must be a valid ORU or RES address."));
+        return;
+    }
+
+    if (m_model->wallet().privateKeysDisabled()) {
+        m_export_key_status->setText(tr("Private key unavailable for watch-only descriptor"));
+        return;
+    }
+
+    const auto confirm = QMessageBox::warning(
+        this,
+        tr("Export Private Key"),
+        tr("Warning:\nAnyone with this private key can control this address.\n\nNever share this key.\n\nContinue?"),
+        QMessageBox::Yes | QMessageBox::Cancel,
+        QMessageBox::Cancel);
+    if (confirm != QMessageBox::Yes) {
+        return;
+    }
+
+    WalletModel::UnlockContext ctx(m_model->requestUnlock());
+    if (!ctx.isValid()) {
+        m_export_key_status->setText(tr("Wallet is locked"));
+        return;
+    }
+
+    const char* rpc = (*asset == ASSET_ORU) ? "dumporuprivkey" : "dumpresprivkey";
+    try {
+        UniValue params(UniValue::VARR);
+        params.push_back(address.toStdString());
+        const UniValue result = m_model->node().executeRpc(rpc, params, WalletRpcUri(m_model));
+
+        const QString out_addr = QString::fromStdString(result["address"].get_str());
+        const QString out_asset = QString::fromStdString(result["asset"].get_str());
+        const QString key = QString::fromStdString(result["private_key"].get_str());
+        const QString format = QString::fromStdString(result["format"].get_str());
+
+        m_export_key_edit->setPlainText(
+            tr("address: %1\nasset: %2\nformat: %3\nprivate_key:\n%4")
+                .arg(out_addr, out_asset, format, key));
+        m_export_key_status->setText(tr("Export complete. Keep this key offline."));
+    } catch (const UniValue& e) {
+        m_export_key_status->setText(tr("Export failed: %1").arg(QString::fromStdString(e.write())));
+        m_export_key_edit->clear();
+    } catch (const std::exception& e) {
+        m_export_key_status->setText(tr("Export failed: %1").arg(QString::fromStdString(e.what())));
+        m_export_key_edit->clear();
+    }
+}
+
+void KeyManagementDialog::copyAddressPrivateKey()
+{
+    const QString text = m_export_key_edit->toPlainText();
+    if (text.isEmpty()) return;
+    const QString marker = QStringLiteral("private_key:\n");
+    const int idx = text.indexOf(marker);
+    if (idx >= 0) {
+        QApplication::clipboard()->setText(text.mid(idx + marker.size()).trimmed());
+    } else {
+        QApplication::clipboard()->setText(text);
+    }
 }

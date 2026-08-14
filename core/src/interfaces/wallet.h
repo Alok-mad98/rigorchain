@@ -275,6 +275,12 @@ public:
     // Return whether HD enabled.
     virtual bool hdEnabled() = 0;
 
+    //! RIGOR UX: ORU (BECH32) ranged HD key generation available.
+    virtual bool oruHdEnabled() = 0;
+
+    //! RIGOR UX: RES (BECH32M) uses dedicated non-ranged single-slot keys.
+    virtual bool resDedicatedKeyMode() = 0;
+
     // Return whether the wallet is blank.
     virtual bool canGetAddresses() = 0;
 

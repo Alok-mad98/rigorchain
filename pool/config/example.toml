@@ -1,0 +1,64 @@
+# RIGOR Pool — Alpha configuration example (ORU-only)
+#
+# Product: mining coordination + ORU payout accounting.
+# Pool does NOT create, trigger, allocate, or simulate RES mint.
+# Consensus / W / T / RES issuance rules: unchanged.
+#
+# Usage (production-shaped — will refuse to start until secrets below are set):
+#   rigor-pool --config /path/to/pool.toml run
+#   rigor-pool --config /path/to/pool.toml status
+#
+# Local Alpha / regtest smoke (starts without secrets):
+#   rigor-pool --config pool/config/example.devtest.toml run
+#
+# Environment variables still override matching keys when set
+# (useful for secrets in production).
+
+[node]
+# rigord JSON-RPC endpoint
+rpc_host = "127.0.0.1"
+rpc_port = 8332
+rpc_user = "rigor"
+rpc_password = "change-me"
+
+[stratum]
+# Bind address for Stratum v1 (opushash)
+listen_address = "0.0.0.0"
+listen_port = 3333
+
+[payout]
+# Pool fee taken from coinbase ORU before PPLNS miner split (0.0 – 100.0).
+# Example: 1.0 = 1% to pool operator, 99% to miners by share weight.
+ORU_fee_percent = 1.0
+# Seconds between operator payout-settlement reviews / batch windows.
+# Ledger credits happen on accepted blocks; this interval is ops cadence.
+payout_interval = 3600
+# PPLNS window size (share rounds kept for weight).
+pplns_window = 1
+# Hex-encoded coinbase ORU payout scriptPubKey (production required).
+# Generate from your pool ORU receive address (see MINER_CONNECTION_GUIDE.md).
+# payout_script_hex = ""
+
+[database]
+# Optional PostgreSQL durability. Leave enabled=false for in-memory Alpha.
+enabled = false
+host = "127.0.0.1"
+port = 5432
+user = "rigor_pool"
+password = "change-me"
+dbname = "rigor_pool"
+# Full URL overrides host/port/user/password/dbname when non-empty.
+# url = "postgres://rigor_pool:change-me@127.0.0.1:5432/rigor_pool"
+
+[security]
+# production = fail-closed (requires payout_script_hex + worker_credentials)
+# devtest    = local/regtest only (shared password "x"; use example.devtest.toml)
+profile = "production"
+# REQUIRED when profile = "production" (uncomment and fill):
+# payout_script_hex lives under [payout] above
+# worker_credentials = "miner1=<hash>;miner2=<hash>"
+
+[status]
+# Periodic JSON snapshot for `rigor-pool status` (0 = disabled).
+interval_secs = 5
+file = ".runtime/pool-pilot/status.json"

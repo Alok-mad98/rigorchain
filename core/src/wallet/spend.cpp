@@ -10,11 +10,14 @@
 #include <consensus/res_amount.h>
 #include <consensus/res_owner.h>
 #include <consensus/validation.h>
+#include <crypto/ed25519_provider.h>
 #include <interfaces/chain.h>
 #include <numeric>
 #include <outputtype.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
+#include <script/interpreter.h>
 #include <script/standard.h>
 #include <script/signingprovider.h>
 #include <script/rigor_tags.h>
@@ -60,7 +63,19 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoin
         use_provider = &empty_provider;
     }
     if (!use_provider || !DummySignInput(*use_provider, txn.vin[0], txout, can_grind_r, coin_control)) {
-        return -1;
+        int wver_fb = 0;
+        std::vector<unsigned char> wprog_fb;
+        if (txout.scriptPubKey.IsWitnessProgram(wver_fb, wprog_fb) && wver_fb == 0 &&
+            wprog_fb.size() == WITNESS_V0_KEYHASH_SIZE) {
+            CScriptWitness wit;
+            std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
+            witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+            wit.stack.push_back(std::move(witSig));
+            wit.stack.emplace_back(CPubKey::COMPRESSED_SIZE, 0x00);
+            txn.vin[0].scriptWitness = std::move(wit);
+        } else {
+            return -1;
+        }
     }
     return (GetTransactionInputWeight(txn.vin[0]) + WITNESS_SCALE_FACTOR - 1) / WITNESS_SCALE_FACTOR;
 }
@@ -903,6 +918,10 @@ struct OruFeeFinalizeResult {
  * Align ORU network-fee/change with Bitcoin Core CreateTransaction: estimate signed
  * serialized size, then raise/lower the ORU change output so paid fee meets feerate.
  * Fee domain is ORU-only: current_fee = oru_in - GetValueOut(ASSET_ORU).
+ *
+ * When subtract_fee_from_outputs is true, underpay must NOT be absorbed from change
+ * (Bitcoin Core order): leave the fee gap for the caller to subtract from recipients.
+ * Overpay-into-change still runs so SFFO to_reduce stays non-positive when change exists.
  */
 static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         CWallet& wallet,
@@ -912,7 +931,8 @@ static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         const CFeeRate& feerate,
         CAmount oru_in,
         CAmount min_viable_change,
-        const CFeeRate& dust_relay_fee) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+        const CFeeRate& dust_relay_fee,
+        bool subtract_fee_from_outputs = false) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     AssertLockHeld(wallet.cs_wallet);
 
@@ -929,7 +949,7 @@ static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         return util::Error{Untranslated(STR_INTERNAL_BUG("Fee paid < 0"))};
     }
 
-    // Overpay: increase ORU change to match fee_needed.
+    // Overpay: increase ORU change to match fee_needed (Bitcoin Core).
     if (n_oru_change_pos != -1 && fee_needed < current_fee) {
         auto& change = txNew.vout.at(n_oru_change_pos);
         change.nValue += current_fee - fee_needed;
@@ -939,8 +959,9 @@ static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         }
     }
 
-    // Underpay (size rose after change): reduce ORU change, or drop it into the fee.
-    if (n_oru_change_pos != -1 && fee_needed > current_fee) {
+    // Underpay: reduce ORU change, or drop it into the fee.
+    // Skip when SFFO — recipients must pay the gap (Core CreateTransaction order).
+    if (!subtract_fee_from_outputs && n_oru_change_pos != -1 && fee_needed > current_fee) {
         auto& change = txNew.vout.at(n_oru_change_pos);
         const CAmount diff = fee_needed - current_fee;
         if (change.nValue > diff) {
@@ -960,7 +981,7 @@ static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         }
     }
 
-    if (fee_needed > current_fee) {
+    if (!subtract_fee_from_outputs && fee_needed > current_fee) {
         return util::Error{_("Insufficient funds")};
     }
 
@@ -1487,12 +1508,15 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     DiscourageFeeSniping(txNew, res_fast, wallet.chain(), wallet.GetLastBlockHash(), wallet.GetLastBlockHeight());
 
     // Shared ORU fee/change finalize (same helper as RES dual-pool POOL-F).
+    // When SFFO is set, pass subtract_fee_from_outputs so underpay is left for
+    // recipient reduction below (Bitcoin Core CreateTransaction order).
     const CAmount oru_in = result.GetSelectedValue();
     Assume(recipients_sum + change_amount == CalculateOutputValue(txNew));
 
     auto fee_fin = FinalizeOruNetworkFeeAndChange(
             wallet, txNew, coin_control, nChangePosInOut, coin_selection_params.m_effective_feerate, oru_in,
-            coin_selection_params.min_viable_change, wallet.chain().relayDustFee());
+            coin_selection_params.min_viable_change, wallet.chain().relayDustFee(),
+            coin_selection_params.m_subtract_fee_outputs);
     if (!fee_fin) {
         return util::Error{util::ErrorString(fee_fin)};
     }
@@ -1501,7 +1525,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     int nBytes = tx_sizes.size_bytes;
     CAmount fee_needed = OruNetworkFeeForSizeBytes(coin_selection_params.m_effective_feerate, nBytes);
 
-    // Reduce output values for subtractFeeFromAmount
+    // Reduce output values for subtractFeeFromAmount (Bitcoin Core parity)
     if (coin_selection_params.m_subtract_fee_outputs) {
         CAmount to_reduce = fee_needed - current_fee;
         int i = 0;

@@ -55,7 +55,7 @@ bool FlatSigningProvider::GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const
 {
     // Prefer the pubkey implied by the private key: merged providers / descriptor caches can legally
     // hold only `keys` for an id, and in pathological cases `pubkeys[id]` can disagree with `keys[id]`
-    // (then witness stack pubkey != ECDSA verification key and ProduceSignature's final VerifyScript fails).
+    // (then witness stack pubkey != Ed25519 verification key and ProduceSignature's final VerifyScript fails).
     CKey key;
     if (LookupHelper(keys, keyid, key)) {
         pubkey = key.GetPubKey();

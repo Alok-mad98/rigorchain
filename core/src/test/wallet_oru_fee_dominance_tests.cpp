@@ -4,7 +4,9 @@
 
 #include <consensus/amount.h>
 #include <consensus/res_amount.h>
+#include <consensus_rigor/fee.h>
 #include <policy/feerate.h>
+#include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
@@ -21,7 +23,7 @@
 
 using wallet::CRecipient;
 using wallet::NETWORK_FEE_ASSET;
-using wallet::OruNetworkFeeForVsize;
+using wallet::OruNetworkFeeForSizeBytes;
 using wallet::WalletHasSpendableOruForFee;
 
 BOOST_FIXTURE_TEST_SUITE(wallet_oru_fee_dominance_tests, TestingSetup)
@@ -34,14 +36,27 @@ BOOST_AUTO_TEST_CASE(network_fee_asset_is_oru)
 BOOST_AUTO_TEST_CASE(oru_network_fee_for_vsize_uses_oru_sat_vb)
 {
     const CFeeRate rate(2500);
-    BOOST_CHECK_EQUAL(OruNetworkFeeForVsize(rate, 200), rate.GetFee(200));
-    BOOST_CHECK_EQUAL(OruNetworkFeeForVsize(rate, 0), 0);
+    BOOST_CHECK_EQUAL(OruNetworkFeeForSizeBytes(rate, 200), rate.GetFee(200));
+    BOOST_CHECK_EQUAL(OruNetworkFeeForSizeBytes(rate, 0), 0);
+}
+
+BOOST_AUTO_TEST_CASE(oru_network_fee_covers_change_output_bytes)
+{
+    // Regression for RES dual-pool: fee computed before appending ORU change
+    // underpays MinFeeMet_ORU (user saw ~388 sat on a ~412-byte signed tx).
+    const CFeeRate rate(DEFAULT_MIN_RELAY_TX_FEE);
+    const int size_without_oru_change = 388;
+    const int size_with_oru_change = 412;
+    BOOST_CHECK_EQUAL(OruNetworkFeeForSizeBytes(rate, size_without_oru_change), 388);
+    BOOST_CHECK_EQUAL(OruNetworkFeeForSizeBytes(rate, size_with_oru_change), 412);
+    BOOST_CHECK_LT(OruNetworkFeeForSizeBytes(rate, size_without_oru_change),
+                   OruNetworkFeeForSizeBytes(rate, size_with_oru_change));
 }
 
 BOOST_AUTO_TEST_CASE(feerate_unchanged_for_res_vs_oru_semantics)
 {
     const CFeeRate rate(5000);
-    const CAmount fee_oru = OruNetworkFeeForVsize(rate, 250);
+    const CAmount fee_oru = OruNetworkFeeForSizeBytes(rate, 250);
     BOOST_CHECK_EQUAL(fee_oru, rate.GetFee(250));
     BOOST_CHECK(fee_oru > 0);
 }
@@ -58,7 +73,7 @@ BOOST_AUTO_TEST_CASE(no_res_fee_unit_scale_in_spend_cpp)
     // TEST-5: RES_FEE_UNIT_SCALE must not drive feerate math (grep guard).
     BOOST_CHECK(wallet::DEPRECATED_RES_FEE_UNIT_SCALE > 0);
     const CFeeRate rate(10000);
-    const CAmount oru_fee = OruNetworkFeeForVsize(rate, 100);
+    const CAmount oru_fee = OruNetworkFeeForSizeBytes(rate, 100);
     BOOST_CHECK_EQUAL(oru_fee, rate.GetFee(100));
 }
 
@@ -88,7 +103,30 @@ BOOST_AUTO_TEST_CASE(oru_single_pool_uses_unscaled_feerate)
     const CFeeRate res_rate = GetMinimumFeeRate(*wallet, res_cc, &res_calc);
 
     BOOST_CHECK_EQUAL(oru_rate.GetFeePerK(), res_rate.GetFeePerK());
-    BOOST_CHECK_EQUAL(OruNetworkFeeForVsize(oru_rate, 250), oru_rate.GetFee(250));
+    BOOST_CHECK_EQUAL(OruNetworkFeeForSizeBytes(oru_rate, 250), oru_rate.GetFee(250));
+}
+
+BOOST_AUTO_TEST_CASE(oru_create_tx_fee_covers_serialized_size)
+{
+    // Shared FinalizeOruNetworkFeeAndChange: paid fee must meet MinFeeMet_ORU size.
+    CreateAndProcessBlock({}, GetTestMiningCoinbaseScript(coinbaseKey));
+    auto wallet = CreateSyncedWallet(*m_node.chain, WITH_LOCK(Assert(m_node.chainman)->GetMutex(), return m_node.chainman->ActiveChain()), coinbaseKey);
+    LOCK(wallet->cs_wallet);
+
+    const auto dest = wallet->GetNewDestination(OutputType::BECH32, "");
+    BOOST_REQUIRE(dest);
+    CRecipient recipient{GetScriptForDestination(*dest), 1 * COIN, false, ASSET_ORU};
+
+    CCoinControl cc;
+    cc.m_feerate = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
+    cc.fOverrideFeeRate = true;
+
+    auto created = CreateTransaction(*wallet, {recipient}, /*change_pos=*/-1, cc);
+    BOOST_REQUIRE_MESSAGE(created, util::ErrorString(created).original);
+    const CTransaction& tx = *created->tx;
+    const int64_t sz = rigor::GetTransactionSizeBytes(tx);
+    BOOST_CHECK_GE(created->fee, OruNetworkFeeForSizeBytes(*cc.m_feerate, sz));
+    BOOST_CHECK_EQUAL(tx.GetValueOut(ASSET_RES), 0);
 }
 
 BOOST_AUTO_TEST_CASE(res_send_fails_without_oru_for_network_fee)

@@ -1,6 +1,7 @@
 use crate::error::{GbtError, GbtResult};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::time::Duration;
 
 /// Minimal JSON-RPC client for `rigord` (Bitcoin Core compatible wire).
 pub struct RigordRpc {
@@ -11,7 +12,11 @@ pub struct RigordRpc {
 
 #[derive(Debug, Deserialize)]
 struct RpcResponse {
-    result: Option<Value>,
+    /// Core methods such as `submitblock` return JSON `null` on success.
+    /// Do **not** use `Option<Value>` here: serde maps JSON null → `None`, which
+    /// falsely becomes "empty RPC result".
+    #[serde(default)]
+    result: Value,
     error: Option<RpcErrorObj>,
 }
 
@@ -23,8 +28,13 @@ struct RpcErrorObj {
 
 impl RigordRpc {
     pub fn new(url: impl Into<String>) -> Self {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| reqwest::blocking::Client::new());
         Self {
-            client: reqwest::blocking::Client::new(),
+            client,
             url: url.into(),
             auth: None,
         }
@@ -55,8 +65,7 @@ impl RigordRpc {
                 err.message, err.code
             )));
         }
-        resp.result
-            .ok_or_else(|| GbtError::Rpc("empty RPC result".into()))
+        Ok(resp.result)
     }
 
     pub fn get_best_block_hash(&self) -> GbtResult<String> {
@@ -81,6 +90,21 @@ impl RigordRpc {
         let raw = serde_json::to_string(&result)?;
         Ok((result, raw))
     }
+
+    /// Submit a fully assembled block hex (`submitblock`). Null/empty result means accepted.
+    pub fn submit_block(&self, block_hex: &str) -> GbtResult<()> {
+        let result = self.call("submitblock", json!([block_hex]))?;
+        if result.is_null() {
+            return Ok(());
+        }
+        if let Some(msg) = result.as_str() {
+            if msg.is_empty() {
+                return Ok(());
+            }
+            return Err(GbtError::Rpc(format!("submitblock rejected: {msg}")));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -98,5 +122,22 @@ mod tests {
     #[test]
     fn rpc_client_constructs() {
         let _rpc = RigordRpc::new("http://127.0.0.1:8332");
+    }
+
+    #[test]
+    fn submitblock_null_result_deserializes_as_json_null() {
+        // Regression: Option<Value> would map null → None → "empty RPC result"
+        // even though Core accepted the block.
+        let raw = r#"{"result":null,"error":null,"id":"rigor-gbt"}"#;
+        let resp: RpcResponse = serde_json::from_str(raw).unwrap();
+        assert!(resp.error.is_none());
+        assert!(resp.result.is_null());
+    }
+
+    #[test]
+    fn submitblock_reject_string_is_preserved() {
+        let raw = r#"{"result":"bad-txnmrklroot","error":null,"id":"rigor-gbt"}"#;
+        let resp: RpcResponse = serde_json::from_str(raw).unwrap();
+        assert_eq!(resp.result.as_str(), Some("bad-txnmrklroot"));
     }
 }

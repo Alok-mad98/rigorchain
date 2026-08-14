@@ -195,7 +195,7 @@ mod tests {
                 convergence_draw: Some(parent_draw_two_tx()),
                 default_witness_commitment: None,
                 default_convergence_commitment: None,
-                weightlimit: Some(4_000_000),
+                weightlimit: Some(1_000_000),
                 version: None,
                 gbt_payload_hash: [0u8; 32],
                 raw_json: "{}".into(),

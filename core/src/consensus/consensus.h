@@ -12,13 +12,20 @@
 #include <stdint.h>
 
 /** The maximum allowed size for a serialized block, in bytes (only for buffer size limits) */
-static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 4000000;
+static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = Consensus::BLOCK_SERIALIZED_SIZE_LIMIT;
 /** The maximum allowed weight for a block, see BIP 141 (network rule) */
-static const unsigned int MAX_BLOCK_WEIGHT = 4000000;
+static const unsigned int MAX_BLOCK_WEIGHT = Consensus::BLOCK_WEIGHT_LIMIT;
 /** The maximum allowed number of signature check operations in a block (network rule) */
-static const int64_t MAX_BLOCK_SIGOPS_COST = 80000;
+static const int64_t MAX_BLOCK_SIGOPS_COST = Consensus::BLOCK_SIGOPS_COST_LIMIT;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
+
+static_assert(MAX_BLOCK_SERIALIZED_SIZE == Consensus::BLOCK_SERIALIZED_SIZE_LIMIT,
+    "MAX_BLOCK_SERIALIZED_SIZE must match consensus lock");
+static_assert(MAX_BLOCK_WEIGHT == Consensus::BLOCK_WEIGHT_LIMIT,
+    "MAX_BLOCK_WEIGHT must match consensus lock");
+static_assert(MAX_BLOCK_SIGOPS_COST == Consensus::BLOCK_SIGOPS_COST_LIMIT,
+    "MAX_BLOCK_SIGOPS_COST must match consensus lock");
 
 static const int WITNESS_SCALE_FACTOR = 4;
 

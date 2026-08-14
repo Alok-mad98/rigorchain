@@ -329,6 +329,12 @@ contrib/testing/release008*/
 contrib/testing/post_proof034*/
 contrib/testing/m0*/
 contrib/testing/m1*/
+
+# TASK-RELEASE-WORKTREE-HYGIENE-FINAL-001 — local artifacts (never commit)
+.runtime/
+contrib/testing/local_mainnet_simulation/out/
+miner/minerd
+core/build-mingw-alpha/
 # public-history candidate: keep source hidden by generic rules
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch

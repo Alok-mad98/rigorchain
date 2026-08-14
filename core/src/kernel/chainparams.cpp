@@ -52,11 +52,17 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     return genesis;
 }
 
-/** Mainnet genesis PoW / header fields — fixed; do not read from runtime configuration. */
+/** Mainnet genesis header fields — RFC-016 Alpha1 freeze. Do not read from runtime configuration. */
 namespace GenesisLockMainnet {
-constexpr uint32_t TIMESTAMP = 1778224715;
+// RFC-016 §2: Alpha1 is a new chain (v0.1.1-alpha), not a hard fork of v0.1.0-alpha.
+// Keep TIMESTAMP near Alpha/mainnet launch wall-clock. If genesis time is months behind "now",
+// aserti3-2d treats the chain as overdue and eases all the way to powLimit (0x207fffff),
+// which made solo mining look like "difficulty never took effect".
+// Must be <= wall-clock UTC at launch. RFC-016 §6.3 forbids further timestamp refresh.
+constexpr uint32_t TIMESTAMP = 1786125600; // 2026-08-07 18:00:00 UTC
 constexpr uint32_t NONCE = 0;
-constexpr uint32_t NBITS = 0x207fffff;
+// ~1.68e7 expected OpuHash trials (~10 min at ~28 kH/s = typical 8-thread PC).
+constexpr uint32_t NBITS = 0x1e010000;
 constexpr int32_t VERSION = 1;
 static const char* const TIMESTAMP_MSG =
     "Selection not computation. Convergence defines state. Naming is consensus.";
@@ -77,12 +83,13 @@ public:
         consensus.nCoinbaseMaturity = 100;
         // Rigor mainnet uses a fresh genesis (genesis-lockdown.md). Do not copy Bitcoin's historical
         // script_flag_exceptions or buried-fork heights — those Bitcoin block hashes never occur here.
+        // Policy: all buried softforks are genesis-active (BIP34/65/66/CSV @1, Segwit @0).
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
         consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 0; // witness rules from genesis (matches regtest/devtest)
+        consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
         // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
@@ -115,10 +122,11 @@ public:
          *   2) Subtract safety margin (for example, 2k-10k blocks) and pin that value here.
          *   3) Never set above your own honest tip chainwork.
          *
-         * Current bootstrap floor: 0x33540 (210240 decimal) ~= one nominal year of minimum
-         * genesis-level work (GetBlockProof(genesis)==2, 52560 blocks/year).
+         * Bootstrap floor under nBits 0x1e010000 (~1.68e7 work/block). RFC-016 §2.4:
+         * keep below one honest 0x1e010000 block so Alpha IBD/solo can leave the
+         * header-work gate. Do not restore the v0.1.0-alpha floor 0x33540.
          */
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000033540");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100000");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -131,8 +139,9 @@ public:
         pchMessageStart[3] = 0xfa;
         nDefaultPort = 8760;
         nPruneAfterHeight = 100000;
-        m_assumed_blockchain_size = 540;
-        m_assumed_chain_state_size = 7;
+        // UI disk-space hint only (not consensus). Alpha mainnet is far smaller than Bitcoin's ~540 GB.
+        m_assumed_blockchain_size = 5;
+        m_assumed_chain_state_size = 1;
 
         // Mainnet manifesto — scriptPubKey hex is fixed; PoW fields use GenesisLockMainnet::* only.
         const std::vector<unsigned char> mainnet_genesis_spk = ParseHex("00141111111111111111111111111111111111111111");
@@ -145,8 +154,10 @@ public:
         // Validate consistency against the computed merkle root instead of Bitcoin's legacy constant.
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        assert(consensus.hashGenesisBlock == uint256S("0x5dd90c30e88b90a1a6ce0b371d4abf8d7283d8a1275f70f9d51a8821048221de"));
+        // RFC-016 §2.2 / §6.1 — Alpha1 genesis identity (v0.1.1-alpha).
+        assert(consensus.hashGenesisBlock == uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758"));
         // Genesis values are derived from the locked timestamp payload above.
+
 
         /**
          * defaultAssumeValid — optional IBD optimization (see ConnectBlock in validation.cpp).
@@ -211,12 +222,13 @@ public:
         consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
         consensus.nCoinbaseMaturity = 100;
         // No script_flag_exceptions: Bitcoin-era exception hashes never occur on Rigor testnet.
+        // Policy: all buried softforks are genesis-active (same as mainnet).
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
         consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 0; // witness rules from genesis (matches mainnet/devtest)
+        consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
         // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
@@ -318,23 +330,13 @@ public:
         consensus.nCoinbaseMaturity = 100;
         consensus.script_flag_exceptions.emplace( // BIP16 exception
             uint256S("0x00000000dd30457c001f4095d208cc1296b0eed002427aa599874af7a432b105"), SCRIPT_VERIFY_NONE);
-        // Active from block 1, unlike the testnet3 heights this chain was originally cloned from.
-        //
-        // On Rigor BIP34 is not just the height push: the same deployment gates the coinbase
-        // ConvergenceRoot commitment (`bad-cb-convergence-root`), which is what pins C — a σ input
-        // for the next block's draw. Left at 21111 the rule slept through every devtest run, so no
-        // functional test ever checked that a block commits the C consensus derives, and
-        // SECURITY-001-A9-C made that gap load-bearing: C now spans the whole draw window, so a
-        // producer that derives it from its own body alone is wrong in a way nothing on devtest
-        // would have caught.
+        // All buried softforks active from genesis / block 1 — no Bitcoin-era delayed heights.
+        // BIP34 @1 also gates coinbase ConvergenceRoot (`bad-cb-convergence-root`).
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
-        consensus.BIP65Height = 581885;
-        consensus.BIP66Height = 330776;
-        consensus.CSVHeight = 770112;
-        // Must be active from genesis: devtest uses bech32/P2WPKH wallets and mines witness-bearing txs long
-        // before mainnet-style height 834624; leaving Segwit inactive causes ContextualCheckBlock
-        // "unexpected-witness" when the mempool includes segwit spends.
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
@@ -456,12 +458,13 @@ public:
         consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
         consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
         consensus.nCoinbaseMaturity = 100;
+        // All buried softforks active from genesis / block 1 (same policy as mainnet/regtest).
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
         consensus.BIP66Height = 1;
         consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 1;
+        consensus.SegwitHeight = 0;
         consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
         consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
         consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 2 days (same as mainnet)
@@ -537,12 +540,15 @@ public:
         consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
         consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
         consensus.nCoinbaseMaturity = 100;
-        consensus.BIP34Height = 1; // Always active unless overridden
+        // Same genesis-active policy as public nets. BIP34/65/66/CSV @1 exempts
+        // the genesis coinbase from BIP34 height-encoding; Segwit @0 is from genesis.
+        // -testactivationheight cannot override these (rejected in ReadRegTestArgs).
+        consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256();
-        consensus.BIP65Height = 1;  // Always active unless overridden
-        consensus.BIP66Height = 1;  // Always active unless overridden
-        consensus.CSVHeight = 1;    // Always active unless overridden
-        consensus.SegwitHeight = 0; // Always active unless overridden
+        consensus.BIP65Height = 1;
+        consensus.BIP66Height = 1;
+        consensus.CSVHeight = 1;
+        consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
         // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
@@ -578,25 +584,7 @@ public:
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
 
-        for (const auto& [dep, height] : opts.activation_heights) {
-            switch (dep) {
-            case Consensus::BuriedDeployment::DEPLOYMENT_SEGWIT:
-                consensus.SegwitHeight = int{height};
-                break;
-            case Consensus::BuriedDeployment::DEPLOYMENT_HEIGHTINCB:
-                consensus.BIP34Height = int{height};
-                break;
-            case Consensus::BuriedDeployment::DEPLOYMENT_DERSIG:
-                consensus.BIP66Height = int{height};
-                break;
-            case Consensus::BuriedDeployment::DEPLOYMENT_CLTV:
-                consensus.BIP65Height = int{height};
-                break;
-            case Consensus::BuriedDeployment::DEPLOYMENT_CSV:
-                consensus.CSVHeight = int{height};
-                break;
-            }
-        }
+        // opts.activation_heights is unused: buried heights are fixed above.
 
         for (const auto& [deployment_pos, version_bits_params] : opts.version_bits_parameters) {
             consensus.vDeployments[deployment_pos].nStartTime = version_bits_params.start_time;

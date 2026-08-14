@@ -52,6 +52,7 @@ using wallet::AddWallet;
 using wallet::CWallet;
 using wallet::CreateMockWalletDatabase;
 using wallet::RemoveWallet;
+using wallet::FEATURE_LATEST;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 using wallet::WALLET_FLAG_DISABLE_PRIVATE_KEYS;
 using wallet::WalletContext;
@@ -75,6 +76,7 @@ QString NormalizeDigitsForBalanceCompare(const QString& s)
     t.remove(QChar(0x2009)); // THIN SPACE (BitcoinUnits / ORU)
     t.remove(QChar(0x202F)); // NARROW NO-BREAK SPACE
     t.remove(QChar(0x00A0)); // NO-BREAK SPACE
+    t.remove(QLatin1Char(' ')); // formatWithPrivacy justify padding
     return t;
 }
 
@@ -154,10 +156,12 @@ void BumpFee(TransactionView& view, const uint256& txid, bool expectDisabled, st
     }
     action->trigger();
     QVERIFY(text.indexOf(QString::fromStdString(expectError)) != -1);
+    qApp->processEvents(QEventLoop::AllEvents, 50);
 }
 
 void CompareBalance(WalletModel& walletModel, CAmount expected_balance, QLabel* balance_label_to_check)
 {
+    QVERIFY(balance_label_to_check);
     BitcoinUnit unit = walletModel.getOptionsModel()->getDisplayUnit();
     QString balanceComparison = BitcoinUnits::formatWithUnit(unit, expected_balance, false, BitcoinUnits::SeparatorStyle::ALWAYS);
     QCOMPARE(NormalizeDigitsForBalanceCompare(balance_label_to_check->text()),
@@ -198,6 +202,12 @@ void VerifyUseAvailableBalance(SendCoinsDialog& sendCoinsDialog, const WalletMod
     // the sum of them.
     Q_EMIT send_entry->useAvailableBalance(send_entry);
     QVERIFY(send_entry->getValue().amount == sum_selected_coins);
+    // Isolate later SendCoins from leftover coin-control selection and SFFO fill.
+    sendCoinsDialog.getCoinControl()->UnSelectAll();
+    send_entry->findChild<BitcoinAmountField*>("payAmount")->setValue(0);
+    if (auto* sffo = send_entry->findChild<QCheckBox*>("checkboxSubtractFeeFromAmount")) {
+        sffo->setCheckState(Qt::Unchecked);
+    }
 }
 
 void SyncUpWallet(const std::shared_ptr<CWallet>& wallet, interfaces::Node& node)
@@ -210,20 +220,30 @@ void SyncUpWallet(const std::shared_ptr<CWallet>& wallet, interfaces::Node& node
     QVERIFY(result.last_failed_block.IsNull());
 }
 
-std::shared_ptr<CWallet> SetupLegacyWatchOnlyWallet(interfaces::Node& node, TestChain100Setup& test)
+std::shared_ptr<CWallet> SetupWatchOnlyWallet(interfaces::Node& node, TestChain100Setup& test)
 {
+    // Alpha1 coinbases are P2WPKH. Legacy ImportPubKeys only watches P2PK.
+    // Watch-only descriptor wallets must not call SetupDescriptorScriptPubKeyMans()
+    // (that generates a seed and asserts on WALLET_FLAG_DISABLE_PRIVATE_KEYS).
     std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(node.context()->chain.get(), "", CreateMockWalletDatabase());
     wallet->LoadWallet();
-    {
-        LOCK(wallet->cs_wallet);
-        wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
-        wallet->SetupLegacyScriptPubKeyMan();
-        // Add watched key
-        CPubKey pubKey = test.coinbaseKey.GetPubKey();
-        bool import_keys = wallet->ImportPubKeys({pubKey.GetID()}, {{pubKey.GetID(), pubKey}} , /*key_origins=*/{}, /*add_keypool=*/false, /*internal=*/false, /*timestamp=*/1);
-        assert(import_keys);
-        wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
-    }
+    LOCK(wallet->cs_wallet);
+    wallet->SetMinVersion(FEATURE_LATEST);
+    wallet->SetWalletFlag(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
+    wallet->SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
+
+    FlatSigningProvider provider;
+    std::string error;
+    std::unique_ptr<Descriptor> desc = Parse("combo(" + HexStr(test.coinbaseKey.GetPubKey()) + ")", provider, error, /* require_checksum=*/ false);
+    assert(desc);
+    // Watch-only: never persist secp secrets even if Parse populated provider.keys.
+    provider.keys.clear();
+    WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
+    if (!wallet->AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
+    CTxDestination dest = GetDestinationForKey(test.coinbaseKey.GetPubKey(), OutputType::BECH32);
+    wallet->SetAddressBook(dest, "", wallet::AddressPurpose::RECEIVE);
+    const CBlockIndex* tip = WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip());
+    wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
     SyncUpWallet(wallet, node);
     return wallet;
 }
@@ -297,6 +317,12 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     MiniGUI mini_gui(node, platformStyle.get());
     mini_gui.initModelForWallet(node, wallet, platformStyle.get());
     WalletModel& walletModel = *mini_gui.walletModel;
+
+    // Dual-asset key model UX: ORU HD + RES dedicated must report correctly even when
+    // wallet-wide IsHDEnabled() is false due to non-ranged RES ScriptPubKeyMans.
+    QVERIFY(walletModel.wallet().oruHdEnabled());
+    QVERIFY(walletModel.wallet().resDedicatedKeyMode());
+    QVERIFY(!walletModel.wallet().hdEnabled());
     SendCoinsDialog& sendCoinsDialog = mini_gui.sendCoinsDialog;
     TransactionView& transactionView = mini_gui.transactionView;
 
@@ -330,11 +356,16 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     BumpFee(transactionView, txid2, /*expectDisabled=*/false, /*expectError=*/{}, /*cancel=*/false);
     BumpFee(transactionView, txid2, /*expectDisabled=*/true, /*expectError=*/"already bumped", /*cancel=*/false);
 
-    // Check current balance on OverviewPage
+    // Check current balance on OverviewPage (dual-asset panels; no Bitcoin-era labelBalance).
     OverviewPage overviewPage(platformStyle.get());
     overviewPage.setWalletModel(&walletModel);
     walletModel.pollBalanceChanged(); // Manual balance polling update
-    CompareBalance(walletModel, walletModel.wallet().getBalance(), overviewPage.findChild<QLabel*>("labelBalance"));
+    QLabel* overview_oru_confirmed = overviewPage.findChild<QLabel*>("oruConfirmedValue");
+    QVERIFY(overview_oru_confirmed);
+    // Overview Confirmed is min_depth>=1 (oru_balance). getBalance() is min_depth=0 and
+    // includes 0-conf change after the sends above — do not compare those.
+    const auto overview_bal = walletModel.wallet().getBalances();
+    CompareBalance(walletModel, overview_bal.oru_balance + overview_bal.watch_only_balance, overview_oru_confirmed);
 
     // Check Request Payment button
     ReceiveCoinsDialog receiveCoinsDialog(platformStyle.get());
@@ -359,12 +390,14 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     for (QWidget* widget : QApplication::topLevelWidgets()) {
         if (widget->inherits("ReceiveRequestDialog")) {
             ReceiveRequestDialog* receiveRequestDialog = qobject_cast<ReceiveRequestDialog*>(widget);
-            QCOMPARE(receiveRequestDialog->QObject::findChild<QLabel*>("payment_header")->text(), QString("Payment information"));
-            QCOMPARE(receiveRequestDialog->QObject::findChild<QLabel*>("uri_tag")->text(), QString("URI:"));
-            QString uri = receiveRequestDialog->QObject::findChild<QLabel*>("uri_content")->text();
+            auto* payment_header = receiveRequestDialog->findChild<QLabel*>("payment_header");
+            QVERIFY(payment_header);
+            QCOMPARE(payment_header->text(), QString("Payment information"));
+            QCOMPARE(receiveRequestDialog->findChild<QLabel*>("uri_tag")->text(), QString("URI:"));
+            QString uri = receiveRequestDialog->findChild<QLabel*>("uri_content")->text();
             QCOMPARE(uri.count("rigor:"), 2);
             QCOMPARE(uri.count("asset=oru"), 2);
-            QCOMPARE(receiveRequestDialog->QObject::findChild<QLabel*>("address_tag")->text(), QString("Address:"));
+            QCOMPARE(receiveRequestDialog->findChild<QLabel*>("address_tag")->text(), QString("Address (ORU):"));
             QVERIFY(address.isEmpty());
             address = receiveRequestDialog->QObject::findChild<QLabel*>("address_content")->text();
             QVERIFY(!address.isEmpty());
@@ -422,7 +455,7 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
 
 void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
 {
-    const std::shared_ptr<CWallet>& wallet = SetupLegacyWatchOnlyWallet(node, test);
+    const std::shared_ptr<CWallet>& wallet = SetupWatchOnlyWallet(node, test);
 
     // Create widgets and init models
     std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
@@ -433,8 +466,10 @@ void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
 
     // Update walletModel cached balance which will trigger an update for the 'labelBalance' QLabel.
     walletModel.pollBalanceChanged();
-    // Check balance in send dialog
-    CompareBalance(walletModel, walletModel.wallet().getBalances().watch_only_balance,
+    // Send dialog watch-only ORU line is confirmed + pending + immature (sendcoinsdialog.cpp).
+    const auto wo = walletModel.wallet().getBalances();
+    CompareBalance(walletModel,
+                   wo.watch_only_balance + wo.unconfirmed_watch_only_balance + wo.immature_watch_only_balance,
                    sendCoinsDialog.findChild<QLabel*>("labelBalance"));
 
     // Set change address
@@ -463,8 +498,8 @@ void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
     timer.start(500);
 
     // Send tx and verify PSBT copied to the clipboard (presentPSBT sets clipboard before the dialog returns).
-    // Save/Discard belongs to the later PSBT dialog; send confirmation itself should still click "Yes".
-    SendCoins(*wallet.get(), sendCoinsDialog, MakeTestWitnessDestination(), 5 * COIN, /*rbf=*/false, QMessageBox::Yes);
+    // Watch-only wallets cannot broadcast: click "Create Unsigned" (Save), not "Send" (Yes).
+    SendCoins(*wallet.get(), sendCoinsDialog, MakeTestWitnessDestination(), 5 * COIN, /*rbf=*/false, QMessageBox::Save);
     std::string psbt_string;
     for (int i = 0; i < 80; ++i) {
         qApp->processEvents(QEventLoop::AllEvents, 25);
@@ -497,8 +532,7 @@ void TestGUI(interfaces::Node& node)
     const std::shared_ptr<CWallet>& desc_wallet = SetupDescriptorsWallet(node, test);
     TestGUI(node, desc_wallet);
 
-    // Legacy watch-only wallet test
-    // Verify PSBT creation.
+    // Descriptor watch-only wallet: unsigned PSBT via Create Unsigned.
     TestGUIWatchOnly(node, test);
 }
 

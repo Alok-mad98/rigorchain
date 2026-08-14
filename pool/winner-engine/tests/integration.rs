@@ -74,7 +74,7 @@ fn sample_template(convergence: Vec<&str>) -> rigor_gbt::TemplateRecord {
         convergence_draw: Some(sample_parent_draw(draw_candidates)),
         default_witness_commitment: None,
         default_convergence_commitment: None,
-        weightlimit: Some(4_000_000),
+        weightlimit: Some(1_000_000),
         version: None,
         gbt_payload_hash: [0; 32],
         raw_json: "{}".into(),

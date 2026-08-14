@@ -1,16 +1,23 @@
-use mint_engine::{MintBlockContext, MintState, MintWinnerContext};
 use rigor_gbt::{GbtTemplate, TipHash};
 use rigor_pool_pilot::{PilotTick, PoolPilot};
 
 /// Owner program the fixture convergence transactions declare.
 const OWNER_PROGRAM: [u8; 32] = [0xa1; 32];
 
-/// SECURITY-001-A / A-5: a convergence tx enters the draw only if it declares its RES payout
-/// owner, and the mint must pay that program, so fixtures carry real declaring transactions.
+fn res_owner_declaration_script(program32: &[u8; 32]) -> Vec<u8> {
+    let mut script = Vec::with_capacity(1 + 1 + 4 + 1 + 32);
+    script.push(0x6a);
+    script.push(37);
+    script.extend_from_slice(b"RESO");
+    script.push(1);
+    script.extend_from_slice(program32);
+    script
+}
+
 fn convergence_tx_declaring(program32: &[u8; 32]) -> String {
-    let mut cvg2_script = vec![0x51u8, 0x20, 0x43, 0x56, 0x47, 0x32]; // OP_1 <32> "CVG2"
+    let mut cvg2_script = vec![0x51u8, 0x20, 0x43, 0x56, 0x47, 0x32];
     cvg2_script.extend_from_slice(&[0x00; 28]);
-    let declaration = mint_engine::res_owner::res_owner_declaration_script(program32);
+    let declaration = res_owner_declaration_script(program32);
 
     let mut raw = Vec::new();
     raw.extend_from_slice(&2i32.to_le_bytes());
@@ -40,7 +47,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "1c00ff00",
             "height": 300,
@@ -72,13 +79,10 @@ fn full_pipeline_job_publish_and_stratum_subscribe() {
 
     let envelopes = pilot.orchestrator.publish_jobs_from_active_template().unwrap();
     assert_eq!(envelopes.len(), 1);
+    assert!(!envelopes[0].mint_required);
 
-    // Devtest profile uses the shared-password authenticator; no pre-registration.
     let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#;
-    let out = pilot
-        .orchestrator
-        .handle_request(1, sub)
-        .unwrap();
+    let out = pilot.orchestrator.handle_request(1, sub).unwrap();
     assert!(out[0].contains("\"result\""));
 
     let auth = r#"{"id":2,"method":"mining.authorize","params":["miner.worker","x"]}"#;
@@ -90,73 +94,62 @@ fn full_pipeline_job_publish_and_stratum_subscribe() {
 }
 
 #[test]
-fn res_mint_and_reorg_revocation() {
+fn pool_has_no_res_mint_engine_on_reorg() {
     let mut pilot = PoolPilot::in_memory_simulation().unwrap();
     let (t, raw) = fixture("pilot/e2e/mint");
     let tick = pilot.ingest_fixture(t, raw, tip(0x0a)).unwrap();
-    let job_id = match tick {
-        PilotTick::TemplatePublished { job_id } => job_id,
-        other => panic!("expected publish, got {other:?}"),
-    };
+    assert!(matches!(tick, PilotTick::TemplatePublished { .. }));
 
-    let record = pilot
-        .templates
-        .get_active_template()
-        .unwrap()
-        .unwrap();
     let job = pilot
         .jobs
-        .get_job_by_id(&block_assembler::JobId(job_id.clone()))
+        .get_active_jobs()
         .unwrap()
-        .unwrap();
-
-    let preview = MintWinnerContext {
-        mint_required: true,
-        winner_txid: Some("aa".repeat(32)),
-        convergence_root_hex: job.coinbase.convergence_root_hex.clone(),
-        draw_target_prev_nbits: "1c00ff00".into(),
-        authorized_bind_hash: Some([0x11; 32]),
-        authorized_bind_hash_display: Some("11".repeat(32)),
-    };
-
-    let outcome = pilot
-        .orchestrator
-        .mint_engine
-        .mint_for_winner(
-            &preview,
-            record.as_ref(),
-            job.as_ref(),
-            &MintBlockContext {
-                extranonce1: vec![0x01],
-                extranonce2: vec![0x00, 0x00, 0x00, 0x01],
-                ntime: 1,
-                nonce: 1,
-            },
-        )
-        .unwrap()
-        .unwrap();
-    // Six proof pushes plus the P2WSH redeem script.
-    assert_eq!(
-        outcome.artifact.witness_item_count,
-        mint_engine::PCORB_WITNESS_ITEMS + 1
-    );
-    assert!(!outcome.artifact.sigma_digest_hex.is_empty());
-    assert_eq!(outcome.block.vtx_count, 4);
+        .into_iter()
+        .next()
+        .expect("active job");
+    assert!(!job.body_mint.reserved);
+    assert!(!job.body_mint.mint_required);
 
     pilot.simulate_tip_change(tip(0x0b)).unwrap();
-    let rec = pilot
-        .orchestrator
-        .mint_engine
-        .get_record(&job_id)
-        .unwrap()
-        .unwrap();
-    assert_eq!(rec.state, MintState::Revoked);
-
     let report = pilot.status_report().unwrap();
-    assert!(report
-        .audit_events
-        .iter()
-        .any(|e| e.category == "reorg" || e.category == "res.mint.revoked"));
+    assert!(report.audit_events.iter().any(|e| e.category == "reorg"));
+    assert_eq!(report.metrics.res_mint_events, 0);
+}
+
+/// Regression: after adapter tip-change + ingest, only invalidate jobs — do not wipe
+/// the freshly ingested ACTIVE template (that caused job2 broadcast then immediate
+/// Invalidated / "no active template" / mass stale rejects).
+#[test]
+fn post_adapter_tip_invalidation_keeps_active_for_publish() {
+    let mut pilot = PoolPilot::in_memory_simulation().unwrap();
+    let (t1, raw1) = fixture("pilot/e2e/tip-a");
+    pilot.ingest_fixture(t1, raw1, tip(0x0a)).unwrap();
+    assert_eq!(pilot.jobs.get_active_jobs().unwrap().len(), 1);
+
+    // Mirror GbtAdapter::poll_once tip path: clear then ingest replacement ACTIVE.
+    pilot.templates.handle_tip_changed(tip(0x0b)).unwrap();
+    let (t2, raw2) = fixture("pilot/e2e/tip-b");
+    let ingested = pilot
+        .templates
+        .ingest(t2, raw2, tip(0x0b))
+        .unwrap()
+        .expect("replacement template");
+    assert_eq!(ingested.template_state, rigor_gbt::TemplateState::Active);
+    assert!(pilot.templates.get_active_template().unwrap().is_some());
+
+    pilot
+        .orchestrator
+        .invalidate_jobs_on_tip_change(tip(0x0b))
+        .unwrap();
+    assert!(
+        pilot.templates.get_active_template().unwrap().is_some(),
+        "ACTIVE must survive job-only tip invalidation"
+    );
+    let envelopes = pilot
+        .orchestrator
+        .publish_jobs_from_active_template()
+        .expect("publish must succeed with surviving ACTIVE");
+    assert!(!envelopes.is_empty());
 }
 
 #[test]
@@ -185,8 +178,6 @@ fn share_submit_pipeline() {
     let submit = format!(
         r#"{{"id":3,"method":"mining.submit","params":["bob.worker","{job_id}","00000000","00000000","00000001"]}}"#
     );
-    // C-5: with the devtest (refusing) submission sink, a found block must surface
-    // as an error and must never book a payout round.
     let out = pilot.orchestrator.handle_request(1, &submit);
     let metrics = pilot.orchestrator.metrics.snapshot();
     assert!(metrics.shares_accepted + metrics.shares_rejected >= 1);
@@ -210,7 +201,6 @@ fn pplns_oru_only_on_block_found() {
         .orchestrator
         .payout
         .credit_share("w", &job_id, "s1", 1.0);
-    // C-6e: bind the round to the real job id so REORG-01 rollback can match it.
     pilot
         .orchestrator
         .payout
@@ -218,7 +208,6 @@ fn pplns_oru_only_on_block_found() {
     let bal = pilot.orchestrator.payout.balance("w").unwrap();
     assert_eq!(bal.oru_pending, 5_000_000_000);
 
-    // C-6a: the window is consumed, so a second block pays this share nothing more.
     pilot
         .orchestrator
         .payout

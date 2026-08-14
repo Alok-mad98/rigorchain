@@ -1,5 +1,6 @@
 use crate::error::{MinerError, MinerResult};
 use crate::stratum::messages::MiningNotify;
+use block_assembler::txid_from_tx_bytes;
 use share_validator::opuhash::hash256;
 
 /// Build 80-byte block header from Stratum notify + miner deltas (matches share-validator).
@@ -11,7 +12,8 @@ pub fn build_header_bytes(
     nonce: u32,
 ) -> MinerResult<[u8; 80]> {
     let coinbase_raw = assemble_coinbase_raw(notify, extranonce1, extranonce2)?;
-    let coinbase_hash = hash256(&coinbase_raw);
+    // Must match Bitcoin CheckMerkleRoot / pool assemble_solved_block (txid, not wtxid).
+    let coinbase_hash = txid_from_tx_bytes(&coinbase_raw);
     let merkle_root = compute_merkle_root(&coinbase_hash, &notify.merkle_branch)?;
 
     let version = u32::from_str_radix(&notify.version, 16)
@@ -48,9 +50,12 @@ fn assemble_coinbase_raw(
         return Err(MinerError::Job("extranonce2 empty".into()));
     }
 
-    let mut raw = Vec::with_capacity(coinb1.len() + extranonce1.len() + en2_size + coinb2.len());
+    let en1 = block_assembler::normalize_extranonce1(extranonce1)
+        .map_err(|e| MinerError::Job(e.to_string()))?;
+
+    let mut raw = Vec::with_capacity(coinb1.len() + en1.len() + en2_size + coinb2.len());
     raw.extend_from_slice(&coinb1);
-    raw.extend_from_slice(extranonce1);
+    raw.extend_from_slice(&en1);
     raw.extend_from_slice(extranonce2);
     raw.extend_from_slice(&coinb2);
     Ok(raw)
@@ -83,13 +88,16 @@ fn compute_merkle_root(coinbase_hash: &[u8; 32], branches: &[String]) -> MinerRe
 }
 
 fn decode_prevhash(hex_str: &str) -> MinerResult<[u8; 32]> {
+    // `mining.notify` prevhash is already in header/internal byte order
+    // (pool applies `reverse_hex` on GBT/RPC previousblockhash when building notify).
+    // Do **not** reverse again — that desynced miner PoW from share-validator /
+    // assemble_solved_block and only "worked" under trivial regtest targets.
     let bytes = hex::decode(hex_str).map_err(|e| MinerError::Job(format!("prevhash: {e}")))?;
     if bytes.len() != 32 {
         return Err(MinerError::Job("prevhash must be 32 bytes".into()));
     }
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);
-    out.reverse();
     Ok(out)
 }
 
@@ -123,5 +131,20 @@ mod tests {
             .unwrap();
         assert_eq!(h.len(), 80);
         assert_eq!(&h[76..80], &1u32.to_le_bytes());
+    }
+
+    #[test]
+    fn notify_prevhash_matches_pool_header_byte_order() {
+        // job.prevhash = GBT/RPC form; notify = reverse(job); pool header = reverse(job).
+        let job_prev = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let mut rpc = hex::decode(job_prev).unwrap();
+        rpc.reverse();
+        let notify_prev = hex::encode(&rpc); // what stratum-server reverse_hex emits
+        let mut n = sample_notify();
+        n.prevhash = notify_prev;
+        let h = build_header_bytes(&n, &[0, 0, 0, 1], &[0, 0, 0, 2], 1, 3).unwrap();
+        let mut expect = hex::decode(job_prev).unwrap();
+        expect.reverse(); // pool/assembler decode_prevhash(job)
+        assert_eq!(&h[4..36], expect.as_slice());
     }
 }

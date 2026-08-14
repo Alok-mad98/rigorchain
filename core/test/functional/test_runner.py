@@ -108,9 +108,12 @@ BASE_SCRIPTS = [
     'feature_res_consensus_correctness_suite.py --descriptors',
     'feature_res_descriptor_signing.py --descriptors',
     'feature_rigor_convergence_rpc_status_history.py --descriptors',
+    'feature_rigor_convergence_network_stats.py --descriptors',
     'feature_rigor_reorg_winner_lock.py --descriptors',
     'feature_rigor_rng_wallet.py --descriptors',
     'feature_rigor_asset_mix_reject.py --descriptors',
+    'feature_rigor_block_space.py --descriptors',
+    'feature_ed25519_cross_node.py --descriptors',
     'rigor_attack_blocks.py --descriptors',
     'rigor_reorg_consistency.py',
     # TASK-H4 deterministic replay harnesses (LR-01 / LR-02 / capture self-test)
@@ -272,6 +275,9 @@ BASE_SCRIPTS = [
     'mempool_accept.py',
     'mempool_expiry.py',
     'wallet_importdescriptors.py --descriptors',
+    'wallet_importrigorprivkey.py --descriptors',
+    'wallet_exportprivkey.py --descriptors',
+    'wallet_cold_storage_uat.py --descriptors',
     'wallet_crosschain.py',
     'mining_basic.py',
     'mining_prev_nbits.py',
@@ -296,6 +302,7 @@ BASE_SCRIPTS = [
     'feature_bind_port_externalip.py',
     'wallet_send.py --descriptors',
     'wallet_sendall.py --descriptors',
+    'wallet_asset_safety_sendall.py --descriptors',
     'wallet_create_tx.py --descriptors',
     'p2p_fingerprint.py',
     'feature_uacomment.py',
@@ -361,6 +368,28 @@ NON_SCRIPTS = [
     "combine_logs.py",
     "create_cache.py",
     "test_runner.py",
+    # Intentionally not in BASE/EXTENDED (silences check_script_list WARNING).
+    # Default Rigor builds omit BDB — legacy-wallet-only scripts; run manually after a BDB build, e.g.
+    #   test_runner.py rpc_rawtransaction.py --legacy-wallet
+    "rpc_rawtransaction.py",
+    "wallet_dump.py",
+    "wallet_implicitsegwit.py",
+    "wallet_import_rescan.py",
+    "wallet_import_with_label.py",
+    "wallet_importmulti.py",
+    "wallet_inactive_hdchains.py",
+    "wallet_pruning.py",
+    "wallet_upgradewallet.py",
+    "wallet_watchonly.py",
+    # Controlled / chaos / CVE harnesses — not part of default pull-tester suite.
+    "cve_2024_52911_consensus_test.py",
+    "fault_injection_core.py",
+    "feature_continuous_chaos.py",
+    "feature_fault_consensus_only.py",
+    "feature_fault_injection_consensus.py",
+    "feature_res_lifecycle_controlled_devtest_001.py",
+    "feature_rigor_rng_wallet_send_autofee.py",
+    "test_precision_isolation.py",
 ]
 
 def main():

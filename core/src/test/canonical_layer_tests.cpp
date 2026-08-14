@@ -6,6 +6,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_math.h>
@@ -477,6 +478,26 @@ BOOST_AUTO_TEST_CASE(no_signed_sort)
     // Signed: 0x80 < 0x7f
     // We expect unsigned
     BOOST_CHECK_EQUAL(txids[0].begin()[0], 0x7f);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+// =============================================================================
+// Block space caps (must match consensus.h / rigor_consensus_lock.h)
+// =============================================================================
+
+BOOST_AUTO_TEST_SUITE(block_space_lock_tests)
+
+BOOST_AUTO_TEST_CASE(serialized_and_weight_caps_match_consensus_headers)
+{
+    // Lock version and BLOCK_*_LIMIT / MAX_BLOCK_* live in headers; guard drift.
+    BOOST_CHECK_EQUAL(Consensus::RIGOR_CONSENSUS_LOCK_VERSION, 2);
+    BOOST_CHECK_EQUAL(Consensus::BLOCK_SERIALIZED_SIZE_LIMIT, 1000000u);
+    BOOST_CHECK_EQUAL(Consensus::BLOCK_WEIGHT_LIMIT, 1000000u);
+    BOOST_CHECK_EQUAL(Consensus::BLOCK_SIGOPS_COST_LIMIT, 20000);
+    BOOST_CHECK_EQUAL(MAX_BLOCK_SERIALIZED_SIZE, 1000000u);
+    BOOST_CHECK_EQUAL(MAX_BLOCK_WEIGHT, 1000000u);
+    BOOST_CHECK_EQUAL(MAX_BLOCK_SIGOPS_COST, 20000);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

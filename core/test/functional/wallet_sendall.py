@@ -2,7 +2,15 @@
 # Copyright (c) 2022 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test the sendall RPC command."""
+"""Test the sendall RPC command.
+
+RIGOR FEE FINAL LOCK adaptations vs upstream Bitcoin Core tests
+(see wallet/fee_domain.h and docs/audit/RIGOR_FEE_FINAL_LOCK_ALIGNMENT.md):
+- fee_i = ORU_in - ORU_out >= 0  → gettransaction.fee / fee_oru are NON-NEGATIVE
+- tx size for fee estimation is serialized wire bytes (not BIP141 vsize)
+- Outputs after sendall: value = balance - fee  (NEVER balance + fee with Core's negative fee)
+- Some RPC error strings say "Insufficient ORU for network fee" (not Core's English)
+"""
 
 from decimal import Decimal, getcontext
 
@@ -12,6 +20,19 @@ from test_framework.util import (
     assert_greater_than,
     assert_raises_rpc_error,
 )
+
+
+def rigor_tx_fee(tx):
+    """Non-negative ORU network fee (FINAL LOCK §1.1)."""
+    if "fee_oru" in tx:
+        return Decimal(tx["fee_oru"])
+    return abs(Decimal(tx["fee"]))
+
+
+def amount_after_rigor_fee(balance, tx):
+    """Recipient remainder after paying non-negative ORU fee."""
+    return balance - rigor_tx_fee(tx)
+
 
 # Decorator to reset activewallet to zero utxos
 def cleanup(func):
@@ -39,7 +60,7 @@ class SendallTest(BitcoinTestFramework):
 
     def assert_balance_swept_completely(self, tx, balance):
         output_sum = sum([o["value"] for o in tx["decoded"]["vout"]])
-        assert_equal(output_sum, balance + tx["fee"])
+        assert_equal(output_sum, amount_after_rigor_fee(balance, tx))
         assert_equal(0, self.wallet.getbalances()["mine"]["trusted"]) # wallet is empty
 
     def assert_tx_has_output(self, tx, addr, value=None):
@@ -55,7 +76,7 @@ class SendallTest(BitcoinTestFramework):
 
     def add_utxos(self, amounts):
         for a in amounts:
-            self.def_wallet.sendtoaddress(self.wallet.getnewaddress(address_type='bech32m'), a)
+            self.def_wallet.sendtoaddress(self.wallet.getnewaddress(address_type='bech32'), a)
         self.generate(self.nodes[0], 1)
         assert_greater_than(self.wallet.getbalances()["mine"]["trusted"], 0)
         return self.wallet.getbalances()["mine"]["trusted"]
@@ -88,7 +109,7 @@ class SendallTest(BitcoinTestFramework):
 
         self.assert_tx_has_outputs(tx = tx_from_wallet,
             expected_outputs = [
-                { "address": self.remainder_target, "value": pre_sendall_balance + tx_from_wallet["fee"] } # fee is neg
+                { "address": self.remainder_target, "value": amount_after_rigor_fee(pre_sendall_balance, tx_from_wallet) }
             ]
         )
         self.assert_balance_swept_completely(tx_from_wallet, pre_sendall_balance)
@@ -99,7 +120,7 @@ class SendallTest(BitcoinTestFramework):
         pre_sendall_balance = self.add_utxos([1, 2, 3, 15])
         tx_from_wallet = self.test_sendall_success([self.remainder_target, self.split_target])
 
-        half = (pre_sendall_balance + tx_from_wallet["fee"]) / 2
+        half = amount_after_rigor_fee(pre_sendall_balance, tx_from_wallet) / 2
         self.assert_tx_has_outputs(tx_from_wallet,
             expected_outputs = [
                 { "address": self.split_target, "value": half },
@@ -117,7 +138,7 @@ class SendallTest(BitcoinTestFramework):
         self.assert_tx_has_outputs(tx_from_wallet,
             expected_outputs = [
                 { "address": self.recipient, "value": 5 },
-                { "address": self.remainder_target, "value": pre_sendall_balance - 5 + tx_from_wallet["fee"] }
+                { "address": self.remainder_target, "value": amount_after_rigor_fee(pre_sendall_balance - 5, tx_from_wallet) }
             ]
         )
         self.assert_balance_swept_completely(tx_from_wallet, pre_sendall_balance)
@@ -157,7 +178,9 @@ class SendallTest(BitcoinTestFramework):
 
         assert_raises_rpc_error(-6, "Assigned more value to outputs than available funds.", self.wallet.sendall,
                 [{self.recipient: pre_sendall_balance + 1}, self.remainder_target])
-        assert_raises_rpc_error(-6, "Insufficient funds for fees after creating specified outputs.", self.wallet.sendall,
+        # RIGOR wording (ORU fee domain); upstream Bitcoin said
+        # "Insufficient funds for fees after creating specified outputs."
+        assert_raises_rpc_error(-6, "Insufficient ORU for network fee", self.wallet.sendall,
                 [{self.recipient: pre_sendall_balance}, self.remainder_target])
         assert_raises_rpc_error(-8, "Specified output amount to {} is below dust threshold".format(self.recipient),
                 self.wallet.sendall, [{self.recipient: 0.00000001}, self.remainder_target])
@@ -173,8 +196,8 @@ class SendallTest(BitcoinTestFramework):
         self.nodes[0].createwallet("dustwallet")
         dust_wallet = self.nodes[0].get_wallet_rpc("dustwallet")
 
-        self.def_wallet.sendtoaddress(dust_wallet.getnewaddress(address_type='bech32m'), 0.00000400)
-        self.def_wallet.sendtoaddress(dust_wallet.getnewaddress(address_type='bech32m'), 0.00000300)
+        self.def_wallet.sendtoaddress(dust_wallet.getnewaddress(address_type='bech32'), 0.00000400)
+        self.def_wallet.sendtoaddress(dust_wallet.getnewaddress(address_type='bech32'), 0.00000300)
         self.generate(self.nodes[0], 1)
         assert_greater_than(dust_wallet.getbalances()["mine"]["trusted"], 0)
 
@@ -194,10 +217,10 @@ class SendallTest(BitcoinTestFramework):
         tx_from_wallet = self.wallet.gettransaction(txid = sendall_tx_receipt["txid"], verbose = True)
 
         assert_equal(len(tx_from_wallet["decoded"]["vin"]), 1)
-        self.assert_tx_has_outputs(tx_from_wallet, [{"address": self.remainder_target, "value": 1 + tx_from_wallet["fee"]}])
+        self.assert_tx_has_outputs(tx_from_wallet, [{"address": self.remainder_target, "value": amount_after_rigor_fee(Decimal(1), tx_from_wallet)}])
         assert_equal(self.wallet.getbalances()["mine"]["trusted"], Decimal("0.00000700"))
 
-        self.def_wallet.sendtoaddress(self.wallet.getnewaddress(address_type='bech32m'), 1)
+        self.def_wallet.sendtoaddress(self.wallet.getnewaddress(address_type='bech32'), 1)
         self.generate(self.nodes[0], 1)
 
     @cleanup
@@ -287,7 +310,8 @@ class SendallTest(BitcoinTestFramework):
     @cleanup
     def sendall_fails_on_low_fee(self):
         self.log.info("Test sendall fails if the transaction fee is lower than the minimum fee rate setting")
-        assert_raises_rpc_error(-8, "Fee rate (0.999 sat/vB) is lower than the minimum fee rate setting (1.000 sat/vB)",
+        # RIGOR atom is "tharn" (not Bitcoin "sat").
+        assert_raises_rpc_error(-8, "Fee rate (0.999 tharn/vB) is lower than the minimum fee rate setting (1.000 tharn/vB)",
         self.wallet.sendall, recipients=[self.recipient], fee_rate=0.999)
 
     @cleanup
@@ -387,7 +411,7 @@ class SendallTest(BitcoinTestFramework):
         self.wallet.keypoolrefill(1600)
 
         # create many inputs
-        outputs = {self.wallet.getnewaddress(address_type='bech32m'): 0.000025 for _ in range(1600)}
+        outputs = {self.wallet.getnewaddress(address_type='bech32'): 0.000025 for _ in range(1600)}
         self.def_wallet.sendmany(amounts=outputs)
         self.generate(self.nodes[0], 1)
 
@@ -401,10 +425,11 @@ class SendallTest(BitcoinTestFramework):
         self.nodes[0].createwallet("activewallet")
         self.wallet = self.nodes[0].get_wallet_rpc("activewallet")
         self.def_wallet = self.nodes[0].get_wallet_rpc(self.default_wallet_name)
-        self.generate(self.nodes[0], 101)
-        self.recipient = self.def_wallet.getnewaddress(address_type='bech32m') # payee for a specific amount
-        self.remainder_target = self.def_wallet.getnewaddress(address_type='bech32m') # address that receives everything left after payments and fees
-        self.split_target = self.def_wallet.getnewaddress(address_type='bech32m') # 2nd target when splitting rest
+        # Fund the ORU source wallet explicitly (multiwallet generate can credit the wrong wallet).
+        self.generatetoaddress(self.nodes[0], 101, self.def_wallet.getnewaddress(address_type='bech32'))
+        self.recipient = self.def_wallet.getnewaddress(address_type='bech32') # payee for a specific amount
+        self.remainder_target = self.def_wallet.getnewaddress(address_type='bech32') # address that receives everything left after payments and fees
+        self.split_target = self.def_wallet.getnewaddress(address_type='bech32') # 2nd target when splitting rest
 
         # Test cleanup
         self.test_cleanup()

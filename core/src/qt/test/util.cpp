@@ -4,6 +4,7 @@
 
 #include <chrono>
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QMessageBox>
 #include <QPushButton>
@@ -15,11 +16,17 @@ void ConfirmMessage(QString* text, std::chrono::milliseconds msec)
 {
     QTimer::singleShot(msec, [text]() {
         for (QWidget* widget : QApplication::topLevelWidgets()) {
-            if (widget->inherits("QMessageBox")) {
-                QMessageBox* messageBox = qobject_cast<QMessageBox*>(widget);
-                if (text) *text = messageBox->text();
-                messageBox->defaultButton()->click();
-            }
+            // SendConfirmationDialog subclasses QMessageBox; clicking a closing
+            // bump/send dialog from a later ConfirmMessage is a use-after-free on offscreen.
+            if (widget->inherits("SendConfirmationDialog")) continue;
+            if (!widget->inherits("QMessageBox")) continue;
+            QMessageBox* messageBox = qobject_cast<QMessageBox*>(widget);
+            if (!messageBox) continue;
+            if (text) *text = messageBox->text();
+            QAbstractButton* button = messageBox->defaultButton();
+            if (!button) button = messageBox->button(QMessageBox::Ok);
+            if (!button) button = messageBox->button(QMessageBox::Yes);
+            if (button) button->click();
         }
     });
 }

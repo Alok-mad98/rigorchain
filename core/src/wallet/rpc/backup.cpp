@@ -22,12 +22,15 @@
 #include <util/strencodings.h>
 #include <util/time.h>
 #include <util/translation.h>
+#include <wallet/exportprivkey.h>
 #include <wallet/rpc/util.h>
+#include <wallet/scriptpubkeyman.h>
 #include <wallet/wallet.h>
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <string>
 #include <tuple>
@@ -40,6 +43,84 @@
 using interfaces::FoundBlock;
 
 namespace wallet {
+
+AddressPrivKeyExport ExportAddressPrivateKey(const CWallet& wallet, const std::string& address,
+                                             AssetType expected_asset)
+{
+    if (!wallet.IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Descriptor wallet required for address private key export");
+    }
+
+    std::string error_msg;
+    const CTxDestination dest = DecodeDestination(address, error_msg);
+    if (!IsValidDestination(dest)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           error_msg.empty() ? "Invalid address" : error_msg);
+    }
+
+    const std::optional<AssetType> asset = GetAssetTypeFromDestination(dest);
+    if (!asset || *asset != expected_asset) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           strprintf("Only %s addresses are accepted",
+                                     expected_asset == ASSET_ORU ? "ORU" : "RES"));
+    }
+
+    if (wallet.IsLocked()) {
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Wallet is locked");
+    }
+
+    if (wallet.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key unavailable for watch-only descriptor");
+    }
+
+    LOCK(wallet.cs_wallet);
+
+    if (wallet.IsMine(dest) == ISMINE_NO) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Address not found in wallet");
+    }
+
+    const CScript script = GetScriptForDestination(dest);
+    const std::string encoded = EncodeDestination(dest);
+
+    for (ScriptPubKeyMan* spk_man : wallet.GetScriptPubKeyMans(script)) {
+        auto* desc_man = dynamic_cast<DescriptorScriptPubKeyMan*>(spk_man);
+        if (!desc_man) continue;
+
+        std::unique_ptr<FlatSigningProvider> provider =
+            desc_man->GetSigningProvider(script, /*include_private=*/true);
+        if (!provider) continue;
+
+        if (expected_asset == ASSET_ORU) {
+            const CKeyID keyid = GetKeyForDestination(*provider, dest);
+            CKey key;
+            if (!keyid.IsNull() && provider->GetKey(keyid, key) && key.IsValid()) {
+                AddressPrivKeyExport out;
+                out.address = encoded;
+                out.asset = "ORU";
+                out.private_key = EncodeSecret(key);
+                out.format = "WIF";
+                return out;
+            }
+        } else {
+            const auto* res = std::get_if<WitnessV1Res>(&dest);
+            if (!res) continue;
+            uint256 prog_id;
+            std::memcpy(prog_id.begin(), res->data(), 32);
+            const auto it = provider->res_v1_program_to_ed_secret.find(prog_id);
+            if (it != provider->res_v1_program_to_ed_secret.end()) {
+                AddressPrivKeyExport out;
+                out.address = encoded;
+                out.asset = "RES";
+                out.private_key = HexStr(Span<const unsigned char>{it->second.data(), it->second.size()});
+                out.format = "ed25519";
+                return out;
+            }
+        }
+    }
+
+    throw JSONRPCError(RPC_WALLET_ERROR, "Private key unavailable for watch-only descriptor");
+}
+
 std::string static EncodeDumpString(const std::string &str) {
     std::stringstream ret;
     for (const unsigned char c : str) {
@@ -844,6 +925,85 @@ RPCHelpMan importwallet()
     };
 }
 
+RPCHelpMan dumporuprivkey()
+{
+    return RPCHelpMan{"dumporuprivkey",
+                "\nExport the WIF private key for an owned ORU (Witness v0 / Bech32) address.\n"
+                "\nDescriptor-first: Address → descriptor ScriptPubKeyMan → key origin → WIF.\n"
+                "Does not revive legacy importprivkey wallets or a parallel private-key database.\n"
+                "Wallet must be unlocked. Watch-only descriptors cannot export private keys.\n",
+                {
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "ORU address owned by the wallet"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "address", "Canonical ORU address"},
+                        {RPCResult::Type::STR, "asset", "\"ORU\""},
+                        {RPCResult::Type::STR, "private_key", "WIF private key"},
+                        {RPCResult::Type::STR, "format", "\"WIF\""},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("dumporuprivkey", "\"rgrt1q...\"")
+            + HelpExampleRpc("dumporuprivkey", "\"rgrt1q...\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    const AddressPrivKeyExport exported =
+        ExportAddressPrivateKey(*pwallet, request.params[0].get_str(), ASSET_ORU);
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("address", exported.address);
+    result.pushKV("asset", exported.asset);
+    result.pushKV("private_key", exported.private_key);
+    result.pushKV("format", exported.format);
+    return result;
+},
+    };
+}
+
+RPCHelpMan dumpresprivkey()
+{
+    return RPCHelpMan{"dumpresprivkey",
+                "\nExport the Ed25519 secret for an owned RES (Witness v1 / Bech32m / res()) address.\n"
+                "\nDescriptor-first: Address → res(...) descriptor → 64-byte secret hex (seed‖pubkey).\n"
+                "Does not use WIF. Wallet must be unlocked. Watch-only descriptors cannot export secrets.\n",
+                {
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "RES address owned by the wallet"},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "address", "Canonical RES address"},
+                        {RPCResult::Type::STR, "asset", "\"RES\""},
+                        {RPCResult::Type::STR, "private_key", "64-byte Ed25519 secret hex (128 hex chars)"},
+                        {RPCResult::Type::STR, "format", "\"ed25519\""},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("dumpresprivkey", "\"rgrt1p...\"")
+            + HelpExampleRpc("dumpresprivkey", "\"rgrt1p...\"")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const std::shared_ptr<const CWallet> pwallet = GetWalletForJSONRPCRequest(request);
+    if (!pwallet) return UniValue::VNULL;
+
+    const AddressPrivKeyExport exported =
+        ExportAddressPrivateKey(*pwallet, request.params[0].get_str(), ASSET_RES);
+    UniValue result(UniValue::VOBJ);
+    result.pushKV("address", exported.address);
+    result.pushKV("asset", exported.asset);
+    result.pushKV("private_key", exported.private_key);
+    result.pushKV("format", exported.format);
+    return result;
+},
+    };
+}
+
 RPCHelpMan dumpprivkey()
 {
     return RPCHelpMan{"dumpprivkey",
@@ -851,7 +1011,8 @@ RPCHelpMan dumpprivkey()
                 "\nRIGOR wallets are descriptor-first (Bech32 ORU / Bech32m RES). Address-to-key\n"
                 "dump is a legacy-wallet API and is not the supported backup path.\n"
                 "\nUse instead:\n"
-                "  - Export: \"listdescriptors true\" (or GUI Key Management → Export Descriptor with private)\n"
+                "  - Address export: \"dumporuprivkey\" / \"dumpresprivkey\"\n"
+                "  - Full backup: \"listdescriptors true\" (or GUI Key Management → Export Descriptor with private)\n"
                 "  - Re-import: \"importrigorprivkey\" / \"importdescriptors\" (\"importprivkey\" is a compat alias)\n"
                 "\nThis RPC remains registered so callers receive an explicit redirect instead of a silent failure.\n"
                 "On a migrated legacy (non-descriptor) wallet only, the historical address dump still runs.\n",
@@ -862,7 +1023,10 @@ RPCHelpMan dumpprivkey()
                     RPCResult::Type::STR, "key", "Private key (legacy wallets only; descriptor wallets always error)"
                 },
                 RPCExamples{
-            "\nSupported export on descriptor wallets:\n"
+            "\nSupported address export on descriptor wallets:\n"
+            + HelpExampleCli("dumporuprivkey", "\"rgrt1q...\"")
+            + HelpExampleCli("dumpresprivkey", "\"rgrt1p...\"") +
+            "\nFull descriptor backup:\n"
             + HelpExampleCli("listdescriptors", "true") +
             "\nRe-import a single key:\n"
             + HelpExampleCli("importrigorprivkey", "\"cVa...\" \"\" true ORU") +
@@ -877,8 +1041,9 @@ RPCHelpMan dumpprivkey()
     if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         throw JSONRPCError(RPC_WALLET_ERROR,
             "dumpprivkey is not supported on descriptor wallets. "
-            "Export private key material with \"listdescriptors true\" "
-            "(GUI: Settings → Advanced → Key Management → Export Descriptor, include private). "
+            "Use \"dumporuprivkey\" / \"dumpresprivkey\" for address-level export, "
+            "or \"listdescriptors true\" for full private descriptor backup "
+            "(GUI: Settings → Advanced → Key Management / Security → Export Private Key). "
             "Re-import with \"importrigorprivkey\" or \"importdescriptors\". "
             "\"importprivkey\" remains a compatibility alias for single-key import.");
     }

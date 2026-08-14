@@ -48,6 +48,9 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
+#include <QDebug>
+#include <QElapsedTimer>
+#include <QtGlobal>
 #include <QCursor>
 #include <QDateTime>
 #include <QDragEnterEvent>
@@ -1041,20 +1044,29 @@ void RigorGUI::openClicked()
 
 void RigorGUI::gotoOverviewPage()
 {
+    QElapsedTimer t;
+    t.start();
     overviewAction->setChecked(true);
     if (walletFrame) walletFrame->gotoOverviewPage();
+    qInfo().noquote() << QStringLiteral("[ui-perf] nav Overview %1ms").arg(t.elapsed());
 }
 
 void RigorGUI::gotoHistoryPage()
 {
+    QElapsedTimer t;
+    t.start();
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoHistoryPage();
+    qInfo().noquote() << QStringLiteral("[ui-perf] nav Transactions %1ms").arg(t.elapsed());
 }
 
 void RigorGUI::gotoConvergencePage()
 {
+    QElapsedTimer t;
+    t.start();
     convergenceAction->setChecked(true);
     if (walletFrame) walletFrame->gotoConvergencePage();
+    qInfo().noquote() << QStringLiteral("[ui-perf] nav Convergence %1ms").arg(t.elapsed());
 }
 
 void RigorGUI::gotoDiagnosticsPage()

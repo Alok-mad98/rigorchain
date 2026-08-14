@@ -17,7 +17,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "1c00ff00",
             "height": 300,
@@ -66,7 +66,6 @@ fn spawn_server(orch: Arc<StratumOrchestrator>) -> u16 {
 #[test]
 fn stratum_handshake_subscribe_authorize() {
     let orch = stack();
-    orch.sessions.register_worker("alice.worker1", "x");
     let port = spawn_server(orch);
 
     let endpoint = PoolEndpoint {
@@ -94,7 +93,6 @@ fn share_submission_via_tcp() {
     let envelopes = orch.publish_jobs_from_active_template().unwrap();
     assert_eq!(envelopes.len(), 1);
 
-    orch.sessions.register_worker("bob.worker", "x");
     let port = spawn_server(orch);
 
     let config = rigor_miner_agent::AgentConfig::from_cli(
@@ -150,7 +148,6 @@ fn cpu_mining_loop_hashes_after_notify() {
     let envelopes = orch.publish_jobs_from_active_template().unwrap();
     assert_eq!(envelopes.len(), 1);
 
-    orch.sessions.register_worker("carol.worker", "x");
     let port = spawn_server(orch);
 
     let config = rigor_miner_agent::AgentConfig::from_cli(

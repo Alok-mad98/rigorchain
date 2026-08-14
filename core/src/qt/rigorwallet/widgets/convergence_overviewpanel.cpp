@@ -52,17 +52,18 @@ ConvergenceOverviewPanel::ConvergenceOverviewPanel(QWidget* parent)
 void ConvergenceOverviewPanel::setClientModel(ClientModel* model)
 {
     m_clientModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceOverviewPanel::setWalletModel(WalletModel* model)
 {
     m_walletModel = model;
-    refresh();
+    if (isVisible()) refresh();
 }
 
 void ConvergenceOverviewPanel::refresh()
 {
+    if (!isVisible()) return;
     const int tip = m_clientModel ? m_clientModel->getNumBlocks() : -1;
     if (!m_walletModel) {
         m_activityLabel->setText(tr("Convergence activity: —"));

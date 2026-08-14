@@ -75,9 +75,9 @@ public:
 
 /** A signature checker that accepts all signatures */
 extern const BaseSignatureChecker& DUMMY_CHECKER;
-/** A signature creator that just produces 71-byte empty signatures. */
+/** Dummy creator for fee estimation: 65-byte Ed25519 (64 + hashtype), not Bitcoin DER. */
 extern const BaseSignatureCreator& DUMMY_SIGNATURE_CREATOR;
-/** A signature creator that just produces 72-byte empty signatures. */
+/** Same 65-byte Ed25519 dummy (Alpha1 has no DER size grind). */
 extern const BaseSignatureCreator& DUMMY_MAXIMUM_SIGNATURE_CREATOR;
 
 typedef std::pair<CPubKey, std::vector<unsigned char>> SigPair;

@@ -81,7 +81,7 @@ typedef enum ScriptError_t
     SCRIPT_ERR_OP_CODESEPARATOR,
     SCRIPT_ERR_SIG_FINDANDDELETE,
 
-    /* Rigor: secp256k1 / ECDSA script paths are disabled; only Ed25519 witness flows apply */
+    /* Rigor: secp256k1 / ECDSA is never accepted; spend signatures are Ed25519 only */
     SCRIPT_ERR_SECP256K1_DISABLED,
 
     SCRIPT_ERR_ERROR_COUNT

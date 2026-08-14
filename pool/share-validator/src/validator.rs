@@ -81,9 +81,13 @@ impl ShareValidator {
         let coinbase_raw = assemble_coinbase_raw(&job, &share.extranonce1, &share.extranonce2)?;
         validate_cvge_rigor(&job, &coinbase_raw)?;
 
-        let scriptsig = coinbase_scriptsig_from_submission(&job, &share.extranonce1, &share.extranonce2)?;
-        let expected_ss = hex::decode(&job.coinbase.scriptsig_hex)
-            .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string()))?;
+        // Job snapshot stores consensus-exact scriptSig (height ‖ ConvergenceRoot).
+        // Extranonces live in an OP_RETURN output, not scriptSig.
+        let scriptsig =
+            coinbase_scriptsig_from_submission(&job, &share.extranonce1, &share.extranonce2)?;
+        let expected_ss = hex::decode(&job.coinbase.scriptsig_hex).map_err(|e| {
+            ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string())
+        })?;
         if scriptsig != expected_ss {
             return Err(ValidatorError::validation(
                 ValidationErrorCode::ErrConvergenceMismatch,

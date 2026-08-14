@@ -112,15 +112,11 @@ bool InitSignatureCache(size_t max_size_bytes)
 // verification). Do not refactor the Get/Verify/Set ordering below.
 bool CachingTransactionSignatureChecker::VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
-    uint256 entry;
-    signatureCache.ComputeEntryECDSA(entry, sighash, vchSig, pubkey);
-    if (signatureCache.Get(entry, !store))
-        return true;
-    if (!TransactionSignatureChecker::VerifyECDSASignature(vchSig, pubkey, sighash))
-        return false;
-    if (store)
-        signatureCache.Set(entry);
-    return true;
+    // Alpha1: never accept or cache ECDSA. Do not consult the ECDSA cache tag.
+    (void)vchSig;
+    (void)pubkey;
+    (void)sighash;
+    return false;
 }
 
 // CONSENSUS INVARIANT (must freeze): see VerifyECDSASignature above. Same

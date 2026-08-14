@@ -1,41 +1,59 @@
-# rigor-pool-pilot
+# rigor-pool (Alpha / ORU-only)
 
-Closed testnet pilot binary for TASK-MINING-010. Wires the in-memory pool stack:
+Product binary for the RIGOR Stratum pool. Packaging installs a compatibility copy
+named `rigor-pool-pilot` (same binary; no second Cargo `[[bin]]`).
 
-`rigor-gbt` → `block-assembler` → `share-validator` → `stratum-server` → `mint-engine`
+```text
+rigor-gbt → block-assembler → share-validator → stratum-server
+                                              → ORU PPLNS payout
+```
 
-## Environment
+**No mint-engine.** RES involvement remains **NONE** on the pool path.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RIGOR_RPC_URL` | `http://127.0.0.1:8332/` | `rigord` JSON-RPC |
-| `RIGOR_RPC_USER` / `RIGOR_RPC_PASSWORD` | — | RPC auth |
-| `STRATUM_LISTEN` | `127.0.0.1:3333` | Stratum v1 bind address |
-| `GBT_POLL_INTERVAL_MS` | `2000` | GBT poll interval |
-| `MINT_AUTO_SUBMIT` | `false` | Submit assembled blocks via RPC |
-| `PPLNS_WINDOW` | `1` | PPLNS round window |
-| `PILOT_STATUS_FILE` | `.runtime/pool-pilot/status.json` | Periodic metrics dump |
+## Commands
 
-PostgreSQL / Redis are **not required** — the Rust pool stack uses in-memory state only.
+```bash
+# Local Alpha / regtest (recommended first run)
+rigor-pool --config pool/config/example.devtest.toml run
+rigor-pool --config pool/config/example.devtest.toml status
+
+# Production-shaped (requires secrets in TOML or env)
+rigor-pool --config pool/config/example.toml run
+```
+
+## Configuration
+
+| File | Profile | Starts without secrets? |
+|------|---------|-------------------------|
+| `pool/config/example.devtest.toml` | `devtest` | Yes (password `x`) |
+| `pool/config/example.toml` | `production` | No — needs payout script + worker hashes |
+
+Environment variables still override TOML keys:
+
+| Variable | Description |
+|----------|-------------|
+| `RIGOR_RPC_URL` / `RIGOR_RPC_USER` / `RIGOR_RPC_PASSWORD` | Node JSON-RPC |
+| `STRATUM_LISTEN` | `host:port` Stratum bind |
+| `ORU_FEE_PERCENT` | Pool fee % of coinbase ORU |
+| `PAYOUT_INTERVAL` | Ops settlement cadence (seconds) |
+| `PPLNS_WINDOW` | PPLNS window |
+| `RIGOR_POOL_PROFILE` | `production` or `devtest` |
+| `RIGOR_POOL_PAYOUT_SCRIPT_HEX` | Coinbase ORU script (production) |
+| `RIGOR_POOL_WORKER_CREDENTIALS` | `worker=hash;…` (production) |
+| `DATABASE_URL` | Optional Postgres |
+| `PILOT_STATUS_INTERVAL_SECS` / `PILOT_STATUS_FILE` | Status JSON |
 
 ## Build
 
 ```bash
 cd pool/pilot
-cargo build --release
+cargo build --release --bin rigor-pool
+# output: target/release/rigor-pool
+# packaging copies it to rigor-pool-pilot for script compatibility
 ```
 
-## Run (against live `rigord`)
-
-```bash
-export RIGOR_RPC_URL=http://127.0.0.1:48761/
-export RIGOR_RPC_USER=devtest
-export RIGOR_RPC_PASSWORD=devtestpass
-export MINT_AUTO_SUBMIT=true
-./target/release/rigor-pool-pilot
-```
-
-Full pilot procedure: [docs/mining/POOL_CLOSED_TESTNET_PILOT.md](../../docs/mining/POOL_CLOSED_TESTNET_PILOT.md)
+Miner agent: `pool/rigor-miner-agent`.  
+Guide: `docs/pool/MINER_CONNECTION_GUIDE.md`.
 
 ## Tests
 

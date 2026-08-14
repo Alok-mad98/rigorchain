@@ -1,0 +1,45 @@
+# RIGOR Pool — local Alpha / regtest config (ORU-only)
+#
+# IMPORTANT: `run` is a foreground server. Use TWO terminals (or background &):
+#
+#   Terminal A:
+#     ./dist/alpha/pool/linux/bin/rigor-pool --config pool/config/example.devtest.toml run
+#     # expect: "stratum listening on 127.0.0.1:3333" then it waits (normal)
+#
+#   Terminal B:
+#     ./dist/alpha/pool/linux/bin/rigor-miner-agent --pool 127.0.0.1:3333 --worker alice.rig1 --password x
+#     ./dist/alpha/pool/linux/bin/rigor-pool --config pool/config/example.devtest.toml status
+#
+# One-shot smoke (backgrounds pool for you):
+#     bash scripts/alpha/smoke_pool_local.sh
+#
+# Shared Stratum password is "x" (devtest only — never for public pools).
+# Without a live rigord on [node] RPC, jobs/shares may stay at 0 — connect still works.
+
+[node]
+# rpc_port 8332 is a PLACEHOLDER — there is usually no rigord there.
+# If miners connect but hashes/shares stay 0, point [node] at a live node
+# (see example.local-lms.toml for LMS Node-0 on :27811).
+rpc_host = "127.0.0.1"
+rpc_port = 8332
+rpc_user = "rigor"
+rpc_password = "change-me"
+
+[stratum]
+listen_address = "127.0.0.1"
+listen_port = 3333
+
+[payout]
+ORU_fee_percent = 1.0
+payout_interval = 3600
+pplns_window = 1
+
+[database]
+enabled = false
+
+[security]
+profile = "devtest"
+
+[status]
+interval_secs = 5
+file = ".runtime/pool-pilot/status.json"

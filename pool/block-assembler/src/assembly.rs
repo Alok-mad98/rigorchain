@@ -1,11 +1,10 @@
 use crate::coinbase::{assemble_coinbase, CoinbaseAssembly, CoinbaseConfig};
 use crate::convergence::hash256;
 use crate::error::{AssemblerError, AssemblerResult};
-use crate::merkle::{build_merkle_branches, tx_hash_from_raw};
+use crate::merkle::{build_merkle_branches, display_hash_hex_to_native, txid_from_tx_bytes};
 use crate::placeholder::build_body_mint_placeholder;
 use crate::types::{BodyMintPlaceholder, CoinbaseInfo, CommitmentInfo};
 use rigor_gbt::{GbtRecord, TemplateRecord};
-use sha2::{Digest, Sha256};
 
 /// Full assembly artifact returned by the block assembler pipeline.
 #[derive(Clone, Debug, PartialEq)]
@@ -26,7 +25,10 @@ pub struct AssemblyArtifact {
 
 pub struct AssemblerConfig {
     pub payout_script: Vec<u8>,
+    /// Matches stratum session extranonce1 length (default 4).
+    pub extranonce1_size: u32,
     pub extranonce2_size: u32,
+    /// Deprecated (Option A): ignored. Pool never reserves RES mint placeholders.
     pub mint_required: bool,
 }
 
@@ -46,6 +48,7 @@ impl Default for AssemblerConfig {
     fn default() -> Self {
         Self {
             payout_script: UNSPENDABLE_DEVTEST_PAYOUT_SCRIPT.to_vec(),
+            extranonce1_size: 4,
             extranonce2_size: 4,
             mint_required: false,
         }
@@ -59,6 +62,7 @@ impl AssemblerConfig {
         crate::payout_script::validate_payout_script(&payout_script)?;
         Ok(Self {
             payout_script,
+            extranonce1_size: 4,
             extranonce2_size: 4,
             mint_required: false,
         })
@@ -79,6 +83,12 @@ impl AssemblerConfig {
             ));
         }
         crate::payout_script::validate_payout_script(&self.payout_script)?;
+        if self.extranonce1_size == 0 || self.extranonce1_size > 8 {
+            return Err(AssemblerError::Assembly(format!(
+                "extranonce1_size {} out of range 1..=8",
+                self.extranonce1_size
+            )));
+        }
         if self.extranonce2_size == 0 || self.extranonce2_size > 8 {
             return Err(AssemblerError::Assembly(format!(
                 "extranonce2_size {} out of range 1..=8",
@@ -114,42 +124,43 @@ pub fn assemble_from_gbt(
         gbt,
         &CoinbaseConfig {
             payout_script: &config.payout_script,
+            extranonce1_size: config.extranonce1_size,
             extranonce2_size: config.extranonce2_size,
             tx_version,
         },
     )?;
 
-    let mut tx_hashes: Vec<[u8; 32]> = Vec::with_capacity(gbt.transactions.len() + 2);
-    tx_hashes.push(tx_hash_from_raw(&coinbase.coinbase_raw));
+    let mut tx_hashes: Vec<[u8; 32]> = Vec::with_capacity(gbt.transactions.len() + 1);
+    // Merkle leaf must be txid (witness stripped), matching Bitcoin Core CheckMerkleRoot.
+    tx_hashes.push(txid_from_tx_bytes(&coinbase.coinbase_raw));
 
     for tx in &gbt.transactions {
         let raw = hex::decode(&tx.data)
             .map_err(|e| AssemblerError::Assembly(format!("tx decode: {e}")))?;
-        if let Some(ref h) = tx.hash {
-            let bytes = hex::decode(h).map_err(|e| AssemblerError::Assembly(format!("tx hash: {e}")))?;
-            if bytes.len() == 32 {
-                let mut arr = [0u8; 32];
-                arr.copy_from_slice(&bytes);
-                tx_hashes.push(arr);
-                continue;
+        // Prefer GBT `txid` (display order) — never `hash` (wtxid on segwit Core).
+        if !tx.txid.is_empty() {
+            match display_hash_hex_to_native(&tx.txid) {
+                Ok(native) => {
+                    tx_hashes.push(native);
+                    continue;
+                }
+                Err(e) => {
+                    return Err(AssemblerError::Assembly(format!("gbt txid: {e}")));
+                }
             }
         }
-        tx_hashes.push(tx_hash_from_raw(&raw));
+        tx_hashes.push(txid_from_tx_bytes(&raw));
     }
 
+    // Option A: never reserve a RES merkle placeholder. GBT txs (including any
+    // node-supplied automint) remain opaque leaves already in `tx_hashes`.
     let body_mint = build_body_mint_placeholder(
         gbt.transactions.len(),
         config.mint_required,
         record_seed,
     );
-
-    if body_mint.reserved {
-        let placeholder_bytes = body_mint.placeholder_txid.as_bytes();
-        let mut h = [0u8; 32];
-        let digest = Sha256::digest(placeholder_bytes);
-        h.copy_from_slice(&digest);
-        tx_hashes.push(h);
-    }
+    debug_assert!(!body_mint.reserved);
+    debug_assert!(!body_mint.mint_required);
 
     let (merkle_root, merkle_branch) = build_merkle_branches(&tx_hashes);
 
@@ -160,7 +171,6 @@ pub fn assemble_from_gbt(
             assembly_preimage.extend_from_slice(&raw);
         }
     }
-    assembly_preimage.extend_from_slice(body_mint.placeholder_txid.as_bytes());
     let assembly_hash = hash256(&assembly_preimage);
 
     let coinbase_info = CoinbaseInfo {

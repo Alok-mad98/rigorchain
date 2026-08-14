@@ -1725,6 +1725,12 @@ RPCHelpMan sendall()
             }
 
             CCoinControl coin_control;
+            // FUND-SAFETY: sendall is ORU-only. Mixing RES into the fungible sum bypasses
+            // CreateTransaction asset homogeneity and can build illegal or lossy txs.
+            coin_control.m_asset_type = ASSET_ORU;
+            if (!coin_control.m_change_type) {
+                coin_control.m_change_type = OutputType::BECH32;
+            }
 
             SetFeeEstimateMode(*pwallet, coin_control, options["conf_target"], options["estimate_mode"], options["fee_rate"], /*override_min_fee=*/false);
 
@@ -1762,6 +1768,11 @@ RPCHelpMan sendall()
             }
 
             CMutableTransaction rawTx{ConstructTransaction(options["inputs"], recipient_key_value_pairs, options["locktime"], rbf)};
+            for (const CTxOut& out : rawTx.vout) {
+                if (AssetTypeFromScriptPubKey(out.scriptPubKey) != ASSET_ORU) {
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "sendall recipients must be ORU addresses; use sendres for RES");
+                }
+            }
             LOCK(pwallet->cs_wallet);
 
             CAmount total_input_value(0);
@@ -1779,14 +1790,39 @@ RPCHelpMan sendall()
                     if (!tx || input.prevout.n >= tx->tx->vout.size() || !(pwallet->IsMine(tx->tx->vout[input.prevout.n]) & (coin_control.fAllowWatchOnly ? ISMINE_ALL : ISMINE_SPENDABLE))) {
                         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input not found. UTXO (%s:%d) is not part of wallet.", input.prevout.hash.ToString(), input.prevout.n));
                     }
-                    total_input_value += tx->tx->vout[input.prevout.n].nValue;
+                    const CTxOut& prevout = tx->tx->vout[input.prevout.n];
+                    if (AssetTypeFromScriptPubKey(prevout.scriptPubKey) != ASSET_ORU) {
+                        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Input is not ORU. UTXO (%s:%d) cannot be spent by sendall; use sendres for RES.", input.prevout.hash.ToString(), input.prevout.n));
+                    }
+                    total_input_value += prevout.nValue;
                 }
             } else {
                 CoinFilterParams coins_params;
                 coins_params.min_amount = 0;
+                coins_params.m_asset_type = ASSET_ORU;
                 for (const COutput& output : AvailableCoins(*pwallet, &coin_control, fee_rate, coins_params).All()) {
-                    CHECK_NONFATAL(output.input_bytes > 0);
-                    if (send_max && fee_rate.GetFee(output.input_bytes) > output.txout.nValue) {
+                    if (AssetTypeFromScriptPubKey(output.txout.scriptPubKey) != ASSET_ORU) {
+                        continue;
+                    }
+                    if (!output.spendable) {
+                        continue;
+                    }
+                    // AvailableCoins may surface IsMine ORU scripts whose dummy-sign size
+                    // is unknown (input_bytes <= 0). Never CHECK_NONFATAL/abort — fall back or skip.
+                    int input_bytes = output.input_bytes;
+                    if (input_bytes <= 0) {
+                        int wver = 0;
+                        std::vector<unsigned char> wprog;
+                        if (output.txout.scriptPubKey.IsWitnessProgram(wver, wprog) && wver == 0 &&
+                            wprog.size() == WITNESS_V0_KEYHASH_SIZE) {
+                            // Conservative fully-signed P2WPKH input size for fee (wire-byte domain).
+                            input_bytes = 68;
+                        } else {
+                            // Unknown / non-keyhash ORU (e.g. P2WSH protocol outs): do not spend via sendall.
+                            continue;
+                        }
+                    }
+                    if (send_max && OruNetworkFeeForSizeBytes(fee_rate, input_bytes) > output.txout.nValue) {
                         continue;
                     }
                     CTxIn input(output.outpoint.hash, output.outpoint.n, CScript(), rbf ? MAX_BIP125_RBF_SEQUENCE : CTxIn::SEQUENCE_FINAL);
@@ -1795,9 +1831,32 @@ RPCHelpMan sendall()
                 }
             }
 
-            // estimate final size of tx
+            // Empty after ORU / minconf / maxconf / send_max filters: same RPC surface as
+            // Bitcoin Core (pool too low). Do not invent a separate "no ORU" code path —
+            // minconf=too-high must keep this string for wallet_sendall parity.
+            //
+            // RIGOR FEE FINAL LOCK (when vin non-empty):
+            //   fee_i = ORU_in - ORU_out (>= 0)
+            //   size  = serialized wire bytes (NOT BIP141 vsize/weight)
+            // Remainder assignment uses OruNetworkFeeForSizeBytes(rate, size_bytes).
+            if (rawTx.vin.empty()) {
+                if (send_max) {
+                    throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Total value of UTXO pool too low to pay for transaction, try using lower feerate.");
+                }
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Total value of UTXO pool too low to pay for transaction. Try using lower feerate or excluding uneconomic UTXOs with 'send_max' option.");
+            }
+
             const TxSize tx_size{CalculateMaximumSignedTxSize(CTransaction(rawTx), pwallet.get())};
-            const CAmount fee_from_size{fee_rate.GetFee(tx_size.size_bytes)};
+            if (tx_size.size_bytes < 0 || tx_size.weight < 0) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Transaction size estimation failed for sendall");
+            }
+
+            // Standardness/weight before fee affordability.
+            if (tx_size.weight > MAX_STANDARD_TX_WEIGHT) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Transaction too large.");
+            }
+
+            const CAmount fee_from_size{OruNetworkFeeForSizeBytes(fee_rate, static_cast<int>(tx_size.size_bytes))};
             const CAmount effective_value{total_input_value - fee_from_size};
 
             if (fee_from_size > pwallet->m_default_max_tx_fee) {
@@ -1810,11 +1869,6 @@ RPCHelpMan sendall()
                 } else {
                     throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Total value of UTXO pool too low to pay for transaction. Try using lower feerate or excluding uneconomic UTXOs with 'send_max' option.");
                 }
-            }
-
-            // If this transaction is too large, e.g. because the wallet has many UTXOs, it will be rejected by the node's mempool.
-            if (tx_size.weight > MAX_STANDARD_TX_WEIGHT) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "Transaction too large.");
             }
 
             CAmount output_amounts_claimed{0};

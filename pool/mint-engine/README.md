@@ -1,38 +1,30 @@
-# mint-engine
+# mint-engine (LEGACY — detached from pool runtime)
 
-Production RES body mint engine for the RIGOR mining pool (TASK-MINT-ENGINE-001).
+**Status:** Historical / audit-only crate.  
+**Authority:** `docs/pool/POOL_RES_BOUNDARY_ARCHITECTURE_DECISION.md` Option A  
+**Task:** `TASK-POOL-RES-BOUNDARY-IMPLEMENT-003`
 
-## Responsibilities
+This crate previously built RES body mint transactions for the Stratum orchestrator.
+That production path has been **removed**. The live pool is ORU-only:
 
-- Consume `MintAuthorizationToken` from Winner Engine (TASK-MINING-018)
-- Build RES body mint transaction (`vout[0]` = 100 RES, ORU inputs, PCORB witness, Ed25519)
+- `stratum-server` no longer depends on `mint-engine`
+- `try_mint` / `mint_for_authorized_winner` are not called from the mining critical path
+- RES body mint, when required, is assembled by `rigord` (`auto_res_mint` / GBT)
+
+The source remains in-tree for audit and historical tests only. Do **not** rewire it
+into pool pilot / stratum without a new ADR.
+
+## Former responsibilities (historical)
+
+- Consume `MintAuthorizationToken` from Winner Engine
+- Build RES body mint transaction
 - Insert mint at `vtx[k+1]` in candidate block assembly
 - Optional `submitblock` RPC to `rigord`
-- Mint state machine for reorg / orphan / monitoring
 
 ## Architecture impact
 
 | Field | Value |
 |-------|-------|
 | Consensus | NONE |
-| Protocol | NONE |
-| Freeze | NONE |
+| Pool production path | **DETACHED** |
 | equivalence_claimed | false |
-
-## Authorization API
-
-```rust
-// Production path — requires Winner Engine token
-engine.mint_for_authorized_winner(&token, &template, &job, &block_ctx)?;
-
-// Internal builder (tests only) — caller supplies MintWinnerContext
-engine.mint_for_winner(&preview, &template, &job, &block_ctx)?;
-```
-
-## Tests
-
-```bash
-cd pool/mint-engine && cargo test
-```
-
-See `ARCHITECTURE.md` and `TEST_PLAN.md`.

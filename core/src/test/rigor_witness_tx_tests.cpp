@@ -16,6 +16,7 @@
 #include <policy/policy.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
 #include <script/interpreter.h>
 #include <script/rigor_tags.h>
 #include <script/script.h>
@@ -287,6 +288,143 @@ BOOST_AUTO_TEST_CASE(res_input_tx_with_convergence_output_rejected)
     CAmount fee{};
     BOOST_CHECK(!Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "convergence-must-be-orum");
+}
+
+BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_oru_wrapper_ed25519_ok)
+{
+    const std::vector<unsigned char> seed = ParseHex("aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899");
+    std::vector<unsigned char> pk32(ed25519::PUBKEY_SIZE);
+    std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pk32, seckey));
+
+    std::vector<unsigned char> wrapped(CPubKey::COMPRESSED_SIZE);
+    wrapped[0] = 0x00;
+    std::memcpy(wrapped.data() + 1, pk32.data(), ed25519::PUBKEY_SIZE);
+    const uint160 keyhash = Hash160(wrapped);
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
+
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+
+    CScript scriptCode;
+    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
+    PrecomputedTransactionData txdata(txSpend);
+    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
+    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+
+    CScriptWitness witness;
+    witness.stack.push_back(witSig);
+    witness.stack.push_back(wrapped);
+    txSpend.vin[0].scriptWitness = witness;
+
+    ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+    const bool ok = VerifyScript(
+        txSpend.vin[0].scriptSig,
+        txCredit.vout[0].scriptPubKey,
+        &txSpend.vin[0].scriptWitness,
+        STANDARD_SCRIPT_VERIFY_FLAGS,
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        &err);
+    BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
+}
+
+BOOST_AUTO_TEST_CASE(witness_v0_invalid_ed25519_signature_fails)
+{
+    const std::vector<unsigned char> seed = ParseHex("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
+    std::vector<unsigned char> pubkey(ed25519::PUBKEY_SIZE);
+    std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
+
+    const uint160 keyhash = Hash160(pubkey);
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+
+    CScript scriptCode;
+    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
+    PrecomputedTransactionData txdata(txSpend);
+    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
+    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+    witSig[0] ^= 0x01;
+
+    CScriptWitness witness;
+    witness.stack.push_back(witSig);
+    witness.stack.push_back(pubkey);
+    txSpend.vin[0].scriptWitness = witness;
+
+    ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+    const bool ok = VerifyScript(
+        txSpend.vin[0].scriptSig,
+        txCredit.vout[0].scriptPubKey,
+        &txSpend.vin[0].scriptWitness,
+        STANDARD_SCRIPT_VERIFY_FLAGS,
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        &err);
+    BOOST_CHECK(!ok);
+    BOOST_CHECK(err == SCRIPT_ERR_EVAL_FALSE || err == SCRIPT_ERR_SIG_NULLFAIL);
+}
+
+BOOST_AUTO_TEST_CASE(witness_v0_secp256k1_compressed_pubkey_fails)
+{
+    std::vector<unsigned char> secp_pk(CPubKey::COMPRESSED_SIZE, 0x11);
+    secp_pk[0] = 0x02;
+    const uint160 keyhash = Hash160(secp_pk);
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+
+    std::vector<unsigned char> der(71, 0x30);
+    der.push_back(static_cast<unsigned char>(SIGHASH_ALL));
+
+    CScriptWitness witness;
+    witness.stack.push_back(der);
+    witness.stack.push_back(secp_pk);
+    txSpend.vin[0].scriptWitness = witness;
+
+    PrecomputedTransactionData txdata(txSpend);
+    ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+    const bool ok = VerifyScript(
+        txSpend.vin[0].scriptSig,
+        txCredit.vout[0].scriptPubKey,
+        &txSpend.vin[0].scriptWitness,
+        STANDARD_SCRIPT_VERIFY_FLAGS,
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        &err);
+    BOOST_CHECK(!ok);
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_SECP256K1_DISABLED);
+}
+
+BOOST_AUTO_TEST_CASE(check_ecdsa_signature_sealed_false)
+{
+    const std::vector<unsigned char> seed = ParseHex("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    std::vector<unsigned char> pk32(ed25519::PUBKEY_SIZE);
+    std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pk32, seckey));
+    std::vector<unsigned char> wrapped(CPubKey::COMPRESSED_SIZE);
+    wrapped[0] = 0x00;
+    std::memcpy(wrapped.data() + 1, pk32.data(), ed25519::PUBKEY_SIZE);
+
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(Hash160(wrapped)));
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+    CScript scriptCode;
+    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(wrapped))) << OP_EQUALVERIFY << OP_CHECKSIG;
+    PrecomputedTransactionData txdata(txSpend);
+    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
+    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+
+    MutableTransactionSignatureChecker checker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
+    BOOST_CHECK(!checker.CheckECDSASignature(witSig, wrapped, scriptCode, SigVersion::WITNESS_V0));
+    BOOST_CHECK(checker.CheckEd25519Signature(witSig, pk32, scriptCode, SigVersion::WITNESS_V0));
 }
 
 BOOST_AUTO_TEST_CASE(oru_convergence_two_convergence_outputs_rejected)

@@ -1742,6 +1742,32 @@ bool CWallet::IsHDEnabled() const
     return result;
 }
 
+bool CWallet::IsOruHDEnabled() const
+{
+    // ORU HD is reported from BECH32 (wpkh) managers only — ignore RES single-slot SPKMs.
+    bool found = false;
+    for (const bool internal : {false, true}) {
+        ScriptPubKeyMan* spk_man = GetScriptPubKeyMan(OutputType::BECH32, internal);
+        if (!spk_man) continue;
+        if (!spk_man->IsHDEnabled()) return false;
+        found = true;
+    }
+    return found;
+}
+
+bool CWallet::IsResDedicatedKeyMode() const
+{
+    // Dedicated RES mode: active BECH32M (res()) managers that are intentionally non-ranged.
+    bool found = false;
+    for (const bool internal : {false, true}) {
+        ScriptPubKeyMan* spk_man = GetScriptPubKeyMan(OutputType::BECH32M, internal);
+        if (!spk_man) continue;
+        if (spk_man->IsHDEnabled()) return false;
+        found = true;
+    }
+    return found;
+}
+
 bool CWallet::CanGetAddresses(bool internal) const
 {
     LOCK(cs_wallet);
@@ -1845,6 +1871,17 @@ bool DummySignInput(const SigningProvider& provider, CTxIn &tx_in, const CTxOut 
     // or if this wallet uses an external signer, to ensure a sufficient fee is attained for the requested feerate.
     const bool use_max_sig = coin_control && (coin_control->fAllowWatchOnly || coin_control->IsExternalSelected(tx_in.prevout) || !can_grind_r);
     if (!ProduceSignature(provider, use_max_sig ? DUMMY_MAXIMUM_SIGNATURE_CREATOR : DUMMY_SIGNATURE_CREATOR, scriptPubKey, sigdata)) {
+        // Witness v0 P2WPKH: size-accurate Ed25519 placeholder if dummy VerifyScript still fails.
+        if (scriptPubKey.IsWitnessProgram(wver, wprog) && wver == 0 && wprog.size() == WITNESS_V0_KEYHASH_SIZE) {
+            CScriptWitness wit;
+            std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
+            witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+            wit.stack.push_back(std::move(witSig));
+            std::vector<unsigned char> pk(CPubKey::COMPRESSED_SIZE, 0x00);
+            wit.stack.push_back(std::move(pk));
+            tx_in.scriptWitness = std::move(wit);
+            return true;
+        }
         return false;
     }
     UpdateInput(tx_in, sigdata);
@@ -1931,10 +1968,12 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew, const std::vector<CTxOut> 
             ok = DummySignInput(coin_control->m_external_provider, txin, txout, can_grind_r, coin_control);
         }
         if (!ok && is_wit && wver == 0 && wprog.size() == WITNESS_V0_KEYHASH_SIZE) {
-            // Placeholder matching typical P2WPKH witness: ~71-byte sig + 33-byte pubkey
+            // Placeholder matching Alpha1 P2WPKH witness: Ed25519 sig (64)+hashtype + 0x00||pk32
             CScriptWitness wit;
-            wit.stack.emplace_back(72, 0x30);
-            wit.stack.emplace_back(33, 0x02);
+            std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
+            witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+            wit.stack.push_back(std::move(witSig));
+            wit.stack.emplace_back(CPubKey::COMPRESSED_SIZE, 0x00);
             txin.scriptWitness = std::move(wit);
             ok = true;
         }

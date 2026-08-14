@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
 pub struct PoolMetrics {
@@ -13,9 +13,9 @@ pub struct PoolMetrics {
     pub blocks_submitted: AtomicU64,
     /// C-5: `submitblock` returned an error (no miner credit was recorded).
     pub blocks_submit_failed: AtomicU64,
-    /// C-5: a found block could not be assembled at all (reserved mint slot with
-    /// no mint available).
+    /// C-5: a found block could not be assembled.
     pub blocks_unsubmittable: AtomicU64,
+    /// Legacy counter; Option A keeps this at zero (pool never mints RES).
     pub res_mint_events: AtomicU64,
     pub jobs_notified: AtomicU64,
     pub reorg_events: AtomicU64,
@@ -43,7 +43,7 @@ impl PoolMetrics {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MetricsSnapshot {
     pub shares_accepted: u64,
     pub shares_rejected: u64,

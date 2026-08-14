@@ -3,7 +3,7 @@ use rigor_gbt::{GbtTemplate, TemplateCache};
 use std::sync::Arc;
 use stratum_server::{
     HashedCredentialAuthenticator, PayoutEngine, RecordingBlockSubmitter, SessionManager,
-    StratumOrchestrator,
+    StratumOrchestrator, VardiffConfig,
 };
 
 /// Test credential material. H-5a: the pool no longer accepts a shared `"x"`
@@ -19,15 +19,42 @@ fn authenticator(workers: &[&str]) -> Arc<SessionManager> {
     Arc::new(SessionManager::with_authenticator(Arc::new(auth)))
 }
 
+/// C-5 mining fixtures only try 64 nonces. Production vardiff starts at 1024, which
+/// will not produce a block candidate in that window. Use the devtest controller
+/// (`start_difficulty = 1e-5`) so the test exercises submit/credit, not PoW grind.
+fn authenticator_devtest(workers: &[&str]) -> Arc<SessionManager> {
+    let auth = HashedCredentialAuthenticator::new();
+    for w in workers {
+        auth.register(w, TEST_PW, TEST_SALT).unwrap();
+    }
+    // Easier than documented devtest 1e-5: that still requires ~2^32*D hashes
+    // (tens of thousands of OpuHash). C-5 only needs the submit/credit path.
+    let mut vd = VardiffConfig::devtest();
+    vd.start_difficulty = 1e-18;
+    vd.min_difficulty = 1e-18;
+    Arc::new(SessionManager::with_authenticator_and_vardiff(Arc::new(auth), vd))
+}
+
 /// Owner program the fixture convergence transactions declare.
 const OWNER_PROGRAM: [u8; 32] = [0xa1; 32];
 
+/// Inline RESO declaration (mirrors consensus layout; no mint-engine dependency).
+fn res_owner_declaration_script(program32: &[u8; 32]) -> Vec<u8> {
+    let mut script = Vec::with_capacity(1 + 1 + 4 + 1 + 32);
+    script.push(0x6a); // OP_RETURN
+    script.push(37); // payload size
+    script.extend_from_slice(b"RESO");
+    script.push(1); // version
+    script.extend_from_slice(program32);
+    script
+}
+
 /// SECURITY-001-A / A-5: a convergence tx enters the draw only if it declares its RES payout
-/// owner, and the mint must pay that program, so fixtures carry real declaring transactions.
+/// owner. Fixtures carry declaring transactions for GBT realism; the pool does not mint RES.
 fn convergence_tx_declaring(program32: &[u8; 32]) -> String {
     let mut cvg2_script = vec![0x51u8, 0x20, 0x43, 0x56, 0x47, 0x32]; // OP_1 <32> "CVG2"
     cvg2_script.extend_from_slice(&[0x00; 28]);
-    let declaration = mint_engine::res_owner::res_owner_declaration_script(program32);
+    let declaration = res_owner_declaration_script(program32);
 
     let mut raw = Vec::new();
     raw.extend_from_slice(&2i32.to_le_bytes());
@@ -138,7 +165,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "1c00ff00",
             "height": 300,
@@ -288,9 +315,9 @@ fn full_pipeline_publish_notify_submit() {
     let envelopes = orch.publish_jobs_from_active_template().unwrap();
     assert_eq!(envelopes.len(), 1);
     assert_eq!(envelopes[0].notify.method, "mining.notify");
-    if envelopes[0].mint_required {
-        assert!(envelopes[0].preview_winner_txid.is_some());
-    }
+    // Option A: product surface never advertises mint_required / RES payout.
+    assert!(!envelopes[0].mint_required);
+    assert!(envelopes[0].preview_winner_txid.is_none());
 
     orch.handle_request(
         1,
@@ -340,49 +367,22 @@ fn reorg_orphans_payout_shares() {
 }
 
 #[test]
-fn res_mint_revoked_on_reorg() {
-    use mint_engine::MintBlockContext;
-
+fn reorg_does_not_invoke_pool_res_mint() {
     let templates = Arc::new(TemplateCache::new());
     let jobs = Arc::new(block_assembler::JobCache::new());
     let payout = Arc::new(PayoutEngine::new(1));
     let publisher = JobPublisher::with_defaults(jobs.clone());
-    let orch = StratumOrchestrator::new(templates.clone(), jobs, payout);
+    let orch = StratumOrchestrator::new(templates.clone(), jobs, payout.clone());
 
     let (t, raw) = fixture("mint/reorg");
     let record = templates.ingest(t, raw, tip(0x0a)).unwrap().unwrap();
     let job = publisher.publish_from_template(&record).unwrap();
-    orch.winner
-        .register_published_job(&record, job.as_ref())
-        .unwrap();
-
-    let token = orch
-        .winner
-        .authorize_block_found(&record, job.as_ref())
-        .unwrap()
-        .expect("winner authorization");
-
-    orch.mint_engine
-        .mint_for_authorized_winner(
-            &token,
-            &record,
-            job.as_ref(),
-            &MintBlockContext {
-                extranonce1: vec![0x01],
-                extranonce2: vec![0x00, 0x00, 0x00, 0x01],
-                ntime: 1,
-                nonce: 1,
-            },
-        )
-        .unwrap();
+    payout.credit_share("w", &job.job_id, "s1", 1.0);
 
     orch.handle_tip_change(tip(0x0b)).unwrap();
-    let rec = orch
-        .mint_engine
-        .get_record(&job.job_id.0)
-        .unwrap()
-        .unwrap();
-    assert_eq!(rec.state, mint_engine::MintState::Revoked);
+    assert!(payout.balance("w").unwrap().shares_orphaned >= 1);
+    // Orchestrator no longer exposes mint_engine; metrics stay at zero mint events.
+    assert_eq!(orch.metrics.snapshot().res_mint_events, 0);
 }
 
 #[test]
@@ -422,7 +422,7 @@ fn c5_block_is_submitted_and_credit_follows_node_acceptance() {
             RecordingBlockSubmitter::rejecting()
         });
         let orch = StratumOrchestrator::new(templates.clone(), jobs, payout.clone())
-            .with_sessions(authenticator(&["bob.worker"]))
+            .with_sessions(authenticator_devtest(&["bob.worker"]))
             .with_submitter(submitter.clone());
 
         let (t, raw) = devtest_fixture("c5/submit");
@@ -460,7 +460,7 @@ fn c5_block_is_submitted_and_credit_follows_node_acceptance() {
                 break;
             }
         }
-        assert!(found, "fixture did not produce a block candidate");
+        assert!(found, "fixture did not produce a block candidate: {:?}", orch.metrics.snapshot());
 
         let metrics = orch.metrics.snapshot();
         // The block reached the submission sink regardless of the RES mint outcome.
@@ -497,7 +497,7 @@ fn c5_unconfigured_submitter_never_credits() {
     let payout = Arc::new(PayoutEngine::new(1));
     // Default orchestrator ships UnconfiguredBlockSubmitter.
     let orch = StratumOrchestrator::new(templates.clone(), jobs, payout.clone())
-        .with_sessions(authenticator(&["bob.worker"]));
+        .with_sessions(authenticator_devtest(&["bob.worker"]));
 
     let (t, raw) = devtest_fixture("c5/unconfigured");
     templates.ingest(t, raw, tip(0xc6)).unwrap();
@@ -515,9 +515,17 @@ fn c5_unconfigured_submitter_never_credits() {
     )
     .unwrap();
 
+    let ntime = envelopes[0]
+        .notify
+        .params
+        .as_array()
+        .and_then(|a| a.get(7))
+        .and_then(|v| v.as_str())
+        .unwrap_or("00000000")
+        .to_string();
     for nonce in 0u32..64 {
         let submit = format!(
-            r#"{{"id":3,"method":"mining.submit","params":["bob.worker","{job_id}","00000000","00000000","{nonce:08x}"]}}"#
+            r#"{{"id":3,"method":"mining.submit","params":["bob.worker","{job_id}","00000000","{ntime}","{nonce:08x}"]}}"#
         );
         let _ = orch.handle_request(1, &submit);
         if orch.metrics.snapshot().blocks_found > 0 {
@@ -526,7 +534,7 @@ fn c5_unconfigured_submitter_never_credits() {
     }
 
     let metrics = orch.metrics.snapshot();
-    assert!(metrics.blocks_found > 0, "no block candidate produced");
+    assert!(metrics.blocks_found > 0, "no block candidate produced: {metrics:?}");
     assert_eq!(metrics.blocks_submitted, 0);
     assert_eq!(payout.total_liability_oru(), 0, "credited an unsubmitted block");
     assert!(payout.rounds().is_empty(), "finalized a round without submission");
@@ -544,7 +552,7 @@ fn devtest_fixture(longpoll: &str) -> (GbtTemplate, String) {
             ],
             "coinbasevalue": 5000000000,
             "longpollid": "{longpoll}",
-            "weightlimit": 4000000,
+            "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "207fffff",
             "height": 11,
@@ -564,54 +572,17 @@ fn devtest_fixture(longpoll: &str) -> (GbtTemplate, String) {
 }
 
 #[test]
-fn devtest_fvr_m_emits_unified_telemetry() {
-    let metrics_dir = std::env::var("RIGOR_POOL_METRICS_DIR")
-        .unwrap_or_else(|_| "/tmp/rigor-pool-metrics-test".into());
-    std::env::set_var("RIGOR_POOL_METRICS_DIR", &metrics_dir);
-
+fn devtest_oru_only_publish_surface() {
     let templates = Arc::new(TemplateCache::new());
     let jobs = Arc::new(block_assembler::JobCache::new());
     let orch = StratumOrchestrator::new(templates.clone(), jobs, Arc::new(PayoutEngine::new(1)));
 
-    let (t, raw) = devtest_fixture("devtest/fvr-m");
+    let (t, raw) = devtest_fixture("devtest/oru-only");
     templates.ingest(t, raw, tip(0xab)).unwrap();
 
-    orch.publish_jobs_from_active_template().unwrap();
-
-    let root = std::path::Path::new(&metrics_dir);
-    for name in [
-        "pool_job_lifecycle.jsonl",
-        "winner_authorization.jsonl",
-        "mint_engine.jsonl",
-    ] {
-        let path = root.join(name);
-        assert!(path.is_file(), "missing {name}");
-        let body = std::fs::read_to_string(&path).unwrap();
-        let lines: Vec<_> = body.lines().filter(|l| !l.is_empty()).collect();
-        assert!(!lines.is_empty(), "{name} empty");
-        let row: serde_json::Value = serde_json::from_str(lines.last().unwrap()).unwrap();
-        assert_eq!(row["schema_version"], "1.0.0");
-    }
-    // The metrics directory is process-global and shared with other tests running
-    // in parallel, so assert the expected record exists rather than that it is last.
-    let rows = |name: &str| -> Vec<serde_json::Value> {
-        std::fs::read_to_string(root.join(name))
-            .unwrap()
-            .lines()
-            .filter(|l| !l.is_empty())
-            .filter_map(|l| serde_json::from_str(l).ok())
-            .collect()
-    };
-    assert!(
-        rows("winner_authorization.jsonl")
-            .iter()
-            .any(|r| r["event"] == "preview"),
-        "no winner preview record"
-    );
-    assert!(
-        rows("mint_engine.jsonl")
-            .iter()
-            .any(|r| r["event"] == "mint_failed" && r["state"] == "not_required"),
-        "no mint_failed/not_required record"
-    );
+    let envelopes = orch.publish_jobs_from_active_template().unwrap();
+    assert_eq!(envelopes.len(), 1);
+    assert!(!envelopes[0].mint_required);
+    assert!(envelopes[0].preview_winner_txid.is_none());
+    assert_eq!(orch.metrics.snapshot().res_mint_events, 0);
 }

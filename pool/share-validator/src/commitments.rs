@@ -7,8 +7,9 @@ pub fn validate_cvge_rigor(job: &PublishedJobSnapshot, coinbase_raw: &[u8]) -> V
     let outputs = parse_tx_outputs(coinbase_raw)?;
     let scripts: Vec<Vec<u8>> = outputs.into_iter().map(|o| o.script).collect();
 
-    let rigor = hex::decode(&job.commitments.rigor_script_hex)
-        .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string()))?;
+    let rigor = hex::decode(&job.commitments.rigor_script_hex).map_err(|e| {
+        ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string())
+    })?;
     if !scripts.iter().any(|s| s == &rigor) {
         return Err(ValidatorError::validation(
             ValidationErrorCode::ErrConvergenceMismatch,
@@ -17,8 +18,9 @@ pub fn validate_cvge_rigor(job: &PublishedJobSnapshot, coinbase_raw: &[u8]) -> V
     }
 
     if let Some(cvge_hex) = &job.commitments.cvge_script_hex {
-        let cvge = hex::decode(cvge_hex)
-            .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string()))?;
+        let cvge = hex::decode(cvge_hex).map_err(|e| {
+            ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string())
+        })?;
         if !scripts.iter().any(|s| s == &cvge) {
             return Err(ValidatorError::validation(
                 ValidationErrorCode::ErrConvergenceMismatch,
@@ -42,13 +44,28 @@ fn parse_tx_outputs(tx: &[u8]) -> ValidatorResult<Vec<TxOut>> {
         ));
     }
     let mut off = 4usize;
-    off += 1;
-    off += 36;
-    let ss_len = tx[off] as usize;
-    off += 1 + ss_len + 4;
+    // BIP141: version | marker | flag | vin | vout | witness | locktime
+    if tx.len() >= 6 && tx[4] == 0x00 && tx[5] == 0x01 {
+        off = 6;
+    }
 
-    if off >= tx.len() {
-        return Ok(Vec::new());
+    let vin_count = read_varint(tx, &mut off)? as usize;
+    for _ in 0..vin_count {
+        if off + 36 > tx.len() {
+            return Err(ValidatorError::validation(
+                ValidationErrorCode::ErrMalformedSubmission,
+                "tx too short for input scan",
+            ));
+        }
+        off += 36;
+        let ss_len = read_varint(tx, &mut off)? as usize;
+        if off + ss_len + 4 > tx.len() {
+            return Err(ValidatorError::validation(
+                ValidationErrorCode::ErrMalformedSubmission,
+                "scriptSig truncated",
+            ));
+        }
+        off += ss_len + 4;
     }
 
     let out_count = read_varint(tx, &mut off)?;

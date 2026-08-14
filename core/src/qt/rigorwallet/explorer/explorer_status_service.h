@@ -8,6 +8,7 @@
 #include <qt/rigorwallet/explorer/explorerclient.h>
 
 #include <QObject>
+#include <QtGlobal>
 
 class ClientModel;
 class QTimer;
@@ -30,6 +31,7 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void doRefresh();
+    void applyFetchResult(const RigorWallet::ExplorerLiveStatus& status, qint64 elapsed_ms);
 
 Q_SIGNALS:
     void statusUpdated(const RigorWallet::ExplorerLiveStatus& status);

@@ -228,10 +228,12 @@ CTxDestination AddAndGetMultisigDestination(const int required, const std::vecto
 
     script_out = GetScriptForMultisig(required, pubkeys);
 
-    // RigorChain only supports modern witness output types for multisig RPC creation.
+    // Alpha1: only Ed25519 ORU wrapper keys (0x00||pk32). secp256k1 0x02/0x03 and
+    // uncompressed 0x04 keys would produce a CHECKMULTISIG script that consensus rejects.
     for (const CPubKey& pk : pubkeys) {
-        if (!pk.IsCompressed()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Uncompressed public keys are not supported; use compressed keys with \"bech32\".");
+        if (pk.size() != CPubKey::COMPRESSED_SIZE || pk[0] != 0x00) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER,
+                "RIGOR Alpha1 multisig requires Ed25519 ORU pubkeys (33-byte 0x00||pk32); secp256k1/ECDSA keys are not accepted.");
         }
     }
 
