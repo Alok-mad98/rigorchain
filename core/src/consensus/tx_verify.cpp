@@ -315,6 +315,41 @@ bool CheckTxInputs_RES_DualPool(const CTransaction& tx, TxValidationState& state
     return true;
 }
 
+/**
+ * The only context-free issuance shape: ORU-funded body mint.
+ *
+ * Winner coupling, window `already_paid`, and the 21M cap still need the parent draw
+ * (ConnectBlock). This rejects every other ORU→RES creation at CheckTxInputs:
+ * unparseable / failing proof, amount ≠ 100.00 RES, or more than one RES output.
+ */
+bool CheckOruFundedResMintShape(const CTransaction& tx, TxValidationState& state,
+                                const Consensus::Params& consensus_params)
+{
+    Consensus::ConvergeProof proof;
+    if (!Consensus::ParseConvergeProof(tx, proof)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "mixed-asset-output");
+    }
+    if (!Consensus::VerifyConvergeProof(proof, consensus_params.RES_PROBABILITY_TARGET, nullptr, nullptr)) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-proof");
+    }
+
+    const CTxOut* payout = nullptr;
+    for (const auto& o : tx.vout) {
+        if (!IsResScript(o.scriptPubKey)) continue;
+        if (payout != nullptr) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
+        }
+        payout = &o;
+    }
+    if (payout == nullptr || payout->nValue != Consensus::RES_REWARD_AMOUNT) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
+    }
+    if (tx.GetValueOut(ASSET_RES) != Consensus::RES_REWARD_AMOUNT) {
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
+    }
+    return true;
+}
+
 } // namespace
 
 // RFC-003 semantic domain: RES prevouts dominate (RES Spend even when ORU inputs pay POOL-F fee).
@@ -368,6 +403,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
     const bool has_res_in = pools.res_in > 0;
     const bool has_oru_in = pools.oru_in > 0;
+    bool oru_creating_res = false;
 
     for (const auto& out : tx.vout) {
         if (IsConvergenceScript(out.scriptPubKey)) {
@@ -385,10 +421,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         if (out_asset == ASSET_RES) {
             if (!has_res_in) {
                 if (*semantic_domain == ASSET_ORU) {
-                    Consensus::ConvergeProof proof;
-                    if (Consensus::ParseConvergeProof(tx, proof)) {
-                        continue;
-                    }
+                    // Ordinary ORU payments cannot create RES. The mint-shape check below
+                    // is the sole exception, and it still does not authorize the draw.
+                    oru_creating_res = true;
+                    continue;
                 }
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "mixed-asset-output");
             }
@@ -401,6 +437,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             }
             continue;
         }
+    }
+
+    if (oru_creating_res && !CheckOruFundedResMintShape(tx, state, consensus_params)) {
+        return false;
     }
 
     if (!has_res_in) {

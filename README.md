@@ -17,7 +17,7 @@ no administrative key on the consensus path.
 
 | Item | State |
 |------|-------|
-| Network | Pre-mainnet |
+| Upcoming product identity | **RIGOR v0.1.1-alphaplus** — [AlphaPlus Consensus Freeze](docs/release/ALPHAPLUS_RELEASE_IDENTITY_MIGRATION_REPORT.md) |
 | Consensus rules | Frozen — [docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md](docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md) |
 | Mainnet checklist | [docs/release/MAINNET_GO_NO_GO_CHECKLIST.md](docs/release/MAINNET_GO_NO_GO_CHECKLIST.md) |
 | Formal verification | [docs/verification/FORMAL-VERIFICATION-VERDICT.md](docs/verification/FORMAL-VERIFICATION-VERDICT.md) |

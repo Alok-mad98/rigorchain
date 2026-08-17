@@ -8,9 +8,9 @@
     <link rel="stylesheet" href="/convergence-panel.css" />
     <link rel="stylesheet" href="/address-intelligence.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      .muted { color: #666; font-size: 12px; }
-      a { margin-right: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      .muted { color: #bbb; font-size: 12px; }
+      a { margin-right: 12px; color: #fff; }
       input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
     </style>
     <script src="/explorer-routes.js"></script>
@@ -18,9 +18,15 @@
     <script src="/address-intelligence.js"></script>
   </head>
   <body>
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
     <h1>Address intelligence</h1>
-    <div id="nav" class="muted"></div>
-    <p class="muted">Read-only ORU/RES address view. Balances are never merged.</p>
     <p>
       <input id="addr" placeholder="trg… bech32 address" />
       <button id="go" type="button">Lookup</button>

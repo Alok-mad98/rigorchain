@@ -30,13 +30,20 @@ web/rigorchain-site/
 │   ├── context/
 │   │   └── SystemStateContext.tsx  # Derived SystemState, 30s poll
 │   ├── lib/
-│   │   └── explorerClient.ts    # GET /api/* explorer client
+│   │   ├── explorerClient.ts    # GET /api/* explorer client (public inputs only)
+│   │   └── zeroTrust/           # Independent AlphaPlus verifier (WebCrypto, Uint8Array)
 │   └── pages/
 │       ├── LandingPage.tsx
+│       ├── DownloadPage.tsx
+│       ├── WalletPage.tsx
+│       ├── MiningPage.tsx
+│       ├── ExplorerPortalPage.tsx
+│       ├── DocumentationPage.tsx
+│       ├── ZeroTrustVerificationPage.tsx
 │       ├── ProtocolPage.tsx
 │       ├── LabPage.tsx
 │       ├── VerificationPage.tsx
-│       └── ExplorerPage.tsx     # Live panels (not in task file list; required route)
+│       └── ExplorerPage.tsx     # Legacy live panels (not the verifier)
 ├── index.html
 ├── package.json
 ├── vite.config.ts
@@ -50,14 +57,20 @@ web/rigorchain-site/
 
 | Path | Page | Purpose |
 |------|------|---------|
-| `/` | LandingPage | Experimental system overview, three-layer model |
+| `/` | LandingPage | Official overview + three-layer model |
+| `/download` | DownloadPage | Official download entry |
+| `/wallet` | WalletPage | Wallet TXID sources |
+| `/mining` | MiningPage | Miner / `getblockhash` sources |
+| `/explorer` | ExplorerPortalPage | Viewer portal (not a validator) |
+| `/documentation` | DocumentationPage | Docs + lab links |
+| `/zero-trust-verification` | ZeroTrustVerificationPage | Independent AlphaPlus verifier ⭐ |
 | `/protocol` | ProtocolPage | Frozen protocol rules (Layer 1) |
 | `/science` | SciencePage | Deterministic state machine (Layer 2) |
 | `/lab` | LabPage | Experimental lab framing, PROOF-034 running |
 | `/status` | StatusPage | Live verification status (read-only) |
 | `/experiment` | ExperimentPage | PROOF-034 explanation |
-| `/verification` | → redirect `/status` | Legacy alias |
-| `/explorer` | → redirect `/status` | Legacy alias |
+| `/verification` | → redirect `/status` | Legacy PROOF-034 alias |
+| `/verify` | → redirect `/zero-trust-verification` | Short alias |
 
 ## State model
 

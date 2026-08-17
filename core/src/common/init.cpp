@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <common/alphaplus_security.h>
 #include <common/init.h>
 #include <tinyformat.h>
 #include <util/fs.h>
@@ -26,7 +27,18 @@ std::optional<ConfigError> InitConfig(ArgsManager& args, SettingsAbortFn setting
         }
 
         // Check for chain settings (Params() calls are only valid after this clause)
-        SelectParams(args.GetChainName());
+        const std::string chain = args.GetChainName();
+        SelectParams(chain);
+
+        if (auto err = EnforceAssumevalidMainnetPolicy(args, chain)) {
+            return ConfigError{ConfigStatus::FAILED, *err};
+        }
+        if (auto err = EnforceProductionRpcSecrets(args, chain)) {
+            return ConfigError{ConfigStatus::FAILED, *err};
+        }
+        if (auto err = EnsureProductionRpcCredentials(args, chain)) {
+            return ConfigError{ConfigStatus::FAILED, *err};
+        }
 
         // Create datadir if it does not exist.
         const auto base_path{args.GetDataDirBase()};

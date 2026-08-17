@@ -921,7 +921,8 @@ struct OruFeeFinalizeResult {
  *
  * When subtract_fee_from_outputs is true, underpay must NOT be absorbed from change
  * (Bitcoin Core order): leave the fee gap for the caller to subtract from recipients.
- * Overpay-into-change still runs so SFFO to_reduce stays non-positive when change exists.
+ * Overpay-into-change still runs when change exists; the caller then moves fee_needed
+ * from SFFO recipients into change so the checkbox actually reduces the send amount.
  */
 static util::Result<OruFeeFinalizeResult> FinalizeOruNetworkFeeAndChange(
         CWallet& wallet,
@@ -1525,9 +1526,16 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     int nBytes = tx_sizes.size_bytes;
     CAmount fee_needed = OruNetworkFeeForSizeBytes(coin_selection_params.m_effective_feerate, nBytes);
 
-    // Reduce output values for subtractFeeFromAmount (Bitcoin Core parity)
+    // Reduce output values for subtractFeeFromAmount.
+    // After overpay-into-change, current_fee already equals fee_needed (to_reduce == 0).
+    // Typical sends still have change, so honor SFFO by moving fee_needed from
+    // recipients into the change output (recipient gets entered amount minus fee).
     if (coin_selection_params.m_subtract_fee_outputs) {
         CAmount to_reduce = fee_needed - current_fee;
+        if (to_reduce <= 0 && nChangePosInOut != -1) {
+            to_reduce = fee_needed;
+            txNew.vout.at(nChangePosInOut).nValue += to_reduce;
+        }
         int i = 0;
         bool fFirst = true;
         for (const auto& recipient : vecSend)

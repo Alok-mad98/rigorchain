@@ -19,20 +19,8 @@
     return `<dt>${escapeHtml(label)}</dt><dd>${value}</dd>`;
   }
 
-  function copyBtn(text) {
-    return `<button type="button" class="convergence-copy-btn" data-copy="${escapeHtml(text)}">Copy</button>`;
-  }
-
   function renderSection(title, rows) {
     return `<section class="status-card"><h2>${escapeHtml(title)}</h2><dl>${rows.join("")}</dl></section>`;
-  }
-
-  function renderDistribution(dist) {
-    if (!dist || typeof dist !== "object") return "—";
-    return Object.entries(dist)
-      .sort((a, b) => Number(a[0]) - Number(b[0]))
-      .map(([k, v]) => `|F|=${k}: ${v} block(s)`)
-      .join("\n");
   }
 
   function renderDashboard(data) {
@@ -46,11 +34,13 @@
 
     const genesisFull = id.genesis_hash ?? "";
     const genesisRow = genesisFull
-      ? `${fmt(id.genesis_hash_short)} ${copyBtn(genesisFull)} <span class="status-mono">${fmt(genesisFull)}</span>`
+      ? `<span class="status-mono">${fmt(genesisFull)}</span>`
       : "—";
 
     const sections = [
       renderSection("S1 — Chain identity", [
+        dlRow("Product", fmt(id.product ?? id.chain_name)),
+        dlRow("Codename", fmt(id.codename ?? id.network_type)),
         dlRow("Chain", fmt(id.chain_name)),
         dlRow("Network", fmt(id.network)),
         dlRow("Network type", fmt(id.network_type)),
@@ -64,47 +54,32 @@
         dlRow("Avg block time (100)", bh.avg_block_time_seconds_last_100 != null ? `${Number(bh.avg_block_time_seconds_last_100).toFixed(1)} s` : "—"),
         dlRow("Difficulty", fmt(bh.difficulty)),
         dlRow("PoW display", `${fmt(bh.bits)} / ${fmt(bh.opus_hash)}`),
-        dlRow("Orphan rate", `${fmt(bh.orphan_rate)} <span class="status-muted">${fmt(bh.orphan_rate_note)}</span>`),
         dlRow("Reorg signal", `${fmt(bh.reorg_signal_blocks_mismatch_last_1000)} mismatch blocks / 1000`),
         dlRow("IBD", fmt(bh.initialblockdownload)),
+        dlRow("Mempool tx count", fmt(mine.mempool_tx_count)),
       ]),
-      renderSection("S3 — Convergence system", [
-        dlRow("Draw status", `<span class="status-draw-banner">${escapeHtml(ch.draw_status ?? "")}</span>`),
-        dlRow("|F| distribution", `<pre class="status-dist">${escapeHtml(renderDistribution(ch.f_set_distribution_last_100_blocks))}</pre>`),
+      renderSection("S3 — Convergence & integrity", [
         dlRow("Winner blocks / 100", fmt(ch.winner_blocks_last_100)),
         dlRow("Winner frequency", ch.winner_frequency_last_100 != null ? `${(Number(ch.winner_frequency_last_100) * 100).toFixed(1)}%` : "—"),
-        dlRow("Root stability", ch.convergence_root_stability
-          ? `${ch.convergence_root_stability.distinct_committed_roots_last_100} distinct roots; mismatch blocks: ${ch.convergence_root_stability.mismatch_blocks_last_100}`
-          : "—"),
-      ]),
-      renderSection("S4 — RES / ORU economic snapshot", [
-        dlRow("ORU indexed UTXO total", fmt(eco.oru_indexed_utxo_total_display)),
-        dlRow("ORU cumulative convergence (RPC)", fmt(eco.oru_cumulative_convergence_rpc)),
-        dlRow("Convergence-fee absorption", fmt(eco.convergence_fee_absorption_window_rpc)),
-        dlRow("Fee metric label", fmt(eco.convergence_fee_label)),
-        dlRow("RES minted total", fmt(eco.res_minted_total_display)),
-        dlRow("RES mint rate (100 blk)", fmt(eco.res_mint_rate_last_100_blocks_display)),
-      ]),
-      renderSection("S5 — Mempool / mining", [
-        dlRow("Mempool tx count", fmt(mine.mempool_tx_count)),
-        dlRow("Active miners", fmt(mine.active_miners)),
-        dlRow("Pending block jobs", fmt(mine.pending_blocks_active_jobs)),
-        dlRow("Stale jobs", fmt(mine.stale_job_count)),
-        dlRow("Note", `<span class="status-muted">${fmt(mine.availability_note)}</span>`),
-      ]),
-      renderSection("S6 — System integrity", [
-        dlRow("RPC authority", fmt(sys.rpc_authority)),
+        dlRow("Active convergences", fmt(ch.active_convergences)),
+        dlRow("Pending in F", fmt(ch.pending_windows)),
         dlRow("Indexer lag (blocks)", fmt(sys.indexer_sync_lag_blocks)),
         dlRow("Indexer lag (seconds)", fmt(sys.indexer_sync_lag_seconds)),
-        dlRow("Wallet observer", fmt(sys.wallet_observer?.status ?? sys.wallet_observer)),
-        dlRow("Compliance frozen", comp.frozen ? "yes" : "no"),
         dlRow("Mismatch active", comp.mismatch_active ? "yes" : "no"),
-        dlRow("equivalence_claimed", fmt(comp.equivalence_claimed)),
+        dlRow("Draw roots & |F|", '<a href="/res.html">RES amount</a>'),
+      ]),
+      renderSection("S4 — Network RES / ORU", [
+        dlRow("Network RES minted", fmt(eco.network_res_minted_display)),
+        dlRow("ORU burned (lifetime)", fmt(eco.oru_burned_lifetime_display)),
+        dlRow("ORU in current window", fmt(eco.oru_in_current_window_display)),
+        dlRow("ORU since last mint", fmt(eco.oru_since_last_mint_display)),
+        dlRow("Mature transferable ORU", fmt(eco.oru_mature_transferable_display)),
+        dlRow("Immature coinbase ORU", fmt(eco.oru_immature_coinbase_display)),
+        dlRow("RES minted (last 100)", fmt(eco.res_mint_rate_last_100_blocks_display)),
       ]),
     ];
 
     return `
-      <div class="status-rpc-disclaimer" role="note">${escapeHtml(data.rpc_authority_disclaimer ?? "")}</div>
       <div class="status-grid">${sections.join("")}</div>
       <p class="status-updated">Snapshot: ${escapeHtml(data.generated_at ?? "")}</p>
     `;
@@ -114,23 +89,15 @@
     const root = document.getElementById("status-root");
     if (!root) return;
     root.textContent = "Loading…";
-    const r = await fetch("/api/status");
+    const r = await (window.ExplorerRoutes && ExplorerRoutes.fetchJson
+      ? ExplorerRoutes.fetchJson("/api/status")
+      : fetch("/api/status", { cache: "no-store" }));
     if (!r.ok) {
       root.textContent = "Failed to load status: HTTP " + r.status;
       return;
     }
     const data = await r.json();
     root.innerHTML = renderDashboard(data);
-    if (window.ConvergencePanel?.bindCopyButtons) {
-      ConvergencePanel.bindCopyButtons(root);
-    } else {
-      root.querySelectorAll("[data-copy]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const text = btn.getAttribute("data-copy") || "";
-          navigator.clipboard.writeText(text);
-        });
-      });
-    }
   }
 
   window.StatusDashboard = { load, renderDashboard };

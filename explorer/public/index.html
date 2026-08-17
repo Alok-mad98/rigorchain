@@ -3,42 +3,41 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RIGOR Explorer MVP (closed testnet)</title>
+    <title>RIGOR v0.1.1-alphaplus Explorer</title>
     <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/convergence-panel.css" />
+    <link rel="stylesheet" href="/status-dashboard.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .row { margin-top: 10px; }
-      a { margin-right: 12px; }
-      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
-      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-      th { background: #f6f6f6; }
-      .muted { color: #666; font-size: 12px; }
+      .muted { color: #bbb; font-size: 12px; }
+      a { margin-right: 12px; color: #fff; }
     </style>
     <script src="/explorer-routes.js"></script>
+    <script src="/status.js"></script>
   </head>
   <body>
-    <h1>RIGOR Explorer MVP (closed testnet)</h1>
-    <div id="nav" class="row"></div>
-
-    <p class="muted">
-      This UI is non-authoritative: it mirrors NODE-C RPC output stored by the indexer. During reorg drills, blocks may be truncated and re-imported.
-    </p>
-
-    <h2>Chain tip</h2>
-    <pre id="tip" class="muted"></pre>
-
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
+    <h1>RIGOR v0.1.1-alphaplus Explorer</h1>
+    <p class="muted">AlphaPlus Consensus Freeze</p>
+    <div id="status-root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
       ExplorerRoutes.mountNav('nav');
-
-      async function loadTip() {
-        const r = await fetch('/api/chain/tip');
-        const j = await r.json();
-        document.getElementById('tip').textContent = JSON.stringify(j, null, 2);
+      const ssrStatus = document.getElementById('status-root');
+      if (!(ssrStatus && ssrStatus.getAttribute('data-ssr') === '1')) {
+        StatusDashboard.load().catch((e) => {
+          document.getElementById('status-root').textContent = 'Failed: ' + String(e);
+        });
       }
-      loadTip().catch((e) => {
-        document.getElementById('tip').textContent = 'Failed: ' + String(e);
-      });
+      setInterval(() => StatusDashboard.load().catch(() => {}), 30000);
     </script>
     <script src="/compliance.js"></script>
   </body>

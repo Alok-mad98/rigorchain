@@ -10,31 +10,31 @@
 
 namespace RigorWallet {
 
-/** Color tokens from PROGRAM-005 RIGOR_COLOR_SYSTEM (dark mode default). */
+/** Color tokens aligned with Explorer MVP dark theme (black page, dark-gray surfaces). */
 struct ColorPalette {
-    QColor bgPrimary;       // #0F1419
-    QColor bgSurface;       // #1A2332
-    QColor bgElevated;      // #222830
-    QColor borderSubtle;    // #2C3544
-    QColor borderStrong;    // #3D4A5C
-    QColor textPrimary;     // #E8EDF4
-    QColor textSecondary;   // #B8C4D4
-    QColor textMuted;       // #8B9CB3
-    QColor textDisabled;    // #5C6B7F
+    QColor bgPrimary;       // #000000
+    QColor bgSurface;       // #111111
+    QColor bgElevated;      // #222222
+    QColor borderSubtle;    // #333333
+    QColor borderStrong;    // #444444
+    QColor textPrimary;     // #FFFFFF
+    QColor textSecondary;   // #FFFFFF
+    QColor textMuted;       // #BBBBBB
+    QColor textDisabled;    // #888888
     QColor accent;          // #FF6A2B
     QColor accentHover;     // #E85A20
-    QColor link;            // #5B9FD4
-    QColor success;         // #22C55E
-    QColor warning;         // #F59E0B
-    QColor critical;        // #EF4444
-    QColor info;            // #5B9FD4
-    QColor experimental;    // #8B9CB3
-    QColor assetOru;        // #94A3B8
-    QColor assetOruBg;      // #94A3B814
-    QColor assetRes;        // #A78BFA
-    QColor assetResBg;      // #A78BFA14
-    QColor convergence;     // #5B9FD4
-    QColor convergenceBg;   // #5B9FD414
+    QColor link;            // #FFFFFF
+    QColor success;         // #8FDC5A
+    QColor warning;         // #FFB74D
+    QColor critical;        // #FF6B6B
+    QColor info;            // #8CC8FF
+    QColor experimental;    // #BBBBBB
+    QColor assetOru;        // #8CC8FF
+    QColor assetOruBg;      // #8CC8FF14
+    QColor assetRes;        // #8FDC5A
+    QColor assetResBg;      // #8FDC5A14
+    QColor convergence;     // #8CC8FF
+    QColor convergenceBg;   // #8CC8FF14
 };
 
 /** Typography scale from PROGRAM-005 RIGOR_VISUAL_LANGUAGE. */

@@ -1,0 +1,10 @@
+*.cmi
+*.cmo
+*.cmx
+*.o
+cpp_hash_cli
+hash256_cli
+hash256_kernel.mli
+*.vo
+*.glob
+*.aux

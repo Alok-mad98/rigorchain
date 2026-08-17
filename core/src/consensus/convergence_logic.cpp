@@ -127,17 +127,30 @@ ConvergenceDrawCandidate MakeDrawCandidate(const CTransaction& tx, int source_he
     return candidate;
 }
 
-/** The winner txid a block's RES mint paid out, if it carried one. */
-std::optional<uint256> BlockPaidWinner(const CBlock& block)
+} // namespace
+
+std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block)
 {
+    std::vector<uint256> paid;
     for (size_t i = 1; i < block.vtx.size(); ++i) {
-        Consensus::ConvergeProof proof;
-        if (Consensus::ParseConvergeProof(*block.vtx[i], proof)) {
-            return proof.convergence_txid;
+        const CTransaction& tx = *block.vtx[i];
+        if (tx.IsCoinBase()) continue;
+        bool creates_res = false;
+        for (const auto& o : tx.vout) {
+            if (IsResScript(o.scriptPubKey)) {
+                creates_res = true;
+                break;
+            }
         }
+        if (!creates_res) continue;
+        Consensus::ConvergeProof proof;
+        if (!Consensus::ParseConvergeProof(tx, proof)) continue;
+        paid.push_back(proof.convergence_txid);
     }
-    return std::nullopt;
+    return paid;
 }
+
+namespace {
 
 /**
  * A-9-C: fold the buried part of the window and the source block's own candidates into one F,
@@ -156,9 +169,8 @@ void FinalizeWindowedDrawSet(const CBlock& source_block,
     set.candidates.reserve(tail.candidates.size() + own_candidates.size());
 
     std::vector<uint256> paid = tail.already_paid;
-    if (const std::optional<uint256> own_paid = BlockPaidWinner(source_block)) {
-        paid.push_back(*own_paid);
-    }
+    const std::vector<uint256> own_paid = FindBlockPaidConvergenceTxids(source_block);
+    paid.insert(paid.end(), own_paid.begin(), own_paid.end());
     const auto already_paid = [&paid](const uint256& txid) {
         return std::find(paid.begin(), paid.end(), txid) != paid.end();
     };

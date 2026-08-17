@@ -4,23 +4,34 @@
 
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-top: 16px;
+  align-items: stretch;
 }
 
 .status-card {
-  border: 1px solid #ddd;
+  border: 1px solid #333;
   border-radius: 8px;
-  background: #fafafa;
+  background: #111;
+  color: #fff;
   padding: 14px 16px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 800px) {
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .status-card h2 {
   margin: 0 0 10px;
   font-size: 16px;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #333;
   padding-bottom: 6px;
+  color: #fff;
 }
 
 .status-card dl {
@@ -28,35 +39,42 @@
   display: grid;
   grid-template-columns: minmax(140px, 42%) 1fr;
   gap: 6px 10px;
+  align-items: baseline;
   font-size: 13px;
+}
+
+/* Two-up summary modules (RES minted / RES draw window): same row count, same label column. */
+.status-grid--pair {
+  grid-auto-rows: 1fr;
+}
+
+.status-grid--pair .status-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.status-grid--pair .status-card h2 {
+  min-height: 1.35em;
+}
+
+.status-grid--pair .status-card dl {
+  flex: 1;
+  grid-template-columns: 11.5rem 1fr;
+  align-content: start;
 }
 
 .status-card dt {
   font-weight: 600;
-  color: #444;
+  color: #fff;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .status-card dd {
   margin: 0;
+  line-height: 1.4;
   word-break: break-word;
-}
-
-.status-draw-banner {
-  margin: 12px 0;
-  padding: 10px 12px;
-  border: 1px solid #90a4ae;
-  background: #eceff1;
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-rpc-disclaimer {
-  margin: 14px 0;
-  padding: 10px 12px;
-  border-left: 4px solid #37474f;
-  background: #f5f5f5;
-  font-size: 13px;
+  color: #fff;
 }
 
 .status-mono {
@@ -65,18 +83,20 @@
 }
 
 .status-muted {
-  color: #666;
+  color: #bbb;
   font-size: 12px;
 }
 
 .status-dist {
-  font-family: ui-monospace, monospace;
-  font-size: 12px;
-  white-space: pre-wrap;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
 }
 
 .status-updated {
   font-size: 12px;
-  color: #666;
+  color: #bbb;
   margin-top: 8px;
 }

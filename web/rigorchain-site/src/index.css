@@ -1,4 +1,7 @@
-/* RIGOR deterministic scientific UI — no animation dependency */
+/* AlphaPlus / RIGOR official portal — visual tuning surface
+   Adjust layout, spacing, colors, navigation, cards, and sections here.
+   Preview: npm run dev → http://127.0.0.1:5173
+   No animation libraries. Consensus code is not styled from this file. */
 
 :root {
   --bg: #0d1117;
@@ -10,9 +13,14 @@
   --failure: #f85149;
   --degraded: #d29922;
   --offline: #6e7681;
+  --accent: #3d8bfd;
   --mono: "ui-monospace", "SFMono-Regular", "Menlo", "Consolas", monospace;
   --max-width: 1100px;
   --grid-gap: 1rem;
+  --section-gap: 1.5rem;
+  --card-radius: 4px;
+  --nav-pad-y: 0.75rem;
+  --nav-pad-x: 1rem;
 }
 
 *,
@@ -138,7 +146,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 2rem;
-  padding: 0.75rem 1rem;
+  padding: var(--nav-pad-y) var(--nav-pad-x);
   border-bottom: 1px solid var(--border);
   max-width: var(--max-width);
   margin: 0 auto;
@@ -146,10 +154,30 @@ a:hover {
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--text);
   text-decoration: none;
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.brand-sub {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 
 .nav-links {
@@ -259,7 +287,7 @@ a:hover {
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--card-radius);
   padding: 1rem 1.25rem;
   margin-bottom: var(--grid-gap);
 }
@@ -562,4 +590,202 @@ blockquote {
   padding-left: 1rem;
   border-left: 3px solid var(--border);
   color: var(--muted);
+}
+
+.lab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.35rem 1rem 0.6rem;
+  max-width: var(--max-width);
+  margin: 0 auto;
+  width: 100%;
+  font-size: 0.75rem;
+}
+
+.lab-nav a {
+  color: var(--muted);
+}
+
+.lab-nav a.active {
+  color: var(--text);
+}
+
+.zt-page {
+  max-width: 860px;
+}
+
+.zt-trust-card ul {
+  margin: 0.4rem 0 0.75rem;
+  padding-left: 1.2rem;
+}
+
+.zt-mode-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.zt-mode-tabs button {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.zt-mode-tabs button.active {
+  color: var(--text);
+  border-color: var(--verified);
+}
+
+.zt-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.zt-input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.55rem 0.65rem;
+}
+
+.zt-textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.zt-verify-btn {
+  margin-top: 0.85rem;
+  background: var(--verified);
+  color: #04120a;
+  border: 0;
+  font-weight: 700;
+  padding: 0.55rem 1.1rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.zt-verify-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.zt-ok {
+  color: var(--verified);
+  font-weight: 700;
+}
+
+.zt-bad {
+  color: var(--failure);
+  font-weight: 700;
+}
+
+.zt-mid {
+  color: var(--degraded);
+  font-weight: 700;
+}
+
+.zt-kv {
+  margin-top: 0.75rem;
+}
+
+.zt-trace {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.zt-trace h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+}
+
+.truncate-wrap {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+.zt-notes {
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding-left: 1.1rem;
+}
+
+.zt-selfcheck {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+}
+
+.zt-selfcheck li {
+  margin-bottom: 0.3rem;
+}
+
+.subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0 0 var(--section-gap);
+  font-size: 0.85rem;
+}
+
+.subnav a {
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  padding-bottom: 0.15rem;
+}
+
+.subnav a.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.placeholder-banner {
+  background: rgba(61, 139, 253, 0.1);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--card-radius);
+  font-size: 0.85rem;
+  margin-bottom: var(--grid-gap);
+}
+
+.tag-keep {
+  color: var(--verified);
+  border-color: var(--verified);
+}
+
+.tag-wired {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.tag-placeholder {
+  color: var(--degraded);
+  border-color: var(--degraded);
+}
+
+.journey-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.journey-list li {
+  margin-bottom: 0.4rem;
+}
+
+.hub-card h3 {
+  margin: 0.35rem 0 0;
+}
+
+.identity-grid {
+  margin-bottom: var(--section-gap);
 }

@@ -5,6 +5,8 @@
 #include <node/chainstatemanager_args.h>
 
 #include <arith_uint256.h>
+#include <chainparamsbase.h>
+#include <common/alphaplus_security.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <node/coins_view_args.h>
 #include <node/database_args.h>
@@ -33,7 +35,12 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, Chains
         opts.minimum_chain_work = UintToArith256(uint256S(*value));
     }
 
-    if (auto value{args.GetArg("-assumevalid")}) opts.assumed_valid_block = uint256S(*value);
+    if (auto value{args.GetArg("-assumevalid")}) {
+        if (auto err = EnforceAssumevalidMainnetPolicy(args, args.GetChainName())) {
+            return err;
+        }
+        opts.assumed_valid_block = uint256S(*value);
+    }
 
     if (auto value{args.GetIntArg("-maxtipage")}) opts.max_tip_age = std::chrono::seconds{*value};
 

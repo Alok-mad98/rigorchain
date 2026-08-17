@@ -3,11 +3,36 @@
 :root {
   --rigor-compliance-banner-bg: #7f1d1d;
   --rigor-compliance-banner-fg: #fecaca;
-  --rigor-compliance-badge-bg: #1e3a5f;
-  --rigor-compliance-badge-fg: #dbeafe;
-  --rigor-compliance-footer-bg: #111827;
-  --rigor-compliance-footer-fg: #9ca3af;
-  --rigor-compliance-footer-border: #374151;
+  --rigor-compliance-badge-bg: #111;
+  --rigor-compliance-badge-fg: #fff;
+  --rigor-compliance-footer-bg: #000;
+  --rigor-compliance-footer-fg: #fff;
+  --rigor-compliance-footer-border: #333;
+}
+
+html {
+  color-scheme: dark;
+  background: #000;
+}
+
+html, body {
+  background: #000;
+  color: #fff;
+}
+
+a {
+  color: #fff;
+}
+
+input, button, select, textarea {
+  background: #111;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+pre {
+  background: #111;
+  color: #fff;
 }
 
 body.rigor-compliance-has-banner {
@@ -34,6 +59,12 @@ body.rigor-compliance-has-banner {
   display: block;
 }
 
+#rigor-compliance-banner.rigor-compliance-banner--warn {
+  background: #78350f;
+  color: #fde68a;
+  border-bottom-color: #f59e0b;
+}
+
 #rigor-compliance-banner strong {
   color: #fff;
 }
@@ -54,7 +85,7 @@ body.rigor-compliance-has-banner {
   gap: 0.5rem 1rem;
   background: var(--rigor-compliance-badge-bg);
   color: var(--rigor-compliance-badge-fg);
-  border: 1px solid #3b82f6;
+  border: 1px solid #444;
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
@@ -96,4 +127,61 @@ body.rigor-compliance-has-banner {
 #rigor-compliance-footer .rigor-footer-equivalence {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #fbbf24;
+}
+
+.verify-independently-panel {
+  border: 1px solid #333;
+  padding: 12px 14px;
+  margin: 12px 0 20px;
+  max-width: 1100px;
+}
+
+.verify-independently a {
+  color: #8fdc5a;
+  font-weight: 600;
+}
+
+.consensus-identity-panel {
+  border: 1px solid #333;
+  padding: 10px 12px;
+  margin: 12px 0 0;
+}
+
+.consensus-identity-panel h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.consensus-fingerprint-value {
+  word-break: break-all;
+}
+
+.site-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1.1rem;
+  margin: 0 0 1.25rem;
+  padding: 0.7rem 0.95rem;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.site-nav a {
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-right: 0;
+}
+
+.site-nav a:hover,
+.site-nav a:focus {
+  text-decoration: underline;
+  color: #8fdc5a;
+}
+
+@media (max-width: 800px) {
+  .fp-col { display: none; }
 }

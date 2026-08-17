@@ -87,6 +87,44 @@ def check_vector(vec: dict) -> tuple[bool, str]:
         ).hex()
         return got == exp["sigma"], f"{vid} seed bind"
 
+    if mod == "WindowExclusion":
+        cands = [bytes.fromhex(h) for h in inp["candidates_hex"]]
+        paid = [bytes.fromhex(h) for h in inp["already_paid_hex"]]
+        got = [x.hex() for x in spec.exclude_already_paid(cands, paid)]
+        return got == exp["surviving_hex"] and (len(cands) - len(got)) == exp["dropped"], f"{vid} a9c"
+
+    if mod == "SigmaEncoder":
+        pre = spec.encode_sigma_preimage(
+            bytes.fromhex(inp["txid_hex"]),
+            bytes.fromhex(inp["prev_block_hash_hex"]),
+            inp["height"],
+            bytes.fromhex(inp["convergence_root_hex"]),
+        )
+        ok = (
+            pre.hex() == exp["preimage_hex"]
+            and len(pre) == exp["length"] == 100
+            and pre[0:32].hex() == exp["txid"]
+            and pre[32:64].hex() == exp["croot"]
+            and pre[64:96].hex() == exp["prev"]
+            and pre[96:100].hex() == exp["height_le"]
+            and spec.sha256d(pre).hex() == exp["sigma"]
+        )
+        return ok, f"{vid} encoder"
+
+    if mod == "WindowIncomplete":
+        if inp["complete"] is False:
+            return exp["draw"] is None, f"{vid} incomplete"
+        return exp["draw"] == "empty_ok", f"{vid} genesis"
+
+    if mod == "HashKernel":
+        got = spec.sha256d(bytes.fromhex(inp["payload_hex"])).hex()
+        return got == exp["sha256d"], f"{vid} hash"
+
+    if mod == "Sha256Fips":
+        import hashlib
+        got = hashlib.sha256(bytes.fromhex(inp["payload_hex"])).hexdigest()
+        return got == exp["sha256"], f"{vid} fips"
+
     if mod in ("SupplyScaffold", "BlockTrace"):
         return True, f"{vid} doc-only"
 

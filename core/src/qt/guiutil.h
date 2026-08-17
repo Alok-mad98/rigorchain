@@ -125,7 +125,9 @@ namespace GUIUtil
     void setClipboard(const QString& str);
 
     /**
-     * Loads the font from the file specified by file_name, aborts if it fails.
+     * Loads the font from the file specified by file_name.
+     * On failure, logs a warning and continues with system fonts (Windows GUI
+     * builds must not abort here — abort() is invisible for a WINDOWS subsystem PE).
      */
     void LoadFont(const QString& file_name);
 

@@ -128,6 +128,7 @@ BITCOIN_CORE_H = \
   clientversion.h \
   coins.h \
   connect_block_rigor_checks.h \
+  common/alphaplus_security.h \
   common/bloom.h \
   common/init.h \
   common/run_command.h \
@@ -139,6 +140,7 @@ BITCOIN_CORE_H = \
   compat/endian.h \
   compressor.h \
   consensus/consensus.h \
+  consensus/fingerprint.h \
   consensus/statetag.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
@@ -672,6 +674,8 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/draw_digest.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
+  consensus/fingerprint.cpp \
+  consensus/fingerprint.h \
   consensus/params.h \
   consensus/selection.cpp \
   consensus/selection.h \
@@ -724,6 +728,7 @@ libbitcoin_common_a_SOURCES = \
   bech32.cpp \
   chainparams.cpp \
   coins.cpp \
+  common/alphaplus_security.cpp \
   common/bloom.cpp \
   common/init.cpp \
   common/interfaces.cpp \

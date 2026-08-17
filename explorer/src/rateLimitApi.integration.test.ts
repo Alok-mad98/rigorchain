@@ -9,6 +9,10 @@ import { createRateLimitMiddleware, resetRateLimitBucketsForTests } from "./rate
 function testConfig(overrides: Partial<Config> = {}): Config {
   return {
     network: "testnet",
+    bech32Hrp: "trg",
+    rpcPort: 18761,
+    rpcUser: null,
+    rpcPassword: null,
     rigorDatadir: "/tmp",
     rigorCliBin: "rigor-cli",
     pollIntervalMs: 30_000,

@@ -4,6 +4,15 @@
     Formalizes why Draw cannot satisfy Phase-5 equivalence closure under the
     current RIGOR architecture. Consumes 018GG-I/J/K/L frozen artifacts.
 
+    HISTORICAL NOTE (2026-08-16 remediation): this file records the freeze-era
+    architecture in which the encoder and hash-kernel *prerequisites* were
+    absent from the 018GG gap list. Those two artifacts now exist
+    ([CanonicalDrawEncoder.v], [RigorSha256.v]); see DrawBridgeProgress.v.
+    This catalog is NOT updated to claim closure — full refinement remains
+    unproved, and the remaining runtime-trace prerequisites are still open.
+    Do not read [draw_closure_status = DCS_Impossible] as "the encoder was
+    never written"; read it as "Phase-5 equivalence is not closed".
+
     HONESTY BOUNDARY (CRITICAL):
     - DOES NOT prove Coq = Runtime equivalence.
     - Proves Draw closure is IMPOSSIBLE, not that equivalence holds.

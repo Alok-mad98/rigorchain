@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <clientversion.h>
+#include <util/system.h>
 #include <util/translation.h>
 
 #include <tinyformat.h>
@@ -34,15 +35,14 @@ const std::string CLIENT_NAME("RigorCore");
     #define BUILD_DESC BUILD_GIT_TAG
     #define BUILD_SUFFIX ""
 #else
-    #define BUILD_DESC "v" PACKAGE_VERSION
-    #if CLIENT_VERSION_IS_RELEASE
-        #define BUILD_SUFFIX ""
-    #elif defined(BUILD_GIT_COMMIT)
+    // Display identity is RIGOR_RELEASE_VERSION (v0.1.1-alphaplus), not PACKAGE_VERSION (25.0.0).
+    #define BUILD_DESC RIGOR_RELEASE_VERSION
+    #if defined(BUILD_GIT_COMMIT)
         #define BUILD_SUFFIX "-" BUILD_GIT_COMMIT
     #elif defined(GIT_COMMIT_ID)
         #define BUILD_SUFFIX "-g" GIT_COMMIT_ID
     #else
-        #define BUILD_SUFFIX "-unk"
+        #define BUILD_SUFFIX ""
     #endif
 #endif
 
@@ -51,10 +51,56 @@ static std::string FormatVersion(int nVersion)
     return strprintf("%d.%d.%d", nVersion / 10000, (nVersion / 100) % 100, nVersion % 100);
 }
 
+std::string FormatGitCommitStamp()
+{
+#ifdef BUILD_GIT_COMMIT
+    return BUILD_GIT_COMMIT;
+#elif defined(BUILD_GIT_TAG)
+    return BUILD_GIT_TAG;
+#elif defined(GIT_COMMIT_ID)
+    return GIT_COMMIT_ID;
+#else
+    return {};
+#endif
+}
+
 std::string FormatFullVersion()
 {
-    static const std::string CLIENT_BUILD(BUILD_DESC BUILD_SUFFIX);
+    static const std::string CLIENT_BUILD(BUILD_DESC);
     return CLIENT_BUILD;
+}
+
+std::string FormatReleaseIdentity()
+{
+    std::string out;
+    out += "RIGOR version ";
+    out += RIGOR_RELEASE_VERSION;
+    out += "\n";
+    out += RIGOR_RELEASE_CODENAME;
+    out += "\n";
+    const std::string commit = FormatGitCommitStamp();
+    if (!commit.empty()) {
+        out += "BUILD_GIT_COMMIT=";
+        out += commit;
+        out += "\n";
+    }
+    std::string network = "mainnet";
+    try {
+        const std::string chain = gArgs.GetChainName();
+        if (chain.empty() || chain == "main") {
+            network = "mainnet";
+        } else if (chain == "test") {
+            network = "testnet";
+        } else {
+            network = chain;
+        }
+    } catch (...) {
+        network = "mainnet";
+    }
+    out += "NETWORK=";
+    out += network;
+    out += "\n";
+    return out;
 }
 
 /**

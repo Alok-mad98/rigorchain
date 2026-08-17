@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   });
 
   // Canonical UI routes (HTML) before JSON handlers on shared paths.
-  registerUiRoutes(app, pool, publicDir);
+  registerUiRoutes(app, pool, publicDir, config);
   registerApiRoutes(app, pool, config);
 
   app.use(express.static(publicDir));
@@ -96,8 +96,11 @@ async function main(): Promise<void> {
   await runTick();
   setInterval(runTick, config.pollIntervalMs);
 
-  app.listen(config.apiPort, () => {
-    console.log(`Explorer indexer MVP listening on http://127.0.0.1:${config.apiPort}`);
+  // Bind IPv4 explicitly. Node's default (::) breaks WSL2 Windows localhost forwarding
+  // (ERR_CONNECTION_REFUSED on http://127.0.0.1:PORT from the host browser).
+  const apiHost = process.env.API_HOST?.trim() || "0.0.0.0";
+  app.listen(config.apiPort, apiHost, () => {
+    console.log(`Explorer indexer MVP listening on http://127.0.0.1:${config.apiPort} (${apiHost})`);
   });
 }
 

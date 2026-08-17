@@ -73,9 +73,17 @@ if [[ "${SKIP_CORE}" != "1" ]]; then
   rm -rf "${BUILD_DIR}"
   mkdir -p "${BUILD_DIR}"
   cd "${BUILD_DIR}"
+  # CSW-1: production artifacts are mainnet-only. CXXFLAGS works even before autogen
+  # regenerates --enable-production-mainnet.
+  prod_flag=()
+  if "${CORE}/configure" --help 2>/dev/null | grep -q enable-production-mainnet; then
+    prod_flag=(--enable-production-mainnet)
+  fi
+  CXXFLAGS="${CXXFLAGS:-} -DRIGOR_PRODUCTION_MAINNET" \
   CONFIG_SITE="${CONFIG_SITE}" "${CORE}/configure" \
     --prefix=/ \
     --host="${HOST}" \
+    "${prod_flag[@]}" \
     --with-gui=qt5 \
     --enable-reduce-exports \
     --disable-bench \
@@ -105,8 +113,19 @@ fi
 
 # --- Miner PE ---
 if [[ "${SKIP_MINER}" != "1" ]]; then
-  log "Cross-building rigor-miner (cpuminer)…"
-  MINER="${REPO_ROOT}/cpuminer"
+  log "Cross-building rigor-miner…"
+  MINER_SRC="${REPO_ROOT}/miner"
+  if [[ ! -d "${MINER_SRC}" && -d "${REPO_ROOT}/cpuminer" ]]; then
+    MINER_SRC="${REPO_ROOT}/cpuminer"
+  fi
+  if [[ ! -d "${MINER_SRC}" ]]; then
+    log "ERROR: miner source missing (expected miner/ or cpuminer/)"
+    exit 1
+  fi
+  # Out-of-tree copy so miner/ stays a Linux-safe source tree.
+  MINER="${REPO_ROOT}/.runtime/miner-mingw"
+  rm -rf "${MINER}"
+  cp -a "${MINER_SRC}" "${MINER}"
   cd "${MINER}"
   [[ -f configure ]] || ./autogen.sh
   if [[ -f ./config.status ]]; then
@@ -129,22 +148,22 @@ if [[ "${SKIP_MINER}" != "1" ]]; then
     PTHREAD_LIBS="-Wl,-Bstatic -lpthread -lwinpthread -Wl,-Bdynamic" \
     2>&1 | tee /tmp/minerd-mingw-configure.log | tail -40
   make -j"${JOBS}"
-  # Ensure pthread is static even if automake still injects -lpthread early.
-  if x86_64-w64-mingw32-objdump -p minerd.exe 2>/dev/null | grep -qi 'libwinpthread'; then
-    log "Relinking miner without dynamic libwinpthread…"
-    rm -f minerd.exe
-    x86_64-w64-mingw32-g++ -g -O2 \
-      -L"${DEPENDS}/${HOST}/lib" -static-libgcc \
-      -o minerd.exe \
-      minerd-cpu-miner.o minerd-util.o minerd-sha2.o minerd-scrypt.o minerd-opus_hash.o minerd-arith_uint256.o \
-      minerd-sha2-x64.o minerd-scrypt-x64.o \
-      compat/jansson/libjansson.a \
-      -Wl,-Bstatic -lcurl -lpthread -lwinpthread \
-      -Wl,-Bdynamic \
-      ${CURL_WIN_LIBS}
-  fi
-  if x86_64-w64-mingw32-objdump -p minerd.exe 2>/dev/null | grep -qi 'libwinpthread'; then
-    log "ERROR: rigor-miner still depends on libwinpthread-1.dll"
+  # automake injects -lpthread (DLL). Always relink pthread/curl static.
+  # Do not `objdump | grep` under pipefail: SIGPIPE makes the check look false.
+  log "Relinking miner with static libcurl/winpthread…"
+  rm -f minerd.exe
+  x86_64-w64-mingw32-g++ -g -O2 \
+    -L"${DEPENDS}/${HOST}/lib" -static-libgcc -static-libstdc++ \
+    -o minerd.exe \
+    minerd-cpu-miner.o minerd-util.o minerd-sha2.o minerd-scrypt.o minerd-opus_hash.o minerd-arith_uint256.o \
+    minerd-sha2-x64.o minerd-scrypt-x64.o \
+    compat/jansson/libjansson.a \
+    -Wl,-Bstatic -lcurl -lpthread -lwinpthread \
+    -Wl,-Bdynamic \
+    ${CURL_WIN_LIBS}
+  miner_dlls="$(x86_64-w64-mingw32-objdump -p minerd.exe | awk '/DLL Name:/{print $3}')"
+  if echo "${miner_dlls}" | grep -qiE 'libwinpthread|libgcc_s|libstdc\+\+'; then
+    log "ERROR: rigor-miner still depends on MinGW runtime DLLs: ${miner_dlls}"
     exit 1
   fi
   for cand in "${MINER}/minerd.exe"; do

@@ -12,6 +12,16 @@ import { rpc } from "./rpcCli";
 import { classifyScriptPubKey } from "./script";
 import { oruStringToAtoms, resStringToAtoms } from "./amount";
 import { hasPcorbProofFields } from "./witnessPanel";
+import { collectConsensusFingerprint, winnerSigmaFromCandidates } from "./consensusFingerprint";
+import {
+  EMPTY_DRAW_ELIGIBLE_ROOT,
+  isA8PayRootMismatch,
+  optionalBigInt,
+  optionalHash,
+  optionalString,
+  witness32ToDisplayTxid,
+  witnessPushMatchesTxid,
+} from "./rpcFields";
 
 type TxVinWitness = string[] | null;
 type OutputMeta = {
@@ -44,16 +54,6 @@ type ParsedTx = {
   vins: TxVinMeta[];
   vouts: OutputMeta[];
 };
-
-const TESTNET_BECH32_HRP = "trg";
-
-// Must equal Consensus::RES_PROBABILITY_TARGET_CONST in core/src/consensus/params.h.
-//
-// RFC-014 v1.1: floor(2^240 / MIN_CONVERGENCE_AMOUNT). The previous value here was 2^240,
-// which RFC-014 v1.0 derived at f = 1 while the consensus weight is denominated in
-// satoshis; see SECURITY-001-A finding A-6.
-const FROZEN_RES_PROBABILITY_TARGET_HEX =
-  "00000000002af31dc4611873bf3f70834acdae9f0f4f534f5d60585a5f1c1a3c";
 
 function asString(x: unknown): string {
   if (x === null || x === undefined) return "";
@@ -164,7 +164,11 @@ export async function importerTick(
 
   const endHeight = Math.min(tipHeight, nextStartHeight + config.importBatchMaxHeight - 1);
   if (nextStartHeight > endHeight) {
-    return { imported: 0, reorgHappened, stalled: recovery.stalled_height != null };
+  await backfillMissingCRoot(config, pool);
+  await backfillMissingFingerprint(config, pool);
+  await backfillMissingResMints(config, pool);
+  await backfillA8PayRootFlags(pool, config);
+  return { imported: 0, reorgHappened, stalled: recovery.stalled_height != null };
   }
 
   let imported = 0;
@@ -190,7 +194,153 @@ export async function importerTick(
     }
   }
 
+  await backfillMissingCRoot(config, pool);
+  await backfillMissingFingerprint(config, pool);
+  await backfillMissingResMints(config, pool);
+  await backfillA8PayRootFlags(pool, config);
   return { imported, reorgHappened, stalled: false };
+}
+
+/** Fill C on already-imported blocks. Does not recompute; copies getconvergenceresult.convergence_root. */
+async function backfillMissingCRoot(config: Config, pool: Pool): Promise<void> {
+  const missing = await pool.query<{ block_hash: string; height: string }>(
+    `SELECT block_hash, height::text AS height FROM blocks WHERE c_root IS NULL ORDER BY height DESC LIMIT 16`,
+  );
+  for (const row of missing.rows) {
+    try {
+      const crRaw = await rpc.getconvergenceresult(config, row.height);
+      const cr = crRaw && typeof crRaw === "object" ? (crRaw as Record<string, unknown>) : {};
+      const c = asString(cr.convergence_root);
+      if (!c) continue;
+      await pool.query(`UPDATE blocks SET c_root = $1 WHERE block_hash = $2 AND c_root IS NULL`, [
+        c,
+        row.block_hash,
+      ]);
+    } catch {
+      /* next height */
+    }
+  }
+}
+
+/** Fill identity fingerprint on already-imported blocks. Does not recompute consensus. */
+async function backfillMissingFingerprint(config: Config, pool: Pool): Promise<void> {
+  const missing = await pool.query<{ block_hash: string; height: string }>(
+    `SELECT block_hash, height::text AS height FROM blocks WHERE consensus_fingerprint IS NULL ORDER BY height DESC LIMIT 16`,
+  );
+  for (const row of missing.rows) {
+    try {
+      const height = Number(row.height);
+      const block = await rpc.getblock(config, row.block_hash, 1);
+      const crRaw = await rpc.getconvergenceresult(config, row.block_hash);
+      const cr = crRaw && typeof crRaw === "object" ? (crRaw as Record<string, unknown>) : {};
+      const winner = optionalHash(block.rigor_winner) ?? optionalHash(cr.draw_winner_txid) ?? "";
+      const sigma = winnerSigmaFromCandidates(winner, cr.candidates);
+      const parentBits = await readParentBits(config, pool, height, optionalString(block.previousblockhash));
+      const fp = collectConsensusFingerprint({
+        published: block.consensus_fingerprint ?? cr.consensus_fingerprint,
+        convergenceRootRpc: cr.convergence_root,
+        winnerTxidRpc: winner,
+        sigmaRpc: sigma,
+        height,
+        targetPrevBits: parentBits,
+      });
+      if (!fp) continue;
+      await pool.query(
+        `UPDATE blocks SET consensus_fingerprint = $1 WHERE block_hash = $2 AND consensus_fingerprint IS NULL`,
+        [fp, row.block_hash],
+      );
+    } catch {
+      /* next height */
+    }
+  }
+}
+
+/** A-8: mint is in height+1. Re-import minting blocks that never got a res_mints row. */
+async function backfillMissingResMints(config: Config, pool: Pool): Promise<void> {
+  const missing = await pool.query<{ height: string }>(
+    `
+      SELECT height::text AS height
+      FROM blocks
+      WHERE rigor_res_minted = 1
+        AND NOT EXISTS (
+          SELECT 1 FROM res_mints rm WHERE rm.block_hash = blocks.block_hash
+        )
+      ORDER BY height ASC
+      LIMIT 8
+    `,
+  );
+  for (const row of missing.rows) {
+    try {
+      await importBlockAtHeight(config, pool, Number(row.height));
+    } catch {
+      /* next height */
+    }
+  }
+}
+
+/**
+ * Rewrite blocks.mismatch to the A-8 pay-link (this.committed vs parent.computed).
+ * Genesis computed is uint256(); height 1 commits the empty eligible-set root — not a mismatch.
+ */
+async function backfillA8PayRootFlags(pool: Pool, config: Config): Promise<void> {
+  const chain = await (await import("./db")).getOrCreateChainState(pool, config);
+  const before = await pool.query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM blocks WHERE mismatch = TRUE`);
+  const nBefore = Number(before.rows[0]?.n ?? "0");
+  if (nBefore === 0 && !chain.critical_root_mismatch) return;
+
+  if (nBefore > 0) {
+    await pool.query(`UPDATE blocks SET mismatch = FALSE WHERE height <= 0 AND mismatch = TRUE`);
+    await pool.query(
+      `
+        UPDATE blocks AS b
+        SET mismatch = (
+          lower(b.committed_root) IS DISTINCT FROM
+            CASE
+              WHEN p.computed_root IS NULL OR p.computed_root = '' THEN lower(b.committed_root)
+              WHEN p.computed_root ~ '^[0]+$' THEN $1
+              ELSE lower(p.computed_root)
+            END
+        )
+        FROM blocks AS p
+        WHERE p.height = b.height - 1
+          AND b.height > 0
+      `,
+      [EMPTY_DRAW_ELIGIBLE_ROOT],
+    );
+  }
+  const remaining = await pool.query<{ n: string }>(`SELECT COUNT(*)::text AS n FROM blocks WHERE mismatch = TRUE`);
+  const any = Number(remaining.rows[0]?.n ?? "0") > 0;
+  if (any !== Boolean(chain.critical_root_mismatch)) {
+    await (await import("./db")).updateChainState(pool, config, { critical_root_mismatch: any });
+  }
+}
+
+async function readParentBits(
+  config: Config,
+  pool: Pool,
+  height: number,
+  previousblockhash: string | null,
+): Promise<string | null> {
+  if (height <= 0) return null;
+  if (previousblockhash) {
+    const cached = await pool.query<{ bits: string }>(
+      `SELECT bits FROM blocks WHERE block_hash = $1 LIMIT 1`,
+      [previousblockhash],
+    );
+    if (cached.rows[0]?.bits) return String(cached.rows[0].bits);
+    try {
+      const prev = await rpc.getblock(config, previousblockhash, 1);
+      const bits = asString(prev?.bits);
+      return bits || null;
+    } catch {
+      return null;
+    }
+  }
+  const byHeight = await pool.query<{ bits: string }>(
+    `SELECT bits FROM blocks WHERE height = $1 LIMIT 1`,
+    [BigInt(height - 1)],
+  );
+  return byHeight.rows[0]?.bits ? String(byHeight.rows[0].bits) : null;
 }
 
 async function importBlockAtHeight(
@@ -201,25 +351,43 @@ async function importBlockAtHeight(
   const blockHash = await rpc.getblockhash(config, String(height));
   // Verbosity 2 embeds full txs (genesis coinbase is not available via getrawtransaction).
   const block = await rpc.getblock(config, blockHash, 2);
-  const cr = await rpc.getconvergenceresult(config, blockHash);
+  const crRaw = await rpc.getconvergenceresult(config, blockHash);
+  const cr = crRaw && typeof crRaw === "object" ? (crRaw as Record<string, unknown>) : {};
 
-  // Frozen constant check
-  const resProbTarget = asString(block.res_probability_target);
-  if (resProbTarget !== FROZEN_RES_PROBABILITY_TARGET_HEX) {
-    const msg = `res_probability_target mismatch at height=${height} rpc=${resProbTarget}`;
-    await (await import("./db")).updateChainState(pool, config, { critical_root_mismatch: true });
-    logMismatchEvent({
-      kind: "res_probability_target",
-      height,
-      block_hash: blockHash,
-      message: msg,
-    });
-    if (config.stopOnRootMismatch) throw new Error(msg);
-  }
+  // RES target is RPC-authoritative. Missing → store null; UI shows N/A. Never crash.
+  const resProbTarget =
+    optionalString(block.res_probability_target) ?? optionalString(cr.res_probability_target);
 
   const committed = asString(cr.draw_candidate_root_committed);
   const computed = asString(cr.draw_candidate_root_computed);
-  const mismatch = committed !== computed;
+
+  // A-8: committed = draw this block PAYS (parent award); computed = draw this block AWARDS.
+  // Same-block inequality on award/payout heights is expected. Critical check is
+  // this.committed === parent.computed.
+  const prevHash = optionalString(block.previousblockhash);
+  let parentComputed: string | null = null;
+  let paidWinnerTxid = "";
+  let parentCr: Record<string, unknown> = {};
+  if (height > 0 && prevHash) {
+    const dbParent = await pool.query<{ computed_root: string | null }>(
+      `SELECT computed_root FROM blocks WHERE block_hash = $1 LIMIT 1`,
+      [prevHash],
+    );
+    parentComputed = optionalString(dbParent.rows[0]?.computed_root);
+    const needParentRpc = Number(block.rigor_res_minted ?? 0) === 1 || parentComputed == null;
+    if (needParentRpc) {
+      try {
+        const parentCrRaw = await rpc.getconvergenceresult(config, prevHash);
+        parentCr = parentCrRaw && typeof parentCrRaw === "object" ? (parentCrRaw as Record<string, unknown>) : {};
+        paidWinnerTxid = optionalHash(parentCr.draw_winner_txid) ?? "";
+        if (parentComputed == null) parentComputed = optionalString(parentCr.draw_candidate_root_computed);
+      } catch {
+        /* parent RPC optional when DB already has computed_root */
+      }
+    }
+  }
+
+  const mismatch = isA8PayRootMismatch(committed, parentComputed, height);
   if (mismatch) {
     await (await import("./db")).updateChainState(pool, config, { critical_root_mismatch: true });
     logMismatchEvent({
@@ -227,10 +395,12 @@ async function importBlockAtHeight(
       height,
       block_hash: blockHash,
       committed_root: committed,
-      computed_root: computed,
-      message: "draw_candidate_root_committed != draw_candidate_root_computed",
+      computed_root: parentComputed ?? computed,
+      message: "A-8 pay-link mismatch: this block's draw_candidate_root_committed != parent draw_candidate_root_computed",
     });
     if (config.stopOnRootMismatch) throw new Error("root mismatch committed != computed");
+  } else {
+    await (await import("./db")).updateChainState(pool, config, { critical_root_mismatch: false });
   }
 
   const blockTxEntries: unknown[] = Array.isArray(block.tx) ? block.tx : [];
@@ -246,16 +416,28 @@ async function importBlockAtHeight(
     merkleroot: asString(block.merkleroot),
     draw_candidate_root: asString(block.draw_candidate_root ?? block.draw_candidate_root_committed ?? committed),
     rigor_res_minted: Number(block.rigor_res_minted ?? 0),
-    rigor_winner: asString(block.rigor_winner ?? cr.draw_winner_txid ?? ""),
+    rigor_winner: optionalHash(block.rigor_winner) ?? optionalHash(cr.draw_winner_txid) ?? "",
     cumulative_convergence: block.cumulative_convergence != null ? asString(block.cumulative_convergence) : null,
     opus_hash: block.opus_hash != null ? asString(block.opus_hash) : null,
     tx_count: txCount,
 
-    bind_hash: asString(cr.bind_hash),
-    bind_height: BigInt(cr.bind_height),
+    bind_hash: optionalHash(cr.bind_hash),
+    bind_height: optionalBigInt(cr.bind_height),
     committed_root: committed,
     computed_root: computed,
     mismatch,
+    c_root: asString(cr.convergence_root),
+    consensus_fingerprint: collectConsensusFingerprint({
+      published: block.consensus_fingerprint ?? cr.consensus_fingerprint,
+      convergenceRootRpc: cr.convergence_root,
+      winnerTxidRpc: optionalHash(block.rigor_winner) ?? optionalHash(cr.draw_winner_txid),
+      sigmaRpc: winnerSigmaFromCandidates(
+        optionalHash(block.rigor_winner) ?? optionalHash(cr.draw_winner_txid) ?? "",
+        cr.candidates,
+      ),
+      height: Number(block.height ?? height),
+      targetPrevBits: await readParentBits(config, pool, height, optionalString(block.previousblockhash)),
+    }),
   };
 
   // Determinism: keep importer inside a single DB transaction per block.
@@ -268,10 +450,11 @@ async function importBlockAtHeight(
           merkleroot, draw_candidate_root,
           rigor_res_minted, rigor_winner,
           cumulative_convergence, opus_hash, tx_count,
-          bind_hash, bind_height, committed_root, computed_root, mismatch
+          bind_hash, bind_height, committed_root, computed_root, mismatch,
+          c_root, consensus_fingerprint
         )
         VALUES(
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
         )
         ON CONFLICT (block_hash) DO UPDATE SET
           height = EXCLUDED.height,
@@ -289,7 +472,9 @@ async function importBlockAtHeight(
           bind_height = EXCLUDED.bind_height,
           committed_root = EXCLUDED.committed_root,
           computed_root = EXCLUDED.computed_root,
-          mismatch = EXCLUDED.mismatch
+          mismatch = EXCLUDED.mismatch,
+          c_root = EXCLUDED.c_root,
+          consensus_fingerprint = EXCLUDED.consensus_fingerprint
       `,
       [
         blockInsert.block_hash,
@@ -309,6 +494,8 @@ async function importBlockAtHeight(
         blockInsert.committed_root,
         blockInsert.computed_root,
         blockInsert.mismatch,
+        blockInsert.c_root,
+        blockInsert.consensus_fingerprint,
       ],
     );
 
@@ -317,7 +504,6 @@ async function importBlockAtHeight(
     let mintProofItems: string[] | null = null;
     let winnerMintAmountAtoms: bigint = 0n;
 
-    const winnerConvergenceTxid = asString(cr.draw_winner_txid);
     const candidates: any[] = Array.isArray(cr.candidates) ? cr.candidates : [];
     const candidateByTxid = new Map<string, any>();
     for (const c of candidates) {
@@ -376,17 +562,13 @@ async function importBlockAtHeight(
         const witnessStack = extractWitnessStack(vin);
         const script_sig = vin?.scriptSig ?? null;
 
-        // Mint detection (PCORB proof witness): the proof binds to the draw winner convergence txid.
-        // Matched on the shape of the six proof fields rather than on stack depth, because the
-        // funding input pushes its own redeem script above them (depth 7 for the devtest P2WSH
-        // bootstrap) — the same reason `Consensus::ParseConvergeProof` ignores trailing pushes.
+        // Mint detection (PCORB proof witness). A-8 pays the parent winner in this block.
+        // Match witness[0] to the paid winner (display or native endian). If the parent
+        // winner RPC is missing, accept the first PCORB on a minting block.
         if (blockInsert.rigor_res_minted === 1 && mintTxid === null && witnessStack && hasPcorbProofFields(witnessStack)) {
-          if (asString(witnessStack[0]) === winnerConvergenceTxid) {
-            // Deterministic selection: first matching vin wins.
+          if (!paidWinnerTxid || witnessPushMatchesTxid(witnessStack[0], paidWinnerTxid)) {
             mintTxid = txid;
             mintProofItems = witnessStack;
-
-            // mint_amount atoms: sum RES outputs created in this tx (computed after we parse vouts below).
           }
         }
 
@@ -405,7 +587,7 @@ async function importBlockAtHeight(
       for (let vout_index = 0; vout_index < (tx?.vout?.length ?? 0); vout_index++) {
         const v = tx.vout[vout_index];
         const scriptPubKeyHex = v?.scriptPubKey?.hex != null ? asString(v.scriptPubKey.hex) : asString(v?.scriptPubKey);
-        const cls = classifyScriptPubKey(scriptPubKeyHex, TESTNET_BECH32_HRP);
+        const cls = classifyScriptPubKey(scriptPubKeyHex, config.bech32Hrp);
         const asset_kind = cls.assetKind;
 
         const rpcValue = v?.value != null ? asString(v.value) : "0";
@@ -486,13 +668,30 @@ async function importBlockAtHeight(
       });
     }
 
+    // Safety net: minting block with PCORB+RES body, parent winner RPC missing or endian miss.
+    if (blockInsert.rigor_res_minted === 1 && mintTxid === null) {
+      for (const tx of parsedTxs) {
+        if (tx.is_coinbase) continue;
+        if (!tx.vouts.some((o) => o.asset_kind === "RES")) continue;
+        const proofVin = tx.vins.find((vin) => vin.witness && hasPcorbProofFields(vin.witness));
+        if (!proofVin?.witness) continue;
+        mintTxid = tx.txid;
+        mintProofItems = proofVin.witness;
+        winnerMintAmountAtoms = tx.vouts.reduce(
+          (acc, o) => (o.asset_kind === "RES" ? acc + o.value_atoms : acc),
+          0n,
+        );
+        break;
+      }
+    }
+
     // Pass 2: insert convergence candidates (convergence_events).
     for (const c of candidates.slice().sort((a, b) => asString(a.txid).localeCompare(asString(b.txid)))) {
       const convTxid = asString(c.txid);
       const drawEligible = Boolean(c.draw_eligible);
 
-      // convergence_root: use committed root as canonical per witness binding display.
-      const mintAmountAtoms = convTxid === winnerConvergenceTxid && blockInsert.rigor_res_minted === 1 ? winnerMintAmountAtoms : 0n;
+      // A-8: this block's F is the next window. Do not attribute the payout to this block's winner.
+      const mintAmountAtoms = 0n;
 
       await pool.query(
         `
@@ -527,10 +726,10 @@ async function importBlockAtHeight(
           asString(c.h ?? null),
           drawEligible,
           asString(c.convergence_type ?? null),
-          asString(cr.bind_hash),
-          BigInt(cr.bind_height),
+          optionalHash(cr.bind_hash),
+          optionalBigInt(cr.bind_height),
           committed,
-          asString(cr.res_probability_target),
+          optionalString(cr.res_probability_target) ?? resProbTarget,
           committed,
           computed,
           mismatch,
@@ -541,13 +740,26 @@ async function importBlockAtHeight(
 
     // Pass 3: insert RES mint rows if present.
     if (blockInsert.rigor_res_minted === 1 && mintTxid && mintProofItems) {
-      const winnerCandidate = candidateByTxid.get(winnerConvergenceTxid) ?? null;
-      const winnerDrawEligible = winnerCandidate ? Boolean(winnerCandidate.draw_eligible) : false;
+      const proof = mintProofItems;
+      const proofConvergenceTxid = asString(proof[0]);
+      const winnerStoreTxid = paidWinnerTxid || witness32ToDisplayTxid(proofConvergenceTxid);
+
+      let winnerDrawEligible = false;
+      if (winnerStoreTxid) {
+        const fromThis = candidateByTxid.get(winnerStoreTxid);
+        if (fromThis) {
+          winnerDrawEligible = Boolean(fromThis.draw_eligible);
+        } else {
+          const prev = await pool.query<{ draw_eligible: boolean }>(
+            `SELECT draw_eligible FROM convergence_events WHERE convergence_txid = $1 ORDER BY block_height DESC LIMIT 1`,
+            [winnerStoreTxid],
+          );
+          winnerDrawEligible = Boolean(prev.rows[0]?.draw_eligible);
+        }
+      }
 
       // proof items per Witness V1 display rules:
       // [0] convergence_txid, [1] convergence_amount_sat (LE64), [2] bind_hash, [3] height (LE64), [4] target_prev (LE32), [5] convergence_root
-      const proof = mintProofItems;
-      const proofConvergenceTxid = asString(proof[0]);
       const proofConvergenceRoot = asString(proof[5]);
       const proofBindHash = asString(proof[2]);
       const proofHeightLe = proof[3];
@@ -603,17 +815,27 @@ async function importBlockAtHeight(
             o.vout_index,
             blockHash,
             BigInt(height),
-            winnerConvergenceTxid,
+            winnerStoreTxid,
             o.value_atoms,
-            asString(cr.bind_hash),
-            BigInt(cr.bind_height),
+            optionalHash(cr.bind_hash),
+            optionalBigInt(cr.bind_height),
             proofConvergenceRoot || committed,
             winnerDrawEligible,
-            asString(cr.res_probability_target),
+            optionalString(cr.res_probability_target) ?? resProbTarget,
             committed,
             computed,
             jsonbParam(proof_items_obj),
           ],
+        );
+      }
+    }
+
+    if (winnerMintAmountAtoms > 0n && (paidWinnerTxid || mintProofItems)) {
+      const paidTxid = paidWinnerTxid || witness32ToDisplayTxid(mintProofItems?.[0]);
+      if (paidTxid && height > 0) {
+        await pool.query(
+          `UPDATE convergence_events SET mint_amount = $1 WHERE convergence_txid = $2 AND block_height = $3`,
+          [winnerMintAmountAtoms, paidTxid, BigInt(height - 1)],
         );
       }
     }

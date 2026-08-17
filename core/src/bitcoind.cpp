@@ -129,7 +129,10 @@ static bool AppInit(NodeContext& node, int argc, char* argv[])
 
     // Process help and version before taking care about datadir
     if (HelpRequested(args) || args.IsArgSet("-version")) {
-        std::string strUsage = PACKAGE_NAME " version " + FormatFullVersion() + "\n";
+        std::string strUsage = FormatReleaseIdentity();
+        if (HelpRequested(args) && !args.IsArgSet("-version")) {
+            strUsage = std::string("RIGOR version ") + FormatFullVersion() + "\n";
+        }
 
         if (args.IsArgSet("-version")) {
             strUsage += FormatParagraph(LicenseInfo());
@@ -169,6 +172,7 @@ static bool AppInit(NodeContext& node, int argc, char* argv[])
         args.SoftSetBoolArg("-server", true);
         // Set this early so that parameter interactions go to console
         InitLogging(args);
+        LogPrintf("%s", FormatReleaseIdentity());
         InitParameterInteraction(args);
         if (!AppInitBasicSetup(args)) {
             // InitError will have been called with detailed error, which ends up on console

@@ -8,12 +8,12 @@
     <link rel="stylesheet" href="/convergence-panel.css" />
     <link rel="stylesheet" href="/lineage-graph.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      a { margin-right: 12px; }
-      .muted { color: #666; font-size: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      a { margin-right: 12px; color: #fff; }
+      .muted { color: #bbb; font-size: 12px; }
       table { border-collapse: collapse; width: 100%; max-width: 1100px; }
-      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-      th { background: #f6f6f6; }
+      th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
+      th { background: #111; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
     </style>
     <script src="/explorer-routes.js"></script>
@@ -21,12 +21,23 @@
     <script src="/lineage-graph.js"></script>
   </head>
   <body>
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
     <h1>Block detail</h1>
-    <div id="nav" class="muted"></div>
 
     <div id="root">Loading...</div>
+    <noscript><p>JavaScript is required to render block detail. Open /api/block/{hash} for the JSON.</p></noscript>
 
     <script>
+      if (!window.ExplorerRoutes) {
+        document.getElementById('root').textContent = 'Failed: explorer-routes.js did not load. Refresh the page.';
+      } else {
       ExplorerRoutes.installCanonicalLink();
       ExplorerRoutes.mountNav('nav');
 
@@ -41,22 +52,53 @@
           document.getElementById('root').textContent = 'Missing block hash in URL.';
           return;
         }
-        const r = await fetch('/api/block/' + encodeURIComponent(hash));
+        const r = await ExplorerRoutes.fetchJson('/api/block/' + encodeURIComponent(hash));
         if (!r.ok) {
-          document.getElementById('root').textContent = 'Block not found.';
+          document.getElementById('root').textContent = r.status === 404 ? 'Block not found.' : ('Failed: HTTP ' + r.status);
           return;
         }
         const j = await r.json();
 
         const b = j.block;
+        const s = j.summary || {};
         const panel = j.convergence_panel;
         const lineageGraph = j.lineage_graph;
         const txs = j.txs || [];
+        const prev = s.previous_block_hash || b.previous_block_hash;
+        const fp = s.consensus_fingerprint_display || b.consensus_fingerprint_display || 'Not available';
+        const fpStatus = s.consensus_fingerprint_status || b.consensus_fingerprint_status || 'Not available';
 
         const root = document.getElementById('root');
         root.innerHTML = `
+          <section class="verify-independently-panel">
+            <h2>Block #${s.height ?? b.height ?? ""}</h2>
+            <p class="mono">Hash: ${s.hash ?? b.block_hash || hash}</p>
+            <p>Previous Block: ${prev ? `<a class="mono" href="${ExplorerRoutes.blockPath(prev)}">${prev}</a>` : 'N/A'}</p>
+            <section class="consensus-identity-panel">
+              <h3>Draw Identity</h3>
+              <p>Draw Fingerprint:</p>
+              <p class="mono consensus-fingerprint-value">${fp}</p>
+              <p>Status: ${fpStatus}</p>
+            </section>
+            ${ExplorerRoutes.verifyIndependentlyHtml("block", s.hash ?? b.block_hash || hash)}
+          </section>
           ${ConvergencePanel.renderBlockPanel(panel, ExplorerRoutes)}
           ${lineageGraph ? LineageGraph.renderLineagePanel(lineageGraph, ExplorerRoutes) : ''}
+
+          <h2>Summary</h2>
+          <table>
+            <tbody>
+              <tr><th>Height</th><td>${s.height ?? b.height}</td></tr>
+              <tr><th>Hash</th><td class="mono">${s.hash ?? b.block_hash}</td></tr>
+              <tr><th>Time</th><td>${ExplorerRoutes.timeAgo(s.time ?? b.time)}${ExplorerRoutes.timeAbsolute(s.time ?? b.time) ? ` <span class="muted">(${ExplorerRoutes.timeAbsolute(s.time ?? b.time)})</span>` : ""}</td></tr>
+              <tr><th>Coinbase</th><td class="mono">${s.coinbase_txid ? `<a href="${ExplorerRoutes.txPath(s.coinbase_txid)}">${s.coinbase_txid}</a>` : ''}</td></tr>
+              <tr><th>ORU subsidy</th><td>${s.oru_subsidy_display ?? 'N/A'}</td></tr>
+              <tr><th>RES minted</th><td>${s.res_minted_display ?? '0'}</td></tr>
+              ${s.res_award_note ? `<tr><th>RES award</th><td>${s.res_award_note}${s.res_payout_block_hash ? ` (<a href="${ExplorerRoutes.blockPath(s.res_payout_block_hash)}">payout block</a>)` : ""}</td></tr>` : ""}
+              <tr><th>RES probability target</th><td class="mono">${s.res_probability_target_display ?? 'N/A'}</td></tr>
+              <tr><th>bind_height</th><td>${s.bind_height_display ?? 'Not available'}</td></tr>
+            </tbody>
+          </table>
 
           <h2>Header</h2>
           <pre class="mono">${JSON.stringify(b, null, 2)}</pre>
@@ -66,27 +108,38 @@
             <thead>
               <tr>
                 <th>#</th>
+                <th>kind</th>
+                <th>amount</th>
+                <th>asset</th>
                 <th>txid</th>
-                <th>wtxid</th>
               </tr>
             </thead>
             <tbody>
               ${txs.map((t, idx) => `
                 <tr>
                   <td>${idx}</td>
+                  <td>${t.tx_kind_label ?? (t.is_coinbase ? 'Coinbase' : '')}</td>
+                  <td>${t.amount_display ?? '—'}</td>
+                  <td>${t.asset_kind ?? '—'}</td>
                   <td><a href="${ExplorerRoutes.txPath(t.txid)}">${shortHash(t.txid)}</a></td>
-                  <td class="muted">${shortHash(t.wtxid)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         `;
-        ConvergencePanel.bindCopyButtons(root);
+        if (window.ConvergencePanel && ConvergencePanel.bindCopyButtons) ConvergencePanel.bindCopyButtons(root);
       }
 
-      load().catch((e) => {
-        document.getElementById('root').textContent = 'Failed: ' + String(e);
-      });
+      const ssrRoot = document.getElementById('root');
+      if (ssrRoot && ssrRoot.getAttribute('data-ssr') === '1') {
+        if (window.ConvergencePanel && ConvergencePanel.bindCopyButtons) ConvergencePanel.bindCopyButtons(ssrRoot);
+      } else {
+        load().catch((e) => {
+          const msg = e && e.name === 'AbortError' ? 'Timed out loading block. Is the explorer API reachable?' : String(e);
+          document.getElementById('root').textContent = 'Failed: ' + msg;
+        });
+      }
+      }
     </script>
     <script src="/compliance.js"></script>
   </body>

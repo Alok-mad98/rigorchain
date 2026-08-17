@@ -5,6 +5,11 @@
 **Prover**: Coq 8.15.0
 **Scope of this document**: what has been proved, what has *not*, and exactly where the boundary lies.
 
+**Addendum / freeze (2026-08-16)**: A-9-C is modeled; 315 shared vectors; FIPS-locked
+SHA-256; extracted OCaml hasher; portable C++ hash CLI; tripartite gate.
+Full refinement is still **not** proved. Current correspondence status:
+[FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md).
+
 This is the authoritative statement. Where an earlier `docs/proof/PROOF-0xx` note disagrees with
 this document, this document governs.
 
@@ -166,7 +171,7 @@ rather than as an oversight.
 | Classical logic / choice / extensionality | Not used anywhere. |
 | Admitted or sorry-style holes | None. |
 | Trusted computing base | Coq 8.15 kernel only. |
-| Golden vectors | 57 vectors enforced as build-breaking `vm_compute` lemmas (`Kernel/GoldenHarness.v`): 12 ReorgBind, 12 BlockTrace, 9 ConvergenceRoot, 7 RunSelection, 5 SigmaPoW01, 5 SupplyScaffold, 4 Inequality, 3 Replay. A regressed vector fails the build. |
+| Golden vectors | **315** shared vectors in `phase3_golden_vectors.json`. **108** are build-breaking `vm_compute` lemmas in `Kernel/GoldenHarness.v` (original kernel SHA-256 set plus WindowExclusion, SigmaEncoder, extra Inequality, short HashKernel). The remainder are Python/C++ differential cases. A regressed *enforced* vector fails the Coq build; a regressed Python/C++ vector fails `run_differential_gate.sh`. |
 
 ---
 
@@ -209,19 +214,21 @@ Two consequences for any reader assessing this project:
 Since refinement is not proved, the Coq↔C++ link rests on **differential testing over a finite
 vector set**, and that is exactly as strong as a finite vector set:
 
-- The same golden vectors are pinned on both sides — as `vm_compute` lemmas in Coq and as
-  hardcoded expectations in `core/src/test/selection_golden_tests.cpp`. Agreement on 57 vectors is
-  evidence; it is not equivalence.
+- The same golden vectors are pinned on both sides — as `vm_compute` lemmas in Coq (108 enforced)
+  and as generated C++ cases in `selection_golden_tests.cpp` / `selection_golden_bridge.inc`
+  plus the original hardcoded selection cases. Agreement on 315 vectors is stronger evidence
+  than 57; it is still not equivalence. A portable C++ `CSHA256` CLI is compared to hashlib and
+  the extracted Coq kernel in `test_hash_kernel_tripartite.py`.
 - The C++ side is additionally covered by the unit suite, the functional suite
   (`feature_res_core_convergence_draw.py`, `feature_res_core_convergence_window.py`,
   `rigor_attack_blocks.py`), and the release gates.
 
 ### 3.3 Specific model gaps
 
-- **A-9-C's no-double-win rule is not modeled.** `Selection.v` carries the window width `W` and the
-  `T/W` target, but the rule that a given txid may win at most once across the window
-  (`already_paid` exclusion in `ConvergenceWindowTail`) has no counterpart in Coq. It is enforced
-  and tested in C++ only.
+- **A-9-C's no-double-win rule is modeled (2026-08-16).** `WindowExclusion.v` defines
+  `exclude_already_paid` / `paid_closed_trace` and proves `txid_wins_at_most_once`.
+  `Selection.v` still carries only the width `W` and the `T/W` target. The Coq theorem is about
+  the model; C++ `FinalizeWindowedDrawSet` is still connected by vectors, not by refinement.
 - **The draw is modeled as a pure function, not as a game.** Everything in §2.1 is a determinism,
   well-definedness, and non-vacuity result. No theorem here bounds an adversary's *advantage*.
   Statements like "grinding is unprofitable at hashrate share ρ" are economic arguments made in
@@ -254,5 +261,7 @@ machine-checked terms. The Coq↔C++ boundary is held by 57 shared golden vector
 test suite. Anyone evaluating this project should treat §2 as a strong statement about the protocol
 design and §3.1 as the honest limit of what that buys at runtime.
 
-Closing the refinement gap requires a canonical draw encoder and a runtime hash kernel shared
-between the two sides. That work is scoped but not undertaken.
+Closing the refinement gap still requires a mechanized correspondence proof. A canonical draw
+encoder and an executable SHA-256d kernel now exist on both sides and agree on the golden set
+(see the 2026-08-16 addendum); they are **not** a shared extracted kernel and they do **not**
+constitute refinement.

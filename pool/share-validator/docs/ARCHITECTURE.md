@@ -20,11 +20,13 @@ flowchart TD
     A["validate_share / validate_block"] --> B["JobSnapshot exists"]
     B --> C["TemplateRecord FK match"]
     C --> D["Replay + stale job gate"]
-    D --> E["RES mint placeholder"]
-    E --> F["convergence_root recompute"]
-    F --> G["CVGE + RIGOR scripts"]
-    G --> H["Rebuild header"]
-    H --> I["OpuHash vs target"]
+    D --> E["job ↔ template binding"]
+    E --> F["RES: no pool mint + node automint shape"]
+    F --> G["C over A-9-C window (no mempool membership)"]
+    G --> H["optional on-chain W=32 vs GBT list"]
+    H --> I["CVGE + RIGOR scripts"]
+    I --> J["Rebuild header"]
+    J --> K["OpuHash vs target"]
 ```
 
 ## OpuHash
@@ -43,6 +45,19 @@ Golden vectors: `pow_tests.cpp::OpuHash_v3plus_reference_vectors`.
 ## Replay guard
 
 In-memory `seen_share_id` set with `import_seen_shares` / `export_seen_shares` hooks for future DB persistence.
+
+## Job binding
+
+`validate_job_template_binding` restates the share↔job contract:
+
+- Job and template must both be ACTIVE
+- `record_id`, `height`, `previousblockhash` / `prevhash`, `template_version`, and `tip_hash` must match
+
+`resolve_job_and_template` already maps `job_id` → snapshot → template `record_id` and rejects non-servable jobs. Replay rejects non-ACTIVE jobs. A height/prevhash mix-up of an otherwise ACTIVE job is still `ERR_STALE_JOB`.
+
+## Node automint (positive)
+
+`validate_node_supplied_automint` parses GBT `transactions` and, when `convergence_draw.winner` is set, requires exactly one witness-v1 RES mint paying 100.00 RES to the winner's `res_program`, spending the AutoResMintBootstrap P2WSH. The pool never builds this tx.
 
 ## Impact
 

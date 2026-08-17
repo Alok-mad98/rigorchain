@@ -55,6 +55,8 @@ void ReleaseDirectoryLocks();
 
 bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
+fs::path GetLegacyBitcoinDefaultDataDir();
+bool IsLegacyBitcoinDefaultDataDir(const fs::path& p);
 
 #ifdef WIN32
 fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);

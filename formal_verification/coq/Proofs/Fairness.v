@@ -9,8 +9,9 @@ Require Import Selection.
 
 (** PHASE-4A: the prior [Pr := 1] constant made [weight_monotonic] vacuous.
     It is replaced by REAL deterministic selection-preference lemmas about the
-    executable [pick_better_tx]. The probabilistic fairness statement requires a
-    probability model and is tracked as OPEN (see PROOF_DEBT_REGISTER.md). *)
+    executable [pick_better_tx]. The probabilistic fairness statement is NOT a
+    theorem about SHA-256; an idealized uniform-digest calculation lives in
+    [Proofs/FairnessIdealized.v] and is explicitly not a claim about the hash. *)
 
 (** Lower normalised sigma (cross-product) strictly wins the pairwise choice. *)
 Theorem selection_prefers_lower_cross_product :

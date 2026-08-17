@@ -56,7 +56,8 @@
 // Application startup time (used for uptime calculation)
 const int64_t nStartupTime = GetTime();
 
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
+const char * const RIGOR_CONF_FILENAME = "rigor.conf";
+const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf"; // legacy fallback only
 const char * const BITCOIN_SETTINGS_FILENAME = "settings.json";
 
 ArgsManager gArgs;
@@ -741,13 +742,9 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
            std::string("\n\n");
 }
 
-fs::path GetDefaultDataDir()
+fs::path GetLegacyBitcoinDefaultDataDir()
 {
-    // Windows: C:\Users\Username\AppData\Roaming\Bitcoin
-    // macOS: ~/Library/Application Support/Bitcoin
-    // Unix-like: ~/.bitcoin
 #ifdef WIN32
-    // Windows
     return GetSpecialFolderPath(CSIDL_APPDATA) / "Bitcoin";
 #else
     fs::path pathRet;
@@ -757,11 +754,40 @@ fs::path GetDefaultDataDir()
     else
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
-    // macOS
     return pathRet / "Library/Application Support/Bitcoin";
 #else
-    // Unix-like
     return pathRet / ".bitcoin";
+#endif
+#endif
+}
+
+bool IsLegacyBitcoinDefaultDataDir(const fs::path& p)
+{
+    const fs::path a = p.lexically_normal();
+    const fs::path b = GetLegacyBitcoinDefaultDataDir().lexically_normal();
+    if (a == b) return true;
+    const std::string name = fs::PathToString(a.filename());
+    return name == "Bitcoin" || name == ".bitcoin";
+}
+
+fs::path GetDefaultDataDir()
+{
+    // Windows: %APPDATA%\RIGOR
+    // macOS: ~/Library/Application Support/RIGOR
+    // Unix-like: ~/.rigor
+#ifdef WIN32
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "RIGOR";
+#else
+    fs::path pathRet;
+    char* pszHome = getenv("HOME");
+    if (pszHome == nullptr || strlen(pszHome) == 0)
+        pathRet = fs::path("/");
+    else
+        pathRet = fs::path(pszHome);
+#ifdef MAC_OSX
+    return pathRet / "Library/Application Support/RIGOR";
+#else
+    return pathRet / ".rigor";
 #endif
 #endif
 }
@@ -867,7 +893,18 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, const std::string& file
 
 fs::path ArgsManager::GetConfigFilePath() const
 {
-    return GetConfigFile(*this, GetPathArg("-conf", BITCOIN_CONF_FILENAME));
+    if (IsArgSet("-conf")) {
+        return GetConfigFile(*this, GetPathArg("-conf"));
+    }
+    const fs::path rigor_conf = GetConfigFile(*this, fs::PathFromString(RIGOR_CONF_FILENAME));
+    if (fs::exists(rigor_conf)) {
+        return rigor_conf;
+    }
+    const fs::path bitcoin_conf = GetConfigFile(*this, fs::PathFromString(BITCOIN_CONF_FILENAME));
+    if (fs::exists(bitcoin_conf)) {
+        return bitcoin_conf;
+    }
+    return rigor_conf;
 }
 
 bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
@@ -982,6 +1019,16 @@ std::string ArgsManager::GetChainName() const
     if ((int)is_chain_arg_set + (int)fRegTest + (int)fSigNet + (int)fTestNet + (int)fDevTest > 1) {
         throw std::runtime_error("Invalid combination of -regtest, -signet, -testnet, -devtest and -chain. Can use at most one.");
     }
+#ifdef RIGOR_PRODUCTION_MAINNET
+    if (fRegTest || fSigNet || fTestNet || fDevTest) {
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+    }
+    const std::string chain = GetArg("-chain", CBaseChainParams::MAIN);
+    if (chain != CBaseChainParams::MAIN) {
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+    }
+    return CBaseChainParams::MAIN;
+#else
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fSigNet) {
@@ -993,6 +1040,7 @@ std::string ArgsManager::GetChainName() const
         return CBaseChainParams::DEVTEST;
 
     return GetArg("-chain", CBaseChainParams::MAIN);
+#endif
 }
 
 bool ArgsManager::UseDefaultSection(const std::string& arg) const

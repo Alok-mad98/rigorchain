@@ -10,7 +10,7 @@
     - [equivalence_claimed] remains false; PD-4F-OB-02 / PD-4F-CPP-01 OPEN.
     - Observation / audit only; no consensus or runtime code modified. *)
 
-From Coq Require Import List ZArith Bool Strings.String.
+From Coq Require Import List ZArith NArith Bool Strings.String.
 Import ListNotations.
 Open Scope string_scope.
 Require Import Rigor.Phase5Equivalence.EquivalenceFramework.
@@ -561,6 +561,12 @@ Definition mk_gv_snapshot
      gvs_row := mk_gv_row h hash oru res;
      gvs_chas := chas_neutral |}.
 
+(** Milestone heights exceed Coq's unary [nat] literal threshold and would
+    emit [abstract-large-number]. Encode as binary [N], then convert. *)
+Definition gv_h_630000 : nat := N.to_nat 630000%N.
+Definition gv_h_2100000 : nat := N.to_nat 2100000%N.
+Definition gv_h_2100001 : nat := N.to_nat 2100001%N.
+
 Definition gv_snap_oru_0001 :=
   mk_gv_snapshot "GV-ORU-0001"%string GVF_ORU 0 true GVR_PASS AI_PARTIAL
     3000%Z 100000000000 0.
@@ -568,7 +574,7 @@ Definition gv_snap_oru_0002 :=
   mk_gv_snapshot "GV-ORU-0002"%string GVF_ORU 1 true GVR_PASS AI_PARTIAL
     3001%Z 190000000000 0.
 Definition gv_snap_oru_0003 :=
-  mk_gv_snapshot "GV-ORU-0003"%string GVF_ORU 630000 false GVR_NOT_EXECUTED AI_OPEN
+  mk_gv_snapshot "GV-ORU-0003"%string GVF_ORU gv_h_630000 false GVR_NOT_EXECUTED AI_OPEN
     3630000%Z 0 0.
 Definition gv_snap_res_0001 :=
   mk_gv_snapshot "GV-RES-0001"%string GVF_RES 10 true GVR_PASS AI_PARTIAL
@@ -577,7 +583,7 @@ Definition gv_snap_res_0002 :=
   mk_gv_snapshot "GV-RES-0002"%string GVF_RES 500 true GVR_PASS AI_PARTIAL
     3500%Z 0 20000.
 Definition gv_snap_res_0003 :=
-  mk_gv_snapshot "GV-RES-0003"%string GVF_RES 2100000 false GVR_NOT_EXECUTED AI_OPEN
+  mk_gv_snapshot "GV-RES-0003"%string GVF_RES gv_h_2100000 false GVR_NOT_EXECUTED AI_OPEN
     2103000%Z 0 0.
 Definition gv_snap_draw_0001 :=
   mk_gv_snapshot "GV-DRAW-0001"%string GVF_DRAW 1 true GVR_PARTIAL AI_PARTIAL
@@ -586,7 +592,7 @@ Definition gv_snap_draw_0002 :=
   mk_gv_snapshot "GV-DRAW-0002"%string GVF_DRAW 7 true GVR_PARTIAL AI_PARTIAL
     3107%Z 0 20000.
 Definition gv_snap_draw_0003 :=
-  mk_gv_snapshot "GV-DRAW-0003"%string GVF_DRAW 2100001 false GVR_NOT_EXECUTED AI_OPEN
+  mk_gv_snapshot "GV-DRAW-0003"%string GVF_DRAW gv_h_2100001 false GVR_NOT_EXECUTED AI_OPEN
     2104001%Z 0 0.
 Definition gv_snap_state_0001 :=
   mk_gv_snapshot "GV-STATE-0001"%string GVF_STATE 0 true GVR_PASS AI_PARTIAL

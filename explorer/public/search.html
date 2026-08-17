@@ -6,21 +6,28 @@
     <title>Search</title>
     <link rel="stylesheet" href="/compliance.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      .muted { color: #666; font-size: 12px; }
-      a { margin-right: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      .muted { color: #bbb; font-size: 12px; }
+      a { margin-right: 12px; color: #fff; }
       input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
-      .error { color: #b00020; margin-top: 12px; }
+      .error { color: #ff6b6b; margin-top: 12px; }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
   <body>
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
     <h1>Search</h1>
-    <div id="nav" class="muted"></div>
-    <p class="muted">Block hash, txid, or RIGOR bech32 address (trg1… / rg1…).</p>
+    <p class="muted">Block height, block hash, txid, or RIGOR bech32 address (trg1… / rg1…). Block results include Draw Fingerprint on the block page.</p>
     <form id="form" method="get" action="/search">
       <p>
-        <input id="q" name="q" placeholder="txid, block hash, or address" autocomplete="off" />
+        <input id="q" name="q" placeholder="height, txid, block hash, or address" autocomplete="off" />
         <button type="submit">Go</button>
       </p>
     </form>

@@ -6,19 +6,26 @@
     <title>RES events</title>
     <link rel="stylesheet" href="/compliance.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      a { margin-right: 12px; }
-      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
-      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; vertical-align: top; }
-      th { background: #f6f6f6; }
-      .muted { color: #666; font-size: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      a { margin-right: 12px; color: #fff; }
+      table { border-collapse: collapse; width: 100%; max-width: 960px; }
+      th, td { border: 1px solid #333; padding: 8px; font-size: 13px; vertical-align: top; }
+      th { background: #111; text-align: left; }
+      .muted { color: #bbb; font-size: 12px; }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
   <body>
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
     <h1>RES events</h1>
-    <div id="nav" class="muted"></div>
-    <p class="muted">Candidate rows from indexed <code>getconvergenceresult</code>.</p>
+    <p class="muted">One row per convergence transaction. Draw is the 中签 block (σ hit). Mint is the A-8 payout block (height+1). Included is when the CVG2 entered the window — not the draw.</p>
     <div id="root">Loading...</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
@@ -29,8 +36,14 @@
         h = String(h);
         return h.slice(0, 12) + '…' + h.slice(-6);
       }
+      function esc(s) {
+        return String(s ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
       async function load() {
-        const r = await fetch('/api/res/events?limit=200&eligible_only=1');
+        const r = await fetch('/api/res/events?limit=200');
         const j = await r.json();
         const events = j.events || [];
 
@@ -38,33 +51,37 @@
         table.innerHTML = `
           <thead>
             <tr>
-              <th>block_height</th>
-              <th>convergence_txid</th>
-              <th>draw_eligible</th>
-                <th>mint_amount</th>
-              <th>committed_root</th>
-              <th>computed_root</th>
+              <th>draw</th>
+              <th>mint</th>
+              <th>included</th>
+              <th>event</th>
+              <th>result</th>
             </tr>
           </thead>
         `;
 
         const tbody = document.createElement('tbody');
+        if (events.length === 0) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="5" class="muted">No convergence events indexed.</td>';
+          tbody.appendChild(tr);
+        }
         for (const e of events) {
           const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${e.block_height}</td>
-            <td><a href="${ExplorerRoutes.txPath(e.convergence_txid)}">${shortHash(e.convergence_txid)}</a></td>
-            <td>${String(e.draw_eligible)}</td>
-            <td>${e.mint_amount}</td>
-            <td class="muted">${shortHash(e.committed_root)}</td>
-            <td class="muted">${shortHash(e.computed_root)}</td>
-          `;
+          const event = (e.lock_display ? esc(e.lock_display) + " locked · " : "") +
+            '<a href="' + ExplorerRoutes.txPath(e.convergence_txid) + '">' + esc(shortHash(e.convergence_txid)) + "</a>";
+          tr.innerHTML =
+            "<td>" + esc(e.award_height ?? e.height ?? "—") + "</td>" +
+            "<td>" + esc(e.mint_height ?? "—") + "</td>" +
+            "<td class=\"muted\">" + esc(e.included_height ?? "—") + "</td>" +
+            "<td>" + event + "</td>" +
+            "<td>" + esc(e.result ?? "No RES") + "</td>";
           tbody.appendChild(tr);
         }
         table.appendChild(tbody);
 
         const root = document.getElementById('root');
-        root.innerHTML = '';
+        root.innerHTML = "";
         root.appendChild(table);
       }
       load().catch((e) => {
@@ -74,4 +91,3 @@
     <script src="/compliance.js"></script>
   </body>
 </html>
-

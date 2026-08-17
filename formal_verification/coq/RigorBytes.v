@@ -1,5 +1,6 @@
 (** Byte-level consensus encodings (RFC-009 / RFC-000). *)
 From Coq Require Import Arith.Arith.
+From Coq Require Import Bool.Bool.
 From Coq Require Import List.
 From Coq Require Import Lia.
 From Coq Require Import ZArith.ZArith.
@@ -169,3 +170,40 @@ Proof.
 Qed.
 
 End UInt256LittleEndianSigma.
+
+(** Byte-string equality, used by A-9-C already_paid exclusion. *)
+Fixpoint bytes_eqb (a b : list byte) : bool :=
+  match a, b with
+  | nil, nil => true
+  | x :: xs, y :: ys => andb (Nat.eqb x y) (bytes_eqb xs ys)
+  | _, _ => false
+  end.
+
+Lemma bytes_eqb_refl : forall a, bytes_eqb a a = true.
+Proof.
+  induction a as [|x xs IH]; simpl; [reflexivity|].
+  rewrite Nat.eqb_refl. simpl. exact IH.
+Qed.
+
+Lemma bytes_eqb_eq : forall a b, bytes_eqb a b = true <-> a = b.
+Proof.
+  induction a as [|x xs IH]; intros b; destruct b as [|y ys]; simpl.
+  - split; intros; reflexivity.
+  - split; intros H; discriminate.
+  - split; intros H; discriminate.
+  - split.
+    + intros H. apply andb_true_iff in H. destruct H as [Hx Hxs].
+      apply Nat.eqb_eq in Hx. apply IH in Hxs. subst. reflexivity.
+    + intros H. inversion H; subst.
+      rewrite Nat.eqb_refl. simpl. apply IH. reflexivity.
+Qed.
+
+Lemma bytes_eqb_sym : forall a b, bytes_eqb a b = bytes_eqb b a.
+Proof.
+  intros a b.
+  destruct (bytes_eqb a b) eqn:Hab.
+  - apply bytes_eqb_eq in Hab. subst. rewrite bytes_eqb_refl. reflexivity.
+  - destruct (bytes_eqb b a) eqn:Hba; [|reflexivity].
+    apply bytes_eqb_eq in Hba. subst. rewrite bytes_eqb_refl in Hab. discriminate.
+Qed.
+

@@ -59,7 +59,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
 
     // Output vs input asset matching is enforced in Consensus::CheckTxInputs (inputs define domain).
-    // Coinbase is  ORU / commitments only — RES domain outputs must appear on non-coinbase txs (ConnectBlock enforces too).
+    // Coinbase RES is rejected in ConnectBlock (`bad-cb-res-amount`) except the mockable-chain
+    // -reswalletbootstrap backdoor. This function has no chainparams, so it cannot make that
+    // distinction.
 
     // Check for negative or overflow output values per asset (see CVE-2010-5139)
     CAmount oru_out_total = 0;

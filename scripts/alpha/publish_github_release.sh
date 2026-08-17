@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Publish GitHub Release assets for v0.1.0-alpha (requires gh auth).
+# Historical Alpha1 naming. Publishes the prior GitHub release tag v0.1.0-alpha only.
+# AlphaPlus (v0.1.1-alphaplus) uses publish_github_release_alphaplus.sh. Do not retarget this file.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export PATH="${HOME}/.local/bin:${PATH}"

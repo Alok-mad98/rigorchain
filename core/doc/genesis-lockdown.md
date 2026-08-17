@@ -1,5 +1,8 @@
 # Genesis Lockdown Audit Attachment
 
+> **Release identity.** Shipping product is **RIGOR v0.1.1-alphaplus** (codename **AlphaPlus Consensus Freeze**). Remaining "Alpha1" wording in this file is **historical Alpha1 naming before AlphaPlus release identity migration**. Consensus (genesis hash, Ed25519, lock v2, PoW, W/T, RES, fees) is unchanged.
+
+
 This document records **consensus-locked** genesis parameters for each public-style network variant, as defined in `src/kernel/chainparams.cpp`. Any change requires regenerating the genesis block, updating `consensus.hashGenesisBlock` asserts, checkpoints, `defaultAssumeValid` policy (when bumped past genesis), and this file.
 
 ## Shared policy
@@ -13,7 +16,7 @@ This document records **consensus-locked** genesis parameters for each public-st
 ## Mainnet (`CMainParams`)
 
 Constants live in namespace `GenesisLockMainnet` in `chainparams.cpp`.
-**Normative freeze:** RFC-016 (Alpha1 / `v0.1.1-alpha`). This is a new chain, not a hard fork of `v0.1.0-alpha`.
+**Normative freeze:** RFC-016 (Alpha1 / `v0.1.1-alphaplus`). This is a new chain, not a hard fork of `v0.1.0-alpha`.
 
 | Field | Value |
 |--------|--------|

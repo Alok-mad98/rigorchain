@@ -118,6 +118,10 @@ Proof. split; [ vm_compute; discriminate | vm_compute; reflexivity ]. Qed.
 
 (** Dividing a non-vacuous target by a positive window cannot make it vacuous: the filter only
     becomes stricter, so A-9-C cannot reintroduce the A-6 degeneracy. *)
+(** The complementary A-9-C rule — a given txid wins at most once across the
+    window — lives in [WindowExclusion.v] ([txid_wins_at_most_once]). This file
+    only models the width W and the T/W target. *)
+
 Lemma windowing_preserves_non_vacuity :
   target_not_vacuous RES_PROBABILITY_TARGET_UNWINDOWED ->
   target_not_vacuous RES_PROBABILITY_TARGET.

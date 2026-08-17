@@ -1194,9 +1194,10 @@ static RPCHelpMan getautomintfundaddress()
         "getautomintfundaddress",
         "Return the bech32 P2WSH address that funds automatic body RES mints (AutoResMintBootstrap).\n"
         "When a convergence draw has a winner, CreateNewBlock spends a UTXO at this script to attach the "
-        "required RES mint. Solo mainnet operators must send a small amount of ORU here (mempool is enough "
-        "if the fund tx is selected into the same template), set -miningresfeeaddr to a witness-v1 RES "
-        "address, then resume GBT mining.\n",
+        "required RES mint (prize pays the winner). Solo operators must send a small amount of ORU here "
+        "(mempool is enough if the fund tx is selected into the same template) and ensure Convergence mint "
+        "assembly is armed (wallet: Auto-settle Convergence when mining locally; or -miningresfeeaddr). "
+        "Network fees remain ORU-only.\n",
         {},
         RPCResult{
             RPCResult::Type::OBJ, "", "", {
@@ -1217,7 +1218,8 @@ static RPCHelpMan getautomintfundaddress()
             r.pushKV("address", EncodeDestination(dest));
             r.pushKV("scriptPubKey", HexStr(spk));
             r.pushKV("note",
-                "sendtoaddress <address> 1.0 with fee_rate, set -miningresfeeaddr=<rg1p…>, restart node, resume miner");
+                "sendtoaddress <address> 1.0 ORU; arm mint assembly via wallet Auto-settle Convergence "
+                "or -miningresfeeaddr=<rg1p…>; resume miner");
             return r;
         },
     };

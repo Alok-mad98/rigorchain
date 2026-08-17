@@ -1,7 +1,28 @@
 /** Presentation-only mapping from indexed RPC-imported rows. No local convergence math. */
 
+import { EMPTY_DRAW_ELIGIBLE_ROOT } from "./rpcFields";
+
 export const RPC_AUTHORITY_NOTICE =
   "Convergence data is sourced from rigord and is not recomputed by Explorer.";
+
+/** Node getconvergenceresult.convergence_root — Hash256(sorted F); zero if |F|<2. */
+export const C_ROOT_LABEL = "C (convergence_root)";
+/** Legacy alias: coinbase committed root (this block PAYS). Prefer the split labels. */
+export const DRAW_ROOT_LABEL = "draw_candidate_root_committed";
+/** Coinbase CVGE — the draw this block pays (parent computed). */
+export const DRAW_ROOT_COMMITTED_LABEL = "draw_candidate_root_committed";
+/** Eligible-set root this block awards; height+1 must commit it. */
+export const DRAW_ROOT_COMPUTED_LABEL = "draw_candidate_root_computed";
+
+export function emptyEligibleRootNote(hex: string | null | undefined): string | null {
+  const s = String(hex ?? "")
+    .toLowerCase()
+    .replace(/^0x/, "");
+  if (!s) return null;
+  if (s === EMPTY_DRAW_ELIGIBLE_ROOT) return "empty eligible set";
+  if (/^0+$/.test(s)) return "zero";
+  return null;
+}
 
 export type BlockConvergenceStatus =
   | "No Convergence Activity"
@@ -19,7 +40,17 @@ export type ConvergenceCandidateRow = {
 export type BlockConvergencePanel = {
   status: BlockConvergenceStatus;
   candidate_set_size: number;
-  convergence_root: string;
+  eligible_count: number;
+  /** C from getconvergenceresult.convergence_root. Never the draw root. */
+  c_root: string | null;
+  /** Same value as c_root — RPC field name for clients that still read this key. */
+  convergence_root: string | null;
+  /** Coinbase committed root — draw this block PAYS. */
+  draw_candidate_root_committed: string;
+  /** Draw this block AWARDS (must be committed at height+1). */
+  draw_candidate_root_computed: string;
+  /** Alias of draw_candidate_root_committed for older clients. */
+  draw_candidate_root: string;
   winner_txid: string | null;
   candidate_txids: string[];
   rpc_authority_notice: string;
@@ -27,18 +58,28 @@ export type BlockConvergencePanel = {
 
 export type TxConvergencePanel = {
   role: TxConvergenceRole;
+  /** Inclusion / award height shown in the UI (not the latest window refresh). */
   block_height: number | null;
   block_hash: string | null;
+  /** Latest indexed F-set block that still lists this candidate. */
+  window_last_height: number | null;
   winner_reference: { block_hash: string; block_height: number } | null;
   rpc_authority_notice: string;
 };
 
 export function buildBlockConvergencePanel(
-  block: { rigor_winner: string; committed_root: string },
+  block: {
+    rigor_winner: string;
+    committed_root?: string;
+    computed_root?: string;
+    draw_candidate_root?: string;
+    c_root?: string | null;
+  },
   candidates: ConvergenceCandidateRow[],
 ): BlockConvergencePanel {
   const winner = (block.rigor_winner || "").trim();
-  const candidateTxids = candidates.map((c) => c.convergence_txid).sort();
+  const candidateTxids = [...new Set(candidates.map((c) => c.convergence_txid))].sort();
+  const eligibleCount = candidates.filter((c) => c.draw_eligible).length;
   const status: BlockConvergenceStatus =
     candidateTxids.length === 0
       ? "No Convergence Activity"
@@ -46,13 +87,19 @@ export function buildBlockConvergencePanel(
         ? "Convergence Winner Block"
         : "Convergence Candidate Block";
 
-  const winnerRow = candidates.find((c) => c.convergence_txid === winner);
-  const root = winnerRow?.convergence_root ?? block.committed_root;
+  const cRoot = (block.c_root || "").trim() || null;
+  const committed = (block.committed_root || block.draw_candidate_root || "").trim();
+  const computed = (block.computed_root || "").trim();
 
   return {
     status,
     candidate_set_size: candidateTxids.length,
-    convergence_root: root,
+    eligible_count: eligibleCount,
+    c_root: cRoot,
+    convergence_root: cRoot,
+    draw_candidate_root_committed: committed,
+    draw_candidate_root_computed: computed,
+    draw_candidate_root: committed,
     winner_txid: winner || null,
     candidate_txids: candidateTxids,
     rpc_authority_notice: RPC_AUTHORITY_NOTICE,
@@ -65,16 +112,31 @@ export function buildTxConvergencePanel(
     block_height: bigint | number;
     is_winner: boolean;
   }>,
+  inclusion?: { block_hash?: string | null; block_height?: bigint | number | null } | null,
 ): TxConvergencePanel {
   if (events.length === 0) {
     return {
       role: "Not Participating",
       block_height: null,
       block_hash: null,
+      window_last_height: null,
       winner_reference: null,
       rpc_authority_notice: RPC_AUTHORITY_NOTICE,
     };
   }
+
+  const heights = events.map((e) => Number(e.block_height)).filter((n) => Number.isFinite(n));
+  const windowLast = heights.length ? Math.max(...heights) : null;
+  const inclusionHeight =
+    inclusion?.block_height != null
+      ? Number(inclusion.block_height)
+      : heights.length
+        ? Math.min(...heights)
+        : null;
+  const inclusionHash =
+    (inclusion?.block_hash || "").trim() ||
+    events.find((e) => Number(e.block_height) === inclusionHeight)?.block_hash ||
+    null;
 
   const winnerEvt = events.find((e) => e.is_winner);
   if (winnerEvt) {
@@ -83,16 +145,17 @@ export function buildTxConvergencePanel(
       role: "Winner",
       block_height: h,
       block_hash: winnerEvt.block_hash,
+      window_last_height: windowLast,
       winner_reference: { block_hash: winnerEvt.block_hash, block_height: h },
       rpc_authority_notice: RPC_AUTHORITY_NOTICE,
     };
   }
 
-  const evt = events[0];
   return {
     role: "Candidate",
-    block_height: Number(evt.block_height),
-    block_hash: evt.block_hash,
+    block_height: inclusionHeight,
+    block_hash: inclusionHash,
+    window_last_height: windowLast,
     winner_reference: null,
     rpc_authority_notice: RPC_AUTHORITY_NOTICE,
   };

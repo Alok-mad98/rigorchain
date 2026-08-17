@@ -1,6 +1,7 @@
 .convergence-panel {
-  border: 1px solid #c8d8e8;
-  background: #f7fafc;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
   border-radius: 6px;
   padding: 16px;
   max-width: 1100px;
@@ -10,6 +11,7 @@
 .convergence-panel h2 {
   margin: 0 0 12px;
   font-size: 18px;
+  color: #fff;
 }
 
 .convergence-panel dl {
@@ -22,11 +24,12 @@
 
 .convergence-panel dt {
   font-weight: 600;
-  color: #333;
+  color: #fff;
 }
 
 .convergence-panel dd {
   margin: 0;
+  color: #fff;
 }
 
 .convergence-status {
@@ -34,18 +37,19 @@
   padding: 2px 8px;
   border-radius: 4px;
   font-size: 13px;
-  border: 1px solid #bbb;
-  background: #fff;
+  border: 1px solid #555;
+  background: #000;
+  color: #fff;
 }
 
 .convergence-status-winner {
   border-color: #8fdc5a;
-  background: #f2ffe9;
+  background: #0a1a0a;
 }
 
 .convergence-status-candidate {
   border-color: #8cc8ff;
-  background: #eaf6ff;
+  background: #0a1520;
 }
 
 .convergence-root-row {
@@ -66,20 +70,22 @@
   font-size: 12px;
   padding: 4px 10px;
   cursor: pointer;
-  border: 1px solid #ccc;
+  border: 1px solid #444;
   border-radius: 4px;
-  background: #fff;
+  background: #000;
+  color: #fff;
 }
 
 .convergence-copy-btn:hover {
-  background: #f0f0f0;
+  background: #222;
 }
 
 .convergence-candidate-list {
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #ddd;
-  background: #fff;
+  border: 1px solid #333;
+  background: #000;
+  color: #fff;
   padding: 8px;
   margin: 0;
   list-style: none;
@@ -89,7 +95,7 @@
 
 .convergence-candidate-list li {
   padding: 4px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #222;
 }
 
 .convergence-candidate-list li:last-child {
@@ -99,8 +105,8 @@
 .convergence-rpc-notice {
   margin-top: 14px;
   padding: 10px 12px;
-  border-left: 4px solid #607d8b;
-  background: #eceff1;
+  border-left: 4px solid #555;
+  background: #000;
   font-size: 13px;
-  color: #37474f;
+  color: #fff;
 }

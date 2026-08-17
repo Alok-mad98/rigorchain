@@ -36,7 +36,7 @@ impl PilotPgAdapter {
                     "INSERT INTO pilot_status_snapshots (snapshot_jsonb) VALUES ($1)",
                     &[&json],
                 )
-                .map_err(pg_err)?;
+                .map_err(|e| PilotError::Config(e.to_string()))?;
             return Ok(());
         }
         let _ = report;

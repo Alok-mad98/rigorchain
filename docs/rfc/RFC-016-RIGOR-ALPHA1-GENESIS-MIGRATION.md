@@ -1,5 +1,8 @@
 # RFC-016-RIGOR-ALPHA1-GENESIS-MIGRATION
 
+> **Release identity.** Shipping product is **RIGOR v0.1.1-alphaplus** (codename **AlphaPlus Consensus Freeze**). Remaining "Alpha1" wording in this file is **historical Alpha1 naming before AlphaPlus release identity migration**. Consensus (genesis hash, Ed25519, lock v2, PoW, W/T, RES, fees) is unchanged.
+
+
 **Title:** RIGOR Alpha1 Mainnet Genesis Migration  
 **Document ID:** `RFC-016-RIGOR-ALPHA1-GENESIS-MIGRATION`  
 **Status:** FROZEN (Alpha1 genesis identity)  
@@ -183,7 +186,7 @@ Same magic and port allow a version handshake. Nodes then reject foreign genesis
 
 1. Wipe or abandon any mainnet datadir produced by `v0.1.0-alpha` (hash `5dd90c30…`) before starting Alpha1.
 2. Point seeds and `addnode` at Alpha1-genesis peers only.
-3. Not mix product tags `v0.1.0-alpha` and `v0.1.1-alpha` in one advertised mesh expecting a single tip.
+3. Not mix product tags `v0.1.0-alpha` and `v0.1.1-alphaplus` in one advertised mesh expecting a single tip.
 
 ### 5.3 No asset migration
 
@@ -227,7 +230,7 @@ If wall-clock at public launch is months later, difficulty will ease; that is ac
 | Is Alpha1 a hard fork of `v0.1.0-alpha`? | **No.** New genesis, no shared history. |
 | What would a hard fork have been? | Keeping `5dd90c30…` while enforcing lock v2 / 1 MiB / Ed25519-only. |
 | Lock version | **Remains 2.** Genesis migration completes lock-v2 identity; it is not lock 3. |
-| Product tag | **`v0.1.1-alpha`**. Do not retag `v0.1.0-alpha`. |
+| Product tag | **`v0.1.1-alphaplus`**. Do not retag `v0.1.0-alpha`. |
 | Shared UTXO with `v0.1.0-alpha` | **No** (RFC-015 §1.2; this RFC makes it true in chainparams). |
 
 ---

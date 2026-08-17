@@ -1,15 +1,15 @@
-# RIGOR Windows Alpha acceptance checklist (run on a fresh Windows machine)
-# TASK-MAINNET-PRODUCT-ALPHA-001
-# No consensus changes. Operator executes after installing rigor-wallet-0.1.0-alpha.exe
+# RIGOR Windows AlphaPlus acceptance checklist (run on a fresh Windows machine)
+# Historical Alpha1 naming before AlphaPlus release identity migration (filename kept).
+# No consensus changes. Operator executes after installing rigor-wallet-0.1.1-alphaplus.exe
 
 param(
-    [string]$InstallDir = "${env:ProgramFiles}\RIGOR Alpha",
+    [string]$InstallDir = "${env:ProgramFiles}\RIGOR AlphaPlus",
     [string]$DataDir = "$env:APPDATA\RIGOR",
     [switch]$Regtest
 )
 
 $ErrorActionPreference = "Stop"
-Write-Host "=== RIGOR Windows Alpha Acceptance ==="
+Write-Host "=== RIGOR Windows AlphaPlus Acceptance ==="
 Write-Host "InstallDir=$InstallDir"
 Write-Host "DataDir=$DataDir"
 

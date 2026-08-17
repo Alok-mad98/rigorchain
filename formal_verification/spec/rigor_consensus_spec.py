@@ -276,6 +276,32 @@ def compute_pcobr_hash(
     return sha256d(buf)
 
 
+def encode_sigma_preimage(
+    txid: bytes,
+    prev_block_hash: bytes,
+    height: int,
+    convergence_root: bytes,
+) -> bytes:
+    """Canonical 100-byte σ preimage. Must match Coq [sigma_preimage_bytes] and C++ buf[]."""
+    assert len(txid) == TXID_SIZE
+    assert len(prev_block_hash) == TXID_SIZE
+    assert len(convergence_root) == TXID_SIZE
+    height_le = (height & 0xFFFFFFFF).to_bytes(4, "little")
+    buf = txid + convergence_root + prev_block_hash + height_le
+    assert len(buf) == SIGMA_INPUT_SIZE
+    return buf
+
+
+def exclude_already_paid(candidate_txids: list, already_paid: list) -> list:
+    """A-9-C: drop any candidate whose txid a mint inside the window already paid.
+
+    Mirrors [exclude_already_paid] in WindowExclusion.v and the paid-filter in
+    FinalizeWindowedDrawSet. Order of survivors matches candidate order.
+    """
+    paid = set(already_paid)
+    return [t for t in candidate_txids if t not in paid]
+
+
 # =============================================================================
 # INEQUALITY (RFC-014 constant T)
 # =============================================================================

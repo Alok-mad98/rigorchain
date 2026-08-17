@@ -24,19 +24,19 @@ Pool Stratum / submitblock (ORU coordination only)
 
 ## 2. Required node configuration
 
-### `-miningresfeeaddr=<witness-v1-RES address>`
+### Arm Convergence mint assembly (`-miningresfeeaddr`)
 
-- Witness-v1 RES (ORB2-tagged) address.
-- Required when:
-  - mempool has RES-domain fee-paying transactions, **or**
-  - a parent draw has a winner and automint must attach a body mint (fee / receive script path in assembler).
-- Set in `rigor.conf` or CLI; restart `rigord` after change.
+**Semantics (B):** Despite the legacy name, this is **not** a fee-receive address. Network fees are **ORU-only** (POOL-F). There is no “pay fees in RES” path. The Convergence prize pays the **winner**; this setting only **arms** `CreateNewBlock` so the node can attach the automatic mint when a parent draw has a winner.
 
-Example:
+**Wallet (C — preferred for solo):** Settings → Wallet → **Auto-settle Convergence when mining locally** (default ON). The GUI writes a wallet witness-v1 RES address into `settings.json` / runtime `-miningresfeeaddr` quietly.
+
+**Headless / pool node:**
 
 ```text
-miningresfeeaddr=rg1p...   # witness-v1 RES
+miningresfeeaddr=rg1p...   # witness-v1 RES — arms settlement only
 ```
+
+Required when a parent draw has a winner and automint must attach a body mint. Restart `rigord` after changing conf (GUI `forceSetting` applies without restart).
 
 ### Fund the automint bootstrap UTXO
 
@@ -52,9 +52,9 @@ Returns:
 - `scriptPubKey` — hex
 - `note` — operational hint
 
-2. Send a small ORU amount to that address (e.g. `sendtoaddress <address> 1.0` with an appropriate fee rate). Mempool confirmation is enough if the fund tx is selected into the same template.
+2. Send a small **ORU** amount to that address (e.g. `sendtoaddress <address> 1.0` with an appropriate fee rate). Mempool confirmation is enough if the fund tx is selected into the same template.
 
-3. Ensure `-miningresfeeaddr` is set, then resume GBT / mining.
+3. Ensure mint assembly is armed (`-miningresfeeaddr` / wallet auto-settle), then resume GBT / mining.
 
 If a winner is present and automint cannot fund/assemble, `CreateNewBlock` / `getblocktemplate` fails closed with an explicit error (do **not** invent a pool-side mint).
 

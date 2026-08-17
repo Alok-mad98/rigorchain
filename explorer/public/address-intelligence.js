@@ -65,7 +65,7 @@
     const integrity = data.integrity ?? {};
     const txPath = routes.txPath.bind(routes);
 
-    let html = `<div class="address-notice" role="note">${escapeHtml(data.readonly_notice ?? "")}</div>`;
+    let html = "";
 
     html += card(
       "Address identity",
@@ -131,11 +131,9 @@
       dl([
         ["Chain", escapeHtml(integrity.chain_name ?? "—")],
         ["Genesis (short)", escapeHtml(integrity.genesis_hash_short ?? "—")],
-        ["RPC authority", escapeHtml(integrity.rpc_authority_notice ?? "—")],
         ["Indexer height", integrity.indexer_height != null ? String(integrity.indexer_height) : "—"],
         ["Indexer lag (blocks)", integrity.indexer_sync_lag_blocks != null ? String(integrity.indexer_sync_lag_blocks) : "—"],
         ["Mismatch active", integrity.mismatch_active ? "yes" : "no"],
-        ["equivalence_claimed", "false"],
       ]),
     );
 
@@ -147,9 +145,9 @@
     const addr = ExplorerRoutes.address() || document.getElementById("addr")?.value?.trim();
     if (!addr || !root) return;
     root.textContent = "Loading…";
-    const r = await fetch(
-      `/api/address/${encodeURIComponent(addr)}?page=${page || 1}&limit=50`,
-    );
+    const r = await (window.ExplorerRoutes && ExplorerRoutes.fetchJson
+      ? ExplorerRoutes.fetchJson(`/api/address/${encodeURIComponent(addr)}?page=${page || 1}&limit=50`)
+      : fetch(`/api/address/${encodeURIComponent(addr)}?page=${page || 1}&limit=50`, { cache: "no-store" }));
     if (!r.ok) {
       root.textContent = "Failed to load address: HTTP " + r.status;
       return;

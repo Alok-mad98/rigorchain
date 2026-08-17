@@ -2302,14 +2302,15 @@ namespace {
  * SECURITY-001-A9-C: what one block contributes to a draw window — the candidates it introduces,
  * plus the winner txid its RES mint paid out (if any).
  *
- * The two halves serve opposite purposes. `candidates` accumulate INTO F; `paid_winner` is
+ * The two halves serve opposite purposes. `candidates` accumulate INTO F; `paid_winners` are
  * subtracted FROM it, because a candidate stays in the window for up to W draws and must be
- * payable only once.
+ * payable only once. Names come from mint-shaped txs (RES output + PCORB), not from any
+ * proof-shaped witness.
  */
 struct BlockWindowContribution {
     std::vector<ConvergenceDrawCandidate> candidates;
-    /** Set when this block carried a RES mint; the convergence txid that mint named. */
-    std::optional<uint256> paid_winner;
+    /** Convergence txids named by body RES mints in this block (mint-shaped: RES output + PCORB). */
+    std::vector<uint256> paid_winners;
 };
 
 /**
@@ -2384,15 +2385,7 @@ bool GetBlockWindowContribution(const CBlockIndex& block_index,
     if (!BuildBlockConvergenceCandidatesFromUndo(source_block, block_index.nHeight, source_undo, consensus_params, out.candidates)) {
         return false;
     }
-    // The mint names the winner it paid. Reading the name rather than recomputing the draw is
-    // deliberate: recomputing would need that block's own window, which is what we are building.
-    for (size_t i = 1; i < source_block.vtx.size(); ++i) {
-        Consensus::ConvergeProof proof;
-        if (Consensus::ParseConvergeProof(*source_block.vtx[i], proof)) {
-            out.paid_winner = proof.convergence_txid;
-            break;
-        }
-    }
+    out.paid_winners = FindBlockPaidConvergenceTxids(source_block);
 
     g_window_contribution_cache.Remember(block_hash, out);
     return true;
@@ -2411,13 +2404,7 @@ void RememberBlockWindowContribution(const CBlock& block,
     if (!BuildBlockConvergenceCandidatesFromUndo(block, index.nHeight, block_undo, consensus_params, contribution.candidates)) {
         return;
     }
-    for (size_t i = 1; i < block.vtx.size(); ++i) {
-        Consensus::ConvergeProof proof;
-        if (Consensus::ParseConvergeProof(*block.vtx[i], proof)) {
-            contribution.paid_winner = proof.convergence_txid;
-            break;
-        }
-    }
+    contribution.paid_winners = FindBlockPaidConvergenceTxids(block);
     g_window_contribution_cache.Remember(index.GetBlockHash(), contribution);
 }
 } // namespace
@@ -2457,9 +2444,7 @@ bool BuildConvergenceWindowTail(const CBlockIndex* parent_index,
             return false;
         }
         out.candidates.insert(out.candidates.end(), contribution.candidates.begin(), contribution.candidates.end());
-        if (contribution.paid_winner.has_value()) {
-            out.already_paid.push_back(*contribution.paid_winner);
-        }
+        out.already_paid.insert(out.already_paid.end(), contribution.paid_winners.begin(), contribution.paid_winners.end());
     }
 
     // Near genesis the walk stops early. That is a complete window, not a truncated one: the
@@ -4502,15 +4487,11 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
+    // CSW-3: header admission requires AlphaPlus OpuHash (CheckProofOfWork),
+    // not compact-target shape alone. Consensus rules are unchanged —
+    // ContextualCheckBlockHeader already required the same check.
     return std::all_of(headers.cbegin(), headers.cend(), [&](const auto& header) {
-        if (header.GetHash() == consensusParams.hashGenesisBlock) {
-            return CheckProofOfWork(header, header.nBits, consensusParams);
-        }
-        bool fNegative;
-        bool fOverflow;
-        arith_uint256 bnTarget;
-        bnTarget.SetCompact(header.nBits, &fNegative, &fOverflow);
-        return !(fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(consensusParams.powLimit));
+        return CheckProofOfWork(header, header.nBits, consensusParams);
     });
 }
 

@@ -92,6 +92,29 @@ describe("witnessPanel", () => {
     assert.equal(proof.proof_items?.length, 6);
   });
 
+  it("treats A-8 payout-block mint as confirmed when this block's winner is empty", () => {
+    const proof = buildResMintProofView(
+      "minttx",
+      [
+        {
+          mint_vout_index: 0,
+          mint_amount: "10000",
+          winner_convergence_txid: "parentwinner",
+          block_hash: "payout",
+          block_height: 306,
+          convergence_root: "roothex",
+          proof_items: { witness_stack: pcorbStack() },
+        },
+      ],
+      { block_hash: "payout", height: 306, rigor_winner: "", rigor_res_minted: 1 },
+      buildTxConvergencePanel([]),
+      null,
+    );
+    assert.equal(proof.present, true);
+    assert.equal(proof.matches_winner_block, true);
+    assert.equal(proof.confirmation_status, "Confirmed in block");
+  });
+
   it("marks convergence candidate without mint as pending", () => {
     const panel = buildTxConvergencePanel([
       { block_hash: "bh", block_height: 50, is_winner: false },

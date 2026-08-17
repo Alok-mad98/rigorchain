@@ -5,12 +5,16 @@
 #include <boost/test/unit_test.hpp>
 
 #include <consensus/selection.h>
+#include <consensus_rigor/sigma_hash.h>
 #include <hash.h>
 #include <span.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 
+#include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -310,6 +314,92 @@ BOOST_AUTO_TEST_CASE(big_int)
     BOOST_CHECK(result.eligible[0] == expected_eligible[0]);
     BOOST_CHECK(result.eligible[1] == expected_eligible[1]);
     BOOST_CHECK_EQUAL(result.winner_index, expected_winner_index);
+}
+
+
+#include <test/selection_golden_bridge.inc>
+
+static uint256 Uint256FromRawHex(const std::string& hex_str)
+{
+    return HashHexToUint256(hex_str);
+}
+
+BOOST_AUTO_TEST_CASE(canonical_draw_encoder_layout)
+{
+    for (size_t i = 0; i < rigor_golden::kEncN; ++i) {
+        const auto& v = rigor_golden::kEnc[i];
+        const uint256 txid = Uint256FromRawHex(v.txid_hex);
+        const uint256 croot = Uint256FromRawHex(v.croot_hex);
+        const uint256 prev = Uint256FromRawHex(v.prev_hex);
+
+        std::array<unsigned char, rigor::SIGMA_INPUT_SIZE> buf{};
+        std::memcpy(buf.data() + 0, txid.begin(), 32);
+        std::memcpy(buf.data() + 32, croot.begin(), 32);
+        std::memcpy(buf.data() + 64, prev.begin(), 32);
+        buf[96] = static_cast<unsigned char>((v.height >> 0) & 0xFF);
+        buf[97] = static_cast<unsigned char>((v.height >> 8) & 0xFF);
+        buf[98] = static_cast<unsigned char>((v.height >> 16) & 0xFF);
+        buf[99] = static_cast<unsigned char>((v.height >> 24) & 0xFF);
+
+        auto pre = ParseHex<unsigned char>(v.preimage_hex);
+        BOOST_CHECK_MESSAGE(pre.size() == 100, v.id);
+        BOOST_CHECK_MESSAGE(std::equal(pre.begin(), pre.end(), buf.begin()), v.id);
+
+        uint256 hashed;
+        CHash256().Write(buf).Finalize(hashed);
+        BOOST_CHECK_MESSAGE(hashed == rigor::ComputeSigmaHash(txid, croot, prev, v.height), v.id);
+        BOOST_CHECK_MESSAGE(hashed == Uint256FromRawHex(v.sigma_hex), v.id);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(a9c_already_paid_exclusion_golden)
+{
+    for (size_t i = 0; i < rigor_golden::kA9CN; ++i) {
+        const auto& v = rigor_golden::kA9C[i];
+        std::vector<std::string> got;
+        for (const auto& cand : v.candidates) {
+            if (std::find(v.paid.begin(), v.paid.end(), cand) == v.paid.end()) {
+                got.push_back(cand);
+            }
+        }
+        BOOST_CHECK_MESSAGE(got == v.surviving, v.id);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sigma_hash_kernel_golden)
+{
+    for (size_t i = 0; i < rigor_golden::kSigN; ++i) {
+        const auto& v = rigor_golden::kSig[i];
+        const uint256 got = rigor::ComputeSigmaHash(
+            Uint256FromRawHex(v.txid_hex),
+            Uint256FromRawHex(v.croot_hex),
+            Uint256FromRawHex(v.prev_hex),
+            v.height);
+        BOOST_CHECK_MESSAGE(got == Uint256FromRawHex(v.sigma_hex), v.id);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sha256d_hash_kernel_golden)
+{
+    for (size_t i = 0; i < rigor_golden::kHashN; ++i) {
+        const auto& v = rigor_golden::kHash[i];
+        auto payload = ParseHex<unsigned char>(v.payload_hex);
+        uint256 got;
+        CHash256().Write(Span<const unsigned char>{payload.data(), payload.size()}).Finalize(got);
+        BOOST_CHECK_MESSAGE(got == Uint256FromRawHex(v.sha256d_hex), v.id);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sha256_fips_golden)
+{
+    for (size_t i = 0; i < rigor_golden::kSha256N; ++i) {
+        const auto& v = rigor_golden::kSha256[i];
+        auto payload = ParseHex<unsigned char>(v.payload_hex);
+        unsigned char out[CSHA256::OUTPUT_SIZE];
+        CSHA256().Write(payload.data(), payload.size()).Finalize(out);
+        uint256 got(Span<const unsigned char>(out, CSHA256::OUTPUT_SIZE));
+        BOOST_CHECK_MESSAGE(got == Uint256FromRawHex(v.sha256_hex), v.id);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

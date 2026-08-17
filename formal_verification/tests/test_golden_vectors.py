@@ -402,11 +402,11 @@ def validate_against_cpp_implementation():
     
     For now, this is a placeholder for the integration step.
     """
-    print("C++ cross-validation: Not yet implemented")
-    print("This requires:")
-    print("  1. C++ test harness that exports golden vectors")
-    print("  2. IPC or file-based comparison")
-    print("  3. Automated differential testing")
+    print("C++ cross-validation: run formal_verification/scripts/run_differential_gate.sh")
+    print("  Python oracle: tests/test_phase3_oracle.py (full JSON set)")
+    print("  C++: selection_golden_tests (generated bridge + hardcoded cases)")
+    print("  Coq: Kernel/GoldenHarness.v (enforced subset)")
+    print("  This is finite-vector agreement, not a refinement proof.")
     return True
 
 

@@ -6,22 +6,12 @@ echo.
 echo --------------------------------
 echo RIGOR Miner launcher
 echo --------------------------------
-echo Start rigor-wallet.exe or rigord.exe first.
+echo Start RIGOR Wallet first so RPC is up, then run this miner.
+echo ORU payout only ^(rg1q...^). Convergence RES is settled by the wallet node
+echo ^(Settings: Auto-settle Convergence when mining locally — default ON^).
+echo Network fees are ORU-only. Tip: set COINBASE_ADDR=rg1q... to skip the prompt.
 echo.
-echo Config: rigor.conf next to rigor-wallet.exe (portable)
-echo     or  %%APPDATA%%\RIGOR\rigor.conf
-echo.
-echo Required:
-echo   server=1
-echo   rpcuser=user
-echo   rpcpassword=pass
-echo   rpcallowip=127.0.0.1
-echo   solomining=1
-echo.
-echo Mainnet RPC: 127.0.0.1:8761
-echo Payout: wallet Receive ORU address (rg1...)
-echo Tip: set COINBASE_ADDR=rg1... to skip the prompt.
-echo.
+
 if exist "rigor-miner.exe" (
   echo Local rigor-miner.exe:
   dir /T:W "rigor-miner.exe" | findstr /i "rigor-miner.exe"
@@ -29,10 +19,24 @@ if exist "rigor-miner.exe" (
 )
 
 set "RPC_URL=http://127.0.0.1:8761"
-set "RPC_USER=user"
-set "RPC_PASS=pass"
+set "DATADIR="
+if exist "%~dp0RIGOR Alpha\chainstate" set "DATADIR=%~dp0RIGOR Alpha"
+if not defined DATADIR if exist "%~dp0datadir\chainstate" set "DATADIR=%~dp0datadir"
+if not defined DATADIR if exist "%APPDATA%\RIGOR\chainstate" set "DATADIR=%APPDATA%\RIGOR"
+if not defined DATADIR set "DATADIR=%APPDATA%\RIGOR"
+if exist "%~dp0load-rpc-auth.cmd" (
+  call "%~dp0load-rpc-auth.cmd"
+  if errorlevel 1 (
+    echo ERROR: RPC credentials missing. Start the node once, then retry.
+    pause
+    exit /b 1
+  )
+) else (
+  echo ERROR: load-rpc-auth.cmd missing. Default rpcuser/rpcpassword are not allowed.
+  pause
+  exit /b 1
+)
 
-REM Default: all logical CPUs. Override with set MINER_THREADS=N
 if not defined MINER_THREADS set "MINER_THREADS=%NUMBER_OF_PROCESSORS%"
 if "%MINER_THREADS%"=="" set "MINER_THREADS=4"
 if %MINER_THREADS% LSS 1 set "MINER_THREADS=1"
@@ -42,17 +46,52 @@ set /p COINBASE_ADDR=ORU mining payout address:
 :have_addr
 if "%COINBASE_ADDR%"=="" (
   echo.
-  echo ERROR: payout address is required.
-  echo Example: set COINBASE_ADDR=rg1q...
-  echo Then run this launcher again.
+  echo ERROR: ORU payout address is required ^(rg1q...^).
   echo.
   pause
   exit /b 1
 )
 
+echo %COINBASE_ADDR% | findstr /i /b /c:"rg1p" >nul 2>&1
+if not errorlevel 1 (
+  echo.
+  echo WARNING: that looks like a RES address ^(rg1p...^).
+  echo Miner payout must be ORU ^(rg1q...^). Convergence RES goes to the draw winner.
+  echo.
+)
+
+if exist "rigor-cli.exe" (
+  rigor-cli.exe -rpcuser=%RPC_USER% -rpcpassword=%RPC_PASS% -rpcport=8761 getblocktemplate "{\"rules\":[\"segwit\"]}" >"%TEMP%\rigor-gbt-preflight.txt" 2>&1
+  findstr /i /c:"mint assembly is not armed" /c:"no RES receive script" "%TEMP%\rigor-gbt-preflight.txt" >nul 2>&1
+  if not errorlevel 1 (
+    echo.
+    echo ERROR: node has not armed Convergence mint settlement.
+    echo In rigor-wallet: Settings -^> Wallet -^> enable
+    echo   "Auto-settle Convergence when mining locally"
+    echo Then re-open the wallet and try again.
+    echo.
+    type "%TEMP%\rigor-gbt-preflight.txt"
+    echo.
+    pause
+    exit /b 1
+  )
+  findstr /i /c:"automatic Convergence RES mint assembly failed" /c:"automatic RES mint assembly failed" "%TEMP%\rigor-gbt-preflight.txt" >nul 2>&1
+  if not errorlevel 1 (
+    echo.
+    echo ERROR: winner present but automint ORU fund UTXO is missing.
+    echo Re-open the wallet, or: rigor-cli getautomintfundaddress
+    echo then send ORU to that address from your wallet.
+    echo.
+    type "%TEMP%\rigor-gbt-preflight.txt"
+    echo.
+    pause
+    exit /b 1
+  )
+)
+
 echo.
 echo Threads: %MINER_THREADS%
-echo Payout:  %COINBASE_ADDR%
+echo ORU payout: %COINBASE_ADDR%
 echo Starting miner...
 echo.
 
@@ -64,16 +103,11 @@ echo Miner exited with code %EC%.
 if not "%EC%"=="0" (
   echo.
   echo Common causes:
-  if "%EC%"=="-1073741515" (
-    echo  - MISSING DLL ^(0xC0000135^): update rigor-miner.exe from current Alpha package
-    echo    ^(must be static-linked; should NOT need libwinpthread-1.dll^)
-  )
-  echo  - Mismatched package: update BOTH rigor-miner.exe AND rigor-miner.cmd together
-  echo  - Node not running or RPC not enabled
-  echo  - Wrong rpcuser/rpcpassword or port
-  echo  - Missing solomining=1 while Peers=0 ^(code -9^)
-  echo  - Invalid --coinbase-addr
-  echo  - OpusHash self-test failure - copy the text above
+  echo  - Node/RPC down or wrong user/pass
+  echo  - Missing solomining=1 while Peers=0
+  echo  - Convergence mint not armed ^(wallet Auto-settle option^)
+  echo  - Automint fund UTXO missing ^(send ORU to getautomintfundaddress^)
+  echo  - Invalid ORU --coinbase-addr
 )
 echo.
 pause

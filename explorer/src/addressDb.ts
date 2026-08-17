@@ -99,6 +99,11 @@ export async function getAddressIntelligence(
         JOIN transactions t ON t.txid = o.txid
         JOIN blocks b ON b.block_hash = t.block_hash
         WHERE o.address = $1
+        UNION ALL
+        SELECT t.block_height
+        FROM oru_utxos u
+        JOIN transactions t ON t.txid = u.spending_txid
+        WHERE u.address = $1 AND u.spending_txid IS NOT NULL
       ) heights
     `,
     [addr],
@@ -178,8 +183,9 @@ export async function getAddressIntelligence(
 
   const convergence = await pool.query(
     `
-      SELECT DISTINCT ce.convergence_txid, ce.block_height,
-             (ce.convergence_txid = b.rigor_winner AND b.rigor_winner <> '') AS is_winner
+      SELECT ce.convergence_txid,
+             MIN(ce.block_height) AS block_height,
+             BOOL_OR(ce.convergence_txid = b.rigor_winner AND b.rigor_winner <> '') AS is_winner
       FROM convergence_events ce
       JOIN blocks b ON b.block_hash = ce.block_hash
       WHERE ce.convergence_txid IN (
@@ -188,7 +194,8 @@ export async function getAddressIntelligence(
         SELECT u.spending_txid FROM oru_utxos u
         WHERE u.address = $1 AND u.spending_txid IS NOT NULL
       )
-      ORDER BY ce.block_height DESC
+      GROUP BY ce.convergence_txid
+      ORDER BY MIN(ce.block_height) DESC
     `,
     [addr],
   );

@@ -1,0 +1,6 @@
+# Extraction leftovers (ExtractHashKernel.v is not in _CoqProject).
+hash256_kernel.ml
+hash256_kernel.mli
+ExtractHashKernel.vo
+ExtractHashKernel.glob
+.ExtractHashKernel.aux

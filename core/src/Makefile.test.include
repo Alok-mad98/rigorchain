@@ -67,6 +67,7 @@ BITCOIN_TESTS =\
   test/alpha1_genesis_tests.cpp \
   test/allocator_tests.cpp \
   test/amount_tests.cpp \
+  test/alphaplus_security_boundary_tests.cpp \
   test/argsman_tests.cpp \
   test/arith_uint256_tests.cpp \
   test/banman_tests.cpp \
@@ -87,6 +88,7 @@ BITCOIN_TESTS =\
   test/coins_tests.cpp \
   test/coinstatsindex_tests.cpp \
   test/compilerbug_tests.cpp \
+  test/consensus_fingerprint_tests.cpp \
   test/compress_tests.cpp \
   test/crypto_tests.cpp \
   test/cuckoocache_tests.cpp \

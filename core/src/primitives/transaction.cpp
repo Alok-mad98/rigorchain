@@ -8,6 +8,7 @@
 #include <consensus/amount.h>
 #include <hash.h>
 #include <script/interpreter.h>
+#include <script/rigor_tags.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <tinyformat.h>
@@ -20,20 +21,17 @@
 #include <stdexcept>
 
 namespace {
-/** Witness v1 32-byte program with "CVG2" prefix — must stay in sync with IsConvergenceV1ScriptPubKey. */
+/** Witness v1 32-byte program with CVG2 prefix — same bytes as IsConvergenceScript. */
 bool IsConvergenceCvG2V1WitnessProgram(const std::vector<unsigned char>& witnessprogram)
 {
     if (witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
-    static constexpr unsigned char kCvg2[4] = {0x43, 0x56, 0x47, 0x32};
-    return std::equal(std::begin(kCvg2), std::end(kCvg2), witnessprogram.begin());
+    return std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), witnessprogram.begin());
 }
 
-/** Witness v1, 32-byte program that is not CVG2 convergence → RES asset (legacy ORB2-tagged or untagged P2TR). */
+/** Witness v1, 32-byte program that is not CVG2 → RES (legacy ORB2-tagged or untagged). */
 bool IsRigorResWitnessProgram(const std::vector<unsigned char>& witnessprogram)
 {
-    if (witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
-    static constexpr unsigned char kCvg2[4] = {0x43, 0x56, 0x47, 0x32};
-    return !std::equal(std::begin(kCvg2), std::end(kCvg2), witnessprogram.begin());
+    return witnessprogram.size() == WITNESS_V1_RES_SIZE && !IsConvergenceCvG2V1WitnessProgram(witnessprogram);
 }
 } // namespace
 
@@ -132,15 +130,13 @@ AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey)
             return ASSET_ORU;
         }
         if (witnessversion == 1 && witnessprogram.size() == WITNESS_V1_RES_SIZE) {
-            // V1 (RES) is strictly RES-only, except for convergence scripts which are ORU
+            // CVG2 is ORU-domain and unspendable. Every other v1/32 program is RES.
             if (IsConvergenceCvG2V1WitnessProgram(witnessprogram)) {
                 return ASSET_ORU;
             }
-            // Legacy ORB2-tagged or untagged P2TR is RES
             if (IsRigorResWitnessProgram(witnessprogram)) {
                 return ASSET_RES;
             }
-            return ASSET_RES;
         }
     }
     if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN &&

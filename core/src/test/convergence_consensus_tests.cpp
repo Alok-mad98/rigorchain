@@ -11,6 +11,9 @@
 #include <consensus/convergenceres.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
+#include <consensus/res_mint_witness.h>
+#include <consensus/res_amount.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <consensus/rigor_math.h>
@@ -1198,6 +1201,113 @@ BOOST_AUTO_TEST_CASE(a9c_view_and_undo_builders_agree_under_a_window)
         ResolveConvergenceDraw(set_undo, Params().GetConsensus().RES_PROBABILITY_TARGET);
     BOOST_CHECK_EQUAL(out_view.winner_index, out_undo.winner_index);
     BOOST_CHECK(out_view.sigmas == out_undo.sigmas);
+}
+
+BOOST_AUTO_TEST_CASE(a9c_decoy_proof_shaped_witness_does_not_mark_ticket_paid)
+{
+    const uint256 decoy_ticket = uint256S("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    const uint256 real_ticket = uint256S("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    const CAmount saturating =
+        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
+
+    CBlock blk;
+    CMutableTransaction cb;
+    cb.vin.resize(1);
+    cb.vin[0].prevout.SetNull();
+    cb.vin[0].scriptSig = CScript() << CScriptNum{1};
+    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    blk.vtx.push_back(MakeTransactionRef(cb));
+
+    CMutableTransaction decoy;
+    decoy.vin.resize(1);
+    decoy.vin[0].prevout = COutPoint(uint256S("0x11"), 0);
+    decoy.vout.emplace_back(COIN, g_oru_spk);
+    decoy.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
+        decoy_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    blk.vtx.push_back(MakeTransactionRef(decoy));
+
+    CMutableTransaction mint;
+    mint.vin.resize(1);
+    mint.vin[0].prevout = COutPoint(uint256S("0x22"), 0);
+    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
+    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
+        real_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    blk.vtx.push_back(MakeTransactionRef(mint));
+
+    const std::vector<uint256> paid = FindBlockPaidConvergenceTxids(blk);
+    BOOST_REQUIRE_EQUAL(paid.size(), 1U);
+    BOOST_CHECK_EQUAL(paid[0], real_ticket);
+}
+
+BOOST_AUTO_TEST_CASE(a9c_mint_excludes_named_ticket_identically_on_view_and_undo)
+{
+    CCoinsView base;
+    CCoinsViewCache coins(&base);
+    const uint256 buried_ticket = uint256S("0xabababababababababababababababababababababababababababababababab");
+    const CAmount saturating =
+        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
+
+    CBlock blk = MakeCandidateBlock(coins, 0xd7, 1);
+    const COutPoint mint_prev{uint256S("0xe2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"), 0};
+    coins.AddCoin(mint_prev, Coin(CTxOut(20 * COIN, g_oru_spk), 100, false), false);
+
+    CMutableTransaction mint;
+    mint.vin.resize(1);
+    mint.vin[0].prevout = mint_prev;
+    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
+    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
+        buried_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    blk.vtx.push_back(MakeTransactionRef(mint));
+
+    CBlockUndo undo = MakeCandidateBlockUndo(blk);
+    // MakeCandidateBlockUndo assumes every body tx spent 12 ORU; the mint spent 20.
+    undo.vtxundo.back().vprevout[0] = Coin(CTxOut(20 * COIN, g_oru_spk), 100, false);
+
+    ConvergenceWindowTail tail = ConvergenceWindowTail::Empty();
+    tail.candidates.push_back(MakeBuriedCandidate(0xab, COIN, 10));
+    BOOST_REQUIRE_EQUAL(tail.candidates.back().txid, buried_ticket);
+
+    const int h = 11;
+    const ConvergenceDrawSet set_view = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
+    ConvergenceDrawSet set_undo;
+    BOOST_REQUIRE(BuildConvergenceDrawSetFromUndo(blk, h, undo, Params().GetConsensus(), tail, set_undo));
+
+    BOOST_CHECK(FindBlockPaidConvergenceTxids(blk) == std::vector<uint256>{buried_ticket});
+    BOOST_REQUIRE_EQUAL(set_view.candidates.size(), 1U);
+    BOOST_REQUIRE_EQUAL(set_undo.candidates.size(), 1U);
+    BOOST_CHECK_EQUAL(set_view.candidates[0].txid, blk.vtx[1]->GetHash());
+    BOOST_CHECK_EQUAL(set_undo.candidates[0].txid, blk.vtx[1]->GetHash());
+    BOOST_CHECK(set_view.candidates[0].txid != buried_ticket);
+    BOOST_CHECK_EQUAL(set_view.convergence_root, set_undo.convergence_root);
+}
+
+BOOST_AUTO_TEST_CASE(a9c_reorg_branch_without_mint_does_not_inherit_already_paid)
+{
+    const uint256 ticket = uint256S("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+    const CAmount saturating =
+        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
+
+    CBlock with_mint;
+    CMutableTransaction cb;
+    cb.vin.resize(1);
+    cb.vin[0].prevout.SetNull();
+    cb.vin[0].scriptSig = CScript() << CScriptNum{1};
+    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    with_mint.vtx.push_back(MakeTransactionRef(cb));
+
+    CMutableTransaction mint;
+    mint.vin.resize(1);
+    mint.vin[0].prevout = COutPoint(uint256::ONE, 0);
+    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
+    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
+        ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    with_mint.vtx.push_back(MakeTransactionRef(mint));
+
+    CBlock sibling = with_mint;
+    sibling.vtx.resize(1);
+
+    BOOST_CHECK_EQUAL(FindBlockPaidConvergenceTxids(with_mint).size(), 1U);
+    BOOST_CHECK(FindBlockPaidConvergenceTxids(sibling).empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

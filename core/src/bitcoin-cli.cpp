@@ -77,7 +77,7 @@ static void SetupCliArgs(ArgsManager& argsman)
     const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
 
     argsman.AddArg("-version", "Print version and exit", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
-    argsman.AddArg("-conf=<file>", strprintf("Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
+    argsman.AddArg("-conf=<file>", strprintf("Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s; %s is still read if that file is absent)", RIGOR_CONF_FILENAME, BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-datadir=<dir>", "Specify data directory", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-generate",
                    strprintf("Generate blocks, equivalent to RPC getnewaddress followed by RPC generatetoaddress. Optional positional integer "
@@ -142,7 +142,10 @@ static int AppInitRPC(int argc, char* argv[])
         return EXIT_FAILURE;
     }
     if (argc < 2 || HelpRequested(gArgs) || gArgs.IsArgSet("-version")) {
-        std::string strUsage = PACKAGE_NAME " RPC client version " + FormatFullVersion() + "\n";
+        std::string strUsage = FormatReleaseIdentity();
+        if (!gArgs.IsArgSet("-version")) {
+            strUsage = std::string("RIGOR RPC client version ") + FormatFullVersion() + "\n";
+        }
 
         if (gArgs.IsArgSet("-version")) {
             strUsage += FormatParagraph(LicenseInfo());

@@ -4,10 +4,10 @@
 
 #include <qt/platformstyle.h>
 
-#include <QApplication>
+#include <qt/rigorwallet/rigortheme.h>
+
 #include <QColor>
 #include <QImage>
-#include <QPalette>
 #include <QSize>
 
 static const struct {
@@ -86,22 +86,15 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
 
 QColor PlatformStyle::TextColor() const
 {
-    return QApplication::palette().color(QPalette::WindowText);
+    // Wallet chrome is always dark (#000000). Do not use QApplication::palette()
+    // WindowText — on Windows/Linux light system themes that is black, so toolbar
+    // and overlay icons stay black on the dark background.
+    return RigorWallet::RigorTheme::colors().textPrimary;
 }
 
 QColor PlatformStyle::SingleColor() const
 {
-    if (colorizeIcons) {
-        QColor colorHighlightBg(QApplication::palette().color(QPalette::Highlight));
-        QColor colorHighlightFg(QApplication::palette().color(QPalette::HighlightedText));
-        const QColor colorText(QApplication::palette().color(QPalette::WindowText));
-        const int colorTextLightness = colorText.lightness();
-        if (abs(colorHighlightBg.lightness() - colorTextLightness) < abs(colorHighlightFg.lightness() - colorTextLightness)) {
-            return colorHighlightBg;
-        }
-        return colorHighlightFg;
-    }
-    return {0, 0, 0};
+    return RigorWallet::RigorTheme::colors().textPrimary;
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const

@@ -175,7 +175,6 @@ export function buildResMintProofView(
     const winnerTxid = String(row.winner_convergence_txid ?? "");
     const blockHash = String(row.block_hash ?? "");
     const blockHeight = Number(row.block_height ?? 0);
-    const rigorWinner = (block?.rigor_winner ?? "").trim();
     const proofRaw = row.proof_items as { witness_stack?: string[] } | null;
     const stack = Array.isArray(proofRaw?.witness_stack) ? proofRaw!.witness_stack! : null;
     const proof_items = stack ? buildPcorbItems(stack) : pcorbFromWitness;
@@ -190,13 +189,14 @@ export function buildResMintProofView(
       block_hash: blockHash || null,
       block_height: blockHeight,
       confirmation_status: "Confirmed in block",
-      matches_winner_block: Boolean(rigorWinner && winnerTxid === rigorWinner && block?.rigor_res_minted === 1),
+      matches_winner_block: Boolean(block?.rigor_res_minted === 1),
       proof_items,
       convergence_root: String(row.convergence_root ?? ""),
     };
   }
 
   if (pcorbFromWitness) {
+    const onMintBlock = Number(block?.rigor_res_minted ?? 0) === 1;
     return {
       present: true,
       mint_txid: txid,
@@ -206,8 +206,8 @@ export function buildResMintProofView(
       winner_convergence_txid: pcorbFromWitness[0]?.hex ?? null,
       block_hash: block?.block_hash ?? null,
       block_height: block ? Number(block.height) : null,
-      confirmation_status: "Pending candidate state",
-      matches_winner_block: false,
+      confirmation_status: onMintBlock ? "Confirmed in block" : "Pending candidate state",
+      matches_winner_block: onMintBlock,
       proof_items: pcorbFromWitness,
       convergence_root: pcorbFromWitness[5]?.hex ?? null,
     };

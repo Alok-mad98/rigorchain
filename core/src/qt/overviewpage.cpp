@@ -223,7 +223,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
         "RES Convergence: Available after ORU acquisition"));
     m_syncStatusBanner->setStyleSheet(QStringLiteral(
         "QLabel#RigorSyncStatusBanner {"
-        "  background: #1A1A1D; color: #E6E6E6; border: 1px solid #2C2C30;"
+        "  background: #111111; color: #FFFFFF; border: 1px solid #333333;"
         "  border-radius: 6px; padding: 10px;"
         "}"));
     ui->topLayout->insertWidget(0, m_syncStatusBanner);

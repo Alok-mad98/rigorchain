@@ -54,11 +54,11 @@
     badgeEl.innerHTML =
       '<span class="rigor-badge-label">Chain</span>' +
       "<span>" +
-      esc(data.chain_name) +
+      esc(data.product || data.chain_name) +
       "</span>" +
       '<span class="rigor-badge-label">Network</span>' +
       "<span>" +
-      esc(data.network_type) +
+      esc(data.codename || data.network_type) +
       "</span>" +
       '<span class="rigor-badge-label">Genesis</span>' +
       "<span>" +
@@ -84,34 +84,50 @@
       "<span>Build: " +
       esc(data.build_timestamp) +
       "</span>" +
-      "</div>" +
-      '<p class="rigor-footer-disclaimer">Explorer is a read-only observation layer. rigord consensus validation is the sole source of truth.</p>' +
-      '<p class="rigor-footer-equivalence">equivalence_claimed = false</p>';
+      "</div>";
   }
 
   function renderBanner(bannerEl, data) {
-    if (!data.mismatch_active) {
-      bannerEl.classList.remove("rigor-compliance-banner--active");
-      bannerEl.innerHTML = "";
-      document.body.classList.remove("rigor-compliance-has-banner");
+    if (data.mismatch_active) {
+      var items = (data.mismatch_messages || [])
+        .map(function (msg) {
+          return "<li>" + esc(msg) + "</li>";
+        })
+        .join("");
+      bannerEl.innerHTML =
+        "<strong>CRITICAL: Explorer mismatch detected — do not trust indexed data until resolved.</strong>" +
+        "<ul>" +
+        items +
+        "</ul>" +
+        "<span>Verify via your own node RPC. This banner cannot be dismissed.</span>";
+      bannerEl.classList.add("rigor-compliance-banner--active");
+      bannerEl.classList.remove("rigor-compliance-banner--warn");
+      document.body.classList.add("rigor-compliance-has-banner");
       return;
     }
 
-    var items = (data.mismatch_messages || [])
-      .map(function (msg) {
-        return "<li>" + esc(msg) + "</li>";
-      })
-      .join("");
+    if (data.rpc_degraded) {
+      var rpcItems = (data.rpc_messages || [])
+        .map(function (msg) {
+          return "<li>" + esc(msg) + "</li>";
+        })
+        .join("");
+      bannerEl.innerHTML =
+        "<strong>Node RPC busy — compliance checks skipped (not a chain mismatch).</strong>" +
+        "<ul>" +
+        rpcItems +
+        "</ul>" +
+        "<span>Work queue full is load on rigord. Indexed pages are not automatically untrusted. Retry shortly.</span>";
+      bannerEl.classList.add("rigor-compliance-banner--active");
+      bannerEl.classList.add("rigor-compliance-banner--warn");
+      document.body.classList.add("rigor-compliance-has-banner");
+      return;
+    }
 
-    bannerEl.innerHTML =
-      "<strong>CRITICAL: Explorer mismatch detected — do not trust indexed data until resolved.</strong>" +
-      "<ul>" +
-      items +
-      "</ul>" +
-      "<span>Verify via your own node RPC. This banner cannot be dismissed.</span>";
-
-    bannerEl.classList.add("rigor-compliance-banner--active");
-    document.body.classList.add("rigor-compliance-has-banner");
+    bannerEl.classList.remove("rigor-compliance-banner--active");
+    bannerEl.classList.remove("rigor-compliance-banner--warn");
+    bannerEl.innerHTML = "";
+    document.body.classList.remove("rigor-compliance-has-banner");
   }
 
   function applyCompliance(data) {
@@ -122,7 +138,7 @@
   }
 
   function fetchCompliance() {
-    return fetch("/compliance", { cache: "no-store" }).then(function (r) {
+    return fetch("/compliance", { cache: "no-store", signal: AbortSignal.timeout(15000) }).then(function (r) {
       if (!r.ok) throw new Error("compliance fetch failed: " + r.status);
       return r.json();
     });
@@ -134,8 +150,9 @@
       .catch(function (e) {
         var shell = ensureShell();
         renderBanner(shell.banner, {
-          mismatch_active: true,
-          mismatch_messages: ["Compliance endpoint unreachable: " + String(e)],
+          mismatch_active: false,
+          rpc_degraded: true,
+          rpc_messages: ["Compliance endpoint unreachable: " + String(e)],
         });
       });
   }

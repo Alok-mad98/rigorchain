@@ -21,6 +21,31 @@
     link.href = href;
   }
 
+  function verifierBase() {
+    if (window.RIGOR_ZERO_TRUST_VERIFIER_URL) return String(window.RIGOR_ZERO_TRUST_VERIFIER_URL).replace(/\/$/, "");
+    return "https://www.rigorchain.com/zero-trust-verification";
+  }
+
+  function verifyTxUrl(txid) {
+    return verifierBase() + "?mode=tx&txid=" + encodeURIComponent(txid);
+  }
+
+  function verifyBlockUrl(hash) {
+    return verifierBase() + "?mode=block&hash=" + encodeURIComponent(hash);
+  }
+
+  function verifyIndependentlyHtml(kind, id) {
+    if (!id) return "";
+    const href = kind === "tx" ? verifyTxUrl(id) : verifyBlockUrl(id);
+    return (
+      '<p class="verify-independently">' +
+      '<a href="' +
+      href +
+      '">Verify independently</a>' +
+      " — Zero-Trust Verification Portal (browser computes; explorer is not an authority)</p>"
+    );
+  }
+
   function navHtml() {
     return `
       <a href="/">Home</a>
@@ -29,13 +54,61 @@
       <a href="/res.html">RES amount</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
-      <a href="/status">Status</a>
+      <a href="${verifierBase()}">Zero-Trust Verification</a>
     `;
   }
 
   function mountNav(containerId) {
     const el = document.getElementById(containerId);
-    if (el) el.innerHTML = navHtml();
+    if (!el) return;
+    el.classList.add("site-nav");
+    el.classList.remove("muted", "row");
+    el.innerHTML = navHtml();
+  }
+
+  function plural(n, unit) {
+    return n === 1 ? `1 ${unit} ago` : `${n} ${unit}s ago`;
+  }
+
+  function timeAgo(unixSeconds) {
+    const t = Number(unixSeconds);
+    if (!Number.isFinite(t) || t <= 0) return "—";
+    const diff = Math.max(0, Math.floor(Date.now() / 1000 - t));
+    if (diff < 5) return "just now";
+    if (diff < 60) return plural(diff, "second");
+    const minutes = Math.floor(diff / 60);
+    if (minutes < 60) return plural(minutes, "minute");
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return plural(hours, "hour");
+    const days = Math.floor(hours / 24);
+    if (days < 30) return plural(days, "day");
+    const months = Math.floor(days / 30);
+    if (months < 12) return plural(months, "month");
+    return plural(Math.floor(days / 365), "year");
+  }
+
+  function timeAbsolute(unixSeconds) {
+    const t = Number(unixSeconds);
+    if (!Number.isFinite(t) || t <= 0) return "";
+    return new Date(t * 1000).toLocaleString();
+  }
+
+  function fetchJson(url, timeoutMs) {
+    const ms = timeoutMs == null ? 15000 : timeoutMs;
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () {
+      ctrl.abort();
+    }, ms);
+    return fetch(url, { signal: ctrl.signal, cache: "no-store" }).finally(function () {
+      clearTimeout(timer);
+    });
+  }
+
+  function timeCellHtml(unixSeconds) {
+    const abs = timeAbsolute(unixSeconds);
+    if (!abs) return "—";
+    const title = abs.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    return `<span title="${title}">${timeAgo(unixSeconds)}</span>`;
   }
 
   window.ExplorerRoutes = {
@@ -47,6 +120,13 @@
     addressPath: (addr) => "/address/" + encodeURIComponent(addr),
     installCanonicalLink,
     mountNav,
+    timeAgo,
+    timeAbsolute,
+    timeCellHtml,
+    fetchJson,
+    verifyTxUrl,
+    verifyBlockUrl,
+    verifyIndependentlyHtml,
     apiBase: "/api",
   };
 })();

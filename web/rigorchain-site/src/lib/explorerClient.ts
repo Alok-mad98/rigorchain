@@ -90,6 +90,10 @@ export function getBlock(hash: string) {
   return explorerGet<Record<string, unknown>>(`/api/block/${encodeURIComponent(hash)}`);
 }
 
+export function getBlocks(limit = 50) {
+  return explorerGet<{ blocks?: Record<string, unknown>[] }>(`/api/blocks?limit=${encodeURIComponent(String(limit))}`);
+}
+
 export function getTx(txid: string) {
   return explorerGet<Record<string, unknown>>(`/api/tx/${encodeURIComponent(txid)}`);
 }

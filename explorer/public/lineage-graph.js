@@ -77,7 +77,7 @@
     const rows = [
       ["|F|", String(graph.f_set_size ?? 0)],
       ["winner_txid", graph.winner?.txid ?? "—"],
-      ["convergence_root", graph.convergence_root ?? "—"],
+      ["C (convergence_root)", graph.convergence_root ?? "—"],
       ["selection_digest_h", graph.sigma?.selection_digest_h ?? "—"],
       ["mint_txid", graph.mint?.mint_txid ?? "—"],
       ["mint_height", graph.mint?.mint_height != null ? String(graph.mint.mint_height) : "—"],
@@ -131,15 +131,12 @@
         : "";
 
     return `<section class="lineage-graph-panel" id="lineage-graph-panel">
-      <h2>Convergence Lineage Graph</h2>
-      <div class="lineage-graph-notice" role="note">${escapeHtml(graph.readonly_notice || "")}</div>
-      <div class="lineage-graph-notice muted">${escapeHtml(graph.rpc_authority_notice || "")}${blockLink}</div>
+      <h2>Convergence Lineage Graph${blockLink}</h2>
       ${renderSummary(graph)}
       ${renderGraph(graph)}
       ${renderPcorbTable(graph)}
       ${renderMintOutputs(graph)}
       ${renderLegend(graph)}
-      <p class="muted">equivalence_claimed: false</p>
     </section>`;
   }
 

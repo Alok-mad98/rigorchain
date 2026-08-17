@@ -5,44 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ORU amount</title>
     <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/status-dashboard.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      .muted { color: #666; font-size: 12px; }
-      a { margin-right: 12px; }
-      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      .muted { color: #bbb; font-size: 12px; }
+      a { margin-right: 12px; color: #fff; }
+      table { border-collapse: collapse; width: 100%; max-width: 1200px; margin-top: 16px; }
+      th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
+      th { background: #111; text-align: left; }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
   <body>
-    <h1>ORU amount</h1>
-    <div id="nav" class="muted"></div>
-
-    <p class="muted">
-      ORU display is derived from indexed chain rows. It mirrors the node-reported convergence at tip at import time.
-    </p>
-
-    <pre id="root" class="mono">Loading...</pre>
-
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
+    <h1>Network ORU</h1>
+    <div id="root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
       ExplorerRoutes.mountNav('nav');
 
-      function atomsToOru(amount_atoms) {
-        const a = BigInt(String(amount_atoms));
-        const base = 100000000n;
-        const int = a / base;
-        const frac = a % base;
-        return `${int}.${frac.toString().padStart(8, '0')}`;
+      function esc(s) {
+        return String(s ?? "—")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
       }
+      function row(k, v) { return "<dt>" + esc(k) + "</dt><dd>" + v + "</dd>"; }
+      function card(title, rows) {
+        return '<section class="status-card"><h2>' + esc(title) + "</h2><dl>" + rows.join("") + "</dl></section>";
+      }
+      function val(v) { return v == null || v === "" ? "—" : esc(v); }
 
       async function load() {
-        const r = await fetch('/api/chain/tip');
-        const j = await r.json();
-        document.getElementById('root').textContent = JSON.stringify(j.stats, null, 2);
+        const [statusRes, blocksRes] = await Promise.all([
+          fetch("/api/status"),
+          fetch("/api/blocks?limit=15"),
+        ]);
+        if (!statusRes.ok) throw new Error("HTTP " + statusRes.status);
+        const j = await statusRes.json();
+        const eco = j.economic_snapshot ?? {};
+        const ch = j.convergence_health ?? {};
+        const blocks = ((await blocksRes.json()).blocks) || [];
+
+        const supply = card("ORU supply", [
+          row("Tip height", val(eco.tip_height)),
+          row("Cumulative ORU supply", val(eco.oru_supply_cumulative_display)),
+          row("Mature transferable ORU", val(eco.oru_mature_transferable_display)),
+          row("Immature coinbase ORU", val(eco.oru_immature_coinbase_display)),
+          row("This block subsidy", val(eco.oru_subsidy_tip_display)),
+          row("Mature transferable outputs", val(eco.oru_mature_transferable_count)),
+        ]);
+        const conv = card("ORU convergence", [
+          row("ORU burned (lifetime)", val(eco.oru_burned_lifetime_display)),
+          row("ORU burned this block", val(eco.oru_burn_block_display)),
+          row("ORU in current window", val(eco.oru_in_current_window_display)),
+          row("ORU since last mint", val(eco.oru_since_last_mint_display)),
+          row("Active convergences", val(eco.active_convergences ?? ch.active_convergences)),
+          row("Pending in F", val(eco.pending_windows ?? ch.pending_windows)),
+          row("Indexed convergence events", val(eco.convergence_event_count)),
+          row("Eligible events", val(eco.convergence_eligible_count)),
+        ]);
+
+        const rows = blocks.map((b) =>
+          "<tr><td>" + esc(b.height) + "</td><td><a href=\"" +
+          ExplorerRoutes.blockPath(b.block_hash) + "\">" + esc(String(b.block_hash).slice(0, 12)) +
+          "…</a></td><td>" + esc(b.oru_minted_display ?? b.oru_minted) + "</td></tr>"
+        ).join("");
+
+        document.getElementById("root").innerHTML =
+          '<div class="status-grid">' + supply + conv + "</div>" +
+          "<h2>Recent ORU issuance</h2>" +
+          "<table><thead><tr><th>height</th><th>hash</th><th>oru_minted</th></tr></thead><tbody>" +
+          (rows || '<tr><td colspan="3" class="muted">No blocks indexed.</td></tr>') +
+          "</tbody></table>";
       }
-      load().catch((e) => document.getElementById('root').textContent = 'Failed: ' + String(e));
+      load().catch((e) => { document.getElementById("root").textContent = "Failed: " + String(e); });
     </script>
     <script src="/compliance.js"></script>
   </body>
 </html>
-

@@ -1,8 +1,9 @@
+#include <windows.h>             // needed for VERSIONINFO and RT_MANIFEST
+#include "../../clientversion.h" // holds the needed client version information
+
 IDI_ICON1 ICON DISCARDABLE "icons/rigor.ico"
 IDI_ICON2 ICON DISCARDABLE "icons/rigor_testnet.ico"
-
-#include <windows.h>             // needed for VERSIONINFO
-#include "../../clientversion.h" // holds the needed client version information
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "rigor-qt.exe.manifest"
 
 #define VER_PRODUCTVERSION     CLIENT_VERSION_MAJOR,CLIENT_VERSION_MINOR,CLIENT_VERSION_BUILD
 #define VER_PRODUCTVERSION_STR STRINGIZE(CLIENT_VERSION_MAJOR) "." STRINGIZE(CLIENT_VERSION_MINOR) "." STRINGIZE(CLIENT_VERSION_BUILD)

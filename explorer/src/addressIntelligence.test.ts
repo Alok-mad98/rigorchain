@@ -11,6 +11,10 @@ import {
 } from "./addressIntelligence";
 
 describe("addressIntelligence", () => {
+  it("accepts AlphaPlus mainnet rg1 addresses", () => {
+    assert.equal(isValidAddressFormat("rg1qpxa8hhy6rshkz9zrreyr7fkpmcp8rzful9s3kn"), true);
+  });
+
   it("validates checksum-correct RIGOR bech32 addresses", () => {
     assert.equal(isValidAddressFormat("trg1nsxfhxfv3axth3dd53w0r7a8ptu9xejs02fq3j"), true);
     assert.equal(
@@ -43,6 +47,21 @@ describe("addressIntelligence", () => {
       address_type: "Mixed ORU/RES",
       classification: "Mixed Address",
     });
+  });
+
+  it("classifies bech32m ORU activity as a CVG2 unspendable script", () => {
+    assert.deepEqual(
+      classifyAddressWithHint(
+        true,
+        false,
+        true,
+        "trg1pflfvwsh8p5fuykxnrddzp8jd53fgnpsnuhvv5xrj5rfy6vs34ydqywruva",
+      ),
+      {
+        address_type: "ORU (Witness v1)",
+        classification: "CVG2 / unspendable convergence script",
+      },
+    );
   });
 
   it("hints unused address type from bech32 without merging balances", () => {

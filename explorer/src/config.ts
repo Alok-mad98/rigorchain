@@ -1,7 +1,17 @@
 import path from "node:path";
+import {
+  bech32HrpForNetwork,
+  defaultRpcPort,
+  parseExplorerNetwork,
+  type ExplorerNetwork,
+} from "./network";
 
 export type Config = {
-  network: "testnet" | "mainnet";
+  network: ExplorerNetwork;
+  bech32Hrp: string;
+  rpcPort: number;
+  rpcUser: string | null;
+  rpcPassword: string | null;
   rigorDatadir: string;
   rigorCliBin: string;
   pollIntervalMs: number;
@@ -25,7 +35,11 @@ export type Config = {
 };
 
 export function loadConfigFromEnv(): Config {
-  const network = (process.env.RIGOR_NETWORK ?? "testnet") as Config["network"];
+  const network = parseExplorerNetwork(process.env.RIGOR_NETWORK);
+  const bech32Hrp = bech32HrpForNetwork(network, process.env.BECH32_HRP);
+  const rpcPort = defaultRpcPort(network, process.env.RIGOR_RPC_PORT);
+  const rpcUser = process.env.RIGOR_RPC_USER?.trim() || null;
+  const rpcPassword = process.env.RIGOR_RPC_PASSWORD?.trim() || null;
   const rigorDatadir = process.env.RIGOR_DATADIR ?? "/var/lib/rigor/testnet";
   const rigorCliBin = process.env.RIGOR_CLI_BIN ?? "rigor-cli";
 
@@ -59,6 +73,10 @@ export function loadConfigFromEnv(): Config {
 
   return {
     network,
+    bech32Hrp,
+    rpcPort,
+    rpcUser,
+    rpcPassword,
     rigorDatadir,
     rigorCliBin,
     pollIntervalMs,

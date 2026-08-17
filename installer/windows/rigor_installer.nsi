@@ -1,4 +1,5 @@
 ; RIGOR Wallet Windows installer — TASK-WALLET-PROGRAM-025
+; NOT the AlphaPlus production installer (see rigor_alpha_installer.nsi).
 ; Build: makensis /DREPO_ROOT=/path/to/ring installer/windows/rigor_installer.nsi
 
 !include "MUI2.nsh"
@@ -11,10 +12,10 @@
   !define STAGING_DIR "${REPO_ROOT}/dist/windows/staging"
 !endif
 !ifndef OUTFILE
-  !define OUTFILE "${REPO_ROOT}/dist/windows/installers/RIGOR-Wallet-0.1.0-testnet.exe"
+  !define OUTFILE "${REPO_ROOT}/dist/windows/installers/RIGOR-Wallet.exe"
 !endif
 
-Name "RIGOR Wallet (Testnet Candidate)"
+Name "RIGOR Wallet"
 OutFile "${OUTFILE}"
 InstallDir "$PROGRAMFILES64\RIGOR Wallet"
 RequestExecutionLevel admin
@@ -27,7 +28,7 @@ XPStyle on
 !define REGKEY "SOFTWARE\RIGOR Wallet"
 !define COMPANY "RIGOR Protocol"
 !define URL "https://rigorchain.com"
-!define PRODUCT_VERSION "0.1.0-testnet-candidate"
+!define PRODUCT_VERSION "0.1.1-alphaplus"
 
 !define MUI_ICON "${REPO_ROOT}/core/share/icons/rigor/rigor.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "${REPO_ROOT}/core/share/pixmaps/nsis-wizard.bmp"
@@ -44,7 +45,7 @@ VIAddVersionKey ProductName "RIGOR Wallet"
 VIAddVersionKey ProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
 VIAddVersionKey FileVersion "${PRODUCT_VERSION}"
-VIAddVersionKey FileDescription "RIGOR Wallet Testnet Candidate Installer"
+VIAddVersionKey FileDescription "RIGOR Wallet Installer (legacy; AlphaPlus production is rigor_alpha_installer.nsi)"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -59,23 +60,22 @@ Section "RIGOR Wallet" SEC_MAIN
   SetOverwrite on
 
   File "${STAGING_DIR}\rigor-qt.exe"
-  File /nonfatal "${STAGING_DIR}\rigord.exe"
-  File /nonfatal "${STAGING_DIR}\rigor-cli.exe"
-  File /nonfatal "${STAGING_DIR}\rigor.conf.template"
-  File /nonfatal "${STAGING_DIR}\version_manifest.json"
-  File /nonfatal "${REPO_ROOT}\core\COPYING"
-  File /nonfatal "${REPO_ROOT}\core\doc\README_windows.txt"
+  File "${STAGING_DIR}\rigord.exe"
+  File "${STAGING_DIR}\rigor-cli.exe"
+  File "${STAGING_DIR}\rigor.conf.template"
+  File "${STAGING_DIR}\version_manifest.json"
+  File "${REPO_ROOT}\core\COPYING"
+  File "${REPO_ROOT}\core\doc\README_windows.txt"
 
 !ifdef INCLUDE_QT_RUNTIME
   SetOutPath "$INSTDIR"
-  File /nonfatal /r "${STAGING_DIR}\qt-runtime\*.*"
+  File /r "${STAGING_DIR}\qt-runtime\*.*"
 !endif
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   CreateDirectory "$SMPROGRAMS\RIGOR Wallet"
   CreateShortcut "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet.lnk" "$INSTDIR\rigor-qt.exe"
-  CreateShortcut "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet (testnet).lnk" "$INSTDIR\rigor-qt.exe" "-testnet"
   CreateShortcut "$DESKTOP\RIGOR Wallet.lnk" "$INSTDIR\rigor-qt.exe"
   CreateShortcut "$SMPROGRAMS\RIGOR Wallet\Uninstall RIGOR Wallet.lnk" "$INSTDIR\Uninstall.exe"
 
@@ -101,7 +101,6 @@ Section "Uninstall"
 !endif
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet.lnk"
-  Delete "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet (testnet).lnk"
   Delete "$DESKTOP\RIGOR Wallet.lnk"
   Delete "$SMPROGRAMS\RIGOR Wallet\Uninstall RIGOR Wallet.lnk"
   RMDir "$SMPROGRAMS\RIGOR Wallet"

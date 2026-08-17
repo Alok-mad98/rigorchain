@@ -16,12 +16,16 @@ const CVG2_PREFIX_HEX = Buffer.from("CVG2", "ascii").toString("hex"); // 4356473
 const RES2_PREFIX_HEX = Buffer.from("RES2", "ascii").toString("hex"); // 52455332
 
 function tryEncodeSegwitAddress(hrp: string, witnessVersion: number, program: Buffer): string | null {
-  const words = bech32.toWords(Uint8Array.from(program));
-  if (witnessVersion === 0) {
-    return bech32.encode(hrp, words, 90);
+  try {
+    const progWords = bech32.toWords(Uint8Array.from(program));
+    const words = [witnessVersion, ...progWords];
+    if (witnessVersion === 0) {
+      return bech32.encode(hrp, words, 90);
+    }
+    return bech32m.encode(hrp, words, 90);
+  } catch {
+    return null;
   }
-  // Segwit v1 uses bech32m
-  return bech32m.encode(hrp, words, 90);
 }
 
 /**

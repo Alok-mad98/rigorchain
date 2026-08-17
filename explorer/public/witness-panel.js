@@ -113,7 +113,7 @@
         <dd>${status.candidate_set_height != null ? status.candidate_set_height : "—"}</dd>
         <dt>Winner status</dt>
         <dd>${escapeHtml(status.winner_status)}</dd>
-        <dt>convergence_root</dt>
+        <dt>C (convergence_root)</dt>
         <dd>
           ${status.convergence_root
             ? `<span class="witness-hex">${escapeHtml(status.convergence_root)}</span> ${copyBtn(status.convergence_root)}`
@@ -142,7 +142,6 @@
       <div class="witness-inputs-scroll">${inputsHtml}</div>
       ${renderResMintProof(panel.res_mint_proof, routes)}
       ${renderProofStatus(panel.proof_status)}
-      <div class="witness-rpc-notice" role="note">${escapeHtml(panel.rpc_readonly_notice)}</div>
     </section>`;
   }
 

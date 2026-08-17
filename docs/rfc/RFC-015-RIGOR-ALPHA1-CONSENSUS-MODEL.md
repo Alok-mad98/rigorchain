@@ -1,5 +1,8 @@
 # RFC-015-RIGOR-ALPHA1-CONSENSUS-MODEL
 
+> **Release identity.** Shipping product is **RIGOR v0.1.1-alphaplus** (codename **AlphaPlus Consensus Freeze**). Remaining "Alpha1" wording in this file is **historical Alpha1 naming before AlphaPlus release identity migration**. Consensus (genesis hash, Ed25519, lock v2, PoW, W/T, RES, fees) is unchanged.
+
+
 **Title:** RIGOR Alpha1 Independent Consensus Model  
 **Document ID:** `RFC-015-RIGOR-ALPHA1-CONSENSUS-MODEL`  
 **Status:** FROZEN (Alpha1 protocol generation)  
@@ -377,7 +380,7 @@ The following MUST NOT appear as consensus-valid behavior in Alpha1:
 
 Alpha1 is a **new protocol generation**. It MUST NOT ship under the published identity `v0.1.0-alpha`.
 
-Recommended product / tag identity: **`v0.1.1-alpha` (Alpha1)**. See the companion audit §6.
+Recommended product / tag identity: **`v0.1.1-alphaplus` (AlphaPlus)**. See the companion audit §6.
 
 ### 10.2 Why Alpha1 is not compatible with previous alpha binaries
 

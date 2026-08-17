@@ -4,8 +4,11 @@
 
 #include <httprpc.h>
 
+#include <chainparamsbase.h>
+#include <common/alphaplus_security.h>
 #include <crypto/hmac_sha256.h>
 #include <httpserver.h>
+#include <logging.h>
 #include <rpc/protocol.h>
 #include <rpc/server.h>
 #include <util/strencodings.h>
@@ -162,7 +165,7 @@ static bool HTTPReq_JSONRPC(const std::any& context, HTTPRequest* req)
     jreq.context = context;
     jreq.peerAddr = req->GetPeer().ToStringAddrPort();
     if (!RPCAuthorized(authHeader.second, jreq.authUser)) {
-        LogPrintf("ThreadRPCServer incorrect password attempt from %s\n", jreq.peerAddr);
+        LogPrintf("ThreadRPCServer incorrect RPC credentials attempt from %s\n", jreq.peerAddr);
 
         /* Deter brute-forcing
            If this results in a DoS the user really
@@ -240,6 +243,11 @@ static bool HTTPReq_JSONRPC(const std::any& context, HTTPRequest* req)
 
 static bool InitRPCAuthentication()
 {
+    if (IsAlphaPlusMainnetChain(gArgs.GetChainName()) &&
+        IsKnownInsecureRpcCredential(gArgs.GetArg("-rpcuser", ""), gArgs.GetArg("-rpcpassword", ""))) {
+        LogPrintf("ERROR: Default or well-known RPC credentials are not allowed on AlphaPlus mainnet.\n");
+        return false;
+    }
     if (gArgs.GetArg("-rpcpassword", "") == "")
     {
         LogPrintf("Using random cookie authentication.\n");
@@ -247,7 +255,7 @@ static bool InitRPCAuthentication()
             return false;
         }
     } else {
-        LogPrintf("Config options rpcuser and rpcpassword will soon be deprecated. Locally-run instances may remove rpcuser to use cookie-based auth, or may be replaced with rpcauth. Please see share/rpcauth for rpcauth auth generation.\n");
+        LogPrintf("RPC authentication initialized.\n");
         strRPCUserColonPass = gArgs.GetArg("-rpcuser", "") + ":" + gArgs.GetArg("-rpcpassword", "");
     }
     if (gArgs.GetArg("-rpcauth", "") != "") {

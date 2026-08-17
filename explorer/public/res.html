@@ -5,46 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>RES amount</title>
     <link rel="stylesheet" href="/compliance.css" />
+    <link rel="stylesheet" href="/status-dashboard.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      .muted { color: #666; font-size: 12px; }
-      a { margin-right: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      .muted { color: #bbb; font-size: 12px; }
+      a { margin-right: 12px; color: #fff; }
+      table { border-collapse: collapse; width: 100%; margin-top: 16px; }
+      th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
+      th { background: #111; text-align: left; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
+      .res-history { margin-top: 8px; }
+      .res-history h2 { font-size: 16px; margin: 20px 0 0; }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
   <body>
-    <h1>RES amount</h1>
-    <div id="nav" class="muted"></div>
-
-    <p class="muted">
-      RES minted total is derived from indexed <code>res_mints</code> rows.
-    </p>
-
-    <pre id="root" class="mono">Loading...</pre>
-
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
+    <h1>Network RES</h1>
+    <p class="muted">Mint outcomes on the left; in-flight draw window on the right. Per-block C and draw roots are on each block page.</p>
+    <div id="root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
       ExplorerRoutes.mountNav('nav');
 
-      function atomsToRes(amount_atoms) {
-        const a = BigInt(String(amount_atoms));
-        const base = 100n; // 100 atoms per 1.00 RES
-        const int = a / base;
-        const frac = a % base;
-        return `${int}.${frac.toString().padStart(2, '0')}`;
+      function esc(s) {
+        return String(s ?? "—")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+      function row(k, v) { return "<dt>" + esc(k) + "</dt><dd>" + v + "</dd>"; }
+      function card(title, rows) {
+        return '<section class="status-card"><h2>' + esc(title) + "</h2><dl>" + rows.join("") + "</dl></section>";
+      }
+      function val(v) { return v == null || v === "" ? "—" : esc(v); }
+      function isZeroHash(h) { return !h || /^0+$/.test(String(h)); }
+      function txLink(txid) {
+        if (isZeroHash(txid)) return "—";
+        return '<a class="mono" href="' + ExplorerRoutes.txPath(txid) + '">' + esc(txid) + "</a>";
+      }
+      function txLinkShort(txid) {
+        if (isZeroHash(txid)) return "—";
+        const s = String(txid);
+        const label = s.length < 20 ? s : s.slice(0, 12) + "…" + s.slice(-6);
+        return '<a class="mono" href="' + ExplorerRoutes.txPath(txid) + '" title="' + esc(s) + '">' + esc(label) + "</a>";
+      }
+      function shortHash(h) {
+        if (isZeroHash(h)) return "—";
+        const s = String(h);
+        if (s.length < 20) return '<span class="status-mono" title="' + esc(s) + '">' + esc(s) + "</span>";
+        return '<span class="status-mono" title="' + esc(s) + '">' + esc(s.slice(0, 12) + "…" + s.slice(-6)) + "</span>";
+      }
+      function formatResAtoms(atoms) {
+        try {
+          const a = BigInt(String(atoms ?? 0));
+          return (a / 100n) + "." + (a % 100n).toString().padStart(2, "0") + " RES";
+        } catch {
+          return "—";
+        }
+      }
+      function compactFDist(dist) {
+        if (!dist || typeof dist !== "object") return "—";
+        const parts = Object.entries(dist)
+          .filter(([k, v]) => Number(k) > 0 && Number(v) > 0)
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .map(([k, v]) => "|F|=" + k + ": " + v);
+        return parts.length ? esc(parts.join(" · ")) : "none in last 100";
       }
 
       async function load() {
-        const r = await fetch('/api/chain/tip');
-        const j = await r.json();
-        const stats = j.stats || {};
-        const atoms = stats.res_mint_total_atoms ?? "0";
-        document.getElementById('root').textContent = JSON.stringify({ res_mint_total_atoms: atoms, res_mint_total_display: atomsToRes(atoms) }, null, 2);
+        const [statusRes, mintsRes] = await Promise.all([
+          fetch("/api/status", { signal: AbortSignal.timeout(20000) }),
+          fetch("/api/res/mints?limit=15", { signal: AbortSignal.timeout(20000) }),
+        ]);
+        if (!statusRes.ok) throw new Error("HTTP " + statusRes.status);
+        const j = await statusRes.json();
+        const eco = j.economic_snapshot ?? {};
+        const ch = j.convergence_health ?? {};
+        const mints = ((await mintsRes.json()).mints) || [];
+
+        const remaining = eco.draw_blocks_remaining;
+        const remainingDisplay =
+          remaining == null || remaining === ""
+            ? "—"
+            : Number(remaining) === 0
+              ? "0 (completes now)"
+              : String(remaining) + " blocks";
+        const completes = eco.draw_completes_at_height;
+        const completesDisplay = completes == null || completes === "" ? "—" : "block " + String(completes);
+        const freq =
+          ch.winner_frequency_last_100 != null && ch.winner_frequency_last_100 !== ""
+            ? (Number(ch.winner_frequency_last_100) * 100).toFixed(1) + "%"
+            : "—";
+        const committed = ch.draw_candidate_root_committed ?? ch.draw_candidate_root;
+        const computed = ch.draw_candidate_root_computed;
+
+        const minted = card("RES minted", [
+          row("Network RES minted", val(eco.network_res_minted_display)),
+          row("RES minted (last 100)", val(eco.res_mint_rate_last_100_blocks_display)),
+          row("Winner blocks / 100", val(ch.winner_blocks_last_100)),
+          row("Winner frequency", val(freq)),
+          row("Mint count", val(eco.res_mint_count)),
+          row("Last mint height", val(eco.last_res_height)),
+          row("Last mint tx", txLinkShort(eco.last_res_mint_txid)),
+          row("Last winner tx", txLinkShort(eco.last_winner_txid)),
+        ]);
+        const draw = card("RES draw window", [
+          row("Tip height", val(eco.tip_height)),
+          row("Blocks remaining", val(remainingDisplay)),
+          row("Completes at", val(completesDisplay)),
+          row("Active convergences", val(eco.active_convergences ?? ch.active_convergences)),
+          row("Pending in F", val(eco.pending_windows ?? ch.pending_windows)),
+          row("|F| last 100", compactFDist(ch.f_set_distribution_last_100_blocks)),
+          row("C (tip)", shortHash(ch.c_root)),
+          row("Tip draw roots", shortHash(committed) + ' <span class="muted">pays</span> · ' + shortHash(computed) + ' <span class="muted">awards</span>'),
+        ]);
+
+        const rows = mints.map((m) =>
+          "<tr><td>" + esc(m.block_height) + "</td><td>" +
+          txLink(m.mint_txid) + "</td><td>" +
+          txLink(m.winner_convergence_txid) + "</td><td>" +
+          esc(formatResAtoms(m.mint_amount)) + "</td></tr>"
+        ).join("");
+
+        document.getElementById("root").innerHTML =
+          '<div class="status-grid status-grid--pair">' + minted + draw + "</div>" +
+          '<div class="res-history"><h2>RES mint history</h2>' +
+          "<table><thead><tr><th>height</th><th>mint txid</th><th>winner</th><th>amount</th></tr></thead><tbody>" +
+          (rows || '<tr><td colspan="4" class="muted">No RES mints on this chain yet.</td></tr>') +
+          "</tbody></table></div>";
       }
-      load().catch((e) => document.getElementById('root').textContent = 'Failed: ' + String(e));
+      load().catch((e) => { document.getElementById("root").textContent = "Failed: " + String(e); });
     </script>
     <script src="/compliance.js"></script>
   </body>
 </html>
-

@@ -17,12 +17,13 @@ scaffolds with no executable kernel definition -> reported BLOCKED (out of scope
 
 The vectors file may be given as argv[1]; it defaults to the checked-in PHASE-3 set.
 """
-import json, sys
+import json, os, sys
 sys.path.insert(0, "spec")
 import rigor_consensus_spec as spec
 
 VEC = sys.argv[1] if len(sys.argv) > 1 else "phase3_golden_vectors.json"
-OUT = "coq/Kernel/GoldenHarness.v"
+OUT = os.environ.get("HARNESS_OUT", "coq/Kernel/GoldenHarness.v")
+INDEX = os.environ.get("HARNESS_INDEX", "coq_harness_index.json")
 
 def hexbytes(h):
     """hex string -> Coq 'list byte' literal of nat values."""
@@ -61,11 +62,13 @@ def main():
     P("From Rigor Require Import RigorBytes.")
     P("Include RigorBytes.")
     P("Require Import RigorHash.")
+    P("From Rigor Require Import RigorSha256.")
     P("Require Import SigmaPoW01.")
     P("Require Import ConvergeRoot.")
     P("Require Import Sigma.")
     P("Require Import Selection.")
     P("Require Import Execution.")
+    P("Require Import WindowExclusion.")
     P("")
     P("Open Scope Z_scope.")
     P("")
@@ -73,6 +76,13 @@ def main():
     P("  match a, b with")
     P("  | nil, nil => true")
     P("  | x :: xs, y :: ys => andb (Nat.eqb x y) (blist_eq xs ys)")
+    P("  | _, _ => false")
+    P("  end.")
+    P("")
+    P("Fixpoint llist_eq (a b : list (list nat)) : bool :=")
+    P("  match a, b with")
+    P("  | nil, nil => true")
+    P("  | x :: xs, y :: ys => andb (blist_eq x y) (llist_eq xs ys)")
     P("  | _, _ => false")
     P("  end.")
     P("")
@@ -86,6 +96,14 @@ def main():
 
     for v in vectors:
         vid = v["id"]; mod = v["module"]; inp = v["input"]; exp = v["expected"]
+        kernel_mods = {
+            "ConvergenceRoot", "SigmaPoW01", "Inequality", "RunSelection",
+            "WindowExclusion", "SigmaEncoder",
+        }
+        enforce = v.get("coq_enforce", mod in kernel_mods)
+        if not enforce:
+            index_map.append((None, vid, mod, "python_only"))
+            continue
         if mod == "ConvergenceRoot":
             txids = list_hexbytes(inp["txids_hex"])
             expb = hexbytes(exp["convergence_root"])
@@ -137,12 +155,53 @@ def main():
             emit_check(P, idx, vid, expr)
             index_map.append((idx, vid, mod, "winner"))
             idx += 1
+        elif mod == "WindowExclusion":
+            cands = inp["candidates_hex"]
+            paid = inp["already_paid_hex"]
+            surv = exp["surviving_hex"]
+            txs = "[" + ";".join(f"mkmint {hexbytes(t)} 1" for t in cands) + "]"
+            paidb = list_hexbytes(paid)
+            survb = list_hexbytes(surv)
+            P(f"(* {vid} {mod} dropped={exp.get('dropped')} *)")
+            emit_check(P, idx, vid,
+                       f"llist_eq (map tx_id_bytes (exclude_already_paid {txs} {paidb})) {survb}")
+            index_map.append((idx, vid, mod, "a9c"))
+            idx += 1
+        elif mod == "SigmaEncoder":
+            txid = hexbytes(inp["txid_hex"])
+            croot = hexbytes(inp["convergence_root_hex"])
+            prev = hexbytes(inp["prev_block_hash_hex"])
+            h = inp["height"]
+            hle = hexbytes(exp["height_le"])
+            P(f"(* {vid} {mod} height={h} *)")
+            expr = (
+                f"andb (Nat.eqb (length (sigma_preimage_bytes {txid} {croot} {prev} {h})) 100) "
+                f"(andb (blist_eq (firstn 32 (sigma_preimage_bytes {txid} {croot} {prev} {h})) {txid}) "
+                f"(blist_eq (skipn 96 (sigma_preimage_bytes {txid} {croot} {prev} {h})) {hle}))"
+            )
+            emit_check(P, idx, vid, expr)
+            index_map.append((idx, vid, mod, "encoder"))
+            idx += 1
+        elif mod == "HashKernel":
+            payload = hexbytes(inp["payload_hex"])
+            expb = hexbytes(exp["sha256d"])
+            P(f"(* {vid} {mod} sha256d *)")
+            emit_check(P, idx, vid, f"blist_eq (hash256_bytes {payload}) {expb}")
+            index_map.append((idx, vid, mod, "hash256d"))
+            idx += 1
+        elif mod == "Sha256Fips":
+            payload = hexbytes(inp["payload_hex"])
+            expb = hexbytes(exp["sha256"])
+            P(f"(* {vid} {mod} sha256 *)")
+            emit_check(P, idx, vid, f"blist_eq (sha256_bytes {payload}) {expb}")
+            index_map.append((idx, vid, mod, "sha256"))
+            idx += 1
         else:
             # Not executable in kernel.
             index_map.append((None, vid, mod, "blocked"))
 
     open(OUT, "w").write("\n".join(lines) + "\n")
-    json.dump(index_map, open("coq_harness_index.json", "w"), indent=1)
+    json.dump(index_map, open(INDEX, "w"), indent=1)
     execed = sum(1 for m in index_map if m[0] is not None)
     print(f"wrote {OUT}: {execed} enforced golden-vector lemmas, {len(index_map)-execed} blocked")
 

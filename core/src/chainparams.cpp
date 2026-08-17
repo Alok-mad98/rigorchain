@@ -5,6 +5,10 @@
 
 #include <chainparams.h>
 
+#if defined(HAVE_CONFIG_H)
+#include <config/bitcoin-config.h>
+#endif
+
 #include <chainparamsseeds.h>
 #include <consensus/merkle.h>
 #include <deploymentinfo.h>
@@ -87,6 +91,9 @@ const CChainParams &Params() {
 
 std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain)
 {
+    // Production builds still construct test/signet/regtest params here so
+    // SetupServerArgs can fill help-text defaults. Runtime selection is gated
+    // in SelectParams / GetChainName.
     if (chain == CBaseChainParams::MAIN) {
         return CChainParams::Main();
     } else if (chain == CBaseChainParams::TESTNET) {
@@ -109,6 +116,11 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
 
 void SelectParams(const std::string& network)
 {
+#ifdef RIGOR_PRODUCTION_MAINNET
+    if (network != CBaseChainParams::MAIN) {
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+    }
+#endif
     SelectBaseParams(network);
     globalChainParams = CreateChainParams(gArgs, network);
 }

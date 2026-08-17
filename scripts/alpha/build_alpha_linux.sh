@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# TASK-MAINNET-PRODUCT-ALPHA-001 — Linux alpha package (deb + AppImage/portable)
+# Linux AlphaPlus package (deb + AppImage/portable) — RIGOR v0.1.1-alphaplus
+# Historical Alpha1 naming before AlphaPlus release identity migration (path still scripts/alpha/).
 # No consensus / RFC / RES model changes.
 set -euo pipefail
 
@@ -7,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE="${REPO_ROOT}/core"
 SRC="${CORE}/src"
 OUT="${REPO_ROOT}/dist/alpha/linux"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.0-alpha.1}"
+VERSION="${RIGOR_ALPHA_VERSION:-0.1.1-alphaplus}"
 ARCH=amd64
 
 log() { printf '[alpha-linux] %s\n' "$*"; }
@@ -16,8 +17,9 @@ need() {
   local p="$1"
   if [[ ! -x "$p" ]]; then
     log "ERROR: missing executable: $p"
-    log "Build first: cd core && ./configure && make -j\$(nproc) rigord rigor-cli rigor-wallet rigor-qt"
-    log "Also: cd cpuminer && make"
+    log "Build first: cd core && ./configure --enable-production-mainnet && make -j\$(nproc) rigord rigor-cli rigor-wallet rigor-qt"
+    log "Development builds may omit --enable-production-mainnet (keeps testnet/regtest)."
+    log "Also build Linux minerd (see miner path below)."
     exit 1
   fi
 }
@@ -25,7 +27,29 @@ need() {
 need "${SRC}/rigord"
 need "${SRC}/rigor-cli"
 need "${SRC}/qt/rigor-qt"
-need "${REPO_ROOT}/cpuminer/minerd"
+
+# Official-tree miner lives in miner/; cpuminer/ is the historical path.
+MINERD="${RIGOR_MINERD:-}"
+if [[ -z "${MINERD}" ]]; then
+  for cand in \
+    "${REPO_ROOT}/cpuminer/minerd" \
+    "${REPO_ROOT}/miner/minerd" \
+    "${REPO_ROOT}/.runtime/miner-linux/minerd"
+  do
+    if [[ -x "${cand}" ]] && file "${cand}" | grep -q 'ELF'; then
+      MINERD="${cand}"
+      break
+    fi
+  done
+fi
+if [[ -z "${MINERD}" || ! -x "${MINERD}" ]]; then
+  log "ERROR: missing Linux ELF minerd"
+  log "Build Linux miner in a copy (do not reconfigure miner/ if it is MinGW):"
+  log "  rm -rf .runtime/miner-linux && cp -a miner .runtime/miner-linux"
+  log "  cd .runtime/miner-linux && ./autogen.sh && ./configure && make -j\$(nproc)"
+  exit 1
+fi
+log "minerd: ${MINERD}"
 
 rm -rf "${OUT}"
 mkdir -p "${OUT}/bin" "${OUT}/config" "${OUT}/installers" "${OUT}/share"
@@ -34,7 +58,7 @@ mkdir -p "${OUT}/bin" "${OUT}/config" "${OUT}/installers" "${OUT}/share"
 cp -a "${SRC}/qt/rigor-qt" "${OUT}/bin/rigor-wallet"
 cp -a "${SRC}/rigord" "${OUT}/bin/rigord"
 cp -a "${SRC}/rigor-cli" "${OUT}/bin/rigor-cli"
-cp -a "${REPO_ROOT}/cpuminer/minerd" "${OUT}/bin/rigor-miner"
+cp -a "${MINERD}" "${OUT}/bin/rigor-miner"
 cp -a "${SRC}/qt/rigor-qt" "${OUT}/bin/rigor-qt"
 ln -sfn rigor-miner "${OUT}/bin/minerd"
 for b in rigor-wallet rigor-qt rigord rigor-cli rigor-miner; do
@@ -42,7 +66,7 @@ for b in rigor-wallet rigor-qt rigord rigor-cli rigor-miner; do
 done
 
 cat > "${OUT}/config/rigor-alpha.conf" <<'EOF'
-# RIGOR Product Alpha — local / regtest-style template
+# RIGOR AlphaPlus — local / regtest-style template
 # For local alpha stack use contrib/alpha/start_local_stack.sh
 server=1
 txindex=1
@@ -51,8 +75,8 @@ fallbackfee=0.0001
 EOF
 
 cat > "${OUT}/README-ALPHA.txt" <<EOF
-RIGOR Product Alpha ${VERSION} (Linux amd64)
-============================================
+RIGOR AlphaPlus ${VERSION} (Linux amd64)
+========================================
 
 Binaries (this directory):
   bin/rigor-wallet   GUI wallet (rigor-qt)
@@ -60,14 +84,20 @@ Binaries (this directory):
   bin/rigor-cli      CLI
   bin/rigor-miner    Solo GBT miner (cpuminer/minerd)
 
-Quick start (local alpha stack):
-  contrib/alpha/start_local_stack.sh
+Quick start:
+  bin/rigor-wallet          (GUI; datadir ~/.rigor)
+  bin/rigord                (node)
+  bin/rigor-cli             (CLI)
+  bin/rigor-miner           (solo GBT miner)
+
+Default data directory is ~/.rigor (not ~/.bitcoin).
+Config file is ~/.rigor/rigor.conf (bitcoin.conf is still read if rigor.conf is absent).
 
 No consensus parameters changed in this packaging step.
 EOF
 
 # Portable tarball
-TAR="${OUT}/installers/rigor-alpha-${VERSION}-linux-${ARCH}.tar.gz"
+TAR="${OUT}/installers/rigor-alphaplus-${VERSION}-linux-${ARCH}.tar.gz"
 tar -C "${OUT}" -czf "${TAR}" bin config README-ALPHA.txt
 log "Tarball: ${TAR}"
 
@@ -90,8 +120,9 @@ cp -a "${ICON_SRC}" "${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/rigor-wall
 cat > "${DEB_ROOT}/usr/share/applications/rigor-wallet.desktop" <<'EOF'
 [Desktop Entry]
 Name=RIGOR Wallet
-Comment=RIGOR Product Alpha Wallet
+Comment=RIGOR AlphaPlus Wallet
 Exec=/opt/rigor/bin/rigor-wallet
+Path=/opt/rigor/bin
 Icon=rigor-wallet
 Terminal=false
 Type=Application
@@ -99,18 +130,18 @@ Categories=Finance;Network;
 EOF
 
 cat > "${DEB_ROOT}/DEBIAN/control" <<EOF
-Package: rigor-alpha
+Package: rigor-alphaplus
 Version: ${VERSION}
 Section: net
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: RIGOR Protocol <ops@rigorchain.com>
-Description: RIGOR Product Alpha (node, wallet, miner)
- Locally distributable alpha package. Not a signed mainnet release.
+Description: RIGOR AlphaPlus (node, wallet, miner)
+ Locally distributable AlphaPlus package. Not a signed mainnet release.
  Depends on system Qt/Boost libraries matching the build host.
 EOF
 
-DEB_FILE="${OUT}/installers/rigor-alpha_${VERSION}_${ARCH}.deb"
+DEB_FILE="${OUT}/installers/rigor-alphaplus_${VERSION}_${ARCH}.deb"
 dpkg-deb --build "${DEB_ROOT}" "${DEB_FILE}"
 log "Deb: ${DEB_FILE}"
 
@@ -146,19 +177,17 @@ elif [[ -x "${REPO_ROOT}/.tools/appimagetool-x86_64.AppImage" ]]; then
 else
   TAR_APP="${APP_OUT}/rigor-wallet-x86_64.AppDir.tar.gz"
   tar -C "${APP_OUT}" -czf "${TAR_APP}" rigor-wallet.AppDir
-  cat > "${APPIMAGE}" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-SELF="$(readlink -f "$0")"
-DIR="$(dirname "$SELF")"
-APPDIR="${DIR}/rigor-wallet.AppDir"
-if [[ ! -x "${APPDIR}/AppRun" ]]; then
-  tar -C "${DIR}" -xzf "${DIR}/rigor-wallet-x86_64.AppDir.tar.gz"
+  log "appimagetool missing — shipping AppDir tarball only (no fake 263-byte AppImage)"
+  rm -f "${APPIMAGE}"
 fi
-exec "${APPDIR}/AppRun" "$@"
-EOF
-  chmod 755 "${APPIMAGE}"
-  log "Portable AppImage launcher (appimagetool missing): ${APPIMAGE}"
+# Always keep the AppDir tarball for operators without fuse/appimagetool
+if [[ ! -f "${APP_OUT}/rigor-wallet-x86_64.AppDir.tar.gz" ]]; then
+  tar -C "${APP_OUT}" -czf "${APP_OUT}/rigor-wallet-x86_64.AppDir.tar.gz" rigor-wallet.AppDir
+fi
+if [[ -f "${APPIMAGE}" ]] && [[ "$(stat -c '%s' "${APPIMAGE}")" -lt 1048576 ]]; then
+  log "ERROR: AppImage is a stub ($(stat -c '%s' "${APPIMAGE}") bytes). Refusing to ship it."
+  rm -f "${APPIMAGE}"
+  exit 1
 fi
 
 # Manifest
@@ -172,7 +201,7 @@ for p in sorted(root.rglob("*")):
         h = hashlib.sha256(p.read_bytes()).hexdigest()
         files[str(p.relative_to(root))] = {"sha256": h, "bytes": p.stat().st_size}
 manifest = {
-    "task": "TASK-MAINNET-PRODUCT-ALPHA-001",
+    "task": "TASK-ALPHAPLUS-RELEASE-IDENTITY-MIGRATION-001",
     "version": os.environ["VERSION"],
     "platform": "linux-amd64",
     "product_names": ["rigor-wallet", "rigord", "rigor-miner"],
@@ -182,5 +211,46 @@ Path(os.environ["MANIFEST_OUT"]).write_text(json.dumps(manifest, indent=2) + "\n
 print("MANIFEST:", os.environ["MANIFEST_OUT"])
 PY
 
-log "DONE — alpha Linux package under ${OUT}"
-ls -la "${OUT}/bin" "${OUT}/installers"
+# First-alpha user layout: stripped tar/deb/AppImage under release/linux/
+REL="${REPO_ROOT}/release/linux"
+mkdir -p "${REL}"
+cp -a "${TAR}" "${REL}/rigor-alpha-linux.tar.gz"
+cp -a "${DEB_FILE}" "${REL}/rigor-wallet.deb"
+if [[ -f "${APPIMAGE}" ]]; then
+  cp -a "${APPIMAGE}" "${REL}/rigor-wallet.AppImage"
+else
+  rm -f "${REL}/rigor-wallet.AppImage"
+fi
+if [[ -f "${APP_OUT}/rigor-wallet-x86_64.AppDir.tar.gz" ]]; then
+  cp -a "${APP_OUT}/rigor-wallet-x86_64.AppDir.tar.gz" "${REL}/rigor-wallet-x86_64.AppDir.tar.gz"
+fi
+log "Staged first-alpha names under ${REL}"
+
+# AlphaPlus dist names: overwrite any unstripped debug tarballs
+AP="${REPO_ROOT}/dist/alphaplus/linux"
+mkdir -p "${AP}"
+cp -a "${TAR}" "${AP}/rigor-v0.1.1-alphaplus-linux.tar.gz"
+cp -a "${TAR}" "${AP}/rigor-wallet-0.1.1-alphaplus.tar.gz"
+if [[ -f "${DEB_FILE}" ]]; then
+  cp -a "${DEB_FILE}" "${AP}/rigor-v0.1.1-alphaplus-linux.deb"
+fi
+core_tmp="$(mktemp -d)"
+mkdir -p "${core_tmp}/bin"
+cp -a "${OUT}/bin/rigord" "${OUT}/bin/rigor-cli" "${core_tmp}/bin/"
+tar -C "${core_tmp}" -czf "${AP}/rigor-core-0.1.1-alphaplus.tar.gz" bin
+rm -rf "${core_tmp}"
+(
+  cd "${AP}"
+  sha256sum \
+    rigor-v0.1.1-alphaplus-linux.tar.gz \
+    rigor-wallet-0.1.1-alphaplus.tar.gz \
+    rigor-core-0.1.1-alphaplus.tar.gz \
+    > SHA256SUMS
+  if [[ -f rigor-v0.1.1-alphaplus-linux.deb ]]; then
+    sha256sum rigor-v0.1.1-alphaplus-linux.deb >> SHA256SUMS
+  fi
+)
+log "Staged stripped AlphaPlus tarballs under ${AP}"
+
+log "DONE — AlphaPlus Linux package under ${OUT}"
+ls -la "${OUT}/bin" "${OUT}/installers" "${REL}"

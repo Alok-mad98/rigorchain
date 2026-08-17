@@ -204,7 +204,7 @@ RigorGUI::RigorGUI(interfaces::Node& node, const PlatformStyle *_platformStyle, 
     QString curStyle = QApplication::style()->metaObject()->className();
     if(curStyle == "QWindowsStyle" || curStyle == "QWindowsXPStyle")
     {
-        progressBar->setStyleSheet("QProgressBar { background-color: #222226; border: 1px solid #2C2C30; border-radius: 7px; padding: 1px; text-align: center; color: #E6E6E6; } QProgressBar::chunk { background: #FF6A2B; border-radius: 7px; margin: 0px; }");
+        progressBar->setStyleSheet("QProgressBar { background-color: #111111; border: 1px solid #333333; border-radius: 7px; padding: 1px; text-align: center; color: #FFFFFF; } QProgressBar::chunk { background: #FF6A2B; border-radius: 7px; margin: 0px; }");
     }
 
     statusBar()->addWidget(progressBarLabel);
@@ -237,7 +237,7 @@ RigorGUI::RigorGUI(interfaces::Node& node, const PlatformStyle *_platformStyle, 
     GUIUtil::ApplyRigorWalletChrome(this, nullptr, rpcConsole);
 #endif
 
-    // Icons were created before dark palette/chrome; recolor to WindowText (#E6E6E6).
+    // Icons were created before dark palette/chrome; recolor to WindowText (#FFFFFF).
     overviewAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/overview"))));
     sendCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/send"))));
     receiveCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/receiving_addresses"))));
@@ -1505,9 +1505,13 @@ bool RigorGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 
 void RigorGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
 {
-    labelWalletHDStatusIcon->setThemedPixmap(privkeyDisabled ? QStringLiteral(":/icons/eye") : hdEnabled ? QStringLiteral(":/icons/hd_enabled") : QStringLiteral(":/icons/hd_disabled"), STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
-    labelWalletHDStatusIcon->setToolTip(privkeyDisabled ? tr("Private key <b>disabled</b>") : hdEnabled ? tr("HD key generation is <b>enabled</b>") : tr("HD key generation is <b>disabled</b>"));
-    labelWalletHDStatusIcon->show();
+    // RIGOR uses descriptor wallets (ORU witness v0 / RES witness v1). The Bitcoin-era
+    // HD status icon is misleading: wallet-wide IsHDEnabled() is false whenever RES
+    // single-slot ScriptPubKeyMans are active, so the tray showed "HD disabled" even
+    // though v0/v1 receive addresses work. Keep the control hidden.
+    Q_UNUSED(privkeyDisabled);
+    Q_UNUSED(hdEnabled);
+    labelWalletHDStatusIcon->hide();
 }
 
 void RigorGUI::setEncryptionStatus(int status)

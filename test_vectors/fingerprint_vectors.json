@@ -1,0 +1,54 @@
+{
+  "library": "AlphaPlus Consensus Fingerprint",
+  "hash": "Hash256 = SHA256(SHA256(preimage))",
+  "preimage": "ConvergenceRoot || winner_txid || Sigma || LE32(height) || LE32(target_prev)",
+  "preimage_size_bytes": 104,
+  "encoding": {
+    "uint256_hex": "Native serialization / digest order. First hex pair is byte 0 of the 32-byte field (same as HexStr over uint256 memory, not GetHex).",
+    "height": "JSON number. Encoded in the preimage as 4-byte little-endian uint32.",
+    "target_prev": "JSON hex string of the uint32 integer value (8 hex chars, not little-endian byte dump). Encoded in the preimage as 4-byte little-endian uint32.",
+    "expected_fingerprint": "Hash256 digest-order hex (HexStr)."
+  },
+  "vectors": [
+    {
+      "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+      "winner_txid": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sigma": "0000000000000000000000000000000000000000000000000000000000000000",
+      "height": 100,
+      "target_prev": "00000000",
+      "expected_fingerprint": "a58b9a1f2d0f3994ef8e81b08258ae0ef130a4f234b1e331f4ee4efef2ad35d4"
+    },
+    {
+      "convergence_root": "0101010101010101010101010101010101010101010101010101010101010101",
+      "winner_txid": "0202020202020202020202020202020202020202020202020202020202020202",
+      "sigma": "0303030303030303030303030303030303030303030303030303030303030303",
+      "height": 1,
+      "target_prev": "1d00ffff",
+      "expected_fingerprint": "632cc6d0d5ab86a2fa74219cdf6f3f1cef91b71abc4aa34e52a496303e4adb8d"
+    },
+    {
+      "convergence_root": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "winner_txid": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "sigma": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+      "height": 210000,
+      "target_prev": "1c0fffff",
+      "expected_fingerprint": "062925341840c6feac9f86f9964f6d35fff81088c51b358c88e78cb374e01950"
+    },
+    {
+      "convergence_root": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "winner_txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sigma": "5555555555555555555555555555555555555555555555555555555555555555",
+      "height": 4294967295,
+      "target_prev": "ffffffff",
+      "expected_fingerprint": "50433a0d157a3e8d9184454b65ee15da1aa8cc0b311883c0884b0adddbb80001"
+    },
+    {
+      "convergence_root": "1111111111111111111111111111111111111111111111111111111111111111",
+      "winner_txid": "2222222222222222222222222222222222222222222222222222222222222222",
+      "sigma": "3333333333333333333333333333333333333333333333333333333333333333",
+      "height": 0,
+      "target_prev": "00000000",
+      "expected_fingerprint": "fff640bb8a6303085c03db6706a80867bf696fbe0667f137fd9ef6553247693c"
+    }
+  ]
+}

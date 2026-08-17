@@ -12,10 +12,12 @@
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/amount.h>
 #include <hash.h>
+#include <logging.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
+#include <util/moneystr.h>
 
 #include <algorithm>
 #include <array>
@@ -75,11 +77,14 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
     const CScript& mining_res_receive_script)
 {
     if (!parent_outcome.HasWinner() || parent_draw_set.source_height + 1 != block_height) {
+        LogPrintf("TryCreateAutomaticResMintTx: skip (has_winner=%d source_height=%d payout_height=%d)\n",
+                  parent_outcome.HasWinner() ? 1 : 0, parent_draw_set.source_height, block_height);
         return std::nullopt;
     }
     // Non-empty `mining_res_receive_script` now only signals that this node is configured to
     // assemble RES mints; since A-5 it is no longer the payout destination.
     if (mining_res_receive_script.empty()) {
+        LogPrintf("TryCreateAutomaticResMintTx: mint assembly is not armed (empty script) height=%d\n", block_height);
         return std::nullopt;
     }
 
@@ -87,6 +92,8 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
         parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)];
     const CAmount conv_amt = static_cast<CAmount>(winner.weight);
     if (conv_amt < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(conv_amt)) {
+        LogPrintf("TryCreateAutomaticResMintTx: winner weight out of range txid=%s weight=%s\n",
+                  winner.txid.ToString(), FormatMoney(conv_amt));
         return std::nullopt;
     }
 
@@ -94,6 +101,8 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
     // node's configured address. A template built with any other script is rejected by
     // ConnectBlock with bad-rigor-res-owner-mismatch.
     if (winner.res_payout_program32.size() != 32) {
+        LogPrintf("TryCreateAutomaticResMintTx: winner %s has no 32-byte RES owner program (len=%u)\n",
+                  winner.txid.ToString(), static_cast<unsigned>(winner.res_payout_program32.size()));
         return std::nullopt;
     }
     const CScript res_payout_script = CScript() << OP_1 << winner.res_payout_program32;
@@ -105,13 +114,15 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
         parent_draw_set.source_nbits,
         parent_draw_set.convergence_root);
     if (wit.IsNull()) {
+        LogPrintf("TryCreateAutomaticResMintTx: PCORB witness build returned null for winner %s\n",
+                  winner.txid.ToString());
         return std::nullopt;
     }
     const CScript& redeem = RedeemAutoResMintBootstrapScript();
     wit.stack.emplace_back(redeem.begin(), redeem.end());
 
     std::vector<std::pair<COutPoint, CAmount>> spendable;
-    for (std::unique_ptr<CCoinsViewCursor> cur(assemble_view.Cursor()); cur->Valid(); cur->Next()) {
+    for (std::unique_ptr<CCoinsViewCursor> cur(assemble_view.Cursor()); cur && cur->Valid(); cur->Next()) {
         COutPoint op;
         Coin coin;
         if (!cur->GetKey(op) || !cur->GetValue(coin)) continue;
@@ -120,6 +131,9 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
         spendable.emplace_back(op, coin.out.nValue);
     }
     if (spendable.empty()) {
+        LogPrintf("TryCreateAutomaticResMintTx: no AutoResMintBootstrap P2WSH UTXO at height=%d; "
+                  "fund via getautomintfundaddress\n",
+                  block_height);
         return std::nullopt;
     }
     std::sort(spendable.begin(), spendable.end(), [](const auto& a, const auto& b) {
@@ -130,10 +144,14 @@ std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const Convergence
     const COutPoint fund_prev = spendable.front().first;
     const CAmount in_amt = spendable.front().second;
     if (!MoneyRange(in_amt) || in_amt <= kAutoMintOruFee) {
+        LogPrintf("TryCreateAutomaticResMintTx: bootstrap UTXO %s:%u value %s is too small (need > %s)\n",
+                  fund_prev.hash.ToString(), fund_prev.n, FormatMoney(in_amt), FormatMoney(kAutoMintOruFee));
         return std::nullopt;
     }
     const CAmount oru_change = in_amt - kAutoMintOruFee;
     if (!MoneyRange(oru_change)) {
+        LogPrintf("TryCreateAutomaticResMintTx: ORU change out of range in=%s fee=%s\n",
+                  FormatMoney(in_amt), FormatMoney(kAutoMintOruFee));
         return std::nullopt;
     }
 

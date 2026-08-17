@@ -37,8 +37,14 @@ static const int CLIENT_VERSION =
 
 extern const std::string CLIENT_NAME;
 
+/** Product release identity (tag / installer). Not the packed CLIENT_VERSION integer. */
+inline constexpr const char* RIGOR_RELEASE_VERSION = "v0.1.1-alphaplus";
+inline constexpr const char* RIGOR_RELEASE_CODENAME = "AlphaPlus Consensus Freeze";
 
 std::string FormatFullVersion();
+/** `rigord -version` banner: RIGOR / tag / codename / BUILD_GIT_COMMIT. */
+std::string FormatReleaseIdentity();
+std::string FormatGitCommitStamp();
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
 
 std::string CopyrightHolders(const std::string& strPrefix);

@@ -1,15 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { LAB_NAV, PRIMARY_NAV } from "../ia/sitemap";
 import { useSystemState } from "../context/SystemStateContext";
 import { VerificationNotice } from "./VerificationNotice";
-
-const NAV = [
-  { to: "/", label: "Home" },
-  { to: "/protocol", label: "Protocol" },
-  { to: "/science", label: "Science" },
-  { to: "/lab", label: "Lab" },
-  { to: "/status", label: "Status" },
-  { to: "/experiment", label: "PROOF-034" },
-];
 
 function statusClass(s: string): string {
   switch (s) {
@@ -57,15 +49,28 @@ export function AppShell() {
 
       <nav className="top-nav">
         <Link to="/" className="brand">
-          RIGOR
+          <img src="/assets/rigor-logo.svg" alt="" className="brand-mark" width={32} height={32} />
+          <span className="brand-text">AlphaPlus</span>
+          <span className="brand-sub">RIGOR</span>
         </Link>
         <div className="nav-links">
-          {NAV.map(({ to, label }) => (
-            <Link key={to} to={to} className={pathname === to ? "active" : ""}>
+          {PRIMARY_NAV.map(({ to, label }) => (
+            <Link
+              key={to}
+              to={to}
+              className={pathname === to || pathname.startsWith(`${to}/`) ? "active" : ""}
+            >
               {label}
             </Link>
           ))}
         </div>
+      </nav>
+      <nav className="lab-nav" aria-label="Protocol lab">
+        {LAB_NAV.map(({ to, label }) => (
+          <Link key={to} to={to} className={pathname === to ? "active" : ""}>
+            {label}
+          </Link>
+        ))}
       </nav>
 
       <VerificationNotice />
@@ -93,12 +98,13 @@ export function AppShell() {
 
       <footer className="site-footer">
         <p>
-          RIGOR is currently in live formal verification (PROOF-034). No equivalence claim is established.
-          All runtime results are provisional.
+          AlphaPlus (RIGOR) is currently in live formal verification (PROOF-034). No equivalence claim
+          is established. All runtime results are provisional.
         </p>
         <p className="footer-muted">
           equivalence_claimed = false · Not a finished mainnet system · Not an investment offering ·
-          Native assets: ORU and RES
+          Native assets: ORU and RES · Visual tokens: <code>web/rigorchain-site/src/index.css</code>{" "}
+          <code>:root</code>
         </p>
         <p className="footer-muted">
           Build: {import.meta.env.VITE_SITE_VERSION ?? "dev"} · www.rigorchain.com

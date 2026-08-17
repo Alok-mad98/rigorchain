@@ -14,6 +14,14 @@ import {
 } from "./db";
 import type { Config } from "./config";
 import { buildStatusDashboard } from "./api/status";
+import {
+  injectSsrRoot,
+  readPublicTemplate,
+  renderBlockRoot,
+  renderBlocksRoot,
+  renderStatusRoot,
+  renderTxRoot,
+} from "./uiSsr";
 
 function sendPublic(res: Response, publicDir: string, file: string): void {
   res.sendFile(path.join(publicDir, file));
@@ -117,7 +125,13 @@ export function registerApiRoutes(app: Express, pool: Pool, config: Config): voi
   mountApi("");
 }
 
-export function registerUiRoutes(app: Express, pool: Pool, publicDir: string): void {
+function sendSsrHtml(res: Response, html: string): void {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+}
+
+export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, config?: Config): void {
   // ---- Legacy HTML redirects (CU-03) ----
   app.get("/index.html", (_req, res) => res.redirect(301, "/"));
   app.get("/blocks.html", (_req, res) => res.redirect(301, "/blocks"));
@@ -126,7 +140,7 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string): v
     if (q) return res.redirect(301, `/search?q=${encodeURIComponent(q)}`);
     res.redirect(301, "/search");
   });
-  app.get("/status.html", (_req, res) => res.redirect(301, "/status"));
+  app.get("/status.html", (_req, res) => res.redirect(301, "/"));
 
   app.get("/address.html", (req, res) => {
     const addr = typeof req.query.addr === "string" ? req.query.addr : "";
@@ -158,11 +172,78 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string): v
     };
 
   // ---- Canonical UI pages (registered before JSON handlers on same paths) ----
-  app.get("/blocks", htmlOrNext("blocks.html"));
-  app.get("/block/:hash", htmlOrNext("block.html"));
-  app.get("/tx/:txid", htmlOrNext("tx.html"));
+  app.get("/blocks", async (req, res, next) => {
+    if (!wantsHtmlPage(req)) return next();
+    try {
+      const rows = await listBlocks(pool, 50);
+      const html = injectSsrRoot(readPublicTemplate(publicDir, "blocks.html"), renderBlocksRoot(rows));
+      sendSsrHtml(res, html);
+    } catch (e) {
+      console.error("SSR /blocks failed:", e);
+      sendPublic(res, publicDir, "blocks.html");
+    }
+  });
+
+  app.get("/block/:hash", async (req, res, next) => {
+    if (!wantsHtmlPage(req)) return next();
+    const hash = req.params.hash;
+    try {
+      const row = await getBlockByHash(pool, hash);
+      if (!row) {
+        const html = injectSsrRoot(
+          readPublicTemplate(publicDir, "block.html"),
+          "<p>Block not found.</p>",
+        );
+        res.status(404);
+        sendSsrHtml(res, html);
+        return;
+      }
+      const html = injectSsrRoot(readPublicTemplate(publicDir, "block.html"), renderBlockRoot(row, hash));
+      sendSsrHtml(res, html);
+    } catch (e) {
+      console.error("SSR /block failed:", e);
+      sendPublic(res, publicDir, "block.html");
+    }
+  });
+
+  app.get("/tx/:txid", async (req, res, next) => {
+    if (!wantsHtmlPage(req)) return next();
+    const txid = req.params.txid;
+    try {
+      const row = await getTxByTxid(pool, txid);
+      if (!row) {
+        const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), "<p>Transaction not found.</p>");
+        res.status(404);
+        sendSsrHtml(res, html);
+        return;
+      }
+      const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), renderTxRoot(row, txid));
+      sendSsrHtml(res, html);
+    } catch (e) {
+      console.error("SSR /tx failed:", e);
+      sendPublic(res, publicDir, "tx.html");
+    }
+  });
+
   app.get("/address/:addr", htmlOrNext("address.html"));
-  app.get("/status", (_req, res) => sendPublic(res, publicDir, "status.html"));
+  app.get("/status", (_req, res) => res.redirect(301, "/"));
+
+  if (config) {
+    app.get("/", async (req, res, next) => {
+      if (!wantsHtmlPage(req) && (req.headers.accept ?? "").includes("application/json")) return next();
+      try {
+        const dashboard = await buildStatusDashboard(config, pool);
+        const html = injectSsrRoot(
+          readPublicTemplate(publicDir, "index.html"),
+          renderStatusRoot(dashboard as unknown as Record<string, unknown>),
+        );
+        sendSsrHtml(res, html);
+      } catch (e) {
+        console.error("SSR / failed:", e);
+        sendPublic(res, publicDir, "index.html");
+      }
+    });
+  }
 
   app.get("/search", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";

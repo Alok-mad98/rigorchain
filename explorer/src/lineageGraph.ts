@@ -1,6 +1,6 @@
 /** Convergence lineage graph — indexed presentation only (TASK-EXPLORER-009). */
 
-import type { BlockConvergencePanel } from "./convergencePanel";
+import { buildBlockConvergencePanel, type BlockConvergencePanel } from "./convergencePanel";
 import type { ConvergeProofPanel } from "./convergeProofPanel";
 import type { ConvergenceCandidateRow } from "./convergencePanel";
 import { atomsToResDisplay } from "./witnessPanel";
@@ -103,7 +103,7 @@ export type LineageGraph = {
 export const LINEAGE_LEGEND: LineageGraph["legend"] = [
   { kind: "Candidate", description: "Indexed convergence candidate in |F|" },
   { kind: "Winner", description: "rigor_winner for the block (rigord authority)" },
-  { kind: "Root", description: "convergence_root from indexed convergence_events" },
+  { kind: "Root", description: "C (convergence_root) from getconvergenceresult / indexed c_root" },
   { kind: "Sigma", description: "selection_digest_h (sigma digest) on winner row" },
   { kind: "PCORB", description: "6-field RES mint proof witness (protocol-native)" },
   { kind: "Mint", description: "RES issuance transaction linked to winner" },
@@ -201,8 +201,9 @@ export function buildLineageGraph(args: {
   }
 
   const root =
-    args.convergeProof.convergence_root ??
+    args.blockPanel?.c_root ??
     args.blockPanel?.convergence_root ??
+    args.convergeProof.convergence_root ??
     (args.winnerConvergenceRow?.convergence_root ? String(args.winnerConvergenceRow.convergence_root) : null);
 
   const sigmaHex =
@@ -301,7 +302,7 @@ export function buildLineageGraph(args: {
     nodes.push({
       id: rootId,
       kind: "convergence_root",
-      label: "Convergence Root",
+      label: "C (convergence_root)",
       state: "Winner",
       href: blockHash ? blockHref(blockHash) : null,
       value: root,
@@ -425,6 +426,8 @@ export function buildBlockLineageGraph(
     height: bigint | number;
     mismatch?: boolean;
     committed_root: string;
+    draw_candidate_root?: string;
+    c_root?: string | null;
   },
   candidates: ConvergenceCandidateRow[],
   convergeProof: ConvergeProofPanel,
@@ -433,16 +436,15 @@ export function buildBlockLineageGraph(
 ): LineageGraph {
   const winnerTxid = (block.rigor_winner || "").trim();
   const anchor = winnerTxid || candidates[0]?.convergence_txid || blockHash;
-  const blockPanel = {
-    status: "Convergence Winner Block" as const,
-    candidate_set_size: candidates.length,
-    convergence_root: winnerRow?.convergence_root
-      ? String(winnerRow.convergence_root)
-      : block.committed_root,
-    winner_txid: winnerTxid || null,
-    candidate_txids: candidates.map((c) => c.convergence_txid).sort(),
-    rpc_authority_notice: "",
-  };
+  const blockPanel = buildBlockConvergencePanel(
+    {
+      rigor_winner: winnerTxid,
+      committed_root: block.committed_root,
+      draw_candidate_root: block.draw_candidate_root,
+      c_root: block.c_root ?? null,
+    },
+    candidates,
+  );
 
   return buildLineageGraph({
     anchorTxid: anchor,

@@ -51,6 +51,7 @@
 #include <consensus/params.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <consensus/tx_verify.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
@@ -159,6 +160,20 @@ bool ConnectEvaluateResMintTx(const CTransaction& tx,
     // could redirect any user's winnings to itself.
     if (!Consensus::CheckResRewardOwner(winner.res_payout_program32, tx)) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-rigor-res-owner-mismatch");
+    }
+
+    // Amount is not part of owner-program matching. Fail here so a scored mint can never
+    // carry any RES total other than the locked 100.00 — ConnectBlock's sum check is then
+    // a restatement, not the first gate.
+    CAmount res_out = 0;
+    int n_res = 0;
+    for (const auto& o : tx.vout) {
+        if (!IsResScript(o.scriptPubKey)) continue;
+        ++n_res;
+        res_out += o.nValue;
+    }
+    if (n_res != 1 || res_out != Consensus::RES_REWARD_AMOUNT) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-rigor-res-amount");
     }
 
     const uint256 h256 = Consensus::ConvergeProofDigest(proof.convergence_txid, proof.bind_hash, proof.height, proof.convergence_root);

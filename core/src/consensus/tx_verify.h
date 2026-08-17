@@ -32,6 +32,8 @@ namespace Consensus {
 /**
  * Dual-pool conservation: POOL-T (transfer) per asset; POOL-F network fee always ORU (`oru_in - oru_out`).
  * RES transfer requires ORU fee inputs; RES amounts never fund the network fee.
+ * ORU→RES is allowed only as the body-mint shape (parseable PCORB, exactly one 100.00 RES output);
+ * winner coupling remains ConnectBlock.
  * @param[out] txfee ORU network fee (sat) on success.
  * Preconditions: tx.IsCoinBase() is false.
  */

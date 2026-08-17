@@ -101,9 +101,17 @@ same input -> same bytes output
 
 Across platforms, compilers, and execution environments.
 
+## Fee domain and Convergence settlement
+
+- **Network fees are ORU-only** (POOL-F). There is no path where users pay transaction fees in RES.
+- Convergence RES prizes pay the **draw winner**. Local mining only *settles* that mint into the next block.
+- Wallet product: Settings → **Auto-settle Convergence when mining locally** (default ON). See
+  [docs/mining/AUTO_SETTLE_CONVERGENCE_WALLET.md](../mining/AUTO_SETTLE_CONVERGENCE_WALLET.md).
+- Legacy node arg `-miningresfeeaddr` **arms** mint assembly; it is not a fee-receive address.
+
 ## Terminology
 
-See [docs/security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md](docs/security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md)
+See [docs/security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md](../security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md)
 for the mapping from earlier “script-as-asset” language to the current compliance-layer framing.
 
 ## References
@@ -112,3 +120,5 @@ for the mapping from earlier “script-as-asset” language to the current compl
 - `docs/rfcs/RFC-ARCH-000-engineering-constitution.md` — Engineering constitution.
 - `core/doc/convergence-consensus-v1.md` — Convergence rules.
 - `docs/FORMAL-VERIFICATION-VERDICT.md` — What is proved, and what is not.
+- `docs/pool/POOL_NODE_AUTOMINT_RUNBOOK.md` — Node automint ops (armed settlement + ORU fund UTXO).
+- `docs/mining/AUTO_SETTLE_CONVERGENCE_WALLET.md` — Wallet auto-settle product wording.

@@ -8,10 +8,15 @@
 
 #include <chainparams.h>
 #include <qt/guiutil.h>
+#include <qt/platformstyle.h>
 
 #include <QEasingCurve>
+#include <QIcon>
+#include <QPixmap>
 #include <QPropertyAnimation>
 #include <QResizeEvent>
+
+#include <memory>
 
 ModalOverlay::ModalOverlay(bool enable_wallet, QWidget* parent)
     : QWidget(parent),
@@ -20,6 +25,16 @@ ModalOverlay::ModalOverlay(bool enable_wallet, QWidget* parent)
 {
     ui->setupUi(this);
     connect(ui->closeButton, &QPushButton::clicked, this, &ModalOverlay::closeClicked);
+    // .ui warning icon is a black pixmap on a disabled button; force a white glyph
+    // so it is visible on the dark overlay next to the sync / "attempting to spend" text.
+    if (std::unique_ptr<const PlatformStyle> style{PlatformStyle::instantiate(QStringLiteral("other"))}) {
+        const QIcon white = style->SingleColorIcon(QIcon(QStringLiteral(":/icons/warning")));
+        const QPixmap pm = white.pixmap(ui->warningIcon->iconSize());
+        QIcon visible;
+        visible.addPixmap(pm, QIcon::Normal);
+        visible.addPixmap(pm, QIcon::Disabled);
+        ui->warningIcon->setIcon(visible);
+    }
     if (parent) {
         parent->installEventFilter(this);
         raise();

@@ -113,6 +113,7 @@ src/qt/bitcoin-qt.includes
 *.qm
 Makefile
 !depends/Makefile
+!core/depends/Makefile
 src/qt/bitcoin-qt
 Bitcoin-Qt.app
 
@@ -235,7 +236,7 @@ contrib/testing/**/out/
 contrib/testing/**/*.log
 .runtime/**
 
-# Nested Qt moc (moc_*.cpp under qt/ only covered top-level historically)
+# Nested Qt moc — generated at build time; do not re-add to the index.
 **/moc_*.cpp
 **/ui_*.h
 **/*.moc
@@ -335,6 +336,13 @@ contrib/testing/m1*/
 contrib/testing/local_mainnet_simulation/out/
 miner/minerd
 core/build-mingw-alpha/
+core/build-linux-alpha/
+
+# Configure-generated files with absolute paths. Tracking them appends -dirty
+# to BUILD_GIT_COMMIT (NEW-3). Sources are *.in.
+core/test/config.ini
+core/share/setup.nsi
+core/src/obj/
 # public-history candidate: keep source hidden by generic rules
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch

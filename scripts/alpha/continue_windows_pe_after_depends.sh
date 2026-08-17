@@ -15,4 +15,4 @@ fi
 export SKIP_DEPENDS=1
 bash "${REPO_ROOT}/scripts/alpha/build_alpha_windows_pe.sh" 2>&1 | tee "$LOG"
 bash "${REPO_ROOT}/scripts/alpha/build_alpha_windows_nsis.sh" 2>&1 | tee -a "$LOG"
-echo "DONE — see dist/alpha/windows/rigor-wallet-0.1.0-alpha.exe"
+echo "DONE — see dist/alpha/windows/rigor-wallet-0.1.1-alphaplus.exe"

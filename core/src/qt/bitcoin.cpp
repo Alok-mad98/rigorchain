@@ -10,6 +10,7 @@
 #include <qt/rigorwallet/walletidentity.h>
 
 #include <chainparams.h>
+#include <clientversion.h>
 #include <common/init.h>
 #include <init.h>
 #include <interfaces/handler.h>
@@ -61,6 +62,13 @@
 #include <QTimer>
 #include <QTranslator>
 #include <QWindow>
+
+#ifdef WIN32
+#include <windows.h>
+#include <csignal>
+#include <cstdio>
+#include <exception>
+#endif
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -208,6 +216,10 @@ static void ErrorSettingsWrite(const bilingual_str& error, const std::vector<std
     messagebox.exec();
 }
 
+#ifdef WIN32
+static void WinShowError(const char* msg);
+#endif
+
 /* qDebug() message handler --> debug.log */
 void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, const QString &msg)
 {
@@ -217,7 +229,112 @@ void DebugMessageHandler(QtMsgType type, const QMessageLogContext& context, cons
     } else {
         LogPrintf("GUI: %s\n", msg.toStdString());
     }
+#ifdef WIN32
+    if (type == QtFatalMsg || type == QtCriticalMsg) {
+        WinShowError(msg.toStdString().c_str());
+    }
+#endif
 }
+
+#ifdef WIN32
+static void WinBootLog(const char* step)
+{
+    auto write_one = [&](const std::string& path) {
+        if (FILE* f = fopen(path.c_str(), "a")) {
+            SYSTEMTIME st{};
+            GetLocalTime(&st);
+            fprintf(f, "%04d-%02d-%02d %02d:%02d:%02d.%03d %s\n",
+                    st.wYear, st.wMonth, st.wDay,
+                    st.wHour, st.wMinute, st.wSecond, st.wMilliseconds,
+                    step ? step : "");
+            fclose(f);
+        }
+    };
+
+    char mod[MAX_PATH]{};
+    if (GetModuleFileNameA(nullptr, mod, MAX_PATH)) {
+        std::string path(mod);
+        const auto slash = path.find_last_of("\\/");
+        if (slash != std::string::npos) path.resize(slash + 1);
+        path += "rigor-wallet-boot.log";
+        write_one(path);
+    }
+
+    char temp[MAX_PATH]{};
+    if (GetTempPathA(MAX_PATH, temp)) {
+        write_one(std::string(temp) + "rigor-wallet-boot.log");
+    }
+
+    char appdata[MAX_PATH]{};
+    if (GetEnvironmentVariableA("APPDATA", appdata, MAX_PATH)) {
+        const std::string dir = std::string(appdata) + "\\RIGOR";
+        CreateDirectoryA(dir.c_str(), nullptr);
+        write_one(dir + "\\rigor-wallet-boot.log");
+    }
+}
+
+static void WinShowError(const char* msg)
+{
+    WinBootLog(msg);
+    MessageBoxA(nullptr, msg ? msg : "Unknown error", "RIGOR Wallet", MB_OK | MB_ICONERROR);
+}
+
+static void QtEarlyMessageHandler(QtMsgType type, const QMessageLogContext&, const QString& msg)
+{
+    const std::string text = msg.toStdString();
+    WinBootLog(text.c_str());
+    if (type == QtFatalMsg || type == QtCriticalMsg) {
+        WinShowError(text.c_str());
+    }
+}
+
+static void WinAbortHandler(int)
+{
+    WinShowError("RIGOR Wallet aborted during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
+    _exit(1);
+}
+
+static void WinTerminateHandler()
+{
+    std::string msg = "RIGOR Wallet terminated unexpectedly during startup. See rigor-wallet-boot.log.";
+    if (auto ep = std::current_exception()) {
+        try {
+            std::rethrow_exception(ep);
+        } catch (const std::exception& e) {
+            msg += "\n\n";
+            msg += e.what();
+        } catch (...) {
+            msg += "\n\n(unknown exception)";
+        }
+    }
+    WinShowError(msg.c_str());
+    _exit(1);
+}
+
+static LONG WINAPI WinCrashFilter(EXCEPTION_POINTERS*)
+{
+    WinShowError("RIGOR Wallet crashed during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
+static bool WinGuiThreadSafeMessageBox(const bilingual_str& message, const std::string& caption, unsigned int style)
+{
+    noui_ThreadSafeMessageBox(message, caption, style);
+    UINT mb = MB_OK;
+    if ((style & CClientUIInterface::ICON_MASK) == CClientUIInterface::ICON_ERROR) {
+        mb |= MB_ICONERROR;
+    } else if ((style & CClientUIInterface::ICON_MASK) == CClientUIInterface::ICON_WARNING) {
+        mb |= MB_ICONWARNING;
+    } else {
+        mb |= MB_ICONINFORMATION;
+    }
+    const std::string text = (caption.empty() ? std::string("RIGOR Wallet") : caption) + "\n\n" +
+                             (message.translated.empty() ? message.original : message.translated);
+    WinBootLog(text.c_str());
+    MessageBoxA(nullptr, text.c_str(), "RIGOR Wallet", mb);
+    return false;
+}
+#endif
 
 static int qt_argc = 1;
 static const char* qt_argv = "rigor-qt";
@@ -240,7 +357,12 @@ void BitcoinApplication::setupPlatformStyle()
     platformStyle = PlatformStyle::instantiate(QString::fromStdString(platformName));
     if (!platformStyle) // Fall back to "other" if specified name not found
         platformStyle = PlatformStyle::instantiate("other");
-    assert(platformStyle);
+    if (!platformStyle) {
+        qWarning("Failed to instantiate a UI platform style");
+#ifdef WIN32
+        MessageBoxA(nullptr, "Failed to create the RIGOR Wallet UI style.", "RIGOR Wallet", MB_OK | MB_ICONERROR);
+#endif
+    }
 }
 
 BitcoinApplication::~BitcoinApplication()
@@ -513,6 +635,12 @@ int GuiMain(int argc, char* argv[])
 #ifdef WIN32
     util::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
+    SetUnhandledExceptionFilter(WinCrashFilter);
+    std::signal(SIGABRT, WinAbortHandler);
+    std::set_terminate(WinTerminateHandler);
+    qInstallMessageHandler(QtEarlyMessageHandler);
+    qputenv("QT_QPA_PLATFORM", "windows");
+    WinBootLog("GuiMain start");
 #endif
 
     std::unique_ptr<interfaces::Init> init = interfaces::MakeGuiInit(argc, argv);
@@ -521,13 +649,20 @@ int GuiMain(int argc, char* argv[])
     util::ThreadSetInternalName("main");
 
     // Subscribe to global signals from core
+#ifdef WIN32
+    boost::signals2::scoped_connection handler_message_box = ::uiInterface.ThreadSafeMessageBox_connect(WinGuiThreadSafeMessageBox);
+#else
     boost::signals2::scoped_connection handler_message_box = ::uiInterface.ThreadSafeMessageBox_connect(noui_ThreadSafeMessageBox);
+#endif
     boost::signals2::scoped_connection handler_question = ::uiInterface.ThreadSafeQuestion_connect(noui_ThreadSafeQuestion);
     boost::signals2::scoped_connection handler_init_message = ::uiInterface.InitMessage_connect(noui_InitMessage);
 
     // Do not refer to data directory yet, this can be overridden by Intro::pickDataDirectory
 
     /// 1. Basic Qt initialization (not dependent on parameters or configuration)
+#ifdef WIN32
+    WinBootLog("Q_INIT_RESOURCE");
+#endif
     Q_INIT_RESOURCE(bitcoin);
     Q_INIT_RESOURCE(bitcoin_locale);
 
@@ -543,8 +678,18 @@ int GuiMain(int argc, char* argv[])
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
 #endif
 
+#ifdef WIN32
+    WinBootLog("creating QApplication");
+#endif
     BitcoinApplication app;
+#ifdef WIN32
+    WinBootLog("QApplication created");
+#endif
     GUIUtil::LoadFont(QStringLiteral(":/fonts/monospace"));
+#ifdef WIN32
+    WinBootLog("LoadFont done");
+    WinBootLog("SetupServerArgs");
+#endif
 
     /// 2. Parse command-line options. We do this after qt in order to show an error if there are problems parsing these
     // Command-line options take precedence:
@@ -592,7 +737,18 @@ int GuiMain(int argc, char* argv[])
     bool did_show_intro = false;
     int64_t prune_MiB = 0;  // Intro dialog prune configuration
     // Gracefully exit if the user cancels
-    if (!Intro::showIfNeeded(did_show_intro, prune_MiB)) return EXIT_SUCCESS;
+#ifdef WIN32
+    WinBootLog("Intro::showIfNeeded");
+#endif
+    if (!Intro::showIfNeeded(did_show_intro, prune_MiB)) {
+#ifdef WIN32
+        WinBootLog("Intro returned false (cancel or datadir error)");
+#endif
+        return EXIT_SUCCESS;
+    }
+#ifdef WIN32
+    WinBootLog("Intro complete");
+#endif
 
     /// 6-7. Parse rigor.conf, determine network, switch to network specific
     /// options, and create datadir and settings.json.
@@ -613,6 +769,7 @@ int GuiMain(int argc, char* argv[])
         }
         return EXIT_FAILURE;
     }
+    LogPrintf("%s", FormatReleaseIdentity());
 #ifdef ENABLE_WALLET
     // Parse URIs on command line
     PaymentServer::ipcParseCommandLine(argc, argv);
@@ -652,6 +809,9 @@ int GuiMain(int argc, char* argv[])
 #endif
     // Install qDebug() message handler to route to debug.log
     qInstallMessageHandler(DebugMessageHandler);
+#ifdef WIN32
+    WinBootLog("creating splash/window");
+#endif
     // Allow parameter interaction before we create the options model
     app.parameterSetup();
     GUIUtil::LogQtInfo();
@@ -679,6 +839,9 @@ int GuiMain(int argc, char* argv[])
         // This is acceptable because this function only contains steps that are quick to execute,
         // so the GUI thread won't be held up.
         if (app.baseInitialize()) {
+#ifdef WIN32
+            WinBootLog("baseInitialize ok, entering event loop");
+#endif
             app.requestInitialize();
 #if defined(Q_OS_WIN)
             WinShutdownMonitor::registerShutdownBlockReason(QObject::tr("%1 didn't yet exit safely…").arg(RigorWallet::WalletIdentity::brand().productName), (HWND)app.getMainWinId());

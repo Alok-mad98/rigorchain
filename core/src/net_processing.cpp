@@ -26,6 +26,7 @@
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <policy/settings.h>
+#include <pow.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <random.h>
@@ -4253,6 +4254,11 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         }
         }
 
+        if (!CheckProofOfWork(cmpctblock.header, cmpctblock.header.nBits, m_chainparams.GetConsensus())) {
+            Misbehaving(*peer, 100, "cmpctblock header with invalid AlphaPlus proof of work");
+            return;
+        }
+
         const CBlockIndex *pindex = nullptr;
         BlockValidationState state;
         if (!m_chainman.ProcessNewBlockHeaders({cmpctblock.header}, /*min_pow_checked=*/true, state, &pindex)) {
@@ -4594,7 +4600,8 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
             // Check work on this block against our anti-dos thresholds.
             const CBlockIndex* prev_block = m_chainman.m_blockman.LookupBlockIndex(pblock->hashPrevBlock);
-            if (prev_block && prev_block->nChainWork + CalculateHeadersWork({pblock->GetBlockHeader()}) >= GetAntiDoSWorkThreshold()) {
+            if (prev_block && prev_block->nChainWork + CalculateHeadersWork({pblock->GetBlockHeader()}) >= GetAntiDoSWorkThreshold() &&
+                CheckProofOfWork(pblock->GetBlockHeader(), pblock->nBits, m_chainparams.GetConsensus())) {
                 min_pow_checked = true;
             }
         }

@@ -352,7 +352,7 @@ bool TestBlockValidity(BlockValidationState& state,
                        bool fCheckPOW = true,
                        bool fCheckMerkleRoot = true) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-/** Check with the proof of work on each blockheader matches the value in nBits */
+/** Check each header with AlphaPlus CheckProofOfWork (OpuHash vs declared nBits). */
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams);
 
 /**

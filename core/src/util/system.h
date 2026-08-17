@@ -42,7 +42,8 @@ void SetApplicationInvocationBaseName(const char* argv0);
 /** Basename of the running binary (e.g. bitcoind, rigord), or PACKAGE_TARNAME+"d" if unset. */
 std::string GetApplicationInvocationBaseName();
 
-extern const char * const BITCOIN_CONF_FILENAME;
+extern const char * const RIGOR_CONF_FILENAME;
+extern const char * const BITCOIN_CONF_FILENAME; // legacy fallback filename
 extern const char * const BITCOIN_SETTINGS_FILENAME;
 
 void SetupEnvironment();

@@ -45,8 +45,13 @@ inline constexpr std::size_t SIGMA_INPUT_SIZE = 100;
  *     96      4     height            (uint32, little-endian, RFC-000 §3)
  *
  * Total: 100 bytes, verified by `static_assert` in sigma_hash.cpp.
+ * Coq counterpart: `formal_verification/coq/CanonicalDrawEncoder.v`
+ * (offsets, little-endian height, SHA-256d). The two are connected by golden
+ * vectors, not by a refinement proof.
  *
  * Hash function: Hash256 = SHA-256(SHA-256(·)) — Bitcoin canonical double SHA.
+ * Byte agreement with Coq RigorSha256 is gated differentially
+ * (`formal_verification/tests/test_hash_kernel_tripartite.py`), not by refinement.
  *
  * SECURITY-001-A8 (Sigma-PoW-01) — why the slot at offset 64 is a raw parent
  * block hash and why both `txid_i` and `C` are drawn from block h-1:

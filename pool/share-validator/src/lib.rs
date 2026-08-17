@@ -17,10 +17,12 @@ pub mod commitments;
 pub mod convergence;
 pub mod error;
 pub mod header;
+pub mod job_binding;
 pub mod opuhash;
 pub mod pg_adapter;
 pub mod replay;
 pub mod res_mint;
+pub mod txwire;
 pub mod types;
 pub mod validator;
 
@@ -34,4 +36,7 @@ pub use replay::{ReplayGuard, SharedReplayGuard};
 pub use types::{
     BlockSubmission, JobValidationState, ShareSubmission, ValidationKind, ValidationResult,
 };
+pub use convergence::{CommittedWindowSource, ParentWindow, WindowCandidate};
+pub use job_binding::validate_job_template_binding;
+pub use res_mint::{validate_node_supplied_automint, RES_REWARD_ATOMS};
 pub use validator::ShareValidator;

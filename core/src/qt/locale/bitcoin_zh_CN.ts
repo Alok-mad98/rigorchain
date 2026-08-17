@@ -602,6 +602,14 @@ Signing is only possible with addresses of the type 'legacy'.</source>
         <translation type="unfinished">设置(&amp;S)</translation>
     </message>
     <message>
+        <source>&amp;Advanced</source>
+        <translation>高级(&amp;A)</translation>
+    </message>
+    <message>
+        <source>Enable &amp;Advanced Mode</source>
+        <translation>启用高级模式(&amp;A)</translation>
+    </message>
+    <message>
         <source>&amp;Help</source>
         <translation type="unfinished">帮助(&amp;H)</translation>
     </message>
@@ -3093,8 +3101,8 @@ Note:  Since the fee is calculated on a per-byte basis, a fee rate of "100 Tharn
         <translation type="unfinished">用被选单位表示的待发送金额</translation>
     </message>
     <message>
-        <source>The fee will be deducted from the amount being sent. The recipient will receive less bitcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation type="unfinished">交易费将从发送金额中扣除。接收人收到的比特币将会比您在金额框中输入的更少。如果选中了多个收件人，交易费平分。</translation>
+        <source>The fee will be deducted from the amount being sent. The recipient will receive less RIGOR than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
+        <translation>交易费将从发送金额中扣除。接收人收到的RIGOR将会比您在金额框中输入的更少。如果选中了多个收件人，交易费平分。</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>

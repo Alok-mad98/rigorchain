@@ -4,7 +4,7 @@
 **Document:** Official public website generation blueprint — architecture  
 **Date:** 2026-06-13  
 **Type:** Documentation + UI structure specification only — **no protocol, consensus, mining, or backend changes**  
-**Content authority:** [RIGOR_UNIFIED_WHITEPAPER_v1.0.md](../../docs/WHITEPAPER.md)  
+**Content authority:** [RIGOR_UNIFIED_WHITEPAPER_v1.0.md](../../docs/publication/RIGOR_UNIFIED_WHITEPAPER_v1.0.md)  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`
 
 | Field | Value |
@@ -36,13 +36,22 @@ The site **does not** implement wallet, mining, or transaction submission. It **
 
 ```text
 /                          Home — identity, layer map, live status summary
+├── /download              Official download entry
+├── /wallet                Wallet TXID sources
+├── /mining                Miner / getblockhash sources
+├── /explorer              Read-only blockchain viewer portal (not a validator)
+├── /documentation         Documentation + lab links
+├── /zero-trust-verification   Independent AlphaPlus verifier (RFC-019 philosophy) ⭐
 ├── /protocol              Protocol Layer viewer (§1 publication)
 ├── /axioms                Axiom Layer viewer (§2 publication)
 ├── /lab                   Lab narrative viewer (§3 publication)
-├── /explorer              Read-only blockchain / RPC state explorer UI
 ├── /verification          PROOF-034 + runtime soak status
 └── /system-status         Global health: node, RPC, explorer, gates
 ```
+
+**Zero-Trust Verification** is a first-class public feature and is **not** an Explorer module.
+Explorer only links to `/zero-trust-verification`. See
+`docs/release/ALPHAPLUS_ZERO_TRUST_VERIFIER_WEB_PORTAL_REPORT.md`.
 
 ### 2.1 Route-to-publication mapping
 
@@ -204,8 +213,8 @@ CORS: public site calls explorer API and a **read-only RPC proxy** (operator-dep
 | [UI_LAYOUT_SPEC.md](./UI_LAYOUT_SPEC.md) | Component-level UI |
 | [ROUTE_AND_DATA_BINDING_SPEC.md](./ROUTE_AND_DATA_BINDING_SPEC.md) | Data sources + UI state machine |
 | [STYLE_GUIDE.md](./STYLE_GUIDE.md) | Visual identity |
-| [RIGOR_UNIFIED_WHITEPAPER_v1.0.md](../../docs/WHITEPAPER.md) | Content authority |
-| `WEBSITE_NARRATIVE_FRAMEWORK.md` | Narrative constraints |
+| [RIGOR_UNIFIED_WHITEPAPER_v1.0.md](../../docs/publication/RIGOR_UNIFIED_WHITEPAPER_v1.0.md) | Content authority |
+| [WEBSITE_NARRATIVE_FRAMEWORK.md](../../docs/release/WEBSITE_NARRATIVE_FRAMEWORK.md) | Narrative constraints |
 
 ---
 

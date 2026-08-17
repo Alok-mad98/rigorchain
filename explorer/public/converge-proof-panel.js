@@ -41,7 +41,7 @@
     steps.push(flowArrow());
     steps.push(
       flowStep(
-        "Convergence Root",
+        "C (convergence_root)",
         `${fmtHex(link.convergence_root)} ${link.convergence_root ? copyBtn(link.convergence_root) : ""}`,
       ),
     );

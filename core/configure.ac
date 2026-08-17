@@ -303,6 +303,16 @@ AC_ARG_ENABLE(man,
     enable_man=yes)
 AM_CONDITIONAL([ENABLE_MAN], [test "$enable_man" != "no"])
 
+dnl AlphaPlus production profile: mainnet-only artifact (CSW-1)
+AC_ARG_ENABLE([production-mainnet],
+    [AS_HELP_STRING([--enable-production-mainnet],
+                    [build a mainnet-only production artifact; disable testnet/regtest/signet/devtest (default is no)])],
+    [enable_production_mainnet=$enableval],
+    [enable_production_mainnet=no])
+if test "$enable_production_mainnet" = "yes"; then
+  AC_DEFINE([RIGOR_PRODUCTION_MAINNET], [1], [Define to build an AlphaPlus mainnet-only production artifact])
+fi
+
 dnl Enable debug
 AC_ARG_ENABLE([debug],
     [AS_HELP_STRING([--enable-debug],

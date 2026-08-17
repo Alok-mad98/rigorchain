@@ -30,7 +30,7 @@ describe("lineageGraph", () => {
       { convergence_txid: "cand4", draw_eligible: true, convergence_root: "root1" },
     ];
     const blockPanel = buildBlockConvergencePanel(
-      { rigor_winner: "winner", committed_root: "root1" },
+      { rigor_winner: "winner", committed_root: "draw1", c_root: "root1" },
       candidates,
     );
     const convPanel = buildTxConvergencePanel([{ block_hash: "bh", block_height: 10, is_winner: true }]);
@@ -133,7 +133,7 @@ describe("lineageGraph", () => {
 
     const graph = buildLineageGraph({
       anchorTxid: txid,
-      blockPanel: buildBlockConvergencePanel({ rigor_winner: "winner", committed_root: "c".repeat(64) }, [
+      blockPanel: buildBlockConvergencePanel({ rigor_winner: "winner", committed_root: "draw", c_root: "c".repeat(64) }, [
         { convergence_txid: "winner", draw_eligible: true, convergence_root: "c".repeat(64) },
       ]),
       candidates: [{ convergence_txid: "winner", draw_eligible: true, convergence_root: "c".repeat(64) }],

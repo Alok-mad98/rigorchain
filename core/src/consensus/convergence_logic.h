@@ -154,6 +154,19 @@ ConvergenceDrawOutcome ResolveConvergenceDraw(const ConvergenceDrawSet& set,
     const uint256& res_probability_target);
 
 /**
+ * Convergence txids named by body RES mints in `block`.
+ *
+ * A mint is a tx that actually creates RES (`IsResScript` output) and carries a parseable
+ * PCORB proof. A decoy with a proof-shaped witness but no RES output must not mark a ticket
+ * paid — otherwise the real winner stays in F for the rest of the window and can be minted
+ * again.
+ *
+ * Valid connected blocks have at most one such tx (`bad-rigor-multiple-res`). All names are
+ * returned so a malformed block cannot hide a payout behind a decoy listed first.
+ */
+std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block);
+
+/**
  * Build the set a block commits, from the coins view as of that block's entry, unioned with
  * `tail` (the rest of the window). Used while the block is being connected, and by the block
  * template builder.

@@ -3,14 +3,20 @@ use rigor_gbt::{TemplateCacheApi, TemplateRecord};
 use std::sync::Arc;
 
 use crate::commitments::validate_cvge_rigor;
-use crate::convergence::validate_convergence_root_matches;
+use crate::convergence::{
+    validate_convergence_root_matches, validate_convergence_window_against_parent,
+    CommittedWindowSource,
+};
 use crate::error::{ValidationErrorCode, ValidatorError, ValidatorResult};
 use crate::header::{
     assemble_coinbase_raw, build_header_bytes, coinbase_scriptsig_from_submission, header_base_hash,
 };
+use crate::job_binding::validate_job_template_binding;
 use crate::opuhash::{expand_compact_bits, get_opus_hash_from_base_hash, verify_opuhash_block, verify_opuhash_share};
 use crate::replay::{ReplayGuard, SharedReplayGuard};
-use crate::res_mint::{validate_block_res_mint, validate_res_mint_placeholder};
+use crate::res_mint::{
+    validate_block_res_mint, validate_node_supplied_automint, validate_res_mint_placeholder,
+};
 use crate::types::{
     BlockSubmission, JobValidationState, ShareSubmission, ValidationKind, ValidationResult,
 };
@@ -19,6 +25,8 @@ pub struct ShareValidator {
     jobs: JobSnapshotApi,
     templates: TemplateCacheApi,
     replay: SharedReplayGuard,
+    /// Optional `getconvergenceresult(parent)` view of the W=32 window.
+    window_source: Option<Arc<dyn CommittedWindowSource>>,
 }
 
 impl ShareValidator {
@@ -31,6 +39,7 @@ impl ShareValidator {
             jobs,
             templates,
             replay,
+            window_source: None,
         }
     }
 
@@ -40,6 +49,12 @@ impl ShareValidator {
             TemplateCacheApi::new(templates),
             Arc::new(ReplayGuard::new()),
         )
+    }
+
+    /// Cross-check GBT `convergence_txids` against the parent's on-chain 32-block window.
+    pub fn with_window_source(mut self, source: Arc<dyn CommittedWindowSource>) -> Self {
+        self.window_source = Some(source);
+        self
     }
 
     pub fn validate_share(&self, share: ShareSubmission) -> ValidationResult {
@@ -74,7 +89,10 @@ impl ShareValidator {
 
         self.replay.check_and_record_share(&share.share_id, &job)?;
 
+        validate_job_template_binding(&job, &template)?;
         validate_res_mint_placeholder(&job)?;
+        validate_node_supplied_automint(&template)?;
+        self.check_parent_window(&template)?;
 
         validate_convergence_root_matches(&template, &job.coinbase.convergence_root_hex)?;
 
@@ -121,8 +139,10 @@ impl ShareValidator {
             ));
         }
 
+        validate_job_template_binding(&job, &template)?;
         validate_convergence_root_matches(&template, &job.coinbase.convergence_root_hex)?;
-        validate_block_res_mint(&job, &block.block_hex, block.allow_res_body_mint)?;
+        self.check_parent_window(&template)?;
+        validate_block_res_mint(&job, &template, &block.block_hex, block.allow_res_body_mint)?;
 
         let block_bytes = hex::decode(&block.block_hex)
             .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrMalformedSubmission, e.to_string()))?;
@@ -145,6 +165,21 @@ impl ShareValidator {
             ));
         }
         Ok(pow)
+    }
+
+    fn check_parent_window(&self, template: &TemplateRecord) -> ValidatorResult<()> {
+        let Some(source) = &self.window_source else {
+            return Ok(());
+        };
+        let parent = source
+            .window_ending_at_parent(&template.previousblockhash)
+            .map_err(|e| {
+                ValidatorError::validation(
+                    ValidationErrorCode::ErrConvergenceMismatch,
+                    format!("parent 32-block window fetch failed: {e}"),
+                )
+            })?;
+        validate_convergence_window_against_parent(template, &parent)
     }
 
     fn resolve_job_and_template(

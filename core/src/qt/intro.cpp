@@ -26,6 +26,7 @@
 #include <QMessageBox>
 
 #include <cmath>
+#include <exception>
 
 /* Check free space asynchronously to prevent hanging the UI thread.
 
@@ -213,15 +214,20 @@ bool Intro::showIfNeeded(bool& did_show_intro, int64_t& prune_MiB)
         return true;
     /* 1) Default data directory for operating system */
     QString dataDir = GUIUtil::getDefaultDataDirectory();
-    /* 2) Allow QSettings to override default dir */
+    /* 2) Allow QSettings to override default dir, but ignore leftover Bitcoin Core / v0.1.0-alpha paths */
     dataDir = settings.value("strDataDir", dataDir).toString();
+    if (IsLegacyBitcoinDefaultDataDir(GUIUtil::QStringToPath(dataDir))) {
+        dataDir = GUIUtil::getDefaultDataDirectory();
+    }
 
     if(!fs::exists(GUIUtil::QStringToPath(dataDir)) || gArgs.GetBoolArg("-choosedatadir", DEFAULT_CHOOSE_DATADIR) || settings.value("fReset", false).toBool() || gArgs.GetBoolArg("-resetguisettings", false))
     {
         /* Use selectParams here to guarantee Params() can be used by node interface */
         try {
             SelectParams(gArgs.GetChainName());
-        } catch (const std::exception&) {
+        } catch (const std::exception& e) {
+            QMessageBox::critical(nullptr, RigorWallet::WalletIdentity::brand().productName,
+                QString::fromStdString(e.what()));
             return false;
         }
 

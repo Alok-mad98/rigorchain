@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Build Windows Alpha NSIS installer → dist/alpha/windows/rigor-wallet-0.1.0-alpha.exe
+# Build Windows AlphaPlus NSIS installer → dist/alpha/windows/rigor-wallet-0.1.1-alphaplus.exe
+# Historical Alpha1 naming before AlphaPlus release identity migration (script path still scripts/alpha/).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STAGING="${REPO_ROOT}/dist/alpha/windows/staging"
 OUT_DIR="${REPO_ROOT}/dist/alpha/windows"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.0-alpha.1}"
-OUTFILE="${OUT_DIR}/rigor-wallet-0.1.0-alpha.exe"
+VERSION="${RIGOR_ALPHA_VERSION:-0.1.1-alphaplus}"
+OUTFILE="${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.exe"
 NSI="${REPO_ROOT}/installer/windows/rigor_alpha_installer.nsi"
 
 log() { printf '[alpha-windows] %s\n' "$*"; }
@@ -21,7 +22,7 @@ is_pe() {
   [[ "$magic" == "4d5a" ]]
 }
 
-for req in rigor-wallet.exe rigord.exe rigor-miner.exe; do
+for req in rigor-wallet.exe rigord.exe rigor-miner.exe rigor-cli.exe; do
   if ! is_pe "${STAGING}/${req}"; then
     log "ERROR: ${STAGING}/${req} missing or not PE (MZ)."
     log "Run: bash scripts/alpha/build_alpha_windows_pe.sh"
@@ -38,7 +39,7 @@ done
 
 # Datadir + conf helpers for installer
 cat > "${STAGING}/DATADIR.txt" <<'EOF'
-RIGOR Alpha data directory (Windows)
+RIGOR AlphaPlus data directory (Windows)
 ====================================
 
 Default datadir: %APPDATA%\RIGOR
@@ -46,8 +47,10 @@ Config file:     %APPDATA%\RIGOR\rigor.conf
 
 Examples:
   Wallet / node (mainnet):  rigor-wallet.exe
-  Regtest:                  rigor-wallet.exe -regtest
-  Testnet:                  rigor-wallet.exe -testnet
+
+Production artifacts default exclusively to AlphaPlus mainnet.
+Testnet/regtest are available only in development builds.
+RPC credentials are generated on first start (rpc-auth.conf). Do not use user/pass.
 
 Uninstall does NOT delete %APPDATA%\RIGOR (protects wallet funds).
 
@@ -68,44 +71,50 @@ If it shows 0x207fffff you are still on the old easy chain/binary.
 EOF
 
 cat > "${STAGING}/README-ALPHA.txt" <<EOF
-RIGOR Wallet Alpha ${VERSION}
-Binaries: rigor-wallet.exe, rigord.exe, rigor-miner.exe, rigor-cli.exe
-Launchers: rigor-miner.cmd, rigor-cli.cmd (keep console open)
+RIGOR Wallet AlphaPlus ${VERSION}
 Unsigned alpha — not a Guix-signed mainnet release.
 
-Config: %APPDATA%\\RIGOR\\rigor.conf  (server=1, solomining=1 for local solo)
-Miner: rigor-miner.cmd — prompts for ORU payout address; RPC port 8761
-Peers may be empty on Alpha until public seeds are live; solomining=1 allows GBT anyway.
+Windows users: double-click rigor-v0.1.1-alphaplus-windows.exe (or the
+same file inside the zip). That opens the setup wizard. After install,
+use the Desktop / Start Menu "RIGOR Wallet" shortcut (rigor-wallet.exe).
+
+Data directory: %APPDATA%\\RIGOR
+Config file:    %APPDATA%\\RIGOR\\rigor.conf
+Do NOT use %APPDATA%\\Bitcoin (Bitcoin Core / old v0.1.0-alpha).
+If the wallet still does not open, rename leftover rigor.conf / bitcoin.conf
+that contain rpcuser=user, then check %APPDATA%\\RIGOR\\debug.log.
 EOF
 
-# Console miner launcher (keeps window open; CRLF required for Windows cmd.exe)
-python3 - "${REPO_ROOT}/installer/windows/rigor-miner.cmd" "${STAGING}/rigor-miner.cmd" <<'PY'
+# Console launchers (keeps window open; CRLF required for Windows cmd.exe).
+# Missing launchers must fail the production packager (NEW-4: no /nonfatal skip).
+stage_cmd() {
+  local src="$1" dst="$2"
+  if [[ ! -f "$src" ]]; then
+    log "ERROR: required launcher missing: $src"
+    exit 1
+  fi
+  python3 - "$src" "$dst" <<'PY'
 import sys
 from pathlib import Path
 src, dst = Path(sys.argv[1]), Path(sys.argv[2])
 text = src.read_text(encoding="utf-8")
 text = text.replace("\r\n", "\n").replace("\n", "\r\n")
-dst.write_bytes(text.encode("ascii", errors="strict"))
-print("staged rigor-miner.cmd CRLF bytes", dst.stat().st_size)
+dst.write_bytes(text.encode("utf-8"))
+print("staged", dst.name, "CRLF bytes", dst.stat().st_size)
 PY
+}
 
-python3 - "${REPO_ROOT}/installer/windows/rigor-cli.cmd" "${STAGING}/rigor-cli.cmd" <<'PY'
-import sys
-from pathlib import Path
-src, dst = Path(sys.argv[1]), Path(sys.argv[2])
-text = src.read_text(encoding="utf-8")
-text = text.replace("\r\n", "\n").replace("\n", "\r\n")
-dst.write_bytes(text.encode("ascii", errors="strict"))
-print("staged rigor-cli.cmd CRLF bytes", dst.stat().st_size)
-PY
+stage_cmd "${REPO_ROOT}/installer/windows/rigor-miner.cmd" "${STAGING}/rigor-miner.cmd"
+stage_cmd "${REPO_ROOT}/installer/windows/rigor-cli.cmd" "${STAGING}/rigor-cli.cmd"
+stage_cmd "${REPO_ROOT}/installer/windows/load-rpc-auth.cmd" "${STAGING}/load-rpc-auth.cmd"
 
 cat > "${STAGING}/rigor.conf.template" <<'EOF'
 # RIGOR Alpha template — copy to %APPDATA%\RIGOR\rigor.conf
 server=1
 txindex=1
 listen=1
-rpcuser=user
-rpcpassword=pass
+# RPC credentials are generated on first mainnet start (rpc-auth.conf).
+# Do not ship default rpcuser/rpcpassword.
 rpcallowip=127.0.0.1
 # Allow getblocktemplate with zero peers (local Alpha solo mining).
 # Also forces a full chain flush after every new tip so Task Manager kills do not rewind to genesis.
@@ -113,6 +122,25 @@ solomining=1
 # Mainnet RPC listens on 8761 by default (override with -rpcport=).
 # Always quit via the wallet window (wait for "Rigor Core is shutting down") — do not End Task.
 EOF
+
+required_staged=(
+  rigor-wallet.exe rigord.exe rigor-cli.exe rigor-miner.exe
+  README-ALPHA.txt DATADIR.txt rigor.conf.template
+)
+for req in "${required_staged[@]}"; do
+  if [[ ! -e "${STAGING}/${req}" ]]; then
+    log "ERROR: required staging file missing: ${STAGING}/${req}"
+    exit 1
+  fi
+done
+
+# Strip debug symbols so the installed wallet is a normal-sized PE (AV / first-launch).
+if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
+  for pe in rigor-wallet.exe rigord.exe rigor-cli.exe rigor-miner.exe; do
+    x86_64-w64-mingw32-strip --strip-unneeded "${STAGING}/${pe}" || true
+  done
+  log "Stripped staging PEs"
+fi
 
 if ! command -v makensis >/dev/null 2>&1; then
   log "ERROR: makensis not found"
@@ -128,7 +156,9 @@ nsis_args=(
 )
 if [[ -d "${STAGING}/qt-runtime" ]]; then
   nsis_args+=(-DINCLUDE_QT_RUNTIME=1)
-  log "Including qt-runtime in installer"
+  log "Including qt-runtime in installer (dynamic Qt)"
+else
+  log "No qt-runtime dir — static Qt wallet (depends). qt-runtime not required."
 fi
 
 makensis "${nsis_args[@]}" "${NSI}"
@@ -139,36 +169,49 @@ magic="$(od -An -tx1 -N2 "${OUTFILE}" | tr -d ' \n')"
 [[ "$magic" == "4d5a" ]] || { log "ERROR: outfile not PE"; exit 1; }
 log "Installer MZ OK"
 
-# Portable zip fallback (no NSIS) for operators who hit "NSIS Error"
-ZIP_OUT="${OUT_DIR}/rigor-wallet-0.1.0-alpha-portable.zip"
+# User zip: the setup wizard named rigor-wallet.exe (double-click after unzip).
+ZIP_OUT="${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.zip"
 rm -f "${ZIP_OUT}"
-(
-  cd "${STAGING}"
-  zip -9 -q "${ZIP_OUT}" rigor-wallet.exe rigord.exe rigor-cli.exe rigor-miner.exe \
-    rigor-miner.cmd rigor-cli.cmd README-ALPHA.txt DATADIR.txt rigor.conf.template 2>/dev/null \
-    || python3 - <<PY
-import zipfile, pathlib
-staging = pathlib.Path("${STAGING}")
+python3 - <<PY
+import zipfile, pathlib, sys
+installer = pathlib.Path("${OUTFILE}")
+readme = pathlib.Path("${STAGING}/README-ALPHA.txt")
 out = pathlib.Path("${ZIP_OUT}")
-names = [
-    "rigor-wallet.exe", "rigord.exe", "rigor-cli.exe", "rigor-miner.exe",
-    "rigor-miner.cmd", "rigor-cli.cmd",
-    "README-ALPHA.txt", "DATADIR.txt", "rigor.conf.template",
-]
+if not installer.is_file():
+    print("ERROR: NSIS installer missing", installer, file=sys.stderr)
+    raise SystemExit(1)
 with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-    for n in names:
-        p = staging / n
-        if p.is_file():
-            zf.write(p, n)
+    zf.write(installer, "rigor-v0.1.1-alphaplus-windows.exe")
+    if readme.is_file():
+        zf.write(readme, "README.txt")
 print("zip written", out, out.stat().st_size)
 PY
-)
-log "Portable zip: ${ZIP_OUT}"
+log "Zip: ${ZIP_OUT}"
 
 # Integrity manifests for Windows copy verification
 (
   cd "${OUT_DIR}"
-  sha256sum "rigor-wallet-0.1.0-alpha.exe" "rigor-wallet-0.1.0-alpha-portable.zip" > SHA256SUMS.txt
+  sha256sum "rigor-v0.1.1-alphaplus-windows.exe" "rigor-v0.1.1-alphaplus-windows.zip" > SHA256SUMS.txt
   cat SHA256SUMS.txt
 )
 rm -f "${OUT_DIR}/WINDOWS_PE_BUILD_REQUIRED.txt"
+
+# Publish layout used by scripts/alpha/publish_github_release_alphaplus.sh
+AP="${REPO_ROOT}/dist/alphaplus/windows"
+mkdir -p "${AP}"
+cp -a "${OUTFILE}" "${AP}/rigor-v0.1.1-alphaplus-windows.exe"
+cp -a "${ZIP_OUT}" "${AP}/rigor-v0.1.1-alphaplus-windows.zip"
+rm -f "${AP}/rigor-wallet-0.1.1-alphaplus.exe" \
+  "${AP}/rigor-wallet-0.1.1-alphaplus-portable.zip"
+cp -a "${STAGING}/rigord.exe" "${AP}/rigord.exe"
+cp -a "${STAGING}/rigor-miner.exe" "${AP}/rigor-miner.exe"
+cp -a "${STAGING}/rigor-cli.exe" "${AP}/rigor-cli.exe"
+(
+  cd "${AP}"
+  sha256sum \
+    rigor-v0.1.1-alphaplus-windows.exe \
+    rigor-v0.1.1-alphaplus-windows.zip \
+    rigord.exe rigor-miner.exe rigor-cli.exe \
+    > SHA256SUMS
+)
+log "Staged AlphaPlus Windows assets under ${AP}"

@@ -45,7 +45,11 @@
 
 namespace node {
 
-/** Pay Res-domain mempool fees to this witness-v1-Res (ORB2-tagged) script; also configurable via -miningresfeeaddr. */
+/** Resolve the witness-v1 RES script that arms automatic Convergence mint assembly.
+ *  Network fees are ORU-only (POOL-F); nFeesRes is expected to stay 0 on production paths.
+ *  Since A-5 the Convergence prize pays the winner's program — this script is an arming
+ *  signal (and legacy bootstrap sink on mockable chains), not a fee-receive address.
+ */
 static CScript ResolveMiningResFeeScript(const CScript& explicit_script, const CChainParams& chainparams)
 {
     if (!explicit_script.empty()) {
@@ -70,8 +74,12 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
         pblock->nTime = nNewTime;
     }
 
-    // Updating time can change work required on testnet:
-    if (consensusParams.fPowAllowMinDifficultyBlocks) {
+    // Updating time can change work required:
+    // - testnet min-difficulty (legacy Bitcoin)
+    // - ASERT (Rigor): next nBits is a function of the child header's nTime, so GBT's
+    //   UpdateTime() on a cached template must refresh nBits or miners get bad-diffbits
+    //   (fresh curtime paired with stale bits).
+    if (consensusParams.fPowAllowMinDifficultyBlocks || consensusParams.nPowASERTHalfLife > 0) {
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
     }
 
@@ -295,7 +303,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (nFeesRes > 0) {
         if (res_fee_script.empty()) {
             throw std::runtime_error(
-                strprintf("%s: mempool collects %" PRId64 " Res fee units; pass an Res fee script or set -miningresfeeaddr=<witness-v1-Res address>",
+                strprintf("%s: unexpected non-zero nFeesRes=%" PRId64 " without Convergence mint arming script; set -miningresfeeaddr=<witness-v1-RES> (network fees remain ORU-only)",
                           __func__, nFeesRes));
         }
         CTxOut res_fee_out;
@@ -307,7 +315,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     if (res_wallet_bootstrap > 0) {
         if (res_fee_script.empty()) {
             throw std::runtime_error(
-                strprintf("%s: -reswalletbootstrap requires -miningresfeeaddr=<witness-v1-Res address>", __func__));
+                strprintf("%s: -reswalletbootstrap requires -miningresfeeaddr=<witness-v1-RES> to arm mint assembly (not a fee address; network fees are ORU-only)", __func__));
         }
         CTxOut res_boot_out;
         res_boot_out.nValue = res_wallet_bootstrap;
@@ -319,21 +327,43 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Insert automatic RES mint before witness commitment so BlockWitnessMerkleRoot matches the
     // committed coinbase (and CVGE / draw_candidate see the same vtx[] as ConnectBlock).
-    if (chainparams.IsMockableChain()) {
+    //
+    // Mainnet/signet solo+GBT must assemble the mint whenever the parent draw has a winner —
+    // otherwise TestBlockValidity fails with bad-rigor-res-winner-mismatch and mining stalls.
+    // Funding spends a prior AutoResMintBootstrap P2WSH UTXO (fund via getautomintfundaddress).
+    // Mockable chains also create that UTXO from the height-1 coinbase bootstrap.
+    {
         ConvergenceDrawSet parent_draw_set;
         // In test harnesses, block data may not exist on disk; an empty set means no winner.
         const bool have_parent_draw = GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set);
+        if (!have_parent_draw && pindexPrev->nHeight > 0) {
+            LogPrintf("CreateNewBlock(): cannot read parent convergence draw set at height=%d hash=%s "
+                      "(template will omit any required RES mint and TestBlockValidity may fail)\n",
+                      pindexPrev->nHeight, pindexPrev->GetBlockHash().ToString());
+        }
         const ConvergenceDrawOutcome parent_outcome =
             have_parent_draw ? ResolveConvergenceDraw(parent_draw_set, consensus.RES_PROBABILITY_TARGET)
                              : ConvergenceDrawOutcome{};
         if (parent_outcome.HasWinner()) {
             if (res_fee_script.empty()) {
                 throw std::runtime_error(strprintf(
-                    "%s: convergence draw winner present but no RES receive script; set -miningresfeeaddr", __func__));
+                    "%s: convergence draw winner present but Convergence mint assembly is not armed; "
+                    "enable wallet option \"Auto-settle Convergence when mining locally\" or set "
+                    "-miningresfeeaddr=<witness-v1-RES address> (arms settlement only; prize pays the winner; "
+                    "network fees are ORU-only)",
+                    __func__));
             }
+            LogPrintf("CreateNewBlock(): parent draw has winner %s — assembling automatic RES mint for height %d\n",
+                      parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
+                      nHeight);
             auto mtxo = TryCreateAutomaticResMintTx(parent_draw_set, parent_outcome, nHeight, *m_assemble_coins, res_fee_script);
             if (!mtxo) {
-                throw std::runtime_error(strprintf("%s: automatic RES mint assembly failed", __func__));
+                throw std::runtime_error(strprintf(
+                    "%s: automatic Convergence RES mint assembly failed (winner present). Fund the automint "
+                    "P2WSH via RPC getautomintfundaddress (send ORU), confirm or leave the fund tx in "
+                    "mempool, ensure mint assembly is armed (-miningresfeeaddr / wallet auto-settle), "
+                    "then retry getblocktemplate",
+                    __func__));
             }
             const CTransactionRef mint_ref = MakeTransactionRef(std::move(*mtxo));
             // Sigop accounting must use the pre-spend view: GetTransactionSigOpCost reads each vin's
@@ -347,13 +377,14 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             pblocktemplate->vTxSigOpsCost.push_back(mint_sigop_cost);
             nBlockWeight += GetTransactionWeight(*mint_ref);
             nBlockSigOpsCost += mint_sigop_cost;
-            LogPrint(BCLog::RESMINT,
-                "auto mint: winner=%s winner_idx=%d |F|=%u res_txid=%s pos=%u\n",
+            ++nBlockTx;
+            LogPrintf("CreateNewBlock(): auto mint winner=%s winner_idx=%d |F|=%u res_txid=%s pos=%u weight=%d\n",
                 parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
                 parent_outcome.winner_index,
                 static_cast<unsigned>(parent_draw_set.candidates.size()),
                 mint_ref->GetHash().ToString(),
-                static_cast<unsigned>(ins_pos));
+                static_cast<unsigned>(ins_pos),
+                GetTransactionWeight(*mint_ref));
         }
     }
 

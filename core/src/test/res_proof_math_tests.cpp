@@ -9,6 +9,7 @@
 #include <consensus/convergence_root.h>
 #include <consensus/rigor_math.h>
 #include <consensus/convergenceres.h>
+#include <consensus/res_amount.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
 #include <consensus/rigor_res.h>
@@ -518,13 +519,13 @@ struct Security001AFixture {
     uint256 ConvergenceRoot() const { return parent_draw_set.convergence_root; }
 
     /** Build a RES-minting tx whose witness carries `proof`. */
-    CTransactionRef MakeMintTx(const Consensus::ConvergeProof& proof)
+    CTransactionRef MakeMintTx(const Consensus::ConvergeProof& proof, CAmount res_amount = Consensus::RES_REWARD_AMOUNT)
     {
         CMutableTransaction mint;
         mint.vin.resize(1);
         mint.vin[0].prevout = COutPoint(uint256S("0xaaaabbbb11111111111111111111111111111111111111111111111111111111"), 0);
         mint.vout.resize(1);
-        mint.vout[0].nValue = 100 * COIN;
+        mint.vout[0].nValue = res_amount;
         mint.vout[0].scriptPubKey = res_payout_spk;
         PushConvergeProofWitness(mint, proof);
         return MakeTransactionRef(mint);
@@ -533,13 +534,17 @@ struct Security001AFixture {
     /** Run the mint evaluator exactly as ConnectBlock does; returns the reject reason ("" on success). */
     std::string Evaluate(const Consensus::ConvergeProof& proof, bool* ok_out = nullptr)
     {
-        const CTransactionRef mint = MakeMintTx(proof);
+        return EvaluateTx(*MakeMintTx(proof), ok_out);
+    }
+
+    std::string EvaluateTx(const CTransaction& mint, bool* ok_out = nullptr)
+    {
         const ConvergenceDrawOutcome outcome =
             ResolveConvergenceDraw(parent_draw_set, Params().GetConsensus().RES_PROBABILITY_TARGET);
 
         BlockValidationState state;
         std::optional<std::pair<arith_uint256, uint256>> score;
-        const bool ok = rigor::ConnectEvaluateResMintTx(*mint, coins, block_height,
+        const bool ok = rigor::ConnectEvaluateResMintTx(mint, coins, block_height,
             Params().GetConsensus(), parent_draw_set, outcome, state, &score);
         if (ok_out != nullptr) *ok_out = ok;
         return state.GetRejectReason();
@@ -670,6 +675,33 @@ BOOST_AUTO_TEST_CASE(security001a_res_reward_must_pay_declared_owner)
 
     f.res_payout_spk = g_sec001a_res_spk;
     BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "");
+}
+
+BOOST_AUTO_TEST_CASE(security001a_mint_amount_must_equal_res_reward)
+{
+    Security001AFixture f;
+    const CTransactionRef wrong = f.MakeMintTx(f.HonestProof(), Consensus::RES_REWARD_AMOUNT * 2);
+    BOOST_CHECK_EQUAL(f.EvaluateTx(*wrong), "bad-rigor-res-amount");
+    const CTransactionRef dust = f.MakeMintTx(f.HonestProof(), RES_COIN);
+    BOOST_CHECK_EQUAL(f.EvaluateTx(*dust), "bad-rigor-res-amount");
+}
+
+BOOST_AUTO_TEST_CASE(security001a_mint_without_winner_is_rejected)
+{
+    Security001AFixture f;
+    f.parent_draw_set.candidates.clear();
+    f.parent_draw_set.convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids({});
+    BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "bad-rigor-res-without-winner");
+}
+
+BOOST_AUTO_TEST_CASE(enforce_res_mint_unique_rejects_second_scored_mint)
+{
+    std::vector<std::optional<std::pair<arith_uint256, uint256>>> scores(3);
+    scores[1] = std::make_pair(arith_uint256{1}, uint256::ONE);
+    scores[2] = std::make_pair(arith_uint256{2}, uint256S("0x02"));
+    BlockValidationState state;
+    BOOST_CHECK(!rigor::EnforceResMintUnique(state, scores));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-rigor-multiple-res");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,7 +1,8 @@
 .lineage-graph-panel {
-  border: 1px solid #c5cae9;
+  border: 1px solid #333;
   border-radius: 8px;
-  background: #f8f9ff;
+  background: #111;
+  color: #fff;
   padding: 14px 16px;
   margin: 16px 0;
   max-width: 1100px;
@@ -10,14 +11,16 @@
 .lineage-graph-panel h2 {
   margin: 0 0 10px;
   font-size: 17px;
+  color: #fff;
 }
 
 .lineage-graph-notice {
   margin: 8px 0 12px;
   padding: 8px 10px;
-  border-left: 4px solid #5c6bc0;
-  background: #e8eaf6;
+  border-left: 4px solid #555;
+  background: #000;
   font-size: 12px;
+  color: #fff;
 }
 
 .lineage-graph-summary {
@@ -30,7 +33,7 @@
 
 .lineage-graph-summary dt {
   font-weight: 600;
-  color: #444;
+  color: #fff;
 }
 
 .lineage-graph-summary dd {
@@ -38,6 +41,7 @@
   word-break: break-all;
   font-family: ui-monospace, monospace;
   font-size: 11px;
+  color: #fff;
 }
 
 .lineage-graph-canvas {
@@ -57,9 +61,10 @@
 }
 
 .lineage-graph-node {
-  border: 2px solid #9fa8da;
+  border: 2px solid #555;
   border-radius: 8px;
-  background: #fff;
+  background: #000;
+  color: #fff;
   padding: 8px 12px;
   min-width: 160px;
   max-width: 280px;
@@ -68,7 +73,7 @@
 }
 
 .lineage-graph-node a {
-  color: #283593;
+  color: #fff;
   word-break: break-all;
 }
 
@@ -78,23 +83,23 @@
 
 .lineage-graph-node.state-Winner {
   border-color: #ffb300;
-  background: #fff8e1;
+  background: #1a1400;
 }
 
 .lineage-graph-node.state-Minted,
 .lineage-graph-node.state-Confirmed {
   border-color: #66bb6a;
-  background: #f1f8e9;
+  background: #0a1a0a;
 }
 
 .lineage-graph-node.state-Orphaned {
   border-color: #e57373;
-  background: #ffebee;
+  background: #1a0a0a;
 }
 
 .lineage-graph-node.state-Revoked {
   border-color: #ab47bc;
-  background: #f3e5f5;
+  background: #1a0a1a;
 }
 
 .lineage-graph-node-kind {
@@ -102,7 +107,7 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #555;
+  color: #fff;
 }
 
 .lineage-graph-node-state {
@@ -111,11 +116,12 @@
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 10px;
-  background: #eceff1;
+  background: #111;
+  color: #fff;
 }
 
 .lineage-graph-arrow {
-  color: #5c6bc0;
+  color: #fff;
   font-size: 18px;
   line-height: 1;
   padding: 2px 0;
@@ -145,7 +151,7 @@
 
 .lineage-graph-pcorb th,
 .lineage-graph-pcorb td {
-  border: 1px solid #ddd;
+  border: 1px solid #333;
   padding: 4px 6px;
   text-align: left;
 }

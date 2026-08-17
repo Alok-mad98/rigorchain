@@ -874,10 +874,10 @@ void RPCConsole::clear(bool keep_prompt)
     // Dark console palette — match wallet Send/Receive chrome (readable on #1A1A1D).
     ui->messagesWidget->document()->setDefaultStyleSheet(
         QString(
-                "body { color: #E6E6E6; background-color: #1A1A1D; }"
+                "body { color: #FFFFFF; background-color: #111111; }"
                 "table { }"
-                "td.time { color: #A0A0A0; font-size: %2; padding-top: 3px; } "
-                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; color: #E6E6E6; } "
+                "td.time { color: #BBBBBB; font-size: %2; padding-top: 3px; } "
+                "td.message { font-family: %1; font-size: %2; white-space:pre-wrap; color: #FFFFFF; } "
                 "td.cmd-request { color: #5EC8C8; } "
                 "td.cmd-error { color: #FF6B6B; } "
                 ".secwarning { color: #FF6B6B; }"

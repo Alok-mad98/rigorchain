@@ -10,6 +10,9 @@ SigmaPoW01.v
 Sigma.v
 Selection.v
 OrderIndependence.v
+WindowExclusion.v
+CanonicalDrawEncoder.v
+CanonicalHashKernel.v
 COQ_SELECTION_CLOSURE.v
 Execution.v
 Kernel/KernelSelection.v
@@ -27,6 +30,7 @@ Proofs/Determinism.v
 Proofs/Safety.v
 Proofs/Correctness.v
 Proofs/Fairness.v
+Proofs/FairnessIdealized.v
 Proofs/SplitInvariance.v
 Extraction.v
 ReplayReorgCore/Hash32Order.v
@@ -162,6 +166,8 @@ Phase5Equivalence/EquivalenceClosureCatalog.v
 Phase5Equivalence/EquivalenceClosureAudit.v
 Phase5Equivalence/DrawClosureImpossibilityCatalog.v
 Phase5Equivalence/DrawClosureImpossibilityAudit.v
+Phase5Equivalence/DrawBridgeProgress.v
+DrawBridgeProgress.v
 Phase5Equivalence/Phase5SummaryCatalog.v
 Phase5Equivalence/Phase5SummaryAudit.v
 Phase5Equivalence/ProofObligationDependencyCatalog.v

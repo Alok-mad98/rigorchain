@@ -11,9 +11,19 @@ const VALID_HRPS = new Set(["trg", "rg"]);
 
 export type AddressEncoding = "bech32" | "bech32m";
 
-export type AddressTypeLabel = "ORU (Witness v0)" | "RES (Witness v1)" | "Mixed ORU/RES" | "Unknown";
+export type AddressTypeLabel =
+  | "ORU (Witness v0)"
+  | "ORU (Witness v1)"
+  | "RES (Witness v1)"
+  | "Mixed ORU/RES"
+  | "Unknown";
 
-export type AddressClassification = "ORU Address" | "RES Address" | "Mixed Address" | "Unused Address";
+export type AddressClassification =
+  | "ORU Address"
+  | "RES Address"
+  | "CVG2 / unspendable convergence script"
+  | "Mixed Address"
+  | "Unused Address";
 
 /** Parse RIGOR bech32/bech32m address (any checksum-valid witness encoding, not only trg1q/trg1p). */
 export function parseRigorAddress(address: string): { hrp: string; encoding: AddressEncoding } | null {
@@ -68,11 +78,15 @@ export function classifyAddressWithHint(
   hasActivity: boolean,
   address: string,
 ): { address_type: AddressTypeLabel; classification: AddressClassification } {
+  const hint = inferAddressTypeFromBech32(address);
   if (!hasActivity) {
-    const hint = inferAddressTypeFromBech32(address);
     const classification: AddressClassification =
       hint === "RES (Witness v1)" ? "RES Address" : hint === "ORU (Witness v0)" ? "ORU Address" : "Unused Address";
     return { address_type: hint, classification };
+  }
+  // Bech32m + ORU activity is a CVG2 unspendable script (Witness v1), not a RES mint address.
+  if (hasOru && !hasRes && hint === "RES (Witness v1)") {
+    return { address_type: "ORU (Witness v1)", classification: "CVG2 / unspendable convergence script" };
   }
   return classifyAddress(hasOru, hasRes, hasActivity);
 }

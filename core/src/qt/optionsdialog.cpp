@@ -257,6 +257,7 @@ void OptionsDialog::setMapper()
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange, OptionsModel::SpendZeroConfChange);
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
+    mapper->addMapping(ui->autoSettleConvergenceMining, OptionsModel::AutoSettleConvergenceMining);
     mapper->addMapping(ui->defaultSendAsset, OptionsModel::DefaultSendAsset);
     mapper->addMapping(ui->subFeeFromAmount, OptionsModel::SubFeeFromAmount);
     mapper->addMapping(ui->externalSignerPath, OptionsModel::ExternalSignerPath);

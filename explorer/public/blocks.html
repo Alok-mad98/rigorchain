@@ -6,20 +6,26 @@
     <title>Latest blocks</title>
     <link rel="stylesheet" href="/compliance.css" />
     <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
-      a { margin-right: 12px; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
+      a { margin-right: 12px; color: #fff; }
       table { border-collapse: collapse; width: 100%; max-width: 1100px; }
-      th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
-      th { background: #f6f6f6; }
-      .muted { color: #666; font-size: 12px; }
+      th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
+      th { background: #111; }
+      .muted { color: #bbb; font-size: 12px; }
+      @media (max-width: 800px) { .fp-col { display: none; } }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
   <body>
+    <nav class="site-nav" id="nav" aria-label="Explorer">
+      <a href="/">Home</a>
+      <a href="/blocks">Blocks</a>
+      <a href="/oru.html">ORU amount</a>
+      <a href="/res.html">RES amount</a>
+      <a href="/res-events.html">RES events</a>
+      <a href="/search">Search</a>
+    </nav>
     <h1>Latest blocks</h1>
-    <div id="nav" class="muted"></div>
-
-    <p class="muted">Non-authoritative mirror of indexed RPC data.</p>
 
     <div id="root">Loading...</div>
 
@@ -33,7 +39,7 @@
       }
 
       async function load() {
-        const r = await fetch('/api/blocks?limit=50');
+        const r = await ExplorerRoutes.fetchJson('/api/blocks?limit=50');
         const j = await r.json();
         const rows = (j.blocks || []);
 
@@ -45,9 +51,13 @@
               <th>hash</th>
               <th>time</th>
               <th>tx_count</th>
-              <th>res_minted</th>
+              <th>oru_minted</th>
+              <th>|F|</th>
               <th>winner</th>
-              <th>draw_candidate_root</th>
+              <th class="fp-col">Draw Fingerprint</th>
+              <th>C (convergence_root)</th>
+              <th title="draw_candidate_root_committed — pays parent draw">committed</th>
+              <th title="draw_candidate_root_computed — this block awards">computed</th>
             </tr>
           </thead>
         `;
@@ -58,11 +68,15 @@
           tr.innerHTML = `
             <td>${b.height}</td>
             <td><a href="${ExplorerRoutes.blockPath(b.block_hash)}">${shortHash(b.block_hash)}</a></td>
-            <td>${b.time}</td>
+            <td>${ExplorerRoutes.timeCellHtml(b.time)}</td>
             <td>${b.tx_count}</td>
-            <td>${b.rigor_res_minted}</td>
+            <td>${b.oru_minted_display ?? b.oru_minted ?? "—"}</td>
+            <td>${b.candidate_set_size ?? 0}</td>
             <td>${shortHash(b.rigor_winner)}</td>
-            <td class="muted">${shortHash(b.draw_candidate_root)}</td>
+            <td class="fp-col muted">${b.consensus_fingerprint_short ?? 'N/A'}</td>
+            <td class="muted">${shortHash(b.c_root)}</td>
+            <td class="muted">${shortHash(b.committed_root || b.draw_candidate_root)}</td>
+            <td class="muted">${shortHash(b.computed_root)}</td>
           `;
           tbody.appendChild(tr);
         }
@@ -73,9 +87,14 @@
         el.appendChild(table);
       }
 
-      load().catch((e) => {
-        document.getElementById('root').textContent = 'Failed: ' + String(e);
-      });
+      const ssrRoot = document.getElementById('root');
+      if (ssrRoot && ssrRoot.getAttribute('data-ssr') === '1') {
+        /* server already filled the table */
+      } else {
+        load().catch((e) => {
+          document.getElementById('root').textContent = 'Failed: ' + String(e);
+        });
+      }
     </script>
     <script src="/compliance.js"></script>
   </body>

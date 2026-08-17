@@ -188,7 +188,7 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
             "Never share this key."));
         warning->setWordWrap(true);
         warning->setObjectName(QStringLiteral("exportPrivKeyWarning"));
-        warning->setStyleSheet(QStringLiteral("QLabel#exportPrivKeyWarning { color: #8a1f1f; font-weight: 600; }"));
+        warning->setStyleSheet(QStringLiteral("QLabel#exportPrivKeyWarning { color: #FF6B6B; font-weight: 600; }"));
         layout->addWidget(warning);
 
         layout->addWidget(new QLabel(tr(
