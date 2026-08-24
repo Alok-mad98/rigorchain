@@ -235,7 +235,7 @@ accepted as valid.
 **Statement:** For every valid transition to height `h+1`:
 
 ```
-S_RES(h+1) = S_RES(h) + RES_REWARD_AMOUNT · M(h+1)
+S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
 ```
 
 where `M(h+1) ∈ {0, 1}` and `S_RES(0) = 0`.
@@ -318,7 +318,8 @@ violates argmin / tie-break rules.
 **Category:** CI-DRAW
 
 **Statement:** The draw probability target MUST be the frozen constant
-`RES_PROBABILITY_TARGET = 2^240`. It MUST NOT be derived from PoW difficulty,
+`RES_PROBABILITY_TARGET` (RFC-017 shipping: `E = 246`, windowed; mint cost
+`C = 1024` ORU per mint). Historical RFC-014 parameter: `2^240`. It MUST NOT be derived from PoW difficulty,
 header `nBits`, ASERT state, or any variable consensus quantity.
 
 SUPERSEDED by SECURITY-001-A8: `target_prev` is no longer a σ input. Historically, PoW-derived `target_prev` was permitted only inside `bind_commit` for replay
@@ -354,7 +355,7 @@ or with draw predicates failed.
 
 **Statement:** All validation predicates use only the immutable constitutional
 constant set frozen at mainnet genesis. Parameters including
-`RES_PROBABILITY_TARGET`, `k = 10`, `RES_REWARD_AMOUNT`, `RES_MAX_SUPPLY`,
+`RES_PROBABILITY_TARGET`, `k = 10`, RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`,
 draw gate `|F| ≥ 1`, bootstrap bind hash, and genesis-only activation MUST NOT
 change without Level-5 governance.
 

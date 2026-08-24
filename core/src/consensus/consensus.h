@@ -19,6 +19,10 @@ static const unsigned int MAX_BLOCK_WEIGHT = Consensus::BLOCK_WEIGHT_LIMIT;
 static const int64_t MAX_BLOCK_SIGOPS_COST = Consensus::BLOCK_SIGOPS_COST_LIMIT;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
+/** Body RES mint outputs use the same confirmation depth as ORU coinbase (intentional SSOT). */
+static const int RES_MINT_MATURITY = COINBASE_MATURITY;
+static_assert(RES_MINT_MATURITY == COINBASE_MATURITY,
+    "RES mint maturity is locked to COINBASE_MATURITY; runtime uses Params::nCoinbaseMaturity");
 
 static_assert(MAX_BLOCK_SERIALIZED_SIZE == Consensus::BLOCK_SERIALIZED_SIZE_LIMIT,
     "MAX_BLOCK_SERIALIZED_SIZE must match consensus lock");

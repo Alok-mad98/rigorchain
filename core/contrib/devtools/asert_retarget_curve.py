@@ -10,6 +10,10 @@ Polynomial coefficients and radix match Bitcoin Cash / Bitcoin ABC
 This mirrors consensus/pow.cpp logic in Python (uint256 as int); use only for
 plots / logs — consensus remains the C++ implementation.
 
+The production rule uses the **parent** timestamp and the height-1 anchor
+(TASK-012). This helper still takes an explicit (eval_height, eval_time) pair so
+callers can plot either convention.
+
 Example:
   python3 contrib/devtools/asert_retarget_curve.py --csv /tmp/asert_curve.csv
   python3 contrib/devtools/asert_retarget_curve.py --csv /tmp/asert.csv --plot /tmp/asert.png
@@ -186,7 +190,7 @@ def main() -> int:
     p.add_argument("--csv", metavar="PATH", help="write CSV log")
     p.add_argument("--plot", metavar="PATH", help="optional PNG (needs matplotlib)")
     p.add_argument("--spacing", type=int, default=600, help="nominal block spacing (s)")
-    p.add_argument("--halflife", type=int, default=172800, help="ASERT half-life (s)")
+    p.add_argument("--halflife", type=int, default=43200, help="ASERT half-life (s)")
     p.add_argument("--anchor-time", type=int, default=1_774_915_200, help="genesis anchor time")
     p.add_argument("--anchor-bits", type=lambda x: int(x, 0), default=0x207fffff, help="genesis nBits (compact)")
     p.add_argument(

@@ -32,17 +32,15 @@ void InitDualAssetDescriptorWallet(TestingSetup& setup, CWallet& w)
 
 BOOST_FIXTURE_TEST_SUITE(wallet_key_model_status_tests, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(default_wallet_reports_oru_hd_and_res_dedicated)
+BOOST_AUTO_TEST_CASE(default_wallet_reports_oru_and_res_hd)
 {
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitDualAssetDescriptorWallet(*this, w);
 
-    // Wallet-wide IsHDEnabled() remains false because RES SPKMs are non-ranged.
-    BOOST_CHECK(!w.IsHDEnabled());
-
-    // RIGOR UX indicators must still report ORU HD and RES dedicated mode.
+    BOOST_CHECK(w.IsHDEnabled());
     BOOST_CHECK(w.IsOruHDEnabled());
-    BOOST_CHECK(w.IsResDedicatedKeyMode());
+    BOOST_CHECK(w.IsResHDEnabled());
+    BOOST_CHECK(!w.IsResDedicatedKeyMode());
 }
 
 BOOST_AUTO_TEST_CASE(oru_hd_allows_multiple_receive_addresses)
@@ -59,18 +57,19 @@ BOOST_AUTO_TEST_CASE(oru_hd_allows_multiple_receive_addresses)
     BOOST_CHECK(EncodeDestination(*a1) != EncodeDestination(*a2));
 }
 
-BOOST_AUTO_TEST_CASE(res_dedicated_mode_keeps_single_receive_slot)
+BOOST_AUTO_TEST_CASE(res_hd_allows_multiple_receive_addresses)
 {
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitDualAssetDescriptorWallet(*this, w);
-    BOOST_REQUIRE(w.IsResDedicatedKeyMode());
+    BOOST_REQUIRE(w.IsResHDEnabled());
+    BOOST_REQUIRE(!w.IsResDedicatedKeyMode());
 
     LOCK(w.cs_wallet);
     const auto a1 = w.GetNewDestination(OutputType::BECH32M, "");
     const auto a2 = w.GetNewDestination(OutputType::BECH32M, "");
     BOOST_REQUIRE(a1);
     BOOST_REQUIRE(a2);
-    BOOST_CHECK(EncodeDestination(*a1) == EncodeDestination(*a2));
+    BOOST_CHECK(EncodeDestination(*a1) != EncodeDestination(*a2));
 }
 
 BOOST_AUTO_TEST_CASE(key_model_status_does_not_block_private_key_export)
@@ -78,8 +77,8 @@ BOOST_AUTO_TEST_CASE(key_model_status_does_not_block_private_key_export)
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitDualAssetDescriptorWallet(*this, w);
     BOOST_REQUIRE(w.IsOruHDEnabled());
-    BOOST_REQUIRE(w.IsResDedicatedKeyMode());
-    BOOST_REQUIRE(!w.IsHDEnabled());
+    BOOST_REQUIRE(w.IsResHDEnabled());
+    BOOST_REQUIRE(w.IsHDEnabled());
 
     CTxDestination oru_dest;
     CTxDestination res_dest;

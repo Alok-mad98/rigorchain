@@ -14,10 +14,12 @@ export function ExperimentPage() {
       <section className="card prose-section">
         <h2>What PROOF-034 is</h2>
         <p>
-          PROOF-034 is the live formal verification campaign that materializes a runtime archive from
+          PROOF-034 is the runtime archive campaign that materializes an empirical execution trace from
           chain execution through height <span className="mono">≥ 2,100,001</span>. It produces empirical
           traces at catalogued golden-vector heights — it does <em>not</em> by itself establish protocol
-          equivalence or mainnet readiness.
+          equivalence or mainnet readiness. The formal-verification living lock (Coq model,
+          422-vector differential gate) is a different artifact:{" "}
+          <Link to="/documentation/formal-verification">Formal Verification</Link>.
         </p>
       </section>
 

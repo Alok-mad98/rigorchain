@@ -123,10 +123,9 @@ fn compute_opus_mix(base_hash: &[u8; 32]) -> [u8; 32] {
     let mem = chacha20_keystream(base_hash, OPUS_POW_BUFFER_SIZE);
     let mut current = *base_hash;
 
-    for round in 0..OPUS_POW_MIX_ROUNDS {
+    for _round in 0..OPUS_POW_MIX_ROUNDS {
         let val = read_le32(&current);
-        let raw_idx = val ^ ((round as u32) << 24);
-        let mut idx = (raw_idx & OPUS_POW_BUFFER_MASK) as usize;
+        let mut idx = (val & OPUS_POW_BUFFER_MASK) as usize;
         if idx > OPUS_POW_BUFFER_SIZE - 8 {
             idx = OPUS_POW_BUFFER_SIZE - 8;
         }

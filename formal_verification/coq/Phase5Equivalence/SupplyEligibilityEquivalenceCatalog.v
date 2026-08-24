@@ -124,14 +124,26 @@ Lemma supply_projection_catalog_count :
 Proof. reflexivity. Qed.
 
 Lemma eligibility_identity_catalog_count :
-  length eligibility_identity_catalog = 14%nat.
-Proof. vm_compute. reflexivity. Qed.
+  length eligibility_identity_catalog = 168%nat.
+Proof.
+  unfold eligibility_identity_catalog.
+  rewrite map_length.
+  rewrite draw_audit_rows_length.
+  unfold draw_audit_rows_count. reflexivity.
+Qed.
 
-Lemma se_catalog_count_value : se_catalog_count = 21%nat.
-Proof. vm_compute. reflexivity. Qed.
+Lemma se_catalog_count_value : se_catalog_count = 175%nat.
+Proof.
+  unfold se_catalog_count, se_equivalence_catalog.
+  rewrite !app_length.
+  rewrite supply_projection_catalog_count.
+  rewrite eligibility_identity_catalog_count.
+  reflexivity.
+Qed.
 
+(** 4 supply-projection rows + 168 eligibility-identity rows = 172 resolved. *)
 Lemma se_catalog_resolved_count_value :
-  se_catalog_resolved_count = 18%nat.
+  se_catalog_resolved_count = 172%nat.
 Proof. vm_compute. reflexivity. Qed.
 
 Lemma se_catalog_disagreement_count_value :
@@ -179,9 +191,10 @@ Lemma all_eligibility_rows_resolved :
   forall r, In r eligibility_identity_catalog ->
     r.(sece_result) = SEER_Resolved.
 Proof.
-  intros e Hin. revert Hin.
-  vm_compute.
-  intros Hin.
-  repeat (destruct Hin as [Heq | Hin]; [subst e; reflexivity | ]).
-  contradiction.
+  intros e Hin.
+  unfold eligibility_identity_catalog in Hin.
+  apply in_map_iff in Hin.
+  destruct Hin as [r [Heq Hr]].
+  subst e. simpl.
+  apply eligibility_row_all_resolved. exact Hr.
 Qed.

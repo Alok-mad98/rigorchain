@@ -38,7 +38,7 @@ static const int CLIENT_VERSION =
 extern const std::string CLIENT_NAME;
 
 /** Product release identity (tag / installer). Not the packed CLIENT_VERSION integer. */
-inline constexpr const char* RIGOR_RELEASE_VERSION = "v0.1.1-alphaplus";
+inline constexpr const char* RIGOR_RELEASE_VERSION = "v0.1.2-alphaplus";
 inline constexpr const char* RIGOR_RELEASE_CODENAME = "AlphaPlus Consensus Freeze";
 
 std::string FormatFullVersion();

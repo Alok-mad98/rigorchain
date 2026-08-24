@@ -82,8 +82,10 @@ StateTag classification (`statetag.cpp`) is a pure function of tx structure + in
 Draw evaluation is a pure function:
 
 ```
-draw(F, C, h, B_{h-10}, target_prev, T=2^240) → (eligible[], winner_txid | ∅)
+draw(F, C, h, B_{h-10}, target_prev, T=RES_PROBABILITY_TARGET) → (eligible[], winner_txid | ∅)
 ```
+
+Shipping `T` is Deterministic Reserve Issuance windowed `RES_PROBABILITY_TARGET` at **`E = 246`** (`C = 1024` ORU per mint). **Historical RFC-014 / retired design:** `T = 2^240`.
 
 No randomness external to block content. σ is `Hash256` of deterministic preimage.
 
@@ -163,7 +165,7 @@ Minimum inputs to reproduce winner:
   "convergence_root": "C",
   "bind_block_hash": "B_{h-10}",
   "target_prev": "nBits from parent header",
-  "T": "2^240"
+  "T": "RES_PROBABILITY_TARGET (Deterministic Reserve Issuance E=246, windowed; C=1024 ORU)"
 }
 ```
 
@@ -271,7 +273,7 @@ Any change to preimage byte layout is a **hard-forking** change (guarded by `RIG
 | ID | Invariant |
 |----|-----------|
 | F-01 | Every tx in F is non-coinbase |
-| F-02 | Every tx in F has exactly one CVG2 convergence output |
+| F-02 | Every tx in F has exactly one `OP_CONVERGE` output |
 | F-03 | ∀ tx ∈ F: convergence_amount ≥ MIN_CONVERGENCE_AMOUNT |
 | F-04 | ∀ tx ∈ F: CheckTxInputs passes at block entry |
 | F-05 | ∀ tx ∈ F: txfee > 0 |
@@ -290,7 +292,7 @@ Any change to preimage byte layout is a **hard-forking** change (guarded by `RIG
 
 | ID | Invariant |
 |----|-----------|
-| D-01 | T = RES_PROBABILITY_TARGET = 2^240 (never from nBits) |
+| D-01 | T = RES_PROBABILITY_TARGET at Deterministic Reserve Issuance `E = 246` (windowed; never from nBits). Historical RFC-014 / retired design: `T = 2^240`. |
 | D-02 | target_prev used only in bind_commit, not in T |
 | D-03 | f_i = convergence_amount(tx_i) — no β transform |
 | D-04 | Eligible ⟺ σ_i < T · f_i (uint512) |
@@ -314,8 +316,8 @@ Any change to preimage byte layout is a **hard-forking** change (guarded by `RIG
 
 ```
 S_ORU(h) = 1000·COIN·Σ halvings - Σ all convergence burns
-S_RES(h) = M_total · RES_REWARD_AMOUNT
-M_total ≤ floor(RES_MAX_SUPPLY / RES_REWARD_AMOUNT)
+S_RES(h) = Σ_{i=1..h} GetResMintReward(i) · M(i)
+S_RES(h) ≤ RES_MAX_SUPPLY
 ```
 
 Observed at ConnectBlock; mirrors in `RuntimeSupplyState` for export only.
@@ -489,7 +491,7 @@ Before claiming replay success at any layer:
 - [ ] F set extracted at block entry view (not mid-block)
 - [ ] target_prev from parent, not current header
 - [ ] Bootstrap bind hash used for h ≤ 9
-- [ ] T = 2^240 confirmed (not compact target)
+- [ ] T = Deterministic Reserve Issuance windowed `RES_PROBABILITY_TARGET` (`E = 246`) confirmed (not compact target; Historical RFC-014 / retired design: `2^240`)
 - [ ] Cross-multiply uses uint512
 - [ ] Convergence outputs excluded from UTXO replay
 - [ ] Observer/provenance labeled if not Layer 1

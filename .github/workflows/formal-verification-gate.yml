@@ -11,6 +11,7 @@ on:
       - "core/src/test/selection_golden_tests.cpp"
       - "core/src/test/selection_golden_bridge.inc"
       - "core/src/consensus_rigor/sigma_hash.*"
+      - "core/src/consensus/convergence_root_eligibility.*"
       - "core/src/consensus/convergence_logic.*"
       - "core/src/crypto/sha256.cpp"
       - "core/src/crypto/sha256.h"
@@ -18,8 +19,13 @@ on:
       - "docs/verification/FORMAL-VERIFICATION-VERDICT.md"
       - "docs/verification/FORMAL-VERIFICATION-VERDICT-ADDENDUM-2026-08-16.md"
       - "docs/verification/FORMAL-VERIFICATION-STATUS.md"
+      - "docs/verification/FORMAL-VERIFICATION-FREEZE.md"
       - "docs/verification/FORMAL-VERIFICATION-STATUS-2026-08-16-R2.md"
       - "docs/verification/FORMAL-VERIFICATION-STATUS-2026-08-16-R3.md"
+      - "docs/verification/SIGMA-ROOT-CLI-2026-08.md"
+      - "docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md"
+      - "docs/verification/FV-RELEASE-CHECKLIST.md"
+      - "docs/formal/**"
       - ".github/workflows/formal-verification-gate.yml"
   push:
     paths:
@@ -27,10 +33,17 @@ on:
       - "core/src/test/selection_golden_tests.cpp"
       - "core/src/test/selection_golden_bridge.inc"
       - "core/src/consensus_rigor/sigma_hash.*"
+      - "core/src/consensus/convergence_root_eligibility.*"
       - "core/src/consensus/convergence_logic.*"
       - "core/src/crypto/sha256.cpp"
       - "core/src/crypto/sha256.h"
       - "core/src/hash.h"
+      - "docs/verification/FORMAL-VERIFICATION-STATUS.md"
+      - "docs/verification/FORMAL-VERIFICATION-FREEZE.md"
+      - "docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md"
+      - "docs/verification/FV-RELEASE-CHECKLIST.md"
+      - "docs/formal/**"
+      - ".github/workflows/formal-verification-gate.yml"
 
 jobs:
   python-differential:
@@ -42,7 +55,9 @@ jobs:
           python-version: "3.10"
       - name: C++ compiler (portable hash CLI)
         run: sudo apt-get update && sudo apt-get install -y g++
-      - name: Differential gate (Python + portable C++ hash)
-        run: bash formal_verification/scripts/run_differential_gate.sh
-        # Coq 8.15 harness rebuild is local: COQ=1 bash formal_verification/scripts/run_differential_gate.sh
+      - name: FV release checklist
+        run: bash formal_verification/scripts/run_fv_release_checklist.sh
+        # Includes freeze artifacts + SKIP_TEST_BITCOIN=1 differential gate
+        # (gate step 2b = check_golden_lock.py). Coq 8.15 harness rebuild is
+        # local: FV_COQ=1 bash formal_verification/scripts/run_fv_release_checklist.sh
         # Do not apt-install coq here — Ubuntu's package is not pinned to 8.15.0.

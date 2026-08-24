@@ -54,6 +54,14 @@ int ParseSighashString(const UniValue& sighash);
 UniValue ValueFromAmount(const CAmount amount);
 /** Format amount for RPC/JSON: ORU uses 1e8 decimals; RES uses 2-decimal RES units (see consensus/res_amount.h). */
 UniValue ValueFromAmountAsset(CAmount amount, AssetType asset);
+/**
+ * W1.1C frozen contract for the RPC `asset` field: "ORU" | "RES" | "NONE".
+ *
+ * Single source for every RPC that reports an output's native asset (`listunspent`,
+ * `TxToUniv`). Integrators MUST NOT infer the asset from witness version; classification is
+ * `AssetTypeFromScriptPubKey`. Pinned by wallet_listunspent_asset_field_tests.
+ */
+const char* AssetTypeToString(AssetType asset);
 std::string FormatScript(const CScript& script);
 std::string EncodeHexTx(const CTransaction& tx, const int serializeFlags = 0);
 std::string SighashToStr(unsigned char sighash_type);

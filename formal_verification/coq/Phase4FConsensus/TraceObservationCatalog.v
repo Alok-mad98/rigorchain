@@ -52,9 +52,20 @@ Definition trace_observation_catalog : list TraceObservationRecord :=
 
 Definition trace_observation_count : nat := length trace_observation_catalog.
 
-Lemma trace_observation_count_value : trace_observation_count = 16%nat.
-Proof. reflexivity. Qed.
+(** One observation per draw audit row, plus the projection and registry observations. *)
+Lemma trace_observation_count_value : trace_observation_count = 170%nat.
+Proof.
+  unfold trace_observation_count, trace_observation_catalog, draw_trace_observations.
+  rewrite app_length.
+  rewrite map_length.
+  rewrite draw_audit_rows_length.
+  unfold draw_audit_rows_count.
+  reflexivity.
+Qed.
 
 (** REQUIRED-2: catalog is non-empty. *)
 Lemma trace_catalog_nonempty : trace_observation_count <> 0%nat.
-Proof. unfold trace_observation_count. simpl. discriminate. Qed.
+Proof.
+  rewrite trace_observation_count_value. discriminate.
+Qed.
+

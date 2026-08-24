@@ -144,7 +144,7 @@ RuntimeWitnessSnapshot CaptureRuntimeWitnessSnapshot(const CBlockIndex* pindex,
  *
  * The observational mirror this reads MUST come from chain state. There used to be a
  * `materializegoldenvector` RPC that built the mirror out of the vector's own expected values,
- * wrote them into `CBlockIndex::m_chain_oru_total` and friends, stored the result as the block's
+ * wrote them into ObservationalMetrics (W1 ledgers) and friends, stored the result as the block's
  * mirror, and then ran this comparison — so every field compared a number against itself and no
  * vector could fail. Worse, the poisoned mirror persisted, so an honest `getruntimevectorstatus`
  * afterwards reported PASS too. It has been deleted; do not reintroduce a path that lets the

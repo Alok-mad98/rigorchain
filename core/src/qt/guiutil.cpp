@@ -429,7 +429,7 @@ void LoadFont(const QString& file_name)
 #ifdef WIN32
         MessageBoxW(nullptr,
                     L"Failed to load the embedded UI font. Continuing with system fonts.",
-                    L"RIGOR Wallet",
+                    L"Rigor Wallet",
                     MB_OK | MB_ICONWARNING);
 #endif
         return;
@@ -1302,10 +1302,69 @@ void ShowModalDialogAsynchronously(QDialog* dialog)
     dialog->show();
 }
 
+/** Checkbox/radio: grey idle, white fill when checked. Do not rely on SVG images
+ *  (Windows native style / static Qt often drops QSS `image:` and only draws a ring). */
+static QString RigorCheckIndicatorStylesheet(const QString& selector_prefix)
+{
+    return QStringLiteral(
+        "%1QCheckBox, %1QRadioButton {"
+        "  color: #FFFFFF; spacing: 6px; background: transparent;"
+        "}"
+        "%1QCheckBox:disabled, %1QRadioButton:disabled { color: #888888; }"
+        "%1QCheckBox::indicator, %1QRadioButton::indicator {"
+        "  width: 18px; height: 18px;"
+        "  border: 2px solid #888888;"
+        "  background-color: #3D3D3D;"
+        "}"
+        "%1QCheckBox::indicator { border-radius: 3px; }"
+        "%1QRadioButton::indicator { border-radius: 9px; }"
+        "%1QCheckBox::indicator:checked {"
+        "  background-color: #FFFFFF;"
+        "  border: 2px solid #FFFFFF;"
+        "  image: none;"
+        "}"
+        "%1QRadioButton::indicator:checked {"
+        "  background-color: #FFFFFF;"
+        "  border: 2px solid #FFFFFF;"
+        "  image: none;"
+        "}"
+        "%1QCheckBox::indicator:unchecked, %1QRadioButton::indicator:unchecked {"
+        "  background-color: #3D3D3D;"
+        "  border: 2px solid #888888;"
+        "  image: none;"
+        "}"
+        "%1QCheckBox::indicator:disabled, %1QRadioButton::indicator:disabled {"
+        "  background-color: #2A2A2A; border: 2px solid #444444; image: none;"
+        "}"
+    ).arg(selector_prefix);
+}
+
+/** Grey input surface + white text for every editable field. */
+static QString RigorEditableFieldStylesheet(const QString& selector_prefix, const QString& ui_font)
+{
+    return QStringLiteral(
+        "%1QLineEdit, %1QPlainTextEdit, %1QTextEdit, %1QSpinBox, %1QDoubleSpinBox,"
+        "%1QAbstractSpinBox, %1QAbstractSpinBox QLineEdit, %1QComboBox, %1QDateTimeEdit {"
+        "  background-color: #3D3D3D;"
+        "  color: #FFFFFF;"
+        "  border: 1px solid #666666;"
+        "  border-radius: 4px;"
+        "  padding: 4px 6px;"
+        "  selection-background-color: #555555;"
+        "  selection-color: #FFFFFF;"
+        "  font-family: %2;"
+        "}"
+        "%1QLineEdit:disabled, %1QComboBox:disabled, %1QSpinBox:disabled, %1QAbstractSpinBox:disabled {"
+        "  background-color: #2A2A2A;"
+        "  color: #888888;"
+        "  border: 1px solid #444444;"
+        "}"
+    ).arg(selector_prefix, ui_font);
+}
+
 QString RigorDialogControlStylesheet()
 {
-    // Match Explorer MVP: #000 page, #111 cards/inputs, #fff text, #333/#444 borders.
-    // Explicit colors override native Windows styling.
+    // Page remains #000; editable fields are grey (#3D3D3D) with white text.
     const QString ui_font = UiFontFamilyCss();
     return QStringLiteral(
         "QDialog, QMessageBox {"
@@ -1318,21 +1377,6 @@ QString RigorDialogControlStylesheet()
         "  margin-top: 8px; padding-top: 8px; font-family: %1;"
         "}"
         "QDialog QGroupBox::title { color: #FFFFFF; subcontrol-origin: margin; left: 8px; }"
-        "QDialog QCheckBox, QDialog QRadioButton {"
-        "  color: #FFFFFF; spacing: 6px; background: transparent; font-family: %1;"
-        "}"
-        "QDialog QCheckBox:disabled, QDialog QRadioButton:disabled { color: #888888; }"
-        "QDialog QCheckBox::indicator, QDialog QRadioButton::indicator {"
-        "  width: 16px; height: 16px; border: 1px solid #444444;"
-        "  background: #111111; border-radius: 2px;"
-        "}"
-        "QDialog QRadioButton::indicator { border-radius: 8px; }"
-        "QDialog QCheckBox::indicator:checked, QDialog QRadioButton::indicator:checked {"
-        "  background: #FF6A2B; border: 1px solid #FF6A2B;"
-        "}"
-        "QDialog QCheckBox::indicator:disabled, QDialog QRadioButton::indicator:disabled {"
-        "  background: #000000; border: 1px solid #333333;"
-        "}"
         "QDialog QTabWidget::pane {"
         "  background-color: #000000; border: 1px solid #333333; top: -1px;"
         "}"
@@ -1345,27 +1389,14 @@ QString RigorDialogControlStylesheet()
         "QDialog QScrollArea, QDialog QAbstractScrollArea, QDialog QFrame {"
         "  background-color: #000000; color: #FFFFFF; border: none;"
         "}"
-        "QDialog QTextEdit, QDialog QPlainTextEdit, QDialog QTextBrowser,"
-        "QDialog QLineEdit, QDialog QSpinBox, QDialog QDoubleSpinBox, QDialog QComboBox,"
-        "QDialog QDateTimeEdit, QDialog QAbstractSpinBox {"
-        "  background-color: #111111;"
-        "  color: #FFFFFF;"
-        "  border: 1px solid #444444;"
-        "  border-radius: 4px;"
-        "  padding: 4px 6px;"
-        "  selection-background-color: #333333;"
-        "  selection-color: #FFFFFF;"
-        "  font-family: %1;"
-        "}"
-        "QDialog QLineEdit:disabled, QDialog QComboBox:disabled, QDialog QSpinBox:disabled {"
-        "  background-color: #000000;"
-        "  color: #888888;"
-        "  border: 1px solid #333333;"
-        "}"
+    ).arg(ui_font)
+    + RigorCheckIndicatorStylesheet(QStringLiteral("QDialog "))
+    + RigorEditableFieldStylesheet(QStringLiteral("QDialog "), ui_font)
+    + QStringLiteral(
         "QDialog QComboBox::drop-down { border: none; width: 20px; background: transparent; }"
         "QDialog QComboBox QAbstractItemView {"
-        "  background-color: #111111; color: #FFFFFF;"
-        "  selection-background-color: #333333; selection-color: #FFFFFF;"
+        "  background-color: #3D3D3D; color: #FFFFFF;"
+        "  selection-background-color: #555555; selection-color: #FFFFFF;"
         "  font-family: %1;"
         "}"
         "QDialog QListView, QDialog QTreeView, QDialog QTableView {"
@@ -1413,7 +1444,7 @@ void ApplyRigorDialogChrome(QWidget* dialog)
     pal.setColor(QPalette::WindowText, QColor(QStringLiteral("#FFFFFF")));
     pal.setColor(QPalette::Button, QColor(QStringLiteral("#111111")));
     pal.setColor(QPalette::ButtonText, QColor(QStringLiteral("#FFFFFF")));
-    pal.setColor(QPalette::Base, QColor(QStringLiteral("#111111")));
+    pal.setColor(QPalette::Base, QColor(QStringLiteral("#3D3D3D")));
     pal.setColor(QPalette::Text, QColor(QStringLiteral("#FFFFFF")));
     pal.setColor(QPalette::Disabled, QPalette::Text, QColor(QStringLiteral("#888888")));
     pal.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(QStringLiteral("#888888")));
@@ -1428,7 +1459,7 @@ void ApplyRigorWalletChrome(QMainWindow* mainWindow, QWidget* walletFrame, QWidg
     QPalette pal = QGuiApplication::palette();
     pal.setColor(QPalette::Window, QColor(QStringLiteral("#000000")));
     pal.setColor(QPalette::WindowText, QColor(QStringLiteral("#FFFFFF")));
-    pal.setColor(QPalette::Base, QColor(QStringLiteral("#111111")));
+    pal.setColor(QPalette::Base, QColor(QStringLiteral("#3D3D3D")));
     pal.setColor(QPalette::AlternateBase, QColor(QStringLiteral("#000000")));
     pal.setColor(QPalette::Text, QColor(QStringLiteral("#FFFFFF")));
     pal.setColor(QPalette::Button, QColor(QStringLiteral("#111111")));
@@ -1479,19 +1510,14 @@ void ApplyRigorWalletChrome(QMainWindow* mainWindow, QWidget* walletFrame, QWidg
         "QStackedWidget { background: transparent; }"
         "QLabel { color: #FFFFFF; font-family: %1; }"
         "QCheckBox { color: #FFFFFF; font-family: %1; }"
+        "QRadioButton { color: #FFFFFF; font-family: %1; }"
         "QGroupBox { color: #FFFFFF; background: #111111; border: 1px solid #333333; margin-top: 8px; font-family: %1; }"
         "QAbstractItemView { background: #111111; alternate-background-color: #000000; color: #FFFFFF; "
         "  gridline-color: #333333; selection-background-color: #333333; selection-color: #FFFFFF; font-family: %1; }"
         "QHeaderView::section { background: #111111; color: #FFFFFF; border: 1px solid #333333; }"
-        "QLineEdit, QPlainTextEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox {"
-        "  background-color: #111111; color: #FFFFFF;"
-        "  border: 1px solid #444444; border-radius: 4px; padding: 4px;"
-        "  selection-background-color: #333333; selection-color: #FFFFFF; font-family: %1;"
-        "}"
-        "QLineEdit:disabled, QComboBox:disabled { background-color: #000000; color: #888888; border: 1px solid #333333; }"
         "QComboBox::drop-down { border: none; }"
-        "QComboBox QAbstractItemView { background: #111111; color: #FFFFFF; "
-        "  selection-background-color: #333333; selection-color: #FFFFFF; font-family: %1; }"
+        "QComboBox QAbstractItemView { background: #3D3D3D; color: #FFFFFF; "
+        "  selection-background-color: #555555; selection-color: #FFFFFF; font-family: %1; }"
         "QTabWidget::pane { border: 1px solid #333333; background: #000000; }"
         "QTabBar::tab { background: #111111; color: #BBBBBB; border: 1px solid #333333; padding: 6px 12px; font-family: %1; }"
         "QTabBar::tab:selected { background: #222222; color: #FFFFFF; }"
@@ -1505,7 +1531,9 @@ void ApplyRigorWalletChrome(QMainWindow* mainWindow, QWidget* walletFrame, QWidg
         "QScrollBar::handle:vertical { background: #444444; min-height: 20px; border-radius: 4px; }"
         "QScrollBar:horizontal { background: #000000; height: 12px; }"
         "QScrollBar::handle:horizontal { background: #444444; min-width: 20px; border-radius: 4px; }"
-    ).arg(ui_font);
+    ).arg(ui_font)
+    + RigorCheckIndicatorStylesheet(QString())
+    + RigorEditableFieldStylesheet(QString(), ui_font);
     if (walletFrame) {
         walletFrame->setStyleSheet(wallet_ss);
     }
@@ -1524,9 +1552,10 @@ void ApplyRigorWalletChrome(QMainWindow* mainWindow, QWidget* walletFrame, QWidg
         "  border: 1px solid #333333;"
         "}"
         "QWidget#RigorRpcConsole QHeaderView::section { background: #111111; color: #FFFFFF; border: 1px solid #333333; }"
-        "QWidget#RigorRpcConsole QLineEdit, QWidget#RigorRpcConsole QTextEdit, QWidget#RigorRpcConsole QPlainTextEdit {"
-        "  background-color: #111111; color: #FFFFFF; border: 1px solid #444444; border-radius: 4px; padding: 4px;"
-        "  selection-background-color: #333333; selection-color: #FFFFFF;"
+        "QWidget#RigorRpcConsole QLineEdit, QWidget#RigorRpcConsole QTextEdit, QWidget#RigorRpcConsole QPlainTextEdit,"
+        "QWidget#RigorRpcConsole QSpinBox, QWidget#RigorRpcConsole QAbstractSpinBox, QWidget#RigorRpcConsole QComboBox {"
+        "  background-color: #3D3D3D; color: #FFFFFF; border: 1px solid #666666; border-radius: 4px; padding: 4px;"
+        "  selection-background-color: #555555; selection-color: #FFFFFF;"
         "}"
         "QWidget#RigorRpcConsole QTabWidget::pane { border: 1px solid #333333; background: #000000; }"
         "QWidget#RigorRpcConsole QTabBar::tab { background: #111111; color: #BBBBBB; border: 1px solid #333333; padding: 6px 10px; }"

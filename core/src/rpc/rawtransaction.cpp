@@ -481,6 +481,8 @@ static RPCHelpMan decodescript()
         case TxoutType::SCRIPTHASH:
         case TxoutType::WITNESS_UNKNOWN:
         case TxoutType::WITNESS_V1_RES:
+        case TxoutType::RES_MINT:
+        case TxoutType::CONVERGE:
             // Should not be wrapped
             return false;
         } // no default case, so the compiler can warn about missing cases
@@ -523,6 +525,8 @@ static RPCHelpMan decodescript()
             case TxoutType::WITNESS_V0_KEYHASH:
             case TxoutType::WITNESS_V0_SCRIPTHASH:
             case TxoutType::WITNESS_V1_RES:
+            case TxoutType::RES_MINT:
+            case TxoutType::CONVERGE:
                 // Should not be wrapped
                 return false;
             } // no default case, so the compiler can warn about missing cases
@@ -533,7 +537,7 @@ static RPCHelpMan decodescript()
             CScript segwitScr;
             FlatSigningProvider provider;
             if (which_type == TxoutType::PUBKEY) {
-                segwitScr = GetScriptForDestination(WitnessV0KeyHash(Hash160(solutions_data[0])));
+                segwitScr = GetScriptForDestination(WitnessV0KeyHash(CPubKey(solutions_data[0])));
             } else if (which_type == TxoutType::PUBKEYHASH) {
                 segwitScr = GetScriptForDestination(WitnessV0KeyHash(uint160{solutions_data[0]}));
             } else {

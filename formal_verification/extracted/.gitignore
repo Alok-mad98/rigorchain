@@ -3,6 +3,7 @@
 *.cmx
 *.o
 cpp_hash_cli
+cpp_sigma_root_cli
 hash256_cli
 hash256_kernel.mli
 *.vo

@@ -5,8 +5,10 @@
 **Status:** ESTABLISHED  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
 **Parents:** `SPEC-000`, `SPEC-001`  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015` (and the frozen ORU schedule RFCs)  
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015`, `RFC-017` (and the frozen ORU schedule RFCs)  
 **Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+
+> **Parameter boundary.** RFC-015 fixed `100 RES` per mint is a **Historical RFC** value and **not an active consensus parameter**. Active mint: RFC-017 `W(k)` / `GetResMintReward(h)`. RFC-014 `E = 240` / `C = 65536` ORU is likewise **Historical RFC**, **not an active consensus parameter**.
 
 ---
 
@@ -70,8 +72,11 @@ freeze declaration:
 
 | Symbol | Meaning | Frozen value |
 |--------|---------|--------------|
-| `RES_REWARD_AMOUNT` | RES minted per successful deterministic consensus allocation | `100.00 RES` (= `10,000` atoms) |
-| `RES_MAX_SUPPLY` | Maximum total RES supply | `21,000,000 RES` (= `2,100,000,000` atoms) |
+| `RES_REWARD_GENESIS` | `W(0)` — RES minted per successful draw in epoch 0 | `40.000000 RES` (= `40,000,000` atoms) |
+| `RES_REWARD_EPOCH` | Reward epoch length | `210000` blocks |
+| `RES_REWARD_LAST_EPOCH` | Last epoch with non-zero `W(k)` | `250` |
+| `W(k)` / `GetResMintReward(h)` | Height-dependent mint (RFC-017) | `W(k) = floor(RES_REWARD_GENESIS · (k+1)^(-3/2))` for `0 ≤ k ≤ 250`, else `0`; `k = floor(h / 210000)` |
+| `RES_MAX_SUPPLY` | Maximum total RES supply | `21,000,000 RES` (= `21,000,000,000,000` atoms) |
 | `CONVERGENCE_DRAW_MIN_TXS_FOR_RES` | Draw participation gate on candidate set `F` | `1` (i.e. `|F| ≥ 1`) |
 | `MIN_CONVERGENCE_AMOUNT` | Minimum ORU converged per candidate tx | `1 ORU` |
 
@@ -89,7 +94,7 @@ These quantities are **authoritative**: they are part of consensus state and may
 affect block validity:
 
 - `S_ORU(h)` and its recurrence via `R(h)` and `C(h)`
-- `S_RES(h)` and its recurrence via `M(h)` and `RES_REWARD_AMOUNT`
+- `S_RES(h)` and its recurrence via `M(h)` and `GetResMintReward(h)`
 - The cap constraint `S_RES(h) ≤ RES_MAX_SUPPLY`
 - The restriction `M(h) ∈ {0,1}` (at most one successful RES mint per block)
 
@@ -166,14 +171,15 @@ does not duplicate that schedule, but requires that:
 
 ### 5.1 RES supply recurrence (authoritative)
 
-**Normative law (RFC-015):**
+**Normative law (RFC-017):**
 
 \[
 S_{\text{RES}}(0) = 0,\quad
-S_{\text{RES}}(h+1) = S_{\text{RES}}(h) + \texttt{RES\_REWARD\_AMOUNT} \cdot M(h+1)
+S_{\text{RES}}(h+1) = S_{\text{RES}}(h) + \texttt{GetResMintReward}(h+1) \cdot M(h+1)
 \]
 
-where `M(h) ∈ {0,1}`.
+where `M(h) ∈ {0,1}` and `GetResMintReward(h) = W(\lfloor h/210000\rfloor)` is the
+RFC-017 schedule. Historical RFC-015 used a constant `RES_REWARD_AMOUNT = 100 RES`.
 
 ### 5.2 Single-mint restriction (authoritative)
 
@@ -203,10 +209,11 @@ successful RES mints at the same height or otherwise forces `M(h) ∉ {0,1}`.
 ### 5.4 RES mint amount (authoritative)
 
 **Invariant (RES-I3):** If `M(h)=1` then the minted quantity is exactly
-`RES_REWARD_AMOUNT` (not smaller, not larger, not variable).
+`GetResMintReward(h)` from the RFC-017 schedule (not smaller, not larger, not
+an off-schedule constant). Historical RFC-015 used a constant 100 RES.
 
 **Falsifiable failure condition:** A block is invalid if it authorizes a RES
-mint but credits any amount other than `RES_REWARD_AMOUNT`.
+mint but credits any amount other than `GetResMintReward(h)`.
 
 ### 5.5 RES monotonicity up to cap (authoritative)
 

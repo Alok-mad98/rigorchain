@@ -195,15 +195,14 @@ class WalletSendTest(BitcoinTestFramework):
         self.nodes[1].createwallet(wallet_name="w2", blank=True)
         w2 = self.nodes[1].get_wallet_rpc("w2")
         xpriv = "tprv8ZgxMBicQKsPfHCsTwkiM1KT56RXbGGTqvc2hgqzycpwbHqqpcajQeMRZoBD35kW4RtyCemu6j34Ku5DEspmgjKdt2qe4SvRch5Kk8B8A2v"
-        xpub = "tpubD6NzVbkrYhZ4YkEfMbRJkQyZe7wTkbTNRECozCtJPtdLRn6cT1QKb8yHjwAPcAr26eHBFYs5iLiFFnCbwPRsncCKUKCfubHDMGKzMVcN1Jg"
         if self.options.descriptors:
             w2.importdescriptors([{
-                "desc": descsum_create("wpkh(" + xpriv + "/0/0/*)"),
+                "desc": descsum_create("wpkh(" + xpriv + "/0'/0'/*')"),
                 "timestamp": "now",
                 "range": [0, 100],
                 "active": True
             },{
-                "desc": descsum_create("wpkh(" + xpriv + "/0/1/*)"),
+                "desc": descsum_create("wpkh(" + xpriv + "/0'/1'/*')"),
                 "timestamp": "now",
                 "range": [0, 100],
                 "active": True,
@@ -216,28 +215,27 @@ class WalletSendTest(BitcoinTestFramework):
         self.nodes[1].createwallet(wallet_name="w3", disable_private_keys=True)
         w3 = self.nodes[1].get_wallet_rpc("w3")
         if self.options.descriptors:
-            # Match the privkeys in w2 for descriptors
-            res = w3.importdescriptors([{
-                "desc": descsum_create("wpkh(" + xpub + "/0/0/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "keypool": True,
-                "active": True,
-                "watchonly": True
-            },{
-                "desc": descsum_create("wpkh(" + xpub + "/0/1/*)"),
-                "timestamp": "now",
-                "range": [0, 100],
-                "keypool": True,
-                "active": True,
-                "internal": True,
-                "watchonly": True
-            }])
-            assert_equal(res, [{"success": True}, {"success": True}])
-
-        for _ in range(3):
-            a2_receive = w2.getnewaddress(address_type='bech32')
-            if not self.options.descriptors:
+            # Hardened derivation cannot be expanded from xpub. Import each
+            # concrete public address descriptor from w2.
+            for _ in range(3):
+                a2_receive = w2.getnewaddress(address_type='bech32')
+                a2_change = w2.getrawchangeaddress(address_type='bech32')
+                res = w3.importdescriptors([{
+                    "desc": w2.getaddressinfo(a2_receive)["desc"],
+                    "timestamp": "now",
+                    "keypool": True,
+                    "watchonly": True
+                },{
+                    "desc": w2.getaddressinfo(a2_change)["desc"],
+                    "timestamp": "now",
+                    "keypool": True,
+                    "internal": True,
+                    "watchonly": True
+                }])
+                assert_equal(res, [{"success": True}, {"success": True}])
+        else:
+            for _ in range(3):
+                a2_receive = w2.getnewaddress(address_type='bech32')
                 # Because legacy wallets use exclusively hardened derivation, we can't do a ranged import like we do for descriptors
                 a2_change = w2.getrawchangeaddress() # doesn't actually use change derivation
                 res = w3.importmulti([{

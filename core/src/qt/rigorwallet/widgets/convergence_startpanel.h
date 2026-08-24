@@ -51,6 +51,7 @@ private:
     void updateValidation();
     void updateEstimate();
     void updateNetworkGate();
+    void updateResultPreview();
     AmountValidity checkAmount(CAmount& amount_out) const;
     CAmount availableOru() const;
     bool networkReady(QString* warn_out) const;

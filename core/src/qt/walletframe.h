@@ -73,8 +73,6 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to convergence page */
     void gotoConvergencePage();
-    /** Switch to diagnostics page */
-    void gotoDiagnosticsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

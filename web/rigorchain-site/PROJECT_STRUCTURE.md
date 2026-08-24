@@ -31,7 +31,7 @@ web/rigorchain-site/
 │   │   └── SystemStateContext.tsx  # Derived SystemState, 30s poll
 │   ├── lib/
 │   │   ├── explorerClient.ts    # GET /api/* explorer client (public inputs only)
-│   │   └── zeroTrust/           # Independent AlphaPlus verifier (WebCrypto, Uint8Array)
+│   │   └── zeroTrust/           # Independent RIGOR verifier (WebCrypto, Uint8Array)
 │   └── pages/
 │       ├── LandingPage.tsx
 │       ├── DownloadPage.tsx
@@ -63,7 +63,7 @@ web/rigorchain-site/
 | `/mining` | MiningPage | Miner / `getblockhash` sources |
 | `/explorer` | ExplorerPortalPage | Viewer portal (not a validator) |
 | `/documentation` | DocumentationPage | Docs + lab links |
-| `/zero-trust-verification` | ZeroTrustVerificationPage | Independent AlphaPlus verifier ⭐ |
+| `/zero-trust-verification` | ZeroTrustVerificationPage | Independent RIGOR verifier ⭐ |
 | `/protocol` | ProtocolPage | Frozen protocol rules (Layer 1) |
 | `/science` | SciencePage | Deterministic state machine (Layer 2) |
 | `/lab` | LabPage | Experimental lab framing, PROOF-034 running |

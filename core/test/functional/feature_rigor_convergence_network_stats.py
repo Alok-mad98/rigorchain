@@ -22,7 +22,7 @@ from test_framework.util import assert_equal, assert_greater_than_or_equal
 
 
 COIN = 100_000_000
-RES_COIN = 100
+RES_COIN = 1_000_000
 
 
 class RigorConvergenceNetworkStatsTest(BitcoinTestFramework):
@@ -163,8 +163,9 @@ class RigorConvergenceNetworkStatsTest(BitcoinTestFramework):
         assert_equal(after_restart["pending_windows"], snapshot["pending_windows"])
         assert_equal(after_restart["total_res_minted"], snapshot["total_res_minted"])
 
-        self.log.info("RES atoms scale lock: 100.00 RES == %d atoms" % (100 * RES_COIN))
-        assert_equal(100 * RES_COIN, 10000)
+        self.log.info("RES atoms scale lock: 1.000000 RES == %d atoms" % RES_COIN)
+        assert_equal(RES_COIN, 1_000_000)
+        assert_equal(1 * RES_COIN, 1_000_000)
 
 
 if __name__ == "__main__":

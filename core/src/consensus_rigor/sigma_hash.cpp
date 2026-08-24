@@ -18,17 +18,11 @@ namespace rigor {
 namespace {
 
 // Offsets are normative (RFC-000 §5). Changing any of these is a hard fork.
-inline constexpr std::size_t kOffTxid   = 0;
-inline constexpr std::size_t kOffCRoot  = 32;
-inline constexpr std::size_t kOffBind   = 64;
-inline constexpr std::size_t kOffHeight = 96;
-inline constexpr std::size_t kHeightLen = 4;
-
-static_assert(kOffTxid == 0,            "Sigma layout: txid must start at offset 0");
-static_assert(kOffCRoot == 32,          "Sigma layout: ConvergenceRoot at offset 32");
-static_assert(kOffBind == 64,           "Sigma layout: B_{h-1} at offset 64");
-static_assert(kOffHeight == 96,         "Sigma layout: height at offset 96");
-static_assert(kOffHeight + kHeightLen == SIGMA_INPUT_SIZE,
+static_assert(SIGMA_OFF_TXID == 0,            "Sigma layout: txid must start at offset 0");
+static_assert(SIGMA_OFF_CROOT == 32,          "Sigma layout: ConvergenceRoot at offset 32");
+static_assert(SIGMA_OFF_PREV_BLOCK == 64,     "Sigma layout: B_{h-1} at offset 64");
+static_assert(SIGMA_OFF_HEIGHT == 96,         "Sigma layout: height at offset 96");
+static_assert(SIGMA_OFF_HEIGHT + SIGMA_HEIGHT_LEN == SIGMA_INPUT_SIZE,
               "Sigma total input size must be exactly 100 bytes (RFC-000 §5)");
 
 } // namespace
@@ -69,16 +63,16 @@ uint256 ComputeSigmaHash(const uint256& txid,
     // concat(a, b, c) = a || b || c
     // ❌ FORBIDDEN: delimiter, length prefix, padding
     std::array<unsigned char, SIGMA_INPUT_SIZE> buf{};
-    std::memcpy(buf.data() + kOffTxid,  txid.begin(),             32);
-    std::memcpy(buf.data() + kOffCRoot, convergence_root.begin(), 32);
-    std::memcpy(buf.data() + kOffBind,  prev_block_hash.begin(),  32);
+    std::memcpy(buf.data() + SIGMA_OFF_TXID,        txid.begin(),             32);
+    std::memcpy(buf.data() + SIGMA_OFF_CROOT,       convergence_root.begin(), 32);
+    std::memcpy(buf.data() + SIGMA_OFF_PREV_BLOCK,  prev_block_hash.begin(),  32);
 
     // RIGOR IMPLEMENTATION BIBLE §1: DATA TYPES
     // uint32 → 4 bytes → little-endian (RFC-000 §4 Deterministic Encoding Law).
-    buf[kOffHeight + 0] = static_cast<unsigned char>((height >> 0)  & 0xFF);
-    buf[kOffHeight + 1] = static_cast<unsigned char>((height >> 8)  & 0xFF);
-    buf[kOffHeight + 2] = static_cast<unsigned char>((height >> 16) & 0xFF);
-    buf[kOffHeight + 3] = static_cast<unsigned char>((height >> 24) & 0xFF);
+    buf[SIGMA_OFF_HEIGHT + 0] = static_cast<unsigned char>((height >> 0)  & 0xFF);
+    buf[SIGMA_OFF_HEIGHT + 1] = static_cast<unsigned char>((height >> 8)  & 0xFF);
+    buf[SIGMA_OFF_HEIGHT + 2] = static_cast<unsigned char>((height >> 16) & 0xFF);
+    buf[SIGMA_OFF_HEIGHT + 3] = static_cast<unsigned char>((height >> 24) & 0xFF);
 
     // Step 3: final Hash256 over the 100-byte canonical buffer.
     //

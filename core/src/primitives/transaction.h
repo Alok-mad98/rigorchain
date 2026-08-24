@@ -36,6 +36,10 @@ enum AssetType : uint8_t {
     ASSET_RES = 1,
     /** OP_RETURN / data carrier — not a native asset; output value must be zero. */
     ASSET_NONE = 2,
+    // 3 was ASSET_CVG, the retired OP_CVG_CLAIM covenant ticket (see script.h on 0xbc).
+    // Its removal is what collapses the dual-pool fee equation back to two terms: a third
+    // asset class put a permanently-zero addend into `oru_out`, which is the kind of thing
+    // that is easy to get wrong later. Do not reassign 3.
 };
 
 /** Native asset inferred from scriptPubKey (v1 RES program => RES; v0 witness => ORU; OP_RETURN => NONE). */

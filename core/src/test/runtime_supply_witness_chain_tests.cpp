@@ -72,7 +72,7 @@ BOOST_FIXTURE_TEST_CASE(store_and_retrieve_witness, WitnessChainFixture)
 {
     const Consensus::RuntimeSupplyWitness w = MakeWitness(5, HashFromLabel("witness-block-5"), HashFromLabel("witness-parent-4"));
     Consensus::StoreRuntimeSupplyWitness(w);
-    const std::optional<Consensus::RuntimeSupplyWitness> got = Consensus::GetRuntimeSupplyWitness(5);
+    const std::optional<Consensus::RuntimeSupplyWitness> got = Consensus::GetRuntimeSupplyWitness(w.block_hash);
     BOOST_REQUIRE(got.has_value());
     BOOST_CHECK_EQUAL(got->height, 5);
     BOOST_CHECK(got->block_hash == w.block_hash);
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(build_witness_from_mirror_and_invariants)
     s.res_mint_count_block = 0;
     s.res_mint_cumulative = 0;
     s.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    s.res_reward_amount = Consensus::RES_REWARD_AMOUNT;
+    s.res_reward_amount = Consensus::RES_REWARD_GENESIS;
 
     const Consensus::RuntimeInvariantResult inv = Consensus::VerifyRuntimeSupplyInvariants(s, consensus);
     const Consensus::RuntimeSupplyWitness w = Consensus::BuildRuntimeSupplyWitness(s, inv);
@@ -150,13 +150,35 @@ BOOST_FIXTURE_TEST_CASE(rpc_export_shape, WitnessChainFixture)
 
 BOOST_FIXTURE_TEST_CASE(invalidate_drops_witness_and_updates_latest, WitnessChainFixture)
 {
-    Consensus::StoreRuntimeSupplyWitness(MakeWitness(4, HashFromLabel("w4"), HashFromLabel("w3")));
-    Consensus::StoreRuntimeSupplyWitness(MakeWitness(5, HashFromLabel("w5"), HashFromLabel("w4")));
-    Consensus::InvalidateRuntimeSupplyWitness(5);
-    BOOST_CHECK(!Consensus::GetRuntimeSupplyWitness(5).has_value());
+    const uint256 h4 = HashFromLabel("w4");
+    const uint256 h5 = HashFromLabel("w5");
+    Consensus::StoreRuntimeSupplyWitness(MakeWitness(4, h4, HashFromLabel("w3")));
+    Consensus::StoreRuntimeSupplyWitness(MakeWitness(5, h5, HashFromLabel("w4")));
+    Consensus::InvalidateRuntimeSupplyWitness(h5);
+    BOOST_CHECK(!Consensus::GetRuntimeSupplyWitness(h5).has_value());
     const std::optional<Consensus::RuntimeSupplyWitness> latest = Consensus::GetLatestRuntimeSupplyWitness();
     BOOST_REQUIRE(latest.has_value());
     BOOST_CHECK_EQUAL(latest->height, 4);
+}
+
+BOOST_FIXTURE_TEST_CASE(same_height_forks_do_not_overwrite, WitnessChainFixture)
+{
+    // FENCE-W7: two witnesses at height 7 with distinct hashes must both survive.
+    const uint256 fork_a = HashFromLabel("fork-a-h7");
+    const uint256 fork_b = HashFromLabel("fork-b-h7");
+    Consensus::StoreRuntimeSupplyWitness(MakeWitness(7, fork_a, HashFromLabel("parent-a")));
+    Consensus::StoreRuntimeSupplyWitness(MakeWitness(7, fork_b, HashFromLabel("parent-b")));
+    const std::optional<Consensus::RuntimeSupplyWitness> a = Consensus::GetRuntimeSupplyWitness(fork_a);
+    const std::optional<Consensus::RuntimeSupplyWitness> b = Consensus::GetRuntimeSupplyWitness(fork_b);
+    BOOST_REQUIRE(a.has_value());
+    BOOST_REQUIRE(b.has_value());
+    BOOST_CHECK(a->block_hash == fork_a);
+    BOOST_CHECK(b->block_hash == fork_b);
+    BOOST_CHECK_EQUAL(a->height, 7);
+    BOOST_CHECK_EQUAL(b->height, 7);
+    Consensus::InvalidateRuntimeSupplyWitness(fork_a);
+    BOOST_CHECK(!Consensus::GetRuntimeSupplyWitness(fork_a).has_value());
+    BOOST_CHECK(Consensus::GetRuntimeSupplyWitness(fork_b).has_value());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

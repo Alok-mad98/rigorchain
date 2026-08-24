@@ -1744,7 +1744,6 @@ bool CWallet::IsHDEnabled() const
 
 bool CWallet::IsOruHDEnabled() const
 {
-    // ORU HD is reported from BECH32 (wpkh) managers only — ignore RES single-slot SPKMs.
     bool found = false;
     for (const bool internal : {false, true}) {
         ScriptPubKeyMan* spk_man = GetScriptPubKeyMan(OutputType::BECH32, internal);
@@ -1755,9 +1754,21 @@ bool CWallet::IsOruHDEnabled() const
     return found;
 }
 
+bool CWallet::IsResHDEnabled() const
+{
+    bool found = false;
+    for (const bool internal : {false, true}) {
+        ScriptPubKeyMan* spk_man = GetScriptPubKeyMan(OutputType::BECH32M, internal);
+        if (!spk_man) continue;
+        if (!spk_man->IsHDEnabled()) return false;
+        found = true;
+    }
+    return found;
+}
+
 bool CWallet::IsResDedicatedKeyMode() const
 {
-    // Dedicated RES mode: active BECH32M (res()) managers that are intentionally non-ranged.
+    // Dedicated RES mode: imported non-ranged res() (hex pubkey or secret), not default HD.
     bool found = false;
     for (const bool internal : {false, true}) {
         ScriptPubKeyMan* spk_man = GetScriptPubKeyMan(OutputType::BECH32M, internal);
@@ -1852,6 +1863,13 @@ bool DummySignInput(const SigningProvider& provider, CTxIn &tx_in, const CTxOut 
     const bool is_v1_res = scriptPubKey.IsWitnessProgram(wver, wprog) && wver == 1 && wprog.size() == WITNESS_V1_RES_SIZE;
     const bool is_cvg2 = is_v1_res && std::memcmp(wprog.data(), RigorTags::CVG2.data(), RigorTags::CVG2.size()) == 0;
 
+    if (IsResMintScript(scriptPubKey)) {
+        std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
+        witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+        tx_in.scriptSig = CScript() << witSig << std::vector<unsigned char>(ed25519::PUBKEY_SIZE, 0x11);
+        return true;
+    }
+
     // Native RES key-path (witness v1): fee estimation must not depend on ProduceSignature+VerifyScript
     // with dummy checkers (interpreter encoding / checker wiring can reject dummy bytes). Install a
     // size-accurate key-path witness: Ed25519 sig (64) + hashtype (1) + 32-byte program.
@@ -1860,7 +1878,7 @@ bool DummySignInput(const SigningProvider& provider, CTxIn &tx_in, const CTxOut 
         std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
         witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
         wit.stack.push_back(std::move(witSig));
-        wit.stack.push_back(wprog);
+        wit.stack.emplace_back(ed25519::PUBKEY_SIZE, 0x11);
         tx_in.scriptWitness = std::move(wit);
         return true;
     }
@@ -1877,7 +1895,7 @@ bool DummySignInput(const SigningProvider& provider, CTxIn &tx_in, const CTxOut 
             std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
             witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
             wit.stack.push_back(std::move(witSig));
-            std::vector<unsigned char> pk(CPubKey::COMPRESSED_SIZE, 0x00);
+            std::vector<unsigned char> pk(ed25519::PUBKEY_SIZE, 0x11);
             wit.stack.push_back(std::move(pk));
             tx_in.scriptWitness = std::move(wit);
             return true;
@@ -2599,7 +2617,7 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
     for (const auto& recipient : vecSend) {
         std::vector<std::vector<uint8_t>> dummy;
         const TxoutType type{Solver(recipient.scriptPubKey, dummy)};
-        if (type == TxoutType::WITNESS_V1_RES) {
+        if (type == TxoutType::WITNESS_V1_RES || type == TxoutType::RES_MINT) {
             any_orb = true;
         } else if (type == TxoutType::WITNESS_V0_KEYHASH) {
             any_wpkh = true;

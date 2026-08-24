@@ -36,7 +36,7 @@ TASK-P2-001 defines five tabs with static `MockData`. This section maps each moc
 | P2-001 mock field | Production source (priority order) | RPC / API field | Refresh |
 |-------------------|-----------------------------------|-----------------|---------|
 | Chain height | **rigord** | `getblockchaininfo.blocks` | 30s; immediate on `tipChanged` |
-| ORU supply | **explorer** (preferred) → **rigord** (fallback) | Explorer `/api/status` → `economic_snapshot.oru_indexed_utxo_total_display`; fallback `gettxoutsetinfo.total_amount` (labeled “UTXO set total”) | 30s |
+| ORU supply | **explorer** (preferred) → **rigord** (fallback) | Explorer `/api/status` → `economic_snapshot.oru_circulating_spendable_display` (CVG2 excluded). Fallback `gettxoutsetinfo.total_amount` is mixed ORU+RES nValue — label **“UTXO set nValue (mixed assets; not circulating ORU)”**, never “ORU supply” | 30s |
 | RES supply | **rigord** | `getconvergencestatus.res_total` | 30s |
 | Convergence events | **explorer** (preferred) → **rigord** (fallback) | Explorer DB count `convergence_events` via `/api/status` → `convergence_health`; fallback `getblockchaininfo.cumulative_convergence` (**relabeled** “Cumulative ORU converged”) | 30s |
 | Last winner txid | **rigord** | `getconvergencestatus.last_winner_txid` | 30s; on tip |
@@ -57,7 +57,7 @@ Optional read-only context (not in P2-001 mock, required by wallet spec):
 
 | Field | Source | Field |
 |-------|--------|-------|
-| RES inequality RHS | **rigord** | `res_probability_target` (verify == 2^240 hex) |
+| RES inequality RHS | **rigord** | `res_probability_target` (verify == RFC-017 windowed hex `000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479`; Historical RFC-014 `2^240` is not live) |
 | Bind context | **rigord** | `bind_height`, `bind_blockhash` |
 
 **Forbidden in UI:** `rigor_target`, `res_draw_target`, `T_conv`, bits-derived convergence target.

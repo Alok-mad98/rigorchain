@@ -9,7 +9,7 @@ import {
 } from "./importerRecovery";
 import { logMismatchEvent } from "./mismatchLog";
 import { rpc } from "./rpcCli";
-import { classifyScriptPubKey } from "./script";
+import { classifyScriptPubKey, isConvergenceScriptPubKey } from "./script";
 import { oruStringToAtoms, resStringToAtoms } from "./amount";
 import { hasPcorbProofFields } from "./witnessPanel";
 import { collectConsensusFingerprint, winnerSigmaFromCandidates } from "./consensusFingerprint";
@@ -22,6 +22,8 @@ import {
   witness32ToDisplayTxid,
   witnessPushMatchesTxid,
 } from "./rpcFields";
+import { upsertRfc018FeeBurnStats, backfillMissingRfc018FeeBurn } from "./rfc018FeeBurnStore";
+import { rfc018DestroyedFeeOru, type IndexedPrevout } from "./rfc018FeeBurn";
 
 type TxVinWitness = string[] | null;
 type OutputMeta = {
@@ -168,6 +170,7 @@ export async function importerTick(
   await backfillMissingFingerprint(config, pool);
   await backfillMissingResMints(config, pool);
   await backfillA8PayRootFlags(pool, config);
+  await backfillMissingRfc018FeeBurn(pool);
   return { imported: 0, reorgHappened, stalled: recovery.stalled_height != null };
   }
 
@@ -198,6 +201,7 @@ export async function importerTick(
   await backfillMissingFingerprint(config, pool);
   await backfillMissingResMints(config, pool);
   await backfillA8PayRootFlags(pool, config);
+  await backfillMissingRfc018FeeBurn(pool);
   return { imported, reorgHappened, stalled: false };
 }
 
@@ -632,7 +636,8 @@ async function importBlockAtHeight(
           ],
         );
 
-        if (asset_kind === "ORU") {
+        // Circulating ORU UTXO index: skip OP_CONVERGE. Node AddCoins also omits IsConvergenceScript.
+        if (asset_kind === "ORU" && !isConvergenceScriptPubKey(scriptPubKeyHex)) {
           await pool.query(
             `
               INSERT INTO oru_utxos(txid, vout_index, height, amount_atoms, script_pubkey, address, spent, spending_txid, spending_vin_index)
@@ -840,10 +845,12 @@ async function importBlockAtHeight(
       }
     }
 
-    // Pass 4: insert inputs; mark ORU UTXOs spent; insert RES transfer rows.
+    // Pass 4: insert inputs; mark ORU UTXOs spent; insert RES transfer rows; RFC-018 burn stats.
+    let blockRfc018Burn = 0n;
     for (const tx of parsedTxs) {
       // Determine first RES input (for deterministic res_transfer source binding).
       let firstResInput: { vin_index: number; prev_txid: string; prev_vout: number; } | null = null;
+      const prevouts: Array<IndexedPrevout | null> = [];
 
       for (const vin of tx.vins) {
         await pool.query(
@@ -870,12 +877,21 @@ async function importBlockAtHeight(
           ],
         );
 
-        if (!vin.prev_txid || vin.prev_vout === null) continue;
-        const prev = await pool.query<{ asset_kind: string }>(
-          `SELECT asset_kind FROM outputs WHERE txid = $1 AND vout_index = $2`,
+        if (!vin.prev_txid || vin.prev_vout === null) {
+          prevouts.push(null);
+          continue;
+        }
+        const prev = await pool.query<{ asset_kind: string; value_atoms: string }>(
+          `SELECT asset_kind, value_atoms::text AS value_atoms FROM outputs WHERE txid = $1 AND vout_index = $2`,
           [vin.prev_txid, vin.prev_vout],
         );
         const prevAsset = prev.rows[0]?.asset_kind ?? null;
+        if (prev.rows[0]) {
+          const kind = prevAsset === "ORU" || prevAsset === "RES" ? prevAsset : "NONE";
+          prevouts.push({ asset_kind: kind, value_atoms: BigInt(prev.rows[0].value_atoms) });
+        } else {
+          prevouts.push(null);
+        }
 
         if (prevAsset === "ORU") {
           await pool.query(
@@ -894,6 +910,13 @@ async function importBlockAtHeight(
           firstResInput = { vin_index: vin.vin_index, prev_txid: vin.prev_txid, prev_vout: vin.prev_vout };
         }
       }
+
+      blockRfc018Burn += rfc018DestroyedFeeOru({
+        isCoinbase: tx.is_coinbase,
+        isResMint: mintTxid != null && tx.txid === mintTxid,
+        inputs: prevouts,
+        outputs: tx.vouts,
+      });
 
       // Insert transfer outputs if tx spends a RES input and is not the mint tx.
       if (tx.txid !== mintTxid && firstResInput) {
@@ -929,6 +952,8 @@ async function importBlockAtHeight(
         }
       }
     }
+
+    await upsertRfc018FeeBurnStats(pool, BigInt(height), blockHash, blockRfc018Burn);
 
     await pool.query("COMMIT");
     return { blockHash, mismatch };

@@ -2,30 +2,32 @@
 # Differential gate — single entry for Coq ↔ Python ↔ portable-C++ draw/hash checks.
 #
 # This gate does NOT claim refinement or equivalence. It fails if the shared
-# golden vectors or the tripartite hash check disagree.
+# golden vectors, the tripartite hash check, or the σ/root CLI disagree.
 #
 # Usage (from anywhere):
 #   bash formal_verification/scripts/run_differential_gate.sh
 #   bash formal_verification/scripts/run_differential_gate.sh --help
 #
 # Environment:
-#   COQ=1               also compile Kernel/GoldenHarness.v (requires coqc 8.15)
+#   COQ=1               also compile Kernel/NegativeCoreHarness.v + Kernel/GoldenHarness.v (requires coqc 8.15)
 #   EXTRACT=1           re-extract the OCaml hash kernel (requires coqc + ocamlopt)
 #   TEST_BITCOIN=path   Boost suites; default core/src/test/test_bitcoin if executable
 #   SKIP_TEST_BITCOIN=1 do not run test_bitcoin (portable CLI still covers CSHA256)
 #
-# Coverage (hash):
+# Coverage (hash / σ / root):
+#   Step 2b golden lock  = pinned 422/215 + NegativeCore/InvalidCvg/ScriptMintNeg/DCR-neg/EdgeCross + surface_splits
 #   Step 3 portable CLI  = authoritative CSHA256 Transform / FIPS / HashKernel check
+#   Step 4 σ/root CLI    = production ComputeSigmaHash + ComputeConvergenceRootFromEligibilityTxids
 #   test_bitcoin         = BOOST integration (encoder, σ, A-9-C hex, optional FIPS)
 #   STALE binary warning = BOOST lacks sha256_fips_golden; rebuild test_bitcoin
 #
-# Status: docs/verification/FORMAL-VERIFICATION-STATUS.md
+# Status: docs/verification/FV-RELEASE-CHECKLIST.md (gate internals: FORMAL-VERIFICATION-STATUS.md)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  sed -n '2,22p' "$0" | sed 's/^# \?//'
+  sed -n '2,25p' "$0" | sed 's/^# \?//'
   exit 0
 fi
 
@@ -39,7 +41,12 @@ fail_diff() {
   local tree="$2"
   local gen="$3"
   echo "FAIL: $label does not match the generator (working-tree vs regenerated)."
-  echo "      Re-run the generators and keep the working-tree files."
+  echo "      tree: $tree"
+  echo "      regen: $gen"
+  echo "      Re-run the generators from repo root and keep the working-tree files."
+  echo "        python3 formal_verification/generate_phase3_vectors.py"
+  echo "        python3 formal_verification/gen_coq_harness.py"
+  echo "        python3 formal_verification/tools/gen_cpp_bridge_header.py"
   if command -v diff >/dev/null; then
     diff -u "$tree" "$gen" | head -n 80 || true
   fi
@@ -63,9 +70,13 @@ if ! cmp -s phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"; then
 fi
 
 HARNESS_OUT="$tmp/GoldenHarness.v" HARNESS_INDEX="$tmp/coq_harness_index.json" \
-  python3 gen_coq_harness.py
+  NEG_HARNESS_OUT="$tmp/NegativeCoreHarness.v" python3 gen_coq_harness.py
 if ! cmp -s coq/Kernel/GoldenHarness.v "$tmp/GoldenHarness.v"; then
   fail_diff "coq/Kernel/GoldenHarness.v" coq/Kernel/GoldenHarness.v "$tmp/GoldenHarness.v"
+fi
+if ! cmp -s coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"; then
+  fail_diff "coq/Kernel/NegativeCoreHarness.v" \
+    coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"
 fi
 if ! cmp -s coq_harness_index.json "$tmp/coq_harness_index.json"; then
   fail_diff "coq_harness_index.json" coq_harness_index.json "$tmp/coq_harness_index.json"
@@ -78,6 +89,8 @@ if ! cmp -s "$ROOT/core/src/test/selection_golden_bridge.inc" "$tmp/selection_go
 fi
 echo "generated artifacts match working tree"
 cov "Generated artifacts match working tree: PASS"
+python3 "$ROOT/formal_verification/scripts/check_golden_lock.py"
+cov "Golden lock (422/215 + NegativeCore/InvalidCvg/ScriptMintNeg/DCR-neg/EdgeCross + surface_splits): PASS"
 
 echo "== 3. Tripartite hash: portable C++ CSHA256 vs hashlib vs extracted Coq =="
 if command -v g++ >/dev/null || command -v c++ >/dev/null; then
@@ -112,25 +125,42 @@ else
 fi
 echo "    Hash FIPS / CSHA256 for this gate: portable CLI above (not SIMD, not test_bitcoin)."
 
-echo "== 4. Optional Coq harness rebuild =="
+echo "== 4. Portable σ / ConvergenceRoot CLI vs golden families =="
+if command -v g++ >/dev/null || command -v c++ >/dev/null; then
+  bash "$ROOT/formal_verification/scripts/build_cpp_sigma_root_cli.sh"
+else
+  echo "FAIL: g++/c++ required to build the C++ σ/root CLI"
+  exit 1
+fi
+python3 tests/test_sigma_root_cli.py
+cov "Production C++ σ/root CLI vs SigmaEncoder/SigmaPoW01/ConvergenceRoot: PASS"
+echo "    ComputeSigmaHash + ComputeConvergenceRootFromEligibilityTxids (not the coin-view wrapper)."
+echo "    Does not replace a refinement proof; honesty flags stay false."
+
+echo "== 5. Optional Coq harness rebuild =="
 if [[ "${COQ:-0}" == "1" ]]; then
   if ! command -v coqc >/dev/null; then
     echo "FAIL: COQ=1 but coqc is not on PATH"
     exit 1
   fi
   cd "$ROOT/formal_verification/coq"
+  echo "compiling ReplayReorgCore/ReplayInvariants.v (txid outpoints)"
+  coqc -q -R . Rigor ReplayReorgCore/ReplayInvariants.v
+  echo "compiling Kernel/NegativeCoreHarness.v"
+  coqc -q -R . Rigor Kernel/NegativeCoreHarness.v
+  echo "compiling Kernel/GoldenHarness.v"
   coqc -q -R . Rigor Kernel/GoldenHarness.v
-  echo "Coq GoldenHarness.v OK"
+  echo "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v OK"
   cd "$ROOT/formal_verification"
-  cov "Coq GoldenHarness.v: PASS"
+  cov "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v: PASS"
 else
-  echo "skipped (set COQ=1 to compile Kernel/GoldenHarness.v)"
-  cov "Coq GoldenHarness.v: SKIP (COQ=1 to compile)"
+  echo "skipped (set COQ=1 to compile ReplayInvariants.v + Kernel/NegativeCoreHarness.v + Kernel/GoldenHarness.v)"
+  cov "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v: SKIP (COQ=1 to compile)"
 fi
 
-echo "== 5. Optional C++ Boost suites (test_bitcoin) =="
+echo "== 6. Optional C++ Boost suites (test_bitcoin) =="
 if [[ "${SKIP_TEST_BITCOIN:-0}" == "1" ]]; then
-  echo "skipped (SKIP_TEST_BITCOIN=1). Portable CLI in step 3 still covers CSHA256/FIPS."
+  echo "skipped (SKIP_TEST_BITCOIN=1). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
   cov "test_bitcoin: SKIP (SKIP_TEST_BITCOIN=1)"
 else
   if [[ -z "${TEST_BITCOIN:-}" && -x "$ROOT/core/src/test/test_bitcoin" ]]; then
@@ -143,7 +173,7 @@ else
       cov "test_bitcoin BOOST: current (sha256_fips_golden present)"
     else
       echo "WARN: test_bitcoin is STALE (no sha256_fips_golden)."
-      echo "      Covered anyway: CSHA256/FIPS via portable CLI (step 3)."
+      echo "      Covered anyway: CSHA256/FIPS via portable CLI (step 3); σ/root via step 4."
       echo "      Not covered: BOOST test sha256_fips_golden until you rebuild:"
       echo "        cd $ROOT/core && make -j\$(nproc)   # operator full build"
       echo "        ./src/test/test_bitcoin --run_test=selection_golden_tests,convergence_consensus_tests"
@@ -153,7 +183,7 @@ else
     "${TEST_BITCOIN}" --run_test=selection_golden_tests
     "${TEST_BITCOIN}" --run_test=convergence_consensus_tests
   else
-    echo "skipped (no test_bitcoin). Portable CLI in step 3 still covers CSHA256/FIPS."
+    echo "skipped (no test_bitcoin). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
     echo "  After operator make: TEST_BITCOIN=$ROOT/core/src/test/test_bitcoin"
     cov "test_bitcoin: SKIP (binary absent)"
   fi
@@ -166,4 +196,6 @@ for line in "${COV[@]}"; do
 done
 echo "================================="
 echo "differential gate: PASS"
-echo "Honest status: not a refinement proof. See docs/verification/FORMAL-VERIFICATION-STATUS.md"
+echo "Honest status: not a refinement proof."
+echo "  equivalence_claimed=false  hash_kernel_shared_binary_with_cpp=false  refinement_proved=false"
+echo "See docs/verification/FORMAL-VERIFICATION-STATUS.md"

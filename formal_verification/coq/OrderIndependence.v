@@ -21,12 +21,12 @@ From Coq Require Import ZArith.ZArith.
 From Coq Require Import Sorting.Permutation.
 Import ListNotations.
 
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Require Import Rigor.RigorBytesOrder.
 Require Import Rigor.ConvergeRoot.
 Require Import Rigor.Sigma.
-Require Import Rigor.Selection.
+Require Import Rigor.legacy_account_model.Selection.
 
 Open Scope Z_scope.
 
@@ -101,9 +101,9 @@ Theorem convergence_root_order_independent :
 Proof.
   intros l1 l2 Hperm.
   assert (Hlen : length l1 = length l2) by (apply Permutation_length; assumption).
-  (* The definition branches on list shape at lengths 0, 1 and >= 2, and a permutation preserves
-     length, so both sides always take the same branch. *)
-  destruct l1 as [|a1 [|b1 r1]]; destruct l2 as [|a2 [|b2 r2]];
+  (* Empty F is zeros; any nonempty F takes the concat-hash path. A permutation
+     preserves emptiness, so both sides take the same branch. *)
+  destruct l1 as [|a1 r1]; destruct l2 as [|a2 r2];
     simpl in Hlen; try discriminate; try reflexivity.
   unfold convergence_root_from_txid_bytes.
   f_equal. f_equal.

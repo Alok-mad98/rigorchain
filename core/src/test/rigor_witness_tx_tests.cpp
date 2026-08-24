@@ -41,12 +41,10 @@ CScript MakeOrb2ScriptPubKeyForPubkey(const std::vector<unsigned char>& pubkey)
     return CScript() << OP_1 << wp;
 }
 
-/** Valid ORB2-tagged output for consensus classification (prefix only; tail arbitrary). */
-CScript MakeOrb2ScriptPubKeyMinimal()
+/** Native witness v1 RES (32-byte program, not CVG2 / RES2). */
+CScript MakeNativeResScriptPubKeyMinimal()
 {
-    std::vector<unsigned char> wp(32, 0xab);
-    std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
-    return CScript() << OP_1 << wp;
+    return CScript() << OP_1 << std::vector<unsigned char>(32, 0xab);
 }
 } // namespace
 
@@ -100,7 +98,9 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ed25519_verify_ok)
     std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
     BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
 
-    const CScript scriptPubKey = MakeOrb2ScriptPubKeyForPubkey(pubkey);
+    std::vector<unsigned char> program(32);
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(pubkey, program));
+    const CScript scriptPubKey = CScript() << OP_1 << program;
 
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ed25519_verify_ok)
     scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(pubkey))) << OP_EQUALVERIFY << OP_CHECKSIG;
 
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V1_RES, &txdata);
 
     std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
@@ -139,7 +139,9 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ecdsa_sig_fails)
     std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
     BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
 
-    const CScript scriptPubKey = MakeOrb2ScriptPubKeyForPubkey(pubkey);
+    std::vector<unsigned char> program(32);
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(pubkey, program));
+    const CScript scriptPubKey = CScript() << OP_1 << program;
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
@@ -165,8 +167,8 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ecdsa_sig_fails)
     BOOST_CHECK(err == SCRIPT_ERR_SIG_DER);
 }
 
-/** OP_0 + 32-byte program: when SHA256(last_witness) != program, spend as native Ed25519 P2WPKH (program = pubkey). */
-BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_ok)
+/** OP_0 + 32-byte program is P2WSH only (RIG-07): native Ed25519 fallback is consensus-invalid. */
+BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_rejected)
 {
     // Same 32-byte seed as witness_v0_p2wpkh_ed25519_verify_script_ok (known-good ParseHex + libsodium).
     const std::vector<unsigned char> seed = ParseHex("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
@@ -203,8 +205,8 @@ BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_ok)
         STANDARD_SCRIPT_VERIFY_FLAGS,
         MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
         &err);
-    BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
+    BOOST_CHECK(!ok);
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
 }
 
 /** 32-byte v0 program with SHA256(witness_script)==program must still run as P2WSH (not native pubkey). */
@@ -265,7 +267,7 @@ BOOST_AUTO_TEST_CASE(oru_convergence_tx_passes_checktxinputs)
 BOOST_AUTO_TEST_CASE(res_input_tx_with_convergence_output_rejected)
 {
     const CScript oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x55);
-    const CScript res_spk = MakeOrb2ScriptPubKeyMinimal();
+    const CScript res_spk = MakeNativeResScriptPubKeyMinimal();
 
     CCoinsView base;
     CCoinsViewCache coins(&base);
@@ -297,10 +299,7 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_oru_wrapper_ed25519_ok)
     std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
     BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pk32, seckey));
 
-    std::vector<unsigned char> wrapped(CPubKey::COMPRESSED_SIZE);
-    wrapped[0] = 0x00;
-    std::memcpy(wrapped.data() + 1, pk32.data(), ed25519::PUBKEY_SIZE);
-    const uint160 keyhash = Hash160(wrapped);
+    const uint160 keyhash = Hash160(pk32);
     const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
 
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
@@ -317,7 +316,7 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_oru_wrapper_ed25519_ok)
 
     CScriptWitness witness;
     witness.stack.push_back(witSig);
-    witness.stack.push_back(wrapped);
+    witness.stack.push_back(pk32);
     txSpend.vin[0].scriptWitness = witness;
 
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};

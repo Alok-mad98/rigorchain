@@ -2,13 +2,14 @@
 
 ## Core Principle
 
-**Script is the compliance layer.**
+**Script is the compliance/classification layer.**
 
 The locking script defines the validity conditions under which an asset output can exist,
-transfer, and remain spendable. Asset *classification* (ORU / RES / none) is inferred from
-`scriptPubKey` at parse time. Asset *legitimacy* is decided by the full consensus path —
-UTXO commitments, script rules, economic proofs, and deterministic verification — not by
-script parsing alone.
+transfer, and remain spendable. Asset *class* is inferred from `scriptPubKey`. Asset
+ownership and transfer are enforced through UTXO consumption, script validation,
+signature verification, and consensus predicates. Script alone does not authorize
+asset creation. RES creation requires block-level authorization, Deterministic
+Reserve Issuance, and Convergence conditions.
 
 ```
 TxOut = (nValue, scriptPubKey)     # Bitcoin-native storage; never extended
@@ -60,11 +61,15 @@ Ownership changes only by spending old outputs and creating new ones.
 | **RES** | Independent scarce resource; **RES minted** through deterministic consensus allocation; **not** mined |
 
 **ORU provides PoW security and economic coordination.**  
-PoW does not create RES. A convergence transaction commits ORU; PoW provides irreversible ordering for deterministic consensus allocation of RES.
+PoW does not create RES. RES is deterministically issued after protocol-defined
+conditions (Deterministic Reserve Issuance). A convergence transaction commits ORU;
+PoW provides irreversible ordering for that allocation. Eligible RES-transfer ORU
+fees are subject to Deflationary Fee Burn — a protocol destruction sink that is
+not a UTXO, not a wallet balance, and not a global consensus supply state.
 
 ### Witness Surface
 
-- Witness v0 (ORU / P2WPKH / P2WSH) and Witness v1 (RES / CVG2) only.
+- Witness v0 (ORU / P2WPKH / P2WSH), Witness v1 (RES), and `OP_CONVERGE` only.
 - No Taproot / BIP341 semantics on the consensus path.
 - No administrative keys, upgradeable proxies, or discretionary mint.
 
@@ -101,18 +106,33 @@ same input -> same bytes output
 
 Across platforms, compilers, and execution environments.
 
+## RIGOR Monetary Architecture
+
+RIGOR separates monetary functions. Do not mix the ORU supply ledger,
+circulating UTXO supply, Convergence destruction, and Deflationary Fee Burn.
+
+| Function | Asset / sink |
+|----------|----------------|
+| PoW security + fees | **ORU** (coinbase subsidy; 125 ORU tail forever) |
+| Convergence destruction | **ORU** committed to an unspendable burn / draw entry |
+| Deflationary Fee Burn | Eligible RES-transfer ORU fee share never becomes a UTXO |
+| Deterministic Reserve Issuance | **RES** — capped; issued after protocol-defined mint authorization; **not mined** |
+
+Script is the compliance/classification layer. Asset class is inferred from
+`scriptPubKey`. Script alone does not authorize RES creation.
+
 ## Fee domain and Convergence settlement
 
 - **Network fees are ORU-only** (POOL-F). There is no path where users pay transaction fees in RES.
-- Convergence RES prizes pay the **draw winner**. Local mining only *settles* that mint into the next block.
-- Wallet product: Settings → **Auto-settle Convergence when mining locally** (default ON). See
-  [docs/mining/AUTO_SETTLE_CONVERGENCE_WALLET.md](../mining/AUTO_SETTLE_CONVERGENCE_WALLET.md).
-- Legacy node arg `-miningresfeeaddr` **arms** mint assembly; it is not a fee-receive address.
+- Convergence RES prizes pay the **draw winner**. The next block's coinbase carries `OP_RES_MINT` plus the tagged PCORB carrier. GBT fields: `default_res_mint`, `default_pcorb_carrier` (`core/doc/mining-pool-gbt.md`).
+- `-miningresfeeaddr` is only required when the mempool has RES-domain fee outputs; it does not arm mint assembly.
 
 ## Terminology
 
 See [docs/security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md](../security/PROTOCOL_TERMINOLOGY_ALIGNMENT.md)
-for the mapping from earlier “script-as-asset” language to the current compliance-layer framing.
+for the mapping from earlier “script-as-asset” language to the current
+compliance/classification-layer framing, and from internal RFC-017 / RFC-018
+identifiers to Deterministic Reserve Issuance and Deflationary Fee Burn.
 
 ## References
 
@@ -120,5 +140,4 @@ for the mapping from earlier “script-as-asset” language to the current compl
 - `docs/rfcs/RFC-ARCH-000-engineering-constitution.md` — Engineering constitution.
 - `core/doc/convergence-consensus-v1.md` — Convergence rules.
 - `docs/FORMAL-VERIFICATION-VERDICT.md` — What is proved, and what is not.
-- `docs/pool/POOL_NODE_AUTOMINT_RUNBOOK.md` — Node automint ops (armed settlement + ORU fund UTXO).
-- `docs/mining/AUTO_SETTLE_CONVERGENCE_WALLET.md` — Wallet auto-settle product wording.
+- `core/doc/mining-pool-gbt.md` — GBT coinbase mint and PCORB carrier fields.

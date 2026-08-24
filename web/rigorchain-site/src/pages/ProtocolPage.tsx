@@ -71,6 +71,7 @@ export function ProtocolPage() {
 
       <p className="muted">
         Runtime verification: <Link to="/status">status</Link> ·{" "}
+        <Link to="/documentation/formal-verification">formal verification freeze</Link> ·{" "}
         <Link to="/experiment">PROOF-034</Link>
       </p>
     </div>

@@ -1,9 +1,17 @@
 (** A-9-C no-double-win: a given txid may win at most once across the draw window.
 
-    C++ counterpart: [ConvergenceWindowTail.already_paid] and the exclusion in
-    [FinalizeWindowedDrawSet] (core/src/consensus/convergence_logic.cpp).
+    C++ counterpart: [BlockWindowContribution::paid_winners] and the [remove_if] over it in
+    [BuildConvergenceWindowTail] (core/src/validation.cpp), which drop buried paid candidates
+    before they enter the tail, plus the same-block exclusion in [FinalizeWindowedDrawSet]
+    (core/src/consensus/convergence_logic.cpp).
 
-    [Selection.v] already models the window WIDTH and the T/W target. This module
+    [exclude_already_paid] below is named after the retired [ConvergenceWindowTail.already_paid]
+    field. The mechanism moved from a set carried on the tail to a filter applied while the tail
+    is assembled — double-spending a covenant ticket is now ordinary UTXO consumption — but the
+    rule it implements is unchanged, and filtering candidates by a paid-txid list is still what
+    the node does.
+
+    [legacy_account_model/Selection.v] already models the window WIDTH and the T/W target. This module
     models the missing half of A-9-C: candidates whose txid was paid by a RES mint
     inside the window are dropped from F before C and the winner are computed.
 
@@ -18,12 +26,13 @@ From Coq Require Import ZArith.ZArith.
 From Coq Require Import Sorting.Permutation.
 Import ListNotations.
 
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import Rigor.Sigma.
-Require Import Rigor.Selection.
+Require Import Rigor.legacy_account_model.Selection.
 Require Import Rigor.OrderIndependence.
+Require Import Rigor.DrawCandidateRoot.
 
 Open Scope Z_scope.
 
@@ -386,4 +395,224 @@ Proof.
   apply pct_win.
   - eapply winner_not_already_paid. exact Hdraw.
   - exact Hrest.
+Qed.
+
+(** * 6. Draw candidate root over the windowed, unpaid, eligible subset
+
+    [DrawCandidateRoot] hashes whoever actually enters selection. After A-9-C
+    that list is [eligible_filter (assemble_F w) ...], a subset of the window's
+    unpaid candidates, hence of F. Incomplete windows still produce no draw
+    (and no root), never a silently shortened window. *)
+
+Lemma eligible_filter_protocol_T :
+  forall l C B h,
+    eligible_filter l C B h RES_PROBABILITY_TARGET = eligible_candidates l C B h.
+Proof. intros. reflexivity. Qed.
+
+Definition draw_candidate_root_with_exclusion
+    (candidates : list Tx) (paid : list (list byte))
+    (C B : list byte) (h T : Z) : list byte :=
+  DrawCandidateRoot (eligible_filter (exclude_already_paid candidates paid) C B h T).
+
+Definition draw_candidate_root_of_window
+    (w : list WindowBlock) (C B : list byte) (h T : Z) : list byte :=
+  DrawCandidateRoot (eligible_filter (assemble_F w) C B h T).
+
+Definition maybe_draw_candidate_root
+    (complete : bool) (w : list WindowBlock) (C B : list byte) (h T : Z)
+  : option (list byte) :=
+  match maybe_assemble_F complete w with
+  | None => None
+  | Some F => Some (DrawCandidateRoot (eligible_filter F C B h T))
+  end.
+
+Lemma incomplete_window_has_no_draw_candidate_root :
+  forall w C B h T, maybe_draw_candidate_root false w C B h T = None.
+Proof. intros. reflexivity. Qed.
+
+Lemma genesis_empty_draw_candidate_root :
+  forall C B h T,
+    maybe_draw_candidate_root true [] C B h T = Some (DrawCandidateRoot []).
+Proof. intros. reflexivity. Qed.
+
+Lemma empty_candidates_draw_candidate_root_is_empty_concat :
+  forall paid C B h T,
+    draw_candidate_root_with_exclusion [] paid C B h T = DrawCandidateRoot [].
+Proof. intros. reflexivity. Qed.
+
+Theorem draw_eligible_after_exclusion_unpaid :
+  forall candidates paid C B h T t,
+    In t (eligible_filter (exclude_already_paid candidates paid) C B h T) ->
+    already_paid_txid paid (tx_id_bytes t) = false.
+Proof.
+  intros candidates paid C B h T t Hin.
+  apply filter_In in Hin. destruct Hin as [Hin _].
+  apply exclude_already_paid_drops_paid in Hin. exact Hin.
+Qed.
+
+Theorem draw_eligible_after_exclusion_in_candidates :
+  forall candidates paid C B h T t,
+    In t (eligible_filter (exclude_already_paid candidates paid) C B h T) ->
+    In t candidates.
+Proof.
+  intros candidates paid C B h T t Hin.
+  apply filter_In in Hin. destruct Hin as [Hin _].
+  apply exclude_already_paid_in in Hin. apply Hin.
+Qed.
+
+(** Windowed form of "eligible subset ⊆ F": every hashed candidate sits in the
+    window's candidate list and was not paid inside the window (W = 32). *)
+Theorem draw_eligible_window_subset :
+  forall w C B h T t,
+    In t (eligible_filter (assemble_F w) C B h T) ->
+    In t (window_candidates w) /\
+    already_paid_txid (window_paid w) (tx_id_bytes t) = false.
+Proof.
+  intros w C B h T t Hin.
+  apply filter_In in Hin. destruct Hin as [HinF _].
+  unfold assemble_F in HinF.
+  apply exclude_already_paid_in in HinF.
+  destruct HinF as [HinC Hnp].
+  split; assumption.
+Qed.
+
+Theorem draw_candidate_root_of_window_hashes_subset :
+  forall w C B h T,
+    incl (map tx_id_bytes (eligible_filter (assemble_F w) C B h T))
+         (map tx_id_bytes (window_candidates w)).
+Proof.
+  intros w C B h T id Hin.
+  apply in_map_iff in Hin. destruct Hin as [t [Heq Hin]].
+  apply in_map_iff. exists t. split; [exact Heq|].
+  apply draw_eligible_window_subset in Hin. apply Hin.
+Qed.
+
+(** Root after A-9-C is a function of the *set* of unpaid candidates, not of
+    arrival order of the window or of the paid list. *)
+Theorem draw_candidate_root_exclusion_perm_candidates :
+  forall cs cs' paid C B h T,
+    Permutation cs cs' ->
+    draw_candidate_root_with_exclusion cs paid C B h T =
+    draw_candidate_root_with_exclusion cs' paid C B h T.
+Proof.
+  intros cs cs' paid C B h T Hperm.
+  unfold draw_candidate_root_with_exclusion.
+  apply DrawCandidateRoot_order_independent.
+  unfold eligible_filter.
+  apply filter_permutation.
+  apply exclude_already_paid_perm_candidates. exact Hperm.
+Qed.
+
+Theorem draw_candidate_root_exclusion_perm_paid :
+  forall cs paid paid' C B h T,
+    Permutation paid paid' ->
+    draw_candidate_root_with_exclusion cs paid C B h T =
+    draw_candidate_root_with_exclusion cs paid' C B h T.
+Proof.
+  intros cs paid paid' C B h T Hperm.
+  unfold draw_candidate_root_with_exclusion.
+  rewrite (exclude_already_paid_perm_paid cs paid paid' Hperm).
+  reflexivity.
+Qed.
+
+Theorem all_paid_exclusion_root_is_empty_concat :
+  forall cs paid C B h T,
+    exclude_already_paid cs paid = [] ->
+    draw_candidate_root_with_exclusion cs paid C B h T = DrawCandidateRoot [].
+Proof.
+  intros cs paid C B h T H. unfold draw_candidate_root_with_exclusion.
+  rewrite H. reflexivity.
+Qed.
+
+(** The A-9-C winner, if any, is in the list the windowed root hashes. *)
+Theorem exclusion_winner_in_hashed_set :
+  forall cs paid C B h T w,
+    draw_with_exclusion cs paid C B h T = Some w ->
+    In w (eligible_filter (exclude_already_paid cs paid) C B h T).
+Proof.
+  intros cs paid C B h T w H. unfold draw_with_exclusion in H.
+  apply select_winner_in in H. exact H.
+Qed.
+
+Theorem exclusion_winner_and_root_use_same_set :
+  forall cs paid C B h T w,
+    draw_with_exclusion cs paid C B h T = Some w ->
+    In (tx_id_bytes w)
+       (map tx_id_bytes (eligible_filter (exclude_already_paid cs paid) C B h T)).
+Proof.
+  intros cs paid C B h T w H. apply in_map.
+  eapply exclusion_winner_in_hashed_set. exact H.
+Qed.
+
+(** * 7. End-to-end A-9-C: exclusion → eligible → DCR / winner
+
+    After already-paid exclusion, root and selection read the same unpaid
+    eligible list. Protocol [T] makes the windowed hash equal to
+    [draw_candidate_root] of the unpaid F. Coinbase bind of that digest stays C++. *)
+
+Theorem exclusion_pipeline_aligned :
+  forall cs paid C B h T,
+    draw_with_exclusion cs paid C B h T =
+      select_winner (eligible_filter (exclude_already_paid cs paid) C B h T) C B h /\
+    draw_candidate_root_with_exclusion cs paid C B h T =
+      DrawCandidateRoot (eligible_filter (exclude_already_paid cs paid) C B h T).
+Proof. intros. split; reflexivity. Qed.
+
+Theorem exclusion_protocol_T_is_draw_candidate_root :
+  forall cs paid C B h,
+    draw_candidate_root_with_exclusion cs paid C B h RES_PROBABILITY_TARGET =
+    draw_candidate_root (exclude_already_paid cs paid) C B h.
+Proof.
+  intros cs paid C B h.
+  unfold draw_candidate_root_with_exclusion, draw_candidate_root.
+  rewrite eligible_filter_protocol_T. reflexivity.
+Qed.
+
+Theorem maybe_complete_window_root_eq :
+  forall w C B h T,
+    maybe_draw_candidate_root true w C B h T =
+    Some (draw_candidate_root_of_window w C B h T).
+Proof. intros. reflexivity. Qed.
+
+Theorem exclusion_e2e_consistent :
+  forall cs paid C B h T w,
+    draw_with_exclusion cs paid C B h T = Some w ->
+    In w (eligible_filter (exclude_already_paid cs paid) C B h T) /\
+    already_paid_txid paid (tx_id_bytes w) = false /\
+    draw_candidate_root_with_exclusion cs paid C B h T =
+      DrawCandidateRoot (eligible_filter (exclude_already_paid cs paid) C B h T).
+Proof.
+  intros cs paid C B h T w Hwin. split; [|split].
+  - eapply exclusion_winner_in_hashed_set. exact Hwin.
+  - eapply winner_not_already_paid. exact Hwin.
+  - apply exclusion_pipeline_aligned.
+Qed.
+
+(** Same unpaid *set* ⇒ same windowed DCR and same A-9-C winner.
+    Reuses [select_winner_order_independent] on the post-exclusion eligible list. *)
+Theorem exclusion_e2e_order_independent :
+  forall cs cs' paid C B h T,
+    Permutation cs cs' ->
+    positive_weights cs ->
+    distinct_txids cs ->
+    draw_candidate_root_with_exclusion cs paid C B h T =
+    draw_candidate_root_with_exclusion cs' paid C B h T /\
+    draw_with_exclusion cs paid C B h T =
+    draw_with_exclusion cs' paid C B h T.
+Proof.
+  intros cs cs' paid C B h T Hperm Hw Hd. split.
+  - apply draw_candidate_root_exclusion_perm_candidates. exact Hperm.
+  - unfold draw_with_exclusion.
+    apply select_winner_order_independent.
+    + unfold eligible_filter.
+      apply filter_permutation.
+      apply exclude_already_paid_perm_candidates. exact Hperm.
+    + unfold eligible_filter.
+      apply positive_weights_filter.
+      unfold exclude_already_paid.
+      apply positive_weights_filter. exact Hw.
+    + unfold eligible_filter.
+      apply distinct_txids_filter.
+      unfold exclude_already_paid.
+      apply distinct_txids_filter. exact Hd.
 Qed.

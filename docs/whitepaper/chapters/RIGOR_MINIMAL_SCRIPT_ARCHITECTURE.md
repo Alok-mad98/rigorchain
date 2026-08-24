@@ -1,0 +1,466 @@
+# RIGOR Minimal Script Architecture
+
+**Task:** `TASK-RIGOR-MINIMAL-SCRIPT-ARCHITECTURE-WHITEPAPER-001`  
+**Layer:** Protocol whitepaper chapter (architecture explanation)  
+**Consensus impact:** **NONE**  
+**`equivalence_claimed`:** `false`
+
+This chapter explains a core design principle of RIGOR:
+
+**RIGOR inherits the battle-tested Bitcoin UTXO architecture while reducing execution complexity, limiting script capability, enforcing strict asset isolation, and minimizing consensus attack surface.**
+
+It does not change consensus rules, wallet logic, mining logic, or production code. Public mathematics: [`../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md). Historical RFC corpus: [`../../archive/rfc/`](../../archive/rfc/). Engineering specs: [`../../specification/`](../../specification/).
+
+---
+
+## 1. Introduction: Why Minimal Script Architecture
+
+RIGOR does not attempt to compete with programmable blockchain platforms.
+
+General-purpose chains often increase functionality by introducing virtual machines, arbitrary smart contracts, large scripting systems, and dynamic global state. Those features enlarge what a chain can express. They also enlarge what a chain must defend.
+
+RIGOR focuses on:
+
+- monetary integrity
+- deterministic consensus
+- verifiable asset ownership
+- minimized attack surface
+
+A blockchain securing monetary value does not necessarily require unlimited programmability. More code paths create more possible failures. A smaller execution surface creates stronger verification capability.
+
+The goal is not maximum programmability.
+
+The goal is maximum verifiability.
+
+**Security through minimalism** is the operating principle. Script exists so ownership and asset identity can be checked. Script does not exist so the ledger can become a general-purpose computer.
+
+RIGOR minimizes script complexity rather than eliminating scripts. The protocol intentionally restricts execution semantics to preserve deterministic verification and reduce consensus attack surface.
+
+RIGOR is a Bitcoin-derived UTXO architecture, a native dual-asset system, a restricted script environment, and a deterministic validation system.
+
+RIGOR is not a general-purpose programmable blockchain, a smart contract platform, an EVM-compatible chain, a Taproot extension, a token layer, a colored coin system, or an inscription/Rune system.
+
+Official type list: `docs/security/RIGOR_SCRIPT_TYPE_REGISTRY.md`.  
+Security boundary: `docs/security/RIGOR_SCRIPT_SECURITY_BOUNDARY.md`.
+
+```
+Less capability
+       ↓
+Less complexity
+       ↓
+Smaller attack surface
+       ↓
+Stronger mathematical verification
+```
+
+---
+
+## 2. Bitcoin UTXO Foundation
+
+RIGOR is based on the Bitcoin UTXO model.
+
+The node heritage is Bitcoin Core v25. Storage of an output remains:
+
+```
+TxOut = (nValue, scriptPubKey)
+```
+
+There is no account model as consensus truth. There is no parallel asset field on `CTxOut`. Ownership changes only by spending previous outputs and creating new ones.
+
+### Explicit ownership
+
+Each asset exists as an unspent transaction output.
+
+```
+Previous UTXO
+      |
+      |
+Transaction Validation
+      |
+      |
+New UTXO Owner
+```
+
+There are no hidden balances. There is no global mutable account state. A full node does not consult an external registry to know what an output is or who may spend it.
+
+### Deterministic validation
+
+Every node independently verifies:
+
+- transaction inputs
+- outputs
+- signatures
+- asset rules
+- consensus conditions
+
+The same input must produce the same validation result.
+
+```
+same accepted block bytes  →  same validity decision
+```
+
+### Proven security model
+
+Bitcoin’s UTXO architecture has operated at global scale for many years. RIGOR preserves this proven foundation while reducing unnecessary complexity: witness versions are restricted, Taproot/BIP341 execution is not inherited, spend signatures are Ed25519-only, and a general-purpose VM is not implemented.
+
+This is not a claim that RIGOR is Bitcoin. It is a claim that the accounting model — explicit UTXOs, stateless verification, independent replay — is the part worth keeping.
+
+---
+
+## 3. Script-Is-Asset Architecture
+
+### Script Defines Asset Identity
+
+In RIGOR, asset identity is not stored as external metadata.
+
+The script structure itself defines the asset domain.
+
+```
+Script Structure
+        |
+        |
+Asset Classification
+        |
+        |
+Validation Rules
+```
+
+`scriptPubKey` is parsed as a witness program. Witness version and program shape classify the output as ORU, RES, or (for zero-value `OP_RETURN`) none. Classification is consensus-visible. A full node does not require an indexer, inscription parser, or off-chain color database to know which asset pool an output belongs to.
+
+Script is the **compliance/classification layer**: it states the conditions under which an output may exist and later be spent. Asset **class** is inferred from `scriptPubKey`. Asset ownership and transfer are enforced through UTXO consumption, script validation, signature verification, and consensus predicates. Script alone does not authorize asset creation. RES creation requires block-level authorization, Deterministic Reserve Issuance, and Convergence conditions. Parsing a script is not a substitute for those proofs.
+
+This avoids:
+
+- hidden asset metadata
+- external indexing dependency
+- inconsistent interpretation
+
+The earlier shorthand “the script is the asset” correctly forbade a parallel asset field. The precise rule is: **script defines identity; consensus defines legitimacy.**
+
+---
+
+## 4. Dual Native Asset Architecture
+
+ORU and RES are **not**:
+
+- colored coins
+- Bitcoin inscriptions
+- Ordinals
+- Runes
+- smart contract tokens
+- wrapped assets
+- external accounting layers
+
+They are **native UTXO assets**.
+
+Both assets are first-class protocol-native assets.
+
+> ORU and RES are two native asset identities inside the RIGOR UTXO system. Neither asset is a secondary representation of another asset.
+
+Both exist at the same protocol layer. There is no parent-child asset relationship.
+
+### ORU — Medium of Exchange
+
+**Role:** Medium of Exchange
+
+**Characteristics:**
+
+- transactional asset
+- mining reward
+- network utility
+- liquidity layer
+
+**Script path (spendable):** Witness v0 (`P2WPKH` 20-byte program, or `P2WSH` 32-byte program).
+
+**Convergence commitment:** Witness v1 CVG2 — still ORU-domain, unspendable, not a RES output.
+
+ORU pays fees, miner subsidy, and Convergence entry weight. Coinbase creates ORU. Convergence consumes ORU.
+
+### RES — Store of Value
+
+**Role:** Store of Value
+
+**Characteristics:**
+
+- scarcity asset
+- capped supply (**21,000,000 RES**)
+- convergence-based creation
+- long-term holding asset
+
+**Script path:** Witness v1, 32-byte program, **not** CVG2.
+
+RES is minted in the **block body** after a successful Convergence draw. Proof-of-work does not create RES. `No Convergence → No RES`.
+
+| | **ORU** | **RES** |
+|--|---------|---------|
+| Protocol layer | Native UTXO | Native UTXO |
+| Spendable classification | Witness v0 | Witness v1 (not CVG2) |
+| Other native object | CVG2: Witness v1, ORU-domain, unspendable | — |
+| Role | Medium of exchange | Store of value |
+| Origin | Coinbase subsidy | Body mint after Convergence |
+| Relationship | Peer asset | Peer asset |
+
+Conservation is enforced **per asset pool**. An ORU input cannot fund a RES output. A RES input cannot fund an ORU output. Isolation is a consensus rule, not a wallet convention.
+
+---
+
+## 5. Script Restrictions and Attack Surface Reduction
+
+RIGOR intentionally limits script functionality.
+
+RIGOR does **not** provide:
+
+- a general-purpose VM
+- arbitrary smart contracts
+- a programmable execution layer
+- Turing-complete execution
+- unrestricted programmable state
+
+RIGOR **does** provide:
+
+- constrained transaction validation
+- asset-specific script rules
+- deterministic verification logic
+
+RIGOR minimizes script complexity rather than eliminating scripts. The protocol intentionally restricts execution semantics to preserve deterministic verification and reduce consensus attack surface.
+
+Allowed chain outputs are a closed set:
+
+| Allowed output | Role |
+|----------------|------|
+| Witness v0, 20-byte program | ORU P2WPKH |
+| Witness v0, 32-byte program | ORU P2WSH (inner script) or native 32-byte Ed25519 commitment |
+| Witness v1, 32-byte program | RES (non-CVG2) or CVG2 Convergence commitment (ORU domain) |
+| Zero-value `OP_RETURN` | Data commitment (e.g. coinbase RIGOR tag) |
+
+Rejected as consensus outputs include P2PKH, P2SH, bare multisig, unknown witness versions, and Taproot control-block spends.
+
+Spend signatures are **Ed25519 only**. secp256k1 / ECDSA CHECKSIG hard-fails (`SCRIPT_ERR_SECP256K1_DISABLED`).
+
+Security benefits — reduced:
+
+- execution complexity
+- consensus bugs
+- unexpected state transitions
+- verification burden
+
+> Every additional execution capability creates additional consensus responsibility.
+
+RIGOR accepts less expressiveness so that every honest node can carry that responsibility.
+
+---
+
+## 6. RIGOR Script Model Analysis
+
+This section is an audit of the current implementation. It does **not** claim “no scripts.”
+
+RIGOR minimizes script complexity rather than eliminating scripts. The protocol intentionally restricts execution semantics to preserve deterministic verification and reduce consensus attack surface.
+
+Actual execution surfaces:
+
+| Surface | What runs |
+|---------|-----------|
+| Witness v0 | ORU P2WPKH implied script (32-byte pubkey; program = HASH160(pk)) |
+| P2WSH (v0, 32-byte program) | Inner witness script at `SigVersion::WITNESS_V0` — largest inherited surface |
+| Witness v1 | RES Ed25519 key-path; program = SHA256(pk); no RES2 spend |
+| Signature verification | Ed25519 only; secp256k1 CHECKSIG → `SCRIPT_ERR_SECP256K1_DISABLED` |
+| CVG2 validation | Structural commitment check; unspendable; not inserted into the UTXO set |
+
+### Supported script families
+
+#### Witness v0
+
+Used for:
+
+- Bitcoin-compatible UTXO spending
+- compatibility layer
+- ORU ownership
+
+| Program | Spend model |
+|---------|-------------|
+| 20-byte (`P2WPKH`) | Two-item witness; implied `DUP HASH160 EQUALVERIFY CHECKSIG`; CHECKSIG is Ed25519 over the 32-byte pubkey; program is HASH160(pk) |
+| 32-byte (`P2WSH`) | Last witness item is the witness script; SHA256 must match the program; inner script runs at `SigVersion::WITNESS_V0` with Ed25519-only CHECKSIG |
+
+**P2WSH is the largest inherited execution surface.** Inner scripts may still use Bitcoin-shaped opcodes (including timelocks) under witness v0 rules. That surface is real. It is also bounded: new bare / P2SH / P2PKH outputs are consensus-invalid, and CHECKSIG cannot take the secp256k1 path.
+
+`SigVersion::BASE` remains as an interpreter remnant for the implied P2PKH template inside P2WPKH. It is not a license to create legacy chain outputs.
+
+#### Witness v1 reserved usage
+
+Witness v1 is reserved for:
+
+- Convergence outputs (CVG2)
+- Native asset programs (RES)
+- Ed25519 ownership model
+
+| 32-byte v1 program | Classification | Spend |
+|--------------------|----------------|-------|
+| Prefix `CVG2` | ORU-domain Convergence commitment | Unspendable; **not** inserted into the UTXO set |
+| Prefix `RES2` (wire spelling) | Not creatable | Spend branch deleted; creation rejected |
+| Neither prefix (native) | RES | Two-item Ed25519 key-path; program is **SHA256(pk)**; witness is `<sig><32-byte pk>` |
+
+A 36-byte “claim program” size exists in headers for historical wallet/semantic code. `IsAllowedScript` requires a 32-byte v1 program. Those 36-byte programs are **not** consensus chain outputs.
+
+### Witness v1 is not Bitcoin Taproot
+
+**RIGOR does not inherit BIP341 Taproot execution semantics.**
+
+Witness v1 on Bitcoin is Taproot: output key, annex, merkle script paths, tapscript, control blocks. RIGOR removed that path from consensus validation. Comments in `validation.cpp` and `script/interpreter.cpp` record the deletion: no control blocks, no annex, no script-path spends.
+
+Witness v1 here is a **BIP141-shaped** version byte reused as a native asset and Convergence container. Sharing a version number with Bitcoin Taproot is not sharing Taproot’s VM.
+
+| Bitcoin Taproot (BIP341) | RIGOR Witness v1 |
+|--------------------------|------------------|
+| Output key + optional script tree | 32-byte program as asset / Convergence identity |
+| Control-block script path | **Removed** |
+| Annex | **Removed** |
+| Tapscript | **Not implemented** |
+| secp256k1 key path | **Disabled**; Ed25519 only |
+
+A second historical v1 spend path (an 11-item “PCORB script path”) was removed because authorization did not bind the spending transaction. RES transfers use the Ed25519 key path only.
+
+---
+
+## 7. Convergence Script Architecture
+
+Convergence is not a smart contract.
+
+It is a deterministic consensus mechanism.
+
+```
+Eligible ORU Transactions
+
+
+        |
+
+
+Convergence Root
+
+
+        |
+
+
+Winner Selection
+
+
+        |
+
+
+RES Creation
+```
+
+A user commits **≥ 1 ORU** into a **CVG2** witness v1 output. That output is protocol-controlled:
+
+- classified as ORU-domain (not RES)
+- unspendable
+- excluded from the UTXO set after in-block validation
+
+Committed ORU becomes weight `f_i` in candidate set **F**. Honest nodes recompute Convergence Root, Draw Candidate Root, σ, and the winner from public bytes. If a winner exists, the paying block must mint **`W(h)` RES** (`GetResMintReward`; 40.000000 RES at genesis) in its body to the winner’s declared Witness v1 RES program.
+
+Convergence outputs are protocol-controlled objects.
+
+They do not introduce arbitrary execution.
+
+There is no Convergence VM, no user-deployed Convergence bytecode, and no discretionary mint. The script bytes are a commitment container. Selection is integer hash-space mathematics published in RFC-000 / RFC-008 / RFC-014 / RFC-015.
+
+```
+ORU committed (CVG2, unspendable)
+        ↓
+weight f_i in candidate set F
+        ↓
+deterministic draw
+        ↓
+maybe a RES mint — never a 1:1 swap
+```
+
+---
+
+## 8. Script Security Philosophy
+
+### Why RIGOR Rejects Complex Script Systems
+
+Complex scripting creates:
+
+- larger audit scope
+- more edge cases
+- more formal verification difficulty
+
+Hidden execution paths make consensus ambiguity cheap to introduce and expensive to prove absent. Implementation divergence becomes likelier as interpreters grow. A monetary protocol that must be independently replayed by strangers cannot afford an unbounded state machine as a dependency of “who owns what.”
+
+RIGOR approach:
+
+```
+Less capability
+
+
+       ↓
+
+
+Less complexity
+
+
+       ↓
+
+
+Smaller attack surface
+
+
+       ↓
+
+
+Stronger mathematical verification
+```
+
+This is a security architecture, not a feature gap. Programmability is deferred so that monetary rules stay small enough to audit, model, and recompute.
+
+---
+
+## 9. Formal Verification Relationship
+
+Formal verification becomes more realistic when:
+
+- state transitions are limited
+- execution paths are restricted
+- rules are deterministic
+
+A general-purpose VM makes “prove the chain” a moving target: every new contract class is a new theorem obligation. A closed script family makes the obligation finite. Dual-asset conservation, CVG2 eligibility, and fail-closed RES mint are predicates over UTXOs and hashes — not over arbitrary memory.
+
+RIGOR's minimal script design is not a limitation.
+
+It is a prerequisite for stronger mathematical assurance.
+
+The Coq development (`formal_verification/coq`) proves properties of **the model**. Golden-vector and differential gates check finite correspondence with production helpers. They do not collapse into a claim that the shipping binary is a refinement of the model.
+
+```
+equivalence_claimed = false
+```
+
+Minimal scripts make that honesty cheaper to maintain: fewer paths to specify, fewer paths to model, fewer paths to diverge.
+
+Public surfaces:
+
+- Whitepaper: this chapter in `docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`
+- Website: `/documentation/security/minimal-script-architecture`
+- GitHub: `docs/security/minimal-script-architecture.md`
+- Consistency audit: `docs/security/RIGOR_MINIMAL_SCRIPT_CONSISTENCY_AUDIT.md`
+- Script type registry: `docs/security/RIGOR_SCRIPT_TYPE_REGISTRY.md`
+- Script security boundary: `docs/security/RIGOR_SCRIPT_SECURITY_BOUNDARY.md`
+- Formal verification: `/documentation/formal-verification`
+- Zero Trust: `/zero-trust-verification`
+
+---
+
+## Sources (read-only audit)
+
+| Source | What it confirms |
+|--------|------------------|
+| `core/src/consensus/tx_check.cpp` | `IsAllowedScript`: witness v0, or witness v1 with 32-byte program; `OP_RETURN` at nValue 0 |
+| `core/src/primitives/transaction.cpp` | `AssetTypeFromScriptPubKey`: v0 → ORU; v1 CVG2 → ORU; other v1/32 → RES |
+| `core/src/script/standard.cpp` | `IsConvergenceScript` / `IsResScript` |
+| `core/src/script/interpreter.cpp` | v0 P2WPKH/P2WSH/native Ed25519; v1 RES2 and native key-path; no BIP341 |
+| `core/src/validation.cpp` | Taproot/BIP341 validation path removed; v1 is Ed25519 key-path |
+| `core/src/coins.cpp` | CVG2 outputs are not added to the UTXO set |
+| `docs/architecture/ARCHITECTURE.md` | Script is the compliance layer |
+| RFC-015 Alpha1 §5–6 | Dual-asset witness binding |
+
+No file in `core/src/kernel/`, `core/src/consensus/`, `pow.cpp`, `validation.cpp`, the script interpreter, wallet, or miner was modified for this chapter.

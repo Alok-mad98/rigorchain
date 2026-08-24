@@ -78,28 +78,24 @@ void WarningBanner::applyLevelStyle()
 
     switch (m_level) {
     case WarningLevel::Info:
-        bg = p.info;
-        bg.setAlpha(0x22);
+        bg = p.bgPrimary;
         fg = p.textPrimary;
-        border = p.info;
+        border = p.borderSubtle;
         break;
     case WarningLevel::Warning:
-        bg = p.warning;
-        bg.setAlpha(0x28);
+        bg = p.bgPrimary;
         fg = p.textPrimary;
-        border = p.warning;
+        border = p.borderSubtle;
         break;
     case WarningLevel::Critical:
-        bg = p.critical;
-        bg.setAlpha(0x30);
+        bg = p.bgPrimary;
         fg = p.textPrimary;
-        border = p.critical;
+        border = p.borderSubtle;
         break;
     case WarningLevel::Verification:
-        bg = p.experimental;
-        bg.setAlpha(0x28);
+        bg = p.bgPrimary;
         fg = p.textPrimary;
-        border = p.experimental;
+        border = p.borderSubtle;
         break;
     }
 

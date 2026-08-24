@@ -49,7 +49,7 @@ Authoritative path: `core/src/validation.cpp::ConnectBlock`.
 │    target_prev ← pindexPrev->nBits                              │
 │    σ_i ← ComputeSigmaHash(txid_i, C, bind, target_prev, h)     │
 ├─────────────────────────────────────────────────────────────────┤
-│ 7. eligible[i] ← σ_i < T · f_i   (T = 2^240)                   │
+│ 7. eligible[i] ← σ_i < T · f_i   (T = Deterministic Reserve Issuance E=246 windowed)   │
 │    winner ← argmin eligible (uint512 + txid tie-break)          │
 ├─────────────────────────────────────────────────────────────────┤
 │ 8. For each tx in block:                                        │
@@ -59,7 +59,7 @@ Authoritative path: `core/src/validation.cpp::ConnectBlock`.
 ├─────────────────────────────────────────────────────────────────┤
 │ 10. Supply update:                                              │
 │       S_ORU += subsidy - Σconverge                              │
-│       S_RES += M(h) · RES_REWARD_AMOUNT                         │
+│       S_RES += M(h) · GetResMintReward(h)                       │
 │       RES cap check                                             │
 ├─────────────────────────────────────────────────────────────────┤
 │ 11. UpdateCoins (skip convergence CVG2 outputs)                │
@@ -87,7 +87,7 @@ Classification is rule lookup, not EVM-style execution.
 |-------------|---------------|
 | Witness v0 ORU | Created on connect; removed on spend |
 | Witness v1 RES | Created on mint/spend path; standard UTXO |
-| CVG2 convergence | **Never** inserted into UTXO set |
+| `OP_CONVERGE` | **Never** inserted into UTXO set |
 | OP_RETURN | Never in UTXO set; value must be 0 |
 
 ### 2.4 Reorg Handling
@@ -217,7 +217,7 @@ Draw replay uses **identical** F, C, σ, inequality, and argmin logic as rigord 
 
 When block found and winner authorized:
 
-1. `mint_for_authorized_winner` builds Witness v1 RES tx (100 RES = 10,000 atoms)
+1. `mint_for_authorized_winner` builds Witness v1 RES tx (`GetResMintReward(h)`; genesis `W(0)` = 40.000000 RES)
 2. Inserts PCORB witness binding to winner convergence txid
 3. Assembles full block with mint in reserved slot
 4. `submitblock` to rigord
@@ -431,5 +431,23 @@ No global mutable draw state — winner recomputed from block content + parent c
 | EX-08 | `equivalence_claimed = false` at all execution boundaries |
 
 ---
+
+Explorer/indexer sit on the observer layer. They do not possess consensus
+authority.
+
+```
+Consensus defines reality.
+Explorer displays reality.
+Database stores derived representations.
+equivalence_claimed = false
+```
+
+Boundary:
+[`../whitepaper/RIGOR_PROTOCOL_IDENTITY.md`](../whitepaper/RIGOR_PROTOCOL_IDENTITY.md)
+(what RIGOR is),
+[`../whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](../whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md)
+(how the mathematics runs),
+[`../whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md`](../whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md)
+(why those properties can be verified).
 
 *End of RIGOR System Execution Model*

@@ -19,10 +19,10 @@ Definition draw_resolved : nat := draw_catalog_resolved_count.
 Definition draw_disagreement : nat := draw_catalog_disagreement_count.
 Definition draw_missing : nat := draw_catalog_missing_count.
 
-Lemma draw_resolved_value : draw_resolved = 15%nat.
+Lemma draw_resolved_value : draw_resolved = 169%nat.
 Proof. exact draw_catalog_resolved_count_value. Qed.
 
-Lemma draw_disagreement_value : draw_disagreement = 14%nat.
+Lemma draw_disagreement_value : draw_disagreement = 168%nat.
 Proof. exact draw_catalog_disagreement_count_value. Qed.
 
 Lemma draw_missing_value : draw_missing = 0%nat.
@@ -45,11 +45,11 @@ Lemma draw_equivalence_marked_partial_value :
   draw_equivalence_marked_partial = true.
 Proof. exact draw_equivalence_status_partial_value. Qed.
 
-(** REQUIRED: projection layer verified (14 golden rows + frozen=runtime). *)
+(** REQUIRED: projection layer verified (168 golden rows + frozen=runtime). *)
 Definition draw_projection_layer_verified : Prop :=
   draw_equivalence_projection_verified = true /\
-  draw_catalog_resolved_count = 15%nat /\
-  representation_match_count = 14%nat.
+  draw_catalog_resolved_count = 169%nat /\
+  representation_match_count = 168%nat.
 
 Lemma draw_projection_layer_verified_holds : draw_projection_layer_verified.
 Proof.
@@ -79,7 +79,7 @@ Qed.
 Definition draw_equivalence_verdict : Prop :=
   draw_projection_layer_verified /\
   draw_equivalence_marked_partial = true /\
-  draw_disagreement = 14%nat /\
+  draw_disagreement = 168%nat /\
   draw_missing = 0%nat.
 
 Lemma draw_equivalence_verdict_holds : draw_equivalence_verdict.

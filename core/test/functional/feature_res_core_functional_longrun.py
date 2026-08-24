@@ -22,7 +22,7 @@ witnesses empty and surface ``Witness program hash mismatch``).
 
 Environment (optional)::
 
-    RES_LONGRUN_BLOCKS=5           # blocks to mine in the main loop
+    RES_LONGRUN_BLOCKS=300         # draw blocks in the main loop (after a 130-block maturity warmup)
     RES_LONGRUN_TXS_PER_BLOCK=3    # convergence txs per block (>=2)
     RES_CAPTURE_DIR=...            # artifact root (default: tmpdir/RES_longrun)
 
@@ -212,7 +212,7 @@ class RESCoreFunctionalLongRunTest(BitcoinTestFramework):
         )
 
     def run_test(self):
-        res_blocks = int(os.environ.get("RES_LONGRUN_BLOCKS", "5"))
+        res_blocks = int(os.environ.get("RES_LONGRUN_BLOCKS", "300"))
         txs_per_block = int(os.environ.get("RES_LONGRUN_TXS_PER_BLOCK", "3"))
         assert txs_per_block >= 2, "convergence draw requires at least 2 root txs per block"
 
@@ -231,7 +231,13 @@ class RESCoreFunctionalLongRunTest(BitcoinTestFramework):
 
         node_a = self.nodes[0]
         self._orum_pool_addr = node_a.getnewaddress(label="res-longrun-orum-pool", address_type="bech32")
+        # Coinbase maturity is 100. The loop spends these mature pool UTXOs (and their
+        # change). RES_LONGRUN_BLOCKS is extra draw height, not the warmup. A 5- or
+        # 100-block loop still passed because 130 warmup blocks already matured ORU;
+        # the loop never needed immature loop coinbases, and it does not require a mint
+        # (1 ORU × 3 tickets ⇒ E[wins] = 3/1024 per draw block, RFC-017).
         self.generatetoaddress(node_a, 130, self._orum_pool_addr)
+        assert_equal(node_a.getblockcount(), 130)
         self.sync_blocks(self.nodes, timeout=SYNC_TIMEOUT)
 
         recorded_hashes: list[str] = []
@@ -251,7 +257,6 @@ class RESCoreFunctionalLongRunTest(BitcoinTestFramework):
             payout_hash = self.generatetoaddress(node_a, 1, self._orum_pool_addr)[0]
             self.sync_blocks(self.nodes, timeout=SYNC_TIMEOUT)
             self._drain_all()
-            assert_equal(_body_res_mint_rows(node_a, block_hash), [])
             if exp_w is not None:
                 assert_equal(rpc_w, exp_w.lower())
                 rows = _body_res_mint_rows(node_a, payout_hash)

@@ -1,6 +1,7 @@
 /** Presentation-only witness / RES mint proof mapping from indexed import rows. */
 
 import type { TxConvergencePanel, TxConvergenceRole } from "./convergencePanel";
+import { atomsToResDisplay } from "./amount";
 
 export const READONLY_RPC_NOTICE = "Read-only view; authority from rigord RPC only.";
 
@@ -119,13 +120,7 @@ export function buildPcorbItems(stack: string[]): PcorbStackItem[] {
   });
 }
 
-export function atomsToResDisplay(amount_atoms: bigint | number | string): string {
-  const a = BigInt(String(amount_atoms));
-  const base = 100n;
-  const int = a / base;
-  const frac = a % base;
-  return `${int}.${frac.toString().padStart(2, "0")} RES`;
-}
+export { atomsToResDisplay } from "./amount";
 
 export function buildVinWitnessView(vin: {
   vin_index: number;

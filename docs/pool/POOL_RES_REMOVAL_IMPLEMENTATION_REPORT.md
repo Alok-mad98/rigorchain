@@ -56,7 +56,7 @@ RES-related GBT fields / txs are treated as **opaque**. The pool does not parse 
 
 ## 5. Node remains RES mint authority
 
-`rigord` `BlockAssembler::CreateNewBlock` + `core/src/node/auto_res_mint.cpp` remain the sole production source of RES body mint bytes in templates. See `docs/pool/POOL_NODE_AUTOMINT_RUNBOOK.md`.
+`rigord` `BlockAssembler::CreateNewBlock` + `TryAppendCoinbaseResMint` remain the sole production source of RES mint bytes. The prize and PCORB carrier are coinbase outputs (`default_res_mint`, `default_pcorb_carrier`).
 
 ---
 

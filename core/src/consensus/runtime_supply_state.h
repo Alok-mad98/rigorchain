@@ -26,9 +26,14 @@ namespace Consensus {
  * Read-only runtime mirror of ORU/RES mint ledgers (TASK-FVR-B).
  *
  * STRICTLY OBSERVATIONAL: must not be read by ConnectBlock validation predicates
- * or influence block acceptance. Authoritative values remain `CBlockIndex`
- * caches (`m_chain_oru_total`, `m_block_converge_sum`, `m_chain_res_mint_total`,
- * `m_block_res_mint_sum`) and ConnectBlock computations.
+ * or influence block acceptance.
+ *
+ * FENCE-W1: ObservationalMetrics path-fold caches (`GetChainOruTotal`,
+ * `GetChainResMintTotal`, plus per-block `m_block_converge_sum` /
+ * `m_block_res_mint_sum`) are observational ledger scalars.
+ * They are **not** spendable balances (spendable money is the UTXO set). The RES hard
+ * cap is RFC-017 `ResScheduleSum()` plus mint authorization (winner, unique, `W(h)`).
+ * ConnectBlock does not consult these scalars. Do not feed them into T, f_i, or script evaluation.
  *
  * Field names align with Phase-5 Coq replay scalars (`rs_oru_supply`,
  * `rs_res_supply`) and RFC-002 / RFC-015 ledger notation.
@@ -40,20 +45,20 @@ struct RuntimeSupplyState {
     uint256 parent_hash;
 
     // --- ORU ledger (RFC-002) ---
-    CAmount oru_supply_cumulative{0};   //!< S_ORU(h)  ↔ m_chain_oru_total
+    CAmount oru_supply_cumulative{0};   //!< S_ORU(h)  ↔ ObservationalMetrics::GetChainOruTotal
     CAmount oru_subsidy_block{0};       //!< R(h)      ↔ GetBlockSubsidy
     CAmount oru_converge_burn_block{0}; //!< C(h)      ↔ m_block_converge_sum
     CAmount oru_supply_parent{0};       //!< S_ORU(h-1)
 
     // --- RES mint ledger (RFC-015) ---
-    CAmount res_mint_cumulative{0};     //!< S_RES(h)  ↔ m_chain_res_mint_total
+    CAmount res_mint_cumulative{0};     //!< S_RES(h)  ↔ ObservationalMetrics::GetChainResMintTotal
     CAmount res_mint_block{0};          //!< M(h)·RES_REWARD_AMOUNT ↔ m_block_res_mint_sum
     CAmount res_mint_parent{0};         //!< S_RES(h-1)
     uint8_t res_mint_count_block{0};    //!< M(h) ∈ {0,1}
 
     // --- Constitutional constants (copied for audit export) ---
     CAmount res_max_supply{0};
-    CAmount res_reward_amount{0};
+    CAmount res_reward_amount{0};   //!< W(height) per RFC-017, not a fixed constant
 
     // --- UTXO aggregates (diagnostic; same predicates as STEP-0101 trailer) ---
     CAmount utxo_res_balance{0};

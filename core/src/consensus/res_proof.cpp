@@ -13,55 +13,75 @@
 // randomness in this TU was `GenerateResKeypair`, which has been moved to
 // `wallet/res_keypair.cpp`. Re-adding `<random.h>` here would re-open a
 // replay hazard and should be rejected at review.
+#include <script/rigor_tags.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <span.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 
-// PCORB has one mode: **Mint (ORU inputs)** — the proof binds the convergence draw and ConvergenceRoot
-// membership, and may score a body RES mint. SECURITY-001-A / A-7 removed the RES-input "claim" mode,
-// whose script path authorized spends with a signature over σ instead of over the spending transaction.
-// The domain is still taken **only** from `Consensus::GetTransactionInputAsset` — see `rigor_res.cpp` —
-// never from witness branch labels, output counts, or the spending path.
+// PCORB has one locus: the **coinbase** of the block that pays the draw. The proof binds the
+// convergence draw and ConvergenceRoot membership of the parent block. SECURITY-001-A / A-7
+// removed the RES-input "claim" mode, whose script path authorized spends with a signature over σ
+// instead of over the spending transaction; the carrier migration then removed the ORU-funded body
+// mint as well. Nothing here reads a vin witness, and no body transaction can mint.
 
 namespace Consensus {
 
-// RFC-009 §5: Proof serialization (Converge Proof)
-// 5.1 Structure: [0] converge_txid (32), [1] bind_hash (32), [2] height (LE32), [3] target_prev (LE32),
-//             [4] converge_root (32), [5] proof_blob (var), [6] signature (64)
-// Rules: No length prefix inside fixed fields, proof_blob is opaque, signature MUST be exactly 64 bytes
-//
-// RFC-004 §10: ConvergeProof Serialization
-// RFC-004 §2: Integer Rules - little-endian, fixed-width
-bool ParseConvergeProof(const CTransaction& tx, ConvergeProof& out)
+// RFC-004 §2 / RFC-009 §1.1: little-endian, fixed width, no inner length prefixes.
+static void DecodePcorbFields(const unsigned char* fields, ConvergeProof& out)
 {
     out = ConvergeProof{};
-    if (tx.IsCoinBase()) return false;
-    if (tx.vin.empty()) return false;
-    const auto& wit = tx.vin[0].scriptWitness.stack;
-    if (wit.size() < 6) return false;
-    // RFC-009 §0: Absolute principle - All consensus-critical data MUST have exactly ONE valid byte representation
-    // RFC-004 §10: Exact field sizes
-    if (wit[0].size() != 32 || wit[1].size() != 8 || wit[2].size() != 32 || wit[3].size() != 8 || wit[4].size() != 4 ||
-        wit[5].size() != 32) {
-        return false;
+    out.convergence_txid = uint256(Span<const unsigned char>(fields, 32));
+    out.convergence_amount_sat = ReadLE64(fields + 32);  // RFC-000 extension (not in RFC-004 §10)
+    out.bind_hash = uint256(Span<const unsigned char>(fields + 40, 32));
+    out.height = ReadLE64(fields + 72);
+    out.target_prev = ReadLE32(fields + 80);
+    out.convergence_root = uint256(Span<const unsigned char>(fields + 84, 32));
+}
+
+bool IsPcorbCarrierScript(const CScript& script)
+{
+    // RFC-009 §0: one byte representation. The length test pins the whole script, so there is no
+    // room for a trailing opcode, and 120 bytes has no minimal encoding other than PUSHDATA1.
+    if (script.size() != RigorTags::PCORB_CARRIER_SCRIPT_BYTES) return false;
+    if (script[0] != OP_RETURN) return false;
+    if (script[1] != OP_PUSHDATA1) return false;
+    if (script[2] != RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES) return false;
+    return std::equal(RigorTags::PCOR.begin(), RigorTags::PCOR.end(), script.begin() + 3);
+}
+
+bool IsPcorbCarrierOutput(const CTxOut& out)
+{
+    return out.nValue == 0 && IsPcorbCarrierScript(out.scriptPubKey);
+}
+
+size_t CountPcorbCarrierOutputs(const CTransaction& tx)
+{
+    size_t n = 0;
+    for (const CTxOut& out : tx.vout) {
+        if (IsPcorbCarrierOutput(out)) ++n;
     }
-    size_t nbytes = 32 + 8 + 32 + 8 + 4 + 32;
-    // RFC-009 §1.1: Integer encoding (the sole rule)- uint32 → 4 bytes, little-endian, uint64 → 8 bytes, little-endian
-    // RFC-004 §2: little-endian, fixed-width
-    out.convergence_txid = uint256(wit[0]);
-    out.convergence_amount_sat = ReadLE64(wit[1].data());  // RFC-000 extension (not in RFC-004 §10)
-    out.bind_hash = uint256(wit[2]);
-    out.height = ReadLE64(wit[3].data());
-    out.target_prev = ReadLE32(wit[4].data());
-    out.convergence_root = uint256(wit[5]);
-    // SECURITY-001-A / A-7: no signature is parsed. `wit[6]`/`wit[7]` formerly held a detached
-    // Ed25519 signature over σ plus the key verifying it; see `res_proof.h` for why that
-    // authorized nothing. Pushes beyond the six proof fields are not part of the proof — for a
-    // P2WSH-funded mint the trailing push is the redeem script.
-    if (nbytes > MAX_CONVERGE_PROOF_WITNESS_BYTES) return false;
+    return n;
+}
+
+bool ParseConvergeProof(const CTransaction& coinbase, ConvergeProof& out)
+{
+    out = ConvergeProof{};
+    // The carrier is a coinbase-only channel. A body transaction carrying the tag is rejected by
+    // CheckTxInputs; refusing to decode it here means no caller can be tricked into treating one
+    // as issuance even if that rule were ever relaxed.
+    if (!coinbase.IsCoinBase()) return false;
+    const CTxOut* found = nullptr;
+    for (const CTxOut& o : coinbase.vout) {
+        if (!IsPcorbCarrierOutput(o)) continue;
+        if (found != nullptr) return false; // two tags are not a proof, and not a choice
+        found = &o;
+    }
+    if (found == nullptr) return false;
+    DecodePcorbFields(found->scriptPubKey.data() + 3 + RigorTags::PCOR.size(), out);
     return true;
 }
 
@@ -99,15 +119,14 @@ bool VerifyConvergeProof(const ConvergeProof& proof, const uint256& res_probabil
 
 /**
  * RFC-005 §4.12: RES Mint Verification
- * bool VerifyConvergeProof(const CTransaction& tx);
- * 
- * This is the canonical interface per RFC-005 Validation State Machine.
- * Parses the transaction and verifies the converge proof.
+ *
+ * This is the canonical interface per RFC-005 Validation State Machine. It decodes the coinbase
+ * carrier and evaluates the draw inequality on it.
  */
-bool VerifyConvergeProof(const CTransaction& tx, const uint256& res_probability_target)
+bool VerifyConvergeProof(const CTransaction& coinbase, const uint256& res_probability_target)
 {
     ConvergeProof proof;
-    if (!ParseConvergeProof(tx, proof)) {
+    if (!ParseConvergeProof(coinbase, proof)) {
         return false;
     }
     return VerifyConvergeProof(proof, res_probability_target, nullptr, nullptr);
@@ -127,17 +146,21 @@ bool CheckConvergeProofBinding(const ConvergeProof& proof, CAmount committed_con
     // convergence transaction lives.
     //
     // The uint64 -> CAmount narrowing is safe: the committed value is MoneyRange-valid, so any
-    // out-of-range witness value simply fails the equality.
+    // out-of-range payload value simply fails the equality.
     return committed_convergence_amount == static_cast<CAmount>(proof.convergence_amount_sat);
 }
 
 bool DeriveResWitnessProgramFromPubKey(const CPubKey& pubkey, std::vector<unsigned char>& program32_out)
 {
     program32_out.clear();
-    if (!pubkey.IsCompressed() || pubkey.size() != CPubKey::COMPRESSED_SIZE) return false;
-    if (pubkey[0] != 0x00 && pubkey[0] != 0xFF) return false;
-    program32_out.assign(pubkey.begin() + 1, pubkey.end());
-    return program32_out.size() == ed25519::PUBKEY_SIZE;
+    const std::vector<unsigned char> pk32 = pubkey.GetEd25519Payload();
+    if (pk32.size() != ed25519::PUBKEY_SIZE) return false;
+    program32_out.resize(32);
+    if (!ed25519::ResWitnessProgram(pk32, program32_out)) {
+        program32_out.clear();
+        return false;
+    }
+    return true;
 }
 
 // TASK-H2 R-8: `GenerateResKeypair` has been relocated to

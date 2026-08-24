@@ -108,6 +108,7 @@ static void WalletShowInfo(CWallet* wallet_instance)
     tfm::format(std::cout, "Descriptors: %s\n", wallet_instance->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) ? "yes" : "no");
     tfm::format(std::cout, "Encrypted: %s\n", wallet_instance->IsCrypted() ? "yes" : "no");
     tfm::format(std::cout, "ORU HD wallet: %s\n", wallet_instance->IsOruHDEnabled() ? "enabled" : "not available");
+    tfm::format(std::cout, "RES HD wallet: %s\n", wallet_instance->IsResHDEnabled() ? "enabled" : "not available");
     tfm::format(std::cout, "RES dedicated key mode: %s\n", wallet_instance->IsResDedicatedKeyMode() ? "yes" : "no");
     tfm::format(std::cout, "Keypool Size: %u\n", wallet_instance->GetKeyPoolSize());
     tfm::format(std::cout, "Transactions: %zu\n", wallet_instance->mapWallet.size());

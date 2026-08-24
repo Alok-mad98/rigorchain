@@ -16,6 +16,7 @@
 #include <consensus/validation.h>
 #include <consensus_rigor/fee.h>
 #include <hash.h>
+#include <script/interpreter.h>
 #include <script/standard.h>
 #include <undo.h>
 
@@ -72,7 +73,7 @@ ConvergenceDrawOutcome ResolveConvergenceDraw(const ConvergenceDrawSet& set,
     }
 
     // RFC-014 Conv-Decouple-01: the inequality RHS is the constitutional constant
-    // floor(2^240 / MIN_CONVERGENCE_AMOUNT), never a difficulty-derived value.
+    // floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU), never a difficulty-derived value.
     out.eligible.assign(set.candidates.size(), false);
     for (size_t i = 0; i < out.sigmas.size(); ++i) {
         out.eligible[i] = Consensus::ConvergenceDrawInequalityHolds(
@@ -118,34 +119,32 @@ ConvergenceDrawCandidate MakeDrawCandidate(const CTransaction& tx, int source_he
     ConvergenceDrawCandidate candidate;
     candidate.txid = tx.GetHash();
     candidate.weight = static_cast<uint64_t>(Consensus::GetConvergenceAmount(tx));
-    // R1 admitted this transaction to F only because it carries exactly one declaration,
-    // so the lookup cannot fail; an empty program would silently unbind the payout.
     const std::optional<Consensus::ResOwnerDeclaration> owner = Consensus::GetResOwnerDeclaration(tx);
     assert(owner.has_value());
-    candidate.res_payout_program32 = owner->program32;
+    candidate.res_payout_hash160 = owner->payout_hash160;
     candidate.source_height = source_height;
     return candidate;
 }
 
 } // namespace
 
-std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block)
+bool CoinbaseHasResMint(const CTransaction& coinbase)
+{
+    if (!coinbase.IsCoinBase()) return false;
+    size_t n = 0;
+    for (const CTxOut& o : coinbase.vout) {
+        if (IsResMintScript(o.scriptPubKey)) ++n;
+    }
+    return n == 1;
+}
+
+std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block,
+    const std::optional<uint256>& parent_winner_txid)
 {
     std::vector<uint256> paid;
-    for (size_t i = 1; i < block.vtx.size(); ++i) {
-        const CTransaction& tx = *block.vtx[i];
-        if (tx.IsCoinBase()) continue;
-        bool creates_res = false;
-        for (const auto& o : tx.vout) {
-            if (IsResScript(o.scriptPubKey)) {
-                creates_res = true;
-                break;
-            }
-        }
-        if (!creates_res) continue;
-        Consensus::ConvergeProof proof;
-        if (!Consensus::ParseConvergeProof(tx, proof)) continue;
-        paid.push_back(proof.convergence_txid);
+    if (block.vtx.empty() || !CoinbaseHasResMint(*block.vtx[0])) return paid;
+    if (parent_winner_txid.has_value()) {
+        paid.push_back(*parent_winner_txid);
     }
     return paid;
 }
@@ -163,26 +162,26 @@ namespace {
 void FinalizeWindowedDrawSet(const CBlock& source_block,
     const ConvergenceWindowTail& tail,
     std::vector<ConvergenceDrawCandidate> own_candidates,
-    ConvergenceDrawSet& set)
+    ConvergenceDrawSet& set,
+    const std::optional<uint256>& coinbase_paid_txid)
 {
     set.candidates.clear();
     set.candidates.reserve(tail.candidates.size() + own_candidates.size());
 
-    std::vector<uint256> paid = tail.already_paid;
-    const std::vector<uint256> own_paid = FindBlockPaidConvergenceTxids(source_block);
-    paid.insert(paid.end(), own_paid.begin(), own_paid.end());
-    const auto already_paid = [&paid](const uint256& txid) {
+    const std::vector<uint256> paid = FindBlockPaidConvergenceTxids(source_block, coinbase_paid_txid);
+    const auto is_paid = [&paid](const uint256& txid) {
         return std::find(paid.begin(), paid.end(), txid) != paid.end();
     };
 
     // Oldest first: buried ancestors, then the source block. Ordering does not affect C or the
     // eligible root (both sort lexicographically) but keeps candidate indices reproducible.
+    // Buried paid tickets are already absent from `tail.candidates` (dropped at tail assembly).
     for (const ConvergenceDrawCandidate& candidate : tail.candidates) {
-        if (already_paid(candidate.txid)) continue;
+        if (is_paid(candidate.txid)) continue;
         set.candidates.push_back(candidate);
     }
     for (ConvergenceDrawCandidate& candidate : own_candidates) {
-        if (already_paid(candidate.txid)) continue;
+        if (is_paid(candidate.txid)) continue;
         set.candidates.push_back(std::move(candidate));
     }
 
@@ -199,7 +198,8 @@ ConvergenceDrawSet BuildConvergenceDrawSet(const CBlock& block,
     int block_height,
     const CCoinsViewCache& view_at_block_entry,
     const Consensus::Params& consensus_params,
-    const ConvergenceWindowTail& tail)
+    const ConvergenceWindowTail& tail,
+    const std::optional<uint256>& coinbase_paid_txid)
 {
     ConvergenceDrawSet set;
     // An incomplete window would yield a different F, hence a different C and winner, so it
@@ -226,7 +226,7 @@ ConvergenceDrawSet BuildConvergenceDrawSet(const CBlock& block,
             }
         }
     }
-    FinalizeWindowedDrawSet(block, tail, std::move(own_candidates), set);
+    FinalizeWindowedDrawSet(block, tail, std::move(own_candidates), set, coinbase_paid_txid);
     return set;
 }
 
@@ -241,13 +241,32 @@ bool BuildBlockConvergenceCandidatesFromUndo(const CBlock& block,
         return false;
     }
     // Mirrors ListConvergenceRootCommitmentTxids exactly, sourcing input values from undo
-    // data instead of a live view. The two must agree candidate-for-candidate.
+    // data instead of a live view. The two must agree candidate-for-candidate. Fee is not
+    // a membership condition.
     out.reserve(block.vtx.size());
     for (size_t i = 1; i < block.vtx.size(); ++i) {
-        if (ComputeConvergenceFeeFromUndo(*block.vtx[i], block_undo.vtxundo[i - 1], block_height, consensus_params) <= 0) {
+        const CTransaction& tx = *block.vtx[i];
+        if (!IsConvergenceCandidate(tx) || !Consensus::HasResOwnerDeclaration(tx)) continue;
+        const CTxUndo& undo = block_undo.vtxundo[i - 1];
+        if (undo.vprevout.size() != tx.vin.size()) continue;
+        CCoinsView backed;
+        CCoinsViewCache cache(&backed);
+        bool undo_ok = true;
+        for (size_t j = 0; j < tx.vin.size(); ++j) {
+            const Coin& src = undo.vprevout[j];
+            if (src.IsSpent()) {
+                undo_ok = false;
+                break;
+            }
+            cache.AddCoin(tx.vin[j].prevout, Coin(CTxOut(src.out), src.nHeight, src.IsCoinBase()), false);
+        }
+        if (!undo_ok) continue;
+        TxValidationState tx_state;
+        CAmount txfee = 0;
+        if (!Consensus::CheckTxInputs(tx, tx_state, cache, block_height, consensus_params, txfee)) {
             continue;
         }
-        out.push_back(MakeDrawCandidate(*block.vtx[i], block_height));
+        out.push_back(MakeDrawCandidate(tx, block_height));
     }
     return true;
 }
@@ -257,7 +276,8 @@ bool BuildConvergenceDrawSetFromUndo(const CBlock& block,
     const CBlockUndo& block_undo,
     const Consensus::Params& consensus_params,
     const ConvergenceWindowTail& tail,
-    ConvergenceDrawSet& out)
+    ConvergenceDrawSet& out,
+    const std::optional<uint256>& coinbase_paid_txid)
 {
     out = ConvergenceDrawSet{};
     if (!tail.complete) return false;
@@ -269,7 +289,7 @@ bool BuildConvergenceDrawSetFromUndo(const CBlock& block,
     out.source_block_hash = block.GetHash();
     out.source_height = block_height;
     out.source_nbits = block.nBits;
-    FinalizeWindowedDrawSet(block, tail, std::move(own_candidates), out);
+    FinalizeWindowedDrawSet(block, tail, std::move(own_candidates), out, coinbase_paid_txid);
     return true;
 }
 

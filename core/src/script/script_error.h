@@ -84,6 +84,8 @@ typedef enum ScriptError_t
     /* Rigor: secp256k1 / ECDSA is never accepted; spend signatures are Ed25519 only */
     SCRIPT_ERR_SECP256K1_DISABLED,
 
+    SCRIPT_ERR_CONVERGE_UNSPENDABLE,
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 

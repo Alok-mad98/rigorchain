@@ -1,5 +1,9 @@
 # F-4 Lifetime Decision — RES Issuance Horizon
 
+> **Historical RFC — not an active consensus parameter.** The “210,000 draws of
+> 100 RES” figure below is RFC-015-era. It is **not an active consensus parameter**.
+> The F-4 decision (no mint-rate retargeting of `T`) is unchanged.
+
 | Field | Value |
 |-------|-------|
 | **Task** | `TASK-MAINNET-CLOSURE-001` (closes open item from TASK-SECURITY-001-F4) |

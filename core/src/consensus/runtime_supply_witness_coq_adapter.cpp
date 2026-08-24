@@ -83,14 +83,14 @@ std::optional<RuntimeSupplyWitnessCoqCatalogRow> ResolveWitnessCoqCatalogRowAt(c
         return std::nullopt;
     }
 
-    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex->nHeight);
+    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex);
     if (!witness.has_value()) {
         return std::nullopt;
     }
 
     std::optional<RuntimeSupplyWitness> parent_witness;
-    if (pindex->nHeight > 0) {
-        parent_witness = GetRuntimeSupplyWitness(pindex->nHeight - 1);
+    if (pindex->pprev != nullptr) {
+        parent_witness = GetRuntimeSupplyWitness(pindex->pprev);
     }
 
     const std::optional<RuntimeSupplyState>& stored = GetRuntimeSupplyMirror(*pindex);

@@ -35,7 +35,7 @@ const std::string CLIENT_NAME("RigorCore");
     #define BUILD_DESC BUILD_GIT_TAG
     #define BUILD_SUFFIX ""
 #else
-    // Display identity is RIGOR_RELEASE_VERSION (v0.1.1-alphaplus), not PACKAGE_VERSION (25.0.0).
+    // Display identity is RIGOR_RELEASE_VERSION (v0.1.2-alphaplus), not PACKAGE_VERSION (25.0.0).
     #define BUILD_DESC RIGOR_RELEASE_VERSION
     #if defined(BUILD_GIT_COMMIT)
         #define BUILD_SUFFIX "-" BUILD_GIT_COMMIT

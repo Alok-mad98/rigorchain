@@ -1,14 +1,14 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=RIGOR Wallet
-GenericName=RIGOR Wallet
-Comment=RIGOR Protocol Wallet
+Name=Rigor Wallet
+GenericName=Rigor Wallet
+Comment=Rigor Protocol Wallet
 Exec=rigor-qt %U
 Icon=rigor-wallet
 Terminal=false
 Categories=Office;Finance;Network;
 StartupNotify=true
-StartupWMClass=RIGOR Wallet
+StartupWMClass=Rigor Wallet
 MimeType=x-scheme-handler/rigor;
 Keywords=RIGOR;ORU;RES;Convergence;Wallet;

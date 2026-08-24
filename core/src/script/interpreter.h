@@ -7,9 +7,11 @@
 #define BITCOIN_SCRIPT_INTERPRETER_H
 
 #include <hash.h>
+#include <script/script.h>
 #include <script/script_error.h>
 #include <span.h>
 #include <primitives/transaction.h>
+#include <uint256.h>
 
 #include <optional>
 #include <vector>
@@ -17,9 +19,6 @@
 
 class CPubKey;
 class XOnlyPubKey;
-class CScript;
-class CBlock;
-class CBlockIndex;
 class CTransaction;
 class CTxOut;
 class uint256;
@@ -160,36 +159,15 @@ struct PrecomputedTransactionData
     //! Whether m_spent_outputs is initialized.
     bool m_spent_outputs_ready = false;
 
-    /** Parent block index for the block that will include the evaluated tx (ConnectBlock: pindex->pprev; mempool: tip). */
-    const CBlockIndex* m_rigor_tx_inclusion_parent{nullptr};
-    /** Height of the block that will include the evaluated tx. */
-    int m_rigor_tx_inclusion_height{-1};
-    /** When validating a confirmed block, points at that block's body (same-block convergence lookup). */
-    const CBlock* m_rigor_block_for_convergence_lookup{nullptr};
-    /** Transaction under validation (always wired from CheckInputScripts). */
-    const CTransaction* m_rigor_eval_tx{nullptr};
-    /** When set (ConnectBlock), RES proof `convergence_root` must match this block's
-     *  ConvergenceRoot preimage. Stored by value to eliminate the previous raw-pointer
-     *  to a stack-local that was a CVE-2024-52911-class lifetime hazard. */
-    std::optional<uint256> m_rigor_convergence_root_expected{};
-    /** RFC-014 Conv-Decouple-01: the constitutional RES inequality RHS.
-     *  Sourced from `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^240 / MIN_CONVERGENCE_AMOUNT)).
-     *  Wired here so that script-path `VerifyConvergeProof` (inside
-     *  interpreter.cpp PCORB witness validation) can stay stateless w.r.t.
-     *  the chain manager while still consuming the constant. */
-    uint256 m_rigor_res_probability_target{};
+    /**
+     * FENCE-W5 (TASK-ARCH-SCRIPT-CONTEXT-CLEANUP-001): sighash cache only.
+     * Script evaluation is a function of the UTXO being spent and the spending
+     * transaction (via BaseSignatureChecker). Do not store CBlockIndex*, CBlock*,
+     * convergence root, or T here. Mint coupling lives in ConnectEvaluateCoinbaseResMint.
+     * There is no SetRigorResEvalContext; do not add one.
+     */
 
     PrecomputedTransactionData() = default;
-
-    void SetRigorResEvalContext(const CBlockIndex* parent, int height, const CBlock* block, const CTransaction* tx, std::optional<uint256> convergence_root_expected = std::nullopt, const uint256& res_probability_target = uint256{})
-    {
-        m_rigor_tx_inclusion_parent = parent;
-        m_rigor_tx_inclusion_height = height;
-        m_rigor_block_for_convergence_lookup = block;
-        m_rigor_eval_tx = tx;
-        m_rigor_convergence_root_expected = std::move(convergence_root_expected);
-        m_rigor_res_probability_target = res_probability_target;
-    }
 
     /** Initialize this PrecomputedTransactionData with transaction data.
      *
@@ -207,8 +185,9 @@ struct PrecomputedTransactionData
 
 enum class SigVersion
 {
-    BASE = 0,       //!< Bare scripts and BIP16 P2SH-wrapped redeemscripts
-    WITNESS_V0 = 1, //!< Witness v0 (P2WPKH and P2WSH); see BIP 141
+    BASE = 0,            //!< Bare scripts (OP_RES_MINT eval); sighash for mint is BIP143 (WITNESS_V0)
+    WITNESS_V0 = 1,      //!< Witness v0 (P2WPKH and P2WSH); see BIP 141
+    WITNESS_V1_RES = 2,  //!< Witness v1 RES key-path; BIP143 plus a domain tag
 };
 
 struct ScriptExecutionData
@@ -237,12 +216,12 @@ struct ScriptExecutionData
 static constexpr size_t WITNESS_V0_SCRIPTHASH_SIZE = 32;
 static constexpr size_t WITNESS_V0_KEYHASH_SIZE = 20;
 static constexpr size_t WITNESS_V1_RES_SIZE = 32;
-/** Witness v1 ORB2 draw-claim: OP_1 + 36-byte program (ASCII "ORB2" || 32-byte convergence winner txid). */
+/** Historical 36-byte v1 program size (not an IsAllowedScript chain output; 32-byte v1 only). */
 static constexpr size_t WITNESS_V1_RES2_CLAIM_PROGRAM_SIZE = 36;
 
-/** True if \p program is a witness v1 ORB2 asset commitment (32-byte; not CVG2). */
+/** True if \p program is a witness v1 RES2-prefixed native RES commitment (32-byte; not CVG2). Not BIP341. */
 bool IsRes2AssetProgram(const std::vector<unsigned char>& program);
-/** True if \p program is native RES witness v1 (32-byte; neither CVG2 nor ORB2-tagged). */
+/** True if \p program is native RES witness v1 (32-byte; neither CVG2 nor RES2-prefixed). Not Bitcoin Taproot. */
 bool IsRigorResNativeWitnessProgram(const std::vector<unsigned char>& program);
 
 // REMOVED: WITNESS_V1_SCRIPT_PATH constants (BIP341 control block infrastructure)
@@ -276,6 +255,9 @@ public:
         return false;
     }
 
+    /** Connecting / mempool spend height. Used by OP_RES_MINT; 0 if the checker has no chain context. */
+    virtual int GetSpendHeight() const { return 0; }
+
     virtual const PrecomputedTransactionData* GetTxData() const { return nullptr; }
 
     virtual ~BaseSignatureChecker() {}
@@ -299,18 +281,20 @@ private:
     unsigned int nIn;
     const CAmount amount;
     const PrecomputedTransactionData* txdata;
+    const int nSpendHeight;
 
 protected:
     virtual bool VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const;
     virtual bool VerifyEd25519Signature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, const uint256& sighash) const;
 
 public:
-    GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, MissingDataBehavior mdb) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(nullptr) {}
-    GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn, MissingDataBehavior mdb) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(&txdataIn) {}
+    GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, MissingDataBehavior mdb, int nSpendHeightIn = 0) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(nullptr), nSpendHeight(nSpendHeightIn) {}
+    GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn, MissingDataBehavior mdb, int nSpendHeightIn = 0) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(&txdataIn), nSpendHeight(nSpendHeightIn) {}
     bool CheckECDSASignature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
     bool CheckEd25519Signature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;
+    int GetSpendHeight() const override { return nSpendHeight; }
     const PrecomputedTransactionData* GetTxData() const override { return txdata; }
 };
 
@@ -344,11 +328,35 @@ public:
         return m_checker.CheckSequence(nSequence);
     }
 
+    int GetSpendHeight() const override { return m_checker.GetSpendHeight(); }
+
     const PrecomputedTransactionData* GetTxData() const override { return m_checker.GetTxData(); }
 };
 
 // REMOVED: ComputeTapleafHash, ComputeTapbranchHash, ComputeWitnessV1PathMerkleRoot
 // violates RIGOR "Script as Asset" constitution (no Taproot/BIP341 script path complexity)
+
+// FENCE-W5: EvalScript does not take a block index, block body, convergence root, or T.
+// It evaluates this script against the stack, flags, and the signature checker
+// (UTXO being spent + spending transaction: sighash, nLockTime, nSequence, spend height).
+// Mint *authorization* (winner / PCORB) is not an interpreter concern; it stays in
+// ConnectEvaluateCoinbaseResMint. OP_RES_MINT only reads spend height from the checker.
+
+/** Exact mint template: `<maturity_height> <20-byte HASH160(pubkey)> OP_RES_MINT`. */
+bool ParseResMintScript(const CScript& script, int64_t& maturity_height, std::vector<unsigned char>& pubkey_hash);
+bool IsResMintScript(const CScript& script);
+CScript GetResMintScript(int64_t maturity_height, const uint160& pubkey_hash);
+/** Mint locking script for a 32-byte Ed25519 program (HASH160 of the program). */
+CScript GetResMintScriptForProgram(int64_t maturity_height, Span<const unsigned char> program32);
+
+/**
+ * Exact convergence burn: `<20-byte HASH160(RES program)> OP_CONVERGE`.
+ * One encoding only (OP_PUSHBYTES_20, not PUSHDATA). Unspendable; EvalScript fails closed.
+ */
+bool ParseConvergeScript(const CScript& script, uint160& owner_hash160);
+bool IsConvergeScript(const CScript& script);
+CScript GetConvergeScript(const uint160& owner_hash160);
+CScript GetConvergeScriptForProgram(Span<const unsigned char> program32);
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* error = nullptr);
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* error = nullptr);

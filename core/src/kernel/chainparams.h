@@ -155,14 +155,21 @@ public:
         /** Unused on RIGOR: buried softfork heights are fixed; -testactivationheight is rejected. */
         std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
         bool fastprune{false};
+        /** FENCE-W11: injected at chain construction. Mockable chains only. */
+        CAmount res_wallet_bootstrap_coinbase{0};
+    };
+
+    /** Construction-time knobs for mockable non-regtest chains (devtest / slowtest). */
+    struct MockableChainOptions {
+        CAmount res_wallet_bootstrap_coinbase{0};
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);
     static std::unique_ptr<const CChainParams> SigNet(const SigNetOptions& options);
     static std::unique_ptr<const CChainParams> Main();
     static std::unique_ptr<const CChainParams> TestNet();
-    static std::unique_ptr<const CChainParams> DevTest();
-    static std::unique_ptr<const CChainParams> SlowTest();
+    static std::unique_ptr<const CChainParams> DevTest(const MockableChainOptions& options);
+    static std::unique_ptr<const CChainParams> SlowTest(const MockableChainOptions& options);
 
 protected:
     CChainParams() {}

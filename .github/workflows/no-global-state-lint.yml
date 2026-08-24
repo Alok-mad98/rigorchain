@@ -1,0 +1,45 @@
+# No-global-state guardrail (W1 / W5 / W11)
+#
+# Fails the PR if gArgs, SetRigorResEvalContext, or a non-allowlisted
+# m_chain_res_mint_total read appears under core/src/script/ or
+# core/src/consensus/. Does not build bitcoind.
+
+name: no-global-state-lint
+
+on:
+  pull_request:
+    paths:
+      - "core/src/script/**"
+      - "core/src/consensus/**"
+      - "core/src/consensus_rigor/**"
+      - "core/src/connect_block_rigor_checks.cpp"
+      - "core/src/node/devtest_res_bootstrap.cpp"
+      - "core/src/node/devtest_res_bootstrap.h"
+      - "core/test/lint/lint-no-global-state.py"
+      - ".github/workflows/no-global-state-lint.yml"
+  push:
+    paths:
+      - "core/src/script/**"
+      - "core/src/consensus/**"
+      - "core/src/consensus_rigor/**"
+      - "core/src/connect_block_rigor_checks.cpp"
+      - "core/src/node/devtest_res_bootstrap.cpp"
+      - "core/src/node/devtest_res_bootstrap.h"
+      - "core/test/lint/lint-no-global-state.py"
+      - ".github/workflows/no-global-state-lint.yml"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: No-global-state identifier scan
+        run: python3 core/test/lint/lint-no-global-state.py
+      - name: Optional tree-sitter AST scan
+        continue-on-error: true
+        run: |
+          pip install tree-sitter tree-sitter-cpp
+          python3 core/test/lint/lint-no-global-state.py

@@ -46,10 +46,9 @@ void CKey::MakeNewKey(bool fCompressedIn)
 
 bool CKey::Negate()
 {
-    if (!fValid) return false;
-    for (auto& b : keydata) b = ~b;
-    fValid = Check(keydata.data());
-    return fValid;
+    // Ed25519 seeds are not secp256k1 scalars; bitwise NOT is not a group negation.
+    (void)fValid;
+    return false;
 }
 
 CPrivKey CKey::GetPrivKey() const
@@ -116,16 +115,12 @@ bool CKey::Load(const CPrivKey &seckey, const CPubKey &vchPubKey, bool fSkipChec
 
 bool CKey::Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const {
     assert(IsValid());
+    // SLIP-0010 / C-1: Ed25519 keys are hashed seeds, not secp256k1 scalars.
+    // Additive BIP32 (child = I_L + parent mod n) does not exist, and using I_L as
+    // the child seed makes that seed a pure function of the xpub. Fail closed.
+    if ((nChild >> 31) == 0) return false;
     std::vector<unsigned char, secure_allocator<unsigned char>> vout(64);
-    // BIP32: non-hardened child hashes the parent *public* key (same inputs as CPubKey::Derive);
-    // hardened uses 0x00 || ser256(k_par). Rigor ORUM pubkeys use header 0x00; must match xpub path.
-    if ((nChild >> 31) == 0) {
-        const CPubKey pubkey = GetPubKey();
-        assert(pubkey.size() == CPubKey::COMPRESSED_SIZE);
-        BIP32Hash(cc, nChild, pubkey[0], pubkey.begin() + 1, vout.data());
-    } else {
-        BIP32Hash(cc, nChild, 0, begin(), vout.data());
-    }
+    BIP32Hash(cc, nChild, 0, begin(), vout.data());
     std::memcpy(ccChild.begin(), vout.data() + 32, 32);
     keyChild.Set(vout.data(), vout.data() + 32, true);
     return keyChild.IsValid();
@@ -189,7 +184,11 @@ bool ECC_InitSanityCheck() {
 }
 
 void ECC_Start() {
-    // No global context needed for ED25519 provider.
+    // Pins libsodium and the Ed25519 primitive. Failure is fatal: a node that
+    // cannot initialize the consensus verifier must not produce or check blocks.
+    if (!ed25519::EnsureRuntime()) {
+        throw std::runtime_error("libsodium Ed25519 runtime is missing or too old (need >= 1.0.18)");
+    }
 }
 
 void ECC_Stop() {

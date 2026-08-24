@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Create/sign/send a consensus-valid convergence (CVG2) transaction on devtest.
+"""Create/sign/send a consensus-valid convergence (OP_CONVERGE) transaction on devtest.
 
-Uses ``createrawtransaction`` after ``decodescript`` for the witness-v1 CVG2 address (program
-matches ``test_framework/rigor_block_builder.create_convergence_tx``: ``CVG2`` + big-endian
-amount in the 32-byte program). Wire ``asset`` remains ``ORU`` where the node RPC requires it;
-user-facing wording uses **ORUM** / **CONVERGENCE** only. ``signrawtransactionwithwallet`` is
-called with ``prevtxs`` so the prevout amount is exact (no JSON float loss on ``listunspent``).
-``listunspent`` uses ``minconf=1`` so unconfirmed wallet rows are not selected as inputs.
+Uses ``createrawtransaction`` with a ``script`` output for the OP_CONVERGE lock
+(HASH160 of a default RES program). Wire ``asset`` remains ``ORU``.
+``signrawtransactionwithwallet`` is called with ``prevtxs`` so the prevout amount is exact.
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -16,27 +14,20 @@ from decimal import Decimal, ROUND_DOWN
 from typing import List, Optional, Tuple
 
 _COIN = 100_000_000
-
-
-def make_convergence_program_32(amount_sats: int) -> bytes:
-    """32-byte witness v1 program: ``CVG2`` + 8-byte **big-endian** amount + zero padding (matches ``rigor_block_builder`` / consensus)."""
-    if amount_sats < 0 or amount_sats > 0xFFFFFFFFFFFFFFFF:
-        raise ValueError("amount_sats must fit in uint64")
-    prog = bytearray(32)
-    prog[0:4] = b"CVG2"
-    prog[4:12] = int(amount_sats).to_bytes(8, "big", signed=False)
-    return bytes(prog)
-
-
-# SECURITY-001-A / A-5: RES owner declaration carried in an OP_RETURN of the convergence tx.
-RESO_MAGIC = b"RESO"
-RESO_VERSION = b"\x01"
 DEFAULT_RES_OWNER_PROGRAM = bytes.fromhex("22" * 32)
+OP_CONVERGE = 0xBD
 
 
-def make_res_owner_declaration_payload() -> bytes:
-    """``RESO`` || version || 32-byte witness v1 RES program (``Consensus::RES_OWNER_PAYLOAD_SIZE``)."""
-    return RESO_MAGIC + RESO_VERSION + DEFAULT_RES_OWNER_PROGRAM
+def hash160(data: bytes) -> bytes:
+    sha = hashlib.sha256(data).digest()
+    return hashlib.new("ripemd160", sha).digest()
+
+
+def make_converge_script_hex(program_32: Optional[bytes] = None) -> str:
+    p = DEFAULT_RES_OWNER_PROGRAM if program_32 is None else program_32
+    if len(p) != 32:
+        raise ValueError("RES owner program must be 32 bytes")
+    return (bytes([0x14]) + hash160(p) + bytes([OP_CONVERGE])).hex()
 
 
 def to_sats(amount: str) -> int:
@@ -248,25 +239,13 @@ def main():
         sys.exit(1)
 
     change_addr, change_typ = get_raw_change_address(args.cli, effective_chain, cli_extras, args.change_type)
-    prog_hex = "5120" + make_convergence_program_32(convergence_sats).hex()
-    dec = rpc_json(args.cli, effective_chain, cli_extras, "decodescript", prog_hex)
-    conv_addr = dec.get("address")
-    if not isinstance(conv_addr, str) or not conv_addr:
-        print(
-            "decodescript did not return an address for the convergence (CVG2) script; cannot use createrawtransaction",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    conv_spk_hex = make_converge_script_hex()
 
     convergence_amt_str = format(Decimal(convergence_sats) / Decimal(_COIN), "f")
     change_amt_str = format(Decimal(change_sats) / Decimal(_COIN), "f")
-    # Match ``test_framework/rigor_block_builder.create_convergence_tx``: convergence vout first, then change.
-    # SECURITY-001-A / A-5 R1: without a RESO owner declaration the convergence is a
-    # valid ORU burn but never enters F, so no draw would ever have a candidate.
     outputs_payload = {
-        conv_addr: {"amount": convergence_amt_str, "asset": "ORU"},
+        "script": {"hex": conv_spk_hex, "amount": convergence_amt_str, "asset": "ORU"},
         change_addr: {"amount": change_amt_str, "asset": "ORU"},
-        "data": make_res_owner_declaration_payload().hex(),
     }
     # createrawtransaction returns raw hex, not JSON.
     raw_unsigned = rpc(

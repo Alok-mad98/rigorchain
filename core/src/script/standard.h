@@ -8,9 +8,10 @@
 
 /*
  * ============================================================================
- *  Rigorchain Architecture Guard (Script-Is-Asset)
- *  Rigorchain forbids Bitcoin Taproot.
- *  Witness v1 carries CVG2 convergence Mint Cost and ORB2 / asset programs (Ed25519 key path); no BIP341 execution.
+ *  Rigorchain Architecture Guard
+ *  Monetary truth is the UTXO set. Scripts classify outputs; they are not assets.
+ *  Witness v1 is native RES transfer (Ed25519 key path). Convergence tickets are the
+ *  separate `OP_CONVERGE` lock, not a witness v1 program. Not BIP341.
  *  Any BIP341/BIP342 interpretation of v1 programs is out of scope by design.
  * ============================================================================
  */
@@ -74,6 +75,11 @@ enum class TxoutType {
     WITNESS_V0_KEYHASH,
     /** Witness version 1, 32-byte program (RigorChain RES asset; not BIP341 Taproot). */
     WITNESS_V1_RES,
+    /** RES mint lock: `<maturity_height> <20-byte pubkey_hash> OP_RES_MINT`. */
+    RES_MINT,
+    /** ORU convergence burn: `<20-byte HASH160(RES program)> OP_CONVERGE`. Unspendable. */
+    CONVERGE,
+    // CVG_CLAIM was here, for the retired OP_CVG_CLAIM covenant lock (see script.h on 0xbc).
     WITNESS_UNKNOWN, //!< Only for Witness versions not already defined above
 };
 
@@ -157,7 +163,7 @@ struct WitnessUnknown
  *  * ScriptHash: TxoutType::SCRIPTHASH destination (P2SH)
  *  * WitnessV0ScriptHash: TxoutType::WITNESS_V0_SCRIPTHASH destination (P2WSH)
  *  * WitnessV0KeyHash: TxoutType::WITNESS_V0_KEYHASH destination (P2WPKH)
- *  * WitnessV1Res: TxoutType::WITNESS_V1_RES destination (witness v1, 32-byte Ed25519 pubkey; not Taproot)
+ *  * WitnessV1Res: TxoutType::WITNESS_V1_RES destination (witness v1, SHA256 of 32-byte Ed25519 pubkey; not Taproot)
  *  * WitnessUnknown: TxoutType::WITNESS_UNKNOWN destination (P2W???)
  *  A CTxDestination is the internal data type encoded in a bitcoin address
  */
@@ -201,21 +207,14 @@ TxoutType ClassifyRigorTxout(const CScript& scriptPubKey, std::vector<std::vecto
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
 
 /**
- * V1 convergence marker: witness version 1, 32-byte program with prefix "CVG2" (remaining 28 bytes are
- * consensus-opaque padding in the standard template). Used ONLY as a convergence type tag — this chain
- * does not implement general Taproot script path execution, MAST, or BIP341 key-path spends for
- * this pattern. Consensus treats the resulting ORU convergence output like OP_RETURN "CONVERGENCE" (same convergence_amount,
- * draw, fees) — see consensus/convergence_logic.h file banner.
+ * ORU-domain convergence burn: `<20-byte HASH160(RES program)> OP_CONVERGE`.
+ * Recognition uses only this lock. The output is never inserted into the UTXO set
+ * (`AddCoins` skips it). Witness v1 "CVG2" programs are retired and consensus-invalid.
  */
-inline constexpr const char* TX_CONVERGENCE_V1 = "convergence_v1";
 bool IsConvergenceV1ScriptPubKey(const CScript& scriptPubKey);
-/**
- * Witness v1, 32-byte program, ASCII prefix "CVG2" (convergence tag; script-is-asset, no side table).
- * Constitutional roles elsewhere in consensus: (1) no input may spend a convergence prevout; (2) convergence vouts
- * are never inserted into the UTXO set (`AddCoins` skips them). Recognition uses only this layout.
- */
+/** Alias of IsConvergenceScript (OP_CONVERGE lock). */
 bool IsConvergenceScript(const CScript& scriptPubKey);
-/** Witness v1, 32-byte program, ASCII prefix "ORB2" (distinct from CVG2). */
+/** Witness v1, 32-byte program that is neither CVG2 nor RES2-prefixed (native RES). Not Bitcoin Taproot. */
 bool IsResScript(const CScript& scriptPubKey);
 
 /** RFC-ADDRESS-001: Validate address-asset binding (witness version matches asset type) */
@@ -223,9 +222,9 @@ bool ValidateAddressAssetBinding(const CTxDestination& dest, AssetType asset);
 
 /**
  * RIGOR V1 ScriptPubKey structure: OP_1 <32-byte program>
- * This is the canonical V1 program checker per RIGOR "Script as Asset" constitution.
- * V1 = SegWit Version 1 container (32-byte program) + dual-channel interpreter
- * NOT Taproot, NOT MAST, no control block, no merkle path.
+ * This is the canonical V1 program checker. Scripts classify; they do not mint
+ * and they are not an asset class. V1 = SegWit Version 1 container (32-byte
+ * program) for native RES transfers. NOT Taproot, NOT MAST, no control block.
  */
 bool IsV1Program(const CScript& script);
 

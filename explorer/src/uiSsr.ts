@@ -6,6 +6,11 @@
 import { readFileSync } from "node:fs";
 import { DRAW_FINGERPRINT_LABEL, DRAW_IDENTITY_HEADING } from "./consensusFingerprint";
 import { emptyEligibleRootNote } from "./convergencePanel";
+import {
+  CONVERGENCE_OUTPUT_STATE,
+  OP_CONVERGE_SCRIPT_NAME,
+  isConvergenceScriptPubKey,
+} from "./script";
 import { destinationLabel } from "./txSummary";
 
 export function escapeHtml(s: unknown): string {
@@ -20,6 +25,15 @@ function shortHash(h: unknown): string {
   const s = String(h ?? "");
   if (!s) return "";
   return s.length > 20 ? `${s.slice(0, 12)}…${s.slice(-6)}` : s;
+}
+
+function nestedField(obj: unknown, ...keys: string[]): unknown {
+  let cur: unknown = obj;
+  for (const k of keys) {
+    if (!cur || typeof cur !== "object") return undefined;
+    cur = (cur as Record<string, unknown>)[k];
+  }
+  return cur;
 }
 
 function timeAgo(unixSeconds: unknown): string {
@@ -144,6 +158,12 @@ export function renderBlockRoot(data: Record<string, unknown>, hash: string): st
       <tr><th>Time</th><td>${escapeHtml(timeAgo(t))}${abs ? ` <span class="muted">(${escapeHtml(abs)})</span>` : ""}</td></tr>
       <tr><th>Coinbase</th><td class="mono">${s.coinbase_txid ? `<a href="/tx/${encodeURIComponent(String(s.coinbase_txid))}">${escapeHtml(s.coinbase_txid)}</a>` : ""}</td></tr>
       <tr><th>ORU subsidy</th><td>${escapeHtml(s.oru_subsidy_display ?? "N/A")}</td></tr>
+      <tr><th>Deflationary Fee Burn (this block)</th><td>${escapeHtml(
+        nestedField(data.rfc018_fee_burn, "block_burned_oru_display") ?? "—",
+      )}</td></tr>
+      <tr><th>Deflationary Fee Burn (cumulative)</th><td>${escapeHtml(
+        nestedField(data.rfc018_fee_burn, "cumulative_burned_oru_display") ?? "—",
+      )}</td></tr>
       <tr><th>RES minted</th><td>${escapeHtml(s.res_minted_display ?? "0")}</td></tr>
       ${
         s.res_award_note
@@ -215,18 +235,22 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
           valueStr = `${a / 100000000n}.${(a % 100000000n).toString().padStart(8, "0")}`;
         } else if (kind === "RES") {
           const a = BigInt(atoms);
-          valueStr = `${a / 100n}.${(a % 100n).toString().padStart(2, "0")}`;
+          valueStr = `${a / 1000000n}.${(a % 1000000n).toString().padStart(6, "0")}`;
         }
       } catch {
         /* keep raw */
       }
-      const cvg2 =
-        kind === "ORU" && Number(o.witness_version) === 1
-          ? ' <span class="muted">CVG2 / unspendable convergence script</span>'
-          : "";
-      const addr = o.address
-        ? `<a href="/address/${encodeURIComponent(String(o.address))}">${escapeHtml(o.address)}</a>${cvg2}`
+      const isConverge =
+        Boolean(o.is_convergence) ||
+        (typeof o.script_pubkey === "string" && isConvergenceScriptPubKey(o.script_pubkey));
+      const convergeNote = isConverge
+        ? ` <span class="muted">${OP_CONVERGE_SCRIPT_NAME} / ${CONVERGENCE_OUTPUT_STATE}</span>`
         : "";
+      const addr = o.address
+        ? `<a href="/address/${encodeURIComponent(String(o.address))}">${escapeHtml(o.address)}</a>${convergeNote}`
+        : isConverge
+          ? `<span class="muted">${OP_CONVERGE_SCRIPT_NAME}</span> · Asset: ORU · ${escapeHtml(CONVERGENCE_OUTPUT_STATE)}`
+          : "";
       return `<tr><td>${escapeHtml(o.vout_index)}</td><td>${escapeHtml(kind)}</td><td>${escapeHtml(valueStr)}</td><td>${addr}</td></tr>`;
     })
     .join("");
@@ -345,7 +369,10 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
     ]),
     statusSection("S4 — Network RES / ORU", [
       statusDl("Network RES minted", statusFmt(eco.network_res_minted_display)),
-      statusDl("ORU burned (lifetime)", statusFmt(eco.oru_burned_lifetime_display)),
+      statusDl("Total issued ORU", statusFmt(nestedField(eco, "supply_chart", "total_issued_oru", "display") ?? eco.oru_supply_cumulative_display)),
+      statusDl("Convergence destroyed ORU", statusFmt(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
+      statusDl("Deflationary Fee Burn ORU", statusFmt(nestedField(eco, "rfc018_fee_burn", "cumulative_burned_oru_display"))),
+      statusDl("Circulating spendable ORU", statusFmt(eco.oru_circulating_spendable_display)),
       statusDl("ORU in current window", statusFmt(eco.oru_in_current_window_display)),
       statusDl("ORU since last mint", statusFmt(eco.oru_since_last_mint_display)),
       statusDl("Mature transferable ORU", statusFmt(eco.oru_mature_transferable_display)),

@@ -15,13 +15,14 @@
 Require Import Coq.ZArith.ZArith.
 Require Import Coq.Lists.List.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import ConvergeRoot.
 Require Import Sigma.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 Require Import Execution.
+Require Import DrawCandidateRoot.
 From Rigor Require Import Kernel.KernelSelection.
 
 (** The drawn winner is a genuine element of F = build_F (txs b). *)
@@ -76,4 +77,65 @@ Proof.
                   CONVERGENCE_DRAW_MIN_TXS_FOR_RES) eqn:Eg.
   - left. apply Z.ltb_lt. exact Eg.
   - right. apply select_winner_none_nil in H. exact H.
+Qed.
+
+(** The Execute filter is [eligible_candidates], so a winner is hashed into
+    [draw_candidate_root]. *)
+Lemma execute_uses_eligible_candidates :
+  forall F C B h,
+    filter (fun t =>
+      if Z_lt_dec (Sigma t C B h) (RES_PROBABILITY_TARGET * weight t)
+      then true else false) F
+    = eligible_candidates F C B h.
+Proof. intros. reflexivity. Qed.
+
+Theorem execute_winner_in_draw_eligible :
+  forall b B w,
+    Execute b 0%Z B = Some w ->
+    In w (eligible_candidates (build_F (txs b))
+            (ConvergeRoot (build_F (txs b))) B (height b)).
+Proof.
+  intros b B w H. unfold Execute in H. cbv zeta in H.
+  destruct (Z.ltb (Z.of_nat (length (build_F (txs b))))
+                  CONVERGENCE_DRAW_MIN_TXS_FOR_RES) eqn:Eg.
+  - discriminate.
+  - apply select_winner_in in H.
+    rewrite execute_uses_eligible_candidates in H. exact H.
+Qed.
+
+(** [Execute] ranks [eligible_candidates] under [C = ConvergeRoot F], the same
+    list [draw_candidate_root] hashes. Sigma's C slot is Convergence_Root, not DCR. *)
+Theorem execute_eq_select_on_eligible :
+  forall b B,
+    Z.ltb (Z.of_nat (length (build_F (txs b)))) CONVERGENCE_DRAW_MIN_TXS_FOR_RES = false ->
+    Execute b 0%Z B =
+      select_winner
+        (eligible_candidates (build_F (txs b))
+           (ConvergeRoot (build_F (txs b))) B (height b))
+        (ConvergeRoot (build_F (txs b))) B (height b).
+Proof.
+  intros b B Hgate.
+  unfold Execute. cbv zeta.
+  rewrite Hgate.
+  rewrite execute_uses_eligible_candidates.
+  reflexivity.
+Qed.
+
+Theorem execute_e2e_aligned :
+  forall b B w,
+    Execute b 0%Z B = Some w ->
+    In w (eligible_candidates (build_F (txs b))
+            (ConvergeRoot (build_F (txs b))) B (height b)) /\
+    draw_candidate_root (build_F (txs b))
+      (ConvergeRoot (build_F (txs b))) B (height b)
+      = DrawCandidateRoot
+          (eligible_candidates (build_F (txs b))
+             (ConvergeRoot (build_F (txs b))) B (height b)) /\
+    Z.lt (Sigma w (ConvergeRoot (build_F (txs b))) B (height b))
+         (RES_PROBABILITY_TARGET * weight w).
+Proof.
+  intros b B w H. split; [|split].
+  - apply execute_winner_in_draw_eligible. exact H.
+  - apply draw_candidate_root_hashes_eligible_list.
+  - apply execute_winner_eligible. exact H.
 Qed.

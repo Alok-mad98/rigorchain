@@ -27,8 +27,9 @@ export function ConvergencePanel() {
       )}
 
       <p className="panel-intro">
-        Deterministic selection over candidate set F. Eligibility uses integer comparison H &lt; T·f with
-        P = 2<sup>−16</sup> = 1/65536 in normalized hash space.
+        Deterministic selection over candidate set F. Eligibility uses integer comparison H &lt; T·f.
+        Deterministic Reserve Issuance: E = 246, C = 1024 ORU per RES mint (expected wins ≈ n / 1024).
+        Historical RFC-014 / retired design 1/65536 is not the shipping identity.
       </p>
 
       <dl className="kv-grid">

@@ -48,6 +48,11 @@ struct ConvergenceCommitment
 {
     static constexpr uint8_t EXPECTED_VERSION = 2;
     uint8_t m_version{EXPECTED_VERSION};
+    /**
+     * FENCE-W2: committed prefix-sum of CVG2 amounts. Audit/commitment field.
+     * ConnectBlock compares it to parent + this block (`bad-convergence-cumulative`).
+     * MUST NOT be an input to T, f_i, mint authorization, or script evaluation.
+     */
     uint64_t m_cumulative_convergence{0};
     ConvergenceDrawCandidates m_draw_candidates{};
 

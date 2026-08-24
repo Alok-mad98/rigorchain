@@ -14,6 +14,22 @@ inline constexpr std::array<unsigned char, 4> RIGOR = {'R', 'I', 'G', 'R'};
 inline constexpr std::array<unsigned char, 4> CVG2 = {'C', 'V', 'G', '2'};
 /** On-chain witness v1 asset program prefix (4 ASCII bytes); consensus-locked wire spelling "RES2". */
 inline constexpr std::array<unsigned char, 4> Res2WirePrefix = {'R', 'E', 'S', '2'};
+/**
+ * Coinbase RES-mint PCORB carrier tag (4 ASCII bytes, wire spelling "PCOR").
+ * Distinct from RIGOR, CVG2 and RES2. The payload is proof fields, not an asset class:
+ * see `Consensus::ConvergeProof` in consensus/res_proof.h.
+ */
+inline constexpr std::array<unsigned char, 4> PCOR = {'P', 'C', 'O', 'R'};
+/** Six PCORB fields concatenated, no inner length prefixes: 32+8+32+8+4+32. */
+inline constexpr std::size_t PCORB_PROOF_FIELDS_BYTES = 116;
+/** The single OP_RETURN push: PCOR ‖ fields. */
+inline constexpr std::size_t PCORB_OPRETURN_PAYLOAD_BYTES = 4 + PCORB_PROOF_FIELDS_BYTES;
+/**
+ * Canonical carrier script length: OP_RETURN ‖ OP_PUSHDATA1 ‖ 0x78 ‖ 120-byte payload.
+ * 120 bytes has exactly one minimal push encoding, so any other encoding of the same
+ * payload is a different script and is not a proof (RFC-009 §0).
+ */
+inline constexpr std::size_t PCORB_CARRIER_SCRIPT_BYTES = 1 + 2 + PCORB_OPRETURN_PAYLOAD_BYTES;
 
 /** OP_RETURN payload: tag RIGOR + 4-byte LE compact res_draw_target nBits (see `IsRigorCommitment`). */
 inline constexpr std::size_t RIGOR_COMMITMENT_PAYLOAD_SIZE = 8;

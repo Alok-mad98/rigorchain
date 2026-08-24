@@ -48,8 +48,8 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
 
     std::vector<std::vector<unsigned char>> vSolutions;
     const TxoutType rigor_type = ClassifyRigorTxout(txout.scriptPubKey, vSolutions);
-    if (rigor_type == TxoutType::WITNESS_V1_RES) {
-        // RES amounts are in RES_ATOMIC_UNIT (1 = 0.01 RES); relay/min fee rates are in ORU
+    if (rigor_type == TxoutType::WITNESS_V1_RES || rigor_type == TxoutType::RES_MINT) {
+        // RES amounts are in RES_ATOMIC_UNIT (1 = 0.000001 RES); relay/min fee rates are in ORU
         // base units. Do not compare GetFee() (ORU-scale) to RES nValue — that misclassifies
         // almost all RES outputs as dust. Consensus already enforces a minimum output; policy
         // uses the smallest valid unit as the dust floor.
@@ -87,6 +87,8 @@ bool IsStandard(const CScript& scriptPubKey, const std::optional<unsigned>& max_
     case TxoutType::WITNESS_V0_KEYHASH:
     case TxoutType::WITNESS_V0_SCRIPTHASH:
     case TxoutType::WITNESS_V1_RES:
+    case TxoutType::RES_MINT:
+    case TxoutType::CONVERGE:
         return true;
     case TxoutType::NULL_DATA:
         if (!max_datacarrier_bytes || scriptPubKey.size() > *max_datacarrier_bytes) {
@@ -192,7 +194,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         std::vector<std::vector<unsigned char> > vSolutions;
         TxoutType whichType = ClassifyRigorTxout(prev.scriptPubKey, vSolutions);
         if (whichType != TxoutType::WITNESS_V0_KEYHASH && whichType != TxoutType::WITNESS_V0_SCRIPTHASH &&
-            whichType != TxoutType::WITNESS_V1_RES) {
+            whichType != TxoutType::WITNESS_V1_RES && whichType != TxoutType::RES_MINT) {
             return false;
         }
     }
@@ -236,13 +238,13 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             }
         }
 
-        // Witness v1 RES: both ORB2 and native RES spend over a 2-item Ed25519 key path.
+        // Witness v1 RES: RES2-prefixed and native RES spend over a 2-item Ed25519 key path (not BIP341).
         // Align relay policy with VerifyWitnessProgram so non-matching stack depths are non-standard.
         // SECURITY-001-A / A-7 removed the 11-item PCORB script path; encoding checks stay deferred
         // to script verification.
         if (witnessversion == 1 && witnessprogram.size() == WITNESS_V1_RES_SIZE) {
             const std::vector<std::vector<unsigned char>>& st = tx.vin[i].scriptWitness.stack;
-            if (IsRes2AssetProgram(witnessprogram) || IsRigorResNativeWitnessProgram(witnessprogram)) {
+            if (IsRigorResNativeWitnessProgram(witnessprogram)) {
                 if (st.size() != 2) return false;
             }
         }

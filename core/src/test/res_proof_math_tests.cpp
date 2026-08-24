@@ -10,6 +10,7 @@
 #include <consensus/rigor_math.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
+#include <consensus/res_mint_carrier.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
 #include <consensus/rigor_res.h>
@@ -26,6 +27,7 @@
 #include <test/util/setup_common.h>
 #include <uint256.h>
 
+#include <algorithm>
 #include <cstring>
 #include <optional>
 #include <utility>
@@ -38,10 +40,11 @@ namespace {
 /**
  * Weight large enough that `σ < T·f` holds unconditionally.
  *
- * After SECURITY-001-A finding A-6 the eligibility probability is `p(n) = n / 65536` for a
- * candidate converging `n` ORU. SECURITY-001-A9-C then divided the target by the window
- * W = 32, so the PER-DRAW probability is `p(n) = n / (65536·W) = n / 2097152` and saturation
- * moved from 65536 ORU to 2097152 ORU. This constant sits above the new bound.
+ * After SECURITY-001-A finding A-6 the eligibility probability is `p(n) = n / C` for a candidate
+ * converging `n` ORU, with `C = 2^(256-E)`. SECURITY-001-A9-C then divided the target by the
+ * window W = 32, so the PER-DRAW probability is `p(n) = n / (C·W)`. At the RFC-017 exponent
+ * E = 246 that is `C = 1024` and per-draw saturation at 32 768 ORU. This constant sits far above
+ * that bound and also above the bound at the previous E = 240 (2 097 152 ORU).
  *
  * Tests whose subject is signature-domain separation rather than draw odds use this weight so
  * they do not incidentally depend on the value of RES_PROBABILITY_TARGET.
@@ -50,7 +53,7 @@ constexpr CAmount SATURATING_CONVERGENCE_AMOUNT = 4000000 * COIN;
 static_assert(SATURATING_CONVERGENCE_AMOUNT <= MAX_MONEY, "saturating test weight must be a representable amount");
 
 // RFC-014 Conv-Decouple-01: the RES inequality RHS is the constitutional constant
-// `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^240 / MIN_CONVERGENCE_AMOUNT), see
+// `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT), see
 // SECURITY-001-A A-6), accessed below via the active chain params provided by
 // `BasicTestingSetup`.
 //
@@ -85,27 +88,15 @@ void FillProofContext(Consensus::ConvergeProof& proof,
     proof.convergence_root = convergence_root;
 }
 
-void PushConvergeProofWitness(CMutableTransaction& mtx, const Consensus::ConvergeProof& proof)
+void PushPcorbCarrier(CMutableTransaction& coinbase, const Consensus::ConvergeProof& proof)
 {
-    mtx.vin[0].scriptWitness.stack.clear();
-    mtx.vin[0].scriptWitness.stack.emplace_back(proof.convergence_txid.begin(), proof.convergence_txid.end());
-    {
-        unsigned char le8[8];
-        WriteLE64(le8, proof.convergence_amount_sat);
-        mtx.vin[0].scriptWitness.stack.emplace_back(le8, le8 + sizeof(le8));
-    }
-    mtx.vin[0].scriptWitness.stack.emplace_back(proof.bind_hash.begin(), proof.bind_hash.end());
-    {
-        unsigned char h[8];
-        WriteLE64(h, proof.height);
-        mtx.vin[0].scriptWitness.stack.emplace_back(h, h + sizeof(h));
-    }
-    {
-        unsigned char t[4];
-        WriteLE32(t, proof.target_prev);
-        mtx.vin[0].scriptWitness.stack.emplace_back(t, t + sizeof(t));
-    }
-    mtx.vin[0].scriptWitness.stack.emplace_back(proof.convergence_root.begin(), proof.convergence_root.end());
+    coinbase.vout.push_back(BuildPcorbCarrierOutput(
+        proof.convergence_txid,
+        static_cast<CAmount>(proof.convergence_amount_sat),
+        proof.bind_hash,
+        proof.height,
+        proof.target_prev,
+        proof.convergence_root));
 }
 
 } // namespace
@@ -249,26 +240,24 @@ BOOST_AUTO_TEST_CASE(res_proof_sigma_pow01_cross_fork_replay_blocked)
     BOOST_CHECK(digest_main != digest_fork);
 }
 
-BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_coinbase)
+BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_body_tx)
 {
     CMutableTransaction mtx;
     mtx.vin.resize(1);
-    mtx.vin[0].prevout.SetNull();
-    mtx.vin[0].scriptSig = CScript() << 1 << 2;
+    mtx.vin[0].prevout.hash = uint256::ONE;
     mtx.vout.resize(1);
     mtx.vout[0].nValue = 50 * COIN;
     mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
 
     Consensus::ConvergeProof p;
     FillProofContext(p, uint256::ONE, COIN, uint256::ONE, 1u, 0x1f00ffff);
-    PushConvergeProofWitness(mtx, p);
+    PushPcorbCarrier(mtx, p);
 
-    const CTransaction tx(mtx);
     Consensus::ConvergeProof parsed;
-    BOOST_CHECK(!Consensus::ParseConvergeProof(tx, parsed));
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), parsed));
 }
 
-BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_bad_element_sizes)
+BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_leftover_witness)
 {
     CMutableTransaction mtx;
     mtx.vin.resize(1);
@@ -278,8 +267,7 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_bad_element_sizes)
     mtx.vout[0].nValue = 1;
     mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
 
-    // convergence_txid one byte short.
-    mtx.vin[0].scriptWitness.stack.emplace_back(31, 0);
+    mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
     mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
     mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
     mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
@@ -287,33 +275,15 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_bad_element_sizes)
     mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
     Consensus::ConvergeProof p1;
     BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
-
-    // target_prev widened to 8 bytes: RFC-009 §0 allows exactly one encoding per field.
-    mtx.vin[0].scriptWitness.stack.clear();
-    mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
-    mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
-    mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
-    mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
-    mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
-    mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
-    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
-
-    // Fewer than six pushes cannot be a proof.
-    mtx.vin[0].scriptWitness.stack.clear();
-    for (int i = 0; i < 5; ++i) mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
-    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
 }
 
-BOOST_AUTO_TEST_CASE(res_proof_parse_accepts_non_coinbase_witness_only)
+BOOST_AUTO_TEST_CASE(res_proof_parse_accepts_coinbase_carrier)
 {
     CMutableTransaction mtx;
     mtx.vin.resize(1);
-    mtx.vin[0].prevout.hash = uint256::ONE;
-    mtx.vin[0].prevout.n = 0;
-    mtx.vin[0].scriptSig = CScript() << std::vector<unsigned char>(100, 0xab);
-    mtx.vout.resize(1);
-    mtx.vout[0].nValue = 1;
-    mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    mtx.vin[0].prevout.SetNull();
+    mtx.vin[0].scriptSig = CScript() << 1;
+    mtx.vout.emplace_back(50 * COIN, CScript() << OP_0 << std::vector<unsigned char>(20, 0x11));
 
     const uint256 bind = uint256S("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
     const uint32_t height = 3;
@@ -325,32 +295,73 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_accepts_non_coinbase_witness_only)
     const uint256 digest = Consensus::ConvergeProofDigest(convergence_txid, bind, height, convergence_root);
     Consensus::ConvergeProof proof;
     FillProofContext(proof, convergence_txid, convergence_amt, bind, height, target_prev, convergence_root);
-    PushConvergeProofWitness(mtx, proof);
+    PushPcorbCarrier(mtx, proof);
 
     const CTransaction tx(mtx);
+    BOOST_REQUIRE(tx.IsCoinBase());
     Consensus::ConvergeProof parsed;
     BOOST_REQUIRE(Consensus::ParseConvergeProof(tx, parsed));
     BOOST_CHECK_EQUAL(parsed.convergence_txid, convergence_txid);
-    // Every σ input must survive the witness encoding byte-for-byte, otherwise a proof could
-    // verify against a digest the producer never committed to.
     BOOST_CHECK(Consensus::ConvergeProofDigest(
                     parsed.convergence_txid, parsed.bind_hash, parsed.height, parsed.convergence_root) == digest);
     BOOST_CHECK(Consensus::VerifyConvergeProof(parsed, Params().GetConsensus().RES_PROBABILITY_TARGET, &convergence_txid, nullptr));
+    BOOST_CHECK_EQUAL(tx.vout.back().scriptPubKey.size(), RigorTags::PCORB_CARRIER_SCRIPT_BYTES);
 }
 
-BOOST_AUTO_TEST_CASE(res_proof_parse_empty_witness)
+BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_bad_payload)
 {
     CMutableTransaction mtx;
     mtx.vin.resize(1);
-    mtx.vin[0].prevout.hash = uint256::ONE;
-    mtx.vin[0].prevout.n = 0;
+    mtx.vin[0].prevout.SetNull();
+    mtx.vin[0].scriptSig = CScript() << 1;
+    mtx.vout.resize(1);
+    mtx.vout[0].nValue = 0;
+    std::vector<unsigned char> payload(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
+    std::copy(RigorTags::PCOR.begin(), RigorTags::PCOR.end(), payload.begin());
+    payload.resize(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES - 1);
+    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    Consensus::ConvergeProof p1;
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
+
+    payload.assign(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
+    payload[0] = 'X';
+    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
+
+    mtx.vout[0].nValue = 1;
+    payload.assign(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
+    std::copy(RigorTags::PCOR.begin(), RigorTags::PCOR.end(), payload.begin());
+    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
+}
+
+BOOST_AUTO_TEST_CASE(res_proof_two_carriers_are_not_a_proof)
+{
+    CMutableTransaction mtx;
+    mtx.vin.resize(1);
+    mtx.vin[0].prevout.SetNull();
+    mtx.vin[0].scriptSig = CScript() << 1;
+    Consensus::ConvergeProof proof;
+    FillProofContext(proof, uint256::ONE, COIN, uint256::ONE, 1u, 0x1f00ffff);
+    PushPcorbCarrier(mtx, proof);
+    PushPcorbCarrier(mtx, proof);
+    Consensus::ConvergeProof p1;
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
+    BOOST_CHECK_EQUAL(Consensus::CountPcorbCarrierOutputs(CTransaction(mtx)), 2U);
+}
+
+BOOST_AUTO_TEST_CASE(res_proof_parse_empty_coinbase)
+{
+    CMutableTransaction mtx;
+    mtx.vin.resize(1);
+    mtx.vin[0].prevout.SetNull();
+    mtx.vin[0].scriptSig = CScript() << 1;
     mtx.vout.resize(1);
     mtx.vout[0].nValue = 1;
     mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
 
-    const CTransaction empty_wit(mtx);
     Consensus::ConvergeProof p1;
-    BOOST_CHECK(!Consensus::ParseConvergeProof(empty_wit, p1));
+    BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
 }
 
 BOOST_AUTO_TEST_CASE(res_proof_digest_stable)
@@ -422,19 +433,19 @@ BOOST_AUTO_TEST_CASE(security001a_eligibility_filter_is_not_vacuous)
     // uniformly false either.
     BOOST_CHECK(Consensus::ConvergenceDrawInequalityHolds(uint256{}, T, Consensus::MIN_CONVERGENCE_AMOUNT));
 
-    // Calibration pin. RFC-014 §2.1 intent is p(n ORU) = n / 65536 in EXPECTED WINS PER
-    // CANDIDATE; SECURITY-001-A9-C spreads that over W draws, so the per-draw figure is
-    // n / (65536·W). A candidate above the per-draw saturation point must be eligible
-    // regardless of its digest.
+    // Calibration pin. RFC-014 §2.1 intent is p(n ORU) = n / C in EXPECTED WINS PER CANDIDATE,
+    // with C = 2^(256-E) = 1024 at the RFC-017 exponent; SECURITY-001-A9-C spreads that over W
+    // draws, so the per-draw figure is n / (C·W). A candidate above the per-draw saturation
+    // point must be eligible regardless of its digest.
     BOOST_CHECK(Consensus::ConvergenceDrawInequalityHolds(sigma_max, T, SATURATING_CONVERGENCE_AMOUNT));
 
     // SECURITY-001-A9-C: T is the pre-windowing target divided by the window, floored. This is
     // what makes issuance neutral — a candidate now sits in W draws at 1/W the odds each, so
     // expected wins per unit burned is unchanged.
     //
-    // The division is not lossless: the pre-windowing target's residue mod 32 is 28, so the
-    // floor discards it. The resulting deviation from exact neutrality is a relative 1.6e-63,
-    // so the floor relation is what gets pinned rather than a lossless round trip.
+    // The division is not lossless: the pre-windowing target's residue mod 32 is 27 at E = 246,
+    // so the floor discards it. The resulting deviation from exact neutrality is a relative
+    // 2.4e-65, so the floor relation is what gets pinned rather than a lossless round trip.
     const arith_uint256 unwindowed = UintToArith256(Consensus::RES_PROBABILITY_TARGET_UNWINDOWED);
     const arith_uint256 window{static_cast<uint64_t>(Consensus::CONVERGENCE_DRAW_WINDOW)};
     BOOST_CHECK(UintToArith256(T) == (unwindowed >> Consensus::CONVERGENCE_DRAW_WINDOW_LOG2));
@@ -446,9 +457,16 @@ BOOST_AUTO_TEST_CASE(security001a_eligibility_filter_is_not_vacuous)
     BOOST_CHECK(Consensus::CONVERGENCE_DRAW_WINDOW > 1);
     BOOST_CHECK_EQUAL(Consensus::CONVERGENCE_DRAW_WINDOW, 1 << Consensus::CONVERGENCE_DRAW_WINDOW_LOG2);
 
-    // The old saturation point is no longer a guarantee — that removal is the point of A-9-C
-    // (design review finding F-2: "burn to saturation, then censor").
-    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(sigma_max, T, 65536 * COIN));
+    // The pre-windowing saturation point C is no longer a per-draw guarantee — that removal is
+    // the point of A-9-C (design review finding F-2: "burn to saturation, then censor"). C is
+    // 1024 ORU at the RFC-017 exponent E = 246.
+    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(sigma_max, T, 1024 * COIN));
+
+    // Per-draw saturation sits just ABOVE C·W = 32 768 ORU, not at it: T is floored twice, so
+    // T·(C·W·COIN) lands a hair under 2^256 and the maximal digest is still rejected there.
+    // Any strictly larger weight is unconditionally eligible.
+    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(sigma_max, T, 32768 * COIN));
+    BOOST_CHECK(Consensus::ConvergenceDrawInequalityHolds(sigma_max, T, 65536 * COIN));
 }
 
 // =============================================================================
@@ -457,8 +475,13 @@ namespace {
 const CScript g_sec001a_oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
 /** The declared RES owner's 32-byte program. */
 const std::vector<unsigned char> g_sec001a_owner_program(32, 0x77);
-/** Witness v1 / 32-byte program that is deliberately NOT CVG2-prefixed, so IsResScript() accepts it. */
-const CScript g_sec001a_res_spk = CScript() << OP_1 << g_sec001a_owner_program;
+
+CScript HonestMintPayoutScript(int block_height)
+{
+    return GetResMintScriptForProgram(
+        static_cast<int64_t>(block_height) + Params().GetConsensus().nCoinbaseMaturity,
+        g_sec001a_owner_program);
+}
 
 /**
  * Minimal ConnectBlock-shaped fixture for the mint evaluator.
@@ -477,7 +500,7 @@ struct Security001AFixture {
     CAmount convergence_amount{SATURATING_CONVERGENCE_AMOUNT};
     // Where the mint pays. Defaults to the owner the convergence declares, so tests that are not
     // about A-5 stay honest; A-5's own case overrides it.
-    CScript res_payout_spk{g_sec001a_res_spk};
+    CScript res_payout_spk;
 
     // Chain context ConnectBlock derives once and hands to the mint evaluator.
     uint256 expected_bind{uint256S("0x5555555555555555555555555555555555555555555555555555555555555555")};
@@ -488,6 +511,7 @@ struct Security001AFixture {
 
     Security001AFixture()
     {
+        res_payout_spk = HonestMintPayoutScript(block_height);
         const COutPoint prev_conv{uint256S("0xaaaabbbb00000000000000000000000000000000000000000000000000000000"), 0};
         const COutPoint prev_mint{uint256S("0xaaaabbbb11111111111111111111111111111111111111111111111111111111"), 0};
         coins.AddCoin(prev_conv, Coin(CTxOut{convergence_amount + 2 * COIN, g_sec001a_oru_spk}, 100, false), false);
@@ -496,14 +520,11 @@ struct Security001AFixture {
         CMutableTransaction conv;
         conv.vin.resize(1);
         conv.vin[0].prevout = prev_conv;
-        conv.vout.resize(3);
+        conv.vout.resize(2);
         conv.vout[0].nValue = convergence_amount;
-        conv.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
+        conv.vout[0].scriptPubKey = GetConvergeScriptForProgram(g_sec001a_owner_program);
         conv.vout[1].nValue = COIN;
         conv.vout[1].scriptPubKey = g_sec001a_oru_spk;
-        // A-5 R1: a convergence only enters F if it names its RES payout owner.
-        conv.vout[2].nValue = 0;
-        conv.vout[2].scriptPubKey = Consensus::ResOwnerDeclarationScript(g_sec001a_owner_program);
         convergence_tx = MakeTransactionRef(conv);
         convergence_txid = convergence_tx->GetHash();
 
@@ -513,28 +534,26 @@ struct Security001AFixture {
         parent_draw_set.convergence_root =
             Consensus::ComputeConvergenceRootFromEligibilityTxids({convergence_txid});
         parent_draw_set.candidates.push_back(ConvergenceDrawCandidate{
-            convergence_txid, static_cast<uint64_t>(convergence_amount), g_sec001a_owner_program});
+            convergence_txid, static_cast<uint64_t>(convergence_amount), Hash160(g_sec001a_owner_program)});
     }
 
     uint256 ConvergenceRoot() const { return parent_draw_set.convergence_root; }
 
-    /** Build a RES-minting tx whose witness carries `proof`. */
-    CTransactionRef MakeMintTx(const Consensus::ConvergeProof& proof, CAmount res_amount = Consensus::RES_REWARD_AMOUNT)
+    /** Build a coinbase whose OP_RES_MINT output pays `res_payout_spk`. */
+    CTransactionRef MakeMintTx(CAmount res_amount = Consensus::RES_REWARD_GENESIS)
     {
         CMutableTransaction mint;
         mint.vin.resize(1);
-        mint.vin[0].prevout = COutPoint(uint256S("0xaaaabbbb11111111111111111111111111111111111111111111111111111111"), 0);
-        mint.vout.resize(1);
-        mint.vout[0].nValue = res_amount;
-        mint.vout[0].scriptPubKey = res_payout_spk;
-        PushConvergeProofWitness(mint, proof);
+        mint.vin[0].prevout.SetNull();
+        mint.vin[0].scriptSig = CScript() << block_height;
+        mint.vout.emplace_back(50 * COIN, g_sec001a_oru_spk);
+        mint.vout.emplace_back(res_amount, res_payout_spk);
         return MakeTransactionRef(mint);
     }
 
-    /** Run the mint evaluator exactly as ConnectBlock does; returns the reject reason ("" on success). */
-    std::string Evaluate(const Consensus::ConvergeProof& proof, bool* ok_out = nullptr)
+    std::string Evaluate(bool* ok_out = nullptr)
     {
-        return EvaluateTx(*MakeMintTx(proof), ok_out);
+        return EvaluateTx(*MakeMintTx(), ok_out);
     }
 
     std::string EvaluateTx(const CTransaction& mint, bool* ok_out = nullptr)
@@ -543,9 +562,9 @@ struct Security001AFixture {
             ResolveConvergenceDraw(parent_draw_set, Params().GetConsensus().RES_PROBABILITY_TARGET);
 
         BlockValidationState state;
-        std::optional<std::pair<arith_uint256, uint256>> score;
-        const bool ok = rigor::ConnectEvaluateResMintTx(mint, coins, block_height,
-            Params().GetConsensus(), parent_draw_set, outcome, state, &score);
+        CAmount minted = 0;
+        const bool ok = rigor::ConnectEvaluateCoinbaseResMint(mint, block_height,
+            Params().GetConsensus(), parent_draw_set, outcome, state, minted);
         if (ok_out != nullptr) *ok_out = ok;
         return state.GetRejectReason();
     }
@@ -595,51 +614,6 @@ BOOST_AUTO_TEST_CASE(security001a_binding_requires_exact_on_chain_convergence_am
     BOOST_CHECK(Consensus::CheckConvergeProofBinding(proof, committed));
 }
 
-BOOST_AUTO_TEST_CASE(security001a_mint_proof_height_must_equal_block_height)
-{
-    Security001AFixture f;
-
-    Consensus::ConvergeProof proof = f.HonestProof();
-    proof.height = static_cast<uint64_t>(f.block_height) - 1;
-    BOOST_CHECK_EQUAL(f.Evaluate(proof), "bad-rigor-res-proof-height");
-
-    // `height` occupies 8 witness bytes but only the low 32 bits reach the digest, so the high
-    // half was pure third-party malleability until this check compared the full 64-bit value.
-    proof = f.HonestProof();
-    proof.height = static_cast<uint64_t>(f.block_height) | (uint64_t{1} << 32);
-    BOOST_CHECK_EQUAL(f.Evaluate(proof), "bad-rigor-res-proof-height");
-}
-
-BOOST_AUTO_TEST_CASE(security001a_mint_proof_target_prev_must_equal_parent_nbits)
-{
-    Security001AFixture f;
-
-    Consensus::ConvergeProof proof = f.HonestProof();
-    proof.target_prev = f.expected_target_prev ^ 0x1u;
-    BOOST_CHECK_EQUAL(f.Evaluate(proof), "bad-rigor-res-proof-target-prev");
-}
-
-BOOST_AUTO_TEST_CASE(security001a_mint_proof_bind_hash_must_equal_parent_block_hash)
-{
-    Security001AFixture f;
-
-    Consensus::ConvergeProof proof = f.HonestProof();
-    proof.bind_hash = uint256S("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef");
-    BOOST_CHECK_EQUAL(f.Evaluate(proof), "bad-rigor-res-proof-bind-hash");
-}
-
-BOOST_AUTO_TEST_CASE(security001a8_mint_must_name_a_member_of_the_parent_draw_set)
-{
-    // SECURITY-001-A8. The draw a block pays is resolved entirely from the parent's convergence
-    // set, so a mint naming a convergence the parent never committed has nothing to point at —
-    // including one sitting in the block being assembled, which is the grinding move A-8 closes.
-    Security001AFixture f;
-
-    Consensus::ConvergeProof proof = f.HonestProof();
-    proof.convergence_txid = uint256S("0x00000000000000000000000000000000000000000000000000000000000000ff");
-    BOOST_CHECK_EQUAL(f.Evaluate(proof), "bad-sigma-convergence-not-in-convergence-root-set");
-}
-
 BOOST_AUTO_TEST_CASE(security001a8_draw_set_must_be_the_immediate_parent)
 {
     // The set is only valid for exactly one payout height. Resolving a stale set at a later
@@ -647,7 +621,7 @@ BOOST_AUTO_TEST_CASE(security001a8_draw_set_must_be_the_immediate_parent)
     Security001AFixture f;
     f.parent_draw_set.source_height = f.block_height - 2;
 
-    BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "bad-rigor-res-draw-set-height");
+    BOOST_CHECK_EQUAL(f.Evaluate(), "bad-rigor-res-draw-set-height");
 }
 
 BOOST_AUTO_TEST_CASE(security001a_honest_mint_proof_still_accepted)
@@ -657,8 +631,8 @@ BOOST_AUTO_TEST_CASE(security001a_honest_mint_proof_still_accepted)
     Security001AFixture f;
 
     bool ok{false};
-    const std::string reason = f.Evaluate(f.HonestProof(), &ok);
-    BOOST_CHECK_MESSAGE(ok, "honest RES mint proof rejected: " + reason);
+    const std::string reason = f.Evaluate(&ok);
+    BOOST_CHECK_MESSAGE(ok, "honest RES mint rejected: " + reason);
     BOOST_CHECK_EQUAL(reason, "");
 }
 
@@ -670,19 +644,21 @@ BOOST_AUTO_TEST_CASE(security001a_res_reward_must_pay_declared_owner)
     // itself. This is that block, end to end through the evaluator.
     Security001AFixture f;
 
-    f.res_payout_spk = CScript() << OP_1 << std::vector<unsigned char>(32, 0xbb);
-    BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "bad-rigor-res-owner-mismatch");
+    f.res_payout_spk = GetResMintScriptForProgram(
+        static_cast<int64_t>(f.block_height) + Params().GetConsensus().nCoinbaseMaturity,
+        std::vector<unsigned char>(32, 0xbb));
+    BOOST_CHECK_EQUAL(f.Evaluate(), "bad-rigor-res-owner-mismatch");
 
-    f.res_payout_spk = g_sec001a_res_spk;
-    BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "");
+    f.res_payout_spk = HonestMintPayoutScript(f.block_height);
+    BOOST_CHECK_EQUAL(f.Evaluate(), "");
 }
 
 BOOST_AUTO_TEST_CASE(security001a_mint_amount_must_equal_res_reward)
 {
     Security001AFixture f;
-    const CTransactionRef wrong = f.MakeMintTx(f.HonestProof(), Consensus::RES_REWARD_AMOUNT * 2);
+    const CTransactionRef wrong = f.MakeMintTx(Consensus::RES_REWARD_GENESIS * 2);
     BOOST_CHECK_EQUAL(f.EvaluateTx(*wrong), "bad-rigor-res-amount");
-    const CTransactionRef dust = f.MakeMintTx(f.HonestProof(), RES_COIN);
+    const CTransactionRef dust = f.MakeMintTx(RES_COIN);
     BOOST_CHECK_EQUAL(f.EvaluateTx(*dust), "bad-rigor-res-amount");
 }
 
@@ -691,17 +667,30 @@ BOOST_AUTO_TEST_CASE(security001a_mint_without_winner_is_rejected)
     Security001AFixture f;
     f.parent_draw_set.candidates.clear();
     f.parent_draw_set.convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids({});
-    BOOST_CHECK_EQUAL(f.Evaluate(f.HonestProof()), "bad-rigor-res-without-winner");
+    BOOST_CHECK_EQUAL(f.Evaluate(), "bad-rigor-res-without-winner");
 }
 
-BOOST_AUTO_TEST_CASE(enforce_res_mint_unique_rejects_second_scored_mint)
+BOOST_AUTO_TEST_CASE(rfc017_exhausted_schedule_rejects_mint)
 {
-    std::vector<std::optional<std::pair<arith_uint256, uint256>>> scores(3);
-    scores[1] = std::make_pair(arith_uint256{1}, uint256::ONE);
-    scores[2] = std::make_pair(arith_uint256{2}, uint256S("0x02"));
-    BlockValidationState state;
-    BOOST_CHECK(!rigor::EnforceResMintUnique(state, scores));
-    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-rigor-multiple-res");
+    // H-1: after epoch 250, W(h) = 0. A mint is not authorized even if the draw named a
+    // winner. ConnectBlock must then accept mint_count == 0 (validation.cpp mint-auth gate);
+    // this case pins the evaluator fail-closed side.
+    Security001AFixture f;
+    f.block_height = Consensus::RES_REWARD_EPOCH * (Consensus::RES_REWARD_LAST_EPOCH + 1);
+    f.parent_draw_set.source_height = f.block_height - 1;
+    // Constructor baked maturity into the payout script at height 200. Rebuild so the
+    // mint-script gate does not fire first and mask the W(h)=0 amount reject.
+    f.res_payout_spk = HonestMintPayoutScript(f.block_height);
+    BOOST_CHECK_EQUAL(Consensus::GetResMintReward(f.block_height), 0);
+    BOOST_CHECK_EQUAL(f.Evaluate(), "bad-rigor-res-amount");
+}
+
+BOOST_AUTO_TEST_CASE(coinbase_two_mint_payouts_rejected)
+{
+    Security001AFixture f;
+    CMutableTransaction mint(*f.MakeMintTx());
+    mint.vout.push_back(mint.vout[1]); // second OP_RES_MINT
+    BOOST_CHECK_EQUAL(f.EvaluateTx(CTransaction(mint)), "bad-rigor-res-amount");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -49,8 +49,6 @@ Sorted **unique** literals taken from `state.Invalid(..., "bad-…")` in the fil
 | `bad-fork-prior-to-checkpoint` |
 | `bad-genesis-convergence-commitment` |
 | `bad-genesis-convergence-txns` |
-| `bad-oru-supply-cache` |
-| `bad-oru-supply-negative` |
 | `bad-prevblk` |
 | `bad-rigor-commitment-missing` |
 | `bad-rigor-convergence-root-mismatch` |
@@ -58,10 +56,7 @@ Sorted **unique** literals taken from `state.Invalid(..., "bad-…")` in the fil
 | `bad-rigor-multiple-res` |
 | `bad-rigor-res-amount` |
 | `bad-rigor-res-binding` |
-| `bad-rigor-res-max-supply` |
 | `bad-rigor-res-mint-domain` |
-| `bad-rigor-res-mint-range` |
-| `bad-rigor-res-minted-overflow` |
 | `bad-rigor-res-proof` |
 | `bad-rigor-res-trigger-underflow` |
 | `bad-rigor-res-witness` |
@@ -87,6 +82,7 @@ Sorted **unique** literals taken from `state.Invalid(..., "bad-…")` in the fil
 | `bad-txns-orum-in-belowout` |
 | `bad-txns-oversize` |
 | `bad-txns-premature-spend-of-coinbase` |
+| `bad-txns-premature-spend-of-res-mint` |
 | `bad-txns-prevout-null` |
 | `bad-txns-res-amount-invalid` |
 | `bad-txns-res-fee-invalid` |
@@ -136,7 +132,7 @@ These keys are emitted by `core/src/rpc/blockchain.cpp` (and related RPC). Treat
 
 | Key | Typical context |
 |-----|-----------------|
-| `res_probability_target` | `getblock` verbosity AND `getblockconvergence` / `getconvergencedrawcandidates`. RFC-014: reports the constitutional constant `Consensus::Params::RES_PROBABILITY_TARGET` (= 2^240). Supersedes the legacy keys `rigor_target` and `res_draw_target`, both of which are PERMANENTLY RETIRED (no compatibility alias). |
+| `res_probability_target` | `getblock` verbosity AND `getblockconvergence` / `getconvergencedrawcandidates`. Reports the constitutional constant `Consensus::Params::RES_PROBABILITY_TARGET` (RFC-017 shipping: `E = 246`, windowed; mint cost `C = 1024` ORU). Historical RFC-014 parameter: unwindowed `2^240` (vacuous at satoshi weights). Supersedes the legacy keys `rigor_target` and `res_draw_target`, both of which are PERMANENTLY RETIRED (no compatibility alias). |
 | `rigor_res_minted` | `getblock` |
 | `rigor_winner` | `getblock` |
 | `res_balance` | snapshots / summaries |

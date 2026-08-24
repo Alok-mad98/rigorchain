@@ -55,9 +55,10 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
 /** Mainnet genesis header fields — RFC-016 Alpha1 freeze. Do not read from runtime configuration. */
 namespace GenesisLockMainnet {
 // RFC-016 §2: Alpha1 is a new chain (v0.1.1-alpha), not a hard fork of v0.1.0-alpha.
-// Keep TIMESTAMP near Alpha/mainnet launch wall-clock. If genesis time is months behind "now",
-// aserti3-2d treats the chain as overdue and eases all the way to powLimit (0x207fffff),
-// which made solo mining look like "difficulty never took effect".
+// ASERT anchors at height 1 (first mined block), so a stale genesis wall-clock no
+// longer eases the chain to powLimit. Still keep TIMESTAMP near launch so MTP/locktime
+// semantics match wall-clock; RFC-016 §6.3 historically forbade a refresh — pre-mainnet
+// launch MUST still bump TIMESTAMP in a coordinated genesis freeze.
 // Must be <= wall-clock UTC at launch. RFC-016 §6.3 forbids further timestamp refresh.
 constexpr uint32_t TIMESTAMP = 1786125600; // 2026-08-07 18:00:00 UTC
 constexpr uint32_t NONCE = 0;
@@ -92,15 +93,18 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
         consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        // 2^240 − 1: genesis compact 0x1e010000 (2^232) remains legal; 8 half-lives of
+        // easing headroom; floor ≈ 2^16 hashes so powLimit is not a free header.
+        consensus.powLimit = uint256S("0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
         consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
-        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 2 days
+        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 259; // 90% of 288
@@ -122,11 +126,14 @@ public:
          *   2) Subtract safety margin (for example, 2k-10k blocks) and pin that value here.
          *   3) Never set above your own honest tip chainwork.
          *
-         * Bootstrap floor under nBits 0x1e010000 (~1.68e7 work/block). RFC-016 §2.4:
-         * keep below one honest 0x1e010000 block so Alpha IBD/solo can leave the
-         * header-work gate. Do not restore the v0.1.0-alpha floor 0x33540.
+         * Bootstrap floor: 2^26. One honest 0x1e010000 block is ≈2^24 work; four
+         * such blocks (or one GBT-sized headers batch at genesis difficulty) pass
+         * the header-work gate. A 2000-header powLimit (2^240) flood does not.
+         * Raise toward canonical tip chainwork before each mainnet release.
          */
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000100000");
+        // 2^26: four genesis-difficulty blocks (0x1e010000 ≈ 2^24 work) pass the
+        // headers-sync gate; a full 2000-header powLimit batch (2000 × 2^16) does not.
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000004000000");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -231,7 +238,8 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
@@ -240,7 +248,7 @@ public:
         consensus.nPowTargetSpacing = 60; // 1 minute nominal inter-block interval
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30-block BIP9 window
         // Short ASERT half-life so difficulty tracks hashrate quickly (per-block evaluation).
-        consensus.nPowASERTHalfLife = 300; // 5 minutes
+        consensus.nPowASERTHalfLife = 28800; // 8 hours; keeps 2h-future ASERT ease bounded even if min-difficulty is not taken
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 27; // 90% of 30
@@ -318,7 +326,8 @@ public:
  */
 class CDevTestParams : public CChainParams {
 public:
-    CDevTestParams() {
+    explicit CDevTestParams(const MockableChainOptions& options)
+    {
         strNetworkID = CBaseChainParams::DEVTEST;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
@@ -340,7 +349,8 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
@@ -348,7 +358,7 @@ public:
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 60; // 1 minute
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30 blocks
-        consensus.nPowASERTHalfLife = 1800; // 30 minutes (match regtest-style tuning)
+        consensus.nPowASERTHalfLife = 28800; // 8 hours (bounded next-block ease vs MAX_FUTURE_BLOCK_TIME)
         consensus.fPowAllowMinDifficultyBlocks = true;
         // Devtest enables ASERT retargeting (30-block window) to exercise nBits transitions under load changes.
         consensus.fPowNoRetargeting = false;
@@ -404,6 +414,7 @@ public:
         fRequireStandard = false;
         m_is_test_chain = true;
         m_is_mockable_chain = true;
+        consensus.res_wallet_bootstrap_coinbase = options.res_wallet_bootstrap_coinbase;
 
         m_assumeutxo_data = MapAssumeutxo{};
         chainTxData = ChainTxData{0, 0, 0};
@@ -467,14 +478,15 @@ public:
         consensus.SegwitHeight = 0;
         consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
         consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
-        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 2 days (same as mainnet)
+        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours (same as mainnet)
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 259; // 90% of 288
         consensus.nMinerConfirmationWindow = 288; // nPowTargetTimespan / nPowTargetSpacing
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
@@ -551,7 +563,8 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
@@ -616,6 +629,7 @@ public:
         fRequireStandard = true;
         m_is_test_chain = true;
         m_is_mockable_chain = true;
+        consensus.res_wallet_bootstrap_coinbase = opts.res_wallet_bootstrap_coinbase;
 
         // Serialized UTXO hash + nChainTx from TestChain100Setup + regtest genesis (see
         // validation_chainstate_tests.cpp `rigor_assumeutxo_param_gen` with RIGOR_GEN_ASSUMEUTXO=1).
@@ -664,9 +678,9 @@ std::unique_ptr<const CChainParams> CChainParams::TestNet()
     return std::make_unique<const CTestNetParams>();
 }
 
-std::unique_ptr<const CChainParams> CChainParams::DevTest()
+std::unique_ptr<const CChainParams> CChainParams::DevTest(const MockableChainOptions& options)
 {
-    return std::make_unique<const CDevTestParams>();
+    return std::make_unique<const CDevTestParams>(options);
 }
 
 /**
@@ -674,7 +688,8 @@ std::unique_ptr<const CChainParams> CChainParams::DevTest()
  */
 class CSlowTestParams : public CChainParams {
 public:
-    CSlowTestParams() {
+    explicit CSlowTestParams(const MockableChainOptions& options)
+    {
         strNetworkID = CBaseChainParams::SLOWTEST;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
@@ -690,7 +705,8 @@ public:
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
         // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^240 / MIN_CONVERGENCE_AMOUNT). RFC-014 v1.0 specified 2^240, which was
+        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
+        // Historical RFC-014 v1.0 specified 2^240, which was
         // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
@@ -698,7 +714,7 @@ public:
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 30; // 30 seconds target
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30 blocks
-        consensus.nPowASERTHalfLife = 1800; // 30 minutes
+        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours, no min-difficulty
         consensus.fPowAllowMinDifficultyBlocks = false; // Disable min-difficulty for real ASERT testing
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 27; // 90% of 30
@@ -750,13 +766,14 @@ public:
         fRequireStandard = false;
         m_is_test_chain = true;
         m_is_mockable_chain = true;
+        consensus.res_wallet_bootstrap_coinbase = options.res_wallet_bootstrap_coinbase;
 
         m_assumeutxo_data = MapAssumeutxo{};
         chainTxData = ChainTxData{0, 0, 0};
     }
 };
 
-std::unique_ptr<const CChainParams> CChainParams::SlowTest()
+std::unique_ptr<const CChainParams> CChainParams::SlowTest(const MockableChainOptions& options)
 {
-    return std::make_unique<const CSlowTestParams>();
+    return std::make_unique<const CSlowTestParams>(options);
 }

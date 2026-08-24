@@ -120,10 +120,9 @@ def _compute_opus_mix(base_u256: int) -> bytes:
     key = _ser_uint256_le(base_u256)
     mem = _chacha20_keystream(key, OPUS_POW_BUFFER_SIZE)
     current = base_u256
-    for rnd in range(OPUS_POW_MIX_ROUNDS):
+    for _rnd in range(OPUS_POW_MIX_ROUNDS):
         val = current & 0xFFFFFFFF
-        raw_idx = val ^ (rnd << 24)
-        idx = raw_idx & OPUS_POW_BUFFER_MASK
+        idx = val & OPUS_POW_BUFFER_MASK
         if idx > OPUS_POW_BUFFER_SIZE - 8:
             idx = OPUS_POW_BUFFER_SIZE - 8
         mem_val = struct.unpack_from("<Q", mem, idx)[0]

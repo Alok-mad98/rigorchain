@@ -18,7 +18,7 @@
 
 ## Abstract
 
-RIGOR is a **deterministic dual-asset cryptocurrency system**. Native assets **ORU** and **RES** evolve under a **frozen UTXO protocol** with **CVG2 convergence** (ORU destruction linked to RES eligibility), **deterministic draw** at constant `T = 2^240`, and **ConnectBlock** execution without global mutable consensus state.
+RIGOR is a **deterministic dual-asset cryptocurrency system**. Native assets **ORU** and **RES** evolve under a **frozen UTXO protocol** with Convergence (ORU destruction linked to RES eligibility), **Deterministic Reserve Issuance** at shipping `T` (`E = 246`; Historical RFC-014 / retired design: `T = 2^240`), and **ConnectBlock** execution without global mutable consensus state.
 
 The system is **runtime-verifiable**: economic transitions execute on live infrastructure and are recorded in a **PROOF-034 runtime archive** target at height **2,100,001**. A **SIM-011 simulation layer** provides deterministic replay for structural consistency analysis — **not** domain equivalence.
 
@@ -34,7 +34,7 @@ RIGOR combines four inseparable properties:
 
 1. **Deterministic cryptocurrency** — validating nodes apply a unique state transition given frozen rules.
 2. **Dual native assets** — ORU (Witness v0) and RES (Witness v1 RNG path).
-3. **CVG2 convergence economy** — ORU is destroyed via convergence transactions; eligibility feeds RES mint path under frozen rules.
+3. **Convergence economy** — ORU is destroyed via `OP_CONVERGE` (ORU destruction / draw-entry); eligibility feeds Deterministic Reserve Issuance.
 4. **Runtime verifiability** — milestone states checkable against golden vectors in archive evidence.
 
 ### 1.2 What RIGOR is not
@@ -43,7 +43,7 @@ RIGOR combines four inseparable properties:
 |-----|--------|
 | Equivalence-certified vs formal proof | `equivalence_claimed = false` |
 | Simulation-only model | Live mining, pool, nodes operate |
-| Account-based ledger | UTXO + script-as-asset only |
+| Account-based ledger | UTXO + script-as-compliance/classification only |
 | Mainnet-ready (today) | PROOF-034 incomplete @ 2.1M+1 |
 
 ### 1.3 Narrative mapping (public layer)

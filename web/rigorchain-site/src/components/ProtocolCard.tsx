@@ -18,7 +18,8 @@ export function ProtocolCard({ variant }: Props) {
         </header>
         <p>
           RIGOR is a UTXO-based deterministic state machine: S<sub>t+1</sub> = F(S<sub>t</sub>, T<sub>t</sub>).
-          No global account state. Script is the compliance layer: ORU/RES class from scriptPubKey; legitimacy via consensus.
+          No global account state. Script is the compliance/classification layer: ORU/RES class from
+          scriptPubKey; legitimacy via consensus. Script alone does not authorize asset creation.
         </p>
       </article>
     );
@@ -45,8 +46,8 @@ export function ProtocolCard({ variant }: Props) {
           <span className="tag">RES</span>
           <h3>Scarce settlement asset</h3>
         </header>
-        <p className="math-block">Σ RES<sub>in</sub> = Σ RES<sub>out</sub></p>
-        <p>Mint emission under frozen cap; Witness v1 script path.</p>
+        <p className="math-block">Σ RES<sub>in</sub> ≥ Σ RES<sub>out</sub></p>
+        <p>Mint emission under frozen 21M <strong>maximum</strong> cap (Deterministic Reserve Issuance schedule `W(h)`). Circulation depends on Convergence — 21M is not a fill guarantee. RES is not mined.</p>
         <MintLiveSummary count={state.mint_state.res_mints?.length ?? null} error={state.mint_state.mint_error} />
       </article>
     );
@@ -60,7 +61,7 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Convergence pathway</h3>
         </header>
         <p>ORU burn (convergence) → deterministic eligibility → consensus winner → RES mint when predicates pass. RES is not mined.</p>
-        <p className="math-block">P(success) = 2<sup>−16</sup> = 1/65536 per hash-space unit</p>
+        <p className="math-block">P(eligible) uses frozen T (Deterministic Reserve Issuance: E = 246, C = 1024 ORU per expected mint)</p>
         <ForgeStatus convergence={state.convergence_status} />
       </article>
     );

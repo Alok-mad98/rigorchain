@@ -2,6 +2,7 @@
 #define BITCOIN_CONSENSUS_RES_PROOF_H
 
 #include <primitives/transaction.h>
+#include <script/rigor_tags.h>
 #include <script/script.h>
 #include <uint256.h>
 
@@ -14,8 +15,40 @@ class CPubKey;
 
 namespace Consensus {
 
-/** Upper bound on raw RES proof bytes in witness (6 proof pushes). */
-static constexpr size_t MAX_CONVERGE_PROOF_WITNESS_BYTES = 320;
+/**
+ * FROZEN CARRIER (coinbase RES mint) — the only proof channel. Do not parse vin witnesses.
+ *
+ * 1. Locus. The proof and the RES it authorizes both live in the **coinbase** of the block that
+ *    pays the draw. No body transaction may create RES, and no body transaction may carry the
+ *    tag. There is no funding input, no signature and no network-shared funding script: the
+ *    coinbase is authorized by the block's proof of work, and the mint is fully determined by the
+ *    parent block (winner, amount, payout program), so there is nothing left for a signature to
+ *    authorize.
+ *
+ * 2. Carrier. Exactly `OP_RETURN` plus one canonical push of `PCORB_OPRETURN_PAYLOAD_BYTES`:
+ *    `RigorTags::PCOR` (4) ‖ fields (116), at nValue == 0. The script is
+ *    `OP_RETURN OP_PUSHDATA1 0x78 <120 bytes>` (`PCORB_CARRIER_SCRIPT_BYTES`). Fields are
+ *    little-endian with no inner length prefixes, in the order of the struct below:
+ *      convergence_txid (32) ‖ convergence_amount (8) ‖ bind_hash (32) ‖ height (8) ‖
+ *      target_prev (4) ‖ convergence_root (32).
+ *    Wrong magic, wrong length, non-canonical push, trailing opcodes or nValue != 0 ⇒ not a
+ *    proof. The output index is not consensus: scan every vout.
+ *
+ * 3. Uniqueness / fail-closed. The coinbase carries 0 or 1 carrier and 0 or 1 `OP_RES_MINT`
+ *    output, and the two counts must be equal — a tag without a mint output, or a mint output
+ *    without a tag, is invalid. Every non-coinbase transaction MUST carry zero carriers
+ *    (`CheckTxInputs`) and MUST NOT create RES from ORU inputs. Because a block has exactly one
+ *    coinbase, "at most one mint per block" is structural, not a tie-break between candidates.
+ *
+ * 4. The tag is not an asset. It is `ASSET_NONE` at nValue 0 and never enters the dual-pool
+ *    equation. The RES it authorizes is counted as coinbase RES, on top of `nFeesRes` and the
+ *    mockable-chain bootstrap — see `ConnectBlockRigor::VerifyCoinbaseConvergenceAndResLayout`.
+ *
+ * 5. Binding unchanged from the witness-carried era: `VerifyConvergeProof`,
+ *    `CheckConvergeProofBinding`, `CheckResRewardOwner`, W(h), maturity and
+ *    `FindBlockPaidConvergenceTxids` all still key off `proof.convergence_txid`. Only the carrier
+ *    moved; the 116 field bytes and their meaning did not.
+ */
 
 /**
  * RFC-009 §5: Proof serialization (Converge Proof)
@@ -50,32 +83,30 @@ static constexpr size_t MAX_CONVERGE_PROOF_WITNESS_BYTES = 320;
  * All consensus-critical data MUST have exactly ONE valid byte representation.
  * Any alternative encoding is a consensus violation.
  *
- * PCORB proof payload (the whole witness, six `scriptWitness` pushes): convergence_txid (32) ‖
+ * PCORB proof payload (116 bytes, one representation): convergence_txid (32) ‖
  * convergence_amount (8 LE) ‖ bind_hash (32) ‖ height (8 LE) ‖ target_prev (4 LE) ‖
- * convergence_root (32).
+ * convergence_root (32). The carrier is the tagged coinbase OP_RETURN described in the FROZEN
+ * CARRIER block above.
  *
- * CONSENSUS INVARIANT: ConvergeProof structure is reused across asset domains. However, its semantic
- * meaning is NOT encoded in the proof itself, but strictly determined by the input asset domain
- * (`GetTransactionInputAsset`). Any implementation that attempts to infer semantics from witness,
- * script path, or outputs is INVALID and will lead to consensus failure.
+ * CONSENSUS INVARIANT: the proof does not encode its own meaning. A block mints RES because its
+ * coinbase carries this tag and the parent's resolved draw names a winner — never because some
+ * transaction "looks like" a mint. Inferring issuance from a witness, a script path or an output
+ * shape is INVALID and will lead to consensus failure.
  *
- * This structure serves **Mint mode** only (ORU-domain body mint). SECURITY-001-A / A-7 removed the
- * RES-domain script-path claim that used to share it. Consensus meaning is still **only**
- * `f(GetTransactionInputAsset)` — see `rigor_res.cpp` / `convergence-consensus-v1.md` §4.1.
+ * **Field order is consensus-critical** (payload byte order and in-memory layout). Do not reorder,
+ * insert or remove fields without a hard-forking protocol upgrade.
  *
- * **Field order is consensus-critical** (witness push order and in-memory layout). Do not reorder,
- * insert, or remove fields without a hard-forking protocol upgrade.
- *
- * **SECURITY-001-A / A-7: the proof carries no signature.** `wit[6]` and `wit[7]` used to hold a
+ * **SECURITY-001-A / A-7: the proof carries no signature.** Two witness pushes used to hold a
  * detached Ed25519 signature and the key that verified it. The signed message was σ, which every
  * field above already pins to the block, and the verifying key came from the witness itself, so any
  * freshly generated keypair satisfied it — it authorized nothing while suggesting a "mint key" was a
  * security boundary. Nor is there anything left to authorize: given a block's convergence set, F,
- * the winner, the amount, and the payout script are all determined, and `validation.cpp` requires
+ * the winner, the amount and the payout script are all determined, and `validation.cpp` requires
  * exactly one mint whenever a winner exists.
  *
- * Do not reintroduce a signature here expecting it to gate the mint. The mint transaction is
- * authenticated by its own ORU funding input, whose signature commits to the whole transaction.
+ * Do not reintroduce a signature here expecting it to gate the mint, and do not reintroduce a
+ * funding input for the same purpose. The carrier sits in the coinbase, which proof of work
+ * already authenticates.
  *
  */
 struct ConvergeProof {
@@ -87,7 +118,21 @@ struct ConvergeProof {
     uint256 convergence_root{};
 };
 
-bool ParseConvergeProof(const CTransaction& tx, ConvergeProof& out);
+/** True iff `script` is the canonical tagged PCORB OP_RETURN. Value is checked on the txout. */
+bool IsPcorbCarrierScript(const CScript& script);
+/** True iff nValue == 0 and the script is `IsPcorbCarrierScript`. */
+bool IsPcorbCarrierOutput(const CTxOut& out);
+/** How many vouts are `IsPcorbCarrierOutput`. Consensus allows 0 or 1, coinbase only. */
+size_t CountPcorbCarrierOutputs(const CTransaction& tx);
+/**
+ * Decode the coinbase's carrier. Returns false for any non-coinbase transaction, for a coinbase
+ * with no carrier, and for a coinbase with more than one — a second tag is not a tie to break.
+ */
+bool ParseConvergeProof(const CTransaction& coinbase, ConvergeProof& out);
+
+static_assert(RigorTags::PCORB_PROOF_FIELDS_BYTES == 32 + 8 + 32 + 8 + 4 + 32, "PCORB field concat");
+static_assert(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES == 4 + RigorTags::PCORB_PROOF_FIELDS_BYTES, "PCOR ‖ fields");
+static_assert(RigorTags::PCORB_CARRIER_SCRIPT_BYTES == 1 + 2 + RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, "OP_RETURN PUSHDATA1 120");
 
 /**
  * Weight binding: the proof's self-reported `convergence_amount_sat` must equal the amount the
@@ -96,12 +141,12 @@ bool ParseConvergeProof(const CTransaction& tx, ConvergeProof& out);
  * SECURITY-001-A8: the caller supplies that amount from the draw set of block h-1, since the
  * winning convergence transaction is in the parent block rather than in the block being
  * validated. **ConnectBlock** separately enforces `convergence_txid ∈ F` — see
- * `rigor::ConnectEvaluateResMintTx`.
+ * `rigor::ConnectEvaluateCoinbaseResMint`.
  */
 bool CheckConvergeProofBinding(const ConvergeProof& proof, CAmount committed_convergence_amount);
 
 /**
- * PCORB verification from witness payload only.
+ * PCORB verification from the decoded payload only.
  * When winner_txid is non-null, proof.convergence_txid must equal it (ConnectBlock mint winner coupling).
  * When expected_convergence_root is non-null, proof.convergence_root must equal it (block ConvergenceRoot binding).
  *
@@ -112,11 +157,11 @@ bool CheckConvergeProofBinding(const ConvergeProof& proof, CAmount committed_con
 /**
  * RFC-014 Conv-Decouple-01:
  *   The inequality RHS is `res_probability_target` (the constitutional
- *   constant `Consensus::Params::RES_PROBABILITY_TARGET`, value = floor(2^240 / MIN_CONVERGENCE_AMOUNT)),
+ *   constant `Consensus::Params::RES_PROBABILITY_TARGET`, value = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU),
  *   passed in explicitly so that this verification function remains
  *   stateless (RFC-005 §4.12 self-proving architecture).
  *
- *   SECURITY-001-A8: `proof.target_prev` no longer feeds σ. It is retained as a witness field and
+ *   SECURITY-001-A8: `proof.target_prev` no longer feeds σ. It is retained as a payload field and
  *   is still compared against the parent header by ConnectBlock, but B_{h-1} already commits the
  *   parent's nBits, so the comparison is redundancy rather than the binding itself.
  */
@@ -126,13 +171,13 @@ bool VerifyConvergeProof(const ConvergeProof& proof, const uint256& res_probabil
  * RFC-005 §4.12: RES Mint Verification
  * bool VerifyConvergeProof(const CTransaction& tx, const uint256& res_probability_target);
  *
- * This is the canonical interface per RFC-005 Validation State Machine.
- * Parses the transaction and verifies the converge proof.
+ * This is the canonical interface per RFC-005 Validation State Machine. It decodes the coinbase
+ * carrier and verifies the draw inequality; it does not check winner coupling or ownership.
  *
  * RFC-014 Conv-Decouple-01: `res_probability_target` is the constitutional
- * inequality RHS (= floor(2^240 / MIN_CONVERGENCE_AMOUNT), taken from `Consensus::Params::RES_PROBABILITY_TARGET`).
+ * inequality RHS (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU; taken from `Consensus::Params::RES_PROBABILITY_TARGET`).
  */
-bool VerifyConvergeProof(const CTransaction& tx, const uint256& res_probability_target);
+bool VerifyConvergeProof(const CTransaction& coinbase, const uint256& res_probability_target);
 
 uint256 ConvergeProofDigest(const uint256& convergence_txid, const uint256& bind_hash, uint64_t height, const uint256& convergence_root);
 

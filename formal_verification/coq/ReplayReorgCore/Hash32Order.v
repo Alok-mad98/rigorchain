@@ -22,6 +22,10 @@ Definition is_hash32 (h : Hash32) : bool := Nat.eqb (length h) 32.
 (** Deterministic tie-break for fork choice (PHASE-4C). *)
 Definition hash32_lt (a b : Hash32) : bool := bytes_ltb a b.
 
+(** Qed-sealed on purpose. `Defined` would let `vm_compute` unfold 32-byte
+    list equality inside `gather_inputs` / `apply_block` and explode the
+    NegativeCore harness. Dual-pool rejects are pinned by
+    `valid_dual_pool_on_ins` instead (GOLDEN-VECTOR-DISCREPANCIES.md NEG-014/015). *)
 Fixpoint list_eq_dec (l1 l2 : list byte) : {l1 = l2} + {l1 <> l2}.
 Proof.
   destruct l1 as [|x1 t1]; destruct l2 as [|x2 t2].

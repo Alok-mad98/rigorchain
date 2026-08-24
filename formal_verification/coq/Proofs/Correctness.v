@@ -1,12 +1,12 @@
 Require Import Coq.ZArith.ZArith.
 Require Import Coq.Lists.List.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import ConvergeRoot.
 Require Import Sigma.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 Require Import Execution.
 From Rigor Require Import Kernel.KernelEligibility.
 

@@ -20,7 +20,7 @@ The miner must match this exactly.
 
 ## Non-negotiable consensus parameters
 
-Locked in `consensus/arda_consensus_lock.h` and implemented in `pow_opus.cpp`:
+Locked in `consensus/rigor_consensus_lock.h` and implemented in `pow_opus.cpp`:
 
 - Buffer size: **64 KiB**
 - Mix rounds: **256**
@@ -32,4 +32,4 @@ Locked in `consensus/arda_consensus_lock.h` and implemented in `pow_opus.cpp`:
 
 1. Run `src/test/pow_tests.cpp` vectors (`OpuHash_v3plus_reference_vectors`).
 2. Compare against `test/functional/test_framework/opus_pow.py` self-test.
-3. Use `rigord -debugpowcompare` with `cpuminer --debug-pow` and compare logged digests.
+3. Compare miner `opus_hash_selftest()` against the same frozen vectors.

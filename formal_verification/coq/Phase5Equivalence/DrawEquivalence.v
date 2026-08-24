@@ -142,8 +142,12 @@ Proof. exact frozen_runtime_draw_txid_equal. Qed.
 Definition draw_cross_domain_result (coq_txid : Z) : DrawEquivResult :=
   if Z.eqb coq_txid draw_frozen_txid then DER_Resolved else DER_Disagreement.
 
+(** Cross-domain check uses the imported-index projection (equal to the Coq
+    recomputed projection by [winner_projection_sound]). Looking up a stored
+    index avoids re-running the sigma cross-product over every golden row just
+    to ask whether any winner txid collides with the TASK-003 frozen constant. *)
 Definition golden_row_matches_frozen (e : DrawReprEntry) : bool :=
-  Z.eqb (draw_coq_projected_txid e) draw_frozen_txid.
+  Z.eqb (entry_runtime_txid e) draw_frozen_txid.
 
 Definition any_golden_row_matches_frozen : bool :=
   existsb golden_row_matches_frozen representation_catalog.
@@ -153,15 +157,31 @@ Definition any_golden_row_matches_frozen : bool :=
 Lemma any_golden_row_matches_frozen_false : any_golden_row_matches_frozen = false.
 Proof. vm_compute. reflexivity. Qed.
 
+Lemma existsb_false_In :
+  forall {A : Type} (f : A -> bool) (l : list A) (x : A),
+    existsb f l = false -> In x l -> f x = false.
+Proof.
+  induction l as [|a t IH]; simpl; intros x Hex Hin.
+  - contradiction.
+  - apply Bool.orb_false_iff in Hex. destruct Hex as [Ha Ht].
+    destruct Hin as [-> | Hin]; [exact Ha | apply IH; assumption].
+Qed.
+
 Lemma draw_cross_domain_all_disagree :
   forall e, In e representation_catalog ->
     draw_cross_domain_result (draw_coq_projected_txid e) = DER_Disagreement.
 Proof.
-  intros e Hin. revert Hin.
-  vm_compute.
-  intros Hin.
-  repeat (destruct Hin as [Heq | Hin]; [subst e; reflexivity | ]).
-  contradiction.
+  intros e Hin.
+  unfold draw_cross_domain_result.
+  rewrite (draw_coq_runtime_shaped_equivalence e Hin).
+  unfold draw_runtime_shaped_txid.
+  pose proof (existsb_false_In golden_row_matches_frozen
+                representation_catalog e
+                any_golden_row_matches_frozen_false Hin) as Hfalse.
+  unfold golden_row_matches_frozen, entry_runtime_txid in Hfalse.
+  revert Hfalse.
+  destruct (winner_txid_projection (dre_candidates e) (dre_imported_index e) =?
+            draw_frozen_txid)%Z; [discriminate|reflexivity].
 Qed.
 
 (** ================================================================

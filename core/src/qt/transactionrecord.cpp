@@ -66,7 +66,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     // Own createconvergence spends ORU and usually returns change → credit_oru > 0.
     // That must not take the generic "credit" path (which would list change as the
     // Convergence amount). Route funded convergences through the debit path so the
-    // UI amount is the CVG2 locked value (GetConvergenceAmount / vout nValue).
+    // UI amount is the OP_CONVERGE locked value (GetConvergenceAmount / vout nValue).
     const bool own_oru_convergence =
         tx_semantic == wallet::TxSemanticKind::OruConvergence && wtx.debit_oru > 0;
 
@@ -116,6 +116,11 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 {
                     // Generated
                     sub.type = TransactionRecord::Generated;
+                    // Body RES mint is an extra coinbase output; keep the ORU subsidy as
+                    // OruCoinbase and label the RES output as mint so asset filters split them.
+                    if (sub.amount_asset == ASSET_RES) {
+                        sub.semantic = wallet::TxSemanticKind::ResMint;
+                    }
                 }
 
                 parts.append(sub);
@@ -141,29 +146,36 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
 
         if (fAllFromMe && fAllToMe)
         {
-            // Payment to self
+            // Payment to self: list the transfer amount of the moved asset, not
+            // wallet net (which is -ORU fee, or 0 RES). Do not subtract mixed
+            // TxGetChange (ORU+RES) from a single asset.
+            const AssetType self_asset =
+                (tx_semantic == wallet::TxSemanticKind::ResTransfer ||
+                 tx_semantic == wallet::TxSemanticKind::ResClaim ||
+                 wtx.debit_res > 0)
+                    ? ASSET_RES
+                    : ASSET_ORU;
             std::string address;
+            CAmount payment = 0;
             for (unsigned int oi = 0; oi < wtx.tx->vout.size(); ++oi) {
+                if (!wtx.txout_is_mine[oi]) continue;
                 if (Consensus::IsConvergenceOutputScript(wtx.tx->vout[oi].scriptPubKey)) continue;
+                if (AssetTypeFromScriptPubKey(wtx.tx->vout[oi].scriptPubKey) != self_asset) continue;
+                const bool is_change =
+                    oi < wtx.txout_is_change.size() && wtx.txout_is_change[oi];
+                if (is_change) continue;
+                payment += wtx.tx->vout[oi].nValue;
                 if (std::get_if<CNoDestination>(&wtx.txout_address[oi])) continue;
                 if (!address.empty()) address += ", ";
                 address += EncodeDestination(wtx.txout_address[oi]);
             }
-
-            CAmount nChange = wtx.change;
-            AssetType self_asset = ASSET_ORU;
-            for (unsigned int oi = 0; oi < wtx.tx->vout.size(); ++oi) {
-                if (Consensus::IsConvergenceOutputScript(wtx.tx->vout[oi].scriptPubKey)) continue;
-                if (!wtx.txout_is_mine[oi]) continue;
-                self_asset = AssetTypeFromScriptPubKey(wtx.tx->vout[oi].scriptPubKey);
-                break;
+            if (payment <= 0) {
+                payment = self_asset == ASSET_RES ? wtx.credit_res : wtx.credit_oru;
             }
-            const CAmount self_debit = self_asset == ASSET_RES ? wtx.debit_res : wtx.debit_oru;
-            const CAmount self_credit = self_asset == ASSET_RES ? wtx.credit_res : wtx.credit_oru;
             parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, address,
-                -(self_debit - nChange), self_credit - nChange, self_asset));
+                -payment, 0, self_asset));
             parts.last().semantic = tx_semantic;
-            parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
+            parts.last().involvesWatchAddress = involvesWatchAddress;
         }
         else if (fAllFromMe)
         {
@@ -187,7 +199,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 }
 
                 const bool is_cvg = Consensus::IsConvergenceOutputScript(txout.scriptPubKey);
-                // RESO / OP_RETURN companions are zero-value metadata — not a second "amount" row.
+                // Zero-value OP_RETURN leftovers are not a second amount row.
                 if (!is_cvg && txout.nValue == 0) {
                     continue;
                 }
@@ -225,7 +237,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
 
                 parts.append(sub);
             }
-            // Convergence-only sends: leave fee out of the CVG2 row so Amount = locked ORU.
+            // Convergence-only sends: leave fee out of the OP_CONVERGE row so Amount = locked ORU.
             // (Wallet balances already account for fee via debit/credit; UI prioritizes locked amount.)
             (void)nTxFee;
         }

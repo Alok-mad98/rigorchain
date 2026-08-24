@@ -28,6 +28,11 @@ namespace rigor {
  * from the `hashPrevBlock` field of the header being validated.
  */
 inline constexpr std::size_t SIGMA_INPUT_SIZE = 100;
+inline constexpr std::size_t SIGMA_OFF_TXID = 0;
+inline constexpr std::size_t SIGMA_OFF_CROOT = 32;
+inline constexpr std::size_t SIGMA_OFF_PREV_BLOCK = 64;
+inline constexpr std::size_t SIGMA_OFF_HEIGHT = 96;
+inline constexpr std::size_t SIGMA_HEIGHT_LEN = 4;
 
 /**
  * RFC-000 §4 (Sigma-PoW-01 revision): CANONICAL HASHING

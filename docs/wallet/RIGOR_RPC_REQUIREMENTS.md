@@ -209,7 +209,7 @@ These are **not** rigor-qt dependencies; parallel product track.
 | ORU send | `sendtoaddress` + GUI Send | Tx confirms; ORU balance updates |
 | RES send | `sendres` + GUI Send | RES-only tx; fee in ORU |
 | Convergence | `createconvergence` + ConvergencePage | Tx broadcast; visible in history |
-| Convergence read | `getconvergenceresult $(rigor-cli getblockcount)` | `res_probability_target` == 2^240 hex |
+| Convergence read | `getconvergenceresult $(rigor-cli getblockcount)` | `res_probability_target` == shipping windowed hex `000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479` (RFC-017 `E = 246`; not Historical RFC-014 `2^240`) |
 | Asset UTXOs | `listunspent` | Each row has correct `asset` |
 | Explorer lag | `/healthz` vs node height | Banner when lag > threshold |
 

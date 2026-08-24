@@ -175,7 +175,7 @@ inline int uint512::Compare(const uint512& o) const
  * ALL math MUST be integer-only. Multiplication MUST use arbitrary precision.
  *
  *   - H is taken as a 256-bit unsigned integer (the Sigma / draw digest).
- *   - T is the immutable RFC-014 constant RES_PROBABILITY_TARGET = floor(2^240 / MIN_CONVERGENCE_AMOUNT)
+ *   - T is the immutable RFC-017 shipping constant RES_PROBABILITY_TARGET = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (C=1024 ORU)
  *     (carried in `Consensus::Params`). It is NOT derived from `nBits`,
  *     ASERT state, or any header field; `target_prev` is retained in
  *     `bind_commit` for Sigma-CR-01 replay-domain separation only.

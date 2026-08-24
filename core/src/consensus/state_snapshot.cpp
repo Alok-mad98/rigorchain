@@ -73,14 +73,14 @@ struct UtxoAggregates {
 void WritePindexConsensusTrailer(HashWriter& hw, const CBlockIndex* pindex)
 {
     if (pindex != nullptr) {
-        hw << pindex->m_cumulative_convergence;
+        hw << pindex->Observational().GetCumulativeConvergence();
         hw << pindex->m_draw_candidate_root;
         hw << static_cast<uint8_t>(pindex->has_res);
         hw << pindex->last_res_mint_block_hash;
         hw << static_cast<int64_t>(pindex->m_block_res_mint_sum);
-        hw << static_cast<int64_t>(pindex->m_chain_res_mint_total);
+        hw << static_cast<int64_t>(pindex->Observational().GetChainResMintTotal());
         hw << static_cast<int64_t>(pindex->m_block_converge_sum);
-        hw << static_cast<int64_t>(pindex->m_chain_oru_total);
+        hw << static_cast<int64_t>(pindex->Observational().GetChainOruTotal());
     } else {
         const uint256 zero_hash;
         hw << uint64_t{0};

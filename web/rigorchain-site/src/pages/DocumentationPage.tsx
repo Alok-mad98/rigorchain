@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
-import { SectionHub } from "../components/SectionHub";
+import { DarkCard } from "../components/DarkCard";
+import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
-import { SECTIONS } from "../ia/sitemap";
-
-const SECTION = SECTIONS.find((s) => s.id === "documentation")!;
 
 export function DocumentationPage() {
   return (
@@ -11,14 +9,60 @@ export function DocumentationPage() {
       <SubNav />
       <header className="page-header">
         <h1>Documentation</h1>
-        <p className="muted">Protocol specification, lab narrative, and the AlphaPlus trust layer.</p>
+        <p className="muted">Architecture, RFCs, security boundaries, and developer surfaces.</p>
       </header>
-      <SectionHub section={SECTION} />
+
+      <SectionTitle>Library</SectionTitle>
+      <section className="card-grid doc-library-grid">
+        <DarkCard title="Whitepaper" to="/documentation/whitepaper" linkLabel="Read">
+          <p>Official protocol explanation. equivalence_claimed = false.</p>
+        </DarkCard>
+        <DarkCard
+          title="Deterministic Reserve Issuance"
+          to="/documentation/monetary-policy"
+          linkLabel="Open"
+        >
+          <p>
+            RES schedule, supply bound, cost floor. RES is not mined. Formally verified monetary
+            invariants — not a refinement proof.
+          </p>
+        </DarkCard>
+        <DarkCard
+          title="Formal Verification"
+          to="/documentation/formal-verification"
+          linkLabel="Status"
+        >
+          <p>
+            Formally verified protocol invariants with explicit verification boundaries. Not a
+            refinement proof.
+          </p>
+        </DarkCard>
+        <DarkCard title="Architecture" to="/documentation/architecture" linkLabel="Open">
+          <p>Three-layer model and explorer vs verifier split.</p>
+        </DarkCard>
+        <DarkCard title="RFC" to="/documentation/rfc" linkLabel="Overview">
+          <p>Frozen constitution, consensus model, mathematics.</p>
+        </DarkCard>
+        <DarkCard title="Security Architecture" to="/documentation/security" linkLabel="Open">
+          <p>Minimal scripts, dual native assets, Zero Trust. equivalence_claimed = false.</p>
+        </DarkCard>
+        <DarkCard
+          title="Minimal Script Architecture"
+          to="/documentation/security/minimal-script-architecture"
+          linkLabel="Read"
+        >
+          <p>Bitcoin UTXO foundation. Restricted witness families. Not a programmable VM.</p>
+        </DarkCard>
+        <DarkCard title="Developer Guide" to="/documentation/developer-guide" linkLabel="Open">
+          <p>Build map, read-only RPC, zeroTrust library.</p>
+        </DarkCard>
+      </section>
+
       <section className="card prose-section">
         <h2>Zero-Trust Verification</h2>
         <p>
           <Link to="/zero-trust-verification">Open the verification portal</Link>. Design notes:
-          <code> docs/release/ALPHAPLUS_ZERO_TRUST_VERIFIER_WEB_PORTAL_REPORT.md</code>.
+          <code> docs/release/</code> zero-trust verifier portal report.
         </p>
         <h2>Protocol lab pages</h2>
         <ul>

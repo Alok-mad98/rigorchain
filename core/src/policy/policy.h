@@ -137,8 +137,8 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 * 3600bytes witnessScript size, 80bytes per witness stack element, 100 witness stack elements
 * These limits are adequate for multisignatures up to n-of-100 using OP_CHECKSIG, OP_ADD, and OP_EQUAL.
 *
-* For witness v1 RES, enforce stack shapes that match consensus (ORB2: 2 items; native RES: 2 or 11 with
-* fixed PCORB prefix sizes when eleven).
+* For witness v1 RES, enforce stack shapes that match consensus (RES2-prefixed and native: 2-item Ed25519 key path).
+* The historical 11-item PCORB path is not consensus and is not standard.
 */
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 

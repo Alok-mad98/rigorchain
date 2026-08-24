@@ -113,6 +113,8 @@ std::string ScriptErrorString(const ScriptError serror)
             return "Signature is found in scriptCode";
         case SCRIPT_ERR_SECP256K1_DISABLED:
             return "secp256k1/ECDSA is disabled; RIGOR spend signatures are Ed25519 only";
+        case SCRIPT_ERR_CONVERGE_UNSPENDABLE:
+            return "OP_CONVERGE output is unspendable";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

@@ -24,6 +24,11 @@ namespace ConnectBlockRigor {
 /**
  * CVGE / RIGOR / RES coinbase layout invariants (returns false + state on failure).
  *
+ * `res_mint_coinbase` is W(h) when this block's coinbase carries an accepted PCORB mint and 0
+ * otherwise; `rigor::ConnectEvaluateCoinbaseResMint` has already bound it to the parent's winner.
+ * It is a third term of the coinbase RES budget, not a licence to pay RES: any coinbase RES beyond
+ * `nFeesRes + bootstrap + res_mint_coinbase` is `bad-cb-res-amount`.
+ *
  * SECURITY-001-A9-C dropped the `blockman` and `res_reward_expected` parameters along with the
  * `bad-convergence-window-reset` rule they served; see the removal note in the definition.
  */
@@ -33,6 +38,7 @@ bool VerifyCoinbaseConvergenceAndResLayout(BlockValidationState& state,
     CBlockIndex* pindex,
     CAmount nFeesRes,
     CAmount res_coinbase_value,
+    CAmount res_mint_coinbase,
     const uint256& expected_draw_candidate_root);
 
 } // namespace ConnectBlockRigor

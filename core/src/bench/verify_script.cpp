@@ -7,6 +7,7 @@
 #if defined(HAVE_CONSENSUS_LIB)
 #include <script/bitcoinconsensus.h>
 #endif
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <streams.h>
@@ -32,8 +33,7 @@ static void VerifyScriptBench(benchmark::Bench& bench)
     };
     key.Set(vchKey.begin(), vchKey.end(), false);
     CPubKey pubkey = key.GetPubKey();
-    uint160 pubkeyHash;
-    CHash160().Write(pubkey).Finalize(pubkeyHash);
+    const uint160 pubkeyHash = pubkey.GetEd25519KeyHash();
 
     // Script.
     CScript scriptPubKey = CScript() << witnessversion << ToByteVector(pubkeyHash);
@@ -45,7 +45,7 @@ static void VerifyScriptBench(benchmark::Bench& bench)
     witness.stack.emplace_back();
     key.Sign(SignatureHash(witScriptPubkey, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0), witness.stack.back());
     witness.stack.back().push_back(static_cast<unsigned char>(SIGHASH_ALL));
-    witness.stack.push_back(ToByteVector(pubkey));
+    witness.stack.push_back(pubkey.GetEd25519Payload());
 
     // Benchmark.
     bench.run([&] {

@@ -1,5 +1,10 @@
 # SECURITY-001-A / A-8 — σ grinding, and binding the draw to proof of work
 
+> **Historical RFC — not an active consensus parameter.** Draw-target formulas
+> in this report that use `floor(2^240 / MIN_CONVERGENCE_AMOUNT)` are RFC-014-era.
+> They are **not active consensus parameters**. Sigma-PoW-01 architecture below
+> is unchanged as a security-reasoning record.
+
 **Status:** **CLOSED** (code / pool / formal / RFCs complete; process closed under TASK-MAINNET-CLOSURE-001)
 **Prior status:** implemented; awaiting maintainer `make` + functional suite
 **Closure:** 2026-08-05 — Sigma-PoW-01 live (`σ = Hash256(txid‖C‖B_{h-1}‖LE32(h))`, deferred draw). Dual `selection.cpp` archive linkage removed from `libbitcoin_node` (consensus-only). Operator re-verification: local `make` + RES functional suite (user-run; see MAINNET_GO_NO_GO_CHECKLIST).

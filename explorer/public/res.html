@@ -66,7 +66,7 @@
       function formatResAtoms(atoms) {
         try {
           const a = BigInt(String(atoms ?? 0));
-          return (a / 100n) + "." + (a % 100n).toString().padStart(2, "0") + " RES";
+          return (a / 1000000n) + "." + (a % 1000000n).toString().padStart(6, "0") + " RES";
         } catch {
           return "—";
         }

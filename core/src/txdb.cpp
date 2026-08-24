@@ -334,7 +334,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nTime          = diskindex.nTime;
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
-                pindexNew->m_cumulative_convergence = diskindex.m_cumulative_convergence;
+                pindexNew->Observational().SetCumulativeConvergence(diskindex.Observational().GetCumulativeConvergence());
                 pindexNew->m_draw_candidate_root = diskindex.m_draw_candidate_root;
                 pindexNew->has_res = diskindex.has_res;
                 pindexNew->last_res_mint_block_hash = diskindex.last_res_mint_block_hash;

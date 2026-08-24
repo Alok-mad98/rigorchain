@@ -4,6 +4,7 @@
 
 #include <key.h>
 #include <key_io.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
@@ -95,7 +96,17 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
     BOOST_CHECK_EQUAL(solutions.size(), 1U);
     BOOST_CHECK(solutions[0] == ToByteVector(uint256::ONE));
 
-    // TxoutType::WITNESS_V1_RES — CVG2 or ORB2 tag (32-byte program)
+    // TxoutType::WITNESS_V1_RES — 32-byte witness v1 (including retired CVG2-tagged programs).
+    {
+        std::vector<unsigned char> prog(32, 0xab);
+        prog[0] = 'C';
+        prog[1] = 'V';
+        prog[2] = 'G';
+        prog[3] = '2';
+        s.clear();
+        s << OP_1 << prog;
+        BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
+    }
     {
         std::vector<unsigned char> prog(32, 0xab);
         prog[0] = 'C';
@@ -120,6 +131,27 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
     s.clear();
     s << OP_1 << ToByteVector(uint256::ZERO);
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
+
+    {
+        const uint160 pkh;
+        const CScript mint = GetResMintScript(/*maturity_height=*/150, pkh);
+        BOOST_CHECK_EQUAL(Solver(mint, solutions), TxoutType::RES_MINT);
+        BOOST_CHECK_EQUAL(solutions.size(), 1U);
+        BOOST_CHECK_EQUAL(solutions[0].size(), 20U);
+        BOOST_CHECK(IsResMintScript(mint));
+        BOOST_CHECK_EQUAL(GetTxnOutputType(TxoutType::RES_MINT), std::string("res_mint"));
+
+        const CScript conv = GetConvergeScript(pkh);
+        BOOST_CHECK_EQUAL(Solver(conv, solutions), TxoutType::CONVERGE);
+        BOOST_CHECK_EQUAL(solutions.size(), 1U);
+        BOOST_CHECK_EQUAL(solutions[0].size(), 20U);
+        BOOST_CHECK(IsConvergeScript(conv));
+        BOOST_CHECK_EQUAL(GetTxnOutputType(TxoutType::CONVERGE), std::string("converge"));
+
+        // The retired OP_CVG_CLAIM shape (see script.h on 0xbc) has no classifier branch left.
+        const CScript retired = CScript() << ToByteVector(pkh) << static_cast<opcodetype>(0xbc);
+        BOOST_CHECK_EQUAL(Solver(retired, solutions), TxoutType::NONSTANDARD);
+    }
 
     // Unknown witness version / length (not v0/v1 RES): NONSTANDARD
     s.clear();
@@ -225,12 +257,11 @@ BOOST_AUTO_TEST_CASE(script_standard_ExtractDestination)
     s << OP_RETURN << std::vector<unsigned char>({75});
     BOOST_CHECK(!ExtractDestination(s, address));
 
-    // TxoutType::WITNESS_V0_KEYHASH
+    // TxoutType::WITNESS_V0_KEYHASH — HASH160 of the 32-byte Ed25519 payload, not the 0x00||pk wrapper.
     s.clear();
     s << OP_0 << ToByteVector(pubkey.GetID());
     BOOST_CHECK(ExtractDestination(s, address));
-    WitnessV0KeyHash keyhash;
-    CHash160().Write(pubkey).Finalize(keyhash);
+    WitnessV0KeyHash keyhash(pubkey.GetEd25519KeyHash());
     BOOST_CHECK(std::get<WitnessV0KeyHash>(address) == keyhash);
 
     // TxoutType::WITNESS_V0_SCRIPTHASH
@@ -295,7 +326,7 @@ BOOST_AUTO_TEST_CASE(script_standard_GetScriptFor_)
     // WitnessV0KeyHash
     expected.clear();
     expected << OP_0 << ToByteVector(pubkeys[0].GetID());
-    result = GetScriptForDestination(WitnessV0KeyHash(Hash160(ToByteVector(pubkeys[0]))));
+    result = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0]));
     BOOST_CHECK(result == expected);
     result = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0].GetID()));
     BOOST_CHECK(result == expected);

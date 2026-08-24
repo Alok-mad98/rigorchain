@@ -102,7 +102,7 @@ void FillableSigningProvider::ImplicitlyLearnRelatedKeyScripts(const CPubKey& pu
     // existing keys, and are present in memory, even without being explicitly
     // loaded (e.g. from a file).
     if (pubkey.IsCompressed()) {
-        CScript script = GetScriptForDestination(WitnessV0KeyHash(key_id));
+        CScript script = GetScriptForDestination(WitnessV0KeyHash(pubkey));
         // This does not use AddCScript, as it may be overridden.
         CScriptID id(script);
         mapScripts[id] = std::move(script);
@@ -205,7 +205,7 @@ bool FillableSigningProvider::GetCScript(const CScriptID &hash, CScript& redeemS
 CKeyID GetKeyForDestination(const SigningProvider& store, const CTxDestination& dest)
 {
     // Only supports destinations which map to single public keys:
-    // P2PKH, P2WPKH, P2SH-P2WPKH, P2TR
+    // P2PKH, P2WPKH, P2SH-P2WPKH. Witness v1 RES uses Ed25519 (not BIP341 Taproot).
     if (auto id = std::get_if<PKHash>(&dest)) {
         return ToKeyID(*id);
     }

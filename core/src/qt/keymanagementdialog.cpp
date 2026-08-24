@@ -257,9 +257,14 @@ void KeyManagementDialog::refreshKeyModelStatus()
     const QString oru_line = wallet.oruHdEnabled()
                                  ? tr("ORU:\nHD wallet enabled")
                                  : tr("ORU:\nHD wallet not available");
-    const QString res_line = wallet.resDedicatedKeyMode()
-                                 ? tr("RES:\nDedicated key mode")
-                                 : tr("RES:\nNot configured");
+    QString res_line;
+    if (wallet.resHdEnabled()) {
+        res_line = tr("RES:\nHD wallet enabled");
+    } else if (wallet.resDedicatedKeyMode()) {
+        res_line = tr("RES:\nDedicated key mode");
+    } else {
+        res_line = tr("RES:\nNot configured");
+    }
     m_key_model_status->setText(oru_line + QLatin1Char('\n') + QLatin1Char('\n') + res_line);
 }
 

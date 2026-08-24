@@ -36,12 +36,16 @@ public:
 
     CAmount getTotalTransactionAmount() const;
 
+    void setConvergeAmount(CAmount amount) { m_converge_amount = amount; }
+    CAmount getConvergeAmount() const { return m_converge_amount; }
+
     void reassignAmounts(int nChangePosRet); // needed for the subtract-fee-from-amount feature
 
 private:
     QList<SendCoinsRecipient> recipients;
     CTransactionRef wtx;
     CAmount fee{0};
+    CAmount m_converge_amount{0};
 };
 
 #endif // BITCOIN_QT_WALLETMODELTRANSACTION_H

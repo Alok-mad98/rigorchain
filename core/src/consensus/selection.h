@@ -70,7 +70,7 @@ struct SelectionResult {
  *  - `txids` / `fees` describe the convergence set committed by block h-1, and
  *    `prev_block_hash` is that block's hash. `height` is the payout height h.
  *  - `res_probability_target` is the inequality RHS source
- *    (`consensus_params.RES_PROBABILITY_TARGET`, floor(2^240 / MIN_CONVERGENCE_AMOUNT)),
+ *    (`consensus_params.RES_PROBABILITY_TARGET`, floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU),
  *    and is never derived from difficulty.
  */
 SelectionResult RunSelection(const std::vector<uint256>& txids, const std::vector<uint64_t>& fees, uint32_t height, const uint256& prev_block_hash, const uint256& res_probability_target);

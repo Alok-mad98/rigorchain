@@ -10,7 +10,7 @@
  * ============================================================================
  *  Rigorchain Architecture Guard (Script-Is-Asset)
  *  Rigorchain forbids Bitcoin Taproot semantics.
- *  Witness v1 is reserved for CVG2 convergence outputs and ORB2 / asset programs (Ed25519 key path); no BIP341.
+ *  Witness v1 is RIGOR-defined: CVG2 convergence commitments and native RES (RES2-prefixed or untagged Ed25519 key path). Not BIP341.
  *  Do not introduce BIP341/BIP342 script-path, annex, or tapleaf behavior here.
  * ============================================================================
  */
@@ -212,14 +212,33 @@ enum opcodetype
     OP_NOP9 = 0xb8,
     OP_NOP10 = 0xb9,
 
-    // Opcode added by BIP 342 (Tapscript)
+    // Opcode added by BIP 342 (Tapscript) — disabled on Rigor.
     OP_CHECKSIGADD = 0xba,
+
+    // RES mint lock: scriptPubKey is `<maturity_height> <20-byte pubkey_hash> OP_RES_MINT`.
+    // Spend pops those two items plus `<sig> <pubkey>` and checks height + Ed25519.
+    OP_RES_MINT = 0xbb,
+
+    // 0xbc is BURNED. It was OP_CVG_CLAIM, a one-shot convergence covenant lock whose spend
+    // minted RES to the ticket owner. Retired: a covenant ticket could not authorize its own
+    // draw win, so a covenant-funded mint had to carry the same ConvergeProof as an ORU-funded
+    // one. Do not reassign 0xbc — the number appears in retired design docs and in the Coq
+    // covenant modules, which model it as unreachable. HasValidOps rejects 0xbc even though
+    // MAX_OPCODE now sits above it (OP_CONVERGE = 0xbd).
+
+    // ORU-domain convergence burn: scriptPubKey is `<20-byte HASH160(RES program)> OP_CONVERGE`.
+    // Unspendable. AddCoins skips it (destroyed, not a UTXO). Owner is the HASH160 in the
+    // script — the same digest OP_RES_MINT pays. No sibling OP_RETURN, no witness v1 dual-use.
+    OP_CONVERGE = 0xbd,
 
     OP_INVALIDOPCODE = 0xff,
 };
 
 // Maximum value that an opcode can be
-static const unsigned int MAX_OPCODE = OP_NOP10;
+static const unsigned int MAX_OPCODE = OP_CONVERGE;
+
+/** Retired OP_CVG_CLAIM. Not a usable opcode; HasValidOps and EvalScript reject it. */
+static constexpr opcodetype OP_CVG_CLAIM_BURNED = static_cast<opcodetype>(0xbc);
 
 std::string GetOpName(opcodetype opcode);
 

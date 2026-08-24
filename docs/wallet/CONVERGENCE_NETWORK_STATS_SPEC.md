@@ -40,9 +40,9 @@ Network Statistics show that Convergence is an active chain-wide mechanism where
 | Label | RPC field | Meaning |
 |-------|-----------|---------|
 | Active Convergence | `active_convergences` | Convergence candidates in the tip W-window (paid + unpaid) |
-| ORU committed | `active_oru` | Sum of those candidates’ ORU (display: ORU with 2 decimals) |
+| ORU committed | `active_oru` | Sum of those candidates’ ORU (display: ORU with 8 decimals) |
 | Pending W=32 windows | `pending_windows` | Unpaid candidates still in tip draw set F |
-| Total RES minted | `total_res_minted` | Cumulative RES on active chain (display: RES with 2 decimals) |
+| Total RES minted | `total_res_minted` | Cumulative RES on active chain (display: RES with 6 decimals; `RES_COIN = 1e6`) |
 | Last updated | `best_height` | Active tip height |
 
 ### Not shown to normal users
@@ -70,7 +70,7 @@ Those remain under **Settings → Advanced → System Diagnostics → Convergenc
 | Field | Unit |
 |-------|------|
 | `active_oru` | ORU sat-style atoms (`COIN` = 1e8) |
-| `total_res_minted` | RES atoms (`RES_COIN` = 100; 100.00 RES = 10000) |
+| `total_res_minted` | RES atoms (`RES_COIN` = 1_000_000; 1.000000 RES = 1000000) |
 
 ### Registration
 

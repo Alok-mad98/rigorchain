@@ -11,30 +11,23 @@ RIGOR dual-asset wallet key-model presentation for users and UI surfaces.
 
 | Asset | Script / address | Key model | HD ranged derivation |
 |-------|------------------|-----------|----------------------|
-| **ORU** | Witness v0 / Bech32 (`wpkh`, BIP84-style descriptors) | Bitcoin-style HD wallet | **Yes** — ranged ScriptPubKeyMan |
-| **RES** | Witness v1 / Bech32m (`res(...)`) | Dedicated Ed25519 asset key | **No** — single-slot ownership |
+| **ORU** | Witness v0 / Bech32 (`wpkh`, BIP84-style descriptors) | Ed25519 HD wallet | **Yes** — hardened-only (`/0'/*'`, SLIP-0010) |
+| **RES** | Witness v1 / Bech32m (`res(...)`) | Ed25519 HD wallet | **Yes** — same hardened-only paths; program = `SHA256(pk)` |
 
-- **ORU = HD derived keys.** New receive/change addresses come from a ranged descriptor keychain.
-- **RES = dedicated asset key.** The active `res()` descriptor is intentionally non-ranged; repeated `getnewaddress` for RES returns the same receive slot (change may use a separate internal slot).
+- **ORU = HD derived keys.** New receive/change addresses come from a ranged `wpkh` descriptor.
+- **RES = HD derived keys.** Default `res([fp/86'/coin'/0']xpub/0'/*')` (or `/1'/*'` for change). Imported non-ranged `res(<32-byte hex>)` is **dedicated key mode** (watch-only or a single imported program).
 
-These models coexist in one descriptor wallet. That is expected architecture, not a misconfiguration.
+Watch-only wallets cannot expand a ranged xpub: hardened derivation needs the private key. Import `addr(...)` / `wpkh(<32-byte hex>)` / `res(<32-byte hex>)` instead.
 
 ---
 
-## 2. Why Core’s wallet-wide HD flag misleads
+## 2. Wallet-wide HD flag
 
 Bitcoin Core’s `CWallet::IsHDEnabled()` returns true only when **every** active ScriptPubKeyMan is ranged.
 
-Default RIGOR wallets install:
+Default RIGOR wallets install ranged ORU and ranged RES, so `IsHDEnabled()` is **true**.
 
-1. Ranged ORU (`wpkh`) SPKMs → HD  
-2. Non-ranged RES (`res`) SPKMs → not HD  
-
-Therefore `IsHDEnabled() == false` on healthy dual-asset wallets even though ORU HD generation works.
-
-Legacy Qt copy tied the status bar to that boolean and showed **“HD key generation disabled”**. That string is **forbidden** in RIGOR UI.
-
-`IsHDEnabled()` remains unchanged for internal range-end / rescan behavior. UI must not treat it as the user-facing ORU HD indicator.
+Legacy Qt copy that said **“HD key generation disabled”** remains **forbidden**.
 
 ---
 
@@ -51,25 +44,17 @@ ORU:
 HD wallet enabled
 
 RES:
-Dedicated key mode
-```
-
-Equivalent one-line / tooltip form:
-
-```
-Key Management Status
-ORU: HD wallet enabled
-RES: Dedicated key mode
+HD wallet enabled
 ```
 
 ### 3.3 Variants
 
 | Condition | ORU line | RES line |
 |-----------|----------|----------|
-| Default dual-asset | HD wallet enabled | Dedicated key mode |
+| Default dual-asset | HD wallet enabled | HD wallet enabled |
+| Imported non-ranged `res(hex)` | HD wallet enabled | Dedicated key mode |
 | ORU HD present, no RES SPKM | HD wallet enabled | Not configured |
 | Watch-only (`private_keys_disabled`) | Show watch-only / private keys disabled; do not claim HD disabled | same |
-| ORU SPKMs missing or non-ranged | HD wallet not available | Dedicated key mode / Not configured as applicable |
 
 Never use “HD key generation disabled” as a wallet-wide message for dual-asset wallets.
 
@@ -77,16 +62,9 @@ Never use “HD key generation disabled” as a wallet-wide message for dual-ass
 
 ## 4. Surfaces that must follow this spec
 
-1. **Qt status-bar key icon tooltip** (`RigorGUI::setHDStatus`)  
-   - Icon: `hd_enabled` when ORU HD is available (and not watch-only); eye for watch-only.  
-   - Tooltip: Key Management Status with ORU / RES lines above.
-
-2. **Settings → Advanced → Key Management** (and Security / Export Private Key entry points into the same dialog)  
-   - Persistent **Key Management Status** group with the same wording.
-
-3. **Any other tooltip or banner** that previously said HD was disabled wallet-wide.
-
-4. **CLI `bitcoin-wallet` / rigor wallet-tool info** (optional consistency): report ORU HD and RES dedicated mode rather than a single misleading HD yes/no.
+1. **Qt status-bar key icon tooltip** (`RigorGUI::setHDStatus`) — icon stays hidden; Key Management dialog carries the copy.
+2. **Settings → Advanced → Key Management**
+3. **CLI wallet-tool info:** ORU HD / RES HD / RES dedicated key mode.
 
 ---
 
@@ -94,28 +72,26 @@ Never use “HD key generation disabled” as a wallet-wide message for dual-ass
 
 | API | Meaning |
 |-----|---------|
-| `CWallet::IsOruHDEnabled()` / `interfaces::Wallet::oruHdEnabled()` | Active BECH32 SPKMs are ranged HD |
-| `CWallet::IsResDedicatedKeyMode()` / `interfaces::Wallet::resDedicatedKeyMode()` | Active BECH32M SPKMs are non-ranged dedicated keys |
-| `CWallet::IsHDEnabled()` / `hdEnabled()` | Unchanged Core semantics (all active SPKMs ranged) — **not** for dual-asset UX copy |
+| `CWallet::IsOruHDEnabled()` / `oruHdEnabled()` | Active BECH32 SPKMs are ranged HD |
+| `CWallet::IsResHDEnabled()` / `resHdEnabled()` | Active BECH32M SPKMs are ranged HD |
+| `CWallet::IsResDedicatedKeyMode()` / `resDedicatedKeyMode()` | Active BECH32M SPKMs are non-ranged dedicated keys |
+| `CWallet::IsHDEnabled()` / `hdEnabled()` | All active SPKMs ranged — true on default dual-asset wallets |
 
-Private key export (`dumporuprivkey` / `dumpresprivkey` / `ExportAddressPrivateKey`) is independent of these indicators and must remain available on default dual-asset wallets when unlocked.
+Private key export (`dumporuprivkey` / `dumpresprivkey` / `ExportAddressPrivateKey`) is independent of these indicators.
 
 ---
 
 ## 6. Acceptance
 
-- No remaining user-facing “HD key generation disabled” for normal dual-asset wallets  
-- ORU HD derivation behavior unchanged  
-- RES single-slot dedicated key model unchanged  
-- Private key export tests continue to pass  
-- No consensus / descriptor / encryption changes
+- No remaining user-facing “HD key generation disabled” for normal dual-asset wallets
+- Default RES receive addresses advance with HD index
+- Watch-only ranged xpub import fails closed (hardened without private keys)
+- Private key export tests continue to pass
 
 ---
 
 ## 7. References
 
-- `docs/wallet/WALLET_HD_STATUS_AUDIT_REPORT.md` — root-cause audit  
-- `docs/freeze/WALLET_SEMANTIC_FREEZE.md` — RES single-slot freeze  
-- `core/src/wallet/wallet.cpp` — `IsOruHDEnabled`, `IsResDedicatedKeyMode`, `IsHDEnabled`  
-- `core/src/qt/bitcoingui.cpp` — status-bar presentation  
-- `core/src/qt/keymanagementdialog.cpp` — Key Management Status panel  
+- `docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md` — cryptographic boundary (TASK-011)
+- `docs/wallet/DESCRIPTOR_IMPORT_EXPORT_SPEC.md`
+- `core/src/wallet/wallet.cpp` — `IsOruHDEnabled`, `IsResHDEnabled`, `IsResDedicatedKeyMode`, `IsHDEnabled`

@@ -24,13 +24,15 @@ static const int STATUSBAR_ICONSIZE = 16;
 
 static const bool DEFAULT_SPLASHSCREEN = true;
 
-/* Invalid field background style */
-#define STYLE_INVALID "background:#FF8080"
+/* Input fields: grey surface, white text (wallet-wide). Invalid uses an accent border, not a pink fill. */
+#define STYLE_INPUT_BACKGROUND "#3D3D3D"
+#define STYLE_INPUT_FOREGROUND "#FFFFFF"
+#define STYLE_INVALID "background-color:" STYLE_INPUT_BACKGROUND "; color:" STYLE_INPUT_FOREGROUND "; border: 2px solid #FF6A2B;"
 
 /* Transaction list -- unconfirmed transaction */
 #define COLOR_UNCONFIRMED QColor(128, 128, 128)
-/* Transaction list -- negative amount */
-#define COLOR_NEGATIVE QColor(255, 0, 0)
+/* Transaction list -- negative amount (same as other amounts on dark chrome; sign shows direction) */
+#define COLOR_NEGATIVE QColor(255, 255, 255)
 /* Transaction list -- bare address (without label) */
 #define COLOR_BAREADDRESS QColor(140, 140, 140)
 /* Transaction list -- TX status decoration - danger, tx needs attention */

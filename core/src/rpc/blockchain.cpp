@@ -203,7 +203,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("time", (int64_t)blockindex->nTime);
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("nonce", (uint64_t)blockindex->nNonce);
-    result.pushKV("cumulative_convergence", ValueFromAmount(blockindex->m_cumulative_convergence));
+    result.pushKV("cumulative_convergence", ValueFromAmount(blockindex->Observational().GetCumulativeConvergence()));
     result.pushKV("draw_candidate_root", blockindex->m_draw_candidate_root.GetHex());
     {
         // RFC-014 Conv-Decouple-01 / Naming Update Item §6.3:
@@ -211,7 +211,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
         // `SetCompact(blockindex->pprev->nBits)`) reported the variable-T
         // value that has been ELIMINATED from RES eligibility derivation.
         // The new field `res_probability_target` reports the immutable
-        // constitutional constant `RES_PROBABILITY_TARGET` (= floor(2^240 / MIN_CONVERGENCE_AMOUNT)).
+        // constitutional constant `RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017 shipping, C=1024 ORU).
         const uint256& res_probability_target = Params().GetConsensus().RES_PROBABILITY_TARGET;
         result.pushKV("res_probability_target", res_probability_target.GetHex());
         result.pushKV("rigor_res_minted", static_cast<int>(blockindex->has_res));
@@ -609,7 +609,7 @@ static RPCHelpMan getblockheader()
                             {RPCResult::Type::NUM, "nonce", "The nonce"},
                             {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative convergence in commitment (or 0 if absent)"},
                             {RPCResult::Type::STR_HEX, "draw_candidate_root", "Candidate-set Merkle root (CVGE ConvergenceDrawCandidates hilt) committed for this height"},
-                            {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^240 / MIN_CONVERGENCE_AMOUNT), RFC-014)"},
+                            {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
                             {RPCResult::Type::NUM, "rigor_res_minted", "1 if this block included a body RES mint (convergence cycle), else 0"},
                             {RPCResult::Type::STR_HEX, "bits", "The bits"},
                             {RPCResult::Type::NUM, "difficulty", "The difficulty"},
@@ -759,7 +759,7 @@ static RPCHelpMan getblock()
                     {RPCResult::Type::NUM, "nonce", "The nonce"},
                     {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative convergence in commitment (or 0 if absent)"},
                     {RPCResult::Type::STR_HEX, "draw_candidate_root", "Candidate-set Merkle root (CVGE ConvergenceDrawCandidates hilt) committed for this height"},
-                    {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^240 / MIN_CONVERGENCE_AMOUNT), RFC-014)"},
+                    {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
                     {RPCResult::Type::NUM, "rigor_res_minted", "1 if this block included a body RES mint (convergence cycle), else 0"},
                     {RPCResult::Type::STR_HEX, "rigor_winner", "Recomputed convergence draw winner txid (zero if none); same preimage rules as CVGE / getconvergenceresult"},
                     {RPCResult::Type::STR_HEX, "bits", "The bits"},
@@ -977,7 +977,7 @@ static RPCHelpMan gettxoutsetinfo()
                         {RPCResult::Type::STR_HEX, "muhash", /*optional=*/true, "The serialized hash (only present if 'muhash' hash_type is chosen)"},
                         {RPCResult::Type::NUM, "transactions", /*optional=*/true, "The number of transactions with unspent outputs (not available when coinstatsindex is used)"},
                         {RPCResult::Type::NUM, "disk_size", /*optional=*/true, "The estimated size of the chainstate on disk (not available when coinstatsindex is used)"},
-                        {RPCResult::Type::STR_AMOUNT, "total_amount", "The total amount of coins in the UTXO set"},
+                        {RPCResult::Type::STR_AMOUNT, "total_amount", "Sum of every UTXO nValue with no ORU/RES split (ORU 1e8 mixed with RES 1e6). Not circulating ORU supply. CVG2 is absent from the UTXO set."},
                         {RPCResult::Type::STR_AMOUNT, "total_unspendable_amount", /*optional=*/true, "The total amount of coins permanently excluded from the UTXO set (only available if coinstatsindex is used)"},
                         {RPCResult::Type::OBJ, "block_info", /*optional=*/true, "Info on amounts in the block at this block height (only available if coinstatsindex is used)",
                         {
@@ -1130,6 +1130,7 @@ static RPCHelpMan gettxout()
                     {RPCResult::Type::STR, "address", /*optional=*/true, "The Rigor address (only if a well-defined address exists)"},
                 }},
                 {RPCResult::Type::BOOL, "coinbase", "Coinbase or not"},
+                {RPCResult::Type::BOOL, "res_mint", "True if this UTXO is a body RES mint output (immature until nCoinbaseMaturity)"},
             }},
         },
         RPCExamples{
@@ -1183,6 +1184,7 @@ static RPCHelpMan gettxout()
     ScriptToUniv(coin.out.scriptPubKey, /*out=*/o, /*include_hex=*/true, /*include_address=*/true);
     ret.pushKV("scriptPubKey", o);
     ret.pushKV("coinbase", (bool)coin.fCoinBase);
+    ret.pushKV("res_mint", IsResMintScript(coin.out.scriptPubKey));
 
     if (ConvSignTraceActive()) {
         int wver = 0;
@@ -1434,7 +1436,13 @@ static RPCHelpMan getruntimesupply()
         "getruntimesupply",
         "\nReturns the TASK-FVR-B/D observational ORU/RES supply ledger mirror (read-only).\n"
         "Includes Coq catalog fields, authoritative pindex caches, and 32 Phase-5 supply audit cells.\n"
-        "Does not affect consensus, replay, or state_hash.\n",
+        "Does not affect consensus, replay, or state_hash.\n"
+        "\nSupply semantics (do not collapse these fields):\n"
+        "  oru_subsidy_cumulative_derived = total issued ORU (Σ R).\n"
+        "  oru_supply_cumulative          = RFC-002 ledger S_ORU = issued − converge; NOT circulating.\n"
+        "  oru_converge_burn_block        = this block's Convergence destruction C(h); NOT RFC-018 fee burn.\n"
+        "  utxo_non_res_balance           = circulating spendable ORU UTXO proxy (includes immature; excludes CVG2).\n"
+        "  RFC-018 fee-burn cumulative is not persisted on the block index.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
              "Block hash or height (default: active tip)"},
@@ -1449,19 +1457,19 @@ static RPCHelpMan getruntimesupply()
                 {RPCResult::Type::STR, "mirror_source", "stored_mirror or captured_fresh"},
                 {RPCResult::Type::STR_HEX, "block_hash", "Block hash"},
                 {RPCResult::Type::STR_HEX, "parent_hash", "Parent block hash"},
-                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "S_ORU(h)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "RFC-002 ledger S_ORU(h) = issued − converge. NOT circulating ORU after RFC-018 fee burn"},
                 {RPCResult::Type::STR_AMOUNT, "oru_subsidy_block", "R(h)"},
-                {RPCResult::Type::STR_AMOUNT, "oru_converge_burn_block", "C(h)"},
-                {RPCResult::Type::STR_AMOUNT, "oru_supply_parent", "S_ORU(h-1)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_converge_burn_block", "C(h) Convergence destroyed this block (not RFC-018 fee burn)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_supply_parent", "RFC-002 ledger S_ORU(h-1)"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_cumulative", "S_RES(h) cumulative mint"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_block", "RES mint in this block"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_parent", "S_RES(h-1)"},
                 {RPCResult::Type::NUM, "res_mint_count_block", "M(h) in {0,1}"},
                 {RPCResult::Type::STR_AMOUNT, "res_max_supply", "RES_MAX_SUPPLY constant"},
-                {RPCResult::Type::STR_AMOUNT, "res_reward_amount", "RES_REWARD_AMOUNT constant"},
+                {RPCResult::Type::STR_AMOUNT, "res_reward_amount", "Scheduled RES mint reward W(k) at this height (RFC-017)"},
                 {RPCResult::Type::STR_AMOUNT, "utxo_res_balance", "UTXO RES aggregate"},
-                {RPCResult::Type::STR_AMOUNT, "utxo_non_res_balance", "UTXO non-RES aggregate"},
-                {RPCResult::Type::STR_AMOUNT, "oru_subsidy_cumulative_derived", "Optional sum of R(i), i<=h"},
+                {RPCResult::Type::STR_AMOUNT, "utxo_non_res_balance", "Circulating spendable ORU UTXO proxy (non-RES scripts; includes immature coinbase; CVG2 not in UTXO set)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_subsidy_cumulative_derived", "Total issued ORU: optional sum of R(i), i<=h"},
                 {RPCResult::Type::ARR, "invariant_violations", "Empty if mirror satisfies runtime invariants",
                  {
                      {RPCResult::Type::STR, "violation", ""},
@@ -1473,6 +1481,15 @@ static RPCHelpMan getruntimesupply()
                 {RPCResult::Type::NUM, "phase5_supply_cell_count", "32 (16 observables x 2 sources)"},
                 {RPCResult::Type::ARR, "phase5_supply_cells", "Phase-5 audit grid (TASK-FVR-D)",
                  {{RPCResult::Type::OBJ, "cell", "Supply audit cell"}}},
+                {RPCResult::Type::OBJ, "supply_semantics", "Canonical meaning of supply fields; equivalence_claimed remains false",
+                 {
+                     {RPCResult::Type::BOOL, "equivalence_claimed", "Always false"},
+                     {RPCResult::Type::STR, "oru_supply_cumulative", "rfc002_ledger_issued_minus_converge_not_circulating"},
+                     {RPCResult::Type::STR, "oru_subsidy_cumulative_derived", "total_issued_oru"},
+                     {RPCResult::Type::STR, "oru_converge_burn_block", "this_block_convergence_destroyed_oru_not_rfc018_fee_burn"},
+                     {RPCResult::Type::STR, "utxo_non_res_balance", "circulating_spendable_oru_utxo_includes_immature_excludes_cvg2"},
+                     {RPCResult::Type::STR, "rfc018_fee_burn_cumulative", "not_persisted_on_block_index"},
+                 }},
             }},
         RPCExamples{
             HelpExampleCli("getruntimesupply", "") +
@@ -1540,8 +1557,9 @@ static RPCHelpMan getruntimesupplywitness()
 {
     return RPCHelpMan{
         "getruntimesupplywitness",
-        "\nTASK-FVR-F: return the latest runtime supply witness (read-only).\n"
-        "Historical formal verification record from ConnectBlock; does not affect consensus.\n",
+        "\nTASK-FVR-F: return the runtime supply witness for the active tip (read-only).\n"
+        "Historical formal verification record from ConnectBlock; does not affect consensus.\n"
+        "FENCE-W7: resolved via the tip's block hash, never a height-keyed global map.\n",
         {},
         RPCResult{
             RPCResult::Type::OBJ,
@@ -1555,7 +1573,7 @@ static RPCHelpMan getruntimesupplywitness()
                 {RPCResult::Type::NUM, "checked_invariants", "Always 10"},
                 {RPCResult::Type::ARR, "violations", "Stable ids e.g. ORU-L3",
                  {{RPCResult::Type::STR, "id", ""}}},
-                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "S_ORU(h)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "RFC-002 ledger S_ORU(h); not circulating"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_cumulative", "S_RES(h)"},
             }},
         RPCExamples{
@@ -1563,9 +1581,15 @@ static RPCHelpMan getruntimesupplywitness()
             HelpExampleRpc("getruntimesupplywitness", "")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             (void)self;
-            (void)request;
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            ChainstateManager& chainman = EnsureChainman(node);
+            LOCK(cs_main);
+            const CBlockIndex* pindex = chainman.ActiveChainstate().m_chain.Tip();
+            if (!pindex) {
+                throw JSONRPCError(RPC_MISC_ERROR, "No chain tip");
+            }
             const std::optional<Consensus::RuntimeSupplyWitness> witness =
-                Consensus::GetLatestRuntimeSupplyWitness();
+                Consensus::GetRuntimeSupplyWitness(pindex);
             if (!witness.has_value()) {
                 throw JSONRPCError(RPC_MISC_ERROR, "No runtime supply witness stored");
             }
@@ -1578,9 +1602,11 @@ static RPCHelpMan getruntimesupplywitnessbyheight()
 {
     return RPCHelpMan{
         "getruntimesupplywitnessbyheight",
-        "\nTASK-FVR-F: return runtime supply witness for a specific height (read-only).\n",
+        "\nTASK-FVR-F: return runtime supply witness for a specific height (read-only).\n"
+        "FENCE-W7: height is resolved on the active chain, then the witness is loaded by block hash.\n"
+        "There is no height-keyed consensus cache.\n",
         {
-            {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Block height"},
+            {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Block height on the active chain"},
         },
         RPCResult{
             RPCResult::Type::OBJ,
@@ -1594,7 +1620,7 @@ static RPCHelpMan getruntimesupplywitnessbyheight()
                 {RPCResult::Type::NUM, "checked_invariants", "Always 10"},
                 {RPCResult::Type::ARR, "violations", "Stable ids e.g. RES-L5",
                  {{RPCResult::Type::STR, "id", ""}}},
-                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "S_ORU(h)"},
+                {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "RFC-002 ledger S_ORU(h); not circulating"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_cumulative", "S_RES(h)"},
             }},
         RPCExamples{
@@ -1602,12 +1628,15 @@ static RPCHelpMan getruntimesupplywitnessbyheight()
             HelpExampleRpc("getruntimesupplywitnessbyheight", "1000")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             (void)self;
-            const int height = request.params[0].getInt<int>();
-            if (height < 0) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Height must be non-negative");
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            ChainstateManager& chainman = EnsureChainman(node);
+            LOCK(cs_main);
+            const CBlockIndex* pindex = ParseHashOrHeight(request.params[0], chainman);
+            if (!pindex) {
+                throw JSONRPCError(RPC_MISC_ERROR, "No block at height");
             }
             const std::optional<Consensus::RuntimeSupplyWitness> witness =
-                Consensus::GetRuntimeSupplyWitness(height);
+                Consensus::GetRuntimeSupplyWitness(pindex);
             if (!witness.has_value()) {
                 throw JSONRPCError(RPC_MISC_ERROR, "No runtime supply witness at height");
             }
@@ -2487,7 +2516,7 @@ RPCHelpMan getblockchaininfo()
                 {RPCResult::Type::BOOL, "automatic_pruning", /*optional=*/true, "whether automatic pruning is enabled (only present if pruning is enabled)"},
                 {RPCResult::Type::NUM, "prune_target_size", /*optional=*/true, "the target size used by pruning (only present if automatic pruning is enabled)"},
                 {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
-                {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative ORU convergenced on the active chain tip (from index / commitment)"},
+                {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative ORU destroyed by Convergence (CVG2). Not RFC-018 fee burn and not circulating supply"},
                 {RPCResult::Type::STR_AMOUNT, "current_convergence_sum", "ORU convergenced since the last RES mint block (window total at tip)"},
             }},
         RPCExamples{
@@ -3363,8 +3392,8 @@ static RPCHelpMan scantxoutset()
         "    res(<ed25519_key>)                   Witness v1 native RES (RigorChain; 32-byte pubkey or 64-byte secret hex)\n"
         "    wsh(and_v(v:pk(<pubkey>),after(2)))  P2WSH miniscript with mandatory pubkey and a timelock\n"
         "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one\n"
-        "or more path elements separated by \"/\", and optionally ending in \"/*\" (unhardened), or \"/*'\" or \"/*h\" (hardened) to specify all\n"
-        "unhardened or hardened child keys.\n"
+        "or more path elements separated by \"/\". Ed25519 BIP32 is hardened-only (SLIP-0010);\n"
+        "paths must use hardened steps and ranged descriptors must end in \"/*'\" or \"/*h\". Unhardened \"/*\" is rejected.\n"
         "In the latter case, a range needs to be specified by below if different from 1000.\n"
         "For more information on output descriptors, see the documentation in the doc/descriptors.md file.\n",
         {
@@ -3486,6 +3515,7 @@ static RPCHelpMan scantxoutset()
             unspent.pushKV("desc", descriptors[txo.scriptPubKey]);
             unspent.pushKV("amount", ValueFromAmount(txo.nValue));
             unspent.pushKV("coinbase", coin.IsCoinBase());
+            unspent.pushKV("res_mint", IsResMintScript(txo.scriptPubKey));
             unspent.pushKV("height", (int32_t)coin.nHeight);
 
             unspents.push_back(unspent);
@@ -3978,7 +4008,7 @@ static RPCHelpMan getconvergenceresult()
                 {RPCResult::Type::STR_HEX, "sigma_seed", "B_{h-1} in the σ preimage — this block's own hash"},
                 {RPCResult::Type::NUM, "payout_height", "Height of the block that pays this draw (height + 1)"},
                 {RPCResult::Type::STR_HEX, "convergence_root", "C over F, as committed in this block's coinbase scriptSig"},
-                {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^240 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-014 as amended by SECURITY-001-A9-C)"},
+                {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
                 {RPCResult::Type::STR_AMOUNT, "min_convergence", "Fixed consensus minimum ORU convergenced per convergence tx (1.00 ORU)"},
                 {RPCResult::Type::NUM, "convergence_root_set_size", "N = |F|: number of candidates in the ConvergenceRoot set F, taken over the whole draw window"},
                 {RPCResult::Type::STR_HEX, "draw_candidate_root_committed", "ConvergenceDrawCandidates hilt from this block's coinbase CVGE commitment — which commits the draw this block PAYS, i.e. the parent's (or zero)"},
@@ -4080,7 +4110,8 @@ static RPCHelpMan getconvergenceresult()
                 one.pushKV("source_height", candidate.source_height);
                 one.pushKV("h", i < outcome.sigmas.size() ? outcome.sigmas[i].GetHex() : uint256().GetHex());
                 one.pushKV("draw_eligible", i < outcome.eligible.size() && outcome.eligible[i]);
-                // Membership in F already required IsConvergenceTx, so every candidate is CVG2.
+                // Membership in F already required IsConvergenceTx (one OP_CONVERGE output).
+                // "v1_cvg2" is a wire-stable historical spelling, not a live CVG2 program.
                 one.pushKV("convergence_type", "v1_cvg2");
                 candidates.push_back(one);
             }
@@ -4097,14 +4128,15 @@ static RPCHelpMan getconvergenceresult()
 bool FillTipConvergenceChainSummary(const CBlockIndex& tip, ChainstateManager& chainman, CAmount& cumulative_convergence_out, CAmount& current_convergence_sum_out)
 {
     AssertLockHeld(::cs_main);
-    cumulative_convergence_out = static_cast<CAmount>(tip.m_cumulative_convergence);
+    // FENCE-W2: RPC/observer projection of the committed cumulative. Not a draw or mint input.
+    cumulative_convergence_out = static_cast<CAmount>(tip.Observational().GetCumulativeConvergence());
     if (!tip.last_res_mint_block_hash.IsNull()) {
         const CBlockIndex* pindex_last_res_mint = chainman.ActiveChainstate().m_blockman.LookupBlockIndex(tip.last_res_mint_block_hash);
         if (pindex_last_res_mint == nullptr) return false;
-        if (tip.m_cumulative_convergence < pindex_last_res_mint->m_cumulative_convergence) return false;
-        current_convergence_sum_out = static_cast<CAmount>(tip.m_cumulative_convergence - pindex_last_res_mint->m_cumulative_convergence);
+        if (tip.Observational().GetCumulativeConvergence() < pindex_last_res_mint->Observational().GetCumulativeConvergence()) return false;
+        current_convergence_sum_out = static_cast<CAmount>(tip.Observational().GetCumulativeConvergence() - pindex_last_res_mint->Observational().GetCumulativeConvergence());
     } else {
-        current_convergence_sum_out = static_cast<CAmount>(tip.m_cumulative_convergence);
+        current_convergence_sum_out = static_cast<CAmount>(tip.Observational().GetCumulativeConvergence());
     }
     return true;
 }
@@ -4188,7 +4220,7 @@ static RPCHelpMan getconvergencestats()
         "\nReturn chain-wide Convergence network statistics for the active tip.\n"
         "\nPresentation / wallet Network Statistics only. Does not change consensus rules.\n"
         "\nCounts are derived from the tip W-window (node state; W = CONVERGENCE_DRAW_WINDOW).\n"
-        "ORU amounts are sat-style atoms; RES amounts are RES atoms (100.00 RES = 10000).\n",
+        "ORU amounts are sat-style atoms; RES amounts are RES atoms (RES_COIN = 1e6; 1.000000 RES = 1000000).\n",
         {},
         RPCResult{RPCResult::Type::OBJ, "", "",
             {
@@ -4362,9 +4394,9 @@ static RPCHelpMan getassetbalance()
         pcursor->Next();
     }
 
-    // Format balance according to asset type
-    // Note: ValueFromAmount uses 8 decimals by default
-    // For RES (2 decimals), the caller should handle the conversion
+    // Format balance according to asset type.
+    // ORU uses ValueFromAmount (8 decimals). RES display is FormatResAmount (6 decimals)
+    // via ValueFromAmountAsset at other call sites; this helper returns native atoms as ORU-scale JSON.
     return ValueFromAmount(balance);
 },
     };

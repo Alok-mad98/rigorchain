@@ -15,6 +15,7 @@
 #include <validation.h>
 
 #include <cassert>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,16 +25,17 @@ namespace {
 
 CAmount WarmResMintCache(CBlockIndex* tip)
 {
+    // FENCE-W1: observational path-fold of mint sums. Not spendable balance.
     if (tip == nullptr) return 0;
 
     std::vector<CBlockIndex*> pending;
     CBlockIndex* cursor = tip;
-    while (cursor != nullptr && cursor->m_chain_res_mint_total < 0) {
+    while (cursor != nullptr && !cursor->Observational().HasResMintCache()) {
         pending.push_back(cursor);
         cursor = cursor->pprev;
     }
 
-    CAmount running = (cursor != nullptr) ? cursor->m_chain_res_mint_total : 0;
+    CAmount running = (cursor != nullptr) ? cursor->Observational().GetChainResMintTotal() : 0;
     if (running < 0 || running > RES_MAX_SUPPLY) return -1;
 
     for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
@@ -41,7 +43,7 @@ CAmount WarmResMintCache(CBlockIndex* tip)
         if (block->m_block_res_mint_sum < 0 || block->m_block_res_mint_sum > RES_MAX_SUPPLY) return -1;
         if (running > RES_MAX_SUPPLY - block->m_block_res_mint_sum) return -1;
         running += block->m_block_res_mint_sum;
-        block->m_chain_res_mint_total = running;
+        block->Observational().WriteResMintCache(running);
     }
     return running;
 }
@@ -52,12 +54,12 @@ CAmount WarmOruSupplyCache(CBlockIndex* tip, const Params& consensus)
 
     std::vector<CBlockIndex*> pending;
     CBlockIndex* cursor = tip;
-    while (cursor != nullptr && cursor->m_chain_oru_total < 0) {
+    while (cursor != nullptr && !cursor->Observational().HasOruCache()) {
         pending.push_back(cursor);
         cursor = cursor->pprev;
     }
 
-    CAmount running = (cursor != nullptr) ? cursor->m_chain_oru_total : 0;
+    CAmount running = (cursor != nullptr) ? cursor->Observational().GetChainOruTotal() : 0;
     if (running < 0) return -1;
 
     for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
@@ -67,7 +69,7 @@ CAmount WarmOruSupplyCache(CBlockIndex* tip, const Params& consensus)
         if (converge < 0) return -1;
         running = running + subsidy - converge;
         if (running < 0) return -1;
-        block->m_chain_oru_total = running;
+        block->Observational().WriteOruCache(running);
     }
     return running;
 }
@@ -76,7 +78,7 @@ CAmount ParentOruSupply(const CBlockIndex* pindex, const Params& consensus)
 {
     if (pindex == nullptr || pindex->pprev == nullptr) return 0;
     CBlockIndex* const prev = pindex->pprev;
-    if (prev->m_chain_oru_total >= 0) return prev->m_chain_oru_total;
+    if (prev->Observational().HasOruCache()) return prev->Observational().GetChainOruTotal();
     const CAmount warmed = WarmOruSupplyCache(prev, consensus);
     return warmed >= 0 ? warmed : 0;
 }
@@ -85,7 +87,7 @@ CAmount ParentResMint(const CBlockIndex* pindex)
 {
     if (pindex == nullptr || pindex->pprev == nullptr) return 0;
     CBlockIndex* const prev = pindex->pprev;
-    if (prev->m_chain_res_mint_total >= 0) return prev->m_chain_res_mint_total;
+    if (prev->Observational().HasResMintCache()) return prev->Observational().GetChainResMintTotal();
     const CAmount warmed = WarmResMintCache(prev);
     return warmed >= 0 ? warmed : 0;
 }
@@ -95,10 +97,15 @@ CAmount ParentResMint(const CBlockIndex* pindex)
 CAmount ComputeDerivedOruSubsidyCumulative(int height, const Params& consensus)
 {
     if (height < 0) return 0;
+    // MoneyRange() caps at MAX_MONEY (21M ORU), which bounds a single output, not a chain
+    // aggregate. ORU has tail emission and its cumulative subsidy passes 21M around height
+    // 21,000, so gating this sum on MoneyRange() would return -1 for every block thereafter.
+    // The real bound here is int64 overflow.
     CAmount sum = 0;
     for (int h = 0; h <= height; ++h) {
-        sum += GetBlockSubsidy(h, consensus);
-        if (!MoneyRange(sum)) return -1;
+        const CAmount subsidy = GetBlockSubsidy(h, consensus);
+        if (subsidy < 0 || sum > std::numeric_limits<CAmount>::max() - subsidy) return -1;
+        sum += subsidy;
     }
     return sum;
 }
@@ -149,7 +156,8 @@ RuntimeSupplyState CaptureRuntimeSupplyState(const CBlockIndex* pindex,
     out.parent_hash = pindex->pprev == nullptr ? uint256{} : pindex->pprev->GetBlockHash();
 
     out.res_max_supply = RES_MAX_SUPPLY;
-    out.res_reward_amount = RES_REWARD_AMOUNT;
+    // RFC-017: the scheduled reward at this height, which is what RES-L3/RES-L6 compare against.
+    out.res_reward_amount = GetResMintReward(pindex->nHeight);
 
     out.oru_subsidy_block = GetBlockSubsidy(pindex->nHeight, consensus);
     out.oru_converge_burn_block = pindex->m_block_converge_sum;
@@ -158,8 +166,8 @@ RuntimeSupplyState CaptureRuntimeSupplyState(const CBlockIndex* pindex,
 
     WarmSupplyLedgerCaches(const_cast<CBlockIndex*>(pindex), consensus);
 
-    out.oru_supply_cumulative = pindex->m_chain_oru_total;
-    out.res_mint_cumulative = pindex->m_chain_res_mint_total;
+    out.oru_supply_cumulative = pindex->Observational().GetChainOruTotal();
+    out.res_mint_cumulative = pindex->Observational().GetChainResMintTotal();
 
     out.oru_supply_parent = oru_supply_parent_opt.has_value()
                                 ? *oru_supply_parent_opt

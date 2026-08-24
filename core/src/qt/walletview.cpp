@@ -13,7 +13,6 @@
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/convergencepage.h>
-#include <qt/diagnosticspage.h>
 #include <qt/overviewpage.h>
 #include <qt/platformstyle.h>
 #include <qt/receivecoinsdialog.h>
@@ -47,7 +46,7 @@ WalletView::WalletView(WalletModel* wallet_model, const PlatformStyle* _platform
     assert(walletModel);
 
     // Overview first so Load Wallets can return to a responsive main window quickly.
-    // Heavier tabs (history / send / convergence / diagnostics) are built on idle timers.
+    // Heavier tabs (history / send / convergence) are built on idle timers.
     overviewPage = new OverviewPage(platformStyle);
     overviewPage->setWalletModel(walletModel);
     addWidget(overviewPage);
@@ -83,7 +82,7 @@ void WalletView::buildDeferredPages()
         QTimer::singleShot(0, this, [this, deferred]() mutable {
             ensureReceiveSendPages();
             QTimer::singleShot(0, this, [this, deferred]() mutable {
-                ensureConvergenceDiagnosticsPages();
+                ensureConvergencePage();
                 m_deferred_pages_ready = true;
                 if (clientModel) {
                     applyClientModelToPages();
@@ -155,23 +154,14 @@ void WalletView::ensureReceiveSendPages()
     }
 }
 
-void WalletView::ensureConvergenceDiagnosticsPages()
+void WalletView::ensureConvergencePage()
 {
-    if (!convergencePage) {
-        convergencePage = new ConvergencePage(platformStyle);
-        convergencePage->setWalletModel(walletModel);
-        addWidget(convergencePage);
-        if (clientModel) {
-            convergencePage->setClientModel(clientModel);
-        }
-    }
-    if (!diagnosticsPage) {
-        diagnosticsPage = new DiagnosticsPage(platformStyle);
-        diagnosticsPage->setWalletModel(walletModel);
-        addWidget(diagnosticsPage);
-        if (clientModel) {
-            diagnosticsPage->setClientModel(clientModel);
-        }
+    if (convergencePage) return;
+    convergencePage = new ConvergencePage(platformStyle);
+    convergencePage->setWalletModel(walletModel);
+    addWidget(convergencePage);
+    if (clientModel) {
+        convergencePage->setClientModel(clientModel);
     }
 }
 
@@ -179,7 +169,7 @@ void WalletView::ensureAllPages()
 {
     ensureHistoryPage();
     ensureReceiveSendPages();
-    ensureConvergenceDiagnosticsPages();
+    ensureConvergencePage();
     m_deferred_pages_ready = true;
 }
 
@@ -188,7 +178,6 @@ void WalletView::applyClientModelToPages()
     if (!clientModel) return;
     if (overviewPage) overviewPage->setClientModel(clientModel);
     if (convergencePage) convergencePage->setClientModel(clientModel);
-    if (diagnosticsPage) diagnosticsPage->setClientModel(clientModel);
     if (sendCoinsPage) sendCoinsPage->setClientModel(clientModel);
     RigorWallet::ExplorerStatusService::instance().setClientModel(clientModel);
     if (walletModel) walletModel->setClientModel(clientModel);
@@ -251,15 +240,9 @@ void WalletView::gotoConvergencePage()
 {
     QElapsedTimer t;
     t.start();
-    ensureConvergenceDiagnosticsPages();
+    ensureConvergencePage();
     setCurrentWidget(convergencePage);
     qInfo().noquote() << QStringLiteral("[ui-perf] WalletView.gotoConvergencePage %1ms").arg(t.elapsed());
-}
-
-void WalletView::gotoDiagnosticsPage()
-{
-    ensureConvergenceDiagnosticsPages();
-    setCurrentWidget(diagnosticsPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

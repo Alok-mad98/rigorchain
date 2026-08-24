@@ -716,14 +716,14 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.nodes[3].loadwallet('wwatch')
         wwatch = self.nodes[3].get_wallet_rpc('wwatch')
-        # Setup change addresses for the watchonly wallet
+        # Setup a concrete internal change script. Watch-only wallets cannot
+        # expand hardened xpub ranges (SLIP-0010).
+        w3 = self.nodes[3].get_wallet_rpc(self.default_wallet_name)
+        change_desc = w3.getaddressinfo(w3.getrawchangeaddress("bech32"))["desc"]
         desc_import = [{
-            "desc": descsum_create("wpkh(tpubD6NzVbkrYhZ4YNXVQbNhMK1WqguFsUXceaVJKbmno2aZ3B6QfbMeraaYvnBSGpV3vxLyTTK9DYT1yoEck4XUScMzXoQ2U2oSmE2JyMedq3H/1/*)"),
+            "desc": change_desc,
             "timestamp": "now",
             "internal": True,
-            "active": True,
-            "keypool": True,
-            "range": [0, 100],
             "watchonly": True,
         }]
         if self.options.descriptors:

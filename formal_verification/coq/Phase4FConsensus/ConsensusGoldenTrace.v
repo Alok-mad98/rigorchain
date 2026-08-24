@@ -48,11 +48,26 @@ Definition meta_golden_match (m : GoldenVectorMeta) : bool :=
 
 (** PHASE-4F-001E independent re-computation inputs.
 
-    [dc_eligible] is imported kernel evidence (sigma threshold needs the hash
-    kernel, out of Phase-4F scope). [dc_weight] / [dc_txid] are raw registry
-    inputs used by the independent selection re-computation. *)
+    [dc_eligible] is imported kernel evidence (the sigma threshold needs the hash kernel, which
+    is out of Phase-4F scope). [dc_sigma] / [dc_weight] / [dc_txid] are raw registry inputs used
+    by the independent selection re-computation.
+
+    [dc_sigma] was absent, and its absence was not a simplification but a defect: without sigma
+    the audit could only rank candidates by weight, whereas the protocol ranks them by the sigma
+    cross-product (Selection.v [pick_better_tx]). The weight ordering happened to coincide with
+    the real ordering on the 57-vector baseline, so [draw_circularity_closed] passed while
+    proving nothing about the actual selection rule; against the current vector set the two
+    orderings disagree on half the rows. Importing sigma is no more circular than importing
+    [dc_eligible], which is already derived from it.
+
+    Integer encodings match the C++/Python conventions exactly, and the tie-break depends on
+    getting them right: [dc_sigma] is the sigma digest as [arith_uint256], i.e. LITTLE-endian over
+    the 32 bytes, and [dc_txid] is the txid under [uint256::SetHex] byte order, which is the
+    little-endian reading of the JSON hex — byte-wise memcmp on the reversed buffer is the same
+    order as integer comparison of that value. *)
 Record DrawCandidate := {
   dc_eligible : bool;
+  dc_sigma : Z;
   dc_weight : Z;
   dc_txid : Z;
 }.

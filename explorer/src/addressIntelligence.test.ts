@@ -49,7 +49,7 @@ describe("addressIntelligence", () => {
     });
   });
 
-  it("classifies bech32m ORU activity as a CVG2 unspendable script", () => {
+  it("labels bech32m ORU-only activity as historical RFC-014 CVG2, not live OP_CONVERGE", () => {
     assert.deepEqual(
       classifyAddressWithHint(
         true,
@@ -59,7 +59,7 @@ describe("addressIntelligence", () => {
       ),
       {
         address_type: "ORU (Witness v1)",
-        classification: "CVG2 / unspendable convergence script",
+        classification: "Historical RFC-014 / retired Witness v1 CVG2 (not OP_CONVERGE)",
       },
     );
   });
@@ -83,7 +83,7 @@ describe("addressIntelligence", () => {
 
   it("formats ORU and RES atom amounts", () => {
     assert.equal(atomsToOruDisplay(100000000), "1.00000000 ORU");
-    assert.equal(atomsToResDisplay(100), "1.00 RES");
+    assert.equal(atomsToResDisplay(1000000), "1.000000 RES");
   });
 
   it("readonly notice forbids transaction creation", () => {

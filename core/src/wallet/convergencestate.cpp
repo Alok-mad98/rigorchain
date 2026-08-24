@@ -13,7 +13,7 @@
 
 namespace wallet {
 
-static const char* KEY_CONVERGENCE_V2 = "convergence_v2";
+static const char* KEY_CONVERGENCE = "convergence";
 static const char* KEY_CONVERGENCE_STATE = "convergence_state";
 static const char* KEY_CONVERGENCE_INCLUDED_H = "convergence_included_height";
 static const char* KEY_CONVERGENCE_MATURITY_H = "convergence_maturity_height";
@@ -47,8 +47,8 @@ std::optional<ConvergenceState> ParseConvergenceStateString(const std::string& s
 bool LoadConvergenceRecordFromMapValue(const CWalletTx& wtx, ConvergenceRecord& out)
 {
     const auto& m = wtx.mapValue;
-    const auto it_v2 = m.find(KEY_CONVERGENCE_V2);
-    if (it_v2 == m.end() || it_v2->second != "1") {
+    const auto it_flag = m.find(KEY_CONVERGENCE);
+    if (it_flag == m.end() || it_flag->second != "1") {
         return false;
     }
     out = ConvergenceRecord{};
@@ -71,7 +71,7 @@ bool LoadConvergenceRecordFromMapValue(const CWalletTx& wtx, ConvergenceRecord& 
 
 void ApplyConvergenceRecordToMapValue(ConvergenceRecord rec, std::map<std::string, std::string>& map_value_out)
 {
-    map_value_out[KEY_CONVERGENCE_V2] = "1";
+    map_value_out[KEY_CONVERGENCE] = "1";
     map_value_out[KEY_CONVERGENCE_STATE] = ConvergenceStateToString(rec.state);
     if (rec.included_height >= 0) {
         map_value_out[KEY_CONVERGENCE_INCLUDED_H] = strprintf("%d", rec.included_height);

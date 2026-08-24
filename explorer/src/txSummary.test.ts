@@ -1,12 +1,14 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  CVG2_SCRIPT_LABEL,
+  CONVERGENCE_LOCK_DESTINATION_LABEL,
   classifyTxKind,
   destinationLabel,
   pickPrimaryOruOutput,
   txKindLabel,
 } from "./txSummary";
+
+const OP_CONVERGE_HEX = "14" + "00".repeat(20) + "bd";
 
 describe("txSummary", () => {
   it("selects the 65536 ORU payment, not the change remainder", () => {
@@ -32,7 +34,7 @@ describe("txSummary", () => {
     assert.equal(pick.output.address, "rg1qy5cey7tehsdm54agj2ya7dw5rkfddx8fcrme4y");
   });
 
-  it("prefers Witness v1 ORU lock over larger change", () => {
+  it("prefers OP_CONVERGE burn over larger change", () => {
     const pick = pickPrimaryOruOutput([
       {
         vout_index: 0,
@@ -45,15 +47,16 @@ describe("txSummary", () => {
         vout_index: 1,
         value_atoms: "6553600000000",
         asset_kind: "ORU",
-        address: "rg1pgdtywvsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqp5565f",
-        witness_version: 1,
+        address: null,
+        witness_version: null,
+        script_pubkey: OP_CONVERGE_HEX,
       },
     ]);
     assert.ok(pick);
     assert.equal(pick.role, "convergence_lock");
     assert.equal(String(pick.output.value_atoms), "6553600000000");
     assert.equal(classifyTxKind({ isCoinbase: false, primaryRole: pick.role, hasOru: true }), "convergence_lock");
-    assert.equal(txKindLabel("convergence_lock"), CVG2_SCRIPT_LABEL);
+    assert.equal(txKindLabel("convergence_lock"), CONVERGENCE_LOCK_DESTINATION_LABEL);
     assert.equal(
       classifyTxKind({
         isCoinbase: false,
@@ -65,7 +68,28 @@ describe("txSummary", () => {
       "res_mint",
     );
     assert.equal(txKindLabel("res_mint"), "RES mint");
-    assert.equal(destinationLabel("convergence_lock"), CVG2_SCRIPT_LABEL);
+    assert.equal(destinationLabel("convergence_lock"), CONVERGENCE_LOCK_DESTINATION_LABEL);
     assert.equal(destinationLabel("payment"), "Receiver");
+  });
+
+  it("does not treat Witness v1 RES-shaped rows as Convergence", () => {
+    const pick = pickPrimaryOruOutput([
+      {
+        vout_index: 0,
+        value_atoms: "100000000",
+        asset_kind: "ORU",
+        address: "rg1qchange",
+        witness_version: 0,
+      },
+      {
+        vout_index: 1,
+        value_atoms: "200000000",
+        asset_kind: "ORU",
+        address: "rg1pnotconverge",
+        witness_version: 1,
+      },
+    ]);
+    assert.ok(pick);
+    assert.equal(pick.role, "payment");
   });
 });

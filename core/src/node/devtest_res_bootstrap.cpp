@@ -5,16 +5,13 @@
 #include <node/devtest_res_bootstrap.h>
 
 #include <chainparams.h>
-#include <consensus/res_amount.h>
-#include <util/system.h>
 
 CAmount DevTestResWalletBootstrap(const CChainParams& chainparams)
 {
+    // FENCE-W11: amount is Consensus::Params::res_wallet_bootstrap_coinbase,
+    // injected at CreateChainParams / CChainParams::RegTest. Do not read gArgs.
     if (!chainparams.IsMockableChain()) {
         return 0;
     }
-    if (!gArgs.GetBoolArg("-reswalletbootstrap", false)) {
-        return 0;
-    }
-    return RES_COIN;
+    return chainparams.GetConsensus().res_wallet_bootstrap_coinbase;
 }

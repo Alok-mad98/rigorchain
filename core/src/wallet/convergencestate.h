@@ -18,7 +18,7 @@ class CWalletTx;
 namespace wallet {
 
 /*
-CONVERGENCE_STATE_MACHINE_V2_LOCK
+CONVERGENCE_STATE_MACHINE
 
 - Convergence can happen in any block
 - RES is probabilistic (not per-block guaranteed)
@@ -82,7 +82,7 @@ struct ConvergenceRecord {
 std::string ConvergenceStateToString(ConvergenceState s);
 std::optional<ConvergenceState> ParseConvergenceStateString(const std::string& s);
 
-/** Load convergence metadata from CWalletTx::mapValue (keys convergence_v2, convergence_state, ...). */
+/** Load convergence metadata from CWalletTx::mapValue (keys convergence, convergence_state, ...). */
 bool LoadConvergenceRecordFromMapValue(const CWalletTx& wtx, ConvergenceRecord& out);
 
 /** Persist convergence metadata into mapValue (caller must Commit). */

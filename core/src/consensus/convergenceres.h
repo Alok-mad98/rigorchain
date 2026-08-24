@@ -34,7 +34,7 @@
  *   - Draw eligibility for convergence txs is fully recomputable from block txs + prior headers (bind/target);
  *     not from mempool ordering, coinbase txid, or `hashMerkleRoot`.
  *   - Draw eligibility RHS is the immutable RFC-014 constant
- *     `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^240 / MIN_CONVERGENCE_AMOUNT)); see
+ *     `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU); see
  *     `ConvergenceDrawInequalityHolds`. Parent compact `nBits` is retained on
  *     the σ side ONLY for Sigma-CR-01 replay-domain separation.
  */
@@ -72,9 +72,11 @@ arith_uint256 PowConvergenceAmount(CAmount amount);
 uint64_t ConvergenceDrawEffectiveWeightU64(CAmount convergence_amount);
 
 /**
- * Default witness-v1 CVG2 convergence `scriptPubKey` used by the wallet / RPC helpers (same tag as consensus convergence txs).
- * `IsConvergenceOutputScript` is an alias of `IsConvergenceScript` (CVG2 only); it does **not** match coinbase `OP_RETURN` tags.
+ * Default OP_CONVERGE burn used by tests: HASH160 of 32 0xa1 bytes.
+ * Wallet construction always supplies a live RES program hash via GetConvergeScript.
+ * `IsConvergenceOutputScript` is an alias of `IsConvergenceScript`.
  */
+CScript ConvergenceOutputScript(const uint160& owner_hash160);
 const CScript& ConvergenceOutputScript();
 bool IsConvergenceOutputScript(const CScript& script);
 
@@ -83,7 +85,26 @@ int CountConvergenceTransactions(const CBlock& block);
 
 bool IsConvergenceTx(const CTransaction& tx);
 int CountConvergenceOutputs(const CTransaction& tx);
+
+/**
+ * Value committed to the convergence draw by this transaction. Feeds
+ * `ConvergenceDrawCandidate::weight`, **F** membership, the `MIN_CONVERGENCE_AMOUNT` floor,
+ * and — because OP_CONVERGE is the only convergence form — RFC-002 C(t) as well.
+ *
+ * LOAD-BEARING that those two readings coincide: an OP_CONVERGE output never enters the UTXO set
+ * (`AddCoins` skips it), so its value is destroyed the moment the block connects, which is
+ * what makes it legitimate to subtract from S_ORU and to commit through the coinbase CVGE
+ * payload (`bad-convergence-cumulative`, via `CBlockIndex::GetChainConvergeSum`) and
+ * `state_hash`.
+ *
+ * A convergence form that stayed in the UTXO set would break that identity and would have to
+ * be split back into two functions: counting a live UTXO as destroyed ORU subtracts value the
+ * chainstate still holds and that `other_balance` still reports, and then commits the
+ * discrepancy — a chain split. The retired OP_CVG_CLAIM ticket and the retired CVG2+RESO
+ * sibling declaration were such forms; see script.h on 0xbc and OP_CONVERGE.
+ */
 CAmount GetConvergenceAmount(const CTransaction& tx);
+
 CAmount GetOutputValueByAsset(const CTransaction& tx, AssetType asset);
 
 /** Target from compact bits representation (genesis default only). */

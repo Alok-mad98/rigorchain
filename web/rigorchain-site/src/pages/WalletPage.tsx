@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
-import { SectionHub } from "../components/SectionHub";
+import { ConvergencePanel } from "../components/ConvergencePanel";
+import { DarkCard } from "../components/DarkCard";
+import { RESMintPanel } from "../components/RESMintPanel";
+import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
-import { SECTIONS } from "../ia/sitemap";
-
-const SECTION = SECTIONS.find((s) => s.id === "wallet")!;
 
 export function WalletPage() {
   return (
@@ -11,11 +11,30 @@ export function WalletPage() {
       <SubNav />
       <header className="page-header">
         <h1>Wallet</h1>
-        <p className="muted">How to obtain a public TXID for independent verification.</p>
+        <p className="muted">A spending tool. It is not an authority for consensus.</p>
       </header>
-      <SectionHub section={SECTION} />
+
+      <SectionTitle>Balances and state</SectionTitle>
+      <section className="card-grid">
+        <DarkCard title="ORU" to="/wallet/oru" linkLabel="ORU detail">
+          <p>Execution and fee resource. Observe subsidy and spendable ORU separately from RES.</p>
+        </DarkCard>
+        <DarkCard title="Maturity" to="/wallet/maturity" linkLabel="Maturity">
+          <p>Confirmation and spendability are observations, not a verdict.</p>
+        </DarkCard>
+        <DarkCard title="Convergence" to="/wallet/convergence" linkLabel="Convergence">
+          <p>Deterministic selection over candidate set F.</p>
+        </DarkCard>
+        <DarkCard title="RES" to="/wallet/res" linkLabel="RES detail">
+          <p>Scarce settlement asset. Mint linkage is distinct from ORU balance.</p>
+        </DarkCard>
+      </section>
+
+      <SectionTitle>Live observer panels</SectionTitle>
+      <ConvergencePanel />
+      <RESMintPanel />
+
       <section className="card prose-section">
-        <p>The wallet is a spending tool. It is not an authority for consensus.</p>
         <h2>Get a transaction ID</h2>
         <pre className="mono-json">{`gettransaction <txid>
 sendtoaddress  # returns the TXID`}</pre>

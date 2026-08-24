@@ -25,7 +25,7 @@
 #include <string>
 #include <vector>
 
-static const char* AssetTypeToString(const AssetType asset)
+const char* AssetTypeToString(const AssetType asset)
 {
     switch (asset) {
     case ASSET_ORU:

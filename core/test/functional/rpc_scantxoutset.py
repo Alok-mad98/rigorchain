@@ -66,15 +66,9 @@ class ScantxoutsetTest(BitcoinTestFramework):
             ("/0'/0h/0h", Decimal("0.008")),
             ("/0'/0'/1h", Decimal("0.016")),
             ("/0h/0'/1500'", Decimal("0.032")),
-            ("/0h/0h/0", Decimal("0.064")),
-            ("/0'/0h/1", Decimal("0.128")),
-            ("/0h/0'/1500", Decimal("0.256")),
-            ("/1/1/0'", Decimal("0.512")),
-            ("/1/1/1'", Decimal("1.024")),
-            ("/1/1/1500h", Decimal("2.048")),
-            ("/1/1/0", Decimal("4.096")),
-            ("/1/1/1", Decimal("8.192")),
-            ("/1/1/1500", Decimal("16.384")),
+            ("/1h/1h/0h", Decimal("0.064")),
+            ("/1h/1h/1h", Decimal("0.128")),
+            ("/1h/1h/1500h", Decimal("0.256")),
         ]
         for path, amt in hd_funds:
             self.sendtodestination(self.wpkh_at_path(path), amt)
@@ -105,40 +99,27 @@ class ScantxoutsetTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Range specified as [begin,end] must not have begin after end", self.nodes[0].scantxoutset, "start", [{"desc": "desc", "range": [2, 1]}])
         assert_raises_rpc_error(-8, "Range is too large", self.nodes[0].scantxoutset, "start", [{"desc": "desc", "range": [0, 1000001]}])
 
-        self.log.info("Test extended key derivation (wpkh only).")
+        self.log.info("Test extended key derivation (wpkh, hardened-only).")
         assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0'/0h/0h)"])['total_amount'], Decimal("0.008"))
         assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0'/0'/1h)"])['total_amount'], Decimal("0.016"))
         assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0h/0'/1500')"])['total_amount'], Decimal("0.032"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0h/0h/0)"])['total_amount'], Decimal("0.064"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0'/0h/1)"])['total_amount'], Decimal("0.128"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/0h/0'/1500)"])['total_amount'], Decimal("0.256"))
         assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0'/0h/*h)", "range": 1499}])['total_amount'], Decimal("0.024"))
         assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0'/0'/*h)", "range": 1500}])['total_amount'], Decimal("0.056"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0h/0'/*)", "range": 1499}])['total_amount'], Decimal("0.192"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0'/0h/*)", "range": 1500}])['total_amount'], Decimal("0.448"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/0')"])['total_amount'], Decimal("0.512"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/1')"])['total_amount'], Decimal("1.024"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/1500h)"])['total_amount'], Decimal("2.048"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/0)"])['total_amount'], Decimal("4.096"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/1)"])['total_amount'], Decimal("8.192"))
-        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/1500)"])['total_amount'], Decimal("16.384"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1/1/*')", "range": 1499}])['total_amount'], Decimal("1.536"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1/1/*')", "range": 1500}])['total_amount'], Decimal("3.584"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1/1/*)", "range": 1499}])['total_amount'], Decimal("12.288"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1/1/*)", "range": 1500}])['total_amount'], Decimal("28.672"))
-        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1/1/*)", "range": [1500, 1500]}])['total_amount'], Decimal("16.384"))
+        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1h/1h/0h)"])['total_amount'], Decimal("0.064"))
+        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1h/1h/1h)"])['total_amount'], Decimal("0.128"))
+        assert_equal(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1h/1h/1500h)"])['total_amount'], Decimal("0.256"))
+        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1h/1h/*')", "range": 1499}])['total_amount'], Decimal("0.192"))
+        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1h/1h/*')", "range": 1500}])['total_amount'], Decimal("0.448"))
+        assert_equal(self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/1h/1h/*')", "range": [1500, 1500]}])['total_amount'], Decimal("0.256"))
 
         self.log.info("Test the reported descriptors for a few matches (witness v0).")
-        out0 = self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0h/0'/*)", "range": 1499}])
+        out0 = self.nodes[0].scantxoutset("start", [{"desc": "wpkh(" + TPRV + "/0h/0'/*')", "range": 1499}])
         d0 = descriptors(out0)
         assert_equal(len(d0), 2)
         assert all(x.startswith("wpkh(") for x in d0)
-        assert any("026dbd8b2315f296d36e6b6920b1579ca75569464875c7ebe869b536a7d9503c8c" in x for x in d0)
-        assert any("033e6f25d76c00bedb3a8993c7d5739ee806397f0529b1b31dda31ef890f19a60c" in x for x in d0)
-        d1 = descriptors(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1/1/0)"]))
+        d1 = descriptors(self.nodes[0].scantxoutset("start", ["wpkh(" + TPRV + "/1h/1h/0h)"]))
         assert_equal(len(d1), 1)
         assert d1[0].startswith("wpkh(")
-        assert "03e1c5b6e650966971d7e71ef2674f80222752740fc1dfd63bbbd220d2da9bd0fb" in d1[0]
 
         self.log.info("BIP67 sortedmulti under wsh() matches native witness script hash.")
 

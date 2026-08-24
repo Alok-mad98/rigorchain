@@ -1,9 +1,30 @@
 import { Link } from "react-router-dom";
-import { SectionHub } from "../components/SectionHub";
+import { DarkCard } from "../components/DarkCard";
+import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
-import { SECTIONS } from "../ia/sitemap";
 
-const SECTION = SECTIONS.find((s) => s.id === "download")!;
+const DOWNLOADS = [
+  {
+    title: "Windows Wallet",
+    body: "Official Qt wallet installer for Windows. Verify SHA256 before running.",
+    to: "/download/windows-wallet",
+  },
+  {
+    title: "Linux Wallet",
+    body: "Node and wallet packages for Linux. Compare published checksums after download.",
+    to: "/download/linux-wallet",
+  },
+  {
+    title: "CLI Tools",
+    body: "rigord and rigor-cli for operators and auditors.",
+    to: "/download/cli",
+  },
+  {
+    title: "Miner",
+    body: "Windows and Linux miner artifacts for RIGOR proof-of-work.",
+    to: "/download/miner",
+  },
+] as const;
 
 export function DownloadPage() {
   return (
@@ -11,24 +32,31 @@ export function DownloadPage() {
       <SubNav />
       <header className="page-header">
         <h1>Download</h1>
-        <p className="muted">Official AlphaPlus node and wallet artifacts. Verify checksums before use.</p>
+        <p className="muted">Official RIGOR artifacts. This site does not execute binaries.</p>
       </header>
-      <SectionHub section={SECTION} />
+
+      <SectionTitle>Packages</SectionTitle>
+      <section className="card-grid">
+        {DOWNLOADS.map((item) => (
+          <DarkCard key={item.to} title={item.title} to={item.to} linkLabel="Download">
+            <p>{item.body}</p>
+          </DarkCard>
+        ))}
+      </section>
+
       <section className="card prose-section">
         <p>
-          RIGOR AlphaPlus ships as signed/checksummed packages. This site does not execute binaries
-          and does not substitute a download for independent consensus verification.
+          Always compare published SHA256 sums. After install, confirm chain validity in the browser
+          via <Link to="/zero-trust-verification">Zero-Trust Verification</Link>.
         </p>
         <ul>
-          <li>Core daemon: <code>rigord</code> / <code>rigor-cli</code></li>
-          <li>Wallet: <code>rigor-wallet</code> (Qt)</li>
-          <li>Always compare published SHA256 sums after download</li>
+          <li>
+            Core daemon: <code>rigord</code> / <code>rigor-cli</code>
+          </li>
+          <li>
+            Wallet: <code>rigor-wallet</code> (Qt)
+          </li>
         </ul>
-        <p>
-          After install, any third party can confirm chain validity in the browser via{" "}
-          <Link to="/zero-trust-verification">Zero-Trust Verification</Link> — no node RPC required
-          for the default TXID / block-hash modes.
-        </p>
       </section>
     </div>
   );

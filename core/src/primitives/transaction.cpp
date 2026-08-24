@@ -21,17 +21,13 @@
 #include <stdexcept>
 
 namespace {
-/** Witness v1 32-byte program with CVG2 prefix — same bytes as IsConvergenceScript. */
-bool IsConvergenceCvG2V1WitnessProgram(const std::vector<unsigned char>& witnessprogram)
-{
-    if (witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
-    return std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), witnessprogram.begin());
-}
-
-/** Witness v1, 32-byte program that is not CVG2 → RES (legacy ORB2-tagged or untagged). */
+/** Witness v1, 32-byte program that is not a retired CVG2 prefix → RES. Not Bitcoin Taproot. */
 bool IsRigorResWitnessProgram(const std::vector<unsigned char>& witnessprogram)
 {
-    return witnessprogram.size() == WITNESS_V1_RES_SIZE && !IsConvergenceCvG2V1WitnessProgram(witnessprogram);
+    if (witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
+    if (std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), witnessprogram.begin())) return false;
+    if (std::equal(RigorTags::Res2WirePrefix.begin(), RigorTags::Res2WirePrefix.end(), witnessprogram.begin())) return false;
+    return true;
 }
 } // namespace
 
@@ -121,7 +117,13 @@ AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey)
     // RFC-ADDRESS-001: Address = Asset Lock Boundary
     // IF witness_version == 0 → asset MUST be ORU
     // IF witness_version == 1 → asset MUST be RES
-    // This is the canonical address-asset binding rule enforced at consensus level.
+    // OP_RES_MINT is the RES mint lock. OP_CONVERGE is the ORU-domain burn lock.
+    if (IsResMintScript(scriptPubKey)) {
+        return ASSET_RES;
+    }
+    if (IsConvergeScript(scriptPubKey)) {
+        return ASSET_ORU;
+    }
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
     if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
@@ -130,10 +132,6 @@ AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey)
             return ASSET_ORU;
         }
         if (witnessversion == 1 && witnessprogram.size() == WITNESS_V1_RES_SIZE) {
-            // CVG2 is ORU-domain and unspendable. Every other v1/32 program is RES.
-            if (IsConvergenceCvG2V1WitnessProgram(witnessprogram)) {
-                return ASSET_ORU;
-            }
             if (IsRigorResWitnessProgram(witnessprogram)) {
                 return ASSET_RES;
             }
@@ -143,8 +141,8 @@ AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey)
         scriptPubKey.IsPushOnly(scriptPubKey.begin() + 1)) {
         return ASSET_NONE;
     }
-    // Default to ORU for non-witness scripts (legacy parsing compatibility only)
-    return ASSET_ORU;
+    // Default fail-closed (RIG-06): unrecognized scripts are not an asset.
+    return ASSET_NONE;
 }
 
 CAmount CTransaction::GetValueOut(AssetType asset) const

@@ -5,7 +5,6 @@
 #include <qt/walletcontroller.h>
 
 #include <qt/askpassphrasedialog.h>
-#include <qt/autosettle_convergence.h>
 #include <qt/clientmodel.h>
 #include <qt/createwalletdialog.h>
 #include <qt/guiconstants.h>
@@ -168,16 +167,6 @@ WalletModel* WalletController::getOrCreateWallet(std::unique_ptr<interfaces::Wal
 
     // Re-emit coinsSent signal from wallet model.
     connect(wallet_model, &WalletModel::coinsSent, this, &WalletController::coinsSent);
-
-    // Quietly arm Convergence mint assembly when the wallet option is enabled (default ON).
-    QTimer::singleShot(0, wallet_model, [wallet_model] {
-        EnsureConvergenceMintArmed(wallet_model);
-    });
-    if (OptionsModel* opts = m_client_model.getOptionsModel()) {
-        connect(opts, &OptionsModel::autoSettleConvergenceMiningChanged, wallet_model, [wallet_model](bool enabled) {
-            if (enabled) EnsureConvergenceMintArmed(wallet_model);
-        });
-    }
 
     if (emit_added) {
         Q_EMIT walletAdded(wallet_model);

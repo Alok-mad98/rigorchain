@@ -98,9 +98,9 @@ Lemma apply_tx_preserves_supply :
     total_supply s' = total_supply s.
 Proof.
   intros s tx idx s' H.
-  unfold apply_tx in H.
-  destruct (apply_tx_utxo (rs_utxo s) tx idx) as [u|] eqn:E; [|discriminate H].
-  inversion H. subst s'. rewrite replay_set_utxo_preserves_supply. reflexivity.
+  apply apply_tx_some_inv in H.
+  destruct H as [u [_ [_ [_ Hs]]]]. subst s'.
+  rewrite replay_set_utxo_preserves_supply. reflexivity.
 Qed.
 
 Lemma apply_txs_preserves_supply :
@@ -138,9 +138,9 @@ Lemma apply_tx_preserves_scalars :
     rs_res_supply s' = rs_res_supply s.
 Proof.
   intros s tx idx s' H.
-  unfold apply_tx in H.
-  destruct (apply_tx_utxo (rs_utxo s) tx idx) as [u|] eqn:E; [|discriminate H].
-  inversion H. subst s'. unfold replay_set_utxo. split; reflexivity.
+  apply apply_tx_some_inv in H.
+  destruct H as [u [_ [_ [_ Hs]]]]. subst s'.
+  unfold replay_set_utxo. split; reflexivity.
 Qed.
 
 Lemma apply_txs_preserves_scalars :
@@ -474,7 +474,11 @@ Proof.
 Qed.
 
 (** The cap that does exist. RES is capped and ORU is not; stating both together is what keeps
-    the asymmetry from reading as an oversight. *)
+    the asymmetry from reading as an oversight.
+
+    RFC-017 dual insurance: [max_issuance_within_cap] is the finite-sum identity;
+    [valid_res_cap] is the explicit connect reject; this theorem is the redundant
+    delta-clamp restatement and is retained unchanged. *)
 Theorem res_mint_respects_cap :
   forall (s : ReplayState) (b : BlockAbs),
     (rs_res_supply s <= cb_MAX_RES_SUPPLY)%Z ->
@@ -482,7 +486,29 @@ Theorem res_mint_respects_cap :
 Proof.
   intros s b Hcap. unfold cb_res_mint_delta.
   destruct (cm_draw_won (blk_mint b)); [|lia].
-  destruct (Z.leb (rs_res_supply s + cb_RES_MINT_AMOUNT) cb_MAX_RES_SUPPLY) eqn:Hle.
+  destruct (Z.leb (rs_res_supply s + cb_res_mint_amount b) cb_MAX_RES_SUPPLY) eqn:Hle.
   - apply Z.leb_le in Hle. exact Hle.
   - lia.
+Qed.
+
+(** Successful connect already implies the pre-state is under the cap (the
+    reject path), so the post-state is under the cap by the clamp. *)
+Theorem apply_block_res_within_cap :
+  forall (s : ReplayState) (b : BlockAbs) (s' : ReplayState),
+    apply_block s b = Some s' ->
+    (rs_res_supply s' <= cb_MAX_RES_SUPPLY)%Z.
+Proof.
+  intros s b s' H.
+  unfold apply_block in H.
+  destruct (valid_block_connect s b) eqn:Hc; [|discriminate H].
+  pose proof (valid_block_connect_res_cap s b Hc) as Hcapb.
+  pose proof (valid_res_cap_implies_pre_le_cap s b Hcapb) as Hpre.
+  pose proof (res_mint_respects_cap s b Hpre) as Hpost.
+  unfold apply_block_body in H.
+  destruct (apply_txs s (blk_txs b) 0) as [s_tx|] eqn:Ht; [|discriminate H].
+  apply option_Some_inj in H. subst s'.
+  destruct (apply_txs_preserves_scalars s (blk_txs b) 0 s_tx Ht) as [_ Hr].
+  unfold push_history, apply_supply_delta, apply_connectblock_supply_delta,
+         replay_set_chain. simpl.
+  rewrite Hr. exact Hpost.
 Qed.

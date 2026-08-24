@@ -221,7 +221,7 @@ std::optional<WitnessEquivalenceCandidate> ResolveWitnessEquivalenceCandidateAt(
         return std::nullopt;
     }
 
-    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex->nHeight);
+    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex);
     if (!witness.has_value()) {
         return std::nullopt;
     }
@@ -265,7 +265,7 @@ std::optional<CoqEquivalenceCandidateExport> ResolveCoqEquivalenceCandidateExpor
         return std::nullopt;
     }
 
-    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex->nHeight);
+    const std::optional<RuntimeSupplyWitness> witness = GetRuntimeSupplyWitness(pindex);
     if (!witness.has_value()) {
         return std::nullopt;
     }

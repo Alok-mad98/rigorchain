@@ -76,12 +76,8 @@ FUZZ_TARGET_INIT(key, initialize_key)
 
     {
         CKey negated_key = key;
-        negated_key.Negate();
-        assert(negated_key.IsValid());
-        assert(!(negated_key == key));
-
-        negated_key.Negate();
-        assert(negated_key == key);
+        const bool negated = negated_key.Negate();
+        assert(!negated);
     }
 
     const uint256 random_uint256 = Hash(buffer);
@@ -89,11 +85,15 @@ FUZZ_TARGET_INIT(key, initialize_key)
     {
         CKey child_key;
         ChainCode child_chaincode;
-        const bool ok = key.Derive(child_key, child_chaincode, 0, random_uint256);
+        const bool ok = key.Derive(child_key, child_chaincode, 0x80000000, random_uint256);
         assert(ok);
         assert(child_key.IsValid());
         assert(!(child_key == key));
         assert(child_chaincode != random_uint256);
+
+        CKey rejected;
+        ChainCode rejected_cc;
+        assert(!key.Derive(rejected, rejected_cc, 0, random_uint256));
     }
 
     const CPubKey pubkey = key.GetPubKey();
@@ -280,13 +280,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
         CPubKey child_pubkey;
         ChainCode child_chaincode;
         const bool ok = pubkey.Derive(child_pubkey, child_chaincode, 0, random_uint256);
-        assert(ok);
-        assert(child_pubkey != pubkey);
-        assert(child_pubkey.IsCompressed());
-        assert(child_pubkey.IsFullyValid());
-        assert(child_pubkey.IsValid());
-        assert(child_pubkey.size() == 33);
-        assert(child_chaincode != random_uint256);
+        assert(!ok);
     }
 
     const CPrivKey priv_key = key.GetPrivKey();

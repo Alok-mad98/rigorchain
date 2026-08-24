@@ -36,11 +36,13 @@ export function SciencePage() {
 
       <section className="card prose-section">
         <h2>Probabilistic fairness (hash space)</h2>
-        <p className="math-block">P(success) = 2<sup>−16</sup> = 1/65536</p>
+        <p className="math-block">E = 246 · C = 1024 ORU per mint</p>
         <p>
-          Convergence eligibility is expressed as a deterministic integer inequality over σ digests. The
-          65536 principle bounds fairness in normalized hash space — not as marketing probability, but as
-          a formal selection predicate.
+          Convergence eligibility is a deterministic integer inequality over σ digests. Shipping
+          expected wins per committed ORU ≈ n / 1024 (Deterministic Reserve Issuance). Historical
+          RFC-014 / retired design:{" "}
+          <code>1/65536</code> (<code>C = 65536</code> ORU) is a teaching slice, not the live
+          aggregate identity.
         </p>
       </section>
 
@@ -55,8 +57,10 @@ export function SciencePage() {
 
       <p className="muted">
         Scientific correctness does not imply runtime equivalence. See{" "}
-        <Link to="/status">verification status</Link> and{" "}
-        <Link to="/experiment">PROOF-034 experiment</Link> for the active archive layer.
+        <Link to="/documentation/formal-verification">formal verification freeze</Link>,{" "}
+        <Link to="/status">verification status</Link>, and{" "}
+        <Link to="/experiment">PROOF-034 experiment</Link> for the correspondence and archive
+        layers.
       </p>
     </div>
   );

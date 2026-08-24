@@ -275,4 +275,48 @@ BOOST_AUTO_TEST_CASE(bip340_test_vectors)
     BOOST_CHECK(true);
 }
 
+BOOST_AUTO_TEST_CASE(unhardened_derive_fails_closed)
+{
+    CKey parent;
+    parent.MakeNewKey(true);
+    BOOST_REQUIRE(parent.IsValid());
+
+    CKey child;
+    ChainCode cc;
+    const ChainCode parent_cc{};
+    BOOST_CHECK(!parent.Derive(child, cc, /*nChild=*/0, parent_cc));
+    BOOST_CHECK(!parent.Derive(child, cc, 0x7fffffff, parent_cc));
+
+    BOOST_CHECK(parent.Derive(child, cc, 0x80000000, parent_cc));
+    BOOST_CHECK(child.IsValid());
+    BOOST_CHECK(!(child == parent));
+
+    CPubKey pub = parent.GetPubKey();
+    CPubKey pub_child;
+    ChainCode pub_cc;
+    BOOST_CHECK(!pub.Derive(pub_child, pub_cc, 0, parent_cc));
+    BOOST_CHECK(!pub.Derive(pub_child, pub_cc, 0x80000000, parent_cc));
+
+    CExtKey ext;
+    std::vector<std::byte> seed(32, std::byte{0x11});
+    ext.SetSeed(seed);
+    CExtPubKey xpub = ext.Neuter();
+    CExtPubKey xpub_child;
+    BOOST_CHECK(!xpub.Derive(xpub_child, 0));
+    BOOST_CHECK(!xpub.Derive(xpub_child, 0x80000000));
+
+    CExtKey ext_child;
+    BOOST_CHECK(!ext.Derive(ext_child, 0));
+    BOOST_CHECK(ext.Derive(ext_child, 0x80000000));
+}
+
+BOOST_AUTO_TEST_CASE(getid_matches_payload_hash160)
+{
+    CKey key;
+    key.MakeNewKey(true);
+    const CPubKey pub = key.GetPubKey();
+    BOOST_CHECK(pub.GetID() == CKeyID(pub.GetEd25519KeyHash()));
+    BOOST_CHECK(WitnessV0KeyHash(pub) == WitnessV0KeyHash(pub.GetEd25519KeyHash()));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

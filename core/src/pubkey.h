@@ -163,9 +163,12 @@ public:
         }
     }
 
-    //! Get the KeyID of this public key (hash of its serialization)
+    //! HASH160 of the 32-byte Ed25519 payload (not the 0x00 wallet wrapper).
     CKeyID GetID() const
     {
+        if (size() == COMPRESSED_SIZE && vch[0] == 0x00) {
+            return CKeyID(Hash160(Span{vch}.subspan(1, 32)));
+        }
         return CKeyID(Hash160(Span{vch}.first(size())));
     }
 
@@ -227,7 +230,14 @@ public:
     //! Turn this public key into an uncompressed public key.
     bool Decompress();
 
-    //! Derive BIP32 child pubkey.
+    /** 32-byte Ed25519 payload (strips the 0x00 ORUM wrapper). Empty if not a RIGOR Ed25519 key. */
+    std::vector<unsigned char> GetEd25519Payload() const;
+    /** HASH160 of the 32-byte payload — P2WPKH program. */
+    uint160 GetEd25519KeyHash() const;
+    /** SHA256 of the 32-byte payload — witness v1 RES program. */
+    uint256 GetResWitnessProgram() const;
+
+    //! Public BIP32 derivation is not defined for Ed25519 (SLIP-0010). Always returns false.
     [[nodiscard]] bool Derive(CPubKey& pubkeyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 };
 

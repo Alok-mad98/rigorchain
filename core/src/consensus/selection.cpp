@@ -24,13 +24,11 @@ namespace Consensus {
  * C = Hash256(concat(sorted(txids)))
  * Sorting: unsigned byte-wise lexicographical order
  * 
- * Boundary: empty F commits to the all-zero root. Singleton F preserves the
- * existing all-zero root boundary; RFC-015 permits it to compete for RES.
+ * Boundary: empty F commits to the all-zero root. A singleton hashes like any larger F.
  */
 uint256 ComputeConvergenceRoot(const std::vector<uint256>& txids)
 {
-    // RFC-015 preserves the existing root boundary while allowing N=1 selection.
-    if (txids.size() < 2) {
+    if (txids.empty()) {
         return uint256::ZERO;
     }
 

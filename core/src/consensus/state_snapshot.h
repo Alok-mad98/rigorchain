@@ -47,7 +47,7 @@ namespace Consensus {
  *                                `IsResScript(scriptPubKey)` (same predicate
  *                                as `ReplaySnapshot` / `ChainstateSummary`)
  *   - Selection state          : `CBlockIndex` fields written in fixed order:
- *                                `m_cumulative_convergence` (LE64),
+ *                                ObservationalMetrics cumulative (LE64),
  *                                `m_draw_candidate_root` (32),
  *                                `has_res` (1),
  *                                `last_res_mint_block_hash` (32),
@@ -55,8 +55,8 @@ namespace Consensus {
  *                                caches (four LE64 `CAmount` values)
  *   - Mint state               : the same tail fields as selection above
  *                                (`m_block_res_mint_sum`,
- *                                `m_chain_res_mint_total`,
- *                                `m_block_converge_sum`, `m_chain_oru_total`)
+ *                                ObservationalMetrics RES mint total,
+ *                                `m_block_converge_sum`, ObservationalMetrics S_ORU)
  *                                plus explicit RES supply / classifier counts
  *                                in the 36-byte aggregate trailer
  *

@@ -7,6 +7,7 @@
 #include <consensus/res_proof.h>
 #include <crypto/ed25519_provider.h>
 #include <hash.h>
+#include <key.h>
 #include <key_io.h>
 #include <pubkey.h>
 #include <span.h>
@@ -33,18 +34,18 @@
 namespace {
 
 /**
- * RigorChain witness v1 RES (res()): 32-byte program is a native Ed25519 public key.
- * Key-path spends use Ed25519 over the BIP143-like scriptCode template.
+ * RigorChain witness v1 RES (res()): scriptPubKey program is SHA256(ed25519_pk).
+ * The 32-byte pubkey is revealed only in the spending witness.
  */
-static std::vector<CScript> MakeWitnessV1ResScripts(const std::vector<unsigned char>& program32, const std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>>& secret64, FlatSigningProvider& out)
+static std::vector<CScript> MakeWitnessV1ResScripts(const std::vector<unsigned char>& pk32, const std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>>& secret64, FlatSigningProvider& out)
 {
-    if (program32.size() != ed25519::PUBKEY_SIZE) return {};
+    if (pk32.size() != ed25519::PUBKEY_SIZE) return {};
+    uint256 program;
+    if (!ed25519::ResWitnessProgram(pk32, Span<unsigned char>{program.begin(), 32})) return {};
     if (secret64.has_value()) {
-        uint256 prog_id;
-        std::memcpy(prog_id.begin(), program32.data(), 32);
-        out.res_v1_program_to_ed_secret.emplace(prog_id, *secret64);
+        out.res_v1_program_to_ed_secret.emplace(program, *secret64);
     }
-    const XOnlyPubKey xpk(MakeUCharSpan(program32));
+    const XOnlyPubKey xpk(MakeUCharSpan(program));
     WitnessV1Res output{xpk};
     return Vector(GetScriptForDestination(output));
 }
@@ -580,8 +581,16 @@ protected:
     //! Subdescriptors can only ever generate a single script.
     const std::vector<std::unique_ptr<DescriptorImpl>> m_subdescriptor_args;
 
+    enum class StringType
+    {
+        PUBLIC,
+        PRIVATE,
+        NORMALIZED,
+    };
+
     //! Return a serialization of anything except pubkey and script arguments, to be prepended to those.
     virtual std::string ToStringExtra() const { return ""; }
+    virtual std::string ToStringExtra(StringType type) const { (void)type; return ToStringExtra(); }
 
     /** A helper function to construct the scripts for this descriptor.
      *
@@ -599,13 +608,6 @@ public:
     DescriptorImpl(std::vector<std::unique_ptr<PubkeyProvider>> pubkeys, const std::string& name) : m_pubkey_args(std::move(pubkeys)), m_name(name), m_subdescriptor_args() {}
     DescriptorImpl(std::vector<std::unique_ptr<PubkeyProvider>> pubkeys, std::unique_ptr<DescriptorImpl> script, const std::string& name) : m_pubkey_args(std::move(pubkeys)), m_name(name), m_subdescriptor_args(Vector(std::move(script))) {}
     DescriptorImpl(std::vector<std::unique_ptr<PubkeyProvider>> pubkeys, std::vector<std::unique_ptr<DescriptorImpl>> scripts, const std::string& name) : m_pubkey_args(std::move(pubkeys)), m_name(name), m_subdescriptor_args(std::move(scripts)) {}
-
-    enum class StringType
-    {
-        PUBLIC,
-        PRIVATE,
-        NORMALIZED,
-    };
 
     bool IsSolvable() const override
     {
@@ -640,7 +642,7 @@ public:
 
     virtual bool ToStringHelper(const SigningProvider* arg, std::string& out, const StringType type, const DescriptorCache* cache = nullptr) const
     {
-        std::string extra = ToStringExtra();
+        std::string extra = ToStringExtra(type);
         size_t pos = extra.size() > 0 ? 1 : 0;
         std::string ret = m_name + "(" + extra;
         for (const auto& pubkey : m_pubkey_args) {
@@ -818,7 +820,7 @@ protected:
     {
         CKeyID id = keys[0].GetID();
         out.pubkeys.emplace(id, keys[0]);
-        return Vector(GetScriptForDestination(WitnessV0KeyHash(id)));
+        return Vector(GetScriptForDestination(WitnessV0KeyHash(keys[0])));
     }
 public:
     WPKHDescriptor(std::unique_ptr<PubkeyProvider> prov) : DescriptorImpl(Vector(std::move(prov)), "wpkh") {}
@@ -838,7 +840,7 @@ protected:
         ret.emplace_back(GetScriptForRawPubKey(keys[0])); // P2PK
         ret.emplace_back(GetScriptForDestination(PKHash(id))); // P2PKH
         if (keys[0].IsCompressed()) {
-            CScript p2wpkh = GetScriptForDestination(WitnessV0KeyHash(id));
+            CScript p2wpkh = GetScriptForDestination(WitnessV0KeyHash(keys[0]));
             out.scripts.emplace(CScriptID(p2wpkh), p2wpkh);
             ret.emplace_back(p2wpkh);
             ret.emplace_back(GetScriptForDestination(ScriptHash(p2wpkh))); // P2SH-P2WPKH
@@ -908,39 +910,71 @@ public:
     bool IsSingleType() const final { return true; }
 };
 
-/** A parsed res(...) descriptor: witness v1 native RES with raw Ed25519 32-byte program. */
+/** A parsed res(...) descriptor: witness v1 RES. Program is SHA256(ed25519_pk). */
 class ResDescriptor final : public DescriptorImpl
 {
-    std::vector<unsigned char> m_program32;
+    std::vector<unsigned char> m_pk32;
     std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>> m_secret64;
 protected:
-    std::string ToStringExtra() const override { return FormatResKeyArg(m_program32, m_secret64); }
-    std::vector<CScript> MakeScripts(const std::vector<CPubKey>&, Span<const CScript>, FlatSigningProvider& out) const override
+    std::string ToStringExtra() const override { return FormatResKeyArg(m_pk32, std::nullopt); }
+    std::string ToStringExtra(StringType type) const override
     {
-        // Ensure the secret key is available in the signing provider
-        if (m_secret64.has_value()) {
-            uint256 prog_id;
-            std::memcpy(prog_id.begin(), m_program32.data(), 32);
-            out.res_v1_program_to_ed_secret.emplace(prog_id, *m_secret64);
+        if (type == StringType::PRIVATE) {
+            return FormatResKeyArg(m_pk32, m_secret64);
         }
-        return MakeWitnessV1ResScripts(m_program32, m_secret64, out);
+        return FormatResKeyArg(m_pk32, std::nullopt);
+    }
+    std::vector<CScript> MakeScripts(const std::vector<CPubKey>& keys, Span<const CScript>, FlatSigningProvider& out) const override
+    {
+        if (!m_pk32.empty()) {
+            if (m_pk32.size() == ed25519::PUBKEY_SIZE) {
+                unsigned char wrapped[CPubKey::COMPRESSED_SIZE];
+                wrapped[0] = 0x00;
+                std::memcpy(wrapped + 1, m_pk32.data(), ed25519::PUBKEY_SIZE);
+                CPubKey pk(wrapped, wrapped + sizeof(wrapped));
+                if (pk.IsValid()) out.pubkeys.emplace(pk.GetID(), pk);
+            }
+            if (m_secret64.has_value()) {
+                uint256 prog_id;
+                if (ed25519::ResWitnessProgram(m_pk32, Span<unsigned char>{prog_id.begin(), 32})) {
+                    out.res_v1_program_to_ed_secret.emplace(prog_id, *m_secret64);
+                }
+            }
+            return MakeWitnessV1ResScripts(m_pk32, m_secret64, out);
+        }
+        if (keys.size() != 1) return {};
+        out.pubkeys.emplace(keys[0].GetID(), keys[0]);
+        const std::vector<unsigned char> pk32 = keys[0].GetEd25519Payload();
+        if (pk32.size() != ed25519::PUBKEY_SIZE) return {};
+        // ExpandPrivate may have already filled out.keys; also try to materialize
+        // the 64-byte secret from any CKey whose payload matches.
+        for (const auto& [_, key] : out.keys) {
+            if (key.GetPubKey() == keys[0]) {
+                std::array<unsigned char, ed25519::PUBKEY_SIZE> pub{};
+                std::array<unsigned char, ed25519::SECRETKEY_SIZE> sk{};
+                if (ed25519::SeedToKeypair(Span<const unsigned char>{key.begin(), ed25519::SEED_SIZE}, pub, sk)) {
+                    return MakeWitnessV1ResScripts(pk32, sk, out);
+                }
+            }
+        }
+        return MakeWitnessV1ResScripts(pk32, std::nullopt, out);
     }
     bool ExpandFromCache(int pos, const DescriptorCache& read_cache, std::vector<CScript>& output_scripts, FlatSigningProvider& out) const override
     {
-        // Call base implementation
         bool ret = DescriptorImpl::ExpandFromCache(pos, read_cache, output_scripts, out);
-        // Ensure the secret key is available in the signing provider even when expanding from cache
-        // For res() descriptors, the secret key is embedded in the descriptor itself, so we always include it
-        // regardless of include_private flag
-        if (ret && m_secret64.has_value()) {
+        if (ret && m_secret64.has_value() && !m_pk32.empty()) {
             uint256 prog_id;
-            std::memcpy(prog_id.begin(), m_program32.data(), 32);
-            out.res_v1_program_to_ed_secret.emplace(prog_id, *m_secret64);
+            if (ed25519::ResWitnessProgram(m_pk32, Span<unsigned char>{prog_id.begin(), 32})) {
+                out.res_v1_program_to_ed_secret.emplace(prog_id, *m_secret64);
+            }
         }
         return ret;
     }
 public:
-    ResDescriptor(std::vector<unsigned char> program32, std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>> secret64) : DescriptorImpl({}, "res"), m_program32(std::move(program32)), m_secret64(std::move(secret64)) {}
+    ResDescriptor(std::vector<unsigned char> pk32, std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>> secret64)
+        : DescriptorImpl({}, "res"), m_pk32(std::move(pk32)), m_secret64(std::move(secret64)) {}
+    ResDescriptor(std::unique_ptr<PubkeyProvider> prov)
+        : DescriptorImpl(Vector(std::move(prov)), "res") {}
     std::optional<OutputType> GetOutputType() const override { return OutputType::BECH32M; }
     bool IsSingleType() const final { return true; }
 };
@@ -1037,7 +1071,6 @@ enum class ParseScriptContext {
     P2SH,    //!< Inside sh() (script becomes P2SH redeemScript)
     P2WPKH,  //!< Inside wpkh() (no script, pubkey only)
     P2WSH,   //!< Inside wsh() (script becomes v0 witness script)
-    P2TR,    //!< Legacy parse context (Taproot removed on RigorChain; kept for shared pubkey parsing paths)
 };
 
 /** Parse a key path, being passed a split list of elements (the first element is ignored). */
@@ -1086,13 +1119,6 @@ std::unique_ptr<PubkeyProvider> ParsePubkeyInner(uint32_t key_exp_index, const S
                     error = "Uncompressed keys are not allowed";
                     return nullptr;
                 }
-            } else if (data.size() == 32 && ctx == ParseScriptContext::P2TR) {
-                unsigned char fullkey[33] = {0x02};
-                std::copy(data.begin(), data.end(), fullkey + 1);
-                pubkey.Set(std::begin(fullkey), std::end(fullkey));
-                if (pubkey.IsFullyValid()) {
-                    return std::make_unique<ConstPubkeyProvider>(key_exp_index, pubkey, true);
-                }
             }
             error = strprintf("Pubkey '%s' is invalid", str);
             return nullptr;
@@ -1101,15 +1127,8 @@ std::unique_ptr<PubkeyProvider> ParsePubkeyInner(uint32_t key_exp_index, const S
         if (key.IsValid()) {
             if (permit_uncompressed || key.IsCompressed()) {
                 CPubKey pubkey = key.GetPubKey();
-                // Legacy P2TR parse context: normalize to 0x02 + x for x-only hex keys.
-                if (ctx == ParseScriptContext::P2TR && pubkey.IsCompressed()) {
-                    const XOnlyPubKey xpk{pubkey};
-                    unsigned char fullkey[CPubKey::COMPRESSED_SIZE] = {0x02};
-                    std::copy(xpk.begin(), xpk.end(), fullkey + 1);
-                    pubkey.Set(std::begin(fullkey), std::end(fullkey));
-                }
                 out.keys.emplace(pubkey.GetID(), key);
-                return std::make_unique<ConstPubkeyProvider>(key_exp_index, pubkey, ctx == ParseScriptContext::P2TR);
+                return std::make_unique<ConstPubkeyProvider>(key_exp_index, pubkey, false);
             } else {
                 error = "Uncompressed keys are not allowed";
                 return nullptr;
@@ -1132,6 +1151,16 @@ std::unique_ptr<PubkeyProvider> ParsePubkeyInner(uint32_t key_exp_index, const S
         type = DeriveType::HARDENED;
     }
     if (!ParseKeyPath(split, path, error)) return nullptr;
+    for (uint32_t step : path) {
+        if ((step >> 31) == 0) {
+            error = "Ed25519 BIP32 requires hardened derivation (SLIP-0010)";
+            return nullptr;
+        }
+    }
+    if (type == DeriveType::UNHARDENED) {
+        error = "Ed25519 BIP32 requires hardened derivation (SLIP-0010); use /*' not /*";
+        return nullptr;
+    }
     if (extkey.key.IsValid()) {
         extpubkey = extkey.Neuter();
         out.keys.emplace(extpubkey.pubkey.GetID(), extkey.key);
@@ -1264,7 +1293,7 @@ std::unique_ptr<DescriptorImpl> ParseScript(uint32_t& key_exp_index, Span<const 
             return nullptr;
         }
         ++key_exp_index;
-        return std::make_unique<PKDescriptor>(std::move(pubkey), ctx == ParseScriptContext::P2TR);
+        return std::make_unique<PKDescriptor>(std::move(pubkey));
     }
     if ((ctx == ParseScriptContext::TOP || ctx == ParseScriptContext::P2SH || ctx == ParseScriptContext::P2WSH) && Func("pkh", expr)) {
         auto pubkey = ParsePubkey(key_exp_index, expr, ctx, out, error);
@@ -1389,12 +1418,19 @@ std::unique_ptr<DescriptorImpl> ParseScript(uint32_t& key_exp_index, Span<const 
         return nullptr;
     }
     if (ctx == ParseScriptContext::TOP && Func("res", expr)) {
-        std::vector<unsigned char> program32;
+        std::vector<unsigned char> pk32;
         std::optional<std::array<unsigned char, ed25519::SECRETKEY_SIZE>> secret64;
-        if (!ParseEd25519ResKeyArg(expr, program32, secret64, error)) {
+        std::string hex_error;
+        if (ParseEd25519ResKeyArg(expr, pk32, secret64, hex_error)) {
+            return std::make_unique<ResDescriptor>(std::move(pk32), std::move(secret64));
+        }
+        uint32_t key_exp_index = 0;
+        auto provider = ParsePubkey(key_exp_index, expr, ParseScriptContext::P2WPKH, out, error);
+        if (!provider) {
+            if (error.empty()) error = hex_error;
             return nullptr;
         }
-        return std::make_unique<ResDescriptor>(std::move(program32), std::move(secret64));
+        return std::make_unique<ResDescriptor>(std::move(provider));
     } else if (Func("res", expr)) {
         error = "Can only have res() at top level";
         return nullptr;
@@ -1530,8 +1566,7 @@ std::unique_ptr<DescriptorImpl> InferScript(const CScript& script, ParseScriptCo
         }
     }
     if (txntype == TxoutType::WITNESS_V1_RES && ctx == ParseScriptContext::TOP) {
-        assert(data[0].size() == 32);
-        return std::make_unique<ResDescriptor>(data[0], std::nullopt);
+        // Program is SHA256(pk); the pubkey is not recoverable. Infer as addr().
     }
 
     if (ctx == ParseScriptContext::P2WSH) {

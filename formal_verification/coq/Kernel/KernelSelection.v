@@ -7,11 +7,11 @@
 Require Import Coq.ZArith.ZArith.
 Require Import Coq.Lists.List.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import Sigma.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 
 (** [pick_better_tx] always returns one of its two arguments. *)
 Lemma pick_better_tx_is_arg :

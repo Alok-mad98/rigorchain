@@ -14,6 +14,7 @@
 #include <consensus/res_proof.h>
 #include <hash.h>
 #include <primitives/transaction.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -38,7 +39,7 @@ CMutableTransaction MakeRegtestLikeCoinbase()
 
 // SECURITY-001-A / A-5 R1: a convergence must declare its RES payout owner to enter F, so
 // every fixture that expects eligibility carries a declaration.
-CTransactionRef MakeconvergenceTx(const uint256& prev_utxo_hash, const CScript& convergence_spk, bool declare_owner = true)
+CTransactionRef MakeconvergenceTx(const uint256& prev_utxo_hash, const CScript& convergence_spk)
 {
     CMutableTransaction mtx;
     mtx.vin.resize(1);
@@ -48,17 +49,12 @@ CTransactionRef MakeconvergenceTx(const uint256& prev_utxo_hash, const CScript& 
     mtx.vout[0].scriptPubKey = convergence_spk;
     mtx.vout[1].nValue = 19 * COIN - 1;
     mtx.vout[1].scriptPubKey = g_oru_spk;
-    if (declare_owner) {
-        // Derive a distinct owner program per convergence so fixtures stay independent.
-        std::vector<unsigned char> program32(prev_utxo_hash.begin(), prev_utxo_hash.end());
-        mtx.vout.emplace_back(0, Consensus::ResOwnerDeclarationScript(program32));
-    }
     return MakeTransactionRef(mtx);
 }
 
 uint256 ExpectedconvergenceSetRoot(const std::vector<uint256>& txids_sorted)
 {
-    if (txids_sorted.size() < 2) return uint256();
+    if (txids_sorted.empty()) return uint256();
     CHash256 hasher;
     for (const uint256& id : txids_sorted) {
         hasher.Write(MakeUCharSpan(id));
@@ -165,8 +161,11 @@ BOOST_AUTO_TEST_CASE(list_convergence_root_commitment_txids_size_gates_root)
     const auto ids_one = Consensus::ListConvergenceRootCommitmentTxids(vtx_one, coins, 200, Params().GetConsensus());
     BOOST_REQUIRE_EQUAL(ids_one.size(), 1U);
     BOOST_CHECK_EQUAL(ids_one[0], tx_a->GetHash());
-    BOOST_CHECK(Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_one).IsNull());
-    BOOST_CHECK(Consensus::ComputeConvergenceRootFromConvergenceSet(vtx_one, coins, 200, Params().GetConsensus()).IsNull());
+    BOOST_CHECK(!Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_one).IsNull());
+    BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_one),
+        Consensus::ComputeConvergenceRootFromConvergenceSet(vtx_one, coins, 200, Params().GetConsensus()));
+    BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_one),
+        ExpectedconvergenceSetRoot({tx_a->GetHash()}));
 
     const uint256 h_b = uint256S("0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
     coins.AddCoin(COutPoint(h_b, 0), Coin(CTxOut(20 * COIN, g_oru_spk), 100, false), false);
@@ -191,24 +190,22 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_gates_draw_eligibility)
     coins.AddCoin(COutPoint(h_b, 0), Coin(CTxOut(20 * COIN, g_oru_spk), 100, false), false);
 
     const auto cb = MakeTransactionRef(MakeRegtestLikeCoinbase());
-    const auto declared = MakeconvergenceTx(h_a, Consensus::ConvergenceOutputScript(), /*declare_owner=*/true);
-    const auto undeclared = MakeconvergenceTx(h_b, Consensus::ConvergenceOutputScript(), /*declare_owner=*/false);
+    const auto declared = MakeconvergenceTx(h_a, Consensus::ConvergenceOutputScript());
+    const CScript retired_cvg2 = CScript() << OP_1 << std::vector<unsigned char>(32, 0x43);
+    const auto undeclared = MakeconvergenceTx(h_b, retired_cvg2);
 
-    // Both are structurally convergences and both burn ORU; only the declared one may play.
     BOOST_REQUIRE(Consensus::IsConvergenceTx(*declared));
-    BOOST_REQUIRE(Consensus::IsConvergenceTx(*undeclared));
+    BOOST_CHECK(!Consensus::IsConvergenceTx(*undeclared));
 
     const auto ids = Consensus::ListConvergenceRootCommitmentTxids(
         {cb, declared, undeclared}, coins, 200, Params().GetConsensus());
     BOOST_REQUIRE_EQUAL(ids.size(), 1U);
     BOOST_CHECK_EQUAL(ids[0], declared->GetHash());
 
-    // The undo/reorg path must reach the same verdict or a reorg would rebuild a different F.
     BOOST_CHECK(ComputeConvergenceFee(*declared, coins, 200, Params().GetConsensus()) > 0);
     BOOST_CHECK_EQUAL(ComputeConvergenceFee(*undeclared, coins, 200, Params().GetConsensus()), CAmount{0});
 }
 
-// A second declaration is an ambiguity the block producer would get to resolve.
 BOOST_AUTO_TEST_CASE(res_owner_declaration_must_be_unique)
 {
     CCoinsView base;
@@ -219,7 +216,7 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_must_be_unique)
     CMutableTransaction mtx{*MakeconvergenceTx(h_a, Consensus::ConvergenceOutputScript())};
     BOOST_REQUIRE(Consensus::HasResOwnerDeclaration(CTransaction(mtx)));
 
-    mtx.vout.emplace_back(0, Consensus::ResOwnerDeclarationScript(std::vector<unsigned char>(32, 0x77)));
+    mtx.vout.emplace_back(COIN, GetConvergeScriptForProgram(std::vector<unsigned char>(32, 0x77)));
     const auto doubled = MakeTransactionRef(mtx);
     BOOST_CHECK(!Consensus::HasResOwnerDeclaration(*doubled));
 
@@ -228,62 +225,59 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_must_be_unique)
     BOOST_CHECK(ids.empty());
 }
 
-// Byte-shape parser: exact size, exact magic, exact version, single encoding.
-BOOST_AUTO_TEST_CASE(res_owner_declaration_payload_shape)
+BOOST_AUTO_TEST_CASE(converge_script_shape)
 {
     const std::vector<unsigned char> program32(32, 0x5a);
+    const CScript canonical = GetConvergeScriptForProgram(program32);
+    BOOST_REQUIRE_EQUAL(canonical.size(), 22U);
+    BOOST_CHECK_EQUAL(canonical[0], 20);
+    BOOST_CHECK_EQUAL(canonical[21], OP_CONVERGE);
+
+    uint160 parsed_hash;
+    BOOST_REQUIRE(ParseConvergeScript(canonical, parsed_hash));
+    BOOST_CHECK(parsed_hash == Hash160(program32));
+
     CMutableTransaction mtx;
     mtx.vin.resize(1);
-    mtx.vout.emplace_back(0, Consensus::ResOwnerDeclarationScript(program32));
+    mtx.vout.emplace_back(COIN, canonical);
     const auto parsed = Consensus::GetResOwnerDeclaration(CTransaction(mtx));
     BOOST_REQUIRE(parsed.has_value());
-    BOOST_CHECK(parsed->program32 == program32);
+    BOOST_CHECK(parsed->payout_hash160 == Hash160(program32));
 
-    std::vector<unsigned char> payload(Consensus::RES_OWNER_PAYLOAD_SIZE, 0x00);
-    payload[0] = 'R'; payload[1] = 'E'; payload[2] = 'S'; payload[3] = 'O';
-    payload[4] = Consensus::RES_OWNER_VERSION;
-    BOOST_CHECK(Consensus::ParseResOwnerDeclarationPayload(payload).has_value());
+    CScript too_short(canonical.begin(), canonical.end() - 1);
+    BOOST_CHECK(!ParseConvergeScript(too_short, parsed_hash));
 
-    auto wrong_version = payload;
-    wrong_version[4] = 0x02;
-    BOOST_CHECK(!Consensus::ParseResOwnerDeclarationPayload(wrong_version).has_value());
-
-    auto wrong_magic = payload;
-    wrong_magic[0] = 'X';
-    BOOST_CHECK(!Consensus::ParseResOwnerDeclarationPayload(wrong_magic).has_value());
-
-    auto too_long = payload;
+    CScript too_long = canonical;
     too_long.push_back(0x00);
-    BOOST_CHECK(!Consensus::ParseResOwnerDeclarationPayload(too_long).has_value());
+    BOOST_CHECK(!ParseConvergeScript(too_long, parsed_hash));
 
-    auto too_short = payload;
-    too_short.pop_back();
-    BOOST_CHECK(!Consensus::ParseResOwnerDeclarationPayload(too_short).has_value());
+    CScript wrong_opcode = canonical;
+    wrong_opcode[21] = OP_RETURN;
+    BOOST_CHECK(!ParseConvergeScript(wrong_opcode, parsed_hash));
 }
 
-// One declaration must have one spelling: the payload pushed with OP_PUSHDATA1 carries the
-// same bytes but is not the canonical script, so it does not count as a declaration.
-BOOST_AUTO_TEST_CASE(res_owner_declaration_push_encoding_is_canonical)
+BOOST_AUTO_TEST_CASE(converge_script_push_encoding_is_canonical)
 {
     const std::vector<unsigned char> program32(32, 0x5a);
-    const CScript canonical = Consensus::ResOwnerDeclarationScript(program32);
-    BOOST_REQUIRE_EQUAL(canonical.size(), 2U + Consensus::RES_OWNER_PAYLOAD_SIZE);
-    BOOST_CHECK_EQUAL(canonical[0], OP_RETURN);
-    BOOST_CHECK_EQUAL(canonical[1], static_cast<unsigned char>(Consensus::RES_OWNER_PAYLOAD_SIZE));
+    const CScript canonical = GetConvergeScriptForProgram(program32);
+    const uint160 owner = Hash160(program32);
 
-    std::vector<unsigned char> payload(canonical.begin() + 2, canonical.end());
     CScript pushdata1;
-    pushdata1 << OP_RETURN;
     pushdata1.push_back(OP_PUSHDATA1);
-    pushdata1.push_back(static_cast<unsigned char>(payload.size()));
-    pushdata1.insert(pushdata1.end(), payload.begin(), payload.end());
+    pushdata1.push_back(20);
+    pushdata1.insert(pushdata1.end(), owner.begin(), owner.end());
+    pushdata1.push_back(OP_CONVERGE);
+
+    uint160 parsed_hash;
+    BOOST_CHECK(!ParseConvergeScript(pushdata1, parsed_hash));
+    BOOST_CHECK(ParseConvergeScript(canonical, parsed_hash));
 
     CMutableTransaction mtx;
     mtx.vin.resize(1);
-    mtx.vout.emplace_back(0, pushdata1);
+    mtx.vout.emplace_back(COIN, pushdata1);
     BOOST_CHECK(!Consensus::HasResOwnerDeclaration(CTransaction(mtx)));
 
-    mtx.vout[0] = CTxOut(0, canonical);
+    mtx.vout[0] = CTxOut(COIN, canonical);
     BOOST_CHECK(Consensus::HasResOwnerDeclaration(CTransaction(mtx)));
 }
 

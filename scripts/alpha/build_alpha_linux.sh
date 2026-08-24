@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Linux AlphaPlus package (deb + AppImage/portable) — RIGOR v0.1.1-alphaplus
+# Linux AlphaPlus package (deb + AppImage/portable) — RIGOR v0.1.2-alphaplus
 # Historical Alpha1 naming before AlphaPlus release identity migration (path still scripts/alpha/).
 # No consensus / RFC / RES model changes.
 set -euo pipefail
@@ -8,7 +8,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE="${REPO_ROOT}/core"
 SRC="${CORE}/src"
 OUT="${REPO_ROOT}/dist/alpha/linux"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.1-alphaplus}"
+VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
 ARCH=amd64
 
 log() { printf '[alpha-linux] %s\n' "$*"; }
@@ -119,8 +119,8 @@ cp -a "${ICON_SRC}" "${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/rigor-wall
 
 cat > "${DEB_ROOT}/usr/share/applications/rigor-wallet.desktop" <<'EOF'
 [Desktop Entry]
-Name=RIGOR Wallet
-Comment=RIGOR AlphaPlus Wallet
+Name=Rigor Wallet
+Comment=Rigor AlphaPlus Wallet
 Exec=/opt/rigor/bin/rigor-wallet
 Path=/opt/rigor/bin
 Icon=rigor-wallet
@@ -229,25 +229,29 @@ log "Staged first-alpha names under ${REL}"
 # AlphaPlus dist names: overwrite any unstripped debug tarballs
 AP="${REPO_ROOT}/dist/alphaplus/linux"
 mkdir -p "${AP}"
-cp -a "${TAR}" "${AP}/rigor-v0.1.1-alphaplus-linux.tar.gz"
-cp -a "${TAR}" "${AP}/rigor-wallet-0.1.1-alphaplus.tar.gz"
+cp -a "${TAR}" "${AP}/rigor-v${VERSION}-linux.tar.gz"
+cp -a "${TAR}" "${AP}/rigor-wallet-${VERSION}.tar.gz"
 if [[ -f "${DEB_FILE}" ]]; then
-  cp -a "${DEB_FILE}" "${AP}/rigor-v0.1.1-alphaplus-linux.deb"
+  cp -a "${DEB_FILE}" "${AP}/rigor-v${VERSION}-linux.deb"
 fi
 core_tmp="$(mktemp -d)"
 mkdir -p "${core_tmp}/bin"
 cp -a "${OUT}/bin/rigord" "${OUT}/bin/rigor-cli" "${core_tmp}/bin/"
-tar -C "${core_tmp}" -czf "${AP}/rigor-core-0.1.1-alphaplus.tar.gz" bin
+tar -C "${core_tmp}" -czf "${AP}/rigor-core-${VERSION}.tar.gz" bin
 rm -rf "${core_tmp}"
+rm -f "${AP}/rigor-v0.1.1-alphaplus-linux.tar.gz" \
+  "${AP}/rigor-wallet-0.1.1-alphaplus.tar.gz" \
+  "${AP}/rigor-v0.1.1-alphaplus-linux.deb" \
+  "${AP}/rigor-core-0.1.1-alphaplus.tar.gz"
 (
   cd "${AP}"
   sha256sum \
-    rigor-v0.1.1-alphaplus-linux.tar.gz \
-    rigor-wallet-0.1.1-alphaplus.tar.gz \
-    rigor-core-0.1.1-alphaplus.tar.gz \
+    "rigor-v${VERSION}-linux.tar.gz" \
+    "rigor-wallet-${VERSION}.tar.gz" \
+    "rigor-core-${VERSION}.tar.gz" \
     > SHA256SUMS
-  if [[ -f rigor-v0.1.1-alphaplus-linux.deb ]]; then
-    sha256sum rigor-v0.1.1-alphaplus-linux.deb >> SHA256SUMS
+  if [[ -f "rigor-v${VERSION}-linux.deb" ]]; then
+    sha256sum "rigor-v${VERSION}-linux.deb" >> SHA256SUMS
   fi
 )
 log "Staged stripped AlphaPlus tarballs under ${AP}"

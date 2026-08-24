@@ -8,7 +8,7 @@ echo RIGOR local node ^(Windows solo^)
 echo --------------------------------
 echo This starts rigor-wallet.exe as a local RPC node for mining.
 echo Miner RPC: 127.0.0.1:8761  (generated rpc-auth.conf)
-echo Convergence mint: wallet Settings "Auto-settle Convergence when mining locally" ^(default ON^)
+echo Convergence mint: automatic coinbase RES mint when the parent draw has a winner
 echo Network fees are ORU-only. Miner payout is ORU ^(rg1q...^) only.
 echo.
 
@@ -124,15 +124,13 @@ if "!FATAL_RES!"=="1" (
   call :probe_gbt_res_fee
   if "!NEED_RESTART!"=="1" (
     echo.
-    echo ERROR: Convergence mint assembly is not armed.
-    echo In rigor-wallet: Settings -^> Wallet -^> enable
-    echo   "Auto-settle Convergence when mining locally"
-    echo Or set miningresfeeaddr=rg1p... in %CONF% and restart.
+    echo ERROR: getblocktemplate reports Convergence mint is not armed.
+    echo Production mint is coinbase-automatic. Restart the wallet and try again.
     echo.
     if /I not "%~1"=="/nopause" pause
     exit /b 1
   )
-  echo NOTE: could not write miningresfeeaddr via RPC; relying on wallet Auto-settle if GBT works.
+  echo NOTE: could not write miningresfeeaddr via RPC; coinbase mint does not require it.
 )
 
 call :try_fund_automint
@@ -152,7 +150,7 @@ echo.
 echo Node ready. RPC 127.0.0.1:8761
 if defined RES_FEE_ADDR echo Convergence mint armed ^(miningresfeeaddr=!RES_FEE_ADDR!^)
 echo Next: rigor-miner.cmd with ORU rg1q... payout
-echo Wallet: keep "Auto-settle Convergence when mining locally" enabled
+echo Convergence RES mint is assembled in coinbase when a winner is present.
 echo.
 if /I not "%~1"=="/nopause" pause
 exit /b 0
@@ -215,7 +213,7 @@ if defined RES_FEE_ADDR (
 echo.
 echo Creating witness-v1 RES address to arm Convergence mint assembly ...
 echo ^(Not a fee address — network fees are ORU-only; prize pays the Convergence winner^)
-echo Prefer: wallet Settings -^> Auto-settle Convergence when mining locally
+echo Optional: miningresfeeaddr is only for bootstrap / unexpected RES fees.
 echo Datadir/conf: %CONF%
 echo Note: multi-wallet nodes need -rpcwallet / /wallet/NAME ^(error -19 otherwise^)
 set "RES_FEE_ADDR="

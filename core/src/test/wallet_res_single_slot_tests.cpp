@@ -17,6 +17,8 @@
 #include <boost/test/unit_test.hpp>
 
 #include <atomic>
+#include <set>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -26,6 +28,7 @@ using wallet::DatabaseOptions;
 using wallet::DBErrors;
 using wallet::DescriptorScriptPubKeyMan;
 using wallet::DuplicateMockDatabase;
+using wallet::ISMINE_NO;
 using wallet::WalletDescriptor;
 
 namespace {
@@ -49,7 +52,7 @@ bool WitnessVersion(const CTxDestination& d, int& version)
 
 BOOST_FIXTURE_TEST_SUITE(wallet_res_single_slot_tests, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(res_getnewaddress_repeats_same_destination)
+BOOST_AUTO_TEST_CASE(res_getnewaddress_advances_hd_index)
 {
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitNativeDualDescriptorWallet(*this, w);
@@ -58,7 +61,7 @@ BOOST_AUTO_TEST_CASE(res_getnewaddress_repeats_same_destination)
     const auto a2 = w.GetNewDestination(OutputType::BECH32M, "");
     BOOST_REQUIRE(a1);
     BOOST_REQUIRE(a2);
-    BOOST_CHECK(EncodeDestination(*a1) == EncodeDestination(*a2));
+    BOOST_CHECK(EncodeDestination(*a1) != EncodeDestination(*a2));
     int v1 = -1, v2 = -1;
     BOOST_CHECK(WitnessVersion(*a1, v1));
     BOOST_CHECK(WitnessVersion(*a2, v2));
@@ -95,7 +98,7 @@ BOOST_AUTO_TEST_CASE(res_internal_change_differs_from_external_receive)
     BOOST_CHECK(EncodeDestination(*recv) != EncodeDestination(*change));
 }
 
-BOOST_AUTO_TEST_CASE(res_descriptor_next_index_stays_zero_after_repeated_mint)
+BOOST_AUTO_TEST_CASE(res_descriptor_next_index_advances_after_receive)
 {
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitNativeDualDescriptorWallet(*this, w);
@@ -105,10 +108,10 @@ BOOST_AUTO_TEST_CASE(res_descriptor_next_index_stays_zero_after_repeated_mint)
     BOOST_REQUIRE(w.GetNewDestination(OutputType::BECH32M, ""));
     BOOST_REQUIRE(w.GetNewDestination(OutputType::BECH32M, ""));
     LOCK(spkm->cs_desc_man);
-    BOOST_CHECK_EQUAL(spkm->GetWalletDescriptor().next_index, 0);
+    BOOST_CHECK_EQUAL(spkm->GetWalletDescriptor().next_index, 2);
 }
 
-BOOST_AUTO_TEST_CASE(import_active_ard_descriptor_via_wallet_descriptor_api)
+BOOST_AUTO_TEST_CASE(import_active_ranged_res_descriptor_via_wallet_descriptor_api)
 {
     CWallet w_src(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitNativeDualDescriptorWallet(*this, w_src);
@@ -126,7 +129,7 @@ BOOST_AUTO_TEST_CASE(import_active_ard_descriptor_via_wallet_descriptor_api)
     std::string error;
     std::unique_ptr<Descriptor> parsed = Parse(desc_str, keys, error, /*require_checksum=*/true);
     BOOST_REQUIRE_MESSAGE(parsed, error);
-    BOOST_CHECK(!parsed->IsRange());
+    BOOST_CHECK(parsed->IsRange());
     BOOST_REQUIRE(parsed->GetOutputType());
     BOOST_CHECK(*parsed->GetOutputType() == OutputType::BECH32M);
 
@@ -146,7 +149,7 @@ BOOST_AUTO_TEST_CASE(import_active_ard_descriptor_via_wallet_descriptor_api)
     BOOST_CHECK_EQUAL(ver, 1);
 }
 
-BOOST_AUTO_TEST_CASE(duplicate_mock_database_preserves_res_descriptor_state)
+BOOST_AUTO_TEST_CASE(duplicate_mock_database_preserves_res_hd_index)
 {
     CWallet w1(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitNativeDualDescriptorWallet(*this, w1);
@@ -159,26 +162,32 @@ BOOST_AUTO_TEST_CASE(duplicate_mock_database_preserves_res_descriptor_state)
     BOOST_CHECK_EQUAL(w2.LoadWallet(), DBErrors::LOAD_OK);
 
     LOCK2(w1.cs_wallet, w2.cs_wallet);
+    BOOST_CHECK(w2.IsMine(GetScriptForDestination(res_before)) != ISMINE_NO);
     const auto res_after = w2.GetNewDestination(OutputType::BECH32M, "");
     BOOST_REQUIRE(res_after);
-    BOOST_CHECK(EncodeDestination(*res_after) == EncodeDestination(res_before));
+    BOOST_CHECK(EncodeDestination(*res_after) != EncodeDestination(res_before));
 }
 
-BOOST_AUTO_TEST_CASE(concurrent_res_getnewdestination_under_cs_wallet)
+BOOST_AUTO_TEST_CASE(concurrent_res_getnewdestination_unique_under_cs_wallet)
 {
     CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
     InitNativeDualDescriptorWallet(*this, w);
-    CTxDestination first;
+    std::set<std::string> seen;
     {
         LOCK(w.cs_wallet);
-        first = *Assert(w.GetNewDestination(OutputType::BECH32M, ""));
+        seen.insert(EncodeDestination(*Assert(w.GetNewDestination(OutputType::BECH32M, ""))));
     }
     std::atomic<int> failures{0};
-    auto worker = [&w, &first, &failures] {
+    auto worker = [&w, &seen, &failures] {
         for (int i = 0; i < 50; ++i) {
             LOCK(w.cs_wallet);
             const auto d = w.GetNewDestination(OutputType::BECH32M, "");
-            if (!d || EncodeDestination(*d) != EncodeDestination(first)) {
+            if (!d) {
+                ++failures;
+                continue;
+            }
+            const std::string enc = EncodeDestination(*d);
+            if (!seen.insert(enc).second) {
                 ++failures;
             }
         }
@@ -192,6 +201,7 @@ BOOST_AUTO_TEST_CASE(concurrent_res_getnewdestination_under_cs_wallet)
         th.join();
     }
     BOOST_CHECK_EQUAL(failures.load(), 0);
+    BOOST_CHECK_EQUAL(seen.size(), 201u);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

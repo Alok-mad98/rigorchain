@@ -7,7 +7,6 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_commitment.h>
 #include <consensus/convergence_logic.h>
 #include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
@@ -20,7 +19,6 @@
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
-#include <node/auto_res_mint.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
 #include <rpc/mining.h>
@@ -28,6 +26,7 @@
 #include <rpc/server_util.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <util/strencodings.h>
@@ -374,7 +373,15 @@ static RPCHelpMan generateblock()
         block = blocktemplate->block;
     }
 
-    CHECK_NONFATAL(block.vtx.size() == 1);
+    // CreateNewBlock inserts a body RES automint when the parent draw has a winner.
+    // generateblock assembles from a null mempool and historically asserted vtx.size()==1;
+    // that CHECK_NONFATAL aborted the RPC (solo footgun). Consensus is unchanged: tell
+    // the caller to use generatetoaddress / getblocktemplate instead.
+    if (block.vtx.size() != 1) {
+        throw JSONRPCError(RPC_MISC_ERROR,
+            "generateblock cannot be used when CreateNewBlock inserts a RES automint; "
+            "use generatetoaddress or getblocktemplate");
+    }
 
     // Add transactions
     block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
@@ -529,9 +536,9 @@ static RPCHelpMan getblocktemplate()
         "    https://github.com/rigor/bips/blob/master/bip-0009.mediawiki#getblocktemplate_changes\n"
         "    https://github.com/rigor/bips/blob/master/bip-0145.mediawiki\n"
         "\n"
-        "Rigor-specific: the assembled coinbase may include ORU subsidy, optional RES draw mint and RES fee outputs, a Segwit witness commitment, "
-        "and an CVGE convergence commitment (OP_RETURN). Field \"coinbasevalue\" is only the ORU amount on coinbase vout[0] (subsidy plus ORU-domain fees), in Tharns. "
-        "It does not include RES amounts or zero-value commitment outputs. Field \"default_convergence_commitment\" is the hex scriptPubKey of the CVGE output when present. "
+        "Rigor-specific: the assembled coinbase may include ORU subsidy, optional RES draw mint and RES fee outputs, and a Segwit witness commitment. "
+        "Field \"coinbasevalue\" is only the ORU amount on coinbase vout[0] (subsidy plus ORU-domain fees), in Tharns. "
+        "It does not include RES amounts. "
         "For coinbase output order, RES witness binding, and pool integration, see doc/mining-pool-gbt.md in the source tree.\n",
         {
             {"template_request", RPCArg::Type::OBJ, RPCArg::Default{UniValue::VOBJ}, "Format of the template",
@@ -603,11 +610,15 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::NUM, "weightlimit", /*optional=*/true, "limit of block weight"},
                 {RPCResult::Type::NUM_TIME, "curtime", "current timestamp in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::STR, "bits", "compressed target of next block"},
-                {RPCResult::Type::STR, "prev_nbits", "compressed nBits of the previous block (== pindexPrev->nBits); MUST be used by miners to populate the RIGOR coinbase commitment payload (consensus rule: bad-rigor-target-mismatch)"},
+                {RPCResult::Type::STR, "prev_nbits", "compressed nBits of the previous block (== pindexPrev->nBits)"},
                 {RPCResult::Type::NUM, "height", "The height of the next block"},
                 {RPCResult::Type::STR_HEX, "signet_challenge", /*optional=*/true, "Only on signet"},
                 {RPCResult::Type::STR_HEX, "default_witness_commitment", /*optional=*/true, "a valid witness commitment for the unmodified block template"},
-                {RPCResult::Type::STR_HEX, "default_convergence_commitment", /*optional=*/true, "Hex-encoded scriptPubKey of the CVGE convergence OP_RETURN commitment in the template coinbase when present; consensus recomputes draw fields — treat as informational. Omitted if not present or not parseable"},
+                {RPCResult::Type::OBJ, "default_res_mint", /*optional=*/true, "Coinbase OP_RES_MINT payout when the parent draw named a winner. Miners MUST copy this output into the coinbase; it is not in `transactions`. Omitted when there is no mint",
+                {
+                    {RPCResult::Type::NUM, "value", "W(h) in RES atoms"},
+                    {RPCResult::Type::STR_HEX, "scriptPubKey", "OP_RES_MINT script paying the winner's declared program"},
+                }},
                 {RPCResult::Type::ARR, "convergence_txids", /*optional=*/true, "Txids of the convergence set F this template COMMITS (drawn by the next block, not this one). Spans the whole CONVERGENCE_DRAW_WINDOW, so it includes candidates buried in earlier blocks and excludes any a mint inside the window already paid",
                 {
                     {RPCResult::Type::STR_HEX, "", "txid in little-endian hexadecimal"},
@@ -622,13 +633,13 @@ static RPCHelpMan getblocktemplate()
                     {RPCResult::Type::STR_HEX, "convergence_root", "C over the parent's convergence set"},
                     {RPCResult::Type::STR, "target_prev", "Compact nBits of the parent header; the value a RES mint proof must report"},
                     {RPCResult::Type::STR_HEX, "res_probability_target", "Constitutional constant T on the RHS of σ < T·f"},
-                    {RPCResult::Type::STR_HEX, "eligible_root", "Commitment over the eligible subset; this template's CVGE coinbase output must carry it"},
+                    {RPCResult::Type::STR_HEX, "eligible_root", "Flat Hash256 of the inequality-eligible subset (informational; not a coinbase commitment)"},
                     {RPCResult::Type::ARR, "candidates", "The parent's convergence set in canonical order",
                     {
                         {RPCResult::Type::OBJ, "", "", {
                             {RPCResult::Type::STR_HEX, "txid", "Convergence txid"},
                             {RPCResult::Type::NUM, "weight", "Draw weight f_i (convergence amount in Tharns)"},
-                            {RPCResult::Type::STR_HEX, "res_program", "32-byte witness v1 RES program this convergence declared"},
+                            {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160 of the RES program this convergence declared; the coinbase OP_RES_MINT must pay this hash"},
                             {RPCResult::Type::STR_HEX, "sigma", "σ_i for this candidate"},
                             {RPCResult::Type::BOOL, "eligible", "Whether σ_i < T·f_i"},
                         }},
@@ -638,7 +649,7 @@ static RPCHelpMan getblocktemplate()
                         {RPCResult::Type::NUM, "index", "Index into candidates"},
                         {RPCResult::Type::STR_HEX, "txid", "Winning convergence txid; the RES mint proof must name it"},
                         {RPCResult::Type::NUM, "weight", "Winning convergence amount in Tharns"},
-                        {RPCResult::Type::STR_HEX, "res_program", "The RES mint must pay exactly `OP_1 <res_program>`"},
+                        {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160 the coinbase OP_RES_MINT must pay"},
                     }},
                 }},
             }},
@@ -981,8 +992,17 @@ static RPCHelpMan getblocktemplate()
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment));
     }
 
-    if (const auto fc = FindLastConvergenceCommitmentInCoinbase(*pblock->vtx[0])) {
-        result.pushKV("default_convergence_commitment", HexStr(ConvergenceCommitmentScript(*fc)));
+    {
+        const CTxOut* mint_out = nullptr;
+        for (const CTxOut& o : pblock->vtx[0]->vout) {
+            if (IsResMintScript(o.scriptPubKey)) mint_out = &o;
+        }
+        if (mint_out) {
+            UniValue mint{UniValue::VOBJ};
+            mint.pushKV("value", mint_out->nValue);
+            mint.pushKV("scriptPubKey", HexStr(mint_out->scriptPubKey));
+            result.pushKV("default_res_mint", mint);
+        }
     }
 
     // Rigor GBT: the set F this template commits, from which the NEXT block draws.
@@ -1036,7 +1056,7 @@ static RPCHelpMan getblocktemplate()
             UniValue one(UniValue::VOBJ);
             one.pushKV("txid", c.txid.GetHex());
             one.pushKV("weight", (int64_t)c.weight);
-            one.pushKV("res_program", HexStr(c.res_payout_program32));
+            one.pushKV("res_payout_hash", HexStr(c.res_payout_hash160));
             if (i < parent_outcome.sigmas.size()) one.pushKV("sigma", parent_outcome.sigmas[i].GetHex());
             one.pushKV("eligible", i < parent_outcome.eligible.size() && parent_outcome.eligible[i]);
             candidates.push_back(one);
@@ -1050,8 +1070,7 @@ static RPCHelpMan getblocktemplate()
             winner.pushKV("index", parent_outcome.winner_index);
             winner.pushKV("txid", w.txid.GetHex());
             winner.pushKV("weight", (int64_t)w.weight);
-            // A-5 R2: the mint must pay `OP_1 <res_program>` and nothing else.
-            winner.pushKV("res_program", HexStr(w.res_payout_program32));
+            winner.pushKV("res_payout_hash", HexStr(w.res_payout_hash160));
             draw.pushKV("winner", winner);
         }
         result.pushKV("convergence_draw", draw);
@@ -1188,43 +1207,6 @@ static RPCHelpMan submitheader()
     };
 }
 
-static RPCHelpMan getautomintfundaddress()
-{
-    return RPCHelpMan{
-        "getautomintfundaddress",
-        "Return the bech32 P2WSH address that funds automatic body RES mints (AutoResMintBootstrap).\n"
-        "When a convergence draw has a winner, CreateNewBlock spends a UTXO at this script to attach the "
-        "required RES mint (prize pays the winner). Solo operators must send a small amount of ORU here "
-        "(mempool is enough if the fund tx is selected into the same template) and ensure Convergence mint "
-        "assembly is armed (wallet: Auto-settle Convergence when mining locally; or -miningresfeeaddr). "
-        "Network fees remain ORU-only.\n",
-        {},
-        RPCResult{
-            RPCResult::Type::OBJ, "", "", {
-                {RPCResult::Type::STR, "address", "Bech32 P2WSH fund address"},
-                {RPCResult::Type::STR_HEX, "scriptPubKey", "Hex-encoded scriptPubKey"},
-                {RPCResult::Type::STR, "note", "Operational hint"},
-            }},
-        RPCExamples{
-            HelpExampleCli("getautomintfundaddress", "")
-          + HelpExampleRpc("getautomintfundaddress", "")},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
-            const CScript& spk = AutoResMintBootstrapScriptPubKey();
-            CTxDestination dest;
-            if (!ExtractDestination(spk, dest)) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to extract automint fund destination");
-            }
-            UniValue r{UniValue::VOBJ};
-            r.pushKV("address", EncodeDestination(dest));
-            r.pushKV("scriptPubKey", HexStr(spk));
-            r.pushKV("note",
-                "sendtoaddress <address> 1.0 ORU; arm mint assembly via wallet Auto-settle Convergence "
-                "or -miningresfeeaddr=<rg1p…>; resume miner");
-            return r;
-        },
-    };
-}
-
 void RegisterMiningRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
@@ -1234,7 +1216,6 @@ void RegisterMiningRPCCommands(CRPCTable& t)
         {"mining", &getblocktemplate},
         {"mining", &submitblock},
         {"mining", &submitheader},
-        {"mining", &getautomintfundaddress},
 
         {"hidden", &generatetoaddress},
         {"hidden", &generatetodescriptor},

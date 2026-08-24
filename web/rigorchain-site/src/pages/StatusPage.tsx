@@ -36,6 +36,17 @@ export function StatusPage() {
         <p className="muted">Read-only display — does not control or interrupt PROOF-034 execution</p>
       </header>
 
+      <section className="card prose-section">
+        <h2>Formal correspondence freeze (2026-08-18)</h2>
+        <p>
+          Separate from this PROOF-034 archive tracker: the Coq model is strongly verified; the
+          differential gate covers 422 shared golden vectors, 215 Coq-enforced vectors, tripartite
+          hash, and the production σ/root CLI.{" "}
+          <span className="mono">equivalence_claimed = false</span>. Not a refinement proof.{" "}
+          <Link to="/documentation/formal-verification">Formal Verification</Link>
+        </p>
+      </section>
+
       <div className="status-hero card">
         <span className="badge-running">Verification Running</span>
         <h2>PROOF-034 — runtime archive toward 2.1M</h2>

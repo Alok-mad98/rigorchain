@@ -40,7 +40,7 @@ public:
      */
     void setTypeFilter(quint32 modes);
 
-    /** Semantic asset-class filter (BUILD-13): All, ORU, RES, Convergence, Mint. */
+    /** Asset-class filter: ORU/RES match the row amount asset; Convergence/Mint are protocol classes. */
     enum SemanticAssetFilter {
         SemanticFilter_All = 0,
         SemanticFilter_ORU,

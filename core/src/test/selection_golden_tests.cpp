@@ -162,9 +162,9 @@ BOOST_AUTO_TEST_CASE(single_tx_winner)
         txids, fees, height, prev_hash, target
     );
 
-    // RFC-015: singleton candidate preserves the zero-root boundary but can win.
-    uint256 expected_C = uint256::ZERO;
-    uint256 expected_sigma = HashHexToUint256("30f0b752feab4e693dfabc7ec970f5fb7f2188585f14f4076a1cea0393406a1c");
+    // Singleton F hashes: C = Hash256(txid). Empty F remains the zero root.
+    uint256 expected_C = HashHexToUint256("6dc8daeb8077a87be2712c5c8cceeed7a2d2e20c8b2e33adfefabccb32877a4d");
+    uint256 expected_sigma = HashHexToUint256("2d28080da537ba65fee631d7b68207599d3c08f2b7cfed007dde7495bc930b09");
     bool expected_eligible = true;
     int expected_winner_index = 0;
 

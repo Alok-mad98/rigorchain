@@ -1,10 +1,13 @@
 (** Phase4FConsensus/DrawRepresentationCatalog.v
     Catalog of draw representation entries (PHASE-4F-001I).
 
-    The 14 draw-applicable rows, imported ONLY from existing Phase-4F structures
+    The draw-applicable rows, imported ONLY from existing Phase-4F structures
     (`ConsensusGoldenVectorsData.draw_audit_rows` + `ConsensusDrawAudit`). No JSON
     is re-read. Each entry carries the candidate txids, the Coq-recomputed winner
-    index (001E), and the imported winner index. *)
+    index (001E), and the imported winner index.
+
+    Counts are derived from [draw_audit_rows_length] rather than by re-normalizing
+    the generated table: [draw_audit_rows] is Opaque after the 001E audit. *)
 
 From Coq Require Import List ZArith.
 Import ListNotations.
@@ -20,7 +23,7 @@ Record DrawReprEntry := {
   dre_imported_index : Z;   (* imported kernel/golden winner index *)
 }.
 
-(** REQUIRED-2: 14 draw vectors, all imported from existing structures. *)
+(** REQUIRED-2: 168 draw rows, all imported from existing structures. *)
 Definition representation_catalog : list DrawReprEntry :=
   map (fun r =>
         {| dre_vector_id := dar_vector_id r;
@@ -31,9 +34,16 @@ Definition representation_catalog : list DrawReprEntry :=
 
 Definition representation_catalog_count : nat := length representation_catalog.
 
-Lemma representation_catalog_count_value : representation_catalog_count = 14%nat.
-Proof. reflexivity. Qed.
+Lemma representation_catalog_count_value : representation_catalog_count = 168%nat.
+Proof.
+  unfold representation_catalog_count, representation_catalog.
+  rewrite map_length.
+  rewrite draw_audit_rows_length.
+  unfold draw_audit_rows_count. reflexivity.
+Qed.
 
 (** REQUIRED-4: catalog is non-empty. *)
 Lemma representation_catalog_nonempty : representation_catalog_count <> 0%nat.
-Proof. unfold representation_catalog_count. simpl. discriminate. Qed.
+Proof.
+  rewrite representation_catalog_count_value. discriminate.
+Qed.

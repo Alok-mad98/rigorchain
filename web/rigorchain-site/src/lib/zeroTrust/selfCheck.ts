@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from "./bytes";
 import { computeConvergenceRoot, computeSigma } from "./consensus";
-import { ALPHAPLUS_GENESIS_HASH_DISPLAY } from "./constants";
+import { RIGOR_GENESIS_HASH_DISPLAY } from "./constants";
 import { hash256 } from "./hash";
 import { hexEqual } from "./format";
 
@@ -47,9 +47,9 @@ export async function runSelfCheck(): Promise<SelfCheckRow[]> {
   });
 
   rows.push({
-    name: "AlphaPlus genesis constant",
+    name: "RIGOR genesis constant",
     ok: hexEqual(
-      ALPHAPLUS_GENESIS_HASH_DISPLAY,
+      RIGOR_GENESIS_HASH_DISPLAY,
       "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758",
     ),
     detail: "pinned RFC-016 genesis; chain identity is hashPrevBlock, not a rolling fingerprint",

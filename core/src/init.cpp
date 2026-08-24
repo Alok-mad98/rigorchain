@@ -596,8 +596,8 @@ void SetupServerArgs(ArgsManager& argsman)
 
     argsman.AddArg("-blockmaxweight=<n>", strprintf("Set maximum BIP141 block weight (default: %d)", DEFAULT_BLOCK_MAX_WEIGHT), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockmintxfee=<amt>", strprintf("Set lowest fee rate (in %s/kvB) for transactions to be included in block creation. (default: %s)", CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
-    argsman.AddArg("-miningresfeeaddr=<addr>", "Witness-v1 RES address that arms automatic Convergence RES mint assembly in CreateNewBlock/GBT when a parent draw has a winner. Network fees remain ORU-only (POOL-F); this is not a fee-receive address and is not the Convergence prize destination (prize pays the winner). The wallet GUI can set this automatically when \"Auto-settle Convergence when mining locally\" is enabled.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
-    argsman.AddArg("-reswalletbootstrap", "Mockable chains only (e.g. devtest/regtest): each coinbase pays an extra 1.00 RES to -miningresfeeaddr for functional RES wallet tests. Default is false. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
+    argsman.AddArg("-miningresfeeaddr=<addr>", "Witness-v1 RES address used only for unexpected RES-domain coinbase fees or mockable-chain -reswalletbootstrap. Production Convergence RES mint is assembled in the coinbase from the parent draw winner and is not gated on this address. Network fees remain ORU-only (POOL-F).", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
+    argsman.AddArg("-reswalletbootstrap", "Mockable chains only (e.g. devtest/regtest): at chain construction, set Consensus::Params::res_wallet_bootstrap_coinbase to 1.000000 RES per coinbase (paid to -miningresfeeaddr). ConnectBlock does not read this flag. Default is false. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-solomining", "Allow getblocktemplate with zero peers / during IBD on mainnet (local Alpha solo). RPC policy only; does not change consensus. Default false.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
 
@@ -1614,6 +1614,24 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
     int chain_active_height = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
+
+    // TASK-012 R4: warn if genesis wall-clock is stale at chain height 0.
+    // Difficulty after height 1 is anchored to the first mined block, so this is
+    // launch hygiene (MTP/locktime), not a catch-up-mining kill switch.
+    if (!chainparams.IsTestChain() && chain_active_height <= 0) {
+        const auto& consensus = chainparams.GetConsensus();
+        if (consensus.nPowASERTHalfLife > 0) {
+            const int64_t now = GetTime();
+            const int64_t genesis_time = chainparams.GenesisBlock().GetBlockTime();
+            const int64_t lag = now - genesis_time;
+            if (lag > 2 * consensus.nPowASERTHalfLife) {
+                InitWarning(strprintf(_(
+                    "Genesis timestamp is %d seconds behind local time (ASERT half-life %d s). "
+                    "Refresh GenesisLockMainnet::TIMESTAMP before mainnet launch so MTP and locktime match wall-clock."
+                ), lag, consensus.nPowASERTHalfLife));
+            }
+        }
+    }
 
     // On first startup, warn on low block storage space
     if (!fReindex && !fReindexChainState && chain_active_height <= 1) {

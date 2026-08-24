@@ -27,22 +27,16 @@
  * Serialized format (LevelDB / coins cache):
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
  * - the non-spent CTxOut (via TxOutCompression; native asset is implied by scriptPubKey)
- * - if nFlags != 0: uint32_t nFlags (little-endian), for future UTXO extension bits
- *
- * Legacy entries stop after the CTxOut; Unserialize() treats missing tail as nFlags==0.
+ * - VARINT(nFlags) — reserved, always 0. Consensus meaning lives in scriptPubKey
+ *   (`OP_RES_MINT` for body RES mint locks).
  *
  * ---------------------------------------------------------------------------
- * Consensus / upgrade notes for future developers (see doc/utxo-coin-nflags.md)
+ * Consensus / upgrade notes for future developers
  * ---------------------------------------------------------------------------
- * - Assigning consensus meaning to nFlags requires a coordinated consensus change:
- *   which bits mean what, how they interact with CTxOut, and whether they are
- *   committed in block/tx hashing or elsewhere.
- * - DisconnectBlock() currently checks spent coins against the block’s vout and
- *   height/coinbase metadata. If nFlags ever becomes consensus-visible, extend
- *   those checks (and ConnectBlock / AddCoins paths) so reorgs stay consistent.
+ * - RES mint maturity is encoded in the output script (`OP_RES_MINT`), not in Coin flags.
  * - ApplyTxInUndo() copies nHeight/fCoinBase from a sibling output when undo
- *   metadata is missing (legacy undo). Do not blindly copy nFlags from a sibling:
- *   flags may be per-output; define explicit rules if that path must infer flags.
+ *   metadata is missing (legacy undo). Do not copy nFlags from a sibling:
+ *   flags are per-output and currently unused.
  * - Block undo uses TxInUndoFormatter in undo.h; keep it aligned with this format.
  * ---------------------------------------------------------------------------
  */
@@ -58,7 +52,7 @@ public:
     //! at which height this containing transaction was included in the active block chain
     uint32_t nHeight : 31;
 
-    //! Extension flags (consensus / storage evolution); persisted only when non-zero.
+    //! Reserved extension flags. Always 0; mint identity is the output script.
     uint32_t nFlags{0};
 
     //! construct a Coin from a CTxOut and height/coinbase information.
@@ -77,6 +71,10 @@ public:
 
     bool IsCoinBase() const {
         return fCoinBase;
+    }
+
+    bool RequiresMaturity() const {
+        return IsCoinBase();
     }
 
     template<typename Stream>

@@ -313,7 +313,8 @@ void BitcoinAmountField::setValid(bool valid)
     if (valid)
         amount->setStyleSheet("");
     else
-        amount->setStyleSheet(STYLE_INVALID);
+        amount->setStyleSheet(QStringLiteral(
+            "QAbstractSpinBox, QAbstractSpinBox QLineEdit { %1 }").arg(QLatin1String(STYLE_INVALID)));
 }
 
 bool BitcoinAmountField::eventFilter(QObject *object, QEvent *event)

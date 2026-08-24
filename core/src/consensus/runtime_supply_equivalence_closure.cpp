@@ -221,7 +221,7 @@ std::optional<EquivalenceClosureResult> ResolveEquivalenceClosureAt(const CBlock
     }
 
     const std::optional<RuntimeSupplyWitness> witness =
-        GetRuntimeSupplyWitness(pindex->nHeight);
+        GetRuntimeSupplyWitness(pindex);
     const std::optional<RuntimeSupplyWitnessCoqCatalogRow> catalog =
         ResolveWitnessCoqCatalogRowAt(pindex);
     const std::optional<RuntimeSupplyChasAlignmentReport> chas = ResolveChasAlignmentAt(pindex);

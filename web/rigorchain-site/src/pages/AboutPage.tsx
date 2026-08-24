@@ -6,18 +6,21 @@ export function AboutPage() {
     <div className="page">
       <SubNav />
       <header className="page-header">
-        <p className="tag">ALPHAPLUS</p>
-        <h1>About AlphaPlus</h1>
+        <p className="tag">RIGOR</p>
+        <h1>About RIGOR</h1>
         <p className="muted">Official public identity for www.rigorchain.com</p>
       </header>
 
       <section className="card prose-section">
-        <h2>What is AlphaPlus?</h2>
+        <h2>What is RIGOR?</h2>
         <p>
-          AlphaPlus is a deterministic proof-of-work protocol with two native assets: <strong>ORU</strong>{" "}
-          (execution and fees) and <strong>RES</strong> (scarce settlement via Convergence). There is no
-          premine. Mining secures ordering. You do not need to trust a node — you can independently
-          verify results in the browser.
+          RIGOR is a dual-asset UTXO protocol built on script-derived asset
+          classification, stateless monetary architecture, and formally verified
+          consensus invariants.{" "}
+          <strong>ORU</strong> provides PoW security and fees. <strong>RES</strong> is
+          deterministically issued after Convergence — not mined, not a PoW reward. Script is the
+          compliance/classification layer. Formal verification covers a model and finite vectors;
+          the C++ node is not claimed equivalent (<code>equivalence_claimed = false</code>).
         </p>
       </section>
 

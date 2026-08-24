@@ -15,7 +15,7 @@ export function PlaceholderPage() {
         <SubNav />
         <header className="page-header">
           <h1>Section planned</h1>
-          <p className="muted">This route is reserved for the official AlphaPlus portal.</p>
+          <p className="muted">This route is reserved for the official RIGOR portal.</p>
         </header>
       </div>
     );
@@ -37,7 +37,7 @@ export function PlaceholderPage() {
       </header>
       <section className="card prose-section">
         <p>
-          Official portal section under <strong>{section?.title ?? "AlphaPlus"}</strong>. Content will
+          Official portal section under <strong>{section?.title ?? "RIGOR"}</strong>. Content will
           be filled during UI refinement. No existing website code was removed to add this route.
         </p>
         {node.planned && node.planned.length > 0 && (

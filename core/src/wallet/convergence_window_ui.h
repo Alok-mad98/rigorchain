@@ -117,7 +117,9 @@ inline std::string ConvergenceUiLifecycleDetail(ConvergenceUiLifecycle life, boo
     case ConvergenceUiLifecycle::FinalizationPending:
         return "Waiting for the network to confirm the result.";
     case ConvergenceUiLifecycle::CompletedAllocated:
-        return std::to_string(Consensus::RES_REWARD_AMOUNT / Consensus::RES_COIN) + ".00 RES minted";
+        // The reward is W(height) under RFC-017 and this helper has no height in scope; the
+        // credited amount is shown by the transaction row itself.
+        return "The scheduled RES reward was minted.";
     case ConvergenceUiLifecycle::CompletedNoAllocation:
         return "No RES minted";
     }

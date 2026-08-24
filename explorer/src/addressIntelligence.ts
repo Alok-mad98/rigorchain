@@ -21,7 +21,7 @@ export type AddressTypeLabel =
 export type AddressClassification =
   | "ORU Address"
   | "RES Address"
-  | "CVG2 / unspendable convergence script"
+  | "Historical RFC-014 / retired Witness v1 CVG2 (not OP_CONVERGE)"
   | "Mixed Address"
   | "Unused Address";
 
@@ -48,7 +48,7 @@ export function isValidAddressFormat(address: string): boolean {
   return parseRigorAddress(address) !== null;
 }
 
-/** Witness v0 uses Bech32; v1 uses Bech32m (RFC-ADDRESS-002). CVG2 ORU on v1 is resolved from indexed activity. */
+/** Witness v0 uses Bech32; v1 uses Bech32m (RFC-ADDRESS-002). Live Convergence is OP_CONVERGE (no receive address). */
 export function inferAddressTypeFromBech32(address: string): AddressTypeLabel {
   const parsed = parseRigorAddress(address);
   if (!parsed) return "Unknown";
@@ -84,24 +84,17 @@ export function classifyAddressWithHint(
       hint === "RES (Witness v1)" ? "RES Address" : hint === "ORU (Witness v0)" ? "ORU Address" : "Unused Address";
     return { address_type: hint, classification };
   }
-  // Bech32m + ORU activity is a CVG2 unspendable script (Witness v1), not a RES mint address.
+  // Bech32m + ORU-only activity is Historical RFC-014 / retired Witness v1 CVG2, not live OP_CONVERGE.
   if (hasOru && !hasRes && hint === "RES (Witness v1)") {
-    return { address_type: "ORU (Witness v1)", classification: "CVG2 / unspendable convergence script" };
+    return {
+      address_type: "ORU (Witness v1)",
+      classification: "Historical RFC-014 / retired Witness v1 CVG2 (not OP_CONVERGE)",
+    };
   }
   return classifyAddress(hasOru, hasRes, hasActivity);
 }
 
-export function atomsToOruDisplay(atoms: string | bigint | number): string {
-  const a = BigInt(String(atoms));
-  const base = 100000000n;
-  return `${a / base}.${(a % base).toString().padStart(8, "0")} ORU`;
-}
-
-export function atomsToResDisplay(atoms: string | bigint | number): string {
-  const a = BigInt(String(atoms));
-  const base = 100n;
-  return `${a / base}.${(a % base).toString().padStart(2, "0")} RES`;
-}
+export { atomsToOruDisplay, atomsToResDisplay } from "./amount";
 
 export function buildAddressIntegrity(
   compliance: CompliancePayload,

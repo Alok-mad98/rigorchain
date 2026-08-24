@@ -3,11 +3,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
 linux_ap="${ROOT}/dist/alphaplus/linux"
 win="${ROOT}/dist/alphaplus/windows"
-LINUX_TAR="${linux_ap}/rigor-v0.1.1-alphaplus-linux.tar.gz"
-WIN_EXE="${win}/rigor-v0.1.1-alphaplus-windows.exe"
-WIN_ZIP="${win}/rigor-v0.1.1-alphaplus-windows.zip"
+LINUX_TAR="${linux_ap}/rigor-v${VERSION}-linux.tar.gz"
+WIN_EXE="${win}/rigor-v${VERSION}-windows.exe"
+WIN_ZIP="${win}/rigor-v${VERSION}-windows.zip"
 
 die() { echo "VERIFY FAIL: $*" >&2; exit 1; }
 pass() { echo "PASS  $*"; }
@@ -59,27 +60,28 @@ python3 - <<PY
 import zipfile, sys
 from pathlib import Path
 zpath = Path("${WIN_ZIP}")
+inner = "rigor-v${VERSION}-windows.exe"
 forbid = {
     "start-node.cmd", "start-peer2.cmd", "start-wallet.cmd",
     "fix-miningresfeeaddr.cmd", "debug-start.cmd", "rigor-wallet-boot.log",
 }
 with zipfile.ZipFile(zpath) as zf:
     names = set(zf.namelist())
-    if "rigor-v0.1.1-alphaplus-windows.exe" not in names:
-        print("VERIFY FAIL: zip missing rigor-v0.1.1-alphaplus-windows.exe", file=sys.stderr)
+    if inner not in names:
+        print(f"VERIFY FAIL: zip missing {inner}", file=sys.stderr)
         raise SystemExit(1)
     extra = sorted(forbid & names)
     if extra:
         print("VERIFY FAIL: zip must not ship diagnostics/launchers:", ", ".join(extra), file=sys.stderr)
         raise SystemExit(1)
-    data = zf.read("rigor-v0.1.1-alphaplus-windows.exe")
+    data = zf.read(inner)
 if data[:2] != b"MZ":
     print("VERIFY FAIL: zip windows.exe is not MZ", file=sys.stderr)
     raise SystemExit(1)
 if b"NullsoftInst" not in data:
     print("VERIFY FAIL: zip windows.exe is not the NSIS setup wizard", file=sys.stderr)
     raise SystemExit(1)
-print("PASS  Windows zip is NSIS setup named rigor-v0.1.1-alphaplus-windows.exe")
+print(f"PASS  Windows zip is NSIS setup named {inner}")
 PY
 
 rm -rf "${tmp}"

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Build Windows AlphaPlus NSIS installer → dist/alpha/windows/rigor-wallet-0.1.1-alphaplus.exe
+# Build Windows AlphaPlus NSIS installer → dist/alpha/windows/rigor-v${VERSION}-windows.exe
 # Historical Alpha1 naming before AlphaPlus release identity migration (script path still scripts/alpha/).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STAGING="${REPO_ROOT}/dist/alpha/windows/staging"
 OUT_DIR="${REPO_ROOT}/dist/alpha/windows"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.1-alphaplus}"
-OUTFILE="${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.exe"
+VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
+OUTFILE="${OUT_DIR}/rigor-v${VERSION}-windows.exe"
 NSI="${REPO_ROOT}/installer/windows/rigor_alpha_installer.nsi"
 
 log() { printf '[alpha-windows] %s\n' "$*"; }
@@ -71,12 +71,12 @@ If it shows 0x207fffff you are still on the old easy chain/binary.
 EOF
 
 cat > "${STAGING}/README-ALPHA.txt" <<EOF
-RIGOR Wallet AlphaPlus ${VERSION}
+Rigor Wallet AlphaPlus ${VERSION}
 Unsigned alpha — not a Guix-signed mainnet release.
 
-Windows users: double-click rigor-v0.1.1-alphaplus-windows.exe (or the
+Windows users: double-click rigor-v${VERSION}-windows.exe (or the
 same file inside the zip). That opens the setup wizard. After install,
-use the Desktop / Start Menu "RIGOR Wallet" shortcut (rigor-wallet.exe).
+use the Desktop / Start Menu "Rigor Wallet" shortcut (rigor-wallet.exe).
 
 Data directory: %APPDATA%\\RIGOR
 Config file:    %APPDATA%\\RIGOR\\rigor.conf
@@ -169,19 +169,20 @@ magic="$(od -An -tx1 -N2 "${OUTFILE}" | tr -d ' \n')"
 [[ "$magic" == "4d5a" ]] || { log "ERROR: outfile not PE"; exit 1; }
 log "Installer MZ OK"
 
-# User zip: the setup wizard named rigor-wallet.exe (double-click after unzip).
-ZIP_OUT="${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.zip"
+# User zip: the setup wizard (double-click after unzip).
+ZIP_OUT="${OUT_DIR}/rigor-v${VERSION}-windows.zip"
 rm -f "${ZIP_OUT}"
 python3 - <<PY
 import zipfile, pathlib, sys
 installer = pathlib.Path("${OUTFILE}")
 readme = pathlib.Path("${STAGING}/README-ALPHA.txt")
 out = pathlib.Path("${ZIP_OUT}")
+inner = "rigor-v${VERSION}-windows.exe"
 if not installer.is_file():
     print("ERROR: NSIS installer missing", installer, file=sys.stderr)
     raise SystemExit(1)
 with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-    zf.write(installer, "rigor-v0.1.1-alphaplus-windows.exe")
+    zf.write(installer, inner)
     if readme.is_file():
         zf.write(readme, "README.txt")
 print("zip written", out, out.stat().st_size)
@@ -191,17 +192,24 @@ log "Zip: ${ZIP_OUT}"
 # Integrity manifests for Windows copy verification
 (
   cd "${OUT_DIR}"
-  sha256sum "rigor-v0.1.1-alphaplus-windows.exe" "rigor-v0.1.1-alphaplus-windows.zip" > SHA256SUMS.txt
+  sha256sum "rigor-v${VERSION}-windows.exe" "rigor-v${VERSION}-windows.zip" > SHA256SUMS.txt
   cat SHA256SUMS.txt
 )
 rm -f "${OUT_DIR}/WINDOWS_PE_BUILD_REQUIRED.txt"
+# Drop prior 0.1.1 installer names so operators do not pick the old file.
+rm -f "${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.exe" \
+  "${OUT_DIR}/rigor-v0.1.1-alphaplus-windows.zip" \
+  "${OUT_DIR}/rigor-wallet-0.1.1-alphaplus.exe" \
+  "${OUT_DIR}/rigor-wallet-0.1.1-alphaplus-portable.zip"
 
 # Publish layout used by scripts/alpha/publish_github_release_alphaplus.sh
 AP="${REPO_ROOT}/dist/alphaplus/windows"
 mkdir -p "${AP}"
-cp -a "${OUTFILE}" "${AP}/rigor-v0.1.1-alphaplus-windows.exe"
-cp -a "${ZIP_OUT}" "${AP}/rigor-v0.1.1-alphaplus-windows.zip"
-rm -f "${AP}/rigor-wallet-0.1.1-alphaplus.exe" \
+cp -a "${OUTFILE}" "${AP}/rigor-v${VERSION}-windows.exe"
+cp -a "${ZIP_OUT}" "${AP}/rigor-v${VERSION}-windows.zip"
+rm -f "${AP}/rigor-v0.1.1-alphaplus-windows.exe" \
+  "${AP}/rigor-v0.1.1-alphaplus-windows.zip" \
+  "${AP}/rigor-wallet-0.1.1-alphaplus.exe" \
   "${AP}/rigor-wallet-0.1.1-alphaplus-portable.zip"
 cp -a "${STAGING}/rigord.exe" "${AP}/rigord.exe"
 cp -a "${STAGING}/rigor-miner.exe" "${AP}/rigor-miner.exe"
@@ -209,8 +217,8 @@ cp -a "${STAGING}/rigor-cli.exe" "${AP}/rigor-cli.exe"
 (
   cd "${AP}"
   sha256sum \
-    rigor-v0.1.1-alphaplus-windows.exe \
-    rigor-v0.1.1-alphaplus-windows.zip \
+    "rigor-v${VERSION}-windows.exe" \
+    "rigor-v${VERSION}-windows.zip" \
     rigord.exe rigor-miner.exe rigor-cli.exe \
     > SHA256SUMS
 )

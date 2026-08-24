@@ -11,7 +11,7 @@ namespace RigorWallet {
 
 /** Product and compliance branding constants. */
 struct BrandInfo {
-    QString productName;          //!< "RIGOR Wallet"
+    QString productName;          //!< "Rigor Wallet"
     QString applicationName;      //!< QSettings / desktop entry name
     QString organizationName;     //!< "RIGOR"
     QString organizationDomain;   //!< "rigor.org"

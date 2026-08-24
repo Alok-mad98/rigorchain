@@ -28,6 +28,13 @@ struct Params;
 /** Selection digest σ = Hash256(txid ‖ convergence_root ‖ B_{h-1} ‖ LE32(height)). */
 using SelectionDigestHash = uint256;
 
+/**
+ * Per-tx contribution to the coinbase CVGE cumulative payload, which consensus checks against
+ * the prefix sum of per-block C(t) (`CBlockIndex::GetChainConvergeSum`). That committed
+ * cumulative and `m_block_converge_sum` are the same ledger, so this must count only ORU that
+ * is actually destroyed — see `Consensus::GetConvergenceAmount` on why every convergence
+ * output currently qualifies, and what would stop being true.
+ */
 uint64_t GetTransactionConvergenceAmount(const CTransaction& tx);
 
 /**
@@ -53,13 +60,13 @@ SelectionDigestHash SelectionDigest(const uint256& txid, const uint256& prev_blo
 /** One member of a block's convergence set. */
 struct ConvergenceDrawCandidate {
     uint256 txid;
-    /** Draw weight f_i — the convergence amount in sats. */
+    /** Draw weight f_i — this candidate's CVG2 amount in sats (not cumulative burned ORU / W2). */
     uint64_t weight{0};
     /**
-     * The 32-byte witness v1 RES program this convergence declared (A-5 R1 guarantees one
-     * exists for every member of F). A mint naming this candidate must pay exactly it.
+     * The 20-byte HASH160 of the witness v1 RES program this convergence declared.
+     * A mint naming this candidate must pay OP_RES_MINT with this pubkey hash.
      */
-    std::vector<unsigned char> res_payout_program32;
+    uint160 res_payout_hash160;
     /**
      * A-9-C: height of the block that introduced this candidate. Not a σ input and not
      * committed anywhere; carried for window bookkeeping and RPC introspection only.
@@ -82,21 +89,14 @@ struct ConvergenceWindowTail {
      *  the roots, which sort lexicographically, but is kept stable for reproducibility. */
     std::vector<ConvergenceDrawCandidate> candidates;
     /**
-     * Winner txids paid by RES mints in those ancestor blocks. A candidate stays in F for up to
-     * W draws, so without this a single convergence could be paid more than once. The source
-     * block's own mint is added by the builder, which has the block in hand, so the exclusion
-     * covers the full window [s-W+1, s] (A-9-C §3.5).
-     *
-     * Excluding at set-construction time rather than as a separate ConnectBlock rule keeps the
-     * draw a pure function of the window: any validator holding the same W blocks derives the
-     * same F, with no extra state to carry.
-     */
-    std::vector<uint256> already_paid;
-    /**
      * False when the chain layer could not read the whole window. A partial window would
      * produce a different F, hence a different C and a different winner, so callers MUST treat
      * an incomplete tail as "draw unavailable" rather than falling back to a shorter window.
      * The sole exception is the genesis-side clamp, which is complete by definition.
+     *
+     * Double-spend of a covenant ticket is ordinary UTXO consumption. Paid tickets leave F
+     * because `FinalizeWindowedDrawSet` drops txids named by a mint in the source block, and
+     * the chain layer drops buried paid candidates before they enter `candidates`.
      */
     bool complete{false};
 
@@ -153,23 +153,26 @@ struct ConvergenceDrawOutcome {
 ConvergenceDrawOutcome ResolveConvergenceDraw(const ConvergenceDrawSet& set,
     const uint256& res_probability_target);
 
+/** True iff `coinbase` has exactly one `OP_RES_MINT` output. */
+bool CoinbaseHasResMint(const CTransaction& coinbase);
+
 /**
- * Convergence txids named by body RES mints in `block`.
+ * Convergence txids paid by this block's coinbase mint.
  *
- * A mint is a tx that actually creates RES (`IsResScript` output) and carries a parseable
- * PCORB proof. A decoy with a proof-shaped witness but no RES output must not mark a ticket
- * paid — otherwise the real winner stays in F for the rest of the window and can be minted
- * again.
- *
- * Valid connected blocks have at most one such tx (`bad-rigor-multiple-res`). All names are
- * returned so a malformed block cannot hide a payout behind a decoy listed first.
+ * Issuance is `OP_RES_MINT` only; the paid ticket is the parent-draw winner and is not
+ * restated on the coinbase. Callers supply `parent_winner_txid` when a mint is present.
+ * A leftover PCORB tag or body witness is not a payment.
  */
-std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block);
+std::vector<uint256> FindBlockPaidConvergenceTxids(const CBlock& block,
+    const std::optional<uint256>& parent_winner_txid = std::nullopt);
 
 /**
  * Build the set a block commits, from the coins view as of that block's entry, unioned with
  * `tail` (the rest of the window). Used while the block is being connected, and by the block
  * template builder.
+ *
+ * `coinbase_paid_txid` is the parent-draw winner when this block's coinbase mints; it is
+ * dropped from F so a ticket is payable only once.
  *
  * A-9-C: `tail` MUST cover the full window or be marked incomplete; passing
  * `ConvergenceWindowTail::Empty()` for a block that actually has buried ancestors silently
@@ -179,7 +182,8 @@ ConvergenceDrawSet BuildConvergenceDrawSet(const CBlock& block,
     int block_height,
     const CCoinsViewCache& view_at_block_entry,
     const Consensus::Params& consensus_params,
-    const ConvergenceWindowTail& tail);
+    const ConvergenceWindowTail& tail,
+    const std::optional<uint256>& coinbase_paid_txid = {});
 
 /**
  * Same set, reconstructed from an already-connected block plus its undo data —
@@ -191,7 +195,8 @@ bool BuildConvergenceDrawSetFromUndo(const CBlock& block,
     const CBlockUndo& block_undo,
     const Consensus::Params& consensus_params,
     const ConvergenceWindowTail& tail,
-    ConvergenceDrawSet& out);
+    ConvergenceDrawSet& out,
+    const std::optional<uint256>& coinbase_paid_txid = {});
 
 /**
  * A-9-C: the candidates a single block contributes to a window, with no window context and no
@@ -211,7 +216,7 @@ bool BuildBlockConvergenceCandidatesFromUndo(const CBlock& block,
  * RFC-010 §0: Principle - Every consensus decision MUST be reproducible step-by-step.
  *
  * RFC-014 Conv-Decouple-01: inequality RHS is `Consensus::Params::RES_PROBABILITY_TARGET`
- * (constitutional constant floor(2^240 / MIN_CONVERGENCE_AMOUNT)). `target_prev` remains threaded through this
+ * (constitutional constant floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU). `target_prev` remains threaded through this
  * API for σ / `bind_commit` (Sigma-CR-01) ONLY.
  *
  * RFC-008 §8: Winner selection (no division)
@@ -250,7 +255,8 @@ uint256 ComputeConvergenceHash(const uint256& txid, const uint256& prev_block_ha
 /** Structural convergence: CVG2 + convergence_amount >= 1 ORU at COIN scale (fee not checked). */
 bool IsConvergenceCandidate(const CTransaction& tx);
 
-/** Unified convergence fee computation; returns <=0 when tx is invalid for convergence draw candidate counting. */
+/** Unified convergence fee computation. Returns 0 when the tx is not an F member
+ *  (wrong shape, no owner, or inputs fail). A member may itself have fee == 0. */
 CAmount ComputeConvergenceFee(
     const CTransaction& tx,
     const CCoinsViewCache& view_at_block_entry,
@@ -267,9 +273,10 @@ CAmount ComputeConvergenceFeeFromUndo(
 /**
  * RFC-010 §1: Execution Flow (Unique Order)
  * Step 1: Classify transactions in block h-1 — convergence-shaped, ≥ MIN_CONVERGENCE_AMOUNT,
- *         carrying an A-5 owner declaration, with valid inputs and a positive fee.
+ *         carrying an A-5 owner declaration, with valid inputs. Fee is relay policy.
  * Step 2: Construct set F from those transactions.
- * Step 3: Compute C = ConvergenceRoot(F); block h-1's coinbase commits this value.
+ * Step 3: Compute C = ConvergenceRoot(F); empty F is the zero root, otherwise Hash256(sorted txids).
+ *         Block h-1's coinbase commits this window C.
  * Step 4: For each tx_i in F: σ_i = Hash256(txid_i || C || B_{h-1} || LE32(h)), f_i = convergence amount.
  * Step 5: Filter - Eligible if σ_i < T · f_i.
  * Step 6: Select winner = argmin_i (σ_i * f_j < σ_j * f_i), txid tie-break.

@@ -22,8 +22,7 @@ TxoutType ClassifyRigorTxout(const CScript& scriptPubKey, std::vector<std::vecto
             vSolutionsRet.push_back(std::move(witnessprogram));
             return TxoutType::WITNESS_V0_KEYHASH;
         }
-        // 32-byte v0 programs are classified as scripthash (BIP141); VerifyWitnessProgram disambiguates
-        // P2WSH (SHA256(witness script)==program) from RIGOR native Ed25519 (program==pubkey, <sig><pubkey>).
+        // 32-byte v0 programs are BIP141 P2WSH only (RIG-07).
         if (witnessversion == 0 && witnessprogram.size() == WITNESS_V0_SCRIPTHASH_SIZE) {
             vSolutionsRet.push_back(std::move(witnessprogram));
             return TxoutType::WITNESS_V0_SCRIPTHASH;
@@ -33,6 +32,19 @@ TxoutType ClassifyRigorTxout(const CScript& scriptPubKey, std::vector<std::vecto
             return TxoutType::WITNESS_V1_RES;
         }
         return TxoutType::NONSTANDARD;
+    }
+
+    int64_t mint_maturity = 0;
+    std::vector<unsigned char> mint_pkh;
+    if (ParseResMintScript(scriptPubKey, mint_maturity, mint_pkh)) {
+        vSolutionsRet.push_back(std::move(mint_pkh));
+        return TxoutType::RES_MINT;
+    }
+
+    uint160 converge_hash;
+    if (ParseConvergeScript(scriptPubKey, converge_hash)) {
+        vSolutionsRet.emplace_back(converge_hash.begin(), converge_hash.end());
+        return TxoutType::CONVERGE;
     }
 
     if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN && scriptPubKey.IsPushOnly(scriptPubKey.begin()+1)) {

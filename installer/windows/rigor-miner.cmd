@@ -6,10 +6,10 @@ echo.
 echo --------------------------------
 echo RIGOR Miner launcher
 echo --------------------------------
-echo Start RIGOR Wallet first so RPC is up, then run this miner.
-echo ORU payout only ^(rg1q...^). Convergence RES is settled by the wallet node
-echo ^(Settings: Auto-settle Convergence when mining locally — default ON^).
-echo Network fees are ORU-only. Tip: set COINBASE_ADDR=rg1q... to skip the prompt.
+echo Start Rigor Wallet first so RPC is up, then run this miner.
+echo ORU payout only ^(rg1q...^). Convergence RES mint is appended to coinbase
+echo when the parent draw has a winner. Network fees are ORU-only.
+echo Tip: set COINBASE_ADDR=rg1q... to skip the prompt.
 echo.
 
 if exist "rigor-miner.exe" (
@@ -65,10 +65,9 @@ if exist "rigor-cli.exe" (
   findstr /i /c:"mint assembly is not armed" /c:"no RES receive script" "%TEMP%\rigor-gbt-preflight.txt" >nul 2>&1
   if not errorlevel 1 (
     echo.
-    echo ERROR: node has not armed Convergence mint settlement.
-    echo In rigor-wallet: Settings -^> Wallet -^> enable
-    echo   "Auto-settle Convergence when mining locally"
-    echo Then re-open the wallet and try again.
+    echo ERROR: getblocktemplate reports Convergence mint is not armed.
+    echo Production mint is coinbase-automatic; this message is leftover
+    echo from older nodes. Restart the wallet node and try again.
     echo.
     type "%TEMP%\rigor-gbt-preflight.txt"
     echo.

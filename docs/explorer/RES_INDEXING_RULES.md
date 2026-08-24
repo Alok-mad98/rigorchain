@@ -17,10 +17,11 @@ Exact **read-only** rules for how the indexer classifies and stores RES-related 
 | Signal | ORU | RES |
 |--------|-----|-----|
 | Witness version | **0** (P2WPKH/P2WSH) | **1** (32-byte program) |
-| CVG2 prefix (`CVG2` + BE amount) | Convergence output — **ORU convergence fee** | N/A |
+| `OP_CONVERGE` (`OP_PUSHBYTES_20 \|\| HASH160 \|\| 0xbd`) | Convergence burn / draw-entry — **ORU**, unspendable | N/A |
 | Native / RES2 v1 program | N/A | **RES** transfer or mint output |
+| Historical RFC-014 Witness v1 `CVG2` | **Retired** — not a live asset (indexer classifies `NONE`) | N/A |
 | `listunspent` / decode `asset` | `"ORU"` | `"RES"` |
-| Display decimals | 8 (base units per `COIN`) | 2 display / 100 atoms per 1.00 RES |
+| Display decimals | 8 (base units per `COIN`) | 6 (`RES_COIN = 1_000_000` atoms per 1.000000 RES) |
 
 **Forbidden:** Single “balance” column summing ORU + RES.
 
@@ -46,7 +47,7 @@ A transaction is indexed as **RES mint** when ALL hold:
 
 | Rule | Value |
 |------|-------|
-| Consensus mint increment | `RES_REWARD_AMOUNT` = 1.00 RES (100 atoms) per successful mint |
+| Consensus mint increment | `GetResMintReward(H)` = RFC-017 `W(k)` at epoch `k = floor(H / 210000)`; genesis `W(0)` = 40.000000 RES (`RES_REWARD_GENESIS`). Historical RFC-015: constant 100 RES. |
 | Supply cap | `MAX_RES_SUPPLY` — display as static constant |
 
 ---
@@ -56,14 +57,24 @@ A transaction is indexed as **RES mint** when ALL hold:
 For each `vout`:
 
 ```
-IF script is witness v0 → asset = ORU
-ELSE IF witness v1 AND CVG2 convergence program → asset = ORU (convergence fee)
+IF script is OP_CONVERGE → asset = ORU (unspendable burn / draw-entry)
+ELSE IF script is witness v0 → asset = ORU
+ELSE IF witness v1 AND Historical RFC-014 CVG2 prefix → asset = NONE (retired; not a third asset)
 ELSE IF witness v1 AND 32-byte RES program → asset = RES
 ELSE IF OP_RETURN → asset = NONE (not in supply)
-ELSE → asset = ORU (legacy non-witness; rare on testnet)
+ELSE → asset = NONE (unknown / nonstandard)
 ```
 
 Match `AssetTypeFromScriptPubKey` semantics in `core/src/primitives/transaction.cpp`.
+
+Development databases created before script alignment may contain retired
+classifications. Public network launch will rebuild the explorer view and
+indexed observations from genesis using current consensus classification
+rules. No production
+CVG2 migration is required. Historical CVG2 conversion is not a consensus
+concern. `OP_CONVERGE` is the only live Convergence classification.
+
+Policy: [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATION_NOTES.md).
 
 ---
 
@@ -82,8 +93,10 @@ Eligibility for RES draw is **only** taken from `getconvergenceresult`:
 **Inequality (informational display only):**
 
 ```
-H_i < RES_PROBABILITY_TARGET · f_i   (RFC-014)
-T = 2^240 (constant)
+H_i < RES_PROBABILITY_TARGET · f_i   (RFC-017)
+T = windowed RES_PROBABILITY_TARGET at E = 246 (C = 1024 ORU per mint)
+  hex WINDOWED: 000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479
+Historical RFC-014: T = 2^240 (hex 00010000…00 — not shipping)
 f_i = convergence_amount (ORU)
 ```
 
@@ -161,7 +174,7 @@ Test reference: `convergence_consensus_tests.cpp` — `txid_vs_wtxid_locked`.
 | Block without undo on historical query | `draw_candidate_root_computed` may be zero; `draw_eligible` false — label “undo unavailable” |
 | Empty F (`convergence_root_set_size = 0`) | Valid; not an error |
 | Committed ≠ computed root | **CRITICAL alert** — possible consensus divergence |
-| Multiple CVG2 outputs in one tx | Consensus rejects — indexer may show decode error from node |
+| Multiple `OP_CONVERGE` outputs in one tx | Consensus rejects — indexer may show decode error from node |
 | Non-zero reserved witness | Post F-WX-08: invalid tx — do not index as valid mint |
 | `getconvergenceresult` vs local recompute mismatch | Trust RPC; file bug against node |
 
@@ -172,7 +185,7 @@ Test reference: `convergence_consensus_tests.cpp` — `txid_vs_wtxid_locked`.
 | ID | Check |
 |----|-------|
 | P1 | `draw_candidate_root_committed == draw_candidate_root_computed` for sample ≥ 20 mint-capable blocks |
-| P2 | 100% headers `res_probability_target == 00010000…00` |
+| P2 | 100% headers `res_probability_target` == shipping windowed hex `000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479` (`E = 246`). Historical RFC-014 `00010000…00` (`2^240`) MUST NOT match. |
 | P3 | Eligible txid set equals `getconvergenceresult` for known RES block |
 
 ---

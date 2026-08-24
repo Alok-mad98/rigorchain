@@ -13,6 +13,7 @@
 // protocol upgrade and coordinated deployment.
 // =============================================================================
 
+#include <consensus/convergence_root_eligibility.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <uint256.h>
@@ -37,7 +38,8 @@ namespace Consensus {
  *   2. `GetConvergenceAmount(tx) >= MIN_CONVERGENCE_AMOUNT`
  *   3. `CheckTxInputs(tx, tx_state, view_at_block_entry, block_height, consensus_params, txfee)`
  *      succeeds (same inputs / fee path as consensus; **block-entry** UTXO view only).
- *   4. `txfee > 0`
+ *   4. Inputs verify (`CheckTxInputs`). Fee amount is not a membership condition
+ *      (zero-fee is a relay/DoS policy, not a draw-correctness rule).
  *
  * **F MUST** be enumerated by `ListConvergenceRootCommitmentTxids` semantics only (no alternate
  * predicate in consensus code paths).
@@ -82,16 +84,10 @@ std::vector<uint256> ListConvergenceRootCommitmentTxids(const std::vector<CTrans
     const Params& consensus_params);
 
 /**
- * Flat ConvergenceRoot from an eligibility **txid list** (already the set **F** in arbitrary order).
- * Short form; byte-level rules are documented at the implementation (see `convergence_root.cpp`).
- */
-uint256 ComputeConvergenceRootFromEligibilityTxids(std::vector<uint256> convergence_txids) noexcept;
-
-/**
  * ConvergenceRoot (flat commitment — **not** a Merkle tree; no per-txid leaf hash before concat):
  *
  *   1) Build **F** via `ListConvergenceRootCommitmentTxids` (same predicate as draw fee counting).
- *   2) If fewer than two txids are present → return **all-zero** `uint256()` (**before** any hashing).
+ *   2) Empty **F** → **all-zero** `uint256()` (**before** any hashing). A singleton hashes.
  *   3) Otherwise sort **F** by `uint256` ascending (**`std::sort` / `memcmp` byte order** only;
  *      block index order, feerate, or convergence amount MUST NOT influence ordering).
  *   4) `ConvergenceRoot = Hash256( raw_txid_0 || raw_txid_1 || ... )` — each txid is 32 bytes in

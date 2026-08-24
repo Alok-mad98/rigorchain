@@ -5,6 +5,7 @@
 // W1.1C regression test: listunspent emits an explicit per-UTXO "asset" field whose
 // canonical strings are "ORU" | "RES" | "NONE". This test pins the contract.
 
+#include <core_io.h>
 #include <key.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
@@ -16,13 +17,10 @@
 
 namespace {
 
-// Mirrors the ternary inlined in wallet/rpc/coins.cpp::listunspent. If the canonical
-// strings ever drift (e.g., lowercased, abbreviated, internationalized), this test
-// breaks and the API contract regression is caught at build time.
-const char* AssetTagForListUnspent(AssetType a)
-{
-    return a == ASSET_ORU ? "ORU" : (a == ASSET_RES ? "RES" : "NONE");
-}
+// The production mapping, not a copy of it. This test used to mirror the ternary inlined in
+// listunspent, which meant a new asset class could be added to one side and not the other
+// while the test kept passing.
+const char* AssetTagForListUnspent(AssetType a) { return AssetTypeToString(a); }
 
 } // namespace
 

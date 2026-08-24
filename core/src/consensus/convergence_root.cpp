@@ -12,14 +12,15 @@
 // ConvergenceRoot — PoW commitment to convergence subset **F** (non-coinbase txs in the block).
 //
 // CONSENSUS-FROZEN (hard fork to change):
-//   - Flat Hash256 over sorted **raw** txids only (`ComputeConvergenceRootFromEligibilityTxids`).
+//   - Flat Hash256 over sorted **raw** txids only (`ComputeConvergenceRootFromEligibilityTxids`
+//     in `convergence_root_eligibility.cpp`; this file keeps the coin-view wrapper).
 //   - No Merkle tree, no per-leaf Hash256(txid), no block order / fee / amount sort keys.
 //
 // **F** (block-entry UTXO, never mempool / never post-block view):
 //   IsConvergenceTx, convergence_amount >= MIN_CONVERGENCE_AMOUNT, CheckTxInputs, fee(tx) > 0.
 //
-// **N = |F|:** N < 2 → ConvergenceRoot = 0 (before hashing); N ≥ 2 → sort txids (`uint256` / memcmp),
-// then Hash256(concat raw 32-byte txids). Coinbase: BIP34 height + OP_PUSHBYTES_32 root.
+// **N = |F|:** N == 0 → ConvergenceRoot = 0 (before hashing); N ≥ 1 → sort txids (`uint256` / memcmp),
+// then Hash256(concat raw 32-byte txids). Coinbase: BIP34 height + OP_PUSHBYTES_32 window root.
 // =============================================================================
 
 #include <consensus/convergence_root.h>
@@ -31,10 +32,7 @@
 #include <consensus/res_owner.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
-#include <hash.h>
-#include <span.h>
 
-#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -140,103 +138,18 @@ std::vector<uint256> ListConvergenceRootCommitmentTxids(const std::vector<CTrans
         // SECURITY-001-A / A-5 R1: only a convergence that names its RES payout owner may
         // enter F. Without it the reward has no consensus-bound recipient and the block
         // producer picks one. Undeclared burns stay valid; they just do not play.
-        // Must stay bit-identical to the same test in ComputeConvergenceFee (undo path).
+        // Must stay bit-identical to ComputeConvergenceFee / the undo builder (same predicate,
+        // minus fee: zero-fee is policy, not F membership).
         if (!HasResOwnerDeclaration(tx)) continue;
         TxValidationState tx_state;
         CAmount txfee = 0;
         if (!CheckTxInputs(tx, tx_state, view_at_block_entry, block_height, consensus_params, txfee)) {
             continue;
         }
-        if (txfee <= 0) continue;
+        // Fee is relay policy. A zero-fee burn that otherwise verifies still enters F.
         convergence_txids.push_back(tx.GetHash());
     }
     return convergence_txids;
-}
-
-uint256 ComputeConvergenceRootFromEligibilityTxids(std::vector<uint256> convergence_txids) noexcept
-{
-    /*
-     * RFC-008 §1: Mathematical domain definition (Domain Separation)
-     * 1.1 The three domains (MUST stay isolated): Asset Domain (ORU, RES, Fees / Mint Cost (f_i))
-     * Mandatory rule: Asset values MUST NEVER be used as hash input except explicitly defined
-     *
-     * RFC-008 §2: Basic data types (Canonical Types)
-     * 2.1 Definition: bytes32 := exactly 32 bytes (no interpretation)
-     *
-     * RFC-009 §3: Convergence Root（C）
-     * 3.1 Input: txids: array of bytes32
-     * 3.2 Sort rule (the only one): Sort lexicographically by raw byte comparison
-     * 3.3 Construction: buf = txid_1 || txid_2 || ... || txid_n, C = Hash256(buf)
-     * 3.4 Empty set: if n == 0: C = 32 zero bytes
-     * ❌ FORBIDDEN: Merkle tree, pair hashing, length prefix
-     *
-     * RFC-008 §10: Edge Cases
-     * 10.2 Empty set: If F is empty: C = 32 zero bytes, No winner
-     *
-     * RFC-008 §3: Concatenation Rule
-     * 3.1 The only legal concatenation: A || B := byte-wise concatenation
-     * 3.2 SIGMA input (MUST match exactly): Input Buffer (100 bytes EXACTLY)
-     *
-     * RIGOR IMPLEMENTATION BIBLE §6: ROOT (Convergence Root)
-     * C = Hash256(concat(sorted(txids)))
-     *
-     * RFC-000 §6: CONVERGENCE ROOT (convergence root lock)
-     * C = Hash256(concat(sort(txid_i)))
-     *
-     * Normative ConvergenceRoot (flat commitment; **not** a Merkle tree):
-     *
-     *   ConvergenceRoot = Hash256( concat( sorted_txid_bytes ) )
-     *
-     *   - Each element is a **txid** as `uint256`: **32 bytes**, fixed width, in **native memory
-     *     order** as stored in `uint256` (little-endian on all supported platforms — same bytes
-     *     as `tx.GetHash()` / `uint256` object representation). **MUST NOT** apply endian swaps
-     *     or `SerializeHash(tx)` / any serialization of the whole transaction.
-     *   - **Sort key:** `std::sort` on `std::vector<uint256>` (unsigned byte-wise lexicographical order
-     *     per RFC-000 §6 - memcmp byte order of those 32-byte representations). **MUST NOT** sort by
-     *     block index, feerate, or convergence amount.
-     *   - **Concat order:** ascending sorted order only (after sort).
-     *   - If fewer than two txids are present: return **all-zero** `uint256()` **before** any hashing.
-     *     RFC-015 changes RES eligibility only; it does not alter this root boundary.
-     *
-     * **Explicitly forbidden** (consensus fork if introduced):
-     *   - Merkle tree over **F**
-     *   - Per-leaf `Hash256(txid)` before concatenation
-     *   - Hashing anything other than raw 32-byte txid bytes in sorted order
-     *   - Block-internal vtx order as input to the commitment
-     *
-     * RIGOR IMPLEMENTATION BIBLE §6: SORT RULE (critical)
-     * Sort using unsigned byte comparison
-     * ❌ FORBIDDEN: string compare, locale compare, signed char compare
-     *
-     * RFC-009 §9: Prohibited practices
-     * Using std::sort default (platform dependent) ❌
-     * CRITICAL: std::sort on uint256 uses memcmp byte order - this is REQUIRED per RFC-000 §6.
-     * Historical Failure Example: Ethereum's Geth vs Parity used different sorting
-     * algorithms for transaction ordering, leading to different block templates.
-     */
-    // RFC-008 §10: Edge Cases
-    // 10.2 Empty set: If F is empty: C = 32 zero bytes, No winner
-    // RFC-009 §3.4: Empty set - if n == 0: C = 32 zero bytes
-    // RIGOR IMPLEMENTATION BIBLE §1️2: BOUNDARY
-    // F with fewer than two txids keeps the preserved all-zero root boundary.
-    if (convergence_txids.size() < 2) {
-        return uint256();
-    }
-    // RFC-009 §3.2: Sort rule (the only one)- Sort lexicographically by raw byte comparison
-    // RIGOR IMPLEMENTATION BIBLE §6: unsigned byte comparison sort
-    std::sort(convergence_txids.begin(), convergence_txids.end());
-    // RFC-008 §3: Concatenation Rule- A || B := byte-wise concatenation
-    // RFC-009 §3.3: Construction - buf = txid_1 || txid_2 || ... || txid_n, C = Hash256(buf)
-    // RIGOR IMPLEMENTATION BIBLE §2: BYTE CONCAT (no delimiters, length prefixes, padding)
-    CHash256 hasher;
-    for (const uint256& id : convergence_txids) {
-        hasher.Write(MakeUCharSpan(id));
-    }
-    // RFC-008 §4: Hash function definition (Hash256)- Hash256(x) = SHA256(SHA256(x))
-    // RIGOR IMPLEMENTATION BIBLE §3: Hash256 only
-    uint256 root;
-    hasher.Finalize(root);
-    return root;
 }
 
 uint256 ComputeConvergenceRootFromConvergenceSet(const std::vector<CTransactionRef>& vtx,

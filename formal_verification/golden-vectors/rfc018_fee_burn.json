@@ -1,0 +1,167 @@
+{
+  "rfc": "RFC-018",
+  "equivalence_claimed": false,
+  "refinement_proved": false,
+  "hash_kernel_shared_binary_with_cpp": false,
+  "burn_share": {
+    "num": 1,
+    "den": 2
+  },
+  "res_coin": 1000000,
+  "res_atomic_unit": 1,
+  "res_display_decimals": 6,
+  "share": [
+    {
+      "id": "FB-SHARE-0",
+      "fee": 0,
+      "class": "res_transfer",
+      "burn": 0,
+      "miner": 0
+    },
+    {
+      "id": "FB-SHARE-1",
+      "fee": 1,
+      "class": "res_transfer",
+      "burn": 0,
+      "miner": 1
+    },
+    {
+      "id": "FB-SHARE-2",
+      "fee": 2,
+      "class": "res_transfer",
+      "burn": 1,
+      "miner": 1
+    },
+    {
+      "id": "FB-SHARE-3",
+      "fee": 3,
+      "class": "res_transfer",
+      "burn": 1,
+      "miner": 2
+    },
+    {
+      "id": "FB-SHARE-7",
+      "fee": 7,
+      "class": "res_transfer",
+      "burn": 3,
+      "miner": 4
+    },
+    {
+      "id": "FB-SHARE-1000",
+      "fee": 1000,
+      "class": "res_transfer",
+      "burn": 500,
+      "miner": 500
+    },
+    {
+      "id": "FB-SHARE-100000000",
+      "fee": 100000000,
+      "class": "res_transfer",
+      "burn": 50000000,
+      "miner": 50000000
+    },
+    {
+      "id": "FB-SHARE-12500000000",
+      "fee": 12500000000,
+      "class": "res_transfer",
+      "burn": 6250000000,
+      "miner": 6250000000
+    },
+    {
+      "id": "FB-SHARE-2100000000000000",
+      "fee": 2100000000000000,
+      "class": "res_transfer",
+      "burn": 1050000000000000,
+      "miner": 1050000000000000
+    },
+    {
+      "id": "FB-SHARE-2099999999999999",
+      "fee": 2099999999999999,
+      "class": "res_transfer",
+      "burn": 1049999999999999,
+      "miner": 1050000000000000
+    }
+  ],
+  "class": [
+    {
+      "id": "FB-CLASS-oru_only-1000",
+      "fee": 1000,
+      "class": "oru_only",
+      "burn": 0,
+      "miner": 1000
+    },
+    {
+      "id": "FB-CLASS-res_transfer-1000",
+      "fee": 1000,
+      "class": "res_transfer",
+      "burn": 500,
+      "miner": 500
+    },
+    {
+      "id": "FB-CLASS-mint-1000",
+      "fee": 1000,
+      "class": "mint",
+      "burn": 0,
+      "miner": 1000
+    },
+    {
+      "id": "FB-CLASS-converge-1000",
+      "fee": 1000,
+      "class": "converge",
+      "burn": 0,
+      "miner": 1000
+    }
+  ],
+  "display": [
+    {
+      "id": "FB-DISP-0",
+      "atoms": 0,
+      "display": "0.000000"
+    },
+    {
+      "id": "FB-DISP-1000000",
+      "atoms": 1000000,
+      "display": "1.000000"
+    },
+    {
+      "id": "FB-DISP-100000",
+      "atoms": 100000,
+      "display": "0.100000"
+    },
+    {
+      "id": "FB-DISP-1",
+      "atoms": 1,
+      "display": "0.000001"
+    }
+  ],
+  "mixed_block": {
+    "id": "FB-MIXED-000",
+    "oru_only_fee": 4000,
+    "res_transfer_fee": 6000,
+    "burn": 3000,
+    "fees": 10000,
+    "claimable_without_subsidy": 7000,
+    "subsidy": 12500000000,
+    "circulating_delta": 12499997000,
+    "res_unchanged": true
+  },
+  "replay": {
+    "id": "FB-REPLAY-000",
+    "same_burn": true,
+    "same_oru": true,
+    "same_res": true
+  },
+  "reorg": {
+    "id": "FB-REORG-000",
+    "rollback_restores_oru": true,
+    "rollback_restores_res": true
+  },
+  "isolation": {
+    "id": "FB-RES-000",
+    "pre_res": 40000000,
+    "post_res": 40000000,
+    "minted_res": 0,
+    "res_cap": 21000000000000,
+    "res_cap_unchanged": true
+  }
+}

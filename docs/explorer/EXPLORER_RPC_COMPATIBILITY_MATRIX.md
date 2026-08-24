@@ -67,7 +67,7 @@
 
 | Field | Tier | Explorer rule |
 |-------|------|---------------|
-| `res_probability_target` | **STABLE** | Display; verify == `00010000…00` (2^240) |
+| `res_probability_target` | **STABLE** | Display; verify == shipping windowed hex `000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479` (RFC-017 `E = 246`). Historical RFC-014 `00010000…00` (`2^240`) is not live. |
 | `draw_candidate_root` | **STABLE** | Link to convergence page |
 | `rigor_res_minted` | **STABLE** | RES badge |
 | `rigor_winner` | **STABLE** | Winner **txid** |
@@ -114,7 +114,7 @@
 
 | Surface | Tier | Semantics |
 |---------|------|-----------|
-| `getblock` / `getblockheader` | **STABLE** | Constitutional RHS = 2^240 |
+| `getblock` / `getblockheader` | **STABLE** | Constitutional RHS = RFC-017 windowed `T` at `E = 246` (not Historical RFC-014 `2^240`) |
 | `getconvergenceresult` | **STABLE** | Same constant — **not** PoW |
 | `bits` / `target_prev` | **STABLE** (distinct) | PoW / replay bind — **never** RES inequality |
 

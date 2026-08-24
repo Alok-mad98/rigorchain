@@ -491,7 +491,7 @@ RPCHelpMan getbalances()
 {
     return RPCHelpMan{
         "getbalances",
-        "Returns per-asset spendable buckets (ORU in " + CURRENCY_UNIT + " with 8 decimals; RES with 2 decimals).\n"
+        "Returns per-asset spendable buckets (ORU in " + CURRENCY_UNIT + " with 8 decimals; RES with 6 decimals).\n"
         "Canonical ORU bucket key is \"oru\". Legacy keys \"orum\" and \"mine\" duplicate \"oru\" for backward compatibility.\n"
         "\"watchonly\" retains legacy ORU keys (trusted / untrusted_pending / immature) and adds an optional nested \"res\" object for RES watch-only buckets (additive; same field names).\n",
         {},
@@ -629,7 +629,7 @@ RPCHelpMan listunspent()
                             {RPCResult::Type::STR, "witnessScript", /*optional=*/true, "witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH"},
                             {RPCResult::Type::BOOL, "spendable", "Whether we have the private keys to spend this output"},
                             {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend this output, ignoring the lack of keys"},
-                            {RPCResult::Type::BOOL, "reused", /*optional=*/true, "(only if avoid_reuse) ORU witness-v0 outputs on previously spent-from addresses; omitted for RES (single-slot container is reusable)"},
+                            {RPCResult::Type::BOOL, "reused", /*optional=*/true, "(only if avoid_reuse) ORU witness-v0 outputs on previously spent-from addresses; omitted for RES HD outputs unless reuse tracking is enabled"},
                             {RPCResult::Type::STR, "desc", /*optional=*/true, "(only when solvable) A descriptor for spending this output"},
                             {RPCResult::Type::ARR, "parent_descs", /*optional=*/false, "List of parent descriptors for the scriptPubKey of this coin.", {
                                 {RPCResult::Type::STR, "desc", "The descriptor string."},
@@ -813,11 +813,11 @@ RPCHelpMan listunspent()
                          desc_snip);
             }
         }
-        // W1.1C FREEZE INVARIANT: explicit per-UTXO asset tag. Integrators MUST NOT
-        // infer asset from witness version alone; classification is via script-as-asset
-        // (AssetTypeFromScriptPubKey). Canonical strings: "ORU" | "RES" | "NONE".
+        // W1.1C FREEZE INVARIANT: explicit per-UTXO asset tag. Integrators MUST NOT infer
+        // asset from witness version alone; classification is via script-as-asset
+        // (AssetTypeFromScriptPubKey). AssetTypeToString is the single canonical mapping.
         const AssetType lu_asset = AssetTypeFromScriptPubKey(out.txout.scriptPubKey);
-        entry.pushKV("asset", lu_asset == ASSET_ORU ? "ORU" : (lu_asset == ASSET_RES ? "RES" : "NONE"));
+        entry.pushKV("asset", AssetTypeToString(lu_asset));
         entry.pushKV("amount", ValueFromAmountAsset(out.txout.nValue, lu_asset));
         entry.pushKV("confirmations", out.depth);
         if (!out.depth) {

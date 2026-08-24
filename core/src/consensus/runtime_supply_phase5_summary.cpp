@@ -71,7 +71,7 @@ std::optional<Phase5SummaryExport> ResolvePhase5SummaryAt(const CBlockIndex* pin
     exp.freeze_note = kFreezeNote;
 
     const std::optional<RuntimeSupplyWitness> witness =
-        GetRuntimeSupplyWitness(pindex->nHeight);
+        GetRuntimeSupplyWitness(pindex);
     const std::optional<RuntimeSupplyWitnessCoqCatalogRow> catalog =
         ResolveWitnessCoqCatalogRowAt(pindex);
     const std::optional<RuntimeSupplyChasAlignmentReport> chas =

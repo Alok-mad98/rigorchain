@@ -11,7 +11,6 @@
 #include <consensus/convergenceres.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
-#include <consensus/res_mint_witness.h>
 #include <consensus/res_amount.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/tx_verify.h>
@@ -21,6 +20,7 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
@@ -30,30 +30,34 @@
 #include <set>
 
 namespace {
-/** Same CVG2 prefix as ConvergenceOutputScript(); differs in tail so txid changes (no OP_RETURN convergence path). */
-CScript MakeconvergenceCvg2AlternateProgram()
+/** Distinct OP_CONVERGE lock so txid differs from the default test script. */
+CScript MakeConvergeAlternateOwner()
 {
-    std::vector<unsigned char> wp(32, 0);
-    wp[0] = 0x43;
-    wp[1] = 0x56;
-    wp[2] = 0x47;
-    wp[3] = 0x32;
-    wp[31] = 0x01;
-    return CScript() << OP_1 << wp;
+    return GetConvergeScriptForProgram(std::vector<unsigned char>(32, 0x02));
+}
+
+uint160 OwnerHash(unsigned char fill = 0xa1)
+{
+    return Hash160(std::vector<unsigned char>(32, fill));
 }
 
 const CScript g_oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
 
-/** RES payout script for an owner program: `OP_1 <program32>` (witness v1, not CVG2-tagged). */
+/** Witness v1 RES transfer script (not a mint lock). Used by paid-ticket scanners. */
 CScript MakeResPayoutScript(unsigned char fill)
 {
     return CScript() << OP_1 << std::vector<unsigned char>(32, fill);
 }
 
-/** SECURITY-001-A / A-5 R1: draw fixtures must declare an owner or they never enter F. */
-CTxOut MakeOwnerDeclarationOut()
+/** Canonical mint lock for owner program `32 × fill`. Maturity is not part of the owner check. */
+CScript MakeResMintPayout(unsigned char fill)
 {
-    return CTxOut(0, Consensus::ResOwnerDeclarationScript(std::vector<unsigned char>(32, 0xa1)));
+    return GetResMintScriptForProgram(/*maturity_height=*/100, std::vector<unsigned char>(32, fill));
+}
+
+CTxOut DummyResMintOut()
+{
+    return CTxOut{1, GetResMintScript(/*maturity_height=*/100, uint160())};
 }
 
 /**
@@ -75,55 +79,27 @@ BOOST_FIXTURE_TEST_SUITE(convergence_consensus_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(res_reward_owner_binding)
 {
     const std::vector<unsigned char> owner_program(32, 0xa1);
+    const uint160 owner_hash = Hash160(owner_program);
 
     CMutableTransaction conv;
     conv.vin.resize(1);
     conv.vin[0].prevout = COutPoint(uint256S("0x11"), 0);
     conv.vout.resize(2);
     conv.vout[0].nValue = COIN;
-    conv.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
-    conv.vout[1] = CTxOut(0, Consensus::ResOwnerDeclarationScript(owner_program));
+    conv.vout[0].scriptPubKey = GetConvergeScriptForProgram(owner_program);
+    conv.vout[1].nValue = 0;
+    conv.vout[1].scriptPubKey = g_oru_spk;
     const auto conv_ref = MakeTransactionRef(conv);
 
-    // SECURITY-001-A8: the declared program reaches the check via the parent block's draw set,
-    // so the check no longer scans a block for the winner — it is handed the program directly.
     const auto declared = Consensus::GetResOwnerDeclaration(*conv_ref);
     BOOST_REQUIRE(declared.has_value());
-    BOOST_CHECK(declared->program32 == owner_program);
+    BOOST_CHECK(declared->payout_hash160 == owner_hash);
 
-    auto mint_paying = [](const CScript& spk) {
-        CMutableTransaction mint;
-        mint.vin.resize(1);
-        mint.vout.resize(1);
-        mint.vout[0].nValue = 1;
-        mint.vout[0].scriptPubKey = spk;
-        return CTransaction(mint);
-    };
-
-    // Pays the declared owner.
-    BOOST_CHECK(Consensus::CheckResRewardOwner(owner_program, mint_paying(MakeResPayoutScript(0xa1))));
-
-    // The A-5 attack: a producer redirecting the reward to its own script.
-    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_program, mint_paying(MakeResPayoutScript(0xbb))));
-
-    // No RES output at all.
-    CMutableTransaction no_res;
-    no_res.vin.resize(1);
-    no_res.vout.resize(1);
-    no_res.vout[0] = CTxOut(0, g_oru_spk);
-    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_program, CTransaction(no_res)));
-
-    // Two RES outputs would let a producer pay the owner a token amount and keep the rest.
-    CMutableTransaction two_res;
-    two_res.vin.resize(1);
-    two_res.vout.resize(2);
-    two_res.vout[0] = CTxOut(1, MakeResPayoutScript(0xa1));
-    two_res.vout[1] = CTxOut(1, MakeResPayoutScript(0xbb));
-    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_program, CTransaction(two_res)));
-
-    // An unset program cannot authorize a payout; R1 guarantees every member of F has one, so
-    // reaching here at all means the draw set was malformed and the mint must fail closed.
-    BOOST_CHECK(!Consensus::CheckResRewardOwner({}, mint_paying(MakeResPayoutScript(0xa1))));
+    BOOST_CHECK(Consensus::CheckResRewardOwner(owner_hash, MakeResMintPayout(0xa1)));
+    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_hash, MakeResPayoutScript(0xa1)));
+    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_hash, MakeResMintPayout(0xbb)));
+    BOOST_CHECK(!Consensus::CheckResRewardOwner(owner_hash, g_oru_spk));
+    BOOST_CHECK(!Consensus::CheckResRewardOwner(uint160(), MakeResMintPayout(0xa1)));
 }
 
 BOOST_AUTO_TEST_CASE(convergence_two_cvg2_shapes_same_amount_and_flags)
@@ -149,7 +125,7 @@ BOOST_AUTO_TEST_CASE(convergence_two_cvg2_shapes_same_amount_and_flags)
     };
 
     const CTransaction tx_default(make_mtx(Consensus::ConvergenceOutputScript()));
-    const CTransaction tx_alt(make_mtx(MakeconvergenceCvg2AlternateProgram()));
+    const CTransaction tx_alt(make_mtx(MakeConvergeAlternateOwner()));
 
     BOOST_CHECK(Consensus::IsConvergenceTx(tx_default));
     BOOST_CHECK(Consensus::IsConvergenceTx(tx_alt));
@@ -187,12 +163,12 @@ BOOST_AUTO_TEST_CASE(convergence_draw_candidate_hash_depends_on_txid_not_script_
     };
 
     const CTransaction tx_default(make_mtx(Consensus::ConvergenceOutputScript()));
-    const CTransaction tx_alt(make_mtx(MakeconvergenceCvg2AlternateProgram()));
+    const CTransaction tx_alt(make_mtx(MakeConvergeAlternateOwner()));
 
     const uint256 bind{uint256S("0x1111111111111111111111111111111111111111111111111111111111111111")};
     const int block_h = 200;
 
-    // Same burn (vout value); different CVG2 program tail → different txid → different draw h.
+    // Same burn (vout value); different owner hash → different txid → different σ.
     BOOST_CHECK(tx_default.GetHash() != tx_alt.GetHash());
     const uint256 convergence_root{};
     BOOST_CHECK(SelectionDigest(tx_default.GetHash(), bind, block_h, convergence_root) !=
@@ -213,7 +189,7 @@ BOOST_AUTO_TEST_CASE(convergence_sigma_candidate_easy_target)
     const uint256 h_oru{uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00")};
     coins.AddCoin(COutPoint(h_oru, 0), Coin(CTxOut{prev_oru}, 100, false), false);
 
-    auto make_mtx = [&](const CScript& convergence_spk, bool declare_owner) {
+    auto make_mtx = [&](const CScript& convergence_spk) {
         CMutableTransaction mtx;
         mtx.vin.resize(1);
         mtx.vin[0].prevout = COutPoint(h_oru, 0);
@@ -223,45 +199,25 @@ BOOST_AUTO_TEST_CASE(convergence_sigma_candidate_easy_target)
         // Keep fee > 0 so the tx is a valid convergence candidate under V2.2.
         mtx.vout[1].nValue = 19 * COIN - 1;
         mtx.vout[1].scriptPubKey = g_oru_spk;
-        if (declare_owner) mtx.vout.push_back(MakeOwnerDeclarationOut());
         return mtx;
     };
 
     const int block_h = 200;
     BOOST_CHECK(burn >= Consensus::MIN_CONVERGENCE_AMOUNT);
 
-    // Candidacy for F must not depend on which CVG2 program shape the convergence used. The
-    // draw itself is keyed by txid, which necessarily differs between the two shapes, so parity
-    // is asserted here on admission rather than on the σ outcome.
-    for (bool declare_owner : {false, true}) {
-        const CTransaction tx_default(make_mtx(Consensus::ConvergenceOutputScript(), declare_owner));
-        const CTransaction tx_alt(make_mtx(MakeconvergenceCvg2AlternateProgram(), declare_owner));
+    const CTransaction tx_default(make_mtx(Consensus::ConvergenceOutputScript()));
+    const CTransaction tx_alt(make_mtx(MakeConvergeAlternateOwner()));
 
-        BOOST_CHECK_EQUAL(IsConvergenceCandidate(tx_default), IsConvergenceCandidate(tx_alt));
-        const CAmount fee_default = ComputeConvergenceFee(tx_default, coins, block_h, Params().GetConsensus());
-        const CAmount fee_alt = ComputeConvergenceFee(tx_alt, coins, block_h, Params().GetConsensus());
-        BOOST_CHECK_EQUAL(fee_default, fee_alt);
-        // A-5 R1: without a declared owner the convergence never enters F, whatever its shape.
-        BOOST_CHECK_EQUAL(fee_default > 0, declare_owner);
-    }
+    BOOST_CHECK(IsConvergenceCandidate(tx_default));
+    BOOST_CHECK(IsConvergenceCandidate(tx_alt));
+    BOOST_CHECK(ComputeConvergenceFee(tx_default, coins, block_h, Params().GetConsensus()) > 0);
+    BOOST_CHECK(ComputeConvergenceFee(tx_alt, coins, block_h, Params().GetConsensus()) > 0);
 }
 
 BOOST_AUTO_TEST_CASE(convergence_extract_amount_big_endian_and_compute_convergence_hash_alias)
 {
-    std::vector<unsigned char> wp(32, 0);
-    wp[0] = 'C';
-    wp[1] = 'V';
-    wp[2] = 'G';
-    wp[3] = '2';
-    const CAmount expect_amt = COIN;
-    const uint64_t ev = static_cast<uint64_t>(expect_amt);
-    for (int i = 0; i < 8; ++i) {
-        wp[4 + i] = static_cast<unsigned char>((ev >> (56 - 8 * i)) & 0xff);
-    }
-    const CScript spk = CScript() << OP_1 << wp;
     CAmount dec{};
-    BOOST_REQUIRE(ExtractConvergenceAmount(spk, dec));
-    BOOST_CHECK_EQUAL(dec, expect_amt);
+    BOOST_CHECK(!ExtractConvergenceAmount(Consensus::ConvergenceOutputScript(), dec));
 
     const uint256 txid = uint256S("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
     const uint256 bind = uint256S("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
@@ -350,7 +306,6 @@ BOOST_AUTO_TEST_CASE(convergence_winner_is_deterministic_on_repeat_and_undo_path
         mtx.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
         mtx.vout[1].nValue = change_amt;
         mtx.vout[1].scriptPubKey = g_oru_spk;
-        mtx.vout.push_back(MakeOwnerDeclarationOut());
         return CTransaction{mtx};
     };
 
@@ -407,7 +362,6 @@ BOOST_AUTO_TEST_CASE(convergence_winner_invariant_under_tx_order_permutation)
         m.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
         m.vout[1].nValue = COIN; // fee = 1*COIN
         m.vout[1].scriptPubKey = g_oru_spk;
-        m.vout.push_back(MakeOwnerDeclarationOut());
         return CTransaction{m};
     };
     const CTransaction tx0 = mk(prev0);
@@ -463,7 +417,6 @@ BOOST_AUTO_TEST_CASE(winner_is_strict_argmin)
         m.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
         m.vout[1].nValue = change_amt;
         m.vout[1].scriptPubKey = g_oru_spk;
-        m.vout.push_back(MakeOwnerDeclarationOut());
         return CTransaction{m};
     };
 
@@ -541,7 +494,6 @@ BOOST_AUTO_TEST_CASE(security001a8_draw_is_a_function_of_the_committing_block_al
         m.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
         m.vout[1].nValue = COIN;
         m.vout[1].scriptPubKey = g_oru_spk;
-        m.vout.push_back(MakeOwnerDeclarationOut());
         return CTransaction{m};
     };
 
@@ -584,10 +536,10 @@ BOOST_AUTO_TEST_CASE(security001a8_regrinding_sigma_requires_a_new_proof_of_work
     set.source_nbits = 0x207fffff;
     set.candidates.push_back(ConvergenceDrawCandidate{
         uint256S("0x0000000000000000000000000000000000000000000000000000000000000011"),
-        static_cast<uint64_t>(100000 * COIN), std::vector<unsigned char>(32, 0xa1)});
+        static_cast<uint64_t>(100000 * COIN), OwnerHash(0xa1)});
     set.candidates.push_back(ConvergenceDrawCandidate{
         uint256S("0x0000000000000000000000000000000000000000000000000000000000000022"),
-        static_cast<uint64_t>(100000 * COIN), std::vector<unsigned char>(32, 0xa2)});
+        static_cast<uint64_t>(100000 * COIN), OwnerHash(0xa2)});
     set.convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids(
         {set.candidates[0].txid, set.candidates[1].txid});
 
@@ -830,14 +782,14 @@ BOOST_AUTO_TEST_CASE(rfc001_golden_test_vectors)
 
         // Compute C (Convergence Root)
         uint256 C = Consensus::ComputeConvergenceRootFromEligibilityTxids(txids);
-        BOOST_CHECK_EQUAL(C.GetHex(), "0000000000000000000000000000000000000000000000000000000000000000"); // Single tx returns zero hash
+        BOOST_CHECK_EQUAL(C.GetHex(), "4d7a8732cbbcfafead332e8b0ce2d2a2d7eece8c5c2c71e27ba87780ebdac86d"); // singleton hashes Hash256(txid)
 
         // Compute sigma for each txid (Sigma-PoW-01: prev_hash is the parent block hash itself)
         std::vector<uint256> sigma;
         for (const auto& txid : txids) {
             sigma.push_back(SelectionDigest(txid, prev_hash, height, C));
         }
-        BOOST_CHECK_EQUAL(sigma[0].GetHex(), "1c6a409303ea1c6a07f4145f5888217ffbf570c97ebcfa3d694eabfe52b7f030");
+        BOOST_CHECK_EQUAL(sigma[0].GetHex(), "090b93bc9574de7d00edcfb7f2083c9d590782b6d731e6fe65ba37a50d08282d");
         
         // RFC-015: a singleton convergence candidate may participate in selection.
         BOOST_CHECK_EQUAL(txids.size(), 1U);
@@ -846,7 +798,7 @@ BOOST_AUTO_TEST_CASE(rfc001_golden_test_vectors)
     // CASE-004: no_winner (RFC-014 reinterpretation)
     // Original case used `target_prev` corresponding to a very small target on the
     // RHS to force ineligibility. After RFC-014 the RHS is the constitutional
-    // constant `RES_PROBABILITY_TARGET` (= floor(2^240 / MIN_CONVERGENCE_AMOUNT), see
+    // constant `RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; see
     // SECURITY-001-A A-6). To preserve the "no_winner"
     // semantics under the new model we use fees = 0 (which makes `T·f = 0`,
     // i.e. inequality cannot hold for any non-zero σ). `target_prev` still
@@ -985,7 +937,7 @@ ConvergenceDrawCandidate MakeBuriedCandidate(unsigned char txid_fill, uint64_t w
     ConvergenceDrawCandidate candidate;
     candidate.txid = uint256{std::vector<unsigned char>(32, txid_fill)};
     candidate.weight = weight;
-    candidate.res_payout_program32 = std::vector<unsigned char>(32, 0xa1);
+    candidate.res_payout_hash160 = Hash160(std::vector<unsigned char>(32, 0xa1));
     candidate.source_height = source_height;
     return candidate;
 }
@@ -1010,12 +962,11 @@ CBlock MakeCandidateBlock(CCoinsViewCache& coins, unsigned char prevout_fill, in
         CMutableTransaction m;
         m.vin.resize(1);
         m.vin[0].prevout = prev;
-        m.vout.resize(3);
+        m.vout.resize(2);
         m.vout[0].nValue = COIN; // convergence amount == MIN_CONVERGENCE_AMOUNT
         m.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
-        m.vout[1] = MakeOwnerDeclarationOut(); // A-5 R1: without this it never enters F
-        m.vout[2].nValue = 10 * COIN;          // leaves a positive fee
-        m.vout[2].scriptPubKey = g_oru_spk;
+        m.vout[1].nValue = 10 * COIN; // leaves a positive fee
+        m.vout[1].scriptPubKey = g_oru_spk;
         blk.vtx.push_back(MakeTransactionRef(CTransaction{m}));
     }
     return blk;
@@ -1092,7 +1043,7 @@ BOOST_AUTO_TEST_CASE(a9c_window_root_is_independent_of_candidate_order)
         BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), reversed).convergence_root);
 }
 
-BOOST_AUTO_TEST_CASE(a9c_already_paid_candidate_leaves_the_draw_set)
+BOOST_AUTO_TEST_CASE(a9c_paid_buried_candidate_is_absent_from_the_tail)
 {
     CCoinsView base;
     CCoinsViewCache coins(&base);
@@ -1107,22 +1058,20 @@ BOOST_AUTO_TEST_CASE(a9c_already_paid_candidate_leaves_the_draw_set)
         BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
     BOOST_REQUIRE_EQUAL(with_buried.candidates.size(), 2U);
 
-    // A candidate survives in the window for up to W draws, so a mint inside the window must
-    // remove the txid it paid or the same convergence could be paid more than once.
-    tail.already_paid.push_back(buried.txid);
+    // Buried paid tickets are dropped when the tail is assembled (projection of spent
+    // covenant outpoints), not via an in-memory already_paid set.
+    tail.candidates.clear();
     const ConvergenceDrawSet after_payout =
         BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
     BOOST_REQUIRE_EQUAL(after_payout.candidates.size(), 1U);
     BOOST_CHECK(after_payout.candidates[0].txid != buried.txid);
 
-    // The exclusion must be indistinguishable from the candidate never having been there: C is a
-    // σ input, so a node that merely skipped it in the winner loop would compute a different σ.
     const ConvergenceDrawSet without_buried =
         BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), ConvergenceWindowTail::Empty());
     BOOST_CHECK_EQUAL(after_payout.convergence_root, without_buried.convergence_root);
 }
 
-BOOST_AUTO_TEST_CASE(a9c_already_paid_also_excludes_a_source_block_candidate)
+BOOST_AUTO_TEST_CASE(a9c_source_block_mint_excludes_named_candidate)
 {
     CCoinsView base;
     CCoinsViewCache coins(&base);
@@ -1133,12 +1082,16 @@ BOOST_AUTO_TEST_CASE(a9c_already_paid_also_excludes_a_source_block_candidate)
         BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), ConvergenceWindowTail::Empty());
     BOOST_REQUIRE_EQUAL(full.candidates.size(), 2U);
 
-    // The exclusion applies to the source block's own candidates too, not just buried ones: the
-    // source block is inside the window it anchors.
-    ConvergenceWindowTail tail = ConvergenceWindowTail::Empty();
-    tail.already_paid.push_back(full.candidates[0].txid);
+    // Source-block exclusion is the mint in that block naming a candidate txid
+    // (`FindBlockPaidConvergenceTxids`), not a second already_paid ledger.
+    CBlock with_mint = blk;
+    CMutableTransaction cb(*with_mint.vtx[0]);
+    cb.vout.push_back(DummyResMintOut());
+    with_mint.vtx[0] = MakeTransactionRef(std::move(cb));
 
-    const ConvergenceDrawSet pruned = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
+    const ConvergenceDrawSet pruned =
+        BuildConvergenceDrawSet(with_mint, h, coins, Params().GetConsensus(), ConvergenceWindowTail::Empty(),
+            full.candidates[0].txid);
     BOOST_REQUIRE_EQUAL(pruned.candidates.size(), 1U);
     BOOST_CHECK_EQUAL(pruned.candidates[0].txid, full.candidates[1].txid);
     BOOST_CHECK(pruned.convergence_root != full.convergence_root);
@@ -1175,8 +1128,8 @@ BOOST_AUTO_TEST_CASE(a9c_view_and_undo_builders_agree_under_a_window)
 
     ConvergenceWindowTail tail = ConvergenceWindowTail::Empty();
     tail.candidates.push_back(MakeBuriedCandidate(0xb1, 5 * COIN, h - 2));
-    tail.candidates.push_back(MakeBuriedCandidate(0xb2, 7 * COIN, h - 1));
-    tail.already_paid.push_back(MakeBuriedCandidate(0xb2, 7 * COIN, h - 1).txid);
+    // The second buried ticket was paid in-window; tail assembly drops it before F is built.
+    (void)MakeBuriedCandidate(0xb2, 7 * COIN, h - 1);
 
     // The live-view builder runs during assembly and validation; the undo builder is what every
     // node runs when it reads a window off disk. A divergence between them is a fork, and the
@@ -1188,7 +1141,7 @@ BOOST_AUTO_TEST_CASE(a9c_view_and_undo_builders_agree_under_a_window)
 
     BOOST_CHECK_EQUAL(set_view.convergence_root, set_undo.convergence_root);
     BOOST_REQUIRE_EQUAL(set_view.candidates.size(), set_undo.candidates.size());
-    BOOST_CHECK_EQUAL(set_view.candidates.size(), 3U); // 2 in-block + 2 buried - 1 already paid
+    BOOST_CHECK_EQUAL(set_view.candidates.size(), 3U); // 2 in-block + 1 unpaid buried
     for (size_t i = 0; i < set_view.candidates.size(); ++i) {
         BOOST_CHECK_EQUAL(set_view.candidates[i].txid, set_undo.candidates[i].txid);
         BOOST_CHECK_EQUAL(set_view.candidates[i].weight, set_undo.candidates[i].weight);
@@ -1205,10 +1158,7 @@ BOOST_AUTO_TEST_CASE(a9c_view_and_undo_builders_agree_under_a_window)
 
 BOOST_AUTO_TEST_CASE(a9c_decoy_proof_shaped_witness_does_not_mark_ticket_paid)
 {
-    const uint256 decoy_ticket = uint256S("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
     const uint256 real_ticket = uint256S("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
-    const CAmount saturating =
-        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
 
     CBlock blk;
     CMutableTransaction cb;
@@ -1222,19 +1172,21 @@ BOOST_AUTO_TEST_CASE(a9c_decoy_proof_shaped_witness_does_not_mark_ticket_paid)
     decoy.vin.resize(1);
     decoy.vin[0].prevout = COutPoint(uint256S("0x11"), 0);
     decoy.vout.emplace_back(COIN, g_oru_spk);
-    decoy.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
-        decoy_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    decoy.vin[0].scriptWitness.stack.assign(6, std::vector<unsigned char>(32, 0x11));
     blk.vtx.push_back(MakeTransactionRef(decoy));
 
     CMutableTransaction mint;
     mint.vin.resize(1);
     mint.vin[0].prevout = COutPoint(uint256S("0x22"), 0);
-    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
-    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
-        real_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
+    mint.vout.emplace_back(Consensus::RES_REWARD_GENESIS, MakeResPayoutScript(0xa1));
+    mint.vin[0].scriptWitness.stack.assign(6, std::vector<unsigned char>(32, 0x22));
     blk.vtx.push_back(MakeTransactionRef(mint));
 
-    const std::vector<uint256> paid = FindBlockPaidConvergenceTxids(blk);
+    CMutableTransaction paid_cb(*blk.vtx[0]);
+    paid_cb.vout.push_back(DummyResMintOut());
+    blk.vtx[0] = MakeTransactionRef(std::move(paid_cb));
+
+    const std::vector<uint256> paid = FindBlockPaidConvergenceTxids(blk, real_ticket);
     BOOST_REQUIRE_EQUAL(paid.size(), 1U);
     BOOST_CHECK_EQUAL(paid[0], real_ticket);
 }
@@ -1244,35 +1196,24 @@ BOOST_AUTO_TEST_CASE(a9c_mint_excludes_named_ticket_identically_on_view_and_undo
     CCoinsView base;
     CCoinsViewCache coins(&base);
     const uint256 buried_ticket = uint256S("0xabababababababababababababababababababababababababababababababab");
-    const CAmount saturating =
-        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
 
     CBlock blk = MakeCandidateBlock(coins, 0xd7, 1);
-    const COutPoint mint_prev{uint256S("0xe2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2"), 0};
-    coins.AddCoin(mint_prev, Coin(CTxOut(20 * COIN, g_oru_spk), 100, false), false);
-
-    CMutableTransaction mint;
-    mint.vin.resize(1);
-    mint.vin[0].prevout = mint_prev;
-    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
-    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
-        buried_ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
-    blk.vtx.push_back(MakeTransactionRef(mint));
+    CMutableTransaction paid_cb(*blk.vtx[0]);
+    paid_cb.vout.push_back(DummyResMintOut());
+    blk.vtx[0] = MakeTransactionRef(std::move(paid_cb));
 
     CBlockUndo undo = MakeCandidateBlockUndo(blk);
-    // MakeCandidateBlockUndo assumes every body tx spent 12 ORU; the mint spent 20.
-    undo.vtxundo.back().vprevout[0] = Coin(CTxOut(20 * COIN, g_oru_spk), 100, false);
 
     ConvergenceWindowTail tail = ConvergenceWindowTail::Empty();
     tail.candidates.push_back(MakeBuriedCandidate(0xab, COIN, 10));
     BOOST_REQUIRE_EQUAL(tail.candidates.back().txid, buried_ticket);
 
     const int h = 11;
-    const ConvergenceDrawSet set_view = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
+    const ConvergenceDrawSet set_view = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail, buried_ticket);
     ConvergenceDrawSet set_undo;
-    BOOST_REQUIRE(BuildConvergenceDrawSetFromUndo(blk, h, undo, Params().GetConsensus(), tail, set_undo));
+    BOOST_REQUIRE(BuildConvergenceDrawSetFromUndo(blk, h, undo, Params().GetConsensus(), tail, set_undo, buried_ticket));
 
-    BOOST_CHECK(FindBlockPaidConvergenceTxids(blk) == std::vector<uint256>{buried_ticket});
+    BOOST_CHECK(FindBlockPaidConvergenceTxids(blk, buried_ticket) == std::vector<uint256>{buried_ticket});
     BOOST_REQUIRE_EQUAL(set_view.candidates.size(), 1U);
     BOOST_REQUIRE_EQUAL(set_undo.candidates.size(), 1U);
     BOOST_CHECK_EQUAL(set_view.candidates[0].txid, blk.vtx[1]->GetHash());
@@ -1284,8 +1225,6 @@ BOOST_AUTO_TEST_CASE(a9c_mint_excludes_named_ticket_identically_on_view_and_undo
 BOOST_AUTO_TEST_CASE(a9c_reorg_branch_without_mint_does_not_inherit_already_paid)
 {
     const uint256 ticket = uint256S("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
-    const CAmount saturating =
-        65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
 
     CBlock with_mint;
     CMutableTransaction cb;
@@ -1295,19 +1234,15 @@ BOOST_AUTO_TEST_CASE(a9c_reorg_branch_without_mint_does_not_inherit_already_paid
     cb.vout.emplace_back(0, CScript() << OP_RETURN);
     with_mint.vtx.push_back(MakeTransactionRef(cb));
 
-    CMutableTransaction mint;
-    mint.vin.resize(1);
-    mint.vin[0].prevout = COutPoint(uint256::ONE, 0);
-    mint.vout.emplace_back(Consensus::RES_REWARD_AMOUNT, MakeResPayoutScript(0xa1));
-    mint.vin[0].scriptWitness = BuildPcorbBodyResMintWitness(
-        ticket, saturating, uint256::ONE, 200, 0x1d00ffff, uint256());
-    with_mint.vtx.push_back(MakeTransactionRef(mint));
+    CMutableTransaction paid_cb(cb);
+    paid_cb.vout.push_back(DummyResMintOut());
+    with_mint.vtx[0] = MakeTransactionRef(std::move(paid_cb));
 
     CBlock sibling = with_mint;
-    sibling.vtx.resize(1);
+    sibling.vtx[0] = MakeTransactionRef(cb);
 
-    BOOST_CHECK_EQUAL(FindBlockPaidConvergenceTxids(with_mint).size(), 1U);
-    BOOST_CHECK(FindBlockPaidConvergenceTxids(sibling).empty());
+    BOOST_CHECK_EQUAL(FindBlockPaidConvergenceTxids(with_mint, ticket).size(), 1U);
+    BOOST_CHECK(FindBlockPaidConvergenceTxids(sibling, ticket).empty());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

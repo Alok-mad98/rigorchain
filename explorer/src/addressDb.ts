@@ -11,6 +11,8 @@ import {
 } from "./addressIntelligence";
 import { getOrCreateChainState } from "./db";
 import { rpc } from "./rpcCli";
+import { CIRCULATING_ORU_SQL_PREDICATE } from "./circulating";
+import { isConvergenceScriptPubKey } from "./script";
 
 export type AddressIntelligence = Record<string, unknown>;
 
@@ -28,7 +30,7 @@ export async function getAddressIntelligence(
 
   const oruUtxos = await pool.query(
     `
-      SELECT txid, vout_index, amount_atoms, height, spent, spending_txid
+      SELECT txid, vout_index, amount_atoms, height, spent, spending_txid, script_pubkey
       FROM oru_utxos
       WHERE address = $1
       ORDER BY height DESC, txid ASC, vout_index ASC
@@ -56,10 +58,10 @@ export async function getAddressIntelligence(
     `
       SELECT
         COUNT(*)::int AS total_count,
-        COUNT(*) FILTER (WHERE spent = FALSE)::int AS spendable_count,
+        COUNT(*) FILTER (WHERE ${CIRCULATING_ORU_SQL_PREDICATE})::int AS spendable_count,
         COALESCE(SUM(amount_atoms), 0)::text AS total_received_atoms,
         COALESCE(SUM(amount_atoms) FILTER (WHERE spent = TRUE), 0)::text AS total_spent_atoms,
-        COALESCE(SUM(amount_atoms) FILTER (WHERE spent = FALSE), 0)::text AS balance_atoms
+        COALESCE(SUM(amount_atoms) FILTER (WHERE ${CIRCULATING_ORU_SQL_PREDICATE}), 0)::text AS balance_atoms
       FROM oru_utxos
       WHERE address = $1
     `,
@@ -277,7 +279,9 @@ export async function getAddressIntelligence(
   const resMintTotal = resMints.rows.reduce((acc, r) => acc + BigInt(String(r.mint_amount ?? 0)), 0n);
 
   return {
-    oru_utxos: oruUtxos.rows.filter((r) => !r.spent),
+    oru_utxos: oruUtxos.rows.filter(
+      (r) => !r.spent && !isConvergenceScriptPubKey(String(r.script_pubkey ?? "")),
+    ),
     res_outputs: resOutputs.rows.filter((r) => !r.spent),
     identity: {
       address: addr,

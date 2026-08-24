@@ -84,17 +84,12 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
     applyConvergenceTheme();
 
     // Legacy .ui spend form is replaced by ConvergenceStartPanel (Bitcoin-simple UX).
-    // Keep widgets compiled/hidden so Diagnostics can still own protocol detail elsewhere.
     if (ui->frameConverge) ui->frameConverge->setVisible(false);
-    if (ui->labelConvergeDisclaimer) {
-        ui->labelConvergeDisclaimer->setText(
-            tr("Protocol details: Settings → Advanced → System Diagnostics → Convergence Details."));
-    }
+    if (ui->labelConvergeDisclaimer) ui->labelConvergeDisclaimer->setVisible(false);
     connect(ui->pushButtonConverge, &QPushButton::clicked, this, &ConvergencePage::onSendConvergenceClicked);
     connect(ui->convergeAmount, &BitcoinAmountField::valueChanged, this, &ConvergencePage::updateQuadraticFeeHint);
 
     // User Convergence page: My Convergence → Network → warnings → Start → history.
-    // Protocol/debug panels remain compiled and are surfaced under System Diagnostics.
     m_educationPanel = new RigorWallet::ConvergenceEducationPanel(this);
     m_educationPanel->setVisible(false);
     m_lifecyclePanel = new RigorWallet::ConvergenceLifecyclePanel(this);
@@ -218,7 +213,8 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QFrame#frameDraw,"
         "QWidget#ConvergencePageRoot QFrame#frameMarket,"
         "QWidget#ConvergencePageRoot QFrame#frameConverge {"
-        "  background-color: %3;"
+        "  background-color: %1;"
+        "  color: %2;"
         "  border: 1px solid %4;"
         "  border-radius: 8px;"
         "}"

@@ -92,9 +92,9 @@ RuntimeSupplyExport BuildRuntimeSupplyExport(const CBlockIndex* pindex,
 
     exp.coq_hook = ProjectCoqSupplyFieldHook(exp.mirror);
 
-    exp.authoritative_oru_supply_cumulative = pindex->m_chain_oru_total;
+    exp.authoritative_oru_supply_cumulative = pindex->Observational().GetChainOruTotal();
     exp.authoritative_oru_converge_burn_block = pindex->m_block_converge_sum;
-    exp.authoritative_res_mint_cumulative = pindex->m_chain_res_mint_total;
+    exp.authoritative_res_mint_cumulative = pindex->Observational().GetChainResMintTotal();
     exp.authoritative_res_mint_block = pindex->m_block_res_mint_sum;
 
     return exp;
@@ -180,6 +180,15 @@ UniValue RuntimeSupplyExportToJson(const RuntimeSupplyExport& exp,
 
     obj.pushKV("phase5_supply_cell_count", 32);
     obj.pushKV("phase5_supply_cells", RuntimeSupplyPhase5CellsToJson(exp));
+
+    UniValue sem(UniValue::VOBJ);
+    sem.pushKV("equivalence_claimed", false);
+    sem.pushKV("oru_supply_cumulative", "rfc002_ledger_issued_minus_converge_not_circulating");
+    sem.pushKV("oru_subsidy_cumulative_derived", "total_issued_oru");
+    sem.pushKV("oru_converge_burn_block", "this_block_convergence_destroyed_oru_not_rfc018_fee_burn");
+    sem.pushKV("utxo_non_res_balance", "circulating_spendable_oru_utxo_includes_immature_excludes_cvg2");
+    sem.pushKV("rfc018_fee_burn_cumulative", "not_persisted_on_block_index");
+    obj.pushKV("supply_semantics", std::move(sem));
 
     return obj;
 }

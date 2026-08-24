@@ -81,8 +81,8 @@ bool memcmp_compare(const std::vector<unsigned char>& a, const std::vector<unsig
 // =============================================================================
 
 std::vector<unsigned char> compute_convergence_root(const std::vector<std::vector<unsigned char>>& txids) {
-    // Rule 1: If |F| < 2, return 32 zero bytes
-    if (txids.size() < 2) {
+    // Empty F: 32 zero bytes. A singleton hashes.
+    if (txids.empty()) {
         return std::vector<unsigned char>(32, 0);
     }
     

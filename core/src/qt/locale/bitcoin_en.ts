@@ -3584,12 +3584,12 @@ For more information on using this console, type %6.
     </message>
     <message>
         <location line="+2"/>
-        <source>Bech32m (Taproot)</source>
+        <source>RES (Bech32m, witness v1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Bech32m (BIP-350) is an upgrade to Bech32, wallet support is still limited.</source>
+        <source>RES-domain receiving address: witness v1, 32-byte program, Bech32m encoding (BIP-350). Not ORU — choose this only for RES payouts.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

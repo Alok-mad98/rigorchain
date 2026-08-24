@@ -10,6 +10,7 @@
 3. RES = Witness v1 / Bech32m / `res(...)` (Ed25519). **Never `tr()`.**
 4. Checksums are mandatory on import (`desc#checksum`).
 5. No account-model balances; UTXO + script verification only.
+6. Ed25519 BIP32 is **hardened-only** (SLIP-0010). Use `/0'/*'`, never `/0/*`. Public derivation from xpub is not defined; watch-only wallets import `res(<32-byte pubkey hex>)` or a specific address, not a ranged xpub.
 
 ## Import RPCs
 
@@ -17,7 +18,7 @@
 
 ```json
 [{
-  "desc": "wpkh([fpr/84'/0'/0']xpub.../0/*)#checksum",
+  "desc": "wpkh([fpr/84'/0'/0']xpub.../0'/*')#checksum",
   "timestamp": "now",
   "active": true,
   "range": [0, 1000],
@@ -47,8 +48,8 @@ RES spendable (64-byte secret = seed‖pubkey, 128 hex chars):
 
 Notes:
 
-- Active ranged descriptors required for HD ORU receive/change.
-- Active non-ranged `res()` is allowed (fixed Witness v1 program).
+- Active ranged descriptors required for HD ORU and default HD RES receive/change.
+- Active non-ranged `res()` is allowed (imported dedicated Witness v1 program / watch-only hex).
 - Watch-only wallets (`disable_private_keys`) reject descriptors that embed private keys.
 
 ### `importrigorprivkey` (convenience)

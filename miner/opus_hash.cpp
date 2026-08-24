@@ -146,7 +146,7 @@ void opus_hash_from_base_hash(const uint8_t *base_hash, uint8_t *output32)
 
 	for (round = 0; round < 256; round++) {
 		val = le32_load(current);
-		idx = (val ^ ((uint32_t)round << 24)) & (65536U - 1U);
+		idx = val & (65536U - 1U);
 		if (idx > 65536U - 8U)
 			idx = 65536U - 8U;
 

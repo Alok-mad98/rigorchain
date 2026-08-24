@@ -16,7 +16,7 @@ From Coq Require Import QArith.QArith.
 From Coq Require Import QArith.Qfield.
 From Coq Require Import Lia.
 
-Require Import Rigor.Selection.
+Require Import Rigor.legacy_account_model.Selection.
 
 Local Open Scope Z_scope.
 

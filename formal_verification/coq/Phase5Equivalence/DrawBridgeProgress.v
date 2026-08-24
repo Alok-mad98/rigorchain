@@ -14,6 +14,9 @@
       - an optional extracted OCaml kernel (ExtractHashKernel.v) for the gate
       - a portable C++ CSHA256 CLI over sha256.cpp, compared differentially
       - A-9-C already_paid exclusion modeled and proved in WindowExclusion.v
+      - draw_candidate_root (eligible-subset hash; empty hashes [] while C is
+        zeros) in DrawCandidateRoot.v, composed with the window in
+        WindowExclusion.v
 
     What is still absent:
       - a mechanized refinement proof (Coq function = C++ function)
@@ -34,6 +37,7 @@ Import ListNotations.
 Require Import Rigor.CanonicalDrawEncoder.
 Require Import Rigor.CanonicalHashKernel.
 Require Import Rigor.WindowExclusion.
+Require Import Rigor.DrawCandidateRoot.
 From Rigor Require Import RigorSha256.
 Require Import Rigor.RigorHash.
 
@@ -46,6 +50,7 @@ Definition hash_kernel_extracted_ocaml : bool := true.
 Definition hash_kernel_cpp_portable_cli : bool := true.
 Definition hash_kernel_shared_binary_with_cpp : bool := false.
 Definition a9c_no_double_win_modeled : bool := true.
+Definition draw_candidate_root_modeled : bool := true.
 
 Lemma encoder_specified : canonical_draw_encoder_specified = true.
 Proof. reflexivity. Qed.
@@ -64,6 +69,17 @@ Proof. repeat split; reflexivity. Qed.
 
 Lemma a9c_modeled : a9c_no_double_win_modeled = true.
 Proof. reflexivity. Qed.
+
+Lemma draw_candidate_root_is_modeled : draw_candidate_root_modeled = true.
+Proof. reflexivity. Qed.
+
+Theorem draw_candidate_root_always_32 :
+  forall txids, length (draw_candidate_root_from_txid_bytes txids) = 32%nat.
+Proof. apply draw_candidate_root_length. Qed.
+
+Theorem draw_candidate_root_empty_not_zero :
+  draw_candidate_root_from_txid_bytes [] <> bytes32_zero.
+Proof. apply draw_candidate_root_empty_neq_zero. Qed.
 
 (** Re-export the load-bearing layout lock so a Phase-5 reader does not have
     to open CanonicalDrawEncoder to see that the encoder is not a comment. *)

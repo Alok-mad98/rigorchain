@@ -56,14 +56,10 @@ bool XOnlyPubKey::CheckTapTweak(const XOnlyPubKey& internal, const uint256& merk
 
 std::optional<std::pair<XOnlyPubKey, bool>> XOnlyPubKey::CreateTapTweak(const uint256* merkle_root) const
 {
-    if (IsNull()) return std::nullopt;
-    const uint256 tweak = ComputeTapTweakHash(merkle_root);
-    std::pair<XOnlyPubKey, bool> ret;
-    for (size_t i = 0; i < XOnlyPubKey::size(); ++i) {
-        ret.first.begin()[i] = m_keydata.begin()[i] ^ tweak.begin()[i];
-    }
-    ret.second = false;
-    return ret;
+    // BIP341 Taproot tweaks are not defined on RIGOR. Returning a plausible XOR
+    // previously produced addresses with no corresponding private key.
+    (void)merkle_root;
+    return std::nullopt;
 }
 
 bool CPubKey::Verify(const uint256& hash, const std::vector<unsigned char>& vchSig) const
@@ -94,28 +90,36 @@ bool CPubKey::Decompress()
     return IsValid();
 }
 
+std::vector<unsigned char> CPubKey::GetEd25519Payload() const
+{
+    if (size() != COMPRESSED_SIZE || vch[0] != 0x00) return {};
+    return {vch + 1, vch + COMPRESSED_SIZE};
+}
+
+uint160 CPubKey::GetEd25519KeyHash() const
+{
+    const std::vector<unsigned char> payload = GetEd25519Payload();
+    if (payload.size() != ed25519::PUBKEY_SIZE) return GetID();
+    return Hash160(payload);
+}
+
+uint256 CPubKey::GetResWitnessProgram() const
+{
+    uint256 out;
+    const std::vector<unsigned char> payload = GetEd25519Payload();
+    if (payload.size() != ed25519::PUBKEY_SIZE) return out;
+    if (!ed25519::ResWitnessProgram(payload, Span<unsigned char>{out.begin(), 32})) return uint256{};
+    return out;
+}
+
 bool CPubKey::Derive(CPubKey& pubkeyChild, ChainCode& ccChild, unsigned int nChild, const ChainCode& cc) const
 {
-    assert(IsValid());
-    unsigned char out[64];
-    BIP32Hash(cc, nChild, *begin(), begin() + 1, out);
-    std::memcpy(ccChild.begin(), out + 32, 32);
-    if (*begin() == 0x00) {
-        // ORUM: I_L is an Ed25519 seed; wire pubkey must match CKey::Derive + GetPubKey(), not raw I_L.
-        std::array<unsigned char, ed25519::PUBKEY_SIZE> pub32{};
-        std::array<unsigned char, ed25519::SECRETKEY_SIZE> sk64{};
-        if (!ed25519::SeedToKeypair({out, ed25519::SEED_SIZE}, pub32, sk64)) return false;
-        unsigned char pub[COMPRESSED_SIZE];
-        pub[0] = 0x00;
-        std::memcpy(pub + 1, pub32.data(), ed25519::PUBKEY_SIZE);
-        pubkeyChild.Set(pub, pub + COMPRESSED_SIZE);
-        return true;
-    }
-    unsigned char pub[COMPRESSED_SIZE];
-    pub[0] = 0x00;
-    std::memcpy(pub + 1, out, ed25519::PUBKEY_SIZE);
-    pubkeyChild.Set(pub, pub + COMPRESSED_SIZE);
-    return true;
+    // C-1: public derivation of Ed25519 children leaks the child private seed.
+    (void)pubkeyChild;
+    (void)ccChild;
+    (void)nChild;
+    (void)cc;
+    return false;
 }
 
 void CExtPubKey::Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const
@@ -162,6 +166,7 @@ bool CExtPubKey::Derive(CExtPubKey& out, unsigned int _nChild) const
 
 /* static */ bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig)
 {
+    // Ed25519 signatures are fixed 64 bytes. Canonical-S is enforced by libsodium.
     return vchSig.size() == ed25519::SIGNATURE_SIZE;
 }
 

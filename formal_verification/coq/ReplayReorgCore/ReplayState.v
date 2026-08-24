@@ -19,13 +19,40 @@ Definition Hash32 := Rigor.ReplayReorgCore.Hash32Order.Hash32.
 Definition hash32_eq_dec := Rigor.ReplayReorgCore.Hash32Order.hash32_eq_dec.
 Definition hash32_zero := Rigor.ReplayReorgCore.Hash32Order.hash32_zero.
 
-(** OutPoint and output record (mirrors CTxOut storage: value + scriptPubKey only). *)
+(** OutPoint and output record (CTxOut value + scriptPubKey).
+    Asset class is [StateTransition.output_asset] = [asset_kind_of_script]
+    of [out_script]. There is no independent tag. *)
 Inductive OutPoint : Type :=
 | MkOutPoint (op_txid : Hash32) (op_index : nat).
 
+Definition outpoint_txid (op : OutPoint) : Hash32 :=
+  match op with MkOutPoint h _ => h end.
+
+Definition outpoint_index (op : OutPoint) : nat :=
+  match op with MkOutPoint _ i => i end.
+
+(** Model of C++ [AssetType] / [AssetTypeFromScriptPubKey] at the shape
+    layer ([StateTransition.asset_kind_of_script]). [AssetNone] is
+    OP_RETURN-class (no pool contribution). [AssetCVG] is the W3
+    one-shot covenant ([OP_CVG_CLAIM]); not yet a conjunct of [apply_tx]. *)
+Inductive AssetKind : Type :=
+| AssetORU
+| AssetRES
+| AssetNone
+| AssetCVG.
+
+Definition asset_eqb (a b : AssetKind) : bool :=
+  match a, b with
+  | AssetORU, AssetORU => true
+  | AssetRES, AssetRES => true
+  | AssetNone, AssetNone => true
+  | AssetCVG, AssetCVG => true
+  | _, _ => false
+  end.
+
 Record TxOut := {
   out_value : Z;
-  out_script : list nat  (** opaque script bytes as naturals 0..255 *)
+  out_script : list nat
 }.
 
 (** Finite UTXO set as association list (deterministic when keys unique). *)
@@ -40,20 +67,41 @@ Record BlockHeaderAbs := {
   hdr_time : Z
 }.
 
-(** Abstract transaction: explicit spends and creates (structural only). *)
+(** Abstract transaction: explicit spends and creates (structural only).
+
+    [tx_id] is an abstract transaction identity, not a computed hash (this
+    layer still has no SHA-256). Created outputs are [(tx_id, vout)] with
+    [vout] starting at 0, matching production COutPoint. The previous
+    synthetic shortcut — every create used [hash32_placeholder] plus a
+    running index — made distinct transactions collide and made
+    spend-deletion unstatable in its natural form.
+
+    [tx_pcorb] is an optional mint-witness *stack shape* (not field
+    semantics). [None] means no witness is attached: the PCORB-size
+    conjunct is skipped. This is the DualPool / NegativeCore fixture
+    default, not a C++ "empty witness is valid" rule. *)
 Record TxAbs := {
+  tx_id : Hash32;
   tx_spends : list OutPoint;
-  tx_creates : list TxOut
+  tx_creates : list TxOut;
+  tx_pcorb : option (list (list nat))
 }.
 
-(** ConnectBlock mint authorization carried on abstract blocks (PHASE-4E). *)
+(** ConnectBlock mint authorization carried on abstract blocks (PHASE-4E).
+
+    [cm_res_mint_count] is the number of *scored* RES mint txs in the block
+    (C++ [res_mint_tx_count] from [res_mint_scores]). It is an abstract field:
+    this layer does not model [ConnectEvaluateResMintTx], owner encoding,
+    PCORB, or domain. [cm_draw_won] stays an unconstrained boolean — not the
+    Selection winner, not owner/PCORB (see [OpaqueBoundary.v]). *)
 Record ConnectMintSpec := {
-  cm_draw_won : bool;      (** draw kernel returned a winner (RES mint gate) *)
-  cm_oru_subsidy : Z       (** authorized ORU subsidy for this block (≥ 0) *)
+  cm_draw_won : bool;       (** abstract winner flag; not Selection / PCORB *)
+  cm_oru_subsidy : Z;       (** authorized ORU subsidy for this block (≥ 0) *)
+  cm_res_mint_count : nat   (** scored mint txs; not a PCORB parse *)
 }.
 
 Definition default_connect_mint : ConnectMintSpec :=
-  {| cm_draw_won := false; cm_oru_subsidy := 0%Z |}.
+  {| cm_draw_won := false; cm_oru_subsidy := 0%Z; cm_res_mint_count := 0 |}.
 
 (** Abstract block body. *)
 Record BlockAbs := {
@@ -80,12 +128,13 @@ Record ReplaySnapshot := {
 (** Full replay-visible consensus slice at a tip.
 
     [rs_history] holds pre-extension snapshots (newest first) for rollback.
-    No account balances: supplies are scalar projections only. *)
+    Supplies are independent scalars — not the sum of [rs_utxo] by asset
+    ([OpaqueBoundary.we_do_not_claim_rs_res_supply_equals_utxo_res]). *)
 Record ReplayState := {
   rs_utxo : UTXOSet;
   rs_chain : ChainMeta;
   rs_oru_supply : Z;
-  rs_res_supply : Z;
+  rs_res_supply : Z;   (** scalar; not [utxo_res] of [rs_utxo] *)
   rs_history : list ReplaySnapshot
 }.
 

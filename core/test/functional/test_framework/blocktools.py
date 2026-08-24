@@ -5,7 +5,7 @@
 """Utilities for manipulating blocks and transactions.
 
 CTxOut serialization is Bitcoin-native (nValue + scriptPubKey). Asset domain
-(ORU vs RES) is implied by scriptPubKey (witness v1, 32-byte program = RES unless CVG2 convergence prefix).
+(ORU vs RES) is implied by scriptPubKey (witness v1, 32-byte program = RES; OP_CONVERGE = ORU burn).
 """
 
 import struct
@@ -41,6 +41,7 @@ from .script import (
     OP_0,
     OP_1,
     OP_16,
+    OP_CONVERGE,
     OP_RETURN,
     OP_TRUE,
 )
@@ -143,34 +144,26 @@ def add_witness_commitment(block, nonce=0):
     block.rehash()
 
 
-CVG2_TAG = b"CVG2"
-
-
-def _is_cvg2_convergence_scriptpubkey(spk) -> bool:
-    """Witness v1 (0x51 0x20) 32-byte program with CVG2 prefix — mirrors Consensus::MatchCvg2WitnessScript."""
+def _is_converge_scriptpubkey(spk) -> bool:
+    """Canonical OP_CONVERGE: OP_PUSHBYTES_20 || 20-byte hash || OP_CONVERGE."""
     raw = bytes(spk)
-    return (
-        len(raw) == 34
-        and raw[0] == 0x51
-        and raw[1] == 0x20
-        and raw[2:6] == CVG2_TAG
-    )
+    return len(raw) == 22 and raw[0] == 0x14 and raw[21] == OP_CONVERGE
 
 
 def _count_cvg2_positive_convergence_outputs(tx: CTransaction) -> int:
-    """Count positive-value convergence outputs (CVG2 pattern)."""
+    """Count positive-value OP_CONVERGE outputs."""
     count = 0
     for o in tx.vout:
-        if o.nValue > 0 and _is_cvg2_convergence_scriptpubkey(o.scriptPubKey):
+        if o.nValue > 0 and _is_converge_scriptpubkey(o.scriptPubKey):
             count += 1
     return count
 
 
 def _get_cvg2_convergence_amount_sats(tx: CTransaction) -> int:
-    """Sum positive-value convergence output amounts (CVG2 pattern)."""
+    """Sum positive-value OP_CONVERGE output amounts."""
     total = 0
     for o in tx.vout:
-        if not _is_cvg2_convergence_scriptpubkey(o.scriptPubKey):
+        if not _is_converge_scriptpubkey(o.scriptPubKey):
             continue
         if o.nValue > 0:
             total += o.nValue
@@ -215,7 +208,7 @@ def calc_convergence_root_bytes(vtx, *, rpc_node=None):
 
     if rpc_node is None:
         raise ValueError(
-            "calc_convergence_root_bytes: block has ≥2 structural convergence transactions (CVG2); pass rpc_node=... "
+            "calc_convergence_root_bytes: block has ≥2 structural convergence transactions (OP_CONVERGE); pass rpc_node=... "
             "so fees can be checked against UTXO (matches consensus)."
         )
 

@@ -319,10 +319,11 @@ private:
     bool cacheStore;
     ScriptError error{SCRIPT_ERR_UNKNOWN_ERROR};
     PrecomputedTransactionData *txdata;
+    int nSpendHeight;
 
 public:
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn) :
-        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn) { }
+    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn, int nSpendHeightIn = 0) :
+        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), nSpendHeight(nSpendHeightIn) { }
 
     CScriptCheck(const CScriptCheck&) = delete;
     CScriptCheck& operator=(const CScriptCheck&) = delete;
@@ -396,7 +397,7 @@ struct ConvergenceNetworkStats {
     int64_t active_convergences{0}; //!< All convergence candidates in the tip W-window (paid + unpaid)
     CAmount active_oru{0};          //!< Sum of their ORU amounts (sat-style atoms)
     int64_t pending_windows{0};     //!< Unpaid candidates still in tip draw set F
-    CAmount total_res_minted{0};    //!< Cumulative RES minted (RES atoms; 100.00 RES = 10000)
+    CAmount total_res_minted{0};    //!< Cumulative RES minted (RES atoms; 1.000000 RES = 1000000)
     int best_height{-1};            //!< Active tip height
     uint256 tip_hash{};
     bool valid{false};

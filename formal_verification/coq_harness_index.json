@@ -451,72 +451,288 @@
  ],
  [
   43,
+  "DCR-000",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  44,
+  "DCR-001",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  45,
+  "DCR-002",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  46,
+  "DCR-003",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  47,
+  "DCR-004",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  48,
+  "DCR-005",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  49,
+  "DCR-006",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  50,
+  "DCR-007",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  51,
+  "DCR-008",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  52,
+  "DCR-009",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  53,
+  "DCR-010",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  54,
+  "DCR-011",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  55,
+  "DCR-012",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  56,
+  "DCR-013",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  57,
+  "DCR-014",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  58,
+  "DCR-015",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  59,
+  "DCR-016",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  60,
+  "DCR-017",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  61,
+  "DCR-018",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  62,
+  "DCR-019",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  63,
+  "DCR-020",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  64,
+  "DCR-021",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  65,
+  "DCR-022",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  66,
+  "DCR-023",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  67,
+  "DCR-024",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  68,
+  "DCR-025",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  69,
+  "DCR-026",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  70,
+  "DCR-027",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  71,
+  "DCR-028",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  72,
+  "DCR-029",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  73,
+  "DCR-030",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  74,
+  "DCR-031",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  75,
+  "DCR-032",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  76,
+  "DCR-033",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  77,
+  "DCR-034",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  78,
+  "DCR-035",
+  "DrawCandidateRoot",
+  "dcr"
+ ],
+ [
+  79,
   "A9C-012",
   "WindowExclusion",
   "a9c"
  ],
  [
-  44,
+  80,
   "A9C-013",
   "WindowExclusion",
   "a9c"
  ],
  [
-  45,
+  81,
   "A9C-014",
   "WindowExclusion",
   "a9c"
  ],
  [
-  46,
+  82,
   "A9C-015",
   "WindowExclusion",
   "a9c"
  ],
  [
-  47,
+  83,
   "A9C-016",
   "WindowExclusion",
   "a9c"
  ],
  [
-  48,
+  84,
   "A9C-017",
   "WindowExclusion",
   "a9c"
  ],
  [
-  49,
+  85,
   "A9C-SEQ-000",
   "WindowExclusion",
   "a9c"
  ],
  [
-  50,
+  86,
   "A9C-SEQ-001",
   "WindowExclusion",
   "a9c"
  ],
  [
-  51,
+  87,
   "A9C-SEQ-002",
   "WindowExclusion",
   "a9c"
  ],
  [
-  52,
+  88,
   "A9C-SEQ-003",
   "WindowExclusion",
   "a9c"
  ],
  [
-  53,
+  89,
   "REORG-A9C-000",
   "WindowExclusion",
   "a9c"
  ],
  [
-  54,
+  90,
   "REORG-A9C-001",
   "WindowExclusion",
   "a9c"
@@ -606,121 +822,121 @@
   "python_only"
  ],
  [
-  55,
+  91,
   "INQ-B-004",
   "Inequality",
   "ineq"
  ],
  [
-  56,
+  92,
   "INQ-B-005",
   "Inequality",
   "ineq"
  ],
  [
-  57,
+  93,
   "INQ-B-006",
   "Inequality",
   "ineq"
  ],
  [
-  58,
+  94,
   "INQ-B-007",
   "Inequality",
   "ineq"
  ],
  [
-  59,
+  95,
   "INQ-B-008",
   "Inequality",
   "ineq"
  ],
  [
-  60,
+  96,
   "INQ-B-009",
   "Inequality",
   "ineq"
  ],
  [
-  61,
+  97,
   "INQ-B-010",
   "Inequality",
   "ineq"
  ],
  [
-  62,
+  98,
   "INQ-B-011",
   "Inequality",
   "ineq"
  ],
  [
-  63,
+  99,
   "INQ-B-012",
   "Inequality",
   "ineq"
  ],
  [
-  64,
+  100,
   "INQ-B-013",
   "Inequality",
   "ineq"
  ],
  [
-  65,
+  101,
   "INQ-B-014",
   "Inequality",
   "ineq"
  ],
  [
-  66,
+  102,
   "INQ-B-015",
   "Inequality",
   "ineq"
  ],
  [
-  67,
+  103,
   "INQ-B-016",
   "Inequality",
   "ineq"
  ],
  [
-  68,
+  104,
   "INQ-B-017",
   "Inequality",
   "ineq"
  ],
  [
-  69,
+  105,
   "INQ-B-018",
   "Inequality",
   "ineq"
  ],
  [
-  70,
+  106,
   "INQ-B-019",
   "Inequality",
   "ineq"
  ],
  [
-  71,
+  107,
   "INQ-B-020",
   "Inequality",
   "ineq"
  ],
  [
-  72,
+  108,
   "INQ-B-021",
   "Inequality",
   "ineq"
  ],
  [
-  73,
+  109,
   "INQ-B-022",
   "Inequality",
   "ineq"
  ],
  [
-  74,
+  110,
   "INQ-B-023",
   "Inequality",
   "ineq"
@@ -1122,73 +1338,127 @@
   "python_only"
  ],
  [
-  75,
+  111,
   "ENC-Z-000",
   "SigmaEncoder",
   "encoder"
  ],
  [
-  76,
+  112,
   "ENC-Z-001",
   "SigmaEncoder",
   "encoder"
  ],
  [
-  77,
+  113,
   "ENC-Z-002",
   "SigmaEncoder",
   "encoder"
  ],
  [
-  78,
+  114,
   "A9C-DUP-000",
   "WindowExclusion",
   "a9c"
  ],
  [
-  79,
+  115,
   "A9C-DUP-001",
   "WindowExclusion",
   "a9c"
  ],
  [
-  80,
+  116,
   "REORG-A9C-002",
   "WindowExclusion",
   "a9c"
  ],
  [
-  81,
+  117,
   "REORG-A9C-003",
   "WindowExclusion",
   "a9c"
  ],
  [
-  82,
+  118,
   "REORG-A9C-004",
   "WindowExclusion",
   "a9c"
  ],
  [
-  83,
+  119,
   "REORG-A9C-005",
   "WindowExclusion",
   "a9c"
  ],
  [
-  84,
+  120,
   "REORG-A9C-006",
   "WindowExclusion",
   "a9c"
  ],
  [
-  85,
+  121,
   "REORG-A9C-007",
   "WindowExclusion",
   "a9c"
  ],
  [
-  86,
+  122,
+  "REORG-A9C-008",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  123,
+  "REORG-A9C-009",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  124,
+  "REORG-A9C-010",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  125,
+  "A9C-W32-drop_first",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  126,
+  "A9C-W32-drop_last",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  127,
+  "A9C-W32-all_paid",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  128,
+  "A9C-NDW-000",
+  "WindowExclusion",
+  "a9c"
+ ],
+ [
+  129,
+  "INQ-Z-000",
+  "Inequality",
+  "ineq"
+ ],
+ [
+  130,
+  "ENC-W-000",
+  "SigmaEncoder",
+  "encoder"
+ ],
+ [
+  131,
   "HASH-000",
   "HashKernel",
   "hash256d"
@@ -1224,7 +1494,7 @@
   "python_only"
  ],
  [
-  87,
+  132,
   "HASH-ABC-000",
   "HashKernel",
   "hash256d"
@@ -1650,121 +1920,121 @@
   "python_only"
  ],
  [
-  88,
+  133,
   "A9C-Y-000",
   "WindowExclusion",
   "a9c"
  ],
  [
-  89,
+  134,
   "A9C-Y-001",
   "WindowExclusion",
   "a9c"
  ],
  [
-  90,
+  135,
   "A9C-Y-002",
   "WindowExclusion",
   "a9c"
  ],
  [
-  91,
+  136,
   "A9C-Y-003",
   "WindowExclusion",
   "a9c"
  ],
  [
-  92,
+  137,
   "A9C-Y-004",
   "WindowExclusion",
   "a9c"
  ],
  [
-  93,
+  138,
   "A9C-Y-005",
   "WindowExclusion",
   "a9c"
  ],
  [
-  94,
+  139,
   "A9C-Y-006",
   "WindowExclusion",
   "a9c"
  ],
  [
-  95,
+  140,
   "A9C-Y-007",
   "WindowExclusion",
   "a9c"
  ],
  [
-  96,
+  141,
   "A9C-Y-008",
   "WindowExclusion",
   "a9c"
  ],
  [
-  97,
+  142,
   "A9C-Y-009",
   "WindowExclusion",
   "a9c"
  ],
  [
-  98,
+  143,
   "A9C-Y-010",
   "WindowExclusion",
   "a9c"
  ],
  [
-  99,
+  144,
   "A9C-Y-011",
   "WindowExclusion",
   "a9c"
  ],
  [
-  100,
+  145,
   "A9C-Y-012",
   "WindowExclusion",
   "a9c"
  ],
  [
-  101,
+  146,
   "A9C-Y-013",
   "WindowExclusion",
   "a9c"
  ],
  [
-  102,
+  147,
   "A9C-Y-014",
   "WindowExclusion",
   "a9c"
  ],
  [
-  103,
+  148,
   "A9C-Y-015",
   "WindowExclusion",
   "a9c"
  ],
  [
-  104,
+  149,
   "A9C-Y-016",
   "WindowExclusion",
   "a9c"
  ],
  [
-  105,
+  150,
   "A9C-Y-017",
   "WindowExclusion",
   "a9c"
  ],
  [
-  106,
+  151,
   "A9C-Y-018",
   "WindowExclusion",
   "a9c"
  ],
  [
-  107,
+  152,
   "A9C-Y-019",
   "WindowExclusion",
   "a9c"
@@ -1888,5 +2158,377 @@
   "HASH-X-019",
   "HashKernel",
   "python_only"
+ ],
+ [
+  0,
+  "NEG-000",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  1,
+  "NEG-001",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  2,
+  "NEG-002",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  3,
+  "NEG-003",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  4,
+  "NEG-004",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  5,
+  "NEG-005",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  6,
+  "NEG-006",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  7,
+  "NEG-007",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  8,
+  "NEG-008",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  9,
+  "NEG-009",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  10,
+  "NEG-010",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  11,
+  "NEG-011",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  12,
+  "NEG-012",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  13,
+  "NEG-013",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  14,
+  "NEG-014",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  15,
+  "NEG-015",
+  "NegativeCore",
+  "neg_core"
+ ],
+ [
+  153,
+  "ICVG-000",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  154,
+  "ICVG-001",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  155,
+  "ICVG-002",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  156,
+  "ICVG-003",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  157,
+  "ICVG-004",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  158,
+  "ICVG-005",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  159,
+  "ICVG-006",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  160,
+  "ICVG-007",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  161,
+  "ICVG-008",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  162,
+  "ICVG-009",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  163,
+  "ICVG-010",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  164,
+  "ICVG-011",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  165,
+  "ICVG-012",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  166,
+  "ICVG-013",
+  "InvalidCvg",
+  "icvg"
+ ],
+ [
+  167,
+  "SMW-000",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  168,
+  "SMW-001",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  169,
+  "SMW-002",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  170,
+  "SMW-003",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  171,
+  "SMW-004",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  172,
+  "SMW-005",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  173,
+  "SMW-006",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  174,
+  "SMW-007",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  175,
+  "SMW-008",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  176,
+  "SMW-009",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  177,
+  "SMW-010",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  178,
+  "SMW-011",
+  "ScriptMintNeg",
+  "smw"
+ ],
+ [
+  16,
+  "XFAM-000",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  17,
+  "XFAM-001",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  18,
+  "XFAM-002",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  179,
+  "XFAM-003",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  180,
+  "XFAM-004",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  181,
+  "XFAM-005",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  182,
+  "XFAM-006",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  183,
+  "XFAM-007",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  184,
+  "XFAM-008",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  19,
+  "XFAM-009",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  20,
+  "XFAM-010",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  21,
+  "XFAM-011",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  22,
+  "XFAM-012",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  23,
+  "XFAM-013",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  24,
+  "XFAM-014",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  25,
+  "XFAM-015",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  185,
+  "XFAM-016",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  186,
+  "XFAM-017",
+  "EdgeCross",
+  "xfam"
+ ],
+ [
+  26,
+  "XFAM-018",
+  "EdgeCross",
+  "neg_core"
+ ],
+ [
+  27,
+  "XFAM-019",
+  "EdgeCross",
+  "neg_core"
  ]
 ]

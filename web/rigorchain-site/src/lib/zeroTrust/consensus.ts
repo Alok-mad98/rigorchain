@@ -1,5 +1,5 @@
 /**
- * AlphaPlus consensus primitives reproduced in the browser.
+ * RIGOR consensus primitives reproduced in the browser.
  * Binary-first: all hashing is over Uint8Array.
  *
  * Winner tie-break follows production RFC-000 §9 / C++ ConvergenceWinnerTieBreakCompare:

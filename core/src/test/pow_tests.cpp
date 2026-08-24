@@ -5,6 +5,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/convergenceres.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <primitives/block.h>
 #include <pow.h>
 #include <pow_opus.h>
@@ -25,160 +26,241 @@ BOOST_AUTO_TEST_CASE(difficulty_adjustment_interval_is_288)
     BOOST_CHECK_EQUAL(chainParams->GetConsensus().DifficultyAdjustmentInterval(), 288);
 }
 
-BOOST_AUTO_TEST_CASE(asert_genesis_anchor_on_schedule_matches_genesis_bits)
+BOOST_AUTO_TEST_CASE(asert_height1_matches_genesis_bits)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
     BOOST_CHECK(consensus.nPowASERTHalfLife > 0);
 
+    const CBlock& genesis_block = chainParams->GenesisBlock();
     CBlockIndex genesis{};
     genesis.nHeight = 0;
     genesis.pprev = nullptr;
-    genesis.nBits = 0x207fffff;
-    genesis.nTime = 1774915200; // locked mainnet genesis time
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
 
-    CBlockHeader child;
-    child.nTime = genesis.nTime + static_cast<unsigned>(consensus.nPowTargetSpacing);
-    const unsigned n0 = GetNextWorkRequired(&genesis, &child, consensus);
-    BOOST_CHECK_EQUAL(n0, genesis.nBits);
+    CBlockHeader child_a;
+    child_a.nTime = genesis.nTime + static_cast<unsigned>(consensus.nPowTargetSpacing);
+    CBlockHeader child_b;
+    child_b.nTime = genesis.nTime + 7200; // MAX_FUTURE_BLOCK_TIME; must not change nBits
+
+    const unsigned n_a = GetNextWorkRequired(&genesis, &child_a, consensus);
+    const unsigned n_b = GetNextWorkRequired(&genesis, &child_b, consensus);
+    BOOST_CHECK_EQUAL(n_a, genesis.nBits);
+    BOOST_CHECK_EQUAL(n_a, n_b);
 }
 
-BOOST_AUTO_TEST_CASE(asert_fast_child_is_harder_than_parent_target)
+BOOST_AUTO_TEST_CASE(asert_child_ntime_does_not_change_nbits)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
 
     CBlockIndex genesis{};
     genesis.nHeight = 0;
     genesis.pprev = nullptr;
-    genesis.nBits = 0x207fffff;
-    genesis.nTime = 1774915200;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
 
     CBlockIndex b1{};
     b1.nHeight = 1;
     b1.pprev = &genesis;
-    b1.nBits = genesis.nBits;
-    b1.nTime = genesis.nTime + static_cast<unsigned>(consensus.nPowTargetSpacing);
+    b1.nTime = genesis.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
+    CBlockHeader hdr1;
+    hdr1.nTime = b1.nTime;
+    b1.nBits = GetNextWorkRequired(&genesis, &hdr1, consensus);
 
-    CBlockHeader fast2;
-    fast2.nTime = b1.nTime + 60;
-    const unsigned n1 = GetNextWorkRequired(&b1, &fast2, consensus);
+    CBlockHeader late;
+    late.nTime = b1.nTime + 3600;
+    CBlockHeader early;
+    early.nTime = b1.nTime + 1;
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&b1, &late, consensus), GetNextWorkRequired(&b1, &early, consensus));
+}
+
+BOOST_AUTO_TEST_CASE(asert_fast_parent_hardens_grandchild)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nTime = genesis.nTime + 60; // far ahead of schedule
+    CBlockHeader hdr1;
+    hdr1.nTime = b1.nTime;
+    b1.nBits = GetNextWorkRequired(&genesis, &hdr1, consensus);
+
+    CBlockIndex b2{};
+    b2.nHeight = 2;
+    b2.pprev = &b1;
+    b2.nTime = b1.nTime + 60;
+    CBlockHeader hdr2;
+    hdr2.nTime = b2.nTime;
+    b2.nBits = GetNextWorkRequired(&b1, &hdr2, consensus);
+
+    CBlockHeader hdr3;
+    hdr3.nTime = b2.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
+    const unsigned n3 = GetNextWorkRequired(&b2, &hdr3, consensus);
     arith_uint256 t_parent, t_child;
-    t_parent.SetCompact(b1.nBits);
-    t_child.SetCompact(n1);
+    t_parent.SetCompact(b2.nBits);
+    t_child.SetCompact(n3);
     BOOST_CHECK(t_child < t_parent);
+}
+
+BOOST_AUTO_TEST_CASE(asert_late_launch_does_not_collapse_at_height1)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    CBlockHeader child;
+    child.nTime = genesis.nTime + 90 * 24 * 3600; // 90 days late
+    const unsigned n1 = GetNextWorkRequired(&genesis, &child, consensus);
+    BOOST_CHECK_EQUAL(n1, genesis.nBits);
+}
+
+BOOST_AUTO_TEST_CASE(asert_output_always_passes_permitted_transition)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nTime = genesis.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
+    b1.nBits = GetNextWorkRequired(&genesis, nullptr, consensus);
+
+    CBlockIndex b2{};
+    b2.nHeight = 2;
+    b2.pprev = &b1;
+    b2.nTime = b1.nTime + 100000; // huge gap; ASERT wants >>12.5%, clamp must cap it
+    b2.nBits = GetNextWorkRequired(&b1, nullptr, consensus);
+
+    const unsigned n3 = GetNextWorkRequired(&b2, nullptr, consensus);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, n3));
+
+    arith_uint256 parent, next, max_target;
+    parent.SetCompact(b2.nBits);
+    next.SetCompact(n3);
+    max_target = parent;
+    max_target *= static_cast<uint32_t>(Consensus::MAX_ADJUSTMENT_FACTOR_PPM);
+    max_target /= static_cast<uint32_t>(Consensus::ASERT_RATIO_UNIT_PPM);
+    arith_uint256 max_enc;
+    max_enc.SetCompact(max_target.GetCompact());
+    BOOST_CHECK(next <= max_enc);
 }
 
 BOOST_AUTO_TEST_CASE(asert_mainnet_reference_vectors)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
 
-    // Vectors below were generated with a synthetic genesis anchor time (historical regression
-    // fixture). Deployed mainnet genesis wall clock is chainParams->GenesisBlock().nTime
-    // (see GenesisLockMainnet in kernel/chainparams.cpp), not this value.
     CBlockIndex genesis{};
     genesis.nHeight = 0;
     genesis.pprev = nullptr;
-    genesis.nBits = 0x207fffff;
-    genesis.nTime = 1774915200;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
 
-    struct AsertVector {
-        int eval_height;
-        uint32_t eval_time;
-        uint32_t expected_nbits;
-        const char* expected_target_hex;
-    };
+    // Height 1 copies genesis bits regardless of child time (parent-time ASERT).
+    CBlockHeader h1;
+    h1.nTime = genesis.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&genesis, &h1, consensus), genesis.nBits);
 
-    // Frozen vectors generated from contrib/devtools/asert_retarget_curve.py.
-    const std::vector<AsertVector> vectors{
-        {1, 1774915800U, 0x207fffffU, "0x7fffff0000000000000000000000000000000000000000000000000000000000"},
-        {1, 1774915260U, 0x207fb97fU, "0x7fb97f0000000000000000000000000000000000000000000000000000000000"},
-        {10, 1774918200U, 0x207e793fU, "0x7e793f0000000000000000000000000000000000000000000000000000000000"},
-        {288, 1775088000U, 0x207fffffU, "0x7fffff0000000000000000000000000000000000000000000000000000000000"},
-        {1000, 1775428800U, 0x205a807fU, "0x5a807f0000000000000000000000000000000000000000000000000000000000"},
-    };
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nBits = genesis.nBits;
+    b1.nTime = genesis.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
 
-    for (const auto& v : vectors) {
-        CBlockIndex prev{};
-        prev.nHeight = v.eval_height - 1;
-        prev.pprev = &genesis;
-        prev.nBits = genesis.nBits;
-        prev.nTime = genesis.nTime + static_cast<uint32_t>((v.eval_height - 1) * consensus.nPowTargetSpacing);
-
-        CBlockHeader hdr{};
-        hdr.nTime = v.eval_time;
-
-        const uint32_t nbits = GetNextWorkRequired(&prev, &hdr, consensus);
-        BOOST_CHECK_EQUAL(nbits, v.expected_nbits);
-
-        arith_uint256 expected_target;
-        expected_target.SetHex(v.expected_target_hex);
-        arith_uint256 actual_target;
-        actual_target.SetCompact(nbits);
-        BOOST_CHECK_EQUAL(actual_target.GetHex(), expected_target.GetHex());
-    }
+    // Height 2: parent is the height-1 anchor → exponent 0.
+    CBlockHeader h2;
+    h2.nTime = b1.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&b1, &h2, consensus), genesis.nBits);
 }
 
-BOOST_AUTO_TEST_CASE(asert_extreme_future_time_saturates_to_pow_limit)
+BOOST_AUTO_TEST_CASE(asert_extreme_future_parent_is_clamped)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
 
     CBlockIndex genesis{};
     genesis.nHeight = 0;
     genesis.pprev = nullptr;
-    genesis.nBits = 0x207fffff;
-    genesis.nTime = 1774915200;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
 
-    CBlockHeader hdr;
-    hdr.nTime = std::numeric_limits<uint32_t>::max();
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nBits = genesis.nBits;
+    b1.nTime = genesis.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
 
-    const unsigned nbits = GetNextWorkRequired(&genesis, &hdr, consensus);
+    CBlockIndex b2{};
+    b2.nHeight = 2;
+    b2.pprev = &b1;
+    b2.nBits = genesis.nBits;
+    b2.nTime = std::numeric_limits<uint32_t>::max();
+
+    const unsigned nbits = GetNextWorkRequired(&b2, nullptr, consensus);
     arith_uint256 tgt;
     tgt.SetCompact(nbits);
     const arith_uint256 pow_limit = UintToArith256(consensus.powLimit);
-    // nBits is lossy versus the full uint256 powLimit; compare to the canonical ceiling encoding.
-    arith_uint256 ceiling;
-    ceiling.SetCompact(pow_limit.GetCompact());
     BOOST_CHECK(tgt > 0);
     BOOST_CHECK(tgt <= pow_limit);
-    BOOST_CHECK_EQUAL(nbits, pow_limit.GetCompact());
-    BOOST_CHECK(tgt == ceiling);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, nbits));
 }
 
 BOOST_AUTO_TEST_CASE(asert_extreme_behind_schedule_does_not_crash_and_clamps_target)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
 
-    const uint32_t genesis_time = 1774915200;
-    CBlockIndex genesis{};
-    genesis.nHeight = 0;
-    genesis.pprev = nullptr;
-    genesis.nBits = 0x207fffff;
-    genesis.nTime = genesis_time;
-
-    // Tall on-schedule chain so (eval_time - ideal_schedule) is hugely negative (clamped exp_q).
-    constexpr int chain_len = 20000;
+    constexpr int chain_len = 512;
     std::vector<CBlockIndex> blocks(static_cast<size_t>(chain_len));
     for (int i = 0; i < chain_len; ++i) {
         blocks[static_cast<size_t>(i)].pprev = (i == 0) ? nullptr : &blocks[static_cast<size_t>(i - 1)];
         blocks[static_cast<size_t>(i)].nHeight = i;
-        blocks[static_cast<size_t>(i)].nBits = genesis.nBits;
-        blocks[static_cast<size_t>(i)].nTime = genesis_time + static_cast<uint32_t>((i + 1) * consensus.nPowTargetSpacing);
+        blocks[static_cast<size_t>(i)].nBits = genesis_block.nBits;
+        blocks[static_cast<size_t>(i)].nTime = genesis_block.nTime + static_cast<uint32_t>(i * consensus.nPowTargetSpacing);
+        if (i > 0) {
+            blocks[static_cast<size_t>(i)].BuildSkip();
+        }
     }
+    // Tip timestamp is only one spacing after genesis — far behind a 512-block schedule.
+    blocks.back().nTime = genesis_block.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
 
     CBlockHeader hdr;
-    hdr.nTime = genesis_time + static_cast<uint32_t>(consensus.nPowTargetSpacing);
-
-    const CBlockIndex& tip = blocks[static_cast<size_t>(chain_len - 1)];
-    const unsigned nbits = GetNextWorkRequired(&tip, &hdr, consensus);
+    hdr.nTime = genesis_block.nTime;
+    const unsigned nbits = GetNextWorkRequired(&blocks.back(), &hdr, consensus);
     arith_uint256 tgt;
     tgt.SetCompact(nbits);
     const arith_uint256 pow_limit = UintToArith256(consensus.powLimit);
     BOOST_CHECK(tgt > 0);
     BOOST_CHECK(tgt <= pow_limit);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, chain_len, blocks.back().nBits, nbits));
 }
 
 BOOST_AUTO_TEST_CASE(calculate_next_work_required_legacy_span_unchanged)
@@ -354,6 +436,14 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     BOOST_CHECK(!neg && pow_compact != 0);
     BOOST_CHECK(!over);
     BOOST_CHECK(UintToArith256(consensus.powLimit) >= pow_compact);
+
+    if (!consensus.fPowAllowMinDifficultyBlocks) {
+        BOOST_CHECK(consensus.nPowASERTHalfLife >= 4 * MAX_FUTURE_BLOCK_TIME);
+    }
+    if (chainName == CBaseChainParams::MAIN) {
+        BOOST_CHECK_EQUAL(consensus.nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
+        BOOST_CHECK_EQUAL(UintToArith256(consensus.powLimit).bits(), 240);
+    }
 
     // Bitcoin used a very small powLimit so bnNew * (4*timespan) stayed within uint256 in *= (uint32_t).
     // Forks may set a permissive powLimit (e.g. 0x7fff...); then this inequality does not hold even

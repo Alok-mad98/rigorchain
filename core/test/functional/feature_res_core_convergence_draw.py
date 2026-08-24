@@ -20,10 +20,10 @@ Validates protocol-level behavior aligned with ``convergence_logic.cpp`` /
 * With ``convergence_root_set_size >= CONVERGENCE_DRAW_MIN_TXS_FOR_RES`` (1) and a
   non-null draw, ``draw_winner_txid`` equals the **argmin** Sigma digest among
   eligible txs, breaking ties by **memcmp on 32-byte txid** (LE byte order).
-* SECURITY-001-A8: the draw a block AWARDS is PAID by the block after it. Exactly one
-  body tx **at height + 1** carries **RES_REWARD_AMOUNT** (100.00 RES = 10,000 atoms)
-  when a winner exists; no other body tx mints RES; ``mint_count`` / ``res_balance`` /
-  ``getchainstatesummary`` / ``rigor_res_minted`` stay consistent.
+* SECURITY-001-A8: the draw a block AWARDS is PAID by the block after it. The payout
+  coinbase carries **OP_RES_MINT** of **W(h)** (epoch 0: 40.000000 RES = 40,000,000 atoms)
+  when a winner exists; ``mint_count`` / ``res_balance`` / ``getchainstatesummary`` /
+  ``rigor_res_minted`` stay consistent.
 
 Deliverables under ``--tmpdir``:
 
@@ -50,24 +50,16 @@ from test_framework.messages import ser_uint256
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_greater_than_or_equal
 
-# Locked with ``consensus/rigor_consensus_lock.h`` — body RES mint per draw.
-RES_REWARD_ATOMS = 10_000
-
-# Deterministic witness v1 RES receive for miner body mint (`-miningresfeeaddr`); 32-byte native program (zeros).
-DEVTEST_MINING_RES_FEE_ADDR = "dvt1pqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqmsufsz"
+from res_security.harness import (
+    DEVTEST_MINING_RES_FEE_ADDR,
+    RES_REWARD_ATOMS,
+    body_res_mint_rows as _body_res_mint_rows,
+    paid_ticket_txid_from_payout_block as _pcorb_convergence_txid_hex_from_mint_tx,
+)
 
 # Optional: if set, copy ``task_res_core_draw_*.{json,hex,log}`` + ``MANIFEST.sha256`` + ``ARCHIVE_SEAL.txt``
 # after a successful run (see ``scripts/freeze/archive_task_res_core_functional.sh``).
 _TASK_RES_ARCHIVE_ENV = "TASK_RES_CORE_FUNCTIONAL_ARCHIVE_DIR"
-
-
-def _pcorb_convergence_txid_hex_from_mint_tx(node, mint_txid: str, block_hash: str) -> str:
-    tx = node.getrawtransaction(mint_txid, True, block_hash)
-    w = tx["vin"][0].get("txinwitness") or []
-    assert len(w) >= 1 and isinstance(w[0], str) and len(w[0]) == 64, w
-    # Witness push is raw uint256 bytes (same order as `uint256(wit[0])` in consensus);
-    # RPC txids use reversed-byte display — match `draw_winner_txid` / `tx["txid"]`.
-    return bytes.fromhex(w[0])[::-1].hex().lower()
 
 
 def _txid_le_bytes(txid_hex: str) -> bytes:
@@ -98,16 +90,6 @@ def expected_draw_candidate_winner(fr) -> str | None:
     return best_txid_hex
 
 
-def _res_atoms_in_tx_vouts(tx: dict) -> int:
-    """Sum RES-domain output values in RPC ``value`` units → integer atoms (0.01 RES each)."""
-    total = 0
-    for o in tx.get("vout", []):
-        if str(o.get("asset", "")).upper() != "RES":
-            continue
-        total += int(Decimal(str(o["value"])) * 100)
-    return total
-
-
 def _json_sanitize(obj):
     """Make RPC-nested structures JSON-serializable (e.g. ``Decimal`` amounts)."""
     if isinstance(obj, dict):
@@ -126,17 +108,6 @@ def _chainstatesummary_semantic(csm: dict) -> dict:
     if isinstance(hx, str) and hx:
         out["chainstatesummary_hex_sha256"] = hashlib.sha256(bytes.fromhex(hx)).hexdigest()
     return out
-
-
-def _body_res_mint_rows(node, block_hash: str) -> list[tuple[str, int]]:
-    """(txid, res_atoms) for non-coinbase txs with any RES vout value."""
-    blk = node.getblock(block_hash, 2)
-    rows: list[tuple[str, int]] = []
-    for tx in blk["tx"][1:]:
-        atoms = _res_atoms_in_tx_vouts(tx)
-        if atoms > 0:
-            rows.append((tx["txid"], atoms))
-    return rows
 
 
 class ResCoreConvergenceDrawTest(BitcoinTestFramework):
@@ -283,8 +254,6 @@ class ResCoreConvergenceDrawTest(BitcoinTestFramework):
         assert_equal(int(node.getblock(payout_hash, 1)["height"]), int(fr["payout_height"]))
         hdr = node.getblockheader(payout_hash)
         res_mint_rows = _body_res_mint_rows(node, payout_hash)
-        # Nothing may be minted in the awarding block itself.
-        assert_equal(_body_res_mint_rows(node, block_hash), [])
 
         for c in fr["candidates"]:
             self.log.info(
@@ -381,19 +350,19 @@ class ResCoreConvergenceDrawTest(BitcoinTestFramework):
             rb = Decimal(str(snap["res_balance"]))
             assert_greater_than_or_equal(mints, 1)
             assert rb > Decimal(0)
-            assert len(res_mint_rows) == 1, f"[{label}] exactly one body RES mint tx in the payout block"
+            assert len(res_mint_rows) == 1, f"[{label}] exactly one coinbase OP_RES_MINT in the payout block"
             mint_txid, mint_atoms = res_mint_rows[0]
             assert mint_atoms == RES_REWARD_ATOMS, f"[{label}] RES mint atoms must match consensus lock"
             assert (
                 _pcorb_convergence_txid_hex_from_mint_tx(node, mint_txid, payout_hash) == rpc_w
-            ), f"[{label}] PCORB convergence_txid must equal draw winner"
-            assert hdr.get("rigor_res_minted") == 1, f"[{label}] payout block header flags body RES mint"
+            ), f"[{label}] payout coinbase must pay the parent-draw winner"
+            assert hdr.get("rigor_res_minted") == 1, f"[{label}] payout block header flags RES mint"
             assert csm.get("selection_has_winner"), f"[{label}] CSM1 selection_has_winner"
             assert (
                 csm.get("selection_winner_txid", "").lower() == rpc_w
             ), f"[{label}] CSM1 winner txid"
         else:
-            assert res_mint_rows == [], f"[{label}] no winner ⇒ no body RES mint"
+            assert res_mint_rows == [], f"[{label}] no winner ⇒ no coinbase OP_RES_MINT"
             assert hdr.get("rigor_res_minted") == 0, f"[{label}] header: no RES mint without winner"
 
         return fr, snap

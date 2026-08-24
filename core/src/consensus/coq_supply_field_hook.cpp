@@ -71,14 +71,14 @@ std::vector<std::string> CheckCoqHookMatchesAuthoritativeCaches(const CoqSupplyF
         fail("Coq hook res_mint_count_M_h != mirror.res_mint_count_block");
     }
 
-    if (pindex.m_chain_oru_total >= 0 && hook.rs_oru_supply != pindex.m_chain_oru_total) {
-        fail("Coq hook rs_oru_supply != pindex.m_chain_oru_total");
+    if (pindex.Observational().HasOruCache() && hook.rs_oru_supply != pindex.Observational().GetChainOruTotal()) {
+        fail("Coq hook rs_oru_supply != ObservationalMetrics::GetChainOruTotal()");
     }
     if (hook.cb_oru_burn_delta != pindex.m_block_converge_sum) {
         fail("Coq hook cb_oru_burn_delta != pindex.m_block_converge_sum");
     }
-    if (pindex.m_chain_res_mint_total >= 0 && hook.rs_res_supply != pindex.m_chain_res_mint_total) {
-        fail("Coq hook rs_res_supply != pindex.m_chain_res_mint_total");
+    if (pindex.Observational().HasResMintCache() && hook.rs_res_supply != pindex.Observational().GetChainResMintTotal()) {
+        fail("Coq hook rs_res_supply != ObservationalMetrics::GetChainResMintTotal()");
     }
     if (hook.cb_res_mint_delta != pindex.m_block_res_mint_sum) {
         fail("Coq hook cb_res_mint_delta != pindex.m_block_res_mint_sum");

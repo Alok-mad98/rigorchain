@@ -34,23 +34,32 @@ bool TransactionFilterProxy::filterAcceptsRow(int sourceRow, const QModelIndex &
 
     const int semantic = index.data(TransactionTableModel::SemanticKindRole).toInt();
     const auto kind = static_cast<wallet::TxSemanticKind>(semantic);
+    const auto row_asset = static_cast<AssetType>(
+        index.data(TransactionTableModel::AssetDomainRole).toInt());
+    // ORU / RES are row-asset categories (the amount column), not tx-level semantic.
+    // Coinbase RES mint shares a coinbase tx classified as OruCoinbase; filtering by
+    // semantic alone hides those RES rows (and Unknown semantic hid both lists).
+    const bool is_convergence = kind == wallet::TxSemanticKind::OruConvergence ||
+                                type == TransactionRecord::SendToConverge;
+    const bool is_mint = kind == wallet::TxSemanticKind::ResMint ||
+                         (type == TransactionRecord::Generated && row_asset == ASSET_RES);
     switch (semanticAssetFilter) {
     case SemanticFilter_All:
         break;
     case SemanticFilter_ORU:
-        if (kind != wallet::TxSemanticKind::OruTransfer && kind != wallet::TxSemanticKind::OruCoinbase)
+        if (is_convergence || row_asset != ASSET_ORU)
             return false;
         break;
     case SemanticFilter_RES:
-        if (kind != wallet::TxSemanticKind::ResTransfer && kind != wallet::TxSemanticKind::ResClaim)
+        if (row_asset != ASSET_RES)
             return false;
         break;
     case SemanticFilter_Convergence:
-        if (kind != wallet::TxSemanticKind::OruConvergence)
+        if (!is_convergence)
             return false;
         break;
     case SemanticFilter_Mint:
-        if (kind != wallet::TxSemanticKind::ResMint)
+        if (!is_mint)
             return false;
         break;
     }

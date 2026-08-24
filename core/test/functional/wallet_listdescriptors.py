@@ -68,7 +68,7 @@ class ListDescriptorsTest(BitcoinTestFramework):
         hardened_path = '/84\'/1\'/0\''
         wallet = node.get_wallet_rpc('w2')
         wallet.importdescriptors([{
-            'desc': descsum_create('wpkh(' + xprv + hardened_path + '/0/*)'),
+            'desc': descsum_create('wpkh(' + xprv + hardened_path + '/0\'/*\')'),
             'timestamp': TIME_GENESIS_BLOCK,
         }])
         pub0 = wallet.listdescriptors()
@@ -81,7 +81,7 @@ class ListDescriptorsTest(BitcoinTestFramework):
         assert_equal(0, pe['next'])
         assert_equal(0, pe['next_index'])
         assert pe['desc'].startswith('wpkh(')
-        assert "0/*)" in pe['desc'] and "84" in pe['desc']
+        assert "0'/*')" in pe['desc'] and "84" in pe['desc']
         assert_equal(pub0, wallet.listdescriptors(False))
 
         self.log.info('Test list private descriptors')

@@ -20,12 +20,6 @@
  *  (coinbase or not, height). The serialization contains a dummy value of
  *  zero. This is compatible with older versions which expect to see
  *  the transaction version there.
- *
- *  Coin::nFlags is a UTXO-set / snapshot concern only; it must not be packed
- *  into block undo here. A prior attempt to append optional nFlags used a
- *  reader that always consumed a fixed 32-bit word when missing, which
- *  desynchronized the stream for any CTxUndo with more than one vprevout and
- *  broke UndoReadFromDisk checksum verification (invalidateblock / reorg).
  */
 struct TxInUndoFormatter
 {
@@ -33,7 +27,7 @@ struct TxInUndoFormatter
     void Ser(Stream &s, const Coin& txout) {
         ::Serialize(s, VARINT(txout.nHeight * uint32_t{2} + txout.fCoinBase ));
         if (txout.nHeight > 0) {
-            // Required to maintain compatibility with older undo format.
+            // Dummy version byte (legacy). Always 0 — mint identity is the script.
             ::Serialize(s, (unsigned char)0);
         }
         ::Serialize(s, Using<TxOutCompression>(txout.out));
@@ -46,14 +40,11 @@ struct TxInUndoFormatter
         txout.nHeight = nCode >> 1;
         txout.fCoinBase = nCode & 1;
         if (txout.nHeight > 0) {
-            // Old versions stored the version number for the last spend of
-            // a transaction's outputs. Non-final spends were indicated with
-            // height = 0.
             unsigned int nVersionDummy;
             ::Unserialize(s, VARINT(nVersionDummy));
         }
-        ::Unserialize(s, Using<TxOutCompression>(txout.out));
         txout.nFlags = 0;
+        ::Unserialize(s, Using<TxOutCompression>(txout.out));
     }
 };
 

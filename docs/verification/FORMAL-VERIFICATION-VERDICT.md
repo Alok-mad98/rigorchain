@@ -5,10 +5,12 @@
 **Prover**: Coq 8.15.0
 **Scope of this document**: what has been proved, what has *not*, and exactly where the boundary lies.
 
-**Addendum / freeze (2026-08-16)**: A-9-C is modeled; 315 shared vectors; FIPS-locked
-SHA-256; extracted OCaml hasher; portable C++ hash CLI; tripartite gate.
+**Addendum / freeze (2026-08-16)** plus **tightening and σ/root CLI (2026-08-18)**: A-9-C is modeled;
+324 shared vectors; FIPS-locked SHA-256; extracted OCaml hasher; portable C++ hash CLI;
+tripartite gate; production σ/root CLI in the differential gate; replay created-outpoints use `tx_id`.
 Full refinement is still **not** proved. Current correspondence status:
-[FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md).
+[FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md)
+([FORMAL-VERIFICATION-FREEZE.md](./FORMAL-VERIFICATION-FREEZE.md)).
 
 This is the authoritative statement. Where an earlier `docs/proof/PROOF-0xx` note disagrees with
 this document, this document governs.
@@ -171,7 +173,7 @@ rather than as an oversight.
 | Classical logic / choice / extensionality | Not used anywhere. |
 | Admitted or sorry-style holes | None. |
 | Trusted computing base | Coq 8.15 kernel only. |
-| Golden vectors | **315** shared vectors in `phase3_golden_vectors.json`. **108** are build-breaking `vm_compute` lemmas in `Kernel/GoldenHarness.v` (original kernel SHA-256 set plus WindowExclusion, SigmaEncoder, extra Inequality, short HashKernel). The remainder are Python/C++ differential cases. A regressed *enforced* vector fails the Coq build; a regressed Python/C++ vector fails `run_differential_gate.sh`. |
+| Golden vectors | **324** shared vectors in `phase3_golden_vectors.json`. **117** are build-breaking `vm_compute` lemmas in `Kernel/GoldenHarness.v` (original kernel SHA-256 set plus WindowExclusion, SigmaEncoder, extra Inequality, short HashKernel). The remainder are Python/C++ differential cases. A regressed *enforced* vector fails the Coq build; a regressed Python/C++ vector fails `run_differential_gate.sh`. |
 
 ---
 
@@ -214,9 +216,9 @@ Two consequences for any reader assessing this project:
 Since refinement is not proved, the Coq↔C++ link rests on **differential testing over a finite
 vector set**, and that is exactly as strong as a finite vector set:
 
-- The same golden vectors are pinned on both sides — as `vm_compute` lemmas in Coq (108 enforced)
+- The same golden vectors are pinned on both sides — as `vm_compute` lemmas in Coq (117 enforced)
   and as generated C++ cases in `selection_golden_tests.cpp` / `selection_golden_bridge.inc`
-  plus the original hardcoded selection cases. Agreement on 315 vectors is stronger evidence
+  plus the original hardcoded selection cases. Agreement on 324 vectors is stronger evidence
   than 57; it is still not equivalence. A portable C++ `CSHA256` CLI is compared to hashlib and
   the extracted Coq kernel in `test_hash_kernel_tripartite.py`.
 - The C++ side is additionally covered by the unit suite, the functional suite
@@ -229,6 +231,9 @@ vector set**, and that is exactly as strong as a finite vector set:
   `exclude_already_paid` / `paid_closed_trace` and proves `txid_wins_at_most_once`.
   `Selection.v` still carries only the width `W` and the `T/W` target. The Coq theorem is about
   the model; C++ `FinalizeWindowedDrawSet` is still connected by vectors, not by refinement.
+- **Replay created-outpoints use `tx_id` (2026-08-18).** The shared-placeholder shortcut is
+  gone. Spend-deletion is unconditional for distinct txids. The remaining counterexample is
+  txid reuse, not a modelling collision.
 - **The draw is modeled as a pure function, not as a game.** Everything in §2.1 is a determinism,
   well-definedness, and non-vacuity result. No theorem here bounds an adversary's *advantage*.
   Statements like "grinding is unprofitable at hashrate share ρ" are economic arguments made in
@@ -257,7 +262,7 @@ fudges — an unprovable supply cap, and a reflexive tautology masquerading as a
 both caught and corrected rather than left standing.
 
 The RIGOR **implementation** is not formally verified, and the development says so in its own
-machine-checked terms. The Coq↔C++ boundary is held by 57 shared golden vectors and a conventional
+machine-checked terms. The Coq↔C++ boundary is held by 324 shared golden vectors and a conventional
 test suite. Anyone evaluating this project should treat §2 as a strong statement about the protocol
 design and §3.1 as the honest limit of what that buys at runtime.
 

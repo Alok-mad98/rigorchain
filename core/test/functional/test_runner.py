@@ -105,6 +105,9 @@ BASE_SCRIPTS = [
     'feature_rigor_convergence_rng_consensus.py --descriptors',
     'feature_res_core_convergence_draw.py --descriptors',
     'feature_res_core_convergence_window.py --descriptors',
+    'feature_res_window_reorg_res_attacks.py --descriptors',
+    'feature_res_solo_security.py --descriptors',
+    'feature_res_maturity.py --descriptors',
     'feature_res_consensus_correctness_suite.py --descriptors',
     'feature_res_descriptor_signing.py --descriptors',
     'feature_rigor_convergence_rpc_status_history.py --descriptors',
@@ -363,6 +366,11 @@ BASE_SCRIPTS = [
 # Place EXTENDED_SCRIPTS first since it has the 3 longest running tests
 ALL_SCRIPTS = EXTENDED_SCRIPTS + BASE_SCRIPTS
 
+# Not default and not --extended. test_runner.py <name> must still find them.
+NAMED_ONLY_SCRIPTS = [
+    'feature_res_lifecycle_controlled_devtest_001.py --descriptors',
+]
+
 NON_SCRIPTS = [
     # These are python files that live in the functional tests directory, but are not test scripts.
     "combine_logs.py",
@@ -387,7 +395,6 @@ NON_SCRIPTS = [
     "feature_continuous_chaos.py",
     "feature_fault_consensus_only.py",
     "feature_fault_injection_consensus.py",
-    "feature_res_lifecycle_controlled_devtest_001.py",
     "feature_rigor_rng_wallet_send_autofee.py",
     "test_precision_isolation.py",
 ]
@@ -439,8 +446,11 @@ def main():
 
     # Create base test directory
     tmpdir = "%s/test_runner_₿_🏃_%s" % (args.tmpdirprefix, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
-
-    os.makedirs(tmpdir)
+    try:
+        os.makedirs(tmpdir)
+    except FileExistsError:
+        tmpdir = "%s_%s" % (tmpdir, os.getpid())
+        os.makedirs(tmpdir)
 
     logging.debug("Temporary test directory at %s" % tmpdir)
 
@@ -469,7 +479,7 @@ def main():
         for test in tests:
             script = test.split("/")[-1]
             script = script + ".py" if ".py" not in script else script
-            matching_scripts = [s for s in ALL_SCRIPTS if s.startswith(script)]
+            matching_scripts = [s for s in ALL_SCRIPTS + NAMED_ONLY_SCRIPTS if s.startswith(script)]
             if matching_scripts:
                 test_list.extend(matching_scripts)
             else:
@@ -795,7 +805,7 @@ def check_script_list(*, src_dir, fail_on_warn):
     not being run by pull-tester.py."""
     script_dir = src_dir + '/test/functional/'
     python_files = set([test_file for test_file in os.listdir(script_dir) if test_file.endswith(".py")])
-    missed_tests = list(python_files - set(map(lambda x: x.split()[0], ALL_SCRIPTS + NON_SCRIPTS)))
+    missed_tests = list(python_files - set(map(lambda x: x.split()[0], ALL_SCRIPTS + NAMED_ONLY_SCRIPTS + NON_SCRIPTS)))
     if len(missed_tests) != 0:
         print("%sWARNING!%s The following scripts are not being run: %s. Check the test lists in test_runner.py." % (BOLD[1], BOLD[0], str(missed_tests)))
         if fail_on_warn:

@@ -13,6 +13,7 @@
 #include <QString>
 #include <QTimer>
 
+class BitcoinAmountField;
 class PlatformStyle;
 class SendCoinsEntry;
 class SendCoinsRecipient;
@@ -26,6 +27,8 @@ namespace Ui {
 }
 
 QT_BEGIN_NAMESPACE
+class QCheckBox;
+class QFrame;
 class QUrl;
 QT_END_NAMESPACE
 
@@ -100,6 +103,13 @@ private:
     void persistSendAssetToOptions();
     /** WALLET_EXTREME_SAFETY_V1: disable send when offline or not synced; show warning. */
     void updateExtremeSafetyControls();
+    /** Enable the OP_CONVERGE burn row on ORU sends only. */
+    void updateConvergeControls();
+    CAmount selectedConvergeAmount() const;
+
+    QCheckBox* m_checkConverge{nullptr};
+    BitcoinAmountField* m_convergeAmount{nullptr};
+    QFrame* m_frameConverge{nullptr};
 
 private Q_SLOTS:
     void sendButtonClicked(bool checked);

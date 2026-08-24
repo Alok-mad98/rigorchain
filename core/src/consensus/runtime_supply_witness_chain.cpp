@@ -4,14 +4,36 @@
 
 #include <consensus/runtime_supply_witness_chain.h>
 
+#include <chain.h>
+
 #include <map>
 #include <utility>
 
 namespace Consensus {
 namespace {
 
-std::map<int32_t, RuntimeSupplyWitness> g_witness_by_height;
-int32_t g_latest_witness_height{-1};
+/**
+ * FENCE-W7: observational cache keyed by block hash.
+ * Not a consensus input. Not a spendable balance. Not indexed by height
+ * (height-only keys would overwrite sibling forks).
+ */
+std::map<uint256, RuntimeSupplyWitness> g_witness_by_block_hash;
+uint256 g_latest_witness_hash{};
+
+void RecomputeLatestWitnessHash()
+{
+    g_latest_witness_hash.SetNull();
+    int32_t best_height = -1;
+    for (const auto& [hash, witness] : g_witness_by_block_hash) {
+        if (witness.height > best_height) {
+            best_height = witness.height;
+            g_latest_witness_hash = hash;
+        } else if (witness.height == best_height) {
+            // Last writer at the max height wins the "latest" pointer only.
+            g_latest_witness_hash = hash;
+        }
+    }
+}
 
 } // namespace
 
@@ -32,36 +54,68 @@ RuntimeSupplyWitness BuildRuntimeSupplyWitness(const RuntimeSupplyState& state,
 
 void StoreRuntimeSupplyWitness(RuntimeSupplyWitness witness)
 {
+    if (witness.block_hash.IsNull()) {
+        return;
+    }
     const int32_t height = witness.height;
-    g_witness_by_height[height] = std::move(witness);
-    if (height > g_latest_witness_height) {
-        g_latest_witness_height = height;
+    const uint256 hash = witness.block_hash;
+    g_witness_by_block_hash[hash] = std::move(witness);
+
+    if (g_latest_witness_hash.IsNull()) {
+        g_latest_witness_hash = hash;
+        return;
+    }
+    const auto it = g_witness_by_block_hash.find(g_latest_witness_hash);
+    if (it == g_witness_by_block_hash.end() || height >= it->second.height) {
+        g_latest_witness_hash = hash;
     }
 }
 
-std::optional<RuntimeSupplyWitness> GetRuntimeSupplyWitness(int32_t height)
+std::optional<RuntimeSupplyWitness> GetRuntimeSupplyWitness(const uint256& block_hash)
 {
-    const auto it = g_witness_by_height.find(height);
-    if (it == g_witness_by_height.end()) {
+    if (block_hash.IsNull()) {
+        return std::nullopt;
+    }
+    const auto it = g_witness_by_block_hash.find(block_hash);
+    if (it == g_witness_by_block_hash.end()) {
         return std::nullopt;
     }
     return it->second;
 }
 
-std::optional<RuntimeSupplyWitness> GetLatestRuntimeSupplyWitness()
+std::optional<RuntimeSupplyWitness> GetRuntimeSupplyWitness(const CBlockIndex* pindex)
 {
-    if (g_latest_witness_height < 0) {
+    if (pindex == nullptr || pindex->phashBlock == nullptr) {
         return std::nullopt;
     }
-    return GetRuntimeSupplyWitness(g_latest_witness_height);
+    return GetRuntimeSupplyWitness(pindex->GetBlockHash());
 }
 
-void InvalidateRuntimeSupplyWitness(int32_t height)
+std::optional<RuntimeSupplyWitness> GetLatestRuntimeSupplyWitness()
 {
-    g_witness_by_height.erase(height);
-    if (g_latest_witness_height == height) {
-        g_latest_witness_height = g_witness_by_height.empty() ? -1 : g_witness_by_height.rbegin()->first;
+    if (g_latest_witness_hash.IsNull()) {
+        return std::nullopt;
     }
+    return GetRuntimeSupplyWitness(g_latest_witness_hash);
+}
+
+void InvalidateRuntimeSupplyWitness(const uint256& block_hash)
+{
+    if (block_hash.IsNull()) {
+        return;
+    }
+    g_witness_by_block_hash.erase(block_hash);
+    if (g_latest_witness_hash == block_hash) {
+        RecomputeLatestWitnessHash();
+    }
+}
+
+void InvalidateRuntimeSupplyWitness(const CBlockIndex* pindex)
+{
+    if (pindex == nullptr || pindex->phashBlock == nullptr) {
+        return;
+    }
+    InvalidateRuntimeSupplyWitness(pindex->GetBlockHash());
 }
 
 bool VerifyRuntimeWitnessChainStep(const RuntimeSupplyWitness& parent,
@@ -78,8 +132,8 @@ bool VerifyRuntimeWitnessChainStep(const RuntimeSupplyWitness& parent,
 
 void ClearRuntimeSupplyWitnessCacheForTest()
 {
-    g_witness_by_height.clear();
-    g_latest_witness_height = -1;
+    g_witness_by_block_hash.clear();
+    g_latest_witness_hash.SetNull();
 }
 
 } // namespace Consensus

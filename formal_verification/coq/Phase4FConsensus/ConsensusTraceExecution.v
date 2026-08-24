@@ -92,14 +92,16 @@ Definition registry_mismatch_count : nat :=
 Definition registry_na_count : nat :=
   count_status is_not_applicable registry_projection_results.
 
-(** 001D verified counts: 14 MATCH (7 WIN x {PHASE3_WIN, PHASE4A_DRAW}), 0 MISMATCH. *)
-Lemma registry_match_count_value : registry_match_count = 14%nat.
+(** 001D verified counts: 168 MATCH (84 WIN x {PHASE3_WIN, PHASE4A_DRAW}), 0 MISMATCH. *)
+Lemma registry_match_count_value : registry_match_count = 168%nat.
 Proof. reflexivity. Qed.
 
 Lemma registry_mismatch_count_value : registry_mismatch_count = 0%nat.
 Proof. reflexivity. Qed.
 
-Lemma registry_na_count_value : registry_na_count = 59%nat.
+(** The remaining 202 of the 370 registry cases carry no draw winner to project: only
+    RunSelection vectors do, and they account for the 168 counted above. *)
+Lemma registry_na_count_value : registry_na_count = 202%nat.
 Proof. reflexivity. Qed.
 
 (** ----------------------------------------------------------------------

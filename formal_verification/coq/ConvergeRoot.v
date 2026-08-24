@@ -2,7 +2,7 @@
 From Coq Require Import List.
 From Coq Require Import ZArith.ZArith.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import RigorHash.
@@ -11,10 +11,8 @@ Require Import RigorHash.
 Definition convergence_root_from_txid_bytes (txids : list (list byte)) : list byte :=
   match txids with
   | nil => bytes32_zero
-  | [_] => bytes32_zero
-  (* PD-35 fix: hash ALL txids (RFC-000 §6: C = Hash256(concat(sort(txid_i)))).
-     The previous pattern [ _ :: _ as many ] bound [many] to the TAIL, dropping
-     the first txid. We now hash the full [txids] list. *)
+  (* Empty F is the only zero-root case (RFC-008 §10.2 / RFC-009 §3.4).
+     A singleton hashes like any larger F: C = Hash256(txid). *)
   | _ :: _ =>
       hash256_bytes (concat_txid_lists (sort_txid_bytes txids))
   end.
@@ -27,6 +25,5 @@ Definition ConvergeRoot (F : list Tx) : list byte :=
 Definition ConvergeRoot_Z_legacy (F : list Tx) : Z :=
   match F with
   | nil => 0%Z
-  | [_] => 0%Z
   | _ => 1%Z
   end.

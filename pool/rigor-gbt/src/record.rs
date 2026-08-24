@@ -29,6 +29,10 @@ pub struct GbtRecord {
     pub convergence_draw: Option<ConvergenceDraw>,
     pub default_witness_commitment: Option<String>,
     pub default_convergence_commitment: Option<String>,
+    #[serde(default)]
+    pub default_res_mint: Option<crate::gbt::GbtResMint>,
+    #[serde(default)]
+    pub default_pcorb_carrier: Option<String>,
     pub weightlimit: Option<u64>,
     pub version: Option<u32>,
     pub gbt_payload_hash: [u8; 32],
@@ -109,6 +113,8 @@ pub fn normalize_gbt_record(
         convergence_draw: template.convergence_draw,
         default_witness_commitment: template.default_witness_commitment,
         default_convergence_commitment: template.default_convergence_commitment,
+        default_res_mint: template.default_res_mint,
+        default_pcorb_carrier: template.default_pcorb_carrier,
         weightlimit: template.weightlimit,
         version: template.version,
         gbt_payload_hash: payload_hash,

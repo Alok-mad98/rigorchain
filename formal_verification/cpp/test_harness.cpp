@@ -148,11 +148,11 @@ uint256 create_test_txid(uint32_t seed)
  */
 void generate_convergence_root_vectors()
 {
-    // Vector 1: Empty list (< 2 txids) -> all-zero
+    // Vector 1: Empty list -> all-zero
     std::vector<uint256> empty_txids;
     export_convergence_root_vector("ConvergenceRoot_empty", empty_txids);
     
-    // Vector 2: Single txid (< 2 txids) -> all-zero
+    // Vector 2: Single txid hashes (no n<2 zero shortcut)
     std::vector<uint256> single_txid;
     single_txid.push_back(create_test_txid(0));
     export_convergence_root_vector("ConvergenceRoot_single", single_txid);

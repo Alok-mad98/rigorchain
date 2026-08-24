@@ -26,20 +26,6 @@ class SigningProvider;
 struct bilingual_str;
 struct CMutableTransaction;
 
-class CBlockIndex;
-struct CBlock;
-
-/** Optional chain context for witness v1 RES script-path proof checks during signing. */
-struct RigorSigmaEvalSigningContext {
-    const CBlockIndex* parent{nullptr};
-    int height{-1};
-    const CBlock* block{nullptr};
-    const CTransaction* eval_tx{nullptr};
-    std::optional<uint256> convergence_root_expected{};
-    // RFC-014 Conv-Decouple-01: constitutional RES inequality RHS.
-    uint256 res_probability_target{};
-};
-
 /** Interface for signature creators. */
 class BaseSignatureCreator {
 public:
@@ -141,9 +127,10 @@ void UpdateInput(CTxIn& input, const SignatureData& data);
 /** Check whether a scriptPubKey is known to be segwit. */
 bool IsSegWitOutput(const SigningProvider& provider, const CScript& script);
 
-/** Sign the CMutableTransaction */
+/** Sign the CMutableTransaction.
+ *  FENCE-W5: no block-level rigor eval context argument. Signing uses UTXO coins
+ *  plus the spending transaction only. */
 bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* provider, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors,
-                     const RigorSigmaEvalSigningContext* rigor_eval = nullptr,
                      const std::map<int, SignatureData>* extra_input_sigs = nullptr);
 
 #endif // BITCOIN_SCRIPT_SIGN_H

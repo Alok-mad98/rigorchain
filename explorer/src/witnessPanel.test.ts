@@ -73,7 +73,7 @@ describe("witnessPanel", () => {
       [
         {
           mint_vout_index: 0,
-          mint_amount: "10000",
+          mint_amount: "40000000",
           winner_convergence_txid: "winner",
           block_hash: "blockhash",
           block_height: 100,
@@ -88,7 +88,7 @@ describe("witnessPanel", () => {
     assert.equal(proof.present, true);
     assert.equal(proof.confirmation_status, "Confirmed in block");
     assert.equal(proof.matches_winner_block, true);
-    assert.equal(proof.mint_amount_display, "100.00 RES");
+    assert.equal(proof.mint_amount_display, "40.000000 RES");
     assert.equal(proof.proof_items?.length, 6);
   });
 
@@ -98,7 +98,7 @@ describe("witnessPanel", () => {
       [
         {
           mint_vout_index: 0,
-          mint_amount: "10000",
+          mint_amount: "40000000",
           winner_convergence_txid: "parentwinner",
           block_hash: "payout",
           block_height: 306,
@@ -133,7 +133,7 @@ describe("witnessPanel", () => {
       [
         {
           mint_vout_index: 0,
-          mint_amount: "10000",
+          mint_amount: "40000000",
           winner_convergence_txid: txid,
           block_hash: "bh",
           block_height: 100,

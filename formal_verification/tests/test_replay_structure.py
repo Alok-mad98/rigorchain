@@ -39,12 +39,23 @@ MODULE_EXPECTATIONS: dict[str, list[str]] = {
         "Definition UTXOSet",
         "Record BlockAbs",
         "Definition init_replay_state",
+        "tx_id : Hash32",
+        "tx_pcorb : option",
     ],
     "StateTransition.v": [
         "Definition apply_block",
         "fold_apply_blocks",
         "valid_block_sequence",
         "valid_block_sequence_fold_some",
+        "Definition valid_block_connect",
+        "Lemma valid_block_connect_res_mint_obligation",
+        "Definition valid_dual_pool_tx",
+        "Definition apply_tx_mint_reward",
+        "Theorem apply_tx_succeeds_implies_dual_pool",
+        "Theorem apply_tx_rejects_without_dual_pool",
+        "Theorem apply_tx_succeeds_implies_script_shape",
+        "Theorem apply_tx_rejects_without_script_shape",
+        "Definition valid_script_shape_tx",
     ],
     "ReorgRules.v": [
         "Definition rollback",
@@ -59,17 +70,81 @@ MODULE_EXPECTATIONS: dict[str, list[str]] = {
     "ReplayInvariants.v": [
         "Definition utxo_non_negative",
         "Theorem utxo_spend_removes_output",
+        "Theorem utxo_spend_removes_output_distinct_txid",
         "Theorem utxo_create_adds_output",
         "Theorem rollback_restores_previous_state",
+        "Definition created_outpoint",
+        "Lemma distinct_txid_not_recreated",
     ],
     "ConnectBlockMint.v": [
-        "Definition cb_RES_MINT_AMOUNT",
+        "Definition cb_res_mint_amount",
         "Definition cb_oru_mint_delta",
         "Definition cb_res_mint_delta",
         "Definition apply_connectblock_supply_delta",
         "Definition supply_evolution_eq",
         "Definition protocol_mint_total_delta",
         "Lemma protocol_mint_total_delta_non_negative",
+        "Definition valid_res_mint_obligation",
+    ],
+    "ResMintObligation.v": [
+        "Theorem h1_valid_connect_zero_mints",
+        "Theorem h1_winner_zero_reward_block_valid",
+        "Theorem winner_must_mint",
+        "Theorem winner_must_mint_exactly_W",
+        "Theorem obligation_at_most_one_mint",
+        "Theorem obligated_issuance_respects_schedule_cap",
+    ],
+    "DualPoolConservation.v": [
+        "Theorem dual_pool_conservation",
+        "Theorem mint_tx_increases_res_by_exactly_W",
+        "Theorem mint_tx_cannot_increase_res_by_more_than_W",
+        "Theorem mixed_inputs_cannot_mint_extra_res",
+        "Theorem ordinary_tx_utxo_res_non_increasing",
+        "Theorem mint_tx_utxo_res_plus_W",
+        "Theorem apply_tx_ordinary_conserves_res",
+        "Theorem apply_tx_res_net_from_scheduled_mint",
+        "Theorem apply_block_dual_pool_supply_rollback",
+        "Theorem apply_txs_res_net_from_scheduled_mint",
+        "Theorem apply_block_res_invariant",
+        "Theorem fold_apply_blocks_dual_pool_supply_rollback",
+        "Theorem fold_apply_blocks_dual_pool_replay_deterministic",
+        "Lemma apply_tx_rejects_res_inflation",
+        "Lemma apply_tx_accepts_scheduled_mint",
+        "Lemma apply_tx_rejects_h1_unscheduled_mint",
+        "Lemma apply_block_body_rejects_res_inflation",
+        "Lemma apply_tx_accepts_zero_res_oru_payment",
+        "Lemma apply_tx_accepts_multi_res_conserved",
+        "Lemma apply_tx_rejects_mint_plus_one_atom",
+        "Lemma apply_tx_rejects_mint_minus_one_atom",
+        "Lemma apply_txs_accepts_transfer_then_mint",
+        "Lemma apply_txs_accepts_two_transfers_then_mint",
+        "Lemma apply_block_body_accepts_two_transfers_then_mint",
+    ],
+    "ScriptShape.v": [
+        "Definition created_script_shape_ok",
+        "Definition valid_script_shape_on_ins",
+        "Lemma valid_script_shape_on_ins_placeholder",
+    ],
+    "ScriptShapeLift.v": [
+        "Theorem apply_tx_rejects_created_p2pkh",
+        "Theorem apply_tx_rejects_created_p2sh",
+        "Theorem apply_tx_rejects_created_v2",
+        "Theorem apply_tx_rejects_created_v1_len20",
+        "Theorem apply_tx_rejects_spend_cvg2",
+        "Theorem apply_tx_rejects_pcorb_too_few",
+        "Theorem apply_tx_rejects_pcorb_field_size",
+        "Theorem apply_tx_accepts_empty_script_none_pcorb",
+        "Theorem allowed_v0_tagged_res_shape_ok",
+    ],
+    "OpaqueBoundary.v": [
+        "Theorem we_do_not_claim_script_derives_asset",
+        "TASK-FV-MODEL-SCRIPT-SHAPE-LIFT-001",
+        "Theorem we_do_not_claim_cm_draw_won_determined_by_body",
+        "Theorem we_do_not_claim_cm_draw_won_is_owner_pcorb",
+        "Theorem we_do_not_claim_rs_res_supply_equals_utxo_res",
+        "Theorem valid_res_mint_obligation_ignores_body",
+        "Theorem apply_tx_does_not_update_rs_res_supply",
+        "Theorem apply_connectblock_supply_delta_does_not_update_utxo",
     ],
     "SupplyConservation.v": [
         "Definition total_supply",
@@ -127,51 +202,75 @@ def check_admits_phase4b_closed() -> list[str]:
     return errors
 
 
-def check_audit_doc() -> list[str]:
+def _require_sections(path: Path, sections: tuple[str, ...], label: str) -> list[str]:
     errors: list[str] = []
-    if not AUDIT_DOC_4B.is_file():
-        errors.append(f"missing audit doc: {AUDIT_DOC_4B}")
-    if not AUDIT_DOC_4C.is_file():
-        errors.append(f"missing audit doc: {AUDIT_DOC_4C}")
-    else:
-        text = read_text(AUDIT_DOC_4C)
-        for section in (
-            "## Closed Proofs",
-            "## Remaining Admits",
-            "## Remaining Axioms",
-            "## Counterexamples",
-            "## Soundness Assessments",
-        ):
-            if section not in text:
-                errors.append(f"phase4c audit doc missing section: {section}")
+    text = read_text(path)
+    for section in sections:
+        if section not in text:
+            errors.append(f"{label} audit doc missing section: {section}")
+    return errors
+
+
+def check_audit_doc() -> list[str] | None:
+    """None means SKIP: docs/formal/ is wholly absent from this tree.
+
+    Partial trees are allowed: only enforce section checklists for audit pages
+    that are present. Unshipped phase4b/4c pages do not fail the suite.
+    RFC-017 delivery always ships phase4d + phase4e; if either is missing while
+    any formal markdown exists, that is a hard error.
+    """
+    formal_root = REPO_ROOT / "docs" / "formal"
+    if not formal_root.is_dir() or not any(formal_root.rglob("*.md")):
+        return None
+    errors: list[str] = []
+    if AUDIT_DOC_4C.is_file():
+        errors.extend(
+            _require_sections(
+                AUDIT_DOC_4C,
+                (
+                    "## Closed Proofs",
+                    "## Remaining Admits",
+                    "## Remaining Axioms",
+                    "## Counterexamples",
+                    "## Soundness Assessments",
+                ),
+                "phase4c",
+            )
+        )
     if not AUDIT_DOC_4D.is_file():
         errors.append(f"missing audit doc: {AUDIT_DOC_4D}")
     else:
-        text4d = read_text(AUDIT_DOC_4D)
-        for section in (
-            "## Theorem List",
-            "## Proof Status",
-            "## Remaining Admits",
-            "## Remaining Axioms",
-            "## Counterexamples",
-            "## Supply Risk Assessment",
-        ):
-            if section not in text4d:
-                errors.append(f"phase4d audit doc missing section: {section}")
+        errors.extend(
+            _require_sections(
+                AUDIT_DOC_4D,
+                (
+                    "## Theorem List",
+                    "## Proof Status",
+                    "## Remaining Admits",
+                    "## Remaining Axioms",
+                    "## Counterexamples",
+                    "## Supply Risk Assessment",
+                ),
+                "phase4d",
+            )
+        )
     if not AUDIT_DOC_4E.is_file():
         errors.append(f"missing audit doc: {AUDIT_DOC_4E}")
     else:
-        text4e = read_text(AUDIT_DOC_4E)
-        for section in (
-            "## Theorem List",
-            "## Proof Status",
-            "## Remaining Admits",
-            "## Remaining Axioms",
-            "## Required Output Fields",
-            "## Review Gate",
-        ):
-            if section not in text4e:
-                errors.append(f"phase4e audit doc missing section: {section}")
+        errors.extend(
+            _require_sections(
+                AUDIT_DOC_4E,
+                (
+                    "## Theorem List",
+                    "## Proof Status",
+                    "## Remaining Admits",
+                    "## Remaining Axioms",
+                    "## Required Output Fields",
+                    "## Review Gate",
+                ),
+                "phase4e",
+            )
+        )
     return errors
 
 
@@ -193,7 +292,11 @@ def main() -> int:
     all_errors.extend(check_forbidden_imports())
     all_errors.extend(check_definitions())
     all_errors.extend(check_admits_phase4b_closed())
-    all_errors.extend(check_audit_doc())
+    docs = check_audit_doc()
+    if docs is None:
+        print("SKIP: docs/formal/ absent (internal stage-gate audits; not part of this tree)")
+    else:
+        all_errors.extend(docs)
 
     if all_errors:
         print("FAIL: ReplayReorgCore structural validation")

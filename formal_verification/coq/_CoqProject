@@ -1,15 +1,20 @@
 -R . Rigor
+-R fee-burn Rigor.FeeBurn
 
 RigorBytes.v
 RigorBytesOrder.v
 RigorSha256.v
 RigorHash.v
-Types.v
+legacy_account_model/Types.v
+ResSchedule.v
 ConvergeRoot.v
 SigmaPoW01.v
 Sigma.v
-Selection.v
+legacy_account_model/Selection.v
 OrderIndependence.v
+DrawCandidateRoot.v
+InvalidCvg.v
+ScriptMintWitness.v
 WindowExclusion.v
 CanonicalDrawEncoder.v
 CanonicalHashKernel.v
@@ -21,8 +26,9 @@ Kernel/KernelSigma.v
 Kernel/KernelEligibility.v
 Kernel/KernelClosure.v
 Kernel/GoldenHarness.v
-State.v
-Transition.v
+Kernel/NegativeCoreHarness.v
+legacy_account_model/State.v
+legacy_account_model/Transition.v
 Serialization.v
 Properties.v
 ConnectBlock.v
@@ -35,11 +41,25 @@ Proofs/SplitInvariance.v
 Extraction.v
 ReplayReorgCore/Hash32Order.v
 ReplayReorgCore/ReplayState.v
+ReplayReorgCore/CvgCovenant.v
+ReplayReorgCore/ScriptShape.v
 ReplayReorgCore/ConnectBlockMint.v
 ReplayReorgCore/StateTransition.v
+ReplayReorgCore/AssetFromScript.v
+ReplayReorgCore/ResMintObligation.v
 ReplayReorgCore/ReorgRules.v
 ReplayReorgCore/ReplayDeterminism.v
 ReplayReorgCore/ReplayInvariants.v
+ReplayReorgCore/DualPoolConservation.v
+fee-burn/Accounting.v
+fee-burn/AssetDomain.v
+fee-burn/ReplaySafety.v
+fee-burn/Precision.v
+fee-burn/BlockSupply.v
+fee-burn/CirculatingSemantics.v
+fee-burn/Properties.v
+ReplayReorgCore/OpaqueBoundary.v
+ReplayReorgCore/ScriptShapeLift.v
 ReplayReorgCore/SupplyConservation.v
 ConnectBlock/ConnectBlockSupply.v
 ReplayReorgCore/SupplyReplayBridge.v

@@ -1,8 +1,8 @@
 {
-  "version": "phase3-2.1-hash-kernel",
+  "version": "phase3-2.2-tightening",
   "baseline": "c05f1a94beece54df872dc89c08715bd555fd987",
-  "tag": "hash-kernel-cpp-cli-2026-08-16",
-  "count": 315,
+  "tag": "tightening-replay-txid-2026-08-18",
+  "count": 422,
   "vectors": [
     {
       "id": "CR-000",
@@ -25,7 +25,7 @@
         ]
       },
       "expected": {
-        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+        "convergence_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57"
       }
     },
     {
@@ -224,7 +224,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 1
       },
       "expected": {
@@ -237,7 +237,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 1
       },
       "expected": {
@@ -334,9 +334,9 @@
         "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
       },
       "expected": {
-        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "convergence_root": "6dc8daeb8077a87be2712c5c8cceeed7a2d2e20c8b2e33adfefabccb32877a4d",
         "sigmas": [
-          "30f0b752feab4e693dfabc7ec970f5fb7f2188585f14f4076a1cea0393406a1c"
+          "2d28080da537ba65fee631d7b68207599d3c08f2b7cfed007dde7495bc930b09"
         ],
         "eligible": [
           true
@@ -672,7 +672,8 @@
       "input": {
         "ORU": 1000,
         "RES": 0,
-        "mint": false
+        "mint": false,
+        "height": 0
       },
       "expected": {
         "RES_after": 0
@@ -684,11 +685,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 900,
-        "RES": 10000,
-        "mint": true
+        "RES": 40000000,
+        "mint": true,
+        "height": 0
       },
       "expected": {
-        "RES_after": 20000
+        "RES_after": 80000000
       }
     },
     {
@@ -698,10 +700,11 @@
       "input": {
         "ORU": 500,
         "RES": 1000000,
-        "mint": false
+        "mint": true,
+        "height": 210000
       },
       "expected": {
-        "RES_after": 1000000
+        "RES_after": 15142196
       }
     },
     {
@@ -710,11 +713,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 0,
-        "RES": 2100000000,
-        "mint": false
+        "RES": 21000000000000,
+        "mint": false,
+        "height": 0
       },
       "expected": {
-        "RES_after": 2100000000
+        "RES_after": 21000000000000
       }
     },
     {
@@ -723,11 +727,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 100,
-        "RES": 2099999900,
-        "mint": true
+        "RES": 20999999999900,
+        "mint": true,
+        "height": 0
       },
       "expected": {
-        "RES_after": 2099999900
+        "RES_after": 20999999999900
       }
     },
     {
@@ -752,9 +757,9 @@
         "n": 1
       },
       "expected": {
-        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "convergence_root": "6dc8daeb8077a87be2712c5c8cceeed7a2d2e20c8b2e33adfefabccb32877a4d",
         "sigmas": [
-          "51118c820b1c48484604a0bc7de6215c7ce729b0912b05ef0d57967e27e1b6eb"
+          "c661a405f9668ce4ef3af5e23c4d0fdf9cdf4419bc6ae4cf1ad7460b349cc92a"
         ],
         "eligible": [
           true
@@ -1387,6 +1392,975 @@
         ],
         "dropped": 2
       },
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-000",
+      "name": "empty",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [],
+        "eligible": []
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "note": "empty set hashes empty concat, not zeros",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-001",
+      "name": "singleton_no_zero_shortcut",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57"
+      },
+      "note": "N=1 hashes the txid; same digest as ConvergenceRoot",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-002",
+      "name": "two_agrees_with_C",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
+      },
+      "note": "nonempty F: same digest as ConvergenceRoot",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-003",
+      "name": "perm_two",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
+      },
+      "note": "order independence: same set as DCR-002",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-004",
+      "name": "eligible_subset",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "eligible": [
+          true,
+          false,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60"
+      },
+      "note": "hashes {txid0, txid2} subset of F",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-005",
+      "name": "none_eligible",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "eligible": [
+          false,
+          false,
+          false
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "note": "all ineligible \u2192 empty concat",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-006",
+      "name": "a9c_all_paid",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          false,
+          false
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "note": "A-9-C: both already paid, eligible subset empty",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-007",
+      "name": "a9c_singleton_remainder",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "eligible": [
+          false,
+          true,
+          false
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "055797c9f8405cb79862a2964082ff0baffcd6eefc2b1b25bd2149c8939d4318"
+      },
+      "note": "A-9-C: one unpaid remainder; hash of that txid, not zeros",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-008",
+      "name": "incomplete_window_no_root",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "incomplete"
+      },
+      "expected": {
+        "draw_candidate_root": null
+      },
+      "note": "incomplete window is no draw and no root",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-009",
+      "name": "genesis_complete_empty",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "genesis"
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "note": "complete empty window hashes empty concat",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-010",
+      "name": "exclusion_all_paid",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "exclusion",
+        "candidates_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "already_paid_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "note": "A-9-C exclude all \u2192 empty eligible root",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-011",
+      "name": "three_perm_a",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          true,
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de"
+      },
+      "note": "|F|=3 perm: same digest as ConvergenceRoot",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-012",
+      "name": "three_perm_b",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true,
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de"
+      },
+      "note": "|F|=3 other perm: order independence",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-013",
+      "name": "e2e_all_eligible_winner",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 1
+      },
+      "note": "e2e: T_max, |F|=2, DCR=C and a winner",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-014",
+      "name": "e2e_none_eligible",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 5,
+        "prev_block_hash_hex": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "T_hex": "0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          false,
+          false
+        ],
+        "winner_index": -1
+      },
+      "note": "e2e: T_one, nobody eligible, DCR=empty concat, no winner",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-015",
+      "name": "subset_perm",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "txids_hex": [
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true,
+          false,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60"
+      },
+      "note": "eligible {txid2,txid0} permuted vs DCR-004; same set",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-016",
+      "name": "e2e_same_dcr_winner_flips_with_seed",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "0202020202020202020202020202020202020202020202020202020202020202",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 0
+      },
+      "note": "e2e: same C/DCR as DCR-013 (T_max), prev seed flips winner 1\u21920",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-017",
+      "name": "e2e_two_prev22_baseline",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "2222222222222222222222222222222222222222222222222222222222222222",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 1
+      },
+      "note": "e2e: |F|=2 prev=22, winner=txid1; baseline for DCR-018 C-change",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-018",
+      "name": "e2e_root_change_flips_winner",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "2222222222222222222222222222222222222222222222222222222222222222",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "eligible": [
+          true,
+          true,
+          true
+        ],
+        "winner_index": 0
+      },
+      "note": "e2e: adding txid2 changes C vs DCR-017 and flips winner to txid0",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-019",
+      "name": "e2e_three_prev11_baseline",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "eligible": [
+          true,
+          true,
+          true
+        ],
+        "winner_index": 1
+      },
+      "note": "e2e: |F|=3 prev=11, winner=txid1; baseline for A-9-C DCR-020",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-020",
+      "name": "e2e_exclusion_drops_winner",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "convergence_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 0
+      },
+      "note": "e2e A-9-C: pay DCR-019 winner; remaining {0,2} new C/DCR, winner=txid0",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-021",
+      "name": "e2e_exclusion_singleton_hashed",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "convergence_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "eligible": [
+          true
+        ],
+        "winner_index": 0
+      },
+      "note": "e2e A-9-C: pay txid1; singleton remainder, C=DCR=Hash256(txid0), winner=txid0",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-022",
+      "name": "e2e_three_t_one_no_winner",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "0000000000000000000000000000000000000000000000000000000000000001"
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+        "convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "eligible": [
+          false,
+          false,
+          false
+        ],
+        "winner_index": -1
+      },
+      "note": "e2e: |F|=3 T_one, C of three, DCR=empty concat, no winner",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-023",
+      "name": "e2e_height_flips_winner_same_root",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 11,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "eligible": [
+          true,
+          true,
+          true
+        ],
+        "winner_index": 0
+      },
+      "note": "e2e: same C/DCR as DCR-019, height 11 flips winner 1\u21920",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-024",
+      "name": "neg_tamper_insert",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          true,
+          true
+        ],
+        "other_txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "other_eligible": [
+          true,
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "other_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "differ": true
+      },
+      "note": "neg: inserting txid2 into F changes DCR vs DCR-002",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-025",
+      "name": "neg_tamper_delete",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "eligible": [
+          true,
+          true,
+          true
+        ],
+        "other_txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "other_eligible": [
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "other_draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "differ": true
+      },
+      "note": "neg: deleting txid1 from F changes DCR vs DCR-011",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-026",
+      "name": "neg_tamper_replace",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          true,
+          true
+        ],
+        "other_txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "other_eligible": [
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "other_draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "differ": true
+      },
+      "note": "neg: replacing txid1 with txid2 changes DCR",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-027",
+      "name": "neg_flag_perm_changes_hashed_set",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "eligible": [
+          true,
+          false,
+          true
+        ],
+        "other_txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "other_eligible": [
+          true,
+          true,
+          false
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "other_draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "differ": true
+      },
+      "note": "neg: permuting eligibility flags changes the hashed subset vs DCR-004",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-028",
+      "name": "neg_perm_of_tampered_still_differs",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "eligible": [
+          true,
+          true
+        ],
+        "other_txids_hex": [
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "other_eligible": [
+          true,
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "other_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "differ": true
+      },
+      "note": "neg: permutation of a tampered 3-set still \u2260 honest 2-set DCR (contrast DCR-003)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-029",
+      "name": "neg_duplicate_txid",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "contrast",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true
+        ],
+        "other_txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "other_eligible": [
+          true,
+          true
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "other_draw_candidate_root": "2df4cbef3437664b3e82633f9ba3576f8344e2c4c0f5e93ef912656cdb94cae4",
+        "differ": true
+      },
+      "note": "neg: duplicate txid is hashed twice; not collapsed to the singleton DCR-001",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-030",
+      "name": "neg_empty_neq_zero",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "shape",
+        "txids_hex": [],
+        "eligible": [],
+        "neq_zero": true
+      },
+      "expected": {
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+        "neq_zero": true
+      },
+      "note": "neg: empty eligible set \u2260 ConvergenceRoot empty zeros (contrast DCR-000)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-031",
+      "name": "pos_singleton_eq_C",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "shape",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "eligible": [
+          true
+        ],
+        "neq_zero": true,
+        "eq_c": true
+      },
+      "expected": {
+        "draw_candidate_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "neq_zero": true,
+        "eq_c": true
+      },
+      "note": "pos: singleton DCR = C = Hash256(txid); empty is the only C=zeros case (DCR-030)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-032",
+      "name": "neg_exclusion_root_winner_mismatch",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "e2e_mismatch",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ]
+      },
+      "expected": {
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "convergence_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 0,
+        "wrong_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "wrong_winner_index": 1,
+        "differ": true
+      },
+      "note": "neg: hashing full F but selecting after A-9-C drop of the winner: DCR and winner disagree (contrast DCR-019/020)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-033",
+      "name": "neg_sigma_wrong_C",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "sigma_perturb",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "alt": {
+          "convergence_root_hex": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35d"
+        }
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 1,
+        "alt_winner_index": 0,
+        "differ": true
+      },
+      "note": "neg: feeding a 1-bit-flipped C into \u03c3 changes the winner vs DCR-013; DCR of F unchanged (T_max)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-034",
+      "name": "neg_sigma_flip_prev",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "sigma_perturb",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "alt": {
+          "prev_block_hash_hex": "0202020202020202020202020202020202020202020202020202020202020202"
+        }
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 1,
+        "alt_winner_index": 0,
+        "differ": true
+      },
+      "note": "neg: flipping B_{h-1} (11\u219202) changes the winner vs DCR-013; same C/DCR (contrast DCR-016)",
+      "coq_enforce": true
+    },
+    {
+      "id": "DCR-035",
+      "name": "neg_sigma_flip_height",
+      "module": "DrawCandidateRoot",
+      "input": {
+        "kind": "sigma_perturb",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "alt": {
+          "height": 11
+        }
+      },
+      "expected": {
+        "draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 1,
+        "alt_winner_index": 0,
+        "differ": true
+      },
+      "note": "neg: flipping LE32(h) (10\u219211) changes the winner vs DCR-013; same C/DCR (contrast DCR-023)",
       "coq_enforce": true
     },
     {
@@ -2075,7 +3049,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 1
       },
       "expected": {
@@ -2089,7 +3063,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 1
       },
       "expected": {
@@ -2103,7 +3077,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 99999999
       },
       "expected": {
@@ -2117,7 +3091,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 99999999
       },
       "expected": {
@@ -2131,7 +3105,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 100000000
       },
       "expected": {
@@ -2145,7 +3119,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 100000000
       },
       "expected": {
@@ -2159,7 +3133,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 100000001
       },
       "expected": {
@@ -2173,7 +3147,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 100000001
       },
       "expected": {
@@ -2187,7 +3161,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 200000000
       },
       "expected": {
@@ -2201,7 +3175,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 200000000
       },
       "expected": {
@@ -2211,12 +3185,12 @@
     },
     {
       "id": "INQ-B-014",
-      "name": "boundary_low_f6553600000000",
+      "name": "boundary_low_f102400000000",
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 6553600000000
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 102400000000
       },
       "expected": {
         "eligible": true
@@ -2225,12 +3199,12 @@
     },
     {
       "id": "INQ-B-015",
-      "name": "boundary_high_f6553600000000",
+      "name": "boundary_high_f102400000000",
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 6553600000000
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 102400000000
       },
       "expected": {
         "eligible": false
@@ -2243,7 +3217,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 3200000000
       },
       "expected": {
@@ -2257,7 +3231,7 @@
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
         "f": 3200000000
       },
       "expected": {
@@ -2267,12 +3241,12 @@
     },
     {
       "id": "INQ-B-018",
-      "name": "boundary_low_f209715199999999",
+      "name": "boundary_low_f3276799999999",
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715199999999
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276799999999
       },
       "expected": {
         "eligible": true
@@ -2281,12 +3255,12 @@
     },
     {
       "id": "INQ-B-019",
-      "name": "boundary_high_f209715199999999",
+      "name": "boundary_high_f3276799999999",
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715199999999
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276799999999
       },
       "expected": {
         "eligible": false
@@ -2295,12 +3269,12 @@
     },
     {
       "id": "INQ-B-020",
-      "name": "boundary_low_f209715200000000",
+      "name": "boundary_low_f3276800000000",
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715200000000
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276800000000
       },
       "expected": {
         "eligible": true
@@ -2309,12 +3283,12 @@
     },
     {
       "id": "INQ-B-021",
-      "name": "boundary_high_f209715200000000",
+      "name": "boundary_high_f3276800000000",
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715200000000
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276800000000
       },
       "expected": {
         "eligible": false
@@ -2323,12 +3297,12 @@
     },
     {
       "id": "INQ-B-022",
-      "name": "boundary_low_f209715200000001",
+      "name": "boundary_low_f3276800000001",
       "module": "Inequality",
       "input": {
         "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715200000001
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276800000001
       },
       "expected": {
         "eligible": true
@@ -2337,12 +3311,12 @@
     },
     {
       "id": "INQ-B-023",
-      "name": "boundary_high_f209715200000001",
+      "name": "boundary_high_f3276800000001",
       "module": "Inequality",
       "input": {
         "h_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        "T_hex": "d1e0f8d2c202eb7a9a7a7af8746d561a84fbf99dc30823ee9857010000000000",
-        "f": 209715200000001
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 3276800000001
       },
       "expected": {
         "eligible": true
@@ -3490,9 +4464,9 @@
         "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
       },
       "expected": {
-        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "convergence_root": "9503274538b87a811d29785a63588258567ea93138d461944098f28327eb1735",
         "sigmas": [
-          "6ad0ad729f6327351f106ae3b04a1df8e452f93221c07b254b614e443b9f91e4"
+          "05f48c6bf54711af40ba43d0c86339510d4c19233113568bb91c8cdc9f29bf45"
         ],
         "eligible": [
           true
@@ -3610,9 +4584,9 @@
         "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
       },
       "expected": {
-        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "convergence_root": "98c858a727720b23bad28896550974264491fee671869e3dde3b64468d6e6bc0",
         "sigmas": [
-          "bf2ab5b57c0eb4a509f18a15d009ef89aade3e9b6b71f7b65e42f53ea72ec58b"
+          "44ae5767b501b5c4a7b4c8c4810732a1dd4fa36a9a8e3e505f4a511247d5a0ef"
         ],
         "eligible": [
           true
@@ -3921,6 +4895,393 @@
           "b920f5b6bdce127b597351fc8ce4e90e5a6cc8f68bc90c04f9bdc5b28a5f1507"
         ],
         "dropped": 0
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "REORG-A9C-008",
+      "name": "restored_then_repay_first",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "95f4cf1c4de553d039393ba272919cbc1b54dfcd58ea5a0730422c5a95bddb2c",
+          "95f34cf8aa6d5b029fa7f7bb1362f08be6ef712b8ca9df60aa1c6b5f273cf98d",
+          "a649fddd13b3a12073c60dcd55229558f69cf63748de2a006160a3f32e9d1928",
+          "b41b6476a955304983a94a4af8dce25a3f85f4f38676716859b8bdd078c91e80",
+          "b920f5b6bdce127b597351fc8ce4e90e5a6cc8f68bc90c04f9bdc5b28a5f1507"
+        ],
+        "already_paid_hex": [
+          "95f4cf1c4de553d039393ba272919cbc1b54dfcd58ea5a0730422c5a95bddb2c"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "95f34cf8aa6d5b029fa7f7bb1362f08be6ef712b8ca9df60aa1c6b5f273cf98d",
+          "a649fddd13b3a12073c60dcd55229558f69cf63748de2a006160a3f32e9d1928",
+          "b41b6476a955304983a94a4af8dce25a3f85f4f38676716859b8bdd078c91e80",
+          "b920f5b6bdce127b597351fc8ce4e90e5a6cc8f68bc90c04f9bdc5b28a5f1507"
+        ],
+        "dropped": 1
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "REORG-A9C-009",
+      "name": "fork_a_prefix_paid",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "0f9c2035cd69b094bacf58ad842c3386c86983723c15b6efea39c6ff07671d70",
+          "a9aa273f66f3a13ed6bffe134f360c84ef398306fc717feb9331fbe49ed8fb06",
+          "b01d9eefd9270fe7a80f494800172ff85179f26b8bd7711d7f1b0944b58d95f3",
+          "25a9035dacf6dfd7f8ba82def1f51dd084e2a1c4c3f8dd1a8dae57c30c7bbea2",
+          "d4a703f5a164cf8281d74cb3ce03de19c3e9dd439a9a547201dd92f3c61e58bf",
+          "c568dea8db02ee003c9f4904139cc99b7408bf063b33fcea2b492e60608eef53"
+        ],
+        "already_paid_hex": [
+          "0f9c2035cd69b094bacf58ad842c3386c86983723c15b6efea39c6ff07671d70",
+          "a9aa273f66f3a13ed6bffe134f360c84ef398306fc717feb9331fbe49ed8fb06"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "b01d9eefd9270fe7a80f494800172ff85179f26b8bd7711d7f1b0944b58d95f3",
+          "25a9035dacf6dfd7f8ba82def1f51dd084e2a1c4c3f8dd1a8dae57c30c7bbea2",
+          "d4a703f5a164cf8281d74cb3ce03de19c3e9dd439a9a547201dd92f3c61e58bf",
+          "c568dea8db02ee003c9f4904139cc99b7408bf063b33fcea2b492e60608eef53"
+        ],
+        "dropped": 2
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "REORG-A9C-010",
+      "name": "fork_b_suffix_paid",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "0f9c2035cd69b094bacf58ad842c3386c86983723c15b6efea39c6ff07671d70",
+          "a9aa273f66f3a13ed6bffe134f360c84ef398306fc717feb9331fbe49ed8fb06",
+          "b01d9eefd9270fe7a80f494800172ff85179f26b8bd7711d7f1b0944b58d95f3",
+          "25a9035dacf6dfd7f8ba82def1f51dd084e2a1c4c3f8dd1a8dae57c30c7bbea2",
+          "d4a703f5a164cf8281d74cb3ce03de19c3e9dd439a9a547201dd92f3c61e58bf",
+          "c568dea8db02ee003c9f4904139cc99b7408bf063b33fcea2b492e60608eef53"
+        ],
+        "already_paid_hex": [
+          "d4a703f5a164cf8281d74cb3ce03de19c3e9dd439a9a547201dd92f3c61e58bf",
+          "c568dea8db02ee003c9f4904139cc99b7408bf063b33fcea2b492e60608eef53"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "0f9c2035cd69b094bacf58ad842c3386c86983723c15b6efea39c6ff07671d70",
+          "a9aa273f66f3a13ed6bffe134f360c84ef398306fc717feb9331fbe49ed8fb06",
+          "b01d9eefd9270fe7a80f494800172ff85179f26b8bd7711d7f1b0944b58d95f3",
+          "25a9035dacf6dfd7f8ba82def1f51dd084e2a1c4c3f8dd1a8dae57c30c7bbea2"
+        ],
+        "dropped": 2
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "A9C-W32-drop_first",
+      "name": "drop_first",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0",
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3",
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ],
+        "already_paid_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3",
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ],
+        "dropped": 1
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "A9C-W32-drop_last",
+      "name": "drop_last",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0",
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3",
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ],
+        "already_paid_hex": [
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0",
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3"
+        ],
+        "dropped": 1
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "A9C-W32-all_paid",
+      "name": "all_paid",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0",
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3",
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ],
+        "already_paid_hex": [
+          "a50f540b255c49d01a10787624298c334a42c904ee24feb544479901580815d0",
+          "a5747fcfc2d1c6d53793949a48011075e4f93756563405ee7dc27d7b7deaffdf",
+          "3dff00839c5f69113c6ea8c1e51035ccd8fbee6cfb31e6ff93aef6246fb829c4",
+          "3bf5da2c8672dfe8203b280eebc0c93e8b3577c64a58e1e813fa2f9d2bf8b145",
+          "4432895fcfaea3b0e1d45baa17ede8c71dca2f71a95ccb35cd989f122dc14083",
+          "1f2e43890abf3f07c7c93dc14ae584d715eaa983c8af781462af76e8346eb1c4",
+          "a950f83c992ee2e242996d5db18c6d1da3bd16b86f5cf102ddae28c215f33dee",
+          "f4cf5623e3ac0650b5698b1d00ea2e212e5da7d3a154eaf787befe426c97627a",
+          "9d58bdc868150bc41ce08a6d335c04a566d58821434ff250ba1b2a676d5706e0",
+          "92ef90df23802ad3bcca74ef000854c7748674fb13c24bdd49c2a473abd69b35",
+          "8cee7a47594264467fb20836337f6240970c1140076a39c464b57b5b5ce17811",
+          "fa644fdfbd464c100cf5d36ee1802ecef25ceb9a298fd19d2e4bb799cd4fcfd3",
+          "f58d8013938dba6c21a0a509545fa35e6c10ff980ad63b172cbf29a3dd7717f6",
+          "956e0d1ca52393dadb8a40974c463b500590205dbc3b1e424605123c8432518b",
+          "d06ddcea670391e6f6c543208439aeeb0d4290ee17a05a1834019bc825944465",
+          "268138c79ebdea7371145b61a3ea00ec69e2b330d1a02ef6cb63fcc90718adfc",
+          "ded8f5fa8cce234a5207d413818de0a7f52a9c2d4bcbabf87fb47ffcbc7786cb",
+          "dc457a77bdd40415666c7a0f812ddcd034871c070d54a9a69c8feb74e5abc252",
+          "f19a8ff8f099b2a7affcb72e46cdac1774a1ab736708619524d82861bd670af1",
+          "5664dd7aa3432e786501e27f7540e5970d3e4e2230b5ea2bb9a7a23f9e055bf6",
+          "f55ed4c9728f5093444c5240da4742fa279854384a367dfa9c7e07b859407ba9",
+          "061869205fb61cf23c6c3038c1b19391dde7d453777e2f1228de5cec87fa37ea",
+          "aa4804ee2b0b3ed1b535762c69d4bfabefaa71908eab4a4596a14a867eb2915b",
+          "2281afbbf7b32f10af91ee7b7bc54ff3a69c29b7d25107616e46d9f984b96b3c",
+          "ee41ae3e95223c93e92c0173b18fb66033f84aead5ae62e906dda64f4d4e2a06",
+          "2c517a8320dfe382169912a2e637d5853d7b3cca4ee37c1ce583dd48970ad69c",
+          "a0d2e679430cbbe2b2480907131099c08c33c5d2947b9639d83ce33a0184070d",
+          "1370c4236ff190aa89a75e83179333f7281b55513d83c6eadfb3e44ea4817fd7",
+          "cc6df0cf075f49b6716285252967ef2aeff26210c2c2eb99c7d78cfbd3889a86",
+          "626a08cdc2b92d54b8fe63556685872edbbb7f70ecea1556309bd161f1813ade",
+          "58b0bb345d4ce349b69f7b12c4e518ddc00a84b51d0137f009c8a62f68bff0f3",
+          "d6a53ec6be62949f05d44da61b9b1a76ac88c83e7925422178c174ff8a49fd1f"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [],
+        "dropped": 32
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "A9C-NDW-000",
+      "name": "paid_excluded_under_permutation",
+      "module": "WindowExclusion",
+      "input": {
+        "candidates_hex": [
+          "fa8b0ac5aa8f614739da09d20a2f441d4322c8726b2cd3e59af2690cfb353378",
+          "4b63d23509d205de9a1e80b5cd386a9744f705c19c5c2b9e354f64c34f0dab75",
+          "5a90d215f2855a3c3dc957b8831ef46beb64ee6cf9432586f9d2c8fbc0a93712",
+          "ce5cdca8180899be3f6497a129bdcfe78779b39c323e32a783dda3e182ff8993"
+        ],
+        "already_paid_hex": [
+          "ce5cdca8180899be3f6497a129bdcfe78779b39c323e32a783dda3e182ff8993"
+        ]
+      },
+      "expected": {
+        "surviving_hex": [
+          "fa8b0ac5aa8f614739da09d20a2f441d4322c8726b2cd3e59af2690cfb353378",
+          "4b63d23509d205de9a1e80b5cd386a9744f705c19c5c2b9e354f64c34f0dab75",
+          "5a90d215f2855a3c3dc957b8831ef46beb64ee6cf9432586f9d2c8fbc0a93712"
+        ],
+        "dropped": 1
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "INQ-Z-000",
+      "name": "weight_zero_ineligible",
+      "module": "Inequality",
+      "input": {
+        "h_hex": "0100000000000000000000000000000000000000000000000000000000000000",
+        "T_hex": "793438beb4b0c0ba9ea69e1e3e5d9b9506e17e7ee730c2883be6550000000000",
+        "f": 0
+      },
+      "expected": {
+        "eligible": false
+      },
+      "coq_enforce": true
+    },
+    {
+      "id": "ENC-W-000",
+      "name": "encoder_height_window_w",
+      "module": "SigmaEncoder",
+      "input": {
+        "txid_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "convergence_root_hex": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "prev_block_hash_hex": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "height": 32
+      },
+      "expected": {
+        "preimage_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f20000000",
+        "length": 100,
+        "txid": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "croot": "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+        "prev": "404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f",
+        "height_le": "20000000",
+        "sigma": "16aae9ea325c23719834bcb495c423d0b62cfe581fc9ff24daee4bd07e4bbfe7"
       },
       "coq_enforce": true
     },
@@ -7287,6 +8648,2064 @@
         "sha256d": "b0d08e4a3bca1275594ca18e541a18d2ef010425107118c088cdf93f5267f7f7"
       },
       "coq_enforce": false
+    },
+    {
+      "id": "NEG-000",
+      "name": "ordinary_res_two_out_inflation",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "dual_pool_tx",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 60,
+              "asset": "RES"
+            },
+            {
+              "value": 50,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "ordinary_inflation"
+      },
+      "note": "ordinary transfer: 100 RES in, 110 out across two outputs",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-001",
+      "name": "ordinary_res_amount_plus_one",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "dual_pool_tx",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "ordinary_inflation"
+      },
+      "note": "ordinary transfer: res_out = res_in + 1",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-002",
+      "name": "oru_only_creates_res",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "dual_pool_tx",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "mint_wrong_amount"
+      },
+      "note": "ORU-only inputs cannot create RES except via mint-shape of W(h)",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-003",
+      "name": "res_only_creates_oru",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "dual_pool_tx",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 100,
+              "asset": "ORU"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "res_to_oru"
+      },
+      "note": "RES-only inputs cannot create ORU (no_res_to_oru)",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-004",
+      "name": "mint_W_plus_one",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "mint_shape",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 40000001,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "mint_wrong_amount"
+      },
+      "note": "ORU-funded mint of W(h)+1",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-005",
+      "name": "mint_W_minus_one",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "mint_shape",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 39999999,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "mint_wrong_amount"
+      },
+      "note": "ORU-funded mint of W(h)-1",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-006",
+      "name": "mint_two_res_outputs",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "mint_shape",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 20000000,
+              "asset": "RES"
+            },
+            {
+              "value": 20000000,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "mint_wrong_count"
+      },
+      "note": "mint-shape requires exactly one RES output; two outputs summing to W(h) still fail",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-007",
+      "name": "mint_genesis_W_at_epoch_1",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "mint_shape",
+        "height": 210000,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 40000000,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "W": 14142196,
+        "accepted": false,
+        "reject": "mint_wrong_amount"
+      },
+      "note": "epoch-1 mint of W(0) rather than W(k=1)",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-008",
+      "name": "winner_mint_count_two",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_obligation",
+        "height": 1,
+        "draw_won": true,
+        "mint_count": 2
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "winner_mismatch"
+      },
+      "note": "H-1 / winner-mismatch: scored mint count is 2, not 1",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-009",
+      "name": "winner_omits_mint",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_obligation",
+        "height": 1,
+        "draw_won": true,
+        "mint_count": 0
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "winner_mismatch"
+      },
+      "note": "H-1: winner with W(h)>0 and mint_count=0",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-010",
+      "name": "cap_one_atom_overshoot",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_cap",
+        "height": 1,
+        "res_supply": 20999960000001,
+        "draw_won": true,
+        "mint_count": 1
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "cap_overshoot"
+      },
+      "note": "supply + W(h) = cap + 1; equal-to-cap is admitted, one atom over is not",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-011",
+      "name": "at_cap_then_mint",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_cap",
+        "height": 1,
+        "res_supply": 21000000000000,
+        "draw_won": true,
+        "mint_count": 1
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "cap_overshoot"
+      },
+      "note": "exactly at the hard cap, then mint W(h)",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-012",
+      "name": "schedule_exhausted_mint",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_obligation",
+        "height": 52710000,
+        "draw_won": true,
+        "mint_count": 1
+      },
+      "expected": {
+        "W": 0,
+        "accepted": false,
+        "reject": "unauthorized_mint"
+      },
+      "note": "epoch 251: W(h)=0 so a mint is unauthorized, not winner-mismatch",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-013",
+      "name": "without_winner_mint",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "connect_obligation",
+        "height": 1,
+        "draw_won": false,
+        "mint_count": 1
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "without_winner"
+      },
+      "note": "no draw winner, but a mint is present",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-014",
+      "name": "mixed_ordinary_plus_illegal_mint",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "apply_block",
+        "height": 1,
+        "res_supply": 0,
+        "draw_won": true,
+        "mint_count": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          },
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "txs": [
+          {
+            "id": 10,
+            "spends": [
+              {
+                "id": 1,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 90,
+                "asset": "RES"
+              }
+            ]
+          },
+          {
+            "id": 11,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 40000001,
+                "asset": "RES"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "apply_block_none"
+      },
+      "note": "valid ordinary transfer plus W(h)+1 mint in the same body; apply_block = None",
+      "coq_enforce": true
+    },
+    {
+      "id": "NEG-015",
+      "name": "mixed_inflation_plus_mint_shape",
+      "module": "NegativeCore",
+      "input": {
+        "kind": "apply_block",
+        "height": 1,
+        "res_supply": 0,
+        "draw_won": true,
+        "mint_count": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          },
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "txs": [
+          {
+            "id": 10,
+            "spends": [
+              {
+                "id": 1,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 101,
+                "asset": "RES"
+              }
+            ]
+          },
+          {
+            "id": 11,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 40000000,
+                "asset": "RES"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "W": 40000000,
+        "accepted": false,
+        "reject": "apply_block_none"
+      },
+      "note": "ordinary inflation plus a well-shaped mint; body still rejected",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-000",
+      "name": "amount_below_min",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 99999999,
+            "asset": "ORU",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "amount_below_min"
+      },
+      "note": "CVG2/ORU output of MIN-1 sat; IsConvergenceTx may hold (nValue>0) but F excludes it",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-001",
+      "name": "amount_zero",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 0,
+            "asset": "ORU",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "amount_zero"
+      },
+      "note": "CVG2 output with nValue=0 is not counted (C++ nValue>0); not a convergence tx",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-002",
+      "name": "wrong_asset_res",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 100000000,
+            "asset": "RES",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "wrong_asset"
+      },
+      "note": "abstract: CVG2 container tagged RES; Convergence is ORU-domain",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-003",
+      "name": "script_res2_not_cvg2",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 100000000,
+            "asset": "ORU",
+            "script_hex": "51205245533200000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_cvg2_script"
+      },
+      "note": "Witness v1 / 32 / RES2 prefix is not CVG2 (abstract form)",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-004",
+      "name": "script_p2wpkh_not_cvg2",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 100000000,
+            "asset": "ORU",
+            "script_hex": "00140000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_cvg2_script"
+      },
+      "note": "Witness v0 P2WPKH-shaped script is not a Convergence output",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-005",
+      "name": "two_cvg2_outputs",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "cvg_tx",
+        "outs": [
+          {
+            "value": 100000000,
+            "asset": "ORU",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "value": 100000000,
+            "asset": "ORU",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "cvg_count"
+      },
+      "note": "IsConvergenceTx requires exactly one CVG2-positive output",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-006",
+      "name": "committed_c_bitflip",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "committed_c",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "claimed_hex": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35d"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "c_mismatch",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
+      },
+      "note": "neg: 1-bit-flipped claimed C \u2260 recomputed Convergence_Root (complement DCR-033)",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-007",
+      "name": "unsorted_concat",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "malformed_preimage",
+        "mode": "unsorted",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "bad_payload_hex": "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb941f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "unsorted",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "bad_digest": "c30e6e6515300f740ccf06a78629bcb172bb702c1c16babd0551bb2496849436"
+      },
+      "note": "neg: hashing presentation order without sort \u2260 C (CR-010 pins perm of sorted concat)",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-008",
+      "name": "truncated_concat",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "malformed_preimage",
+        "mode": "truncated",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "bad_payload_hex": "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "truncated",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "bad_digest": "055797c9f8405cb79862a2964082ff0baffcd6eefc2b1b25bd2149c8939d4318"
+      },
+      "note": "neg: dropping the last txid from the sorted concat changes the digest",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-009",
+      "name": "claimed_root_len_31",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "malformed_length",
+        "txids_hex": [],
+        "claimed_hex": "00000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "malformed_length",
+        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "note": "neg: claimed C of length 31; honest empty C is 32 zero bytes",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-010",
+      "name": "extra_byte_concat",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "malformed_preimage",
+        "mode": "extra_byte",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "bad_payload_hex": "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb900"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "extra_byte",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "bad_digest": "621ab8cbbb2c0893d6cf2a3125c0127de18416fdba01e4e936b8409aa68a0c6c"
+      },
+      "note": "neg: appending one byte to the sorted concat changes the digest",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-011",
+      "name": "duplicate_txid_not_nlt2",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "dup_txid",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "collapsed_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "dup_not_collapsed",
+        "convergence_root": "2df4cbef3437664b3e82633f9ba3576f8344e2c4c0f5e93ef912656cdb94cae4",
+        "collapsed_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57"
+      },
+      "note": "neg: C([a,a]) hashes both copies (N=2); not Hash256(a) = C([a]) (complement DCR-029)",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-012",
+      "name": "empty_claimed_dcr_as_c",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "nlt2_claim",
+        "mode": "empty_claimed_dcr",
+        "txids_hex": [],
+        "claimed_hex": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "empty_claimed_dcr",
+        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "note": "neg: committing DCR(empty)=SHA-256d([]) as C of N=0; honest C is zeros (complement DCR-030)",
+      "coq_enforce": true
+    },
+    {
+      "id": "ICVG-013",
+      "name": "singleton_claimed_zeros_as_c",
+      "module": "InvalidCvg",
+      "input": {
+        "kind": "nlt2_claim",
+        "mode": "singleton_claimed_zeros",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "claimed_hex": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "singleton_claimed_zeros",
+        "convergence_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57"
+      },
+      "note": "neg: committing 32 zeros as C of N=1; honest C is Hash256(txid) (complement DCR-031)",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-000",
+      "name": "v0_p2wpkh_claimed_res",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "00140000000000000000000000000000000000000000",
+        "claimed_asset": "RES"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_res_script",
+        "is_allowed": true,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: Witness v0 P2WPKH is not IsResScript (ORU domain). L3: C++ IsResScript.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-001",
+      "name": "v1_res2_claimed_oru",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "51205245533200000000000000000000000000000000000000000000000000000000",
+        "claimed_asset": "ORU"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_oru_script",
+        "is_allowed": true,
+        "is_res": true,
+        "asset": "RES"
+      },
+      "note": "L2: Witness v1 / 32 / RES2 is IsResScript (RES domain, not ORU). L3: C++ IsResScript.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-002",
+      "name": "v1_program_len_20",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "51140000000000000000000000000000000000000000",
+        "claimed_asset": "RES"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: v1 program length 20 is not IsAllowedScript. L3: bad-rigor-script-type.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-003",
+      "name": "p2pkh_nonstandard",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "76a914000000000000000000000000000000000000000088ac"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: P2PKH byte template is not a witness program. L3: bad-rigor-script-type.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-004",
+      "name": "p2sh_nonstandard",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "a914000000000000000000000000000000000000000087"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: P2SH byte template is not a witness program. L3: bad-rigor-script-type.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-005",
+      "name": "v0_p2wsh_claimed_res",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "00200000000000000000000000000000000000000000000000000000000000000000",
+        "claimed_asset": "RES"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_res_script",
+        "is_allowed": true,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: Witness v0 32-byte (P2WSH) is ORU, not RES. L3: AssetTypeFromScriptPubKey.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-006",
+      "name": "pcorb_five_items",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "pcorb_shape",
+        "stack_hex": [
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "0000000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "0000000000000000",
+          "00000000"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "pcorb_too_few"
+      },
+      "note": "L2: PCORB stack length 5 < 6. L3: ParseConvergeProof fails.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-007",
+      "name": "pcorb_amount_len_7",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "pcorb_shape",
+        "stack_hex": [
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "00000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "0000000000000000",
+          "00000000",
+          "0000000000000000000000000000000000000000000000000000000000000000"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "pcorb_field_size"
+      },
+      "note": "L2: PCORB item[1] (amount) is 7 bytes, not 8. L3: ParseConvergeProof field-size fail.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-008",
+      "name": "witness_v2_32",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "script_class",
+        "script_hex": "52200000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
+        "is_res": false,
+        "asset": "ORU"
+      },
+      "note": "L2: unknown witness version 2 is not IsAllowedScript. L3: bad-rigor-script-type.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-009",
+      "name": "spend_cvg2",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "spend_cvg2",
+        "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "spend_cvg2"
+      },
+      "note": "L2: spending a CVG2 scriptPubKey is rejected (abstract form). L3: bad-txns-spend-convergence.",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-010",
+      "name": "domain_v0_tagged_res_oru_to_res",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "domain_cross",
+        "script_hex": "00140000000000000000000000000000000000000000",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "not_res_script",
+        "is_allowed": true,
+        "is_res": false,
+        "asset": "ORU",
+        "W": 40000000,
+        "dual_pool_reject": "mint_wrong_amount"
+      },
+      "note": "CROSS dual-pool: v0-ORU script tagged RES + ORU-in creating RES-out. L2: not_res_script. L1 extra: dual_pool mint_wrong_amount (NEG-002 family).",
+      "coq_enforce": true
+    },
+    {
+      "id": "SMW-011",
+      "name": "mint_shape_ok_pcorb_five",
+      "module": "ScriptMintNeg",
+      "input": {
+        "kind": "mint_witness_cross",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 40000000,
+              "asset": "RES"
+            }
+          ]
+        },
+        "stack_hex": [
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "0000000000000000",
+          "0000000000000000000000000000000000000000000000000000000000000000",
+          "0000000000000000",
+          "00000000"
+        ]
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "pcorb_too_few",
+        "W": 40000000,
+        "mint_shape_would_pass": true
+      },
+      "note": "CROSS mint-shape: body is W(h) mint-shape (would pass dual-pool) but PCORB has 5 items. L2: pcorb_too_few. L1 extra: mint_shape_would_pass=true (NEG mint-shape complement).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-000",
+      "name": "p2pkh_plus_ordinary_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "script_dual_pool",
+        "script_hex": "76a914000000000000000000000000000000000000000088ac",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES",
+              "script_hex": "76a914000000000000000000000000000000000000000088ac"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script+dual-pool: created P2PKH (bad-rigor-script-type) and ordinary RES inflation. Both apply_tx conjuncts fail.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-001",
+      "name": "witness_v2_plus_oru_to_res",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "script_dual_pool",
+        "script_hex": "52200000000000000000000000000000000000000000000000000000000000000000",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 50,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1,
+              "asset": "RES",
+              "script_hex": "52200000000000000000000000000000000000000000000000000000000000000000"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "W": 40000000,
+        "dual_pool_reject": "mint_wrong_amount",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script+dual-pool: witness v2 created script + ORU-in creating RES-out (mint_wrong_amount). Shape and pooling both reject.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-002",
+      "name": "spend_cvg2_plus_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "spend_cvg2_dual_pool",
+        "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES",
+            "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "spend_cvg2",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script+dual-pool: spend-CVG2 (bad-txns-spend-convergence) plus ordinary RES inflation. Spend-shape and dual-pool both reject.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-003",
+      "name": "c_bitflip_plus_mint_W_plus_one",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "root_mint",
+        "height": 1,
+        "root": {
+          "kind": "committed_c",
+          "txids_hex": [
+            "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+            "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+          ],
+          "claimed_hex": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35d"
+        },
+        "mint": {
+          "kind": "mint_shape",
+          "height": 1,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 40000001,
+                "asset": "RES"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "c_mismatch+mint_wrong_amount",
+        "W": 40000000,
+        "root_reject": "c_mismatch",
+        "mint_reject": "mint_wrong_amount",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
+      },
+      "note": "CROSS root+mint: committed C bitflip (ICVG-006 family) and ORU-funded mint of W(h)+1 (NEG-004 family). Both halves reject.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-004",
+      "name": "claimed_c_len_31_plus_cap_overshoot",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "root_cap",
+        "height": 1,
+        "root": {
+          "kind": "malformed_length",
+          "txids_hex": [],
+          "claimed_hex": "00000000000000000000000000000000000000000000000000000000000000"
+        },
+        "mint": {
+          "kind": "connect_cap",
+          "height": 1,
+          "res_supply": 20999960000001,
+          "draw_won": true,
+          "mint_count": 1
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "malformed_length+cap_overshoot",
+        "W": 40000000,
+        "root_reject": "malformed_length",
+        "mint_reject": "cap_overshoot",
+        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "note": "CROSS root+cap: claimed C length 31 (ICVG-009) and one-atom hard-cap overshoot (NEG-010). Both halves reject.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-005",
+      "name": "unsorted_concat_plus_mint_at_cap",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "root_cap",
+        "height": 1,
+        "root": {
+          "kind": "malformed_preimage",
+          "mode": "unsorted",
+          "txids_hex": [
+            "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+            "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+          ],
+          "bad_payload_hex": "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb941f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        },
+        "mint": {
+          "kind": "connect_cap",
+          "height": 1,
+          "res_supply": 21000000000000,
+          "draw_won": true,
+          "mint_count": 1
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "unsorted+cap_overshoot",
+        "W": 40000000,
+        "root_reject": "unsorted",
+        "mint_reject": "cap_overshoot",
+        "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "bad_digest": "c30e6e6515300f740ccf06a78629bcb172bb702c1c16babd0551bb2496849436"
+      },
+      "note": "CROSS root+cap: unsorted concat digest \u2260 C (ICVG-007) and mint at the hard cap (NEG-011). Both halves reject.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-006",
+      "name": "window_all_paid_empty_dcr_no_winner",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "window_dcr_sel",
+        "mode": "empty_after_pay",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "already_paid_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "empty_after_pay",
+        "surviving_hex": [],
+        "dropped": 3,
+        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+        "eligible": [],
+        "winner_index": -1,
+        "full_convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_winner_index": 1,
+        "c_is_zero": true,
+        "dcr_neq_zero": true,
+        "dcr_neq_c": true
+      },
+      "note": "CROSS window+DCR+selection: A-9-C pays the whole F. Survivors empty, C is empty-set zeros, DCR is SHA-256d([]) \u2260 zeros, no winner.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-007",
+      "name": "window_drop_to_singleton_hashed",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "window_dcr_sel",
+        "mode": "singleton_hashes",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "fees": [
+          1,
+          1
+        ],
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "singleton_hashes",
+        "surviving_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+        ],
+        "dropped": 1,
+        "convergence_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "draw_candidate_root": "4d1bee2a2f79e1938c0aaa0a836d9878cb22e0c60832bc9bc20a74f72e2f8f57",
+        "eligible": [
+          true
+        ],
+        "winner_index": 0,
+        "full_convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "full_draw_candidate_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
+        "full_winner_index": 1,
+        "c_is_zero": false,
+        "dcr_neq_zero": true,
+        "dcr_neq_c": false
+      },
+      "note": "CROSS window+DCR+selection: pay one of two. Singleton remainder has C=DCR=Hash256(survivor) \u2260 zeros, and a survivor winner (contrast unpaid 2-set).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-008",
+      "name": "window_drop_winner_moves_dcr_and_sel",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "window_dcr_sel",
+        "mode": "drop_winner_moves",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "drop_winner_moves",
+        "surviving_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "dropped": 1,
+        "convergence_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 0,
+        "full_convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_winner_index": 1,
+        "c_is_zero": false,
+        "dcr_neq_zero": true,
+        "dcr_neq_c": false
+      },
+      "note": "CROSS window+DCR+selection: A-9-C drops the unpaid-set winner. Surviving list, DCR, and winner all move vs the unpaid 3-set (complements DCR-020 / DCR-032).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-009",
+      "name": "epoch_last_height_mint_next_W",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "schedule_mint",
+        "height": 209999,
+        "neighbour_height": 210000,
+        "mint": {
+          "kind": "mint_shape",
+          "height": 209999,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 14142196,
+                "asset": "RES"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "mint_wrong_amount",
+        "W": 40000000,
+        "mint_reject": "mint_wrong_amount",
+        "W_neighbour": 14142196
+      },
+      "note": "CROSS schedule+mint-shape: last height of epoch 0 mints W(k=1) instead of W(0). W jumps at the next height.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-010",
+      "name": "W_zero_mint_last_epoch_amount",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "schedule_mint",
+        "height": 52710000,
+        "neighbour_height": 52709999,
+        "mint": {
+          "kind": "mint_shape",
+          "height": 52710000,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 10058,
+                "asset": "RES"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "unauthorized_mint",
+        "W": 0,
+        "mint_reject": "unauthorized_mint",
+        "W_neighbour": 10058
+      },
+      "note": "CROSS schedule+mint-shape: first W(h)=0 height mints the last positive-epoch amount. Unauthorized, not winner-mismatch.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-011",
+      "name": "last_positive_W_mint_plus_one_and_cap",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "schedule_cap",
+        "height": 52709999,
+        "shape": {
+          "kind": "mint_shape",
+          "height": 52709999,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 10059,
+                "asset": "RES"
+              }
+            ]
+          }
+        },
+        "cap": {
+          "kind": "connect_cap",
+          "height": 52709999,
+          "res_supply": 20999999989943,
+          "draw_won": true,
+          "mint_count": 1
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "mint_wrong_amount+cap_overshoot",
+        "W": 10058,
+        "shape_reject": "mint_wrong_amount",
+        "cap_reject": "cap_overshoot"
+      },
+      "note": "CROSS schedule+mint+cap: last height with W(h)>0, mint of W(h)+1 and one-atom cap overshoot together.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-012",
+      "name": "p2sh_plus_ordinary_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "script_dual_pool",
+        "script_hex": "a914000000000000000000000000000000000000000087",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES",
+              "script_hex": "a914000000000000000000000000000000000000000087"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script-shape+dual-pool: created P2SH (in-model IsAllowedScript reject) plus ordinary RES inflation. Complements XFAM-000 P2PKH.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-013",
+      "name": "v1_len20_plus_ordinary_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "script_dual_pool",
+        "script_hex": "51140000000000000000000000000000000000000000",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES",
+              "script_hex": "51140000000000000000000000000000000000000000"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script-shape+dual-pool: created v1 program length 20 plus ordinary RES inflation. Complements SMW-002 (script-only).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-014",
+      "name": "opreturn_nonzero_plus_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "script_dual_pool",
+        "script_hex": "6a",
+        "claimed_asset": "RES",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES",
+              "script_hex": "6a"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "bad_rigor_script_type",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS script-shape+dual-pool: nonzero-value OP_RETURN (the other created-script branch besides IsAllowedScript) plus ordinary inflation.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-015",
+      "name": "pcorb_five_plus_ordinary_inflation",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "pcorb_dual_pool",
+        "height": 1,
+        "utxo": [
+          {
+            "id": 1,
+            "vout": 0,
+            "value": 100,
+            "asset": "RES"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 1,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 101,
+              "asset": "RES"
+            }
+          ],
+          "stack_hex": [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0000000000000000",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0000000000000000",
+            "00000000"
+          ]
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "pcorb_too_few",
+        "W": 40000000,
+        "dual_pool_reject": "ordinary_inflation",
+        "shape_reject": "script_shape"
+      },
+      "note": "CROSS PCORB-shape+dual-pool: empty created-script fixture (shape-ok on creates) but 5-item PCORB plus ordinary inflation. Complements SMW-011 (well-shaped mint + bad PCORB).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-016",
+      "name": "window_empty_plus_without_winner_mint",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "window_obligation",
+        "mode": "empty_after_pay",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "already_paid_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "draw_won": false,
+        "mint_count": 1
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "empty_after_pay+without_winner",
+        "surviving_hex": [],
+        "dropped": 3,
+        "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000",
+        "draw_candidate_root": "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+        "eligible": [],
+        "winner_index": -1,
+        "full_convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_winner_index": 1,
+        "c_is_zero": true,
+        "dcr_neq_zero": true,
+        "dcr_neq_c": true,
+        "obligation_reject": "without_winner",
+        "draw_won": false,
+        "mint_count": 1
+      },
+      "note": "CROSS window+obligation: A-9-C empties F (no winner, C=0) and a mint is still claimed (without_winner). Does not wire Selection into cm_draw_won (P1-2).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-017",
+      "name": "window_drop_winner_plus_h1_omit",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "window_obligation",
+        "mode": "drop_winner_moves",
+        "txids_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "fees": [
+          1,
+          1,
+          1
+        ],
+        "already_paid_hex": [
+          "41f758f2e5cc078d3795b4fc0cb60c2d735fa92cc020572bdc982dd2d564d11b"
+        ],
+        "height": 10,
+        "prev_block_hash_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+        "T_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "draw_won": true,
+        "mint_count": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "drop_winner_moves+winner_mismatch",
+        "surviving_hex": [
+          "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9",
+          "f9e00e3113f3bfd7653e049d899e5f3c917d020780128ff686e37ce215ab74fe"
+        ],
+        "dropped": 1,
+        "convergence_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "draw_candidate_root": "0bd6c2538d5accbb45fd59373656570af44695a435b723dc9c77dcfc7b904d60",
+        "eligible": [
+          true,
+          true
+        ],
+        "winner_index": 0,
+        "full_convergence_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_draw_candidate_root": "9faf6ddddd68d8763824a0519c7988f1f6e083f1536ba52c91a70e86903906de",
+        "full_winner_index": 1,
+        "c_is_zero": false,
+        "dcr_neq_zero": true,
+        "dcr_neq_c": false,
+        "obligation_reject": "winner_mismatch",
+        "draw_won": true,
+        "mint_count": 0
+      },
+      "note": "CROSS window+obligation: A-9-C drops the unpaid-set winner (survivor winner exists) and mint_count=0 (H-1). Complements XFAM-008 / NEG-009.",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-018",
+      "name": "epoch_last_mint_plus_one_and_cap",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "schedule_cap",
+        "height": 209999,
+        "shape": {
+          "kind": "mint_shape",
+          "height": 209999,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 40000001,
+                "asset": "RES"
+              }
+            ]
+          }
+        },
+        "cap": {
+          "kind": "connect_cap",
+          "height": 209999,
+          "res_supply": 20999960000001,
+          "draw_won": true,
+          "mint_count": 1
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "mint_wrong_amount+cap_overshoot",
+        "W": 40000000,
+        "shape_reject": "mint_wrong_amount",
+        "cap_reject": "cap_overshoot"
+      },
+      "note": "CROSS first-epoch-last+cap: last height of epoch 0, mint of W(0)+1 and one-atom cap overshoot. Complements XFAM-011 (last paying height).",
+      "coq_enforce": true
+    },
+    {
+      "id": "XFAM-019",
+      "name": "epoch_start_mint_plus_one_and_cap",
+      "module": "EdgeCross",
+      "input": {
+        "kind": "schedule_cap",
+        "height": 210000,
+        "shape": {
+          "kind": "mint_shape",
+          "height": 210000,
+          "utxo": [
+            {
+              "id": 2,
+              "vout": 0,
+              "value": 50,
+              "asset": "ORU"
+            }
+          ],
+          "tx": {
+            "id": 10,
+            "spends": [
+              {
+                "id": 2,
+                "vout": 0
+              }
+            ],
+            "creates": [
+              {
+                "value": 14142197,
+                "asset": "RES"
+              }
+            ]
+          }
+        },
+        "cap": {
+          "kind": "connect_cap",
+          "height": 210000,
+          "res_supply": 20999985857805,
+          "draw_won": true,
+          "mint_count": 1
+        }
+      },
+      "expected": {
+        "accepted": false,
+        "reject": "mint_wrong_amount+cap_overshoot",
+        "W": 14142196,
+        "shape_reject": "mint_wrong_amount",
+        "cap_reject": "cap_overshoot"
+      },
+      "note": "CROSS first-epoch-start+cap: first height of epoch 1, mint of W(1)+1 and one-atom cap overshoot. Complements NEG-007 (wrong-epoch amount only).",
+      "coq_enforce": true
     }
   ]
 }

@@ -35,10 +35,9 @@ def compute_convergence_root(txids: list) -> bytes:
     Compare: uint8_t per byte
     
     Boundary Conditions:
-    IF N < 2: C = 32 zero bytes. RFC-015 allows N=1 selection while preserving
-    this root boundary.
+    IF N == 0: C = 32 zero bytes. A singleton hashes Hash256(txid).
     """
-    if len(txids) < 2:
+    if len(txids) == 0:
         return b'\x00' * 32
     
     # Sort using unsigned byte-wise lexicographical order

@@ -20,7 +20,6 @@
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>
-#include <script/rigor_tags.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sign.h>
@@ -789,11 +788,9 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
         CheckIsNotStandard(t, "dust");
     }
 
-    // Rigor: witness v1 ORB2 (32-byte program); dust is in RES atomic units.
+    // Rigor: witness v1 native RES (32-byte program); dust is in RES atomic units.
     {
-        std::vector<unsigned char> wp(32, 0);
-        std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
-        t.vout[0].scriptPubKey = CScript() << OP_1 << wp;
+        t.vout[0].scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0xab);
     }
     {
         const CAmount thr = GetDustThreshold(t.vout[0], g_dust);
@@ -813,12 +810,10 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
 }
 
 namespace {
-/** Valid chain output: witness v1 + ORB2 + arbitrary tail (must not be CVG2). */
+/** Valid chain output: native witness v1 RES (32-byte program, not CVG2 / RES2). */
 static CScript MakeOrb2FixtureScriptPubKey(unsigned char tail_fill = 0xab)
 {
-    std::vector<unsigned char> wp(32, tail_fill);
-    std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
-    return CScript() << OP_1 << wp;
+    return CScript() << OP_1 << std::vector<unsigned char>(32, tail_fill);
 }
 } // namespace
 

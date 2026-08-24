@@ -23,13 +23,14 @@
 #include <wallet/scriptpubkeyman.h>
 #include <wallet/wallet_hd_v1.h>
 
+#include <array>
 #include <optional>
 
 namespace wallet {
 //! Value for the first BIP 32 hardened derivation. Can be used as a bit mask and as a value. See BIP 32 for more details.
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
-/** Rigor: witness v1 RES uses res(); only ResDescriptor reports BECH32M, and it is never ranged. */
+/** True for a non-ranged res() (single hex key). HD res() with a hardened range is ranged. */
 static bool IsSingleSlotNativeResDescriptor(const Descriptor& d)
 {
     const std::optional<OutputType> ot = d.GetOutputType();
@@ -120,6 +121,7 @@ IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& s
     case TxoutType::NONSTANDARD:
     case TxoutType::NULL_DATA:
     case TxoutType::WITNESS_UNKNOWN:
+    case TxoutType::CONVERGE:
         break;
     case TxoutType::PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
@@ -202,6 +204,10 @@ IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& s
         }
         break;
     }
+    case TxoutType::RES_MINT:
+        // HASH160(32-byte Ed25519 program) is not CPubKey::GetID(); descriptor wallets
+        // match mint scripts in FindCachedDescriptorIndex. Exact-script watch-only still applies.
+        break;
 
     case TxoutType::MULTISIG:
     {
@@ -2120,6 +2126,46 @@ std::optional<int32_t> DescriptorScriptPubKeyMan::FindCachedDescriptorIndex(cons
         return std::nullopt;
     }
 
+    int64_t mint_maturity = 0;
+    std::vector<unsigned char> mint_pkh;
+    if (ParseResMintScript(script, mint_maturity, mint_pkh) && mint_pkh.size() == 20) {
+        const uint160 want{mint_pkh};
+        for (const auto& pk_entry : m_map_pubkeys) {
+            const CPubKey& pk = pk_entry.first;
+            if (!pk.IsCompressed()) continue;
+            if (pk.size() != CPubKey::COMPRESSED_SIZE) continue;
+            const unsigned char header = pk[0];
+            if (header != 0x00 && header != 0xFF) continue;
+            if (Hash160(Span<const unsigned char>(pk.data() + 1, pk.size() - 1)) == want) {
+                return pk_entry.second;
+            }
+        }
+        // res() descriptors cache witness-v1 scripts whose program is SHA256(pk).
+        // OP_RES_MINT commits to HASH160(pk).
+        for (const auto& pk_entry : m_map_pubkeys) {
+            const CPubKey& pk = pk_entry.first;
+            const std::vector<unsigned char> payload = pk.GetEd25519Payload();
+            if (payload.size() != ed25519::PUBKEY_SIZE) continue;
+            if (Hash160(payload) == want) return pk_entry.second;
+        }
+        for (const auto& [spk, index] : m_map_script_pub_keys) {
+            std::vector<std::vector<unsigned char>> sols;
+            if (Solver(spk, sols) != TxoutType::WITNESS_V1_RES || sols.empty()) continue;
+            std::unique_ptr<FlatSigningProvider> keys = GetSigningProvider(index, true);
+            if (!keys) continue;
+            for (const auto& [prog_id, secret] : keys->res_v1_program_to_ed_secret) {
+                (void)prog_id;
+                if (secret.size() < ed25519::PUBKEY_SIZE + ed25519::SEED_SIZE) continue;
+                const Span<const unsigned char> pk32{secret.data() + ed25519::SEED_SIZE, ed25519::PUBKEY_SIZE};
+                if (Hash160(pk32) == want) return index;
+            }
+            for (const auto& [_, key] : keys->keys) {
+                if (Hash160(key.GetPubKey().GetEd25519Payload()) == want) return index;
+            }
+        }
+        return std::nullopt;
+    }
+
     std::vector<std::vector<unsigned char>> sols;
     if (Solver(script, sols) != TxoutType::WITNESS_V1_RES || sols.empty()) {
         return std::nullopt;
@@ -2138,12 +2184,11 @@ std::optional<int32_t> DescriptorScriptPubKeyMan::FindCachedDescriptorIndex(cons
         if (pk.size() != CPubKey::COMPRESSED_SIZE) continue;
         const unsigned char header = pk[0];
         if (header != 0x00 && header != 0xFF) continue;
-        std::vector<unsigned char> derived(pk.begin() + 1, pk.end());
-        if (std::memcmp(derived.data(), prog.data(), WITNESS_V1_RES_SIZE) == 0) {
-            return pk_entry.second;
-        }
-        if (std::memcmp(prog.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size()) == 0 &&
-            std::memcmp(prog.data() + 4, derived.data() + 4, 28) == 0) {
+        std::vector<unsigned char> derived = pk.GetEd25519Payload();
+        if (derived.size() != ed25519::PUBKEY_SIZE) continue;
+        uint256 hashed;
+        if (!ed25519::ResWitnessProgram(derived, Span<unsigned char>{hashed.begin(), 32})) continue;
+        if (std::memcmp(hashed.begin(), prog.data(), WITNESS_V1_RES_SIZE) == 0) {
             return pk_entry.second;
         }
     }
@@ -2442,34 +2487,22 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
 
     const std::string xpub_acc = EncodeExtPubKey(account_key.Neuter());
     const std::string origin = strprintf("[%s/%u'/%u'/0']", fp_hex.c_str(), purpose, coin_type);
-    const std::string internal_path = internal ? "/1" : "/0";
+    // C-1: Ed25519 has no public derivation. Receive/change indices MUST be hardened.
+    const std::string internal_path = internal ? "/1'" : "/0'";
 
     std::string desc_str;
     switch (addr_type) {
     case OutputType::LEGACY:
-        desc_str = "pkh(" + origin + xpub_acc + internal_path + "/*)";
+        desc_str = "pkh(" + origin + xpub_acc + internal_path + "/*')";
         break;
     case OutputType::P2SH_SEGWIT:
-        desc_str = "sh(wpkh(" + origin + xpub_acc + internal_path + "/*))";
+        desc_str = "sh(wpkh(" + origin + xpub_acc + internal_path + "/*'))";
         break;
     case OutputType::BECH32:
-        desc_str = "wpkh(" + origin + xpub_acc + internal_path + "/*)";
+        desc_str = "wpkh(" + origin + xpub_acc + internal_path + "/*')";
         break;
     case OutputType::BECH32M:
-        // Generate a random Ed25519 key pair for non-HD wallet
-        // res() accepts 64-byte secret key hex (32-byte seed + 32-byte pubkey)
-        {
-            std::array<unsigned char, ed25519::SEED_SIZE> seed{};
-            GetStrongRandBytes(seed);
-            std::array<unsigned char, ed25519::PUBKEY_SIZE> pubkey{};
-            std::array<unsigned char, ed25519::SECRETKEY_SIZE> secretkey{};
-            if (!ed25519::SeedToKeypair(seed, pubkey, secretkey)) {
-                throw std::runtime_error("Failed to generate Ed25519 key pair");
-            }
-            // Store the 64-byte secret key in the descriptor
-            std::string secret_hex = HexStr(Span<const unsigned char>{secretkey.data(), secretkey.size()});
-            desc_str = "res(" + secret_hex + ")";
-        }
+        desc_str = "res(" + origin + xpub_acc + internal_path + "/*')";
         break;
     case OutputType::UNKNOWN:
         assert(false);
@@ -2519,7 +2552,7 @@ bool DescriptorScriptPubKeyMan::CanGetAddresses(bool internal) const
     if (!m_wallet_descriptor.descriptor->IsSingleType()) {
         return false;
     }
-    // Rigor RES: res() is a deterministic single-slot witness program (not ranged HD).
+    // Rigor RES: non-ranged res(hex) is a dedicated single program; default wallets are ranged HD.
     if (IsSingleSlotNativeResDescriptor(*m_wallet_descriptor.descriptor)) {
         return m_wallet_descriptor.range_end > 0 &&
                m_max_cached_index >= 0 &&
@@ -2611,6 +2644,16 @@ std::unique_ptr<FlatSigningProvider> DescriptorScriptPubKeyMan::GetSigningProvid
             WalletLogPrintf("%s: GetKeys() returned empty while HavePrivateKeys()=true; index=%i\n", __func__, index);
         }
         m_wallet_descriptor.descriptor->ExpandPrivate(index, master_provider, *out_keys);
+        for (const auto& [_, key] : out_keys->keys) {
+            const std::vector<unsigned char> pk32 = key.GetPubKey().GetEd25519Payload();
+            if (pk32.size() != ed25519::PUBKEY_SIZE) continue;
+            uint256 prog_id;
+            if (!ed25519::ResWitnessProgram(pk32, Span<unsigned char>{prog_id.begin(), 32})) continue;
+            std::array<unsigned char, ed25519::PUBKEY_SIZE> pub{};
+            std::array<unsigned char, ed25519::SECRETKEY_SIZE> sk{};
+            if (!ed25519::SeedToKeypair(Span<const unsigned char>{key.begin(), ed25519::SEED_SIZE}, pub, sk)) continue;
+            out_keys->res_v1_program_to_ed_secret.emplace(prog_id, sk);
+        }
         if (out_keys->keys.empty()) {
             WalletLogPrintf("%s: no private keys in signing provider after ExpandPrivate; index=%i (pubkeys cached=%u)\n",
                             __func__, index, static_cast<unsigned>(out_keys->pubkeys.size()));

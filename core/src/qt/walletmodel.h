@@ -72,6 +72,8 @@ public:
         AssetNotSelected,
         MixedAssetTypes,
         AssetAddressMismatch,
+        InvalidConvergeAmount,
+        ConvergeRequiresOru,
     };
 
     enum EncryptionStatus
@@ -110,8 +112,8 @@ public:
     // Send coins to a list of recipients
     void sendCoins(WalletModelTransaction& transaction);
 
-    /** Build and broadcast a convergence transaction (ORU to consensus convergence output). */
-    SendCoinsReturn sendConvergenceOru(CAmount amount_origo);
+    /** Build and broadcast a convergence transaction (ORU to OP_CONVERGE). */
+    SendCoinsReturn sendConvergenceOru(CAmount amount_oru);
 
     //! Convergence draw / convergence-root summary for a block (uses this wallet's convergence txids for is_mine).
     bool tryGetConvergenceBlockResult(int height, interfaces::ConvergenceBlockResult& out) const;

@@ -123,18 +123,19 @@ def generate_convergence_root_vectors() -> List[GoldenVector]:
     """Generate golden vectors for ConvergenceRoot computation."""
     vectors = []
     
-    # Vector 1: Empty list (< 2 txids) -> all-zero
+    # Vector 1: Empty list -> all-zero
     vectors.append(ConvergenceRootGoldenVector(
         "ConvergenceRoot_empty",
         {'txids': []},
         {'convergence_root': bytes(32)}
     ))
     
-    # Vector 2: Single txid (< 2 txids) -> all-zero
+    # Vector 2: Single txid hashes (no n<2 zero shortcut)
+    txid0 = create_test_txid(0)
     vectors.append(ConvergenceRootGoldenVector(
         "ConvergenceRoot_single",
-        {'txids': [create_test_txid(0)]},
-        {'convergence_root': bytes(32)}
+        {'txids': [txid0]},
+        {'convergence_root': rigor_consensus_spec.sha256d(txid0)}
     ))
     
     # Vector 3: Two txids (minimum for hashing)

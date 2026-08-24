@@ -155,6 +155,22 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
 
             CTxOut out(0, CScript() << OP_RETURN << data);
             rawTx.vout.push_back(out);
+        } else if (name_ == "script") {
+            const UniValue& details = outputs[name_];
+            if (!details.isObject()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, script output must be an object with hex and amount");
+            }
+            const UniValue& hex_v = find_value(details, "hex");
+            if (hex_v.isNull()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, script output missing hex");
+            }
+            auto [nAmount, asset] = ParseAmountAndAsset(details, "script");
+            const std::vector<unsigned char> script_data = ParseHexV(hex_v.getValStr(), "script hex");
+            CScript scriptPubKey(script_data.begin(), script_data.end());
+            if (AssetTypeFromScriptPubKey(scriptPubKey) != asset) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "script hex asset does not match \"asset\"");
+            }
+            rawTx.vout.emplace_back(nAmount, scriptPubKey);
         } else {
             CTxDestination destination = DecodeDestination(name_);
             if (!IsValidDestination(destination)) {

@@ -7,7 +7,7 @@
 **Domain:** [https://www.rigorchain.com](https://www.rigorchain.com)  
 **Repository:** [https://github.com/rigorchain/rigorchain](https://github.com/rigorchain/rigorchain)  
 **Parent specs:** [web/public-site/](../public-site) (TASK-PUBLICATION-002)  
-**Content authority:** [RIGOR_UNIFIED_WHITEPAPER_v1.0.md](../../docs/WHITEPAPER.md)
+**Content authority:** [RIGOR_PROTOCOL_IDENTITY.md](../../docs/whitepaper/RIGOR_PROTOCOL_IDENTITY.md)
 
 | Field | Value |
 |-------|-------|
@@ -108,7 +108,7 @@ Build output: `web/rigorchain-site/dist/` → deployed to GitHub Pages or Pages-
 |-------|---------|
 | `/` | Landing — protocol summary, live status, layer map |
 | `/protocol` | ORU / RES / FORGE / UTXO / DurinHash PoW |
-| `/axioms` | Mathematical foundation (65536, 125, invariants) |
+| `/axioms` | Mathematical foundation (`E = 246` / `C = 1024`, 125, invariants) |
 | `/lab` | Scientific narrative + layer separation |
 | `/explorer` | Live blockchain state viewer |
 | `/network` | Node + peer + chain health visualization |

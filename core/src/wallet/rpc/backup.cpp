@@ -1301,6 +1301,8 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
     case TxoutType::NONSTANDARD:
     case TxoutType::WITNESS_UNKNOWN:
     case TxoutType::WITNESS_V1_RES:
+    case TxoutType::RES_MINT:
+    case TxoutType::CONVERGE:
         return "unrecognized script";
     } // no default case, so the compiler can warn about missing cases
     NONFATAL_UNREACHABLE();
@@ -1880,7 +1882,7 @@ static UniValue ProcessDescriptorImport(CWallet& wallet, const UniValue& data, c
             }
         }
 
-        // Active descriptors must be ranged, except Rigor res(): single fixed witness program (OutputType::BECH32M, non-ranged).
+        // Active descriptors must be ranged, except imported non-ranged res(hex).
         if (active && !parsed_desc->IsRange()) {
             const std::optional<OutputType> active_ot = parsed_desc->GetOutputType();
             if (!active_ot || *active_ot != OutputType::BECH32M) {

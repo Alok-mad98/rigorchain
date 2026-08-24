@@ -5,13 +5,30 @@
 **Protocol baseline:** commit `4437597197aa713396a123673cc36606346ad523`, tag `mainnet-freeze-rfc014-2026-05-25`  
 **Scope:** Closed testnet foundation only — no public deployment in this task.
 
+```
+equivalence_claimed = false
+explorer_state_authority = false
+indexer_consensus_authority = false
+```
+
+```
+Consensus defines reality.
+Explorer displays reality.
+Database stores derived representations.
+```
+
+The indexer is a transformation layer only. API output is a derived view
+(`API_Response = Derived_View(consensus_data)`). Identity:
+[`../whitepaper/RIGOR_PROTOCOL_IDENTITY.md`](../whitepaper/RIGOR_PROTOCOL_IDENTITY.md). Database reset:
+[`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATION_NOTES.md).
+
 ---
 
 ## 1. Purpose
 
 Provide a **protocol-correct**, **read-only** indexing and visibility layer for the RIGOR `test` chain during closed testnet operation. The stack MUST mirror node-reported state; it MUST NOT implement alternate consensus rules, probability models, or asset inference.
 
-**In scope:** ORU, RES, convergence, convergence lineage, replay-field display, witness-v1 RES mint interpretation.  
+**In scope:** ORU, RES, convergence (`OP_CONVERGE`), convergence lineage, replay-field display, witness-v1 RES spend interpretation.  
 **Out of scope:** Production UI polish, exchange APIs, analytics dashboards, account models, NFT/token layers.
 
 ---
@@ -92,7 +109,7 @@ Per closed topology: **NODE-C** hosts `rigord` + indexer + API. NODE-A holds spe
 
 ### 4.3 Decode path
 
-Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness display. Asset labels MUST follow the same rules as `AssetTypeFromScriptPubKey` (witness v0 → ORU; v1 CVG2 → ORU convergence; other v1 32-byte → RES).
+Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness display. Asset labels MUST follow the same rules as `AssetTypeFromScriptPubKey` (witness v0 → ORU; `OP_CONVERGE` → ORU burn / draw-entry; other v1 32-byte → RES). Historical RFC-014 Witness v1 `CVG2` is retired and must not be labeled as a live asset.
 
 ---
 
@@ -118,7 +135,7 @@ Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness 
 | `outputs` | Per-vout script, value, inferred asset | `(txid, vout)` |
 | `convergence_results` | Full `getconvergenceresult` JSON per block | `block_hash` |
 | `convergence_candidates` | Normalized candidate rows | `(block_hash, txid)` |
-| `convergence_events` | ORU convergence txs (CVG2) | `(block_hash, convergence_txid)` |
+| `convergence_events` | ORU convergence txs (`OP_CONVERGE` burn / draw-entry) | `(block_hash, convergence_txid)` |
 | `res_mints` | Links winner convergence → RES mint tx | `(mint_txid, mint_vout_index)` |
 | `chain_meta` | Importer tip, last good height | singleton |
 
@@ -134,6 +151,19 @@ See `CLOSED_TESTNET_EXPLORER_DEPLOYMENT.md` for sizing.
 ### 6.3 Immutability
 
 Blocks at height `h` are immutable **until reorg**. On reorg, delete rows with `height > fork_point` (see `EXPLORER_REORG_STRATEGY.md`) — never UPDATE in place without audit log.
+
+### 6.4 Pre-mainnet database reset
+
+Development databases created before script alignment may contain retired
+classifications. Public network launch will rebuild the explorer view and
+indexed observations from genesis using current consensus classification
+rules.
+
+No production CVG2 migration is required. Historical CVG2 conversion is not
+a consensus concern. `OP_CONVERGE` is the only live Convergence
+classification. Fresh indexing starts from genesis for public launch.
+
+Policy: [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATION_NOTES.md).
 
 ---
 
@@ -171,6 +201,7 @@ Full procedure: `EXPLORER_REORG_STRATEGY.md`.
 | `RIGOR_CHAIN_DATA_MODEL.md` | Canonical entities |
 | `EXPLORER_RPC_COMPATIBILITY_MATRIX.md` | RPC tiers |
 | `RES_INDEXING_RULES.md` | RES/ORU/convergence indexing |
+| [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATION_NOTES.md) | Development-observation discard; genesis reindex |
 | `WITNESS_V1_DISPLAY_RULES.md` | PCORB display |
 | `EXPLORER_SECURITY_BOUNDARIES.md` | Forbidden behaviors |
 | `EXPLORER_GO_NO_GO.md` | Launch gates |

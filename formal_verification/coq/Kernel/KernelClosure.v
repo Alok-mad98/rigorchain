@@ -15,16 +15,17 @@
 Require Import Coq.ZArith.ZArith.
 Require Import Coq.Lists.List.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import ConvergeRoot.
 Require Import Sigma.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 Require Import Execution.
 From Rigor Require Import Kernel.KernelSelection.
 From Rigor Require Import Kernel.KernelRoot.
 From Rigor Require Import Kernel.KernelEligibility.
+From Rigor Require Import DrawCandidateRoot.
 
 Theorem kernel_draw_sound :
   forall b B w,
@@ -39,6 +40,35 @@ Proof.
   - apply execute_winner_eligible with (B := B). exact H.
   - apply converge_root_length.
 Qed.
+
+Theorem kernel_winner_in_draw_eligible :
+  forall b B w,
+    Execute b 0%Z B = Some w ->
+    In w (eligible_candidates (build_F (txs b))
+            (ConvergeRoot (build_F (txs b))) B (height b)).
+Proof. apply execute_winner_in_draw_eligible. Qed.
+
+Theorem kernel_draw_candidate_root_length :
+  forall F C B h, length (draw_candidate_root F C B h) = 32%nat.
+Proof. apply draw_candidate_root_of_F_length. Qed.
+
+(** Full kernel chain: Execute winner ∈ hashed eligible set, DCR hashes that
+    set, and σ of the winner uses [ConvergeRoot F] (not DCR). Does not amend
+    [kernel_draw_sound]. Does not claim coinbase / Merkle / header bind
+    ([DrawCandidateRoot] §9). *)
+Theorem kernel_draw_e2e_aligned :
+  forall b B w,
+    Execute b 0%Z B = Some w ->
+    In w (eligible_candidates (build_F (txs b))
+            (ConvergeRoot (build_F (txs b))) B (height b)) /\
+    draw_candidate_root (build_F (txs b))
+      (ConvergeRoot (build_F (txs b))) B (height b)
+      = DrawCandidateRoot
+          (eligible_candidates (build_F (txs b))
+             (ConvergeRoot (build_F (txs b))) B (height b)) /\
+    Z.lt (Sigma w (ConvergeRoot (build_F (txs b))) B (height b))
+         (RES_PROBABILITY_TARGET * weight w).
+Proof. apply execute_e2e_aligned. Qed.
 
 (** Determinism of the kernel: [Execute] is a function, hence at most one winner. *)
 Theorem kernel_draw_deterministic :

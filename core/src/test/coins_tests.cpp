@@ -1097,9 +1097,9 @@ BOOST_AUTO_TEST_CASE(coin_nflags_serialization_roundtrip)
     }
 }
 
-BOOST_AUTO_TEST_CASE(txundo_formatter_drops_nflags_and_multi_prevout_roundtrip)
+BOOST_AUTO_TEST_CASE(txundo_formatter_dummy_byte_roundtrip)
 {
-    // Block undo must not carry Coin::nFlags (UTXO extension); formatter clears it.
+    // Dummy version byte is always 0; nFlags is not restored from undo.
     Coin coin;
     coin.out.nValue = 10 * COIN;
     coin.out.scriptPubKey << OP_2;
@@ -1117,7 +1117,6 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_drops_nflags_and_multi_prevout_roundtrip)
     BOOST_CHECK_EQUAL(out.nHeight, coin.nHeight);
     BOOST_CHECK_EQUAL(out.fCoinBase, coin.fCoinBase);
 
-    // Two prevouts back-to-back (regression: bogus nFlags tail used to consume 4 bytes per entry).
     CTxUndo undo;
     undo.vprevout.push_back(coin);
     Coin coin2;
@@ -1125,7 +1124,6 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_drops_nflags_and_multi_prevout_roundtrip)
     coin2.out.scriptPubKey << OP_3;
     coin2.nHeight = 51;
     coin2.fCoinBase = false;
-    coin2.nFlags = 0;
     undo.vprevout.push_back(coin2);
 
     CDataStream ss2(SER_DISK, PROTOCOL_VERSION);

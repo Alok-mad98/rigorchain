@@ -13,7 +13,6 @@
 
 class ClientModel;
 class ConvergencePage;
-class DiagnosticsPage;
 class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
@@ -63,7 +62,6 @@ private:
 
     OverviewPage *overviewPage{nullptr};
     ConvergencePage *convergencePage{nullptr};
-    DiagnosticsPage *diagnosticsPage{nullptr};
     QWidget *transactionsPage{nullptr};
     ReceiveCoinsDialog *receiveCoinsPage{nullptr};
     SendCoinsDialog *sendCoinsPage{nullptr};
@@ -80,7 +78,7 @@ private:
     void buildDeferredPages();
     void ensureHistoryPage();
     void ensureReceiveSendPages();
-    void ensureConvergenceDiagnosticsPages();
+    void ensureConvergencePage();
     void ensureAllPages();
     void applyClientModelToPages();
 
@@ -91,8 +89,6 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to convergence page */
     void gotoConvergencePage();
-    /** Switch to diagnostics page */
-    void gotoDiagnosticsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

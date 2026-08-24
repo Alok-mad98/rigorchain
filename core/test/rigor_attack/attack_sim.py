@@ -30,7 +30,7 @@ from rigor_model import (  # noqa: E402
 COIN = 100_000_000
 FORGE_DRAW_MIN_TXS = 2
 FORGE_BETA = 1.4
-MAX_RES_MINT_SIM_SUPPLY = 21000000 * 100  # Mirrors Consensus::RES max supply constant (simulation only)
+MAX_RES_MINT_SIM_SUPPLY = 21_000_000 * 1_000_000  # Mirrors Consensus::RES_MAX_SUPPLY (simulation only)
 
 
 def u256_le(b: bytes) -> int:

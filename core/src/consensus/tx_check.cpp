@@ -8,7 +8,11 @@
 #include <consensus/res_amount.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
+#include <script/interpreter.h>
+#include <script/rigor_tags.h>
 #include <script/standard.h>
+
+#include <algorithm>
 
 namespace Consensus {
 
@@ -19,17 +23,34 @@ namespace Consensus {
  */
 bool IsAllowedScript(const CScript& scriptPubKey)
 {
+    if (IsResMintScript(scriptPubKey))
+        return true;
+    if (IsConvergeScript(scriptPubKey))
+        return true;
+
     int version;
     std::vector<unsigned char> program;
 
     if (!scriptPubKey.IsWitnessProgram(version, program))
         return false;
 
-    if (version == 0)
-        return true;
+    if (version == 0) {
+        return program.size() == WITNESS_V0_KEYHASH_SIZE ||
+               program.size() == WITNESS_V0_SCRIPTHASH_SIZE;
+    }
 
-    if (version == 1 && program.size() == 32)
+    // Witness v1 / 32-byte is native RES only. Retired CVG2 and the 28-byte-binding
+    // RES2 prefix are not legal programs (RIG-13: native v1 binds the full 32-byte pubkey).
+    if (version == 1 && program.size() == 32) {
+        if (program.size() >= RigorTags::CVG2.size() &&
+            std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), program.begin())) {
+            return false;
+        }
+        if (IsRes2AssetProgram(program)) {
+            return false;
+        }
         return true;
+    }
 
     return false;
 }
@@ -40,7 +61,8 @@ bool CheckTxOutAssetWitnessBinding(const CTxOut& out, TxValidationState& state)
     const TxoutType t = ClassifyRigorTxout(out.scriptPubKey, sols);
     // Only witness v0, witness v1 (RES), or OP_RETURN are valid chain outputs on RigorChain.
     if (t != TxoutType::WITNESS_V0_KEYHASH && t != TxoutType::WITNESS_V0_SCRIPTHASH &&
-        t != TxoutType::WITNESS_V1_RES && t != TxoutType::NULL_DATA) {
+        t != TxoutType::WITNESS_V1_RES && t != TxoutType::RES_MINT && t != TxoutType::CONVERGE &&
+        t != TxoutType::NULL_DATA) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-script-nonstandard");
     }
     return true;
@@ -59,9 +81,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-oversize");
 
     // Output vs input asset matching is enforced in Consensus::CheckTxInputs (inputs define domain).
-    // Coinbase RES is rejected in ConnectBlock (`bad-cb-res-amount`) except the mockable-chain
-    // -reswalletbootstrap backdoor. This function has no chainparams, so it cannot make that
-    // distinction.
+    // Coinbase RES is rejected in ConnectBlock (`bad-cb-res-amount`) except mockable-chain
+    // Consensus::Params::res_wallet_bootstrap_coinbase (set at chain construction). This
+    // function has no chainparams, so it cannot make that distinction.
 
     // Check for negative or overflow output values per asset (see CVE-2010-5139)
     CAmount oru_out_total = 0;
@@ -86,6 +108,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         if (!Consensus::CheckTxOutAssetWitnessBinding(txout, state)) {
             return false;
         }
+        if (!tx.IsCoinBase() && IsResMintScript(txout.scriptPubKey)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-mint-noncoinbase");
+        }
         if (txout.nValue < 0)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-negative");
         if (txout.nValue > MAX_MONEY)
@@ -105,7 +130,7 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
             if (!IsValidResConsensusAmount(txout.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-amount-invalid");
             }
-            // RES outputs must meet RES_DUST_THRESHOLD (0.01) and atomic granularity (res_amount.h).
+            // RES outputs must meet RES_ATOMIC_UNIT (1) granularity (res_amount.h).
             if (!IsValidResOutputValue(txout.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-output-nonpositive");
             }

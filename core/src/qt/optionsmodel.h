@@ -76,7 +76,6 @@ public:
         EnablePSBTControls,     // bool
         MaskValues,             // bool
         DefaultSendAsset,       // int — AssetType (ORU/RES); GUI default for Send and global context
-        AutoSettleConvergenceMining, // bool — arm CreateNewBlock Convergence mint (default on)
         OptionIDRowCount,
     };
 
@@ -100,7 +99,6 @@ public:
     QString getThirdPartyTxUrls() const { return strThirdPartyTxUrls; }
     bool getUseEmbeddedMonospacedFont() const { return m_use_embedded_monospaced_font; }
     bool getCoinControlFeatures() const { return fCoinControlFeatures; }
-    bool getAutoSettleConvergenceMining() const { return m_auto_settle_convergence_mining; }
     bool getSubFeeFromAmount() const { return m_sub_fee_from_amount; }
     bool getEnablePSBTControls() const { return m_enable_psbt_controls; }
     /** Default transfer asset for Send tab (not display unit; not fee domain). */
@@ -131,7 +129,6 @@ private:
     QString strThirdPartyTxUrls;
     bool m_use_embedded_monospaced_font;
     bool fCoinControlFeatures;
-    bool m_auto_settle_convergence_mining{true};
     bool m_sub_fee_from_amount;
     bool m_enable_psbt_controls;
     bool m_mask_values;
@@ -149,7 +146,6 @@ private:
 Q_SIGNALS:
     void displayUnitChanged(BitcoinUnit unit);
     void coinControlFeaturesChanged(bool);
-    void autoSettleConvergenceMiningChanged(bool);
     void showTrayIconChanged(bool);
     void useEmbeddedMonospacedFontChanged(bool);
     void defaultSendAssetChanged(AssetType asset);

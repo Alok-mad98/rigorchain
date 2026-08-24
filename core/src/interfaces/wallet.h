@@ -151,12 +151,15 @@ public:
         int& change_pos,
         CAmount& fee) = 0;
 
-    //! Create a convergence transaction (ORU to consensus convergence output). Uses CreateConvergenceTransaction fee rules.
-    virtual util::Result<CTransactionRef> createConvergenceTransaction(CAmount amount_origo,
+    //! Create a convergence transaction (ORU to consensus OP_CONVERGE output).
+    virtual util::Result<CTransactionRef> createConvergenceTransaction(CAmount amount_oru,
         const wallet::CCoinControl& coin_control,
         bool sign,
         int& change_pos,
         CAmount& fee) = 0;
+
+    //! OP_CONVERGE burn recipient (HASH160 of a fresh RES program). ORU only.
+    virtual util::Result<wallet::CRecipient> makeConvergenceRecipient(CAmount amount_oru) = 0;
 
     //! Commit transaction.
     virtual void commitTransaction(CTransactionRef tx,
@@ -228,7 +231,7 @@ public:
     //! Get balances if possible without blocking.
     virtual bool tryGetBalances(WalletBalances& balances, uint256& block_hash) = 0;
 
-    //! Most recent convergence_v2 transaction display (competition + maturity progress).
+    //! Most recent convergence transaction display (competition + maturity progress).
     virtual bool tryGetConvergenceUiSnapshot(ConvergenceUiSnapshot& out) = 0;
 
     //! Convergence draw / ConvergenceRoot summary for a block on the active chain (wallet txids used for is_mine).
@@ -278,7 +281,10 @@ public:
     //! RIGOR UX: ORU (BECH32) ranged HD key generation available.
     virtual bool oruHdEnabled() = 0;
 
-    //! RIGOR UX: RES (BECH32M) uses dedicated non-ranged single-slot keys.
+    //! RIGOR UX: RES (BECH32M) ranged HD (hardened-only) key generation available.
+    virtual bool resHdEnabled() = 0;
+
+    //! RIGOR UX: RES (BECH32M) uses dedicated non-ranged keys (imported res(hex), not default HD).
     virtual bool resDedicatedKeyMode() = 0;
 
     // Return whether the wallet is blank.
@@ -427,7 +433,7 @@ struct WalletBalances
     }
 };
 
-/** Latest convergence transaction (convergence_v2) for UI — see CONVERGENCE_STATE_MACHINE_V2 in wallet/convergencestate.h */
+/** Latest convergence transaction for UI — see wallet/convergencestate.h */
 struct ConvergenceUiSnapshot
 {
     bool has_convergence{false};
@@ -445,6 +451,8 @@ struct WalletTx
     std::vector<wallet::isminetype> txout_is_mine;
     std::vector<CTxDestination> txout_address;
     std::vector<wallet::isminetype> txout_address_is_mine;
+    /** Per-output change heuristic (address-book). Not mixed across ORU/RES. */
+    std::vector<unsigned char> txout_is_change;
     /** Per-domain credits (never ORU+RES in one field). */
     CAmount credit_oru{0};
     CAmount credit_res{0};

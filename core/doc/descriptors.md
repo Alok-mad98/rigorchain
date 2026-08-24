@@ -27,6 +27,11 @@ Supporting RPCs are:
 This document describes the language. For the specifics on usage, see the RPC
 documentation for the functions mentioned above.
 
+**Rigor / Ed25519:** BIP32 in descriptors is **hardened-only** (SLIP-0010).
+Unhardened `/*` and any unhardened path step are rejected. Watch-only wallets
+cannot expand a ranged xpub; import a concrete `addr()`, `wpkh(<32-byte hex>)`,
+or `res(<32-byte hex>)` instead. Default wallet paths are `/0'/*'` and `/1'/*'`.
+
 ## Features
 
 Output descriptors currently support:

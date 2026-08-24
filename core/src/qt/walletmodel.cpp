@@ -29,6 +29,7 @@
 #include <outputtype.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <wallet/asset_domain.h>
 #include <wallet/coincontrol.h>
 #include <wallet/convergencestate.h>
@@ -186,24 +187,28 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> vecSend;
 
-    if(recipients.empty())
-    {
-        return OK;
+    if (recipients.empty() && transaction.getConvergeAmount() <= 0) {
+        return InvalidAddress;
     }
 
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 
-    for (const SendCoinsRecipient &rcp : recipients) {
-        if (!rcp.asset.has_value()) {
-            return SendCoinsReturn(AssetNotSelected);
+    AssetType tx_asset = ASSET_ORU;
+    if (!recipients.empty()) {
+        for (const SendCoinsRecipient &rcp : recipients) {
+            if (!rcp.asset.has_value()) {
+                return SendCoinsReturn(AssetNotSelected);
+            }
         }
-    }
-    const AssetType tx_asset = *recipients[0].asset;
-    for (const SendCoinsRecipient &rcp : recipients) {
-        if (rcp.asset != tx_asset) {
-            return SendCoinsReturn(MixedAssetTypes);
+        tx_asset = *recipients[0].asset;
+        for (const SendCoinsRecipient &rcp : recipients) {
+            if (rcp.asset != tx_asset) {
+                return SendCoinsReturn(MixedAssetTypes);
+            }
         }
+    } else if (transaction.getConvergeAmount() > 0) {
+        tx_asset = ASSET_ORU;
     }
 
     CCoinControl funded_control = coinControl;
@@ -240,6 +245,22 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
             total += rcp.amount;
         }
+    }
+    if (transaction.getConvergeAmount() > 0) {
+        if (tx_asset != ASSET_ORU) {
+            return SendCoinsReturn(ConvergeRequiresOru);
+        }
+        if (transaction.getConvergeAmount() < Consensus::MIN_CONVERGENCE_AMOUNT) {
+            return SendCoinsReturn(InvalidConvergeAmount);
+        }
+        const auto conv = m_wallet->makeConvergenceRecipient(transaction.getConvergeAmount());
+        if (!conv) {
+            Q_EMIT message(tr("Send Coins"), QString::fromStdString(util::ErrorString(conv).translated),
+                CClientUIInterface::MSG_ERROR);
+            return TransactionCreationFailed;
+        }
+        vecSend.push_back(*conv);
+        total += transaction.getConvergeAmount();
     }
     if(setAddress.size() != nAddresses)
     {
@@ -316,7 +337,13 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction)
         }
 
         auto& newTx = transaction.getWtx();
-        wallet().commitTransaction(newTx, /*value_map=*/{}, std::move(vOrderForm));
+        interfaces::WalletValueMap value_map;
+        if (transaction.getConvergeAmount() > 0) {
+            wallet::ConvergenceRecord rec;
+            rec.state = wallet::ConvergenceState::BROADCASTED;
+            wallet::ApplyConvergenceRecordToMapValue(rec, value_map);
+        }
+        wallet().commitTransaction(newTx, std::move(value_map), std::move(vOrderForm));
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx;
@@ -351,9 +378,9 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction)
     checkBalanceChanged(m_wallet->getBalances()); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
 }
 
-WalletModel::SendCoinsReturn WalletModel::sendConvergenceOru(CAmount amount_origo)
+WalletModel::SendCoinsReturn WalletModel::sendConvergenceOru(CAmount amount_oru)
 {
-    if (amount_origo <= 0) {
+    if (amount_oru <= 0) {
         return SendCoinsReturn(InvalidAmount);
     }
     CCoinControl cc;
@@ -362,7 +389,7 @@ WalletModel::SendCoinsReturn WalletModel::sendConvergenceOru(CAmount amount_orig
     int change_pos = -1;
     CAmount fee_ret = 0;
     try {
-        const auto res = m_wallet->createConvergenceTransaction(amount_origo, cc, !m_wallet->privateKeysDisabled(), change_pos, fee_ret);
+        const auto res = m_wallet->createConvergenceTransaction(amount_oru, cc, !m_wallet->privateKeysDisabled(), change_pos, fee_ret);
         if (!res) {
             Q_EMIT message(tr("Convergence"), QString::fromStdString(util::ErrorString(res).translated),
                 CClientUIInterface::MSG_ERROR);

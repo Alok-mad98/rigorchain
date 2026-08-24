@@ -3,8 +3,9 @@ export function VerificationNotice() {
   return (
     <aside className="verification-notice" role="note">
       <p>
-        <strong>Live formal verification (PROOF-034) is in progress.</strong> Final equivalence is{" "}
-        <em>not</em> established. No consensus or production finality is claimed.
+        <strong>Coq model strongly verified.</strong> Correspondence uses golden-vector and
+        differential verification (324 shared vectors, hash and σ/root CLIs).{" "}
+        <em>equivalence_claimed = false</em>. Not a refinement proof.
       </p>
     </aside>
   );

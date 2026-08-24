@@ -22,6 +22,8 @@
 #include <consensus/amount.h>
 #include <consensus/res_amount.h>
 #include <consensus/res_proof.h>
+#include <consensus/tx_check.h>
+#include <consensus/validation.h>
 #include <crypto/common.h>
 #include <crypto/ed25519_provider.h>
 #include <key.h>
@@ -145,16 +147,47 @@ BOOST_AUTO_TEST_CASE(relay_accepts_key_path_two_item_witness)
     CCoinsViewCache coins(&base);
     coins.AddCoin(COutPoint(txCredit.GetHash(), 0), Coin(txCredit.vout[0], 1, false), false);
 
-    std::vector<unsigned char> program;
-    BOOST_REQUIRE(Consensus::DeriveResWitnessProgramFromPubKey(spend_sk.GetPubKey(), program));
-
     CMutableTransaction spend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
     CScriptWitness wit;
     wit.stack.emplace_back(ed25519::SIGNATURE_SIZE + 1, 0x42); // detached sig + hashtype
-    wit.stack.push_back(program);
+    wit.stack.push_back(spend_sk.GetPubKey().GetEd25519Payload());
     spend.vin[0].scriptWitness = std::move(wit);
 
     BOOST_CHECK(IsWitnessStandard(CTransaction(spend), coins));
+}
+
+BOOST_AUTO_TEST_CASE(v1_program_is_sha256_of_pubkey)
+{
+    CKey spend_sk;
+    CScript prev_spk;
+    MakeNativeResPrevout(spend_sk, prev_spk);
+    const std::vector<unsigned char> pk32 = spend_sk.GetPubKey().GetEd25519Payload();
+    std::vector<unsigned char> program;
+    BOOST_REQUIRE(Consensus::DeriveResWitnessProgramFromPubKey(spend_sk.GetPubKey(), program));
+    BOOST_CHECK(program != pk32);
+    uint256 hashed;
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(pk32, Span<unsigned char>{hashed.begin(), 32}));
+    BOOST_CHECK(std::equal(program.begin(), program.end(), hashed.begin()));
+
+    int wver = 0;
+    std::vector<unsigned char> wprog;
+    BOOST_REQUIRE(prev_spk.IsWitnessProgram(wver, wprog));
+    BOOST_CHECK_EQUAL(wver, 1);
+    BOOST_CHECK(wprog == program);
+}
+
+BOOST_AUTO_TEST_CASE(non_coinbase_res_mint_rejected)
+{
+    CMutableTransaction mtx;
+    mtx.vin.resize(1);
+    mtx.vin[0].prevout.hash = uint256S("0x01");
+    mtx.vin[0].prevout.n = 0;
+    mtx.vout.resize(1);
+    mtx.vout[0].nValue = RES_COIN;
+    mtx.vout[0].scriptPubKey = GetResMintScript(/*maturity_height=*/0, uint160());
+    TxValidationState state;
+    BOOST_CHECK(!CheckTransaction(CTransaction(mtx), state));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-res-mint-noncoinbase");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

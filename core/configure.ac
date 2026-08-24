@@ -1620,6 +1620,8 @@ fi
 
 dnl libsodium check (required for Ed25519 support)
 PKG_CHECK_MODULES([SODIUM], [libsodium >= 1.0.18], [], [AC_MSG_ERROR([libsodium version 1.0.18 or greater not found.])])
+dnl H-1: the Ed25519 verifier is a consensus rule. Nodes MUST run libsodium >= 1.0.18
+dnl (library version 10.3). ECC_Start() refuses to start on a too-old or non-ed25519 runtime.
 
 dnl QR Code encoding library check
 

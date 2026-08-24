@@ -174,14 +174,16 @@ schedule; or Converge destruction in a valid block is not reflected in supply up
 **Definition:** The cumulative RES supply `S_RES(h) ∈ ℤ≥0` with `S_RES(0) = 0`,
 and per-block mint indicator `M(h) ∈ {0, 1}`.
 
-Recurrence (normative, RFC-015):
+Recurrence (normative, RFC-017):
 
 ```
-S_RES(h+1) = S_RES(h) + mint_amount · M(h+1)
+S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
 ```
 
-where `mint_amount` is the frozen per-mint quantity (100 RES) and at most one
-successful mint occurs per block.
+where `GetResMintReward(h)` is the RFC-017 schedule `W(k)`
+(`RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs)
+and at most one successful mint occurs per block. Historical RFC-015 used a
+constant 100 RES mint.
 
 **Why consensus depends on it:** RES minting is bounded by constitutional cap
 (21,000,000 RES). Excess mint or mint outside the draw path MUST be rejected.
@@ -235,9 +237,9 @@ external configuration. Includes at minimum:
 
 | Parameter | Normative value / rule |
 |-----------|------------------------|
-| `RES_PROBABILITY_TARGET` | `2^240` |
+| `RES_PROBABILITY_TARGET` | RFC-017: `E = 246` (windowed `T`); Historical RFC-014 parameter: `2^240` |
 | Block offset `k` | `10` |
-| RES mint amount | 100 RES per successful draw |
+| RES mint amount | RFC-017 `W(k)` / `GetResMintReward(h)`; `RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000; cutoff 250. Historical RFC-015: 100 RES. |
 | `MAX_RES` | 21,000,000 RES |
 | Draw gate | `\|F\| ≥ 1` |
 | Bootstrap bind hash | All-zero 32 bytes when `h < k` |
@@ -292,11 +294,11 @@ MUST be derivable from consensus state and MUST NOT alter validation outcomes.
 | Runtime artifact | Description | Affects consensus? |
 |------------------|-------------|-------------------|
 | **Validation caches** | Memoized results of prior validation passes | **NO** |
-| **Supply ledger caches** | Cached cumulative ORU/RES counters mirrored from connect path | **NO** |
+| **Supply ledger caches** | Cached cumulative ORU/RES counters mirrored from connect path. ObservationalMetrics (W1); not spendable UTXO. Cap authority is RFC-017 `ResScheduleSum()`. | **NO** |
 | **Runtime supply mirror** | Post-connect observational copy of supply fields (FVR-B) | **NO** |
 | **Coq field hook map** | Name mapping from runtime export fields to formal model fields (FVR-C) | **NO** |
 | **Invariant checker state** | Last-run result of formal invariant verification on mirror (FVR-A, FVR-E) | **NO** |
-| **Witness chain store** | In-memory sequence of per-height supply witnesses (FVR-F) | **NO** |
+| **Witness chain store** | In-memory per-**block-hash** supply witnesses (FVR-F). Not height-keyed (W7 fence) | **NO** |
 | **Coq catalog rows** | Historical witness rows formatted for formal catalog consumption (FVR-G) | **NO** |
 | **CHAS alignment vectors** | Canonical-hash alignment export derived from catalog (FVR-H) | **NO** |
 | **Equivalence candidate records** | Comparable-field status without equivalence claim (FVR-I) | **NO** |
@@ -308,9 +310,10 @@ MUST be derivable from consensus state and MUST NOT alter validation outcomes.
 | **Mempool** | Unconfirmed transaction pool | **NO** |
 | **Peer tables** | Network peer connectivity | **NO** |
 
-**Invariant:** No runtime artifact listed above MAY be read by block validation
-predicates. Debug assertions on mirror inconsistency MUST NOT change mainnet
-consensus acceptance.
+**Invariant:** Observational FVR mirrors, witness hashes, and Coq catalog rows MUST NOT
+be read by block validation predicates. Debug assertions on mirror inconsistency MUST
+NOT change mainnet consensus acceptance. W1 ledger caches are ObservationalMetrics
+only (post-validation index/explorer). They MUST NOT be ConnectBlock predicates.
 
 ---
 
@@ -324,7 +327,7 @@ It is a **read-only projection** of consensus or runtime mirrors.
 | Observational artifact | Source | Role |
 |------------------------|--------|------|
 | **Runtime supply export** | Runtime mirror (FVR-D) | Height-indexed ORU/RES ledger snapshot |
-| **Runtime supply witness** | Witness chain (FVR-F) | Per-height invariant-checked snapshot |
+| **Runtime supply witness** | Witness chain (FVR-F) | Per-block-hash invariant-checked snapshot (not height-keyed) |
 | **Invariant verification report** | Invariant checker (FVR-E) | Pass/fail with stable violation ids |
 | **Phase-5 supply cell grid** | Export payload (FVR-D) | Fixed-size audit grid for cross-layer diff |
 | **Deterministic state digest** | Derived hash of authoritative fields | Replay audit fingerprint (diagnostic) |

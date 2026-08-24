@@ -69,5 +69,5 @@ CAmount WalletModelTransaction::getTotalTransactionAmount() const
     {
         totalTransactionAmount += rcp.amount;
     }
-    return totalTransactionAmount;
+    return totalTransactionAmount + m_converge_amount;
 }

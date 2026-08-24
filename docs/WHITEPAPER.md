@@ -27,7 +27,18 @@ During the current verification phase, `equivalence_claimed` remains **false**. 
 
 ### 1.1 Canonical identity
 
-RIGOR must be understood as three inseparable properties:
+RIGOR is a two-asset UTXO protocol with a closed script-compliance surface.
+
+It combines ORU and RES native assets, deterministic reserve issuance,
+deflationary transaction economics, Ed25519 authentication, OpuHash adaptive
+Proof-of-Work, and UTXO-local validation — without a token registry, account
+ledger, contract storage, or global asset state.
+
+The formal system verifies protocol models and finite vectors. The production
+C++ implementation is not claimed to be formally equivalent
+(`equivalence_claimed = false`).
+
+RIGOR must also be understood as three inseparable properties:
 
 1. **Dual-asset cryptocurrency** — ORU and RES are native protocol assets, derived from `scriptPubKey` parsing under frozen consensus rules.
 2. **Deterministic execution protocol** — Validating nodes apply a unique transition function given frozen rules and an accepted block sequence.
@@ -47,7 +58,7 @@ While PROOF-034 executes (mining a regtest archive to height ≥ 2 100 001), all
 
 ### 2.1 Consensus and storage model
 
-RIGOR stores value in standard UTXO outputs `(nValue, scriptPubKey)`. Asset *class* is **inferred from script**, not stored in a parallel field. The locking script is the **compliance layer**: it states the conditions under which an output may exist and be spent. Legitimacy still requires UTXO commitments, consensus validation, and (for RES) economic proofs — script parsing alone is not a complete definition of asset legitimacy.
+RIGOR stores value in standard UTXO outputs `(nValue, scriptPubKey)`. Asset *class* is **inferred from script**, not stored in a parallel field. The locking script is the **compliance/classification layer**: asset class is inferred from `scriptPubKey`. Asset ownership and transfer are enforced through UTXO consumption, script validation, signature verification, and consensus predicates. Script alone does not authorize asset creation. RES is deterministically issued after protocol-defined mint authorization — it is **not mined**.
 
 ### 2.2 Native assets: ORU and RES
 

@@ -82,6 +82,18 @@ pub fn assemble_coinbase(gbt: &GbtRecord, config: &CoinbaseConfig<'_>) -> Assemb
         .as_ref()
         .and_then(|hex| hex::decode(hex).ok());
 
+    let mint_script = gbt
+        .default_res_mint
+        .as_ref()
+        .and_then(|m| hex::decode(&m.script_pubkey).ok())
+        .filter(|s| !s.is_empty());
+    let mint_value = gbt.default_res_mint.as_ref().map(|m| m.value.max(0) as u64).unwrap_or(0);
+    let carrier_script = gbt
+        .default_pcorb_carrier
+        .as_ref()
+        .and_then(|hex| hex::decode(hex).ok())
+        .filter(|s| !s.is_empty());
+
     // Presence of GBT default_witness_commitment means segwit is active for this tip.
     // Do NOT copy the node's script bytes — recompute from opaque GBT txs + zero reserved.
     let need_witness = gbt.default_witness_commitment.is_some();
@@ -104,6 +116,8 @@ pub fn assemble_coinbase(gbt: &GbtRecord, config: &CoinbaseConfig<'_>) -> Assemb
             &base_scriptsig,
             &rigor_script,
             cvge_script.as_deref(),
+            mint_script.as_deref().map(|s| (mint_value, s)),
+            carrier_script.as_deref(),
             &witness_commitment_script,
             gbt.coinbasevalue as u64,
             en_gap,
@@ -116,6 +130,8 @@ pub fn assemble_coinbase(gbt: &GbtRecord, config: &CoinbaseConfig<'_>) -> Assemb
         &base_scriptsig,
         &rigor_script,
         cvge_script.as_deref(),
+        mint_script.as_deref().map(|s| (mint_value, s)),
+        carrier_script.as_deref(),
         gbt.coinbasevalue as u64,
         en_gap,
         convergence_root,
@@ -145,6 +161,8 @@ fn assemble_segwit_coinbase(
     base_scriptsig: &[u8],
     rigor_script: &[u8],
     cvge_script: Option<&[u8]>,
+    mint: Option<(u64, &[u8])>,
+    carrier_script: Option<&[u8]>,
     witness_commitment_script: &[u8],
     coinbase_value: u64,
     en_gap: usize,
@@ -162,13 +180,24 @@ fn assemble_segwit_coinbase(
     push_bytes(&mut tx, base_scriptsig);
     tx.extend_from_slice(&0xffffffffu32.to_le_bytes());
 
-    // vout: ORU + witness commitment + optional CVGE + RIGOR + extranonce OP_RETURN
+    // vout: ORU + optional RES mint + optional PCORB carrier + witness + optional CVGE + RIGOR + extranonce
     let has_cvge = cvge_script.is_some();
-    let out_count = 2 + u64::from(has_cvge) + 1 + 1;
+    let out_count = 2 + u64::from(has_cvge) + 1 + 1
+        + u64::from(mint.is_some())
+        + u64::from(carrier_script.is_some());
     write_compact_size(&mut tx, out_count);
 
     tx.extend_from_slice(&coinbase_value.to_le_bytes());
     push_bytes(&mut tx, config.payout_script);
+
+    if let Some((value, script)) = mint {
+        tx.extend_from_slice(&value.to_le_bytes());
+        push_bytes(&mut tx, script);
+    }
+    if let Some(carrier) = carrier_script {
+        tx.extend_from_slice(&0u64.to_le_bytes());
+        push_bytes(&mut tx, carrier);
+    }
 
     tx.extend_from_slice(&0u64.to_le_bytes());
     push_bytes(&mut tx, witness_commitment_script);
@@ -209,6 +238,8 @@ fn assemble_legacy_coinbase(
     base_scriptsig: &[u8],
     rigor_script: &[u8],
     cvge_script: Option<&[u8]>,
+    mint: Option<(u64, &[u8])>,
+    carrier_script: Option<&[u8]>,
     coinbase_value: u64,
     en_gap: usize,
     convergence_root: [u8; 32],
@@ -223,11 +254,22 @@ fn assemble_legacy_coinbase(
     tx.extend_from_slice(&0xffffffffu32.to_le_bytes());
 
     let has_cvge = cvge_script.is_some();
-    let out_count = 1 + u64::from(has_cvge) + 1 + 1;
+    let out_count = 1 + u64::from(has_cvge) + 1 + 1
+        + u64::from(mint.is_some())
+        + u64::from(carrier_script.is_some());
     write_compact_size(&mut tx, out_count);
 
     tx.extend_from_slice(&coinbase_value.to_le_bytes());
     push_bytes(&mut tx, config.payout_script);
+
+    if let Some((value, script)) = mint {
+        tx.extend_from_slice(&value.to_le_bytes());
+        push_bytes(&mut tx, script);
+    }
+    if let Some(carrier) = carrier_script {
+        tx.extend_from_slice(&0u64.to_le_bytes());
+        push_bytes(&mut tx, carrier);
+    }
 
     if let Some(cvge) = cvge_script {
         tx.extend_from_slice(&0u64.to_le_bytes());
@@ -282,6 +324,8 @@ mod tests {
             // Signal only — bytes are intentionally wrong so we prove we recompute.
             default_witness_commitment: with_witness.then(|| hex::encode([0x6a, 0x24, 0xaa, 0x21, 0xa9, 0xed])),
             default_convergence_commitment: Some(hex::encode([0x6a, 0x2d])),
+            default_res_mint: None,
+            default_pcorb_carrier: None,
             weightlimit: Some(1_000_000),
             version: Some(0x20000000),
             gbt_payload_hash: [0u8; 32],

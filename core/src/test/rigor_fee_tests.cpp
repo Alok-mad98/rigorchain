@@ -8,6 +8,8 @@
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/convergenceres.h>
+#include <consensus/res_amount.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
 #include <script/script.h>
@@ -467,6 +469,43 @@ BOOST_AUTO_TEST_CASE(extreme_test_fee_rate_comparison_boundary)
     // Very large size (1MB)
     BOOST_CHECK(rigor::CompareFeeRate(1000, 1000000, 500, 1000000));
     BOOST_CHECK(!rigor::CompareFeeRate(500, 1000000, 1000, 1000000));
+}
+
+BOOST_AUTO_TEST_CASE(rfc018_res_transfer_fee_burn_share)
+{
+    using Consensus::OruResTransferFeeBurnShare;
+    using Consensus::ORU_RES_TRANSFER_FEE_BURN_NUM;
+    using Consensus::ORU_RES_TRANSFER_FEE_BURN_DEN;
+
+    BOOST_CHECK_EQUAL(ORU_RES_TRANSFER_FEE_BURN_NUM, 1);
+    BOOST_CHECK_EQUAL(ORU_RES_TRANSFER_FEE_BURN_DEN, 2);
+
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(0), 0);
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(1), 0);
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(2), 1);
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(3), 1);
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(1000), 500);
+    BOOST_CHECK_EQUAL(OruResTransferFeeBurnShare(1 * COIN), (1 * COIN) / 2);
+
+    // Claimable remainder for a mixed block: ORU fee intact, RES-transfer fee half-burned.
+    const CAmount oru_only_fee = 4000;
+    const CAmount res_xfer_fee = 6000;
+    const CAmount burn = OruResTransferFeeBurnShare(res_xfer_fee);
+    const CAmount total_fees = oru_only_fee + res_xfer_fee;
+    const CAmount claimable = total_fees - burn;
+    BOOST_CHECK_EQUAL(burn, 3000);
+    BOOST_CHECK_EQUAL(claimable, 7000);
+    BOOST_CHECK_LT(claimable, total_fees);
+}
+
+BOOST_AUTO_TEST_CASE(res_display_six_decimals)
+{
+    BOOST_CHECK_EQUAL(RES_COIN, 1000000);
+    BOOST_CHECK_NE(RES_COIN, 100);
+    BOOST_CHECK_EQUAL(FormatResAmount(0), "0.000000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN), "1.000000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN / 10), "0.100000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_ATOMIC_UNIT), "0.000001");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

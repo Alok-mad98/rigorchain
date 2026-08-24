@@ -2,10 +2,17 @@
 
 Hash32Order.v
 ReplayState.v
+CvgCovenant.v
+ScriptShape.v
 ConnectBlockMint.v
 StateTransition.v
+AssetFromScript.v
+ResMintObligation.v
 ReorgRules.v
 ReplayDeterminism.v
 ReplayInvariants.v
+DualPoolConservation.v
+OpaqueBoundary.v
+ScriptShapeLift.v
 SupplyConservation.v
 SupplyReplayBridge.v

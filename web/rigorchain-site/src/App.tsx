@@ -2,20 +2,25 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { SystemStateProvider } from "./context/SystemStateContext";
 import { AboutPage } from "./pages/AboutPage";
+import { FormalVerificationPage } from "./pages/FormalVerificationPage";
 import { DocumentationPage } from "./pages/DocumentationPage";
 import { DownloadPage } from "./pages/DownloadPage";
 import { ExperimentPage } from "./pages/ExperimentPage";
 import { ExplorerPortalPage } from "./pages/ExplorerPortalPage";
 import { LabPage } from "./pages/LabPage";
 import { LandingPage } from "./pages/LandingPage";
+import { MinimalScriptArchitecturePage } from "./pages/MinimalScriptArchitecturePage";
 import { MiningPage } from "./pages/MiningPage";
+import { MonetaryPolicyPage } from "./pages/MonetaryPolicyPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { ProtocolPage } from "./pages/ProtocolPage";
 import { SciencePage } from "./pages/SciencePage";
+import { SecurityArchitecturePage } from "./pages/SecurityArchitecturePage";
 import { StatusPage } from "./pages/StatusPage";
 import { WalletPage } from "./pages/WalletPage";
 import { WalletTopicPage } from "./pages/WalletTopicPage";
 import { WhatIsZeroTrustPage } from "./pages/WhatIsZeroTrustPage";
+import { WhitepaperPage } from "./pages/WhitepaperPage";
 import { ZeroTrustVerificationPage } from "./pages/ZeroTrustVerificationPage";
 
 export default function App() {
@@ -48,11 +53,18 @@ export default function App() {
             <Route path="explorer/fingerprint" element={<PlaceholderPage />} />
             <Route path="explorer/status" element={<PlaceholderPage />} />
             <Route path="documentation" element={<DocumentationPage />} />
+            <Route path="documentation/whitepaper" element={<WhitepaperPage />} />
+            <Route path="documentation/formal-verification" element={<FormalVerificationPage />} />
+            <Route path="documentation/monetary-policy" element={<MonetaryPolicyPage />} />
             <Route path="documentation/user-guide" element={<PlaceholderPage />} />
             <Route path="documentation/developer-guide" element={<PlaceholderPage />} />
             <Route path="documentation/architecture" element={<PlaceholderPage />} />
             <Route path="documentation/rfc" element={<PlaceholderPage />} />
-            <Route path="documentation/security" element={<PlaceholderPage />} />
+            <Route path="documentation/security" element={<SecurityArchitecturePage />} />
+            <Route
+              path="documentation/security/minimal-script-architecture"
+              element={<MinimalScriptArchitecturePage />}
+            />
             <Route path="zero-trust-verification" element={<ZeroTrustVerificationPage />} />
             <Route
               path="zero-trust-verification/what-is-zero-trust"

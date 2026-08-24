@@ -143,6 +143,8 @@ fn fixture_template() -> rigor_gbt::TemplateRecord {
             convergence_draw: Some(parent_draw(&["aa"], 300)),
             default_witness_commitment: None,
             default_convergence_commitment: None,
+                default_res_mint: None,
+                default_pcorb_carrier: None,
             weightlimit: None,
             version: None,
             gbt_payload_hash: [0u8; 32],

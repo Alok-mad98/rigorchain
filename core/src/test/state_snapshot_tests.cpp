@@ -270,14 +270,14 @@ uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
     hw << static_cast<uint32_t>(pindex.nHeight);
     hw << pindex.GetBlockHash();
     hw << utxo_hash;
-    hw << pindex.m_cumulative_convergence;
+    hw << pindex.Observational().GetCumulativeConvergence();
     hw << pindex.m_draw_candidate_root;
     hw << static_cast<uint8_t>(pindex.has_res);
     hw << pindex.last_res_mint_block_hash;
     hw << static_cast<int64_t>(pindex.m_block_res_mint_sum);
-    hw << static_cast<int64_t>(pindex.m_chain_res_mint_total);
+    hw << static_cast<int64_t>(pindex.Observational().GetChainResMintTotal());
     hw << static_cast<int64_t>(pindex.m_block_converge_sum);
-    hw << static_cast<int64_t>(pindex.m_chain_oru_total);
+    hw << static_cast<int64_t>(pindex.Observational().GetChainOruTotal());
     hw << utxo_count;
     hw << res_balance;
     hw << other_balance;

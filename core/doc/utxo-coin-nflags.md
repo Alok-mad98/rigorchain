@@ -2,33 +2,35 @@
 
 This document complements the inline comments on `Coin` in `src/coins.h` and `TxInUndoFormatter` in `src/undo.h`.
 
-## On-disk format (backward compatible)
+## On-disk UTXO format
 
 - **Legacy:** `VARINT(height|coinbase)` + compressed `CTxOut` (no tail).
-- **Extended:** same as above, then **if and only if** `nFlags != 0`, append **4 bytes** little-endian `uint32_t` (`Serialize`/`Unserialize` in `coins.h`).
+- **Current:** same prefix, then **always** `VARINT(nFlags)` (`Coin::Serialize` in `coins.h`). Concatenated snapshot streams stay aligned.
 - Old LevelDB values without the tail deserialize as **`nFlags == 0`**.
 
-Block undo for spent inputs uses the same optional tail in `TxInUndoFormatter` so disconnect can restore coins including flags.
+## Consensus bit
 
-## What future consensus upgrades must address
+| Bit | Name | Rule |
+|-----|------|------|
+| 0 | `COIN_FLAG_RES_MINT` | Body RES mint Witness v1 output. Unspendable while `nSpendHeight - coin.nHeight < nCoinbaseMaturity` (same predicate as coinbase). Reject: `bad-txns-premature-spend-of-res-mint`. |
 
-1. **Meaning of bits**  
-   Any consensus rule that interprets `nFlags` must be specified together with activation (height/version), exactly like any other consensus change.
+Other bits remain reserved / UTXO-only.
 
-2. **Relationship to `CTxOut`**  
-   Today, spendable state is fully described by `CTxOut` plus height/coinbase. If `nFlags` becomes consensus-relevant, define whether it duplicates information in `vout` or carries **UTXO-only** state, and how it affects `txid` commitments (if at all).
+## Block undo
 
-3. **`DisconnectBlock` / `ConnectBlock` consistency**  
-   `DisconnectBlock` checks that removed UTXOs match the block’s outputs (and height/coinbase). If `nFlags` is part of consensus, **extend those checks** and the connect path so reorgs cannot leave the UTXO set inconsistent.
+Do **not** append a variable-length nFlags tail after `CTxOut` in undo (a prior attempt desynchronized multi-`vprevout` streams).
 
-4. **`ApplyTxInUndo` and sibling metadata**  
-   When legacy undo omits height, the code copies `nHeight` / `fCoinBase` from another output of the same transaction. **Do not** copy `nFlags` from a sibling unless you have a clear rule that all outputs of that tx must share flags; flags may be **per-output**.
+`COIN_FLAG_RES_MINT` is stored in the historical dummy version byte (`nHeight > 0`). Other nFlags bits are not restored from undo.
 
-5. **Tests**  
-   Add or extend unit tests for any new serialization or disconnect/connect behaviour.
+`DisconnectBlock` checks `TxOutputIsBodyResMint(tx, o) == coin.IsResMint()` on unspent outputs so a reorg cannot drop the mint flag.
+
+## Sibling metadata
+
+When legacy undo omits height, `ApplyTxInUndo` copies `nHeight` / `fCoinBase` from another output of the same transaction. **Do not** copy `nFlags` from a sibling (per-output).
 
 ## References
 
-- `src/coins.h` — `Coin::Serialize` / `Unserialize`
+- `src/coins.h` — `COIN_FLAG_RES_MINT`, `Coin::Serialize`
 - `src/undo.h` — `TxInUndoFormatter`
-- `src/validation.cpp` — `ApplyTxInUndo`, `DisconnectBlock`
+- `src/consensus/tx_verify.cpp` — premature mint spend
+- `docs/security/RES-ORU-MATURITY.md`

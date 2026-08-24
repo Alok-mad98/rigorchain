@@ -70,7 +70,10 @@
       ]),
       renderSection("S4 — Network RES / ORU", [
         dlRow("Network RES minted", fmt(eco.network_res_minted_display)),
-        dlRow("ORU burned (lifetime)", fmt(eco.oru_burned_lifetime_display)),
+        dlRow("Total issued ORU", fmt((eco.supply_chart && eco.supply_chart.total_issued_oru && eco.supply_chart.total_issued_oru.display) || eco.oru_supply_cumulative_display)),
+        dlRow("Convergence destroyed ORU", fmt(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
+        dlRow("Deflationary Fee Burn ORU", fmt(eco.rfc018_fee_burn && eco.rfc018_fee_burn.cumulative_burned_oru_display)),
+        dlRow("Circulating spendable ORU", fmt(eco.oru_circulating_spendable_display)),
         dlRow("ORU in current window", fmt(eco.oru_in_current_window_display)),
         dlRow("ORU since last mint", fmt(eco.oru_since_last_mint_display)),
         dlRow("Mature transferable ORU", fmt(eco.oru_mature_transferable_display)),

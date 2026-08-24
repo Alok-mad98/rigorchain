@@ -57,15 +57,25 @@ export function WalletTopicPage() {
     <div className="page">
       <SubNav />
       <header className="page-header">
-        <p className="tag">PLACEHOLDER</p>
+        <p className="tag">WALLET</p>
         <h1>Maturity</h1>
-        <p className="muted">When wallet rewards become spendable — content planned, not deleted from elsewhere.</p>
+        <p className="muted">
+          When a created UTXO becomes spendable. The wallet displays maturity; consensus enforces
+          it.
+        </p>
       </header>
       <section className="card prose-section">
         <p>
-          This section will map confirmation and maturity language from the wallet GUI onto the
-          public site. Source notes live in <code>docs/wallet/</code>. No consensus logic is
-          implemented here.
+          Body RES mint outputs and ORU coinbase outputs use the same confirmation depth:{" "}
+          <code>nCoinbaseMaturity = 100</code>. A UTXO created at height H is first spendable in a
+          transaction whose spend height is H + 100. Mempool spend height is tip + 1. Ordinary RES
+          transfers are not delayed by the mint flag and still cannot create RES (
+          <code>res_in ≥ res_out</code>).
+        </p>
+        <p>
+          Wallet UI may show a mint immature for one extra confirmation relative to consensus — the
+          same Bitcoin coinbase display lag. RPC or miner-created spends cannot bypass{" "}
+          <code>CheckTxInputs</code>.
         </p>
         <ul>
           <li>Confirmation count as observation, not authority</li>

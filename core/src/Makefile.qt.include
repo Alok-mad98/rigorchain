@@ -52,7 +52,6 @@ QT_MOC_CPP = \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
   qt/moc_convergencepage.cpp \
-  qt/moc_diagnosticspage.cpp \
   qt/moc_guiutil.cpp \
   qt/moc_initexecutor.cpp \
   qt/moc_intro.cpp \
@@ -108,12 +107,6 @@ QT_MOC_CPP = \
   qt/rigorwallet/widgets/moc_convergence_explorerhooks.cpp \
   qt/rigorwallet/widgets/moc_convergence_wizard.cpp \
   qt/rigorwallet/widgets/moc_statusbadge.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_nodepanel.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_walletpanel.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_explorerpanel.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_convergencepanel.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_verificationpanel.cpp \
-  qt/rigorwallet/widgets/moc_diagnostics_observerhooks.cpp \
   qt/rigorwallet/explorer/moc_explorer_status_service.cpp \
   qt/rigorwallet/widgets/moc_explorer_verificationbadge.cpp \
   qt/rigorwallet/widgets/moc_explorer_healthwidget.cpp \
@@ -156,7 +149,6 @@ BITCOIN_QT_H = \
   qt/csvmodelwriter.h \
   qt/editaddressdialog.h \
   qt/convergencepage.h \
-  qt/diagnosticspage.h \
   qt/guiconstants.h \
   qt/guiutil.h \
   qt/initexecutor.h \
@@ -228,13 +220,6 @@ BITCOIN_QT_H = \
   qt/rigorwallet/widgets/convergence_wizard.h \
   qt/rigorwallet/widgets/statusbadge.h \
   qt/rigorwallet/diagnostics/diagnostics_collector.h \
-  qt/rigorwallet/diagnostics/diagnostics_export.h \
-  qt/rigorwallet/widgets/diagnostics_nodepanel.h \
-  qt/rigorwallet/widgets/diagnostics_walletpanel.h \
-  qt/rigorwallet/widgets/diagnostics_explorerpanel.h \
-  qt/rigorwallet/widgets/diagnostics_convergencepanel.h \
-  qt/rigorwallet/widgets/diagnostics_verificationpanel.h \
-  qt/rigorwallet/widgets/diagnostics_observerhooks.h \
   qt/rigorwallet/explorer/explorerclient.h \
   qt/rigorwallet/explorer/explorer_status_service.h \
   qt/rigorwallet/widgets/explorer_verificationbadge.h \
@@ -333,13 +318,11 @@ BITCOIN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/addresstablemodel.cpp \
   qt/askpassphrasedialog.cpp \
-  qt/autosettle_convergence.cpp \
   qt/coincontroldialog.cpp \
   qt/coincontroltreewidget.cpp \
   qt/createwalletdialog.cpp \
   qt/editaddressdialog.cpp \
   qt/convergencepage.cpp \
-  qt/diagnosticspage.cpp \
   qt/keymanagementdialog.cpp \
   qt/openuridialog.cpp \
   qt/overviewpage.cpp \
@@ -385,13 +368,6 @@ BITCOIN_QT_WALLET_CPP = \
   qt/rigorwallet/widgets/convergence_wizard.cpp \
   qt/rigorwallet/widgets/statusbadge.cpp \
   qt/rigorwallet/diagnostics/diagnostics_collector.cpp \
-  qt/rigorwallet/diagnostics/diagnostics_export.cpp \
-  qt/rigorwallet/widgets/diagnostics_nodepanel.cpp \
-  qt/rigorwallet/widgets/diagnostics_walletpanel.cpp \
-  qt/rigorwallet/widgets/diagnostics_explorerpanel.cpp \
-  qt/rigorwallet/widgets/diagnostics_convergencepanel.cpp \
-  qt/rigorwallet/widgets/diagnostics_verificationpanel.cpp \
-  qt/rigorwallet/widgets/diagnostics_observerhooks.cpp \
   qt/rigorwallet/explorer/explorerclient.cpp \
   qt/rigorwallet/explorer/explorer_status_service.cpp \
   qt/rigorwallet/widgets/explorer_verificationbadge.cpp \

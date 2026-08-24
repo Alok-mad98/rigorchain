@@ -3,6 +3,10 @@
 **Status**: Addendum to [FORMAL-VERIFICATION-VERDICT.md](./FORMAL-VERIFICATION-VERDICT.md)
 **Does not supersede the Verdict's honesty boundary.** Full Coq ⇄ C++ refinement is still **not** proved. `equivalence_claimed` remains `false`.
 
+**Historical addendum** (2026-08-16 numbers). Current freeze:
+[FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md)
+([FORMAL-VERIFICATION-FREEZE.md](./FORMAL-VERIFICATION-FREEZE.md)).
+
 This note records post-verdict remediation of the gaps named in Verdict §3.
 
 ---

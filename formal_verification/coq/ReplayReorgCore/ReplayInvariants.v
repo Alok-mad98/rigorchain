@@ -129,59 +129,77 @@ Proof.
     + apply IH. exact Hin'.
 Qed.
 
-(** [apply_tx_utxo] gives created outputs these synthetic outpoints. *)
-Definition synthetic_outpoint (i : nat) : OutPoint :=
-  MkOutPoint hash32_placeholder i.
+(** Created outputs of [tx] are [(tx_id tx, 0) .. (tx_id tx, n-1)]. *)
+Definition created_outpoint (tx : TxAbs) (i : nat) : OutPoint :=
+  MkOutPoint (tx_id tx) i.
 
-(** [op] is not re-created by [tx] when applied at index [tx_index]. *)
-Definition not_recreated (tx : TxAbs) (tx_index : nat) (op : OutPoint) : Prop :=
+(** [op] is not among the outputs [tx] creates. Independent of in-block index. *)
+Definition not_recreated (tx : TxAbs) (op : OutPoint) : Prop :=
   forall i, (i < length (tx_creates tx))%nat ->
-            op <> synthetic_outpoint (tx_index + i).
+            op <> created_outpoint tx i.
+
+(** Distinct transaction identity implies [not_recreated]: a spend of a
+    previous tx's outpoint cannot collide with this tx's creates. *)
+Lemma distinct_txid_not_recreated :
+  forall (tx : TxAbs) (op : OutPoint),
+    outpoint_txid op <> tx_id tx ->
+    not_recreated tx op.
+Proof.
+  intros tx op Hne i Hi Heq.
+  unfold created_outpoint in Heq.
+  subst op.
+  unfold outpoint_txid in Hne.
+  apply Hne. reflexivity.
+Qed.
 
 Lemma utxo_lookup_fold_create_stable :
-  forall (creates : list TxOut) (u : UTXOSet) (base : nat) (op : OutPoint),
+  forall (creates : list TxOut) (u : UTXOSet) (base : nat) (hid : Hash32)
+         (op : OutPoint),
     utxo_lookup u op = None ->
-    (forall i, (i < length creates)%nat -> op <> synthetic_outpoint (base + i)) ->
-    utxo_lookup
-      (fst (fold_left
-              (fun (acc : UTXOSet * nat) (o : TxOut) =>
-                 let (u', idx) := acc in
-                 (utxo_insert u' (MkOutPoint hash32_placeholder idx) o, S idx))
-              creates (u, base))) op = None.
+    (forall i, (i < length creates)%nat -> op <> MkOutPoint hid (base + i)) ->
+    utxo_lookup (fold_create_outputs creates u hid base) op = None.
 Proof.
-  induction creates as [|o rest IH]; intros u base op H Hne; simpl.
+  unfold fold_create_outputs.
+  induction creates as [|o rest IH]; intros u base hid op H Hne; simpl.
   - exact H.
   - apply IH.
     + apply utxo_lookup_insert_stable; [exact H|].
-      assert (Hb : op <> synthetic_outpoint (base + 0)) by (apply Hne; simpl; lia).
-      rewrite Nat.add_0_r in Hb. unfold synthetic_outpoint in Hb. exact Hb.
+      assert (Hb : op <> MkOutPoint hid (base + 0)) by (apply Hne; simpl; lia).
+      rewrite Nat.add_0_r in Hb. exact Hb.
     + intros i Hi.
       replace (S base + i)%nat with (base + S i)%nat by lia.
       apply Hne. simpl. lia.
 Qed.
 
 (** ----------------------------------------------------------------------
-    SECURITY-001-F / F-3, F-4.
+    Tightening 2026-08-18 (G-5).
 
-    The historical unconditional statement of [utxo_spend_removes_output]
-    was [Admitted]. It is not merely unproven — it is REFUTABLE in this model:
-    [apply_tx_utxo] assigns each created output the synthetic outpoint
-    [MkOutPoint hash32_placeholder (tx_index + i)], which can collide with an
-    outpoint the very same transaction spends. The refutation is below, and the
-    theorem is restated with the [not_recreated] side condition that makes it
-    true. Both are now closed with [Qed].
+    Created outputs now use [tx_id tx] with per-tx vout 0..n-1, not a
+    shared [hash32_placeholder] plus a running index. The natural
+    production case — spending a previous transaction's outpoint — is
+    therefore unconditional: [utxo_spend_removes_output_distinct_txid].
+
+    The fully universal statement (no side condition) remains false, but
+    only under *txid reuse*: a transaction whose [tx_id] equals the txid
+    of an outpoint it spends can re-insert that outpoint. That is the
+    BIP30-class duplicate-txid edge, not a modelling shortcut. The
+    refutation below uses that edge, not the old placeholder collision.
     ---------------------------------------------------------------------- *)
 
-Definition ce_out : TxOut := {| out_value := 5%Z; out_script := [] |}.
+Definition ce_out : TxOut :=
+  {| out_value := 5%Z; out_script := spk_oru |}.
 Definition ce_op : OutPoint := MkOutPoint hash32_placeholder 0.
 Definition ce_u : UTXOSet := [(ce_op, ce_out)].
-Definition ce_tx : TxAbs := {| tx_spends := [ce_op]; tx_creates := [ce_out] |}.
+(** Duplicate-txid transaction: spends and re-creates [(tx_id, 0)]. *)
+Definition ce_tx : TxAbs :=
+  {| tx_id := hash32_placeholder; tx_spends := [ce_op]; tx_creates := [ce_out];
+     tx_pcorb := None |}.
 
 Lemma ce_apply :
   apply_tx_utxo ce_u ce_tx 0 = Some (utxo_insert (utxo_remove ce_u ce_op) ce_op ce_out).
 Proof.
-  unfold apply_tx_utxo, ce_tx. cbv zeta.
-  cbn [tx_spends tx_creates forallb fold_left fst].
+  unfold apply_tx_utxo, fold_create_outputs, ce_tx. cbv zeta.
+  cbn [tx_id tx_spends tx_creates forallb fold_left fst].
   unfold ce_u at 1. cbn [utxo_lookup].
   rewrite outpoint_eqb_refl. cbn [andb].
   reflexivity.
@@ -200,12 +218,12 @@ Proof.
   rewrite utxo_insert_lookup in Hbad. discriminate Hbad.
 Qed.
 
-(** Corrected form: a spent outpoint is absent afterwards unless the same
-    transaction re-creates it at a colliding synthetic outpoint. *)
+(** Spent [op] is absent afterwards unless [tx] re-creates the same outpoint
+    (duplicate [tx_id] + overlapping vout). *)
 Theorem utxo_spend_removes_output :
   forall (u : UTXOSet) (tx : TxAbs) (idx : nat) (op : OutPoint) (u' : UTXOSet),
     In op (tx_spends tx) ->
-    not_recreated tx idx op ->
+    not_recreated tx op ->
     apply_tx_utxo u tx idx = Some u' ->
     utxo_lookup u' op = None.
 Proof.
@@ -217,7 +235,22 @@ Proof.
   inversion Happ as [Hu']; clear Happ. subst u'.
   apply utxo_lookup_fold_create_stable.
   - apply spends_removed_by_fold. exact Hin.
-  - exact Hnr.
+  - intros i Hi. unfold not_recreated, created_outpoint in Hnr.
+    apply Hnr. exact Hi.
+Qed.
+
+(** Production case: spending a *different* transaction's outpoint always
+    deletes it. [not_recreated] is derived, not assumed. *)
+Theorem utxo_spend_removes_output_distinct_txid :
+  forall (u : UTXOSet) (tx : TxAbs) (idx : nat) (op : OutPoint) (u' : UTXOSet),
+    In op (tx_spends tx) ->
+    outpoint_txid op <> tx_id tx ->
+    apply_tx_utxo u tx idx = Some u' ->
+    utxo_lookup u' op = None.
+Proof.
+  intros u tx idx op u' Hin Hne Happ.
+  eapply utxo_spend_removes_output; [exact Hin | | exact Happ].
+  apply distinct_txid_not_recreated. exact Hne.
 Qed.
 
 Theorem utxo_create_adds_output :
@@ -251,19 +284,31 @@ Proof.
 Qed.
 
 (** Block replay preserves spend/create shape (extends single-tx lemmas).
-    Carries the same [not_recreated] side condition as
-    [utxo_spend_removes_output]; the unconditional form is refuted above. *)
+    [not_recreated] is now independent of in-block index. The production
+    case [outpoint_txid op <> tx_id tx] discharges it via
+    [distinct_txid_not_recreated]. *)
 Theorem replay_preserves_utxo_consistency :
   forall (s : ReplayState) (tx : TxAbs) (idx : nat) (s' : ReplayState) (op : OutPoint),
     In op (tx_spends tx) ->
-    not_recreated tx idx op ->
+    not_recreated tx op ->
     apply_tx s tx idx = Some s' ->
     utxo_lookup (rs_utxo s') op = None.
 Proof.
   intros s tx idx s' op Hin Hnr Happ.
-  unfold apply_tx in Happ.
-  destruct (apply_tx_utxo (rs_utxo s) tx idx) as [u'|] eqn:E; [|discriminate Happ].
-  inversion Happ as [Hs']; clear Happ. subst s'.
+  apply apply_tx_some_inv in Happ.
+  destruct Happ as [u' [E [_ [_ Hs]]]]. subst s'.
   cbn [rs_utxo replay_set_utxo].
   exact (utxo_spend_removes_output (rs_utxo s) tx idx op u' Hin Hnr E).
+Qed.
+
+Theorem replay_preserves_utxo_consistency_distinct_txid :
+  forall (s : ReplayState) (tx : TxAbs) (idx : nat) (s' : ReplayState) (op : OutPoint),
+    In op (tx_spends tx) ->
+    outpoint_txid op <> tx_id tx ->
+    apply_tx s tx idx = Some s' ->
+    utxo_lookup (rs_utxo s') op = None.
+Proof.
+  intros s tx idx s' op Hin Hne Happ.
+  eapply replay_preserves_utxo_consistency; [exact Hin | | exact Happ].
+  apply distinct_txid_not_recreated. exact Hne.
 Qed.

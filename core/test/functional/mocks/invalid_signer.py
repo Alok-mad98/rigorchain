@@ -27,14 +27,14 @@ def getdescriptors(args):
 
     sys.stdout.write(json.dumps({
         "receive": [
-            "pkh([b3c19bfc/44'/1'/" + args.account + "']" + xpub_pkh + "/0/*)#h26nxtl9",
-            "sh(wpkh([b3c19bfc/49'/1'/" + args.account + "']" + xpub_sh + "/0/*))#32ry02yp",
-            "wpkh([b3c19bfc/84'/1'/" + args.account + "']" + xpub_wpkh + "/0/*)#jftn8ppv"
+            "pkh([b3c19bfc/44'/1'/" + args.account + "']" + xpub_pkh + "/0'/*')",
+            "sh(wpkh([b3c19bfc/49'/1'/" + args.account + "']" + xpub_sh + "/0'/*'))",
+            "wpkh([b3c19bfc/84'/1'/" + args.account + "']" + xpub_wpkh + "/0'/*')"
         ],
         "internal": [
-            "pkh([b3c19bfc/44'/1'/" + args.account + "']" + xpub_pkh + "/1/*)#x7ljm70a",
-            "sh(wpkh([b3c19bfc/49'/1'/" + args.account + "']" + xpub_sh + "/1/*))#ytdjh437",
-            "wpkh([b3c19bfc/84'/1'/" + args.account + "']" + xpub_wpkh + "/1/*)#rawj6535"
+            "pkh([b3c19bfc/44'/1'/" + args.account + "']" + xpub_pkh + "/1'/*')",
+            "sh(wpkh([b3c19bfc/49'/1'/" + args.account + "']" + xpub_sh + "/1'/*'))",
+            "wpkh([b3c19bfc/84'/1'/" + args.account + "']" + xpub_wpkh + "/1'/*')"
         ]
     }))
 

@@ -1,5 +1,6 @@
-> **Historical snapshot (Round 3).** Current freeze:
+> **Historical snapshot (Round 3).** Not the freeze page. Current freeze:
 > [FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md)
+> ([FORMAL-VERIFICATION-FREEZE.md](./FORMAL-VERIFICATION-FREEZE.md)).
 
 # Formal verification status — Round 3 (2026-08-16)
 

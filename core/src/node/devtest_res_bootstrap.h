@@ -10,9 +10,11 @@
 class CChainParams;
 
 /**
- * Extra per-coinbase RES paid to -miningresfeeaddr when -reswalletbootstrap is set.
- * Only non-zero on mockable test chains (e.g. devtest/regtest). Used by functional tests
- * to obtain spendable RES without relying on mempool RES-fee circularity.
+ * Extra per-coinbase RES paid to -miningresfeeaddr when the mockable-chain
+ * Consensus::Params::res_wallet_bootstrap_coinbase field is non-zero.
+ * That field is set at chain construction from -reswalletbootstrap (never gArgs
+ * in ConnectBlock). Used by functional tests to obtain spendable RES without
+ * relying on mempool RES-fee circularity.
  */
 CAmount DevTestResWalletBootstrap(const CChainParams& chainparams);
 

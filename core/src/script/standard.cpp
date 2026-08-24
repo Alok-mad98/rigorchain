@@ -25,11 +25,7 @@ typedef std::vector<unsigned char> valtype;
 
 bool IsConvergenceScript(const CScript& scriptPubKey)
 {
-    int witnessversion;
-    std::vector<unsigned char> program;
-    if (!scriptPubKey.IsWitnessProgram(witnessversion, program)) return false;
-    if (witnessversion != 1 || program.size() != WITNESS_V1_RES_SIZE) return false;
-    return std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), program.begin());
+    return IsConvergeScript(scriptPubKey);
 }
 
 bool IsConvergenceV1ScriptPubKey(const CScript& scriptPubKey)
@@ -39,11 +35,14 @@ bool IsConvergenceV1ScriptPubKey(const CScript& scriptPubKey)
 
 bool IsResScript(const CScript& scriptPubKey)
 {
+    if (IsResMintScript(scriptPubKey)) return true;
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
     if (!scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) return false;
     if (witnessversion != 1 || witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
     if (std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), witnessprogram.begin())) return false;
+    // RIG-13: RES2 prefix is not a chain-legal RES program (native v1 binds the full 32-byte pubkey).
+    if (IsRes2AssetProgram(witnessprogram)) return false;
     return true;
 }
 
@@ -54,10 +53,7 @@ bool ValidateAddressAssetBinding(const CTxDestination& dest, AssetType asset)
     int ver; std::vector<unsigned char> prog;
     if (!script.IsWitnessProgram(ver, prog)) return false;
     if (asset == ASSET_ORU && ver != 0) {
-        // Witness-v1 CVG2 convergence outputs are still ORU-domain (see AssetTypeFromScriptPubKey).
-        if (ver == 1 && IsConvergenceScript(script)) {
-            return true;
-        }
+        // OP_CONVERGE is not a witness program; this branch is witness-only.
         return false;
     }
     if (asset == ASSET_RES && ver != 1) return false;
@@ -100,18 +96,10 @@ std::optional<RigorCommitment> ExtractRigorDrawTargetCommitment(const CBlock& bl
 
 bool ExtractConvergenceAmount(const CScript& scriptPubKey, CAmount& amount)
 {
-    if (!IsConvergenceScript(scriptPubKey)) return false;
-    int witnessversion;
-    std::vector<unsigned char> program;
-    if (!scriptPubKey.IsWitnessProgram(witnessversion, program)) return false;
-    assert(static_cast<int>(program.size()) >= 12);
-    uint64_t val = 0;
-    for (int i = 4; i < 12; ++i) {
-        val = (val << 8) | static_cast<uint64_t>(program[i]);
-    }
-    if (val > static_cast<uint64_t>(std::numeric_limits<CAmount>::max())) return false;
-    amount = static_cast<CAmount>(val);
-    return MoneyRange(amount);
+    // Amount is nValue on the OP_CONVERGE output, not encoded in the script.
+    (void)scriptPubKey;
+    (void)amount;
+    return false;
 }
 
 uint64_t GetConvergenceAmountFromScript(const CScript& scriptPubKey)
@@ -130,7 +118,7 @@ ScriptHash::ScriptHash(const CScriptID& in) : BaseHash(static_cast<uint160>(in))
 PKHash::PKHash(const CPubKey& pubkey) : BaseHash(pubkey.GetID()) {}
 PKHash::PKHash(const CKeyID& pubkey_id) : BaseHash(pubkey_id) {}
 
-WitnessV0KeyHash::WitnessV0KeyHash(const CPubKey& pubkey) : BaseHash(pubkey.GetID()) {}
+WitnessV0KeyHash::WitnessV0KeyHash(const CPubKey& pubkey) : BaseHash(pubkey.GetEd25519KeyHash()) {}
 WitnessV0KeyHash::WitnessV0KeyHash(const PKHash& pubkey_hash) : BaseHash(static_cast<uint160>(pubkey_hash)) {}
 
 CKeyID ToKeyID(const PKHash& key_hash)
@@ -160,6 +148,8 @@ std::string GetTxnOutputType(TxoutType t)
     case TxoutType::WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TxoutType::WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TxoutType::WITNESS_V1_RES: return "witness_v1_res";
+    case TxoutType::RES_MINT: return "res_mint";
+    case TxoutType::CONVERGE: return "converge";
     case TxoutType::WITNESS_UNKNOWN: return "witness_unknown";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
@@ -317,8 +307,7 @@ TxoutType ClassifyRigorTxout(const CScript& scriptPubKey, std::vector<std::vecto
             vSolutionsRet.push_back(std::move(witnessprogram));
             return TxoutType::WITNESS_V0_KEYHASH;
         }
-        // 32-byte v0 programs are classified as scripthash (BIP141); VerifyWitnessProgram disambiguates
-        // P2WSH (SHA256(witness script)==program) from RIGOR native Ed25519 (program==pubkey, <sig><pubkey>).
+        // 32-byte v0 programs are BIP141 P2WSH only (RIG-07).
         if (witnessversion == 0 && witnessprogram.size() == WITNESS_V0_SCRIPTHASH_SIZE) {
             vSolutionsRet.push_back(std::move(witnessprogram));
             return TxoutType::WITNESS_V0_SCRIPTHASH;
@@ -328,6 +317,19 @@ TxoutType ClassifyRigorTxout(const CScript& scriptPubKey, std::vector<std::vecto
             return TxoutType::WITNESS_V1_RES;
         }
         return TxoutType::NONSTANDARD;
+    }
+
+    int64_t mint_maturity = 0;
+    std::vector<unsigned char> mint_pkh;
+    if (ParseResMintScript(scriptPubKey, mint_maturity, mint_pkh)) {
+        vSolutionsRet.push_back(std::move(mint_pkh));
+        return TxoutType::RES_MINT;
+    }
+
+    uint160 converge_hash;
+    if (ParseConvergeScript(scriptPubKey, converge_hash)) {
+        vSolutionsRet.emplace_back(converge_hash.begin(), converge_hash.end());
+        return TxoutType::CONVERGE;
     }
 
     if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN && scriptPubKey.IsPushOnly(scriptPubKey.begin()+1)) {
@@ -401,6 +403,12 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         addressRet = tap;
         return true;
     }
+    case TxoutType::RES_MINT: {
+        addressRet = PKHash(uint160(vSolutions[0]));
+        return true;
+    }
+    case TxoutType::CONVERGE:
+        return false;
     case TxoutType::WITNESS_UNKNOWN: {
         WitnessUnknown unk;
         unk.version = vSolutions[0][0];

@@ -4,6 +4,7 @@
 
 #include <qt/rigorwallet/widgets/convergence_historypanel.h>
 
+#include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
 #include <qt/rigorwallet/assetcontext.h>
@@ -44,9 +45,8 @@ QString UserResultLabel(const ConvergenceHistoryRow& row)
 {
     switch (row.lifecycle) {
     case wallet::ConvergenceUiLifecycle::CompletedAllocated: {
-        const CAmount atoms = row.res_amount > 0 ? row.res_amount : Consensus::RES_REWARD_AMOUNT;
-        return QString::number(static_cast<double>(atoms) / Consensus::RES_COIN, 'f', 2) +
-               QStringLiteral(" RES minted");
+        if (row.res_amount <= 0) return QObject::tr("RES minted");
+        return BitcoinUnits::formatRes(row.res_amount) + QStringLiteral(" RES minted");
     }
     case wallet::ConvergenceUiLifecycle::CompletedNoAllocation:
         return QObject::tr("No RES minted");

@@ -5,10 +5,7 @@
 
 #include <script/interpreter.h>
 
-#include <chain.h>
 #include <script/rigor_tags.h>
-#include <consensus/convergenceres.h>
-#include <consensus/res_proof.h>
 #include <consensus/amount.h>
 #include <crypto/common.h>
 #include <crypto/ripemd160.h>
@@ -21,12 +18,13 @@
 #include <span.h>
 #include <uint256.h>
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 
 typedef std::vector<unsigned char> valtype;
 
-/** Witness v1 ORB2 asset (32-byte program; prefix ORB2, not CVG2). */
+/** Witness v1 RES2-prefixed native RES (32-byte program; ASCII "RES2", not CVG2). Not Bitcoin Taproot. */
 bool IsRes2AssetProgram(const std::vector<unsigned char>& program)
 {
     if (program.size() != WITNESS_V1_RES_SIZE) return false;
@@ -34,13 +32,100 @@ bool IsRes2AssetProgram(const std::vector<unsigned char>& program)
     return std::memcmp(program.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size()) == 0;
 }
 
-/** Native RES P2TR (OP_1 + 32-byte output key): not CVG2 convergence marker and not legacy ORB2-tagged program. */
+/** Native RES Witness v1 (OP_1 + 32-byte Ed25519 program): not CVG2 and not RES2-prefixed. Not Bitcoin Taproot / BIP341. */
 bool IsRigorResNativeWitnessProgram(const std::vector<unsigned char>& program)
 {
     if (program.size() != WITNESS_V1_RES_SIZE) return false;
     if (std::memcmp(program.data(), RigorTags::CVG2.data(), RigorTags::CVG2.size()) == 0) return false;
     if (std::memcmp(program.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size()) == 0) return false;
     return true;
+}
+
+bool ParseResMintScript(const CScript& script, int64_t& maturity_height, std::vector<unsigned char>& pubkey_hash)
+{
+    CScript::const_iterator pc = script.begin();
+    opcodetype opcode;
+    valtype data;
+
+    if (!script.GetOp(pc, opcode, data)) return false;
+    try {
+        if (opcode == OP_0) {
+            maturity_height = 0;
+        } else if (opcode >= OP_1 && opcode <= OP_16) {
+            maturity_height = (int)opcode - (int)(OP_1 - 1);
+        } else if (opcode <= OP_PUSHDATA4) {
+            const CScriptNum n(data, /*fRequireMinimal=*/true, 5);
+            if (n < 0) return false;
+            maturity_height = n.GetInt64();
+        } else {
+            return false;
+        }
+    } catch (const scriptnum_error&) {
+        return false;
+    }
+
+    if (!script.GetOp(pc, opcode, data)) return false;
+    if (opcode != 20 || data.size() != 20) return false;
+    pubkey_hash = std::move(data);
+
+    if (!script.GetOp(pc, opcode, data)) return false;
+    if (opcode != OP_RES_MINT) return false;
+    if (pc != script.end()) return false;
+
+    // Unique byte representation (RIG-04): accept only the encoding GetResMintScript emits.
+    if (pubkey_hash.size() != 20) return false;
+    uint160 pkh;
+    std::copy(pubkey_hash.begin(), pubkey_hash.end(), pkh.begin());
+    return script == GetResMintScript(maturity_height, pkh);
+}
+
+bool IsResMintScript(const CScript& script)
+{
+    int64_t maturity_height = 0;
+    valtype pubkey_hash;
+    return ParseResMintScript(script, maturity_height, pubkey_hash);
+}
+
+CScript GetResMintScript(int64_t maturity_height, const uint160& pubkey_hash)
+{
+    return CScript() << CScriptNum(maturity_height) << ToByteVector(pubkey_hash) << OP_RES_MINT;
+}
+
+CScript GetResMintScriptForProgram(int64_t maturity_height, Span<const unsigned char> pubkey32)
+{
+    // HASH160 of the 32-byte Ed25519 pubkey (not SHA256(pk) witness program).
+    return GetResMintScript(maturity_height, Hash160(pubkey32));
+}
+
+namespace {
+/** Canonical OP_CONVERGE lock: OP_PUSHBYTES_20 || 20-byte hash || OP_CONVERGE. 22 bytes. */
+constexpr size_t kConvergeScriptSize = 22;
+} // namespace
+
+bool ParseConvergeScript(const CScript& script, uint160& owner_hash160)
+{
+    if (script.size() != kConvergeScriptSize) return false;
+    if (script[0] != 20) return false;
+    if (script[21] != OP_CONVERGE) return false;
+    std::copy(script.begin() + 1, script.begin() + 21, owner_hash160.begin());
+    return true;
+}
+
+bool IsConvergeScript(const CScript& script)
+{
+    uint160 hash;
+    return ParseConvergeScript(script, hash);
+}
+
+CScript GetConvergeScript(const uint160& owner_hash160)
+{
+    return CScript() << ToByteVector(owner_hash160) << OP_CONVERGE;
+}
+
+CScript GetConvergeScriptForProgram(Span<const unsigned char> pubkey32)
+{
+    // HASH160 of the 32-byte Ed25519 pubkey, matching OP_RES_MINT.
+    return GetConvergeScript(Hash160(pubkey32));
 }
 
 namespace {
@@ -385,16 +470,7 @@ static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPu
             return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
     }
 
-    if (IsRigorOruWitnessV0PubKey(vchPubKey)) {
-        if (!CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
-            return false;
-        }
-        if (!IsValidEd25519SignatureEncoding(vchSig)) {
-            return set_error(serror, SCRIPT_ERR_SIG_DER);
-        }
-        const valtype ed_pk32(vchPubKey.begin() + 1, vchPubKey.end());
-        fSuccess = checker.CheckEd25519Signature(vchSig, ed_pk32, scriptCode, sigversion);
-    } else if (IsEd25519PubKey(vchPubKey)) {
+    if (IsEd25519PubKey(vchPubKey)) {
         if (!CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
             return false;
         }
@@ -403,8 +479,7 @@ static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPu
         }
         fSuccess = checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, sigversion);
     } else {
-        // RIGOR: spend signatures are Ed25519 only. secp256k1/ECDSA is never accepted
-        // (legacy scriptSig and witness v0 0x02/0x03 compressed pubkeys included).
+        // M-4: a single 32-byte Ed25519 encoding. The 0x00||pk wrapper is wallet-only.
         return set_error(serror, SCRIPT_ERR_SECP256K1_DISABLED);
     }
 
@@ -426,12 +501,17 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
     case SigVersion::BASE:
     case SigVersion::WITNESS_V0:
         return EvalChecksigPreTapscript(sig, pubkey, pbegincodehash, pend, flags, checker, sigversion, serror, success);
+    case SigVersion::WITNESS_V1_RES:
+        // Native v1 key-path does not execute CHECKSIG opcodes; fail closed.
+        return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
     }
     assert(false);
 }
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
 {
+    // FENCE-W5: no CBlockIndex / CBlock / T / convergence-root argument. Checker may
+    // inspect the spending transaction (CLTV/CSV, sighash) and spend height (OP_RES_MINT).
     static const CScriptNum bnZero(0);
     static const CScriptNum bnOne(1);
     // static const CScriptNum bnFalse(0);
@@ -1101,6 +1181,57 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_CHECKSIGADD:
                     return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
 
+                case OP_RES_MINT:
+                {
+                    // Bare scriptPubKey only. Not a witness-script opcode.
+                    if (sigversion != SigVersion::BASE)
+                        return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+
+                    // scriptSig: <sig> <pubkey>
+                    // scriptPubKey: <maturity_height> <pubkey_hash> OP_RES_MINT
+                    if (stack.size() < 4)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    const valtype& vchPubKeyHash = stacktop(-1);
+                    if (vchPubKeyHash.size() != WITNESS_V0_KEYHASH_SIZE)
+                        return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
+
+                    const CScriptNum nMaturity(stacktop(-2), fRequireMinimal, 5);
+                    if (nMaturity < 0)
+                        return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
+                    if (static_cast<int64_t>(checker.GetSpendHeight()) < nMaturity.GetInt64())
+                        return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
+
+                    const valtype& vchPubKey = stacktop(-3);
+                    const valtype& vchSig = stacktop(-4);
+                    if (vchPubKey.size() != ed25519::PUBKEY_SIZE)
+                        return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
+                    const uint160 expect_hash = Hash160(vchPubKey);
+                    if (!std::equal(expect_hash.begin(), expect_hash.end(), vchPubKeyHash.begin()))
+                        return set_error(serror, SCRIPT_ERR_EQUALVERIFY);
+
+                    if (!IsValidEd25519SignatureEncoding(vchSig))
+                        return set_error(serror, SCRIPT_ERR_SIG_DER);
+
+                    CScript scriptCode(pbegincodehash, pend);
+                    if (!checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, SigVersion::WITNESS_V0)) {
+                        if ((flags & SCRIPT_VERIFY_NULLFAIL) && !vchSig.empty())
+                            return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
+                        return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
+                    }
+
+                    popstack(stack);
+                    popstack(stack);
+                    popstack(stack);
+                    popstack(stack);
+                    stack.push_back(vchTrue);
+                }
+                break;
+
+                case OP_CONVERGE:
+                    // Burn lock. Never a successful spend; AddCoins already skips the output.
+                    return set_error(serror, SCRIPT_ERR_CONVERGE_UNSPENDABLE);
+
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
                 {
@@ -1161,13 +1292,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
 
                         bool fOk = false;
-                        if (IsRigorOruWitnessV0PubKey(vchPubKey)) {
-                            if (!IsValidEd25519SignatureEncoding(vchSig)) {
-                                return set_error(serror, SCRIPT_ERR_SIG_DER);
-                            }
-                            const valtype ed_pk32(vchPubKey.begin() + 1, vchPubKey.end());
-                            fOk = checker.CheckEd25519Signature(vchSig, ed_pk32, scriptCode, sigversion);
-                        } else if (IsEd25519PubKey(vchPubKey)) {
+                        if (IsEd25519PubKey(vchPubKey)) {
                             if (!IsValidEd25519SignatureEncoding(vchSig)) {
                                 return set_error(serror, SCRIPT_ERR_SIG_DER);
                             }
@@ -1446,19 +1571,10 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 {
     assert(nIn < txTo.vin.size());
 
-    if (sigversion != SigVersion::WITNESS_V0) {
-        // Check for invalid use of SIGHASH_SINGLE
-        if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
-            if (nIn >= txTo.vout.size()) {
-                //  nOut out of range
-                return uint256::ONE;
-            }
-        }
-    }
-
     HashWriter ss{};
 
-    if (sigversion == SigVersion::WITNESS_V0) {
+    const bool bip143 = sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::WITNESS_V1_RES;
+    if (bip143) {
         uint256 hashPrevouts;
         uint256 hashSequence;
         uint256 hashOutputs;
@@ -1478,33 +1594,28 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
             HashWriter inner_ss{};
             inner_ss << txTo.vout[nIn];
             hashOutputs = inner_ss.GetHash();
+        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn >= txTo.vout.size()) {
+            // H-2: do not return the constant uint256::ONE. Caller must reject this hashtype.
+            return uint256::ZERO;
         }
 
-        // Version
         ss << txTo.nVersion;
-        // Input prevouts/nSequence (none/all, depending on flags)
         ss << hashPrevouts;
         ss << hashSequence;
-        // The input being signed (replacing the scriptSig with scriptCode + amount)
-        // The prevout may already be contained in hashPrevout, and the nSequence
-        // may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
         ss << scriptCode;
         ss << amount;
         ss << txTo.vin[nIn].nSequence;
-        // Outputs (none/one/all, depending on flags)
         ss << hashOutputs;
-        // Locktime
         ss << txTo.nLockTime;
+        if (sigversion == SigVersion::WITNESS_V1_RES) {
+            ss << uint32_t{1}; // M-2: domain tag separating RES v1 from ORU witness v0
+        }
     } else {
-        // Wrapper to serialize only the necessary parts of the transaction being signed
         CTransactionSignatureSerializer<T> txTmp(txTo, scriptCode, nIn, nHashType);
-
-        // Serialize
         ss << txTmp;
     }
 
-    // Add sighash type and hash.
     ss << nHashType;
     return ss.GetHash();
 }
@@ -1550,7 +1661,9 @@ bool GenericTransactionSignatureChecker<T>::CheckEd25519Signature(const std::vec
     int nHashType = vchSig.back();
     vchSig.pop_back();
 
-    if (sigversion == SigVersion::WITNESS_V0 && amount < 0) return HandleMissingData(m_mdb);
+    if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn >= txTo->vout.size()) return false;
+
+    if ((sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::WITNESS_V1_RES) && amount < 0) return HandleMissingData(m_mdb);
 
     const uint256 sighash = SignatureHash(scriptCode, *txTo, nIn, nHashType, amount, sigversion, this->txdata);
     return VerifyEd25519Signature(vchSig, vchPubKey, sighash);
@@ -1670,87 +1783,51 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
 
 static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror, bool is_p2sh)
 {
-    CScript exec_script; //!< Actually executed script (last stack item in P2WSH; implied P2PKH script in P2WPKH; leaf script in P2TR)
+    CScript exec_script; //!< Actually executed script (last stack item in P2WSH; implied P2PKH script in P2WPKH). No BIP341 leaf script.
     Span stack{witness.stack};
     ScriptExecutionData execdata;
 
     if (witversion == 0) {
         if (program.size() == WITNESS_V0_SCRIPTHASH_SIZE) {
-            // 32-byte v0 program: BIP141 P2WSH (SHA256(witness script) == program) OR, when that hash
-            // does not match, RIGOR native P2WPKH-style Ed25519 (program is the 32-byte pubkey, witness
-            // <sig><pubkey> with pubkey == program). P2WSH takes precedence so multisig / timelocks in
-            // a witness script keep standard v0 script semantics with Ed25519 CHECKSIG inside the script.
+            // 32-byte v0 program: BIP141 P2WSH only (SHA256(witness script) == program).
+            // Native Ed25519 ORU uses 20-byte v0 P2WPKH (RIG-07). Dual-use of v0/32 is forbidden.
             if (stack.size() == 0) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
             }
-            const valtype& wscript_candidate = stack.back();
+            const valtype& script_bytes = SpanPopBack(stack);
             uint256 hash_wscript;
-            CSHA256().Write(wscript_candidate.data(), wscript_candidate.size()).Finalize(hash_wscript.begin());
-            if (memcmp(hash_wscript.begin(), program.data(), 32) == 0) {
-                Span stack_p2wsh{witness.stack};
-                const valtype& script_bytes = SpanPopBack(stack_p2wsh);
-                exec_script = CScript(script_bytes.begin(), script_bytes.end());
-                return ExecuteWitnessScript(stack_p2wsh, exec_script, flags, SigVersion::WITNESS_V0, checker, execdata, serror);
-            }
-            if (stack.size() != 2) {
+            CSHA256().Write(script_bytes.data(), script_bytes.size()).Finalize(hash_wscript.begin());
+            if (memcmp(hash_wscript.begin(), program.data(), 32) != 0) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
-            const valtype& vchSig = stack[0];
-            const valtype& vchPubKey = stack[1];
-            if (vchPubKey.size() != ed25519::PUBKEY_SIZE || vchPubKey != program) {
-                return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
-            }
-            if (!IsValidEd25519SignatureEncoding(vchSig)) {
-                return set_error(serror, SCRIPT_ERR_SIG_DER);
-            }
-            exec_script << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(vchPubKey))) << OP_EQUALVERIFY << OP_CHECKSIG;
+            exec_script = CScript(script_bytes.begin(), script_bytes.end());
             return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::WITNESS_V0, checker, execdata, serror);
         } else if (program.size() == WITNESS_V0_KEYHASH_SIZE) {
-            // BIP141 P2WPKH: 20-byte witness v0 program (Hash160(pubkey)). CHECKSIG is Ed25519
-            // only (0x00||ed25519_pk); compressed secp 0x02/0x03 is SCRIPT_ERR_SECP256K1_DISABLED.
+            // BIP141 P2WPKH: 20-byte witness v0 program (Hash160 of the 32-byte Ed25519 pubkey).
             if (stack.size() != 2) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH); // 2 items in witness
             }
             exec_script << OP_DUP << OP_HASH160 << program << OP_EQUALVERIFY << OP_CHECKSIG;
             return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::WITNESS_V0, checker, execdata, serror);
         } else {
-            // v0 programs must be 20-byte (P2WPKH) or 32-byte (P2WSH or RIGOR native pubkey commitment above)
+            // v0 programs must be 20-byte (P2WPKH) or 32-byte (P2WSH)
             return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH);
         }
-    } else if (witversion == 1 && program.size() == WITNESS_V1_RES_SIZE && IsRes2AssetProgram(program)) {
-        // ORB2: spend with <sig><pubkey>; program is ORB2||pk[4..32] (28-byte tail binds pubkey).
-        if (witness.stack.size() != 2) {
-            return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
-        }
-        const valtype& vchSig = witness.stack[0];
-        const valtype& vchPubKey = witness.stack[1];
-        if (vchPubKey.size() != ed25519::PUBKEY_SIZE) {
-            return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
-        }
-        if (std::memcmp(program.data() + 4, vchPubKey.data() + 4, 28) != 0) {
-            return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
-        }
-        if (!IsValidEd25519SignatureEncoding(vchSig)) {
-            return set_error(serror, SCRIPT_ERR_SIG_DER);
-        }
-        CScript scriptCode;
-        scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(vchPubKey))) << OP_EQUALVERIFY << OP_CHECKSIG;
-        if (!checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, SigVersion::WITNESS_V0)) {
-            return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
-        }
-        return set_success(serror);
     } else if (witversion == 1 && program.size() == WITNESS_V1_RES_SIZE && IsRigorResNativeWitnessProgram(program) && !is_p2sh) {
         if (stack.size() == 0) {
             return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
         }
-        // REMOVED: annex initialization (BIP341 annex)
-        // violates RIGOR "Script as Asset" constitution (no Taproot/BIP341 complexity)
 
-        // Key path: <signature+hashtype><pubkey> (Ed25519); 32-byte program must equal pubkey.
+        // Key path: <signature+hashtype><pubkey> (Ed25519); program is SHA256(pubkey).
         if (stack.size() == 2) {
             const valtype& vchSig = stack[0];
             const valtype& vchPubKey = stack[1];
-            if (vchPubKey.size() != ed25519::PUBKEY_SIZE || vchPubKey != program) {
+            if (vchPubKey.size() != ed25519::PUBKEY_SIZE) {
+                return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
+            }
+            uint256 hashed;
+            if (!ed25519::ResWitnessProgram(vchPubKey, Span<unsigned char>{hashed.begin(), 32}) ||
+                std::memcmp(hashed.begin(), program.data(), WITNESS_V1_RES_SIZE) != 0) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
             if (!IsValidEd25519SignatureEncoding(vchSig)) {
@@ -1758,7 +1835,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             }
             CScript scriptCode;
             scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(vchPubKey))) << OP_EQUALVERIFY << OP_CHECKSIG;
-            if (!checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, SigVersion::WITNESS_V0)) {
+            if (!checker.CheckEd25519Signature(vchSig, vchPubKey, scriptCode, SigVersion::WITNESS_V1_RES)) {
                 return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
             }
             return set_success(serror);
@@ -1777,6 +1854,10 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
         // Since RES transfers already work over the key path, the path was removed rather than
         // repaired; a second way to spend the same output earns its keep only if it is at least as
         // safe as the first.
+        //
+        // FENCE-W5: do not reintroduce block-level rigor context (CBlockIndex, T, C, parent)
+        // into this function. Mint coupling remains ConnectEvaluateCoinbaseResMint only.
+        // M-1: the RES2-prefixed spend branch was deleted; RES2 programs are not creatable.
         return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
     } else {
         // Unknown witness version or program length: consensus failure when this path runs
@@ -1799,18 +1880,28 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
 
     set_error(serror, SCRIPT_ERR_UNKNOWN_ERROR);
 
-    // RIGOR consensus: Short-circuit to only allow witness v0 (ORU) and witness v1 (RES)
-    // All legacy scripts (P2PKH, P2SH, bare multisig, etc.) are rejected at interpreter level.
+    // RIGOR consensus: spendable locks are witness v0 (ORU), witness v1 (RES), and the
+    // coinbase OP_RES_MINT issuance template. Other legacy scripts (P2PKH, P2SH, bare
+    // multisig, etc.) are rejected at interpreter level.
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
-    if (!scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
+    const bool is_res_mint = IsResMintScript(scriptPubKey);
+    if (!is_res_mint && !scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
         return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
     }
-    if (witnessversion != 0 && witnessversion != 1) {
-        return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
+    if (!is_res_mint) {
+        if (witnessversion != 0 && witnessversion != 1) {
+            // Unknown witness versions are consensus-invalid. Soft-fork upgrade hooks are
+            // intentionally not provided; new spend types require a hard fork (RIG-11).
+            return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
+        }
+        if (witnessversion == 1 && witnessprogram.size() != 32) {
+            return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
+        }
     }
-    if (witnessversion == 1 && witnessprogram.size() != 32) {
-        return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
+
+    if (is_res_mint && !scriptSig.IsPushOnly()) {
+        return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);
     }
 
     if ((flags & SCRIPT_VERIFY_SIGPUSHONLY) != 0 && !scriptSig.IsPushOnly()) {
@@ -1936,11 +2027,8 @@ size_t static WitnessSigOps(int witversion, const std::vector<unsigned char>& wi
                 CScript subscript(last.begin(), last.end());
                 return subscript.GetSigOpCount(true);
             }
-            return 1;
+            return 0;
         }
-    }
-    if (witversion == 1 && witprogram.size() == WITNESS_V1_RES_SIZE && IsRes2AssetProgram(witprogram)) {
-        return 1;
     }
     if (witversion == 1 && witprogram.size() == WITNESS_V1_RES_SIZE && IsRigorResNativeWitnessProgram(witprogram)) {
         return 1;

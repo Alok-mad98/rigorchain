@@ -1,32 +1,24 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
-import { LAB_NAV, PRIMARY_NAV } from "../ia/sitemap";
+import { Outlet } from "react-router-dom";
 import { useSystemState } from "../context/SystemStateContext";
+import { Footer } from "./Footer";
+import { Navbar } from "./Navbar";
+import { StatusBadge } from "./StatusBadge";
 import { VerificationNotice } from "./VerificationNotice";
 
-function statusClass(s: string): string {
-  switch (s) {
-    case "online":
-      return "status-verified";
-    case "degraded":
-      return "status-degraded";
-    case "syncing":
-      return "status-degraded";
-    default:
-      return "status-offline";
-  }
+function statusTone(s: string): "ok" | "warn" | "err" {
+  if (s === "online") return "ok";
+  if (s === "degraded" || s === "syncing") return "warn";
+  return "err";
 }
 
 export function AppShell() {
-  const { pathname } = useLocation();
   const { state, refresh } = useSystemState();
   const equivFault = state.explorer_status.equivalence_claimed === true;
 
   return (
     <div className="app-shell">
-      <header className="status-bar">
-        <span className={`status-pill ${statusClass(state.global_status)}`}>
-          {state.global_status.toUpperCase()}
-        </span>
+      <div className="status-bar">
+        <StatusBadge label={state.global_status.toUpperCase()} tone={statusTone(state.global_status)} />
         <span className="status-mono">height: {state.chain_height ?? "—"}</span>
         <span className="status-mono">
           RPC: {state.rpc_status.reachable ? `${state.rpc_status.latency_ms}ms` : "offline"}
@@ -45,39 +37,13 @@ export function AppShell() {
         >
           {state.refreshing ? "…" : "↻"}
         </button>
-      </header>
+      </div>
 
-      <nav className="top-nav">
-        <Link to="/" className="brand">
-          <img src="/assets/rigor-logo.svg" alt="" className="brand-mark" width={32} height={32} />
-          <span className="brand-text">AlphaPlus</span>
-          <span className="brand-sub">RIGOR</span>
-        </Link>
-        <div className="nav-links">
-          {PRIMARY_NAV.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className={pathname === to || pathname.startsWith(`${to}/`) ? "active" : ""}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </nav>
-      <nav className="lab-nav" aria-label="Protocol lab">
-        {LAB_NAV.map(({ to, label }) => (
-          <Link key={to} to={to} className={pathname === to ? "active" : ""}>
-            {label}
-          </Link>
-        ))}
-      </nav>
-
+      <Navbar />
       <VerificationNotice />
 
       <div className="read-only-banner" role="note">
-        Experimental public narrative — read-only observer. No signing, no transaction submission, no
-        consensus control. Deterministic execution system under continuous formal verification.
+        Read-only observer. No signing, no transaction submission, no consensus control.
       </div>
 
       {state.rpc_status.last_error && state.global_status === "offline" && (
@@ -96,20 +62,7 @@ export function AppShell() {
         <Outlet />
       </main>
 
-      <footer className="site-footer">
-        <p>
-          AlphaPlus (RIGOR) is currently in live formal verification (PROOF-034). No equivalence claim
-          is established. All runtime results are provisional.
-        </p>
-        <p className="footer-muted">
-          equivalence_claimed = false · Not a finished mainnet system · Not an investment offering ·
-          Native assets: ORU and RES · Visual tokens: <code>web/rigorchain-site/src/index.css</code>{" "}
-          <code>:root</code>
-        </p>
-        <p className="footer-muted">
-          Build: {import.meta.env.VITE_SITE_VERSION ?? "dev"} · www.rigorchain.com
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

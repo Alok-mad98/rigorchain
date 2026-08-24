@@ -23,9 +23,9 @@ export function ThreeLayerModel({ compact = false }: { compact?: boolean }) {
       id: "runtime",
       title: "Layer 3 — Runtime Verification",
       points: [
-        "PROOF-034 running toward height 2,100,001",
-        "Archive generation in progress",
-        "NOT completed · NOT final",
+        "Differential / golden-vector verification",
+        "PROOF-034 archive is a separate empirical campaign",
+        "NOT a Coq⇄C++ refinement proof",
       ],
     },
   ];
@@ -33,7 +33,7 @@ export function ThreeLayerModel({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <div className="layer-compact mono">
-        Protocol (frozen) → Scientific model → Runtime verification (PROOF-034, provisional)
+        Protocol (frozen) → Scientific model → Runtime differential verification (not refinement)
       </div>
     );
   }

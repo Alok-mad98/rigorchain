@@ -17,10 +17,6 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <version.h>
-#include <logging.h>
-#include <util/system.h>
-#include <streams.h>
-#include <util/strencodings.h>
 
 #include <cstdint>
 
@@ -53,9 +49,11 @@ uint256 ComputeOpusMix(const uint256& input)
     uint256 current_h = input;
 
     for (int round = 0; round < OPUS_POW_MIX_ROUNDS; ++round) {
+        // Index is ReadLE32(current_h) & (SIZE-1). A historical `(round << 24)` XOR
+        // was a no-op under this mask (bits 24–31); it is omitted so independent
+        // implementations cannot "fix" it into a consensus fork.
         const uint32_t val = ReadLE32(current_h.begin());
-        const uint32_t raw_idx = val ^ (static_cast<uint32_t>(round) << 24);
-        uint32_t idx = raw_idx & OPUS_POW_BUFFER_MASK;
+        uint32_t idx = val & OPUS_POW_BUFFER_MASK;
         if (idx > OPUS_POW_BUFFER_SIZE - 8) {
             idx = static_cast<uint32_t>(OPUS_POW_BUFFER_SIZE - 8);
         }
@@ -65,30 +63,6 @@ uint256 ComputeOpusMix(const uint256& input)
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
         ss << current_h;
         ss << mem_val;
-        /* Debug: Log first round serialization */
-        if (round == 0 && gArgs.GetBoolArg("-debugpowcompare", false)) {
-            LogPrintf("=== NODE OPUSHASH ROUND 0 ===\n");
-            LogPrintf("current_h (hex): %s\n", current_h.ToString());
-            LogPrintf("mem_val: 0x%016llx\n", mem_val);
-            // Get the serialized bytes using CDataStream
-            CDataStream ds(SER_GETHASH, PROTOCOL_VERSION);
-            ds << current_h;
-            ds << mem_val;
-            std::string serialized = ds.str();
-            LogPrintf("serialized 40 bytes: %s\n", HexStr(serialized));
-        }
-        /* RIGOR DEBUG: Always log 40-byte input when -debugrigorpow is set */
-        if (round == 0 && gArgs.GetBoolArg("-debugrigorpow", false)) {
-            uint8_t buf[40];
-            memcpy(buf, current_h.begin(), 32);
-            WriteLE64(buf + 32, mem_val);
-            std::string input_hex = HexStr(Span<const uint8_t>(buf, 40));
-            LogPrintf("[RIGOR OPUSHASH INPUT]\n");
-            LogPrintf("current_h: %s\n", current_h.ToString());
-            LogPrintf("mem_val:   %llu\n", (unsigned long long)mem_val);
-            LogPrintf("buf40:     %s\n", input_hex);
-            LogPrintf("[END RIGOR OPUSHASH INPUT]\n");
-        }
         current_h = ss.GetHash();
     }
 
@@ -109,12 +83,5 @@ uint256 GetOpusHashFromBaseHash(const uint256& base_hash)
 
 uint256 GetOpusHash(const CBlockHeader& block)
 {
-    /* Debug: print 80-byte header for comparison with miner */
-    if (gArgs.GetBoolArg("-debugrigorpow", false)) {
-        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-        ss << block;
-        std::string header_hex = HexStr(ss);
-        LogPrintf("NODE opus_hash input80 (HEADER): %s\n", header_hex);
-    }
     return GetOpusHashFromBaseHash(block.GetHash());
 }

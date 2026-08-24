@@ -1,6 +1,6 @@
 (** σ digest — delegates to [SigmaPoW01] byte pipeline. *)
 From Coq Require Import ZArith.ZArith.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import SigmaPoW01.

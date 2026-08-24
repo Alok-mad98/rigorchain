@@ -15,9 +15,9 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 SCRIPT_WITNESS_V0 = 0
 SCRIPT_WITNESS_V1 = 1
 SCRIPT_OP_RETURN = 106  # OP_RETURN
+SCRIPT_OP_CONVERGE = 0xBD
 
-CVG2 = b"CVG2"
-ORB2 = b"ORB2"
+RES2 = b"RES2"
 
 
 @dataclass(frozen=True)
@@ -38,19 +38,26 @@ class RigorCommitment:
 
 
 def is_convergence_script(script: Script) -> bool:
-    return (
-        script.opcode == SCRIPT_WITNESS_V1
-        and len(script.program) == 32
-        and script.program.startswith(CVG2)
-    )
+    return script.opcode == SCRIPT_OP_CONVERGE and len(script.program) == 20
+
+
+def is_res_script(script: Script) -> bool:
+    """Witness v1, 32-byte program that is neither CVG2 nor RES2. Aligns with C++ ``IsResScript``."""
+    if script.opcode != SCRIPT_WITNESS_V1 or len(script.program) != 32:
+        return False
+    if script.program.startswith(b"CVG2"):
+        return False
+    if script.program.startswith(RES2):
+        return False
+    return True
 
 
 def is_res_mint_script(script: Script) -> bool:
-    return (
-        script.opcode == SCRIPT_WITNESS_V1
-        and len(script.program) == 36
-        and script.program.startswith(ORB2)
-    )
+    """Native RES output: untagged 32-byte witness v1 program.
+
+    RES2-prefixed programs are not chain-legal (``IsAllowedScript`` / RIG-13).
+    """
+    return is_res_script(script)
 
 
 def is_asset_script(script: Script) -> bool:

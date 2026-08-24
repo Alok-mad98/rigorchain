@@ -97,9 +97,13 @@ BOOST_AUTO_TEST_CASE(alpha1_chainparams_consistency)
     BOOST_CHECK_EQUAL(genesis.hashMerkleRoot, ALPHA1_GENESIS_MERKLE);
     BOOST_CHECK_EQUAL(genesis.GetHash(), consensus.hashGenesisBlock);
     BOOST_CHECK_EQUAL(consensus.defaultAssumeValid, consensus.hashGenesisBlock);
+    // Header-sync bootstrap floor: 2^26. Four genesis-difficulty (0x1e010000 ≈ 2^24)
+    // blocks pass the gate; a 2000-header powLimit flood does not. RFC-016 §2.4
+    // originally pinned 0x100000 (below one honest block); that floor is too low
+    // against powLimit headers and was raised in CMainParams.
     BOOST_CHECK_EQUAL(
         consensus.nMinimumChainWork,
-        uint256S("0x0000000000000000000000000000000000000000000000000000000000100000"));
+        uint256S("0x0000000000000000000000000000000000000000000000000000000004000000"));
 
     const auto& checkpoints = chainParams->Checkpoints().mapCheckpoints;
     BOOST_REQUIRE_EQUAL(checkpoints.size(), 1U);

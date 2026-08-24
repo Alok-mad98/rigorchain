@@ -6,9 +6,16 @@ import { getLineageForBlock, getLineageForTxid } from "./lineageDb";
 import { buildTxWitnessPanel } from "./witnessPanel";
 import { computeTxFee, formatOruAtoms } from "./fee";
 import { classifyTxKind, pickPrimaryOruOutput, txKindLabel } from "./txSummary";
+import {
+  CONVERGENCE_OUTPUT_STATE,
+  OP_CONVERGE_SCRIPT_NAME,
+  isConvergenceScriptPubKey,
+} from "./script";
 import { displayFingerprint, fingerprintStatus, shortFingerprint } from "./consensusFingerprint";
 import { atomsToOruDisplay, atomsToResDisplay } from "./addressIntelligence";
 import { displayOrNA, displayOrNotAvailable } from "./rpcFields";
+import { getRfc018FeeBurnAtHeight } from "./rfc018FeeBurnStore";
+import { rfc018FeeBurnView } from "./rfc018FeeBurn";
 
 export type ChainStateRow = {
   indexer_name: string;
@@ -33,6 +40,7 @@ const MIGRATION_FILES = [
   "002_alphaplus_compat.sql",
   "003_c_root.sql",
   "004_consensus_fingerprint.sql",
+  "005_rfc018_fee_burn_stats.sql",
 ];
 
 export async function ensureSchema(pool: Pool, config: Config): Promise<void> {
@@ -141,8 +149,11 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
                JOIN outputs o ON o.txid = t.txid AND o.asset_kind = 'ORU'
                WHERE t.block_hash = b.block_hash
                  AND t.block_tx_index = 0
-             ), '0') AS oru_minted_atoms
+             ), '0') AS oru_minted_atoms,
+             s.burned_oru::text AS rfc018_block_burned_oru,
+             s.cumulative_burned_oru::text AS rfc018_cumulative_burned_oru
       FROM blocks b
+      LEFT JOIN rfc018_fee_burn_stats s ON s.height = b.height
       ORDER BY b.height DESC
       LIMIT $1
     `,
@@ -150,6 +161,9 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
   );
   return res.rows.map((row) => {
     const atoms = BigInt(row.oru_minted_atoms ?? "0");
+    const blockBurn = BigInt(row.rfc018_block_burned_oru ?? "0");
+    const cumBurn = BigInt(row.rfc018_cumulative_burned_oru ?? "0");
+    const indexed = row.rfc018_block_burned_oru != null;
     return {
       ...row,
       oru_minted: formatOruAtoms(atoms),
@@ -158,6 +172,10 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
       consensus_fingerprint_short: shortFingerprint(row.consensus_fingerprint),
       consensus_fingerprint_display: displayFingerprint(row.consensus_fingerprint),
       consensus_fingerprint_status: fingerprintStatus(row.consensus_fingerprint),
+      rfc018_fee_burn: {
+        ...rfc018FeeBurnView(blockBurn, cumBurn, atomsToOruDisplay),
+        indexed,
+      },
     };
   });
 }
@@ -193,7 +211,7 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
 
   const txOuts = await pool.query(
     `
-      SELECT txid, vout_index, value_atoms, asset_kind, address, witness_version
+      SELECT txid, vout_index, value_atoms, asset_kind, address, witness_version, script_pubkey
       FROM outputs
       WHERE txid = ANY($1::text[])
       ORDER BY txid ASC, vout_index ASC
@@ -325,6 +343,20 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
   }
 
   const fp = block.consensus_fingerprint ?? null;
+  let feeBurnRow: Awaited<ReturnType<typeof getRfc018FeeBurnAtHeight>> = null;
+  try {
+    feeBurnRow = await getRfc018FeeBurnAtHeight(pool, block.height);
+  } catch {
+    feeBurnRow = null;
+  }
+  const rfc018_fee_burn = {
+    ...rfc018FeeBurnView(
+      feeBurnRow?.burned_oru ?? 0n,
+      feeBurnRow?.cumulative_burned_oru ?? 0n,
+      atomsToOruDisplay,
+    ),
+    indexed: feeBurnRow != null,
+  };
   const summary = {
     height: block.height,
     hash: block.block_hash,
@@ -359,6 +391,7 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
       res_probability_target_display: summary.res_probability_target_display,
     },
     summary,
+    rfc018_fee_burn,
     txs: enrichedTxs,
     convergence: winnerRow,
     convergence_panel,
@@ -521,10 +554,20 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
     subsidy_display: isCoinbase ? formatOruAtoms(oruOut) : null,
   };
 
+  const enrichedVout = vout.rows.map((o) => {
+    const is_convergence = isConvergenceScriptPubKey(String(o.script_pubkey ?? ""));
+    return {
+      ...o,
+      is_convergence,
+      script: is_convergence ? OP_CONVERGE_SCRIPT_NAME : null,
+      script_state: is_convergence ? CONVERGENCE_OUTPUT_STATE : null,
+    };
+  });
+
   return {
     tx: tx.rows[0],
     vin: enrichedVin,
-    vout: vout.rows,
+    vout: enrichedVout,
     summary,
     resMint: resMint.rows,
     convergence: convergence.rows,
@@ -585,7 +628,10 @@ export async function listResEvents(pool: Pool, limit: number, eligibleOnly: boo
             FROM outputs o
            WHERE o.txid = ce.convergence_txid
              AND o.asset_kind = 'ORU'
-             AND o.witness_version = 1
+             AND (
+               LOWER(REPLACE(TRIM(o.script_pubkey), ' ', '')) ~ '^14[0-9a-f]{40}bd$'
+               OR LOWER(o.script_pubkey) LIKE '512043564732%'
+             )
         ), 0)::text AS lock_atoms
       FROM convergence_events ce
       GROUP BY ce.convergence_txid

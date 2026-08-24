@@ -70,7 +70,7 @@ Consensus::RuntimeSupplyState MakeMirror(int32_t height,
     m.res_mint_count_block = mint_count;
     m.res_mint_cumulative = res_parent + res_block;
     m.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    m.res_reward_amount = Consensus::RES_REWARD_AMOUNT;
+    m.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     return m;
 }
 
@@ -88,8 +88,8 @@ BOOST_FIXTURE_TEST_CASE(build_chas_vectors_from_catalog_row, ChasFixture)
     Consensus::StoreRuntimeSupplyWitness(MakeWitness(0, h0, uint256{}, 50 * COIN, 0));
     Consensus::StoreRuntimeSupplyWitness(MakeWitness(1, h1, h0, 51 * COIN, 0));
 
-    const std::optional<Consensus::RuntimeSupplyWitness> w1 = Consensus::GetRuntimeSupplyWitness(1);
-    const std::optional<Consensus::RuntimeSupplyWitness> w0 = Consensus::GetRuntimeSupplyWitness(0);
+    const std::optional<Consensus::RuntimeSupplyWitness> w1 = Consensus::GetRuntimeSupplyWitness(h1);
+    const std::optional<Consensus::RuntimeSupplyWitness> w0 = Consensus::GetRuntimeSupplyWitness(h0);
     BOOST_REQUIRE(w1.has_value());
     BOOST_REQUIRE(w0.has_value());
 
@@ -119,13 +119,13 @@ BOOST_FIXTURE_TEST_CASE(delta_matches_hook_partial_with_mirror, ChasFixture)
     const Consensus::RuntimeSupplyWitness parent =
         MakeWitness(9, parent_hash, HashFromLabel("p8"), parent_oru, 0);
     const Consensus::RuntimeSupplyWitness child =
-        MakeWitness(10, child_hash, parent_hash, child_oru, Consensus::RES_REWARD_AMOUNT);
+        MakeWitness(10, child_hash, parent_hash, child_oru, Consensus::RES_REWARD_GENESIS);
     Consensus::StoreRuntimeSupplyWitness(parent);
     Consensus::StoreRuntimeSupplyWitness(child);
 
     const Consensus::RuntimeSupplyState mirror = MakeMirror(
         10, child_hash, parent_hash, parent_oru, child_oru, subsidy, burn, 0,
-        Consensus::RES_REWARD_AMOUNT, 1);
+        Consensus::RES_REWARD_GENESIS, 1);
 
     const Consensus::RuntimeSupplyWitnessCoqCatalogRow row = Consensus::BuildWitnessCoqCatalogRow(
         child, mirror, true, Consensus::RuntimeSupplyMirrorSource::STORED_MIRROR, parent);
@@ -133,7 +133,7 @@ BOOST_FIXTURE_TEST_CASE(delta_matches_hook_partial_with_mirror, ChasFixture)
         Consensus::BuildChasAlignmentFromCatalogRow(row);
 
     BOOST_CHECK_EQUAL(report.delta.rs_oru_supply_delta, subsidy - burn);
-    BOOST_CHECK_EQUAL(report.delta.rs_res_supply_delta, Consensus::RES_REWARD_AMOUNT);
+    BOOST_CHECK_EQUAL(report.delta.rs_res_supply_delta, Consensus::RES_REWARD_GENESIS);
     BOOST_CHECK(report.delta_audit_violations.empty());
     BOOST_CHECK_EQUAL(report.chas_oru_state.status, Consensus::CanonicalHashAlignmentStatus::Partial);
     BOOST_CHECK(report.chas_oru_state.audit_notes.end() !=
@@ -146,7 +146,7 @@ BOOST_FIXTURE_TEST_CASE(genesis_missing_parent_partial, ChasFixture)
 {
     const uint256 h0 = HashFromLabel("chas-genesis");
     Consensus::StoreRuntimeSupplyWitness(MakeWitness(0, h0, uint256{}, 50 * COIN, 0));
-    const std::optional<Consensus::RuntimeSupplyWitness> w0 = Consensus::GetRuntimeSupplyWitness(0);
+    const std::optional<Consensus::RuntimeSupplyWitness> w0 = Consensus::GetRuntimeSupplyWitness(h0);
     BOOST_REQUIRE(w0.has_value());
 
     const Consensus::RuntimeSupplyWitnessCoqCatalogRow row = Consensus::BuildWitnessCoqCatalogRow(
@@ -196,7 +196,8 @@ BOOST_FIXTURE_TEST_CASE(rpc_alignment_json_shape, ChasFixture)
 {
     Consensus::StoreRuntimeSupplyWitness(
         MakeWitness(100, HashFromLabel("chas-rpc"), HashFromLabel("chas-rpc-p"), 123456, 7800));
-    const std::optional<Consensus::RuntimeSupplyWitness> w = Consensus::GetRuntimeSupplyWitness(100);
+    const std::optional<Consensus::RuntimeSupplyWitness> w =
+        Consensus::GetRuntimeSupplyWitness(HashFromLabel("chas-rpc"));
     BOOST_REQUIRE(w.has_value());
 
     const Consensus::RuntimeSupplyWitnessCoqCatalogRow row = Consensus::BuildWitnessCoqCatalogRow(

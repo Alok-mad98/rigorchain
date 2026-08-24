@@ -164,8 +164,10 @@ including but not limited to:
 - Pre-RFC-015 economics (`|F| ≥ 2`, 1 RES per draw, superseded cap)
 - Non-genesis activation bridges or dual-rule coexistence
 
-Frozen parameters include at minimum: `RES_PROBABILITY_TARGET = 2^240`, `k = 10`,
-`RES_REWARD_AMOUNT`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`, bootstrap bind hash
+Frozen parameters include at minimum: `RES_PROBABILITY_TARGET` at RFC-017
+shipping `E = 246` (windowed; mint cost `C = 1024` ORU; Historical RFC-014
+parameter `2^240`), `k = 10`,
+RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`, bootstrap bind hash
 for `h < k`, and genesis-only activation.
 
 ---
@@ -316,7 +318,9 @@ H_i       = uint256 interpretation of σ_i
 eligible_i ⟺ |F| ≥ 1  ∧  f_i ≥ 1  ∧  H_i < RES_PROBABILITY_TARGET · f_i
 ```
 
-where `RES_PROBABILITY_TARGET = 2^240` and comparison uses exact integer arithmetic
+where `RES_PROBABILITY_TARGET` is the RFC-017 shipping windowed constant
+(`E = 246`; mint cost `C = 1024` ORU per mint; Historical RFC-014 parameter
+`2^240`) and comparison uses exact integer arithmetic
 (cross-multiplication permitted; floating-point forbidden).
 
 **Failure condition:** Eligibility evaluated with `|F| < 1` as sufficient; `f_i < 1`;
@@ -360,10 +364,11 @@ or tie-break does not use txid order.
 
 ### CR-044: Mint Amount Exact
 
-**Purpose:** A successful RES mint MUST credit exactly `RES_REWARD_AMOUNT`.
+**Purpose:** A successful RES mint MUST credit exactly `GetResMintReward(h)`.
 
-**Failure condition:** RES mint exists but credited amount ≠ `RES_REWARD_AMOUNT`
-(100 RES = 10,000 atoms).
+**Failure condition:** RES mint exists but credited amount ≠ `GetResMintReward(h)`
+(RFC-017 `W(k)`; genesis `RES_REWARD_GENESIS` = 40.000000 RES). Historical RFC-015
+used a constant 100 RES.
 
 ---
 
@@ -428,7 +433,7 @@ S_ORU(h+1) ≠ S_ORU(h) + R(h+1) − C(h+1)
 ```
 or
 ```
-S_RES(h+1) ≠ S_RES(h) + RES_REWARD_AMOUNT · M(h+1)
+S_RES(h+1) ≠ S_RES(h) + GetResMintReward(h+1) · M(h+1)
 ```
 
 ---

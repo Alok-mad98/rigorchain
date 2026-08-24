@@ -852,30 +852,21 @@ class ImportMultiTest(BitcoinTestFramework):
         assert_equal(result[0]['error']['code'], -8)
         assert_equal(result[0]['error']['message'], "Keys can only be imported to the keypool when private keys are disabled")
 
-        # Make sure ranged imports import keys in order
-        self.log.info('Key ranges should be imported in order')
+        # Watch-only wallets cannot expand hardened BIP32 from xpub (SLIP-0010).
+        self.log.info('Watch-only cannot import a hardened ranged xpub')
         wrpc = self.nodes[1].get_wallet_rpc("noprivkeys")
         assert_equal(wrpc.getwalletinfo()["keypoolsize"], 0)
         assert_equal(wrpc.getwalletinfo()["private_keys_enabled"], False)
         xpub = "tpubDAXcJ7s7ZwicqjprRaEWdPoHKrCS215qxGYxpusRLLmJuT69ZSicuGdSfyvyKpvUNYBW1s2U3NSrT6vrCYB9e6nZUEvrqnwXPF8ArTCRXMY"
-        addresses = [
-            'rgrt1qtmp74ayg7p24uslctssvjm06q5phz4yrzhs6kd', # m/0'/0'/0
-            'rgrt1q8vprchan07gzagd5e6v9wd7azyucksq2znkgnx', # m/0'/0'/1
-            'rgrt1qtuqdtha7zmqgcrr26n2rqxztv5y8rafj9whw6a', # m/0'/0'/2
-            'rgrt1qau64272ymawq26t90md6an0ps99qkrsesvngsw', # m/0'/0'/3
-            'rgrt1qsg97266hrh6cpmutqen8s4s962aryy77k28mdw', # m/0'/0'/4
-        ]
         result = wrpc.importmulti(
             [{
-                'desc': descsum_create('wpkh([80002067/0h/0h]' + xpub + '/*)'),
+                'desc': descsum_create('wpkh([80002067/0h/0h]' + xpub + '/*\')'),
                 'keypool': True,
                 'timestamp': 'now',
                 'range' : [0, 4],
             }]
         )
-        for i in range(0, 5):
-            addr = wrpc.getnewaddress('', "bech32m")
-            assert_equal(addr, addresses[i])
+        assert_equal(result[0]['success'], False)
 
         # Create wallet with passphrase
         self.log.info('Test watchonly imports on a wallet with a passphrase, without unlocking')

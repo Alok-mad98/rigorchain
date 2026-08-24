@@ -32,17 +32,13 @@ namespace Consensus {
 /**
  * Dual-pool conservation: POOL-T (transfer) per asset; POOL-F network fee always ORU (`oru_in - oru_out`).
  * RES transfer requires ORU fee inputs; RES amounts never fund the network fee.
- * ORU→RES is allowed only as the body-mint shape (parseable PCORB, exactly one 100.00 RES output);
- * winner coupling remains ConnectBlock.
+ * ORU→RES is never allowed here: new RES exists only in the coinbase (`mixed-asset-output`).
+ * A PCORB carrier output is likewise never allowed here (`bad-pcorb-carrier`) — the tag is a
+ * coinbase-only channel, see `consensus/res_proof.h`.
  * @param[out] txfee ORU network fee (sat) on success.
  * Preconditions: tx.IsCoinBase() is false.
  */
 [[nodiscard]] bool CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, const Consensus::Params& consensus_params, CAmount& txfee);
-
-/**
- * Body Res mint vs Res spend: asset I/O rules are here (`mixed-asset-output`, etc.). Proof **Mint vs Claim**
- * for the unified proof layout is **only** from `GetTransactionInputAsset` — see `rigor_res.cpp`.
- */
 } // namespace Consensus
 
 /** Auxiliary functions for transaction validation (ideally should not be exposed) */

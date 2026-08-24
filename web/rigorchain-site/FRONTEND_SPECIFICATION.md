@@ -70,7 +70,7 @@ Static MD from `content/protocol.md` + optional `LiveProtocolStrip`.
 
 | Section | Component |
 |---------|-----------|
-| Invariant grid | 6 panels (determinism, conservation, 65536, 125, non-equivalence) |
+| Invariant grid | 6 panels (determinism, conservation, E=246 mint cost, 125, non-equivalence) |
 | Full document | Rendered `AXIOMS_v1.0` / publication §2 |
 
 No live RPC required.

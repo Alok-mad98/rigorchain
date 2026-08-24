@@ -4,6 +4,7 @@
 
 #include <qt/rigorwallet/widgets/convergence_lifecyclepanel.h>
 
+#include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/convergence/convergence_wallet_data.h>
@@ -162,10 +163,11 @@ void ConvergenceLifecyclePanel::refresh()
     if (w.lifecycle == wallet::ConvergenceUiLifecycle::CompletedAllocated) {
         QString res_disp;
         if (focus->res_amount > 0) {
-            res_disp = QString::number(static_cast<double>(focus->res_amount) / Consensus::RES_COIN, 'f', 2) +
-                       QStringLiteral(" RES minted");
+            res_disp = BitcoinUnits::formatRes(focus->res_amount) + QStringLiteral(" RES minted");
         } else {
-            res_disp = QStringLiteral("%1.00 RES minted").arg(Consensus::RES_REWARD_AMOUNT / Consensus::RES_COIN);
+            // No amount recorded and no height in scope; the reward varies with height under
+            // RFC-017, so do not fabricate a figure.
+            res_disp = tr("RES minted");
         }
         m_resultLabel->setText(res_disp);
     } else if (w.lifecycle == wallet::ConvergenceUiLifecycle::CompletedNoAllocation) {

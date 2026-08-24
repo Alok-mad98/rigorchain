@@ -1,5 +1,5 @@
 /**
- * Official AlphaPlus website information architecture.
+ * Official RIGOR website information architecture.
  * Used by navigation, hub pages, and placeholders.
  * Existing live pages are KEEP. New nested routes are PLACEHOLDER until filled.
  */
@@ -24,12 +24,13 @@ export type SiteSection = {
 };
 
 export const PRIMARY_NAV = [
+  { to: "/", label: "Home" },
   { to: "/download", label: "Download" },
   { to: "/wallet", label: "Wallet" },
   { to: "/mining", label: "Mining" },
   { to: "/explorer", label: "Explorer" },
-  { to: "/zero-trust-verification", label: "Zero-Trust Verification" },
   { to: "/documentation", label: "Documentation" },
+  { to: "/zero-trust-verification", label: "Zero-Trust" },
   { to: "/about", label: "About" },
 ] as const;
 
@@ -71,7 +72,7 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/download/miner",
         title: "Miner",
-        purpose: "Windows and Linux miner artifacts for AlphaPlus PoW.",
+        purpose: "Windows and Linux miner artifacts for RIGOR PoW.",
         preservation: "PLACEHOLDER",
         planned: ["Windows miner package", "Pool connection defaults", "Link to Mining guide"],
       },
@@ -231,6 +232,25 @@ export const SECTIONS: SiteSection[] = [
     title: "Documentation",
     children: [
       {
+        path: "/documentation/whitepaper",
+        title: "Whitepaper",
+        purpose: "Official RIGOR protocol whitepaper: dual assets, Convergence, fairness, mining, verification.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/documentation/monetary-policy",
+        title: "Deterministic Reserve Issuance",
+        purpose:
+          "RES schedule W(k), supply bound, cost floor. RES is not mined. equivalence_claimed = false.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/documentation/formal-verification",
+        title: "Formal Verification",
+        purpose: "Coq model, correspondence boundary, differential gate. equivalence_claimed = false.",
+        preservation: "KEEP",
+      },
+      {
         path: "/documentation/user-guide",
         title: "User Guide",
         purpose: "How to download, run a wallet, mine, and verify.",
@@ -254,16 +274,22 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/documentation/rfc",
         title: "RFC Overview",
-        purpose: "Index of frozen RFCs that define AlphaPlus.",
+        purpose: "Index of frozen RFCs that define RIGOR.",
         preservation: "PLACEHOLDER",
         planned: ["RFC-000 constitution", "RFC-015 consensus model", "RFC-008 mathematics"],
       },
       {
         path: "/documentation/security",
-        title: "Security",
-        purpose: "Trust boundaries, formal verification, no hidden authority.",
-        preservation: "PLACEHOLDER",
-        planned: ["docs/security/", "Zero-trust model", "equivalence_claimed = false"],
+        title: "Security Architecture",
+        purpose: "Security through minimalism: UTXO verification, dual native assets, Zero Trust.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/documentation/security/minimal-script-architecture",
+        title: "Minimal Script Architecture",
+        purpose:
+          "Bitcoin UTXO foundation, script-defined asset identity, restricted witness families. Not a programmable VM.",
+        preservation: "KEEP",
       },
     ],
   },

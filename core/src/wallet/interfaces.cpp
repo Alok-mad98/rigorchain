@@ -22,12 +22,12 @@
 #include <wallet/context.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
+#include <wallet/spend.h>
 #include <wallet/convergencestate.h>
 #include <wallet/types.h>
 #include <wallet/load.h>
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
-#include <wallet/spend.h>
 #include <wallet/tx_semantic.h>
 #include <wallet/wallet.h>
 
@@ -69,12 +69,14 @@ WalletTx MakeWalletTx(CWallet& wallet, const CWalletTx& wtx)
     result.txout_is_mine.reserve(wtx.tx->vout.size());
     result.txout_address.reserve(wtx.tx->vout.size());
     result.txout_address_is_mine.reserve(wtx.tx->vout.size());
+    result.txout_is_change.reserve(wtx.tx->vout.size());
     for (const auto& txout : wtx.tx->vout) {
         result.txout_is_mine.emplace_back(wallet.IsMine(txout));
         result.txout_address.emplace_back();
         result.txout_address_is_mine.emplace_back(ExtractDestination(txout.scriptPubKey, result.txout_address.back()) ?
                                                       wallet.IsMine(result.txout_address.back()) :
                                                       ISMINE_NO);
+        result.txout_is_change.push_back(OutputIsChange(wallet, txout) ? 1 : 0);
     }
   // Domain-split amounts: never aggregate ORU+RES in one field (FREEZE-RFC-ADDR / P7B).
     result.credit_oru = CachedTxGetCreditForAsset(wallet, wtx, ASSET_ORU, ISMINE_ALL);
@@ -284,19 +286,24 @@ public:
 
         return txr.tx;
     }
-    util::Result<CTransactionRef> createConvergenceTransaction(const CAmount amount_origo,
+    util::Result<CTransactionRef> createConvergenceTransaction(const CAmount amount_oru,
         const CCoinControl& coin_control,
         bool sign,
         int& change_pos,
         CAmount& fee) override
     {
         LOCK(m_wallet->cs_wallet);
-        auto res = CreateConvergenceTransaction(*m_wallet, amount_origo, change_pos, coin_control, sign, /*subtract_fee_from_convergence=*/false);
+        auto res = CreateConvergenceTransaction(*m_wallet, amount_oru, change_pos, coin_control, sign, /*subtract_fee_from_convergence=*/false);
         if (!res) return util::Error{util::ErrorString(res)};
         const auto& txr = *res;
         fee = txr.fee;
         change_pos = txr.change_pos;
         return txr.tx;
+    }
+    util::Result<CRecipient> makeConvergenceRecipient(CAmount amount_oru) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return MakeConvergenceRecipient(*m_wallet, amount_oru, /*subtract_fee_from_convergence=*/false);
     }
     void commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
@@ -600,6 +607,7 @@ public:
     unsigned int getConfirmTarget() override { return m_wallet->m_confirm_target; }
     bool hdEnabled() override { return m_wallet->IsHDEnabled(); }
     bool oruHdEnabled() override { return m_wallet->IsOruHDEnabled(); }
+    bool resHdEnabled() override { return m_wallet->IsResHDEnabled(); }
     bool resDedicatedKeyMode() override { return m_wallet->IsResDedicatedKeyMode(); }
     bool canGetAddresses() override { return m_wallet->CanGetAddresses(); }
     bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }

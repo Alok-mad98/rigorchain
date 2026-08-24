@@ -2,7 +2,7 @@
     PHASE-4E: bridge ConnectBlock scaffold semantics to replay supply proofs. *)
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
-Require Import Rigor.State.
+Require Import Rigor.legacy_account_model.State.
 Require Import Rigor.ConnectBlock.
 Require Import Rigor.ReplayReorgCore.ReplayState.
 Require Import Rigor.ReplayReorgCore.ConnectBlockMint.
@@ -11,8 +11,16 @@ Require Import Rigor.ReplayReorgCore.ReorgRules.
 Require Import Rigor.ReplayReorgCore.ReplayDeterminism.
 Require Import Rigor.ReplayReorgCore.SupplyConservation.
 
-(** Constants align with [ConnectBlock.v] scaffold. *)
-Lemma cb_res_mint_amount_eq : cb_RES_MINT_AMOUNT = RES_MINT_AMOUNT.
+(** Constants align with [ConnectBlock.v] scaffold.
+
+    RFC-017 turned the mint amount into a function of height, so this is no longer an equality of
+    two constants but an equality of two functions at the block's own height. The bridge is where
+    it matters that both sides read the height from the same place: the replay model takes it
+    from [blk_header], and the scaffold must be handed that same value rather than the tip height
+    carried in [State], which is the height of the previous block. *)
+Lemma cb_res_mint_amount_eq :
+  forall b : BlockAbs,
+    cb_res_mint_amount b = RES_MINT_AMOUNT (Z.of_nat (hdr_height (blk_header b))).
 Proof. reflexivity. Qed.
 
 Lemma cb_max_res_supply_eq : cb_MAX_RES_SUPPLY = MAX_RES_SUPPLY.
@@ -25,18 +33,18 @@ Definition replay_to_scaffold_state (s : ReplayState) : State :=
      current_height := Z.of_nat (cm_height (rs_chain s));
      last_hash := 0%Z |}.
 
-Definition scaffold_res_delta (st : State) (draw_won : bool) : Z :=
+Definition scaffold_res_delta (st : State) (height : Z) (draw_won : bool) : Z :=
   if draw_won then
-    if Z.leb (RES_supply st + RES_MINT_AMOUNT) MAX_RES_SUPPLY then
-      RES_MINT_AMOUNT
+    if Z.leb (RES_supply st + RES_MINT_AMOUNT height) MAX_RES_SUPPLY then
+      RES_MINT_AMOUNT height
     else
       0%Z
   else
     0%Z.
 
-Definition scaffold_apply_res_mint (st : State) (draw_won : bool) : State :=
+Definition scaffold_apply_res_mint (st : State) (height : Z) (draw_won : bool) : State :=
   {| ORU_supply := ORU_supply st;
-     RES_supply := (RES_supply st + scaffold_res_delta st draw_won)%Z;
+     RES_supply := (RES_supply st + scaffold_res_delta st height draw_won)%Z;
      current_height := current_height st;
      last_hash := last_hash st |}.
 
@@ -45,13 +53,15 @@ Lemma replay_to_scaffold_res_supply (s : ReplayState) :
 Proof. reflexivity. Qed.
 
 Lemma scaffold_res_delta_eq_cb (s : ReplayState) (b : BlockAbs) :
-  scaffold_res_delta (replay_to_scaffold_state s) (cm_draw_won (blk_mint b)) =
+  scaffold_res_delta (replay_to_scaffold_state s)
+                     (Z.of_nat (hdr_height (blk_header b)))
+                     (cm_draw_won (blk_mint b)) =
     cb_res_mint_delta s b.
 Proof.
   intros. unfold scaffold_res_delta, cb_res_mint_delta.
   destruct (cm_draw_won (blk_mint b)); [|reflexivity].
   rewrite replay_to_scaffold_res_supply.
-  unfold cb_RES_MINT_AMOUNT, cb_MAX_RES_SUPPLY, RES_MINT_AMOUNT, MAX_RES_SUPPLY.
+  unfold cb_res_mint_amount, cb_MAX_RES_SUPPLY, RES_MINT_AMOUNT, MAX_RES_SUPPLY.
   reflexivity.
 Qed.
 
@@ -64,7 +74,9 @@ Definition block_with_mint (hdr : BlockHeaderAbs) (txs : list TxAbs)
 Lemma connectblock_scaffold_res_matches_replay :
   forall (s : ReplayState) (st : State) (b : BlockAbs),
     st = replay_to_scaffold_state s ->
-    RES_supply (scaffold_apply_res_mint st (cm_draw_won (blk_mint b))) =
+    RES_supply (scaffold_apply_res_mint st
+                  (Z.of_nat (hdr_height (blk_header b)))
+                  (cm_draw_won (blk_mint b))) =
       (rs_res_supply s + cb_res_mint_delta s b)%Z.
 Proof.
   intros s st b Heq.

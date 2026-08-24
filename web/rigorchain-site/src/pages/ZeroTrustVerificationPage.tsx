@@ -1,5 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Button } from "../components/Button";
+import { DataPanel } from "../components/DataPanel";
+import { InputBox } from "../components/InputBox";
 import { SubNav } from "../components/SubNav";
 import { DRAW_FINGERPRINT_LABEL } from "../lib/zeroTrust/constants";
 import { runSelfCheck, type SelfCheckRow } from "../lib/zeroTrust/selfCheck";
@@ -81,18 +84,23 @@ export function ZeroTrustVerificationPage() {
     }
   }
 
+  const resultLabel = txResult?.final ?? blockResult?.final ?? (busy ? "COMPUTING" : "—");
+  const resultTone =
+    resultLabel === "VALID"
+      ? "zt-ok"
+      : resultLabel === "INVALID"
+        ? "zt-bad"
+        : "zt-mid";
+
   return (
     <div className="page zt-page">
       <SubNav />
       <header className="page-header">
-        <p className="tag">ALPHA PLUS TRUST LAYER</p>
+        <p className="tag">TRUST LAYER</p>
         <h1>Zero-Trust Verification</h1>
+        <p className="muted">Anyone can verify without trusting a server.</p>
         <p className="muted">
-          You do not need to trust a node. You can independently verify the result yourself.
-        </p>
-        <p className="muted">
-          Independent blockchain validation in this browser. Nodes do not agree by trusting. Nodes
-          agree by producing identical outputs.{" "}
+          You do not need to trust a node. This browser recomputes consensus outputs locally.{" "}
           <Link to="/zero-trust-verification/what-is-zero-trust">What is Zero Trust?</Link>
         </p>
       </header>
@@ -108,6 +116,8 @@ export function ZeroTrustVerificationPage() {
           (<code>hashPrevBlock</code>), ConvergenceRoot, Sigma, and winner selection are computed
           locally with WebCrypto over <code>Uint8Array</code>. {DRAW_FINGERPRINT_LABEL} is an
           Explorer observational short ID for one RES draw — not a verdict and not used here.
+          This portal is independent validation of public bytes. It is not a Coq⇄C++ refinement
+          proof. See <Link to="/documentation/formal-verification">Formal Verification</Link>.
         </p>
       </section>
 
@@ -123,64 +133,66 @@ export function ZeroTrustVerificationPage() {
         </button>
       </div>
 
-      <form className="card zt-form" onSubmit={(e) => void onVerify(e)}>
-        {activeMode === "tx" && (
-          <>
-            <label htmlFor="zt-txid">Transaction ID (TXID)</label>
-            <input
-              id="zt-txid"
-              className="zt-input mono"
-              value={txid}
-              onChange={(e) => setTxid(e.target.value)}
-              placeholder="f7ccbff0a6bd611335e9037a16f607768f2a9225bf5785cbe542ddd8af7a3378"
-              spellCheck={false}
-              autoComplete="off"
-            />
-            <p className="muted">
-              Source: Explorer transaction details, or wallet <code>gettransaction</code> /
-              <code> sendtoaddress</code> return value.
-            </p>
-          </>
-        )}
-        {activeMode === "block" && (
-          <>
-            <label htmlFor="zt-hash">Block hash</label>
-            <input
-              id="zt-hash"
-              className="zt-input mono"
-              value={blockHash}
-              onChange={(e) => setBlockHash(e.target.value)}
-              placeholder="e8a013c966892ed4f03390c6f1c115ed26e01c7503e7e4ac555b19d43d3b6538"
-              spellCheck={false}
-              autoComplete="off"
-            />
-            <p className="muted">
-              Source: Explorer block details, or <code>getblockhash &lt;height&gt;</code>.
-            </p>
-          </>
-        )}
-        {activeMode === "raw" && (
-          <>
-            <label htmlFor="zt-raw">Raw block JSON</label>
-            <textarea
-              id="zt-raw"
-              className="zt-input zt-textarea mono"
-              value={rawJson}
-              onChange={(e) => setRawJson(e.target.value)}
-              placeholder='{"hash":"...","height":103,"previousblockhash":"...","tx":[...]}'
-              spellCheck={false}
-            />
-            <p className="muted">
-              Developer / auditor mode. Source: node RPC <code>getblock &lt;hash&gt; 2</code>. Optional
-              fields: <code>convergence_txids</code>, <code>candidates</code>,{" "}
-              <code>previousblockhash</code>.
-            </p>
-          </>
-        )}
-        <button type="submit" className="zt-verify-btn" disabled={busy}>
-          {busy ? "Computing locally…" : "Verify"}
-        </button>
-      </form>
+      <DataPanel title="INPUT">
+        <form className="zt-form" onSubmit={(e) => void onVerify(e)}>
+          {activeMode === "tx" && (
+            <>
+              <InputBox
+                id="zt-txid"
+                label="TXID"
+                value={txid}
+                onChange={(e) => setTxid(e.target.value)}
+                placeholder="64-character transaction id"
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <p className="muted">
+                Source: Explorer, or wallet <code>gettransaction</code> / <code>sendtoaddress</code>.
+              </p>
+            </>
+          )}
+          {activeMode === "block" && (
+            <>
+              <InputBox
+                id="zt-hash"
+                label="Block hash"
+                value={blockHash}
+                onChange={(e) => setBlockHash(e.target.value)}
+                placeholder="64-character block hash"
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <p className="muted">
+                Source: Explorer, or <code>getblockhash &lt;height&gt;</code>.
+              </p>
+            </>
+          )}
+          {activeMode === "raw" && (
+            <>
+              <InputBox
+                id="zt-raw"
+                label="Raw block JSON"
+                multiline
+                value={rawJson}
+                onChange={(e) => setRawJson(e.target.value)}
+                placeholder='{"hash":"...","height":103,"previousblockhash":"...","tx":[...]}'
+                spellCheck={false}
+              />
+              <p className="muted">
+                Auditor mode. Source: <code>getblock &lt;hash&gt; 2</code>.
+              </p>
+            </>
+          )}
+          <Button type="submit" className="zt-verify-btn" disabled={busy}>
+            {busy ? "Computing locally…" : "VERIFY"}
+          </Button>
+        </form>
+      </DataPanel>
+
+      <div className="zt-result-box" role="status">
+        <p className="zt-result-label">RESULT</p>
+        <p className={`zt-result-value ${resultTone}`}>{resultLabel === "VALID" ? "VALID" : resultLabel}</p>
+      </div>
 
       {error && (
         <div className="banner banner-error" role="alert">
@@ -194,7 +206,8 @@ export function ZeroTrustVerificationPage() {
       <section className="card">
         <h2>Local primitive self-check</h2>
         <p className="muted">
-          WebCrypto SHA256d and binary pipeline, run in this tab. {selfOk ? "All primitives matched." : "Checking…"}
+          WebCrypto SHA256d and binary pipeline, run in this tab.{" "}
+          {selfOk ? "All primitives matched." : "Checking…"}
         </p>
         <ul className="zt-selfcheck">
           {(selfCheck ?? []).map((row) => (

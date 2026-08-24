@@ -4,12 +4,20 @@ const POW10 = (n: number): bigint => {
   return r;
 };
 
+/** ORU: 1 ORU = 1e8 atoms (unchanged). */
+export const ORU_DISPLAY_DECIMALS = 8;
+export const ORU_COIN = 100000000n;
+
+/** RES: 1 RES = 1e6 atoms (shipping lock; not the historical RFC-001 scale of 100). */
+export const RES_DISPLAY_DECIMALS = 6;
+export const RES_COIN = 1000000n;
+
 /**
  * Parse a fixed-decimal string into integer atoms deterministically.
  *
  * Expected shapes from RPC:
  * - ORU: 8 dp max (e.g. "1.00000000")
- * - RES: 2 dp max (e.g. "1.00")
+ * - RES: 6 dp max (e.g. "1.000000")
  */
 export function fixedDecimalToAtoms(value: string, decimals: number): bigint {
   const s = value.trim();
@@ -41,11 +49,27 @@ export function fixedDecimalToAtoms(value: string, decimals: number): bigint {
   return negative ? -atoms : atoms;
 }
 
+export function formatFixedAtoms(atoms: bigint, decimals: number): string {
+  const base = POW10(decimals);
+  const neg = atoms < 0n;
+  const a = neg ? -atoms : atoms;
+  const int = a / base;
+  const frac = a % base;
+  return `${neg ? "-" : ""}${int}.${frac.toString().padStart(decimals, "0")}`;
+}
+
 export function oruStringToAtoms(oruValue: string): bigint {
-  return fixedDecimalToAtoms(oruValue, 8);
+  return fixedDecimalToAtoms(oruValue, ORU_DISPLAY_DECIMALS);
 }
 
 export function resStringToAtoms(resValue: string): bigint {
-  return fixedDecimalToAtoms(resValue, 2);
+  return fixedDecimalToAtoms(resValue, RES_DISPLAY_DECIMALS);
 }
 
+export function atomsToOruDisplay(atoms: string | bigint | number): string {
+  return `${formatFixedAtoms(BigInt(String(atoms)), ORU_DISPLAY_DECIMALS)} ORU`;
+}
+
+export function atomsToResDisplay(atoms: string | bigint | number): string {
+  return `${formatFixedAtoms(BigInt(String(atoms)), RES_DISPLAY_DECIMALS)} RES`;
+}

@@ -37,7 +37,7 @@ def extract_public_wpkh(descriptors):
         desc = d["desc"]
         if not (desc.startswith("wpkh(") and d.get("active") and d.get("internal") is False):
             continue
-        if ("xpub" in desc or "tpub" in desc) and "/0/*" in desc:
+        if ("xpub" in desc or "tpub" in desc) and "/0'/*'" in desc:
             return desc
     return None
 

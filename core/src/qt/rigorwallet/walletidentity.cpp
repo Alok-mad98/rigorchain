@@ -22,7 +22,7 @@ namespace RigorWallet {
 BrandInfo WalletIdentity::brand()
 {
     BrandInfo info;
-    info.productName = QStringLiteral("RIGOR Wallet");
+    info.productName = QStringLiteral("Rigor Wallet");
     info.applicationName = QStringLiteral("RIGOR-Wallet");
     info.organizationName = QStringLiteral("RIGOR");
     info.organizationDomain = QStringLiteral("rigor.org");
@@ -101,6 +101,13 @@ QString WalletIdentity::aboutComplianceHtml()
     html += QStringLiteral("<p>%1</p>").arg(QCoreApplication::translate(
         "WalletIdentity",
         "License: MIT").toHtmlEscaped());
+
+    {
+        const QString releases_url = QStringLiteral("https://github.com/rigorchain/rigorchain/releases");
+        html += QStringLiteral("<p><b>%1</b><br><a href=\"%2\">%2</a></p>")
+                    .arg(QCoreApplication::translate("WalletIdentity", "GitHub releases").toHtmlEscaped(),
+                         releases_url.toHtmlEscaped());
+    }
 
     html += QStringLiteral("<p>%1</p>").arg(equivalenceDisclaimer().toHtmlEscaped());
 

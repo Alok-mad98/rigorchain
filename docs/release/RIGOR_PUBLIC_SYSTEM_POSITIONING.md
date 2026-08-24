@@ -44,7 +44,7 @@ RIGOR implements a **frozen UTXO protocol** with two native assets. Miners find 
 | “UTXO-anchored dual-asset design” | “Better than Bitcoin/Ethereum” |
 | “Deterministic convergence selection” | “Same security as [other chain]” |
 | “Runtime archive verification program” | “Fully audited by [implied third party]” |
-| “CVG2 / convergence transaction mechanism” | “Burn/forge **equivalent** to [external system]” |
+| “`OP_CONVERGE` / convergence transaction mechanism” | “Burn/forge **equivalent** to [external system]” |
 
 Product copy uses **convergence transaction** and **RES minted**. Legacy **burn/forge** wording appears only as historical narrative mapping — not as current product terminology.
 
@@ -60,8 +60,8 @@ Product copy uses **convergence transaction** and **RES minted**. Legacy **burn/
     Protocol ── Science ── Lab ── Runtime ── Simulation ── Release ── Cert
          │         │        │        │            │           │        │
        ORU/RES   MATH    PROOF-034  mining      SIM-011    gates    GO/NO-GO
-       CVG2     stack    archive    pool                     │
-       T=2^240           vectors    explorer                 equivalence_claimed=false
+    OP_CONVERGE stack    archive    pool                     │
+       T E=246           vectors    explorer                 equivalence_claimed=false
 ```
 
 ---
@@ -70,7 +70,7 @@ Product copy uses **convergence transaction** and **RES minted**. Legacy **burn/
 
 1. **Dual native assets:** ORU + RES — not wrapped tokens.  
 2. **Deterministic validation:** No RNG in consensus draw evaluation.  
-3. **CVG2 convergence:** Frozen replacement for legacy burn/forge semantics.  
+3. **`OP_CONVERGE`:** Live Convergence classification (ORU destruction / draw-entry). Historical RFC-014 `CVG2` is retired design.  
 4. **Live stack:** Mining and pool operate — not paper-only.  
 5. **PROOF-034:** Archive @ 2,100,001 is mainnet precondition.  
 6. **Simulation:** Structural replay checks — not equivalence.  

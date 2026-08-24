@@ -135,12 +135,9 @@ ConvergenceStartPanel::ConvergenceStartPanel(QWidget* parent)
 
     m_resultTitle = new QLabel(tr("Possible result"), this);
     m_resultTitle->setObjectName(QStringLiteral("labelStartSection"));
-    const QString res_amt = QString::number(
-        static_cast<double>(Consensus::RES_REWARD_AMOUNT) / Consensus::RES_COIN, 'f', 2);
-    m_resultBody = new QLabel(
-        tr("Result may be:\n%1 RES minted\n\nor\nNo RES minted")
-            .arg(res_amt),
-        this);
+    // Populated by updateResultPreview(); the reward is W(height) under RFC-017, so it cannot be
+    // baked in at construction time.
+    m_resultBody = new QLabel(this);
     m_resultBody->setObjectName(QStringLiteral("labelStartMuted"));
     m_resultBody->setWordWrap(true);
     layout->addWidget(m_resultTitle);
@@ -172,6 +169,7 @@ void ConvergenceStartPanel::setWalletModel(WalletModel* model)
 void ConvergenceStartPanel::refresh()
 {
     if (!isVisible()) return;
+    updateResultPreview();
     updateBalance();
     updateEstimate();
     updateValidation();
@@ -198,6 +196,21 @@ void ConvergenceStartPanel::updateBalance()
         return;
     }
     m_balanceValue->setText(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, availableOru()));
+}
+
+void ConvergenceStartPanel::updateResultPreview()
+{
+    // The draw a user starts now resolves in a block ahead of the tip, so preview the reward
+    // scheduled for the next height rather than a fixed constant.
+    const int next_height = m_clientModel ? m_clientModel->getNumBlocks() + 1 : 0;
+    const CAmount reward = Consensus::GetResMintReward(next_height);
+    if (reward <= 0) {
+        m_resultBody->setText(tr("RES issuance has ended; no RES can be minted."));
+        return;
+    }
+    m_resultBody->setText(
+        tr("Result may be:\n%1 RES minted\n\nor\nNo RES minted")
+            .arg(BitcoinUnits::formatRes(reward)));
 }
 
 void ConvergenceStartPanel::updateEstimate()

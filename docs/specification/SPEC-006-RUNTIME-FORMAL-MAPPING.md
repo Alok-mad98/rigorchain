@@ -172,7 +172,7 @@ S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 ### 5.2 RES recurrence
 
 ```
-S_RES(h+1) = S_RES(h) + RES_REWARD_AMOUNT · M(h+1)
+S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
 ```
 
 | Layer | Representation |

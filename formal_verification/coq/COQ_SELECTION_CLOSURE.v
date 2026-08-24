@@ -2,11 +2,11 @@
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import List.
 Import ListNotations.
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 From Rigor Require Import RigorBytes.
 Include RigorBytes.
 Require Import Sigma.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 
 Export Selection.
 

@@ -6,6 +6,7 @@
 #include <script/descriptor.h>
 #include <script/sign.h>
 #include <script/standard.h>
+#include <crypto/ed25519_provider.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
 
@@ -627,8 +628,10 @@ BOOST_AUTO_TEST_CASE(descriptor_test)
 
 BOOST_AUTO_TEST_CASE(res_descriptor_witness_program_derivation)
 {
-    const std::vector<unsigned char> prog32 = ParseHex("a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd");
-    const CScript expect_spk{GetScriptForDestination(WitnessV1Res{XOnlyPubKey{Span{prog32}}})};
+    const std::vector<unsigned char> pk32 = ParseHex("a34b99f22c790c4e36b2b3c2c35a36db06226e41c692fc82b8b56ac1c540c5bd");
+    uint256 hashed;
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(pk32, Span<unsigned char>{hashed.begin(), 32}));
+    const CScript expect_spk{GetScriptForDestination(WitnessV1Res{XOnlyPubKey{Span{hashed.begin(), 32}}})};
 
     FlatSigningProvider parse_keys;
     std::string err;
@@ -643,13 +646,11 @@ BOOST_AUTO_TEST_CASE(res_descriptor_witness_program_derivation)
     BOOST_REQUIRE_EQUAL(spks.size(), 1U);
     BOOST_CHECK_EQUAL(HexStr(spks[0]), HexStr(expect_spk));
 
-    uint256 prog_id;
-    std::memcpy(prog_id.begin(), prog32.data(), 32);
-    BOOST_CHECK(!expand_out.res_v1_program_to_ed_secret.count(prog_id));
+    BOOST_CHECK(!expand_out.res_v1_program_to_ed_secret.count(hashed));
 
     const std::unique_ptr<Descriptor> inferred{InferDescriptor(spks[0], expand_out)};
     BOOST_REQUIRE(inferred);
-    BOOST_CHECK(inferred->IsSolvable());
+    BOOST_CHECK(!inferred->IsSolvable());
     std::vector<CScript> spks2;
     FlatSigningProvider inf_out;
     BOOST_CHECK(inferred->Expand(0, inf_out, spks2, inf_out));

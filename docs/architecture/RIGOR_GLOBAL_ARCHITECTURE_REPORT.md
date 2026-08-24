@@ -21,7 +21,7 @@ This document is the authoritative system-level architecture review of the RIGOR
 
 RIGOR is a **script-native, self-proving cryptoeconomic state machine** built on a Bitcoin Core–derived node (`rigord`). Its architecture rests on a single constitutional principle:
 
-> **Script is the compliance layer** — asset *class* is inferred from `scriptPubKey` at parse time; `CTxOut` storage is unchanged; legitimacy requires UTXO commitments, script rules, economic proofs, and deterministic verification.
+> **Script is the compliance/classification layer** — asset *class* is inferred from `scriptPubKey`; ownership and transfer are enforced through UTXO consumption, script validation, signature verification, and consensus predicates. Script alone does not authorize asset creation.
 
 The system implements a closed dual-asset economy:
 
@@ -155,8 +155,8 @@ The [Execution Domain Model](../constitution/EXECUTION_DOMAIN_MODEL.md) uses dom
 
 | Property | Value | Source |
 |----------|-------|--------|
-| Atom | 1 atom = 0.01 RES | `RES_COIN = 100` atoms per RES |
-| Mint reward | 10,000 atoms = 100.00 RES per event | `RES_REWARD_AMOUNT` |
+| Atom | 1 atom = 0.000001 RES | `RES_COIN = 1_000_000` atoms per RES |
+| Mint reward | Deterministic Reserve Issuance `W(k)` / `GetResMintReward(h)`; genesis `W(0)` = 40.000000 RES | `RES_REWARD_GENESIS` |
 | Max supply | 21,000,000 RES | `RES_MAX_SUPPLY` |
 | Script inference | Witness v1 without CVG2 prefix | `AssetTypeFromScriptPubKey` |
 | Mint mode | ORU-domain inputs + PCORB witness | `rigor_res.cpp` |
@@ -165,11 +165,11 @@ The [Execution Domain Model](../constitution/EXECUTION_DOMAIN_MODEL.md) uses dom
 **Issuance rules (consensus):**
 
 1. `|F| ≥ CONVERGENCE_DRAW_MIN_TXS_FOR_RES` (1)
-2. At least one eligible candidate passes inequality `σ_i < T · f_i` where `T = 2^240`
+2. At least one eligible candidate passes inequality `σ_i < T · f_i` where `T` is Deterministic Reserve Issuance windowed `RES_PROBABILITY_TARGET` (`E = 246`; `C = 1024` ORU). Historical RFC-014 / retired design: `T = 2^240`.
 3. Winner exists (argmin cross-multiply + txid tie-break)
 4. Exactly one scoring RES mint body tx with valid `ConvergeProof`
 5. `M(h) ∈ {0,1}` — at most one mint per block
-6. `S_RES(h) + RES_REWARD_AMOUNT ≤ RES_MAX_SUPPLY`
+6. `S_RES(h) + GetResMintReward(h) ≤ RES_MAX_SUPPLY`
 
 ### 3.3 Convergence (FORGE/BURN Replacement)
 
@@ -184,12 +184,19 @@ The [Execution Domain Model](../constitution/EXECUTION_DOMAIN_MODEL.md) uses dom
 
 ### 3.4 Observer-Only Fields
 
-These exist for indexing, RPC enrichment, and supply mirroring. They **MUST NOT** be read by ConnectBlock validation predicates:
+These exist for indexing, RPC enrichment, supply mirroring, and (W2) a coinbase
+audit commitment. They are **not spendable balances** and **MUST NOT** be fed into
+`T`, `f_i`, mint authorization, or script evaluation. W1 ledger caches are not
+ConnectBlock predicates. W2 `bad-convergence-cumulative` compares the CVGE payload
+to `GetChainConvergeSum()` (per-block C(t) prefix), not ObservationalMetrics; see
+[RIGOR_NO_GLOBAL_FENCE.md](./RIGOR_NO_GLOBAL_FENCE.md).
 
 | Field / struct | Location | Purpose |
 |----------------|----------|---------|
 | `RuntimeSupplyState` | `runtime_supply_state.h` | RFC-002 mirror; observational |
-| `m_block_converge_sum`, `m_chain_oru_total`, `m_chain_res_mint_total` | `chain.h` | Per-block / chain caches |
+| `ObservationalMetrics` | `observational_metrics.h` / `chain.h` | Post-validation W1/W2 index/explorer caches |
+| `m_block_converge_sum` | `chain.h` | Per-block C(t); prefix-sum is `GetChainConvergeSum()` |
+| Runtime supply witness | `runtime_supply_witness_chain.h` | W7: keyed by block hash; not consensus |
 | `coq_supply_field_hook` | `coq_supply_field_hook.h` | Formal verification export; read-only |
 | Explorer DB columns | `explorer-indexer-mvp/` | Indexed convergence panels, lineage |
 | Pool preview metadata | `winner-engine` envelopes | Stratum job enrichment (non-consensus) |
@@ -209,7 +216,7 @@ These exist for indexing, RPC enrichment, and supply mirroring. They **MUST NOT*
 
 A non-coinbase transaction enters **F** iff all hold (`ListConvergenceRootCommitmentTxids`):
 
-1. Exactly one positive CVG2 convergence output (`IsConvergenceTx`)
+1. Exactly one positive `OP_CONVERGE` output (`IsConvergenceTx`)
 2. Convergence amount ≥ `MIN_CONVERGENCE_AMOUNT`
 3. `CheckTxInputs` succeeds at block-entry view
 4. Transaction fee > 0
@@ -253,7 +260,7 @@ Verified by `VerifyConvergeProof` during `ConnectEvaluateResMintTx`.
 ### 4.5 Winner Selection
 
 ```
-Eligible iff:  σ_i < RES_PROBABILITY_TARGET · f_i    (T = 2^240)
+Eligible iff:  σ_i < RES_PROBABILITY_TARGET · f_i    (Deterministic Reserve Issuance E=246 windowed T; Historical RFC-014 / retired design: T=2^240)
 Winner:        argmin_i (σ_i · f_j < σ_j · f_i)       (uint512)
 Tie-break:     smaller txid (memcmp)
 ```
@@ -462,6 +469,7 @@ Simulation can proceed in parallel with PROOF-034 archive execution. Simulation 
 | PROOF-034 procedure | [../proof/PROOF-034-FULL-RUNTIME-ARCHIVE-VERIFICATION.md](../protocol/proof/PROOF-034-FULL-RUNTIME-ARCHIVE-VERIFICATION.md) |
 | Release gate matrix | `../release/FINAL_RELEASE_GATE_MATRIX.md` |
 | Consensus pipeline checklist | [../../core/doc/rigor_consensus_pipeline.md](../../core/doc/rigor_consensus_pipeline.md) |
+| W1/W2/W7 global-state fence | [RIGOR_NO_GLOBAL_FENCE.md](./RIGOR_NO_GLOBAL_FENCE.md) |
 
 ---
 

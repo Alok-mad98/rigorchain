@@ -36,15 +36,16 @@ namespace Consensus {
  * The corrected constant restores exactly the economics RFC-014 already
  * adjudicated, by dividing out the unit error:
  *
- *     RES_PROBABILITY_TARGET := floor(2^240 / MIN_CONVERGENCE_AMOUNT)
- *                             = floor(2^240 / 1e8)
+ *     RES_PROBABILITY_TARGET := floor(2^E / MIN_CONVERGENCE_AMOUNT)
  *
  * which yields, for a candidate converging n ORU,
  *
- *     p(n) = n / 65536      (saturating at 1 for n >= 65536 ORU)
+ *     p(n) = n / 2^(256-E)      (saturating at 1 for n >= 2^(256-E) ORU)
  *
- * so p(1 ORU) = 2^-16 exactly, as RFC-014 §2.1 intended. This is a correction of
- * a unit error, not a new monetary decision: no figure in RFC-014 §5.4 changes.
+ * At the E = 240 in force when A-6 was fixed that is p(1 ORU) = 2^-16 exactly, as RFC-014 §2.1
+ * intended. That was a correction of a unit error, not a monetary decision: no figure in
+ * RFC-014 §5.4 changed. RFC-017 subsequently moves E to 246, which IS a monetary decision and
+ * is argued separately below.
  *
  * ---------------------------------------------------------------------------
  * SECURITY-001-A9-C: divided by the draw window W.
@@ -54,37 +55,58 @@ namespace Consensus {
  * Left alone, that would multiply RES issuance by W. Dividing the target by the same W
  * restores neutrality exactly:
  *
- *     RES_PROBABILITY_TARGET := floor(2^240 / MIN_CONVERGENCE_AMOUNT) >> CONVERGENCE_DRAW_WINDOW_LOG2
+ *     RES_PROBABILITY_TARGET := floor(2^E / MIN_CONVERGENCE_AMOUNT) >> CONVERGENCE_DRAW_WINDOW_LOG2
  *
- * per-draw probability   p_draw(n) = n / (65536 · W) = n / 2097152
- * expected wins per tx   W · p_draw(n) = n / 65536   ← unchanged from the pre-A9C model
+ * per-draw probability   p_draw(n) = n / (C · W) = n / 32768     (at E = 246, C = 1024)
+ * expected wins per tx   W · p_draw(n) = n / C = n / 1024   ← unchanged from the pre-A9C model
  *
  * So aggregate issuance and the burn-proportional fairness property are both preserved, and
  * no figure in RFC-014 §5.4 changes at the aggregate level.
  *
- * ONE ECONOMIC PROPERTY DOES CHANGE, deliberately. Eligibility no longer saturates at
- * 65536 ORU. Per draw, saturation now needs 65536·W = 2,097,152 ORU; a candidate burning
- * 65536 ORU is eligible in at least one draw of the window with probability
+ * ONE ECONOMIC PROPERTY DOES CHANGE, deliberately. Eligibility no longer saturates at C ORU.
+ * Per draw, saturation now needs C·W = 32 768 ORU; a candidate burning C = 1024 ORU is
+ * eligible in at least one draw of the window with probability
  * 1 - (1 - p/W)^W ≈ 1 - e^-1 ≈ 63%, not 100%. The hard saturation cliff becomes a smooth
  * curve. This is intended: SECURITY-001-A8-DESIGN-REVIEW finding F-2 identified "burn to
  * saturation, then censor" as the cheapest path to GUARANTEED RES acquisition, and removing
  * the guarantee is the point. Total expected wins per unit burned is unchanged.
  *
+ * ---------------------------------------------------------------------------
+ * RFC-017: the exponent moves from 240 to 246.
+ *
+ * Inverting the relation above, a per-block burn of b base units yields b / (1e8 · 2^(256−E))
+ * expected eligible candidates, i.e. one mint per C ORU burned with C = 2^(256−E). At E = 240
+ * that is C = 65 536 ORU per mint, against an ORU tail of 125 ORU/block: the whole network
+ * produces ~100 mints per year even if every newly emitted ORU is converged. A draw that fires
+ * twice a week globally at its physical maximum has no price discovery and no observable
+ * issuance. E = 246 gives C = 1024 ORU, ~6 400 mints/year at the same physical maximum.
+ *
+ * E is bounded above as well. The one-mint-per-block rule truncates the expected count, and at
+ * E >= 247 epoch 0 saturates: every block mints regardless of burn, so `H_i < T · f_i` stops
+ * discriminating and the eligibility filter — the thing A-6 was fixed to preserve — goes inert
+ * during bootstrap. E = 246 reaches saturation only under a 100%-burn assumption.
+ *
+ * Cap utilisation is deliberately NOT a criterion. Cumulative ORU emission is fixed, so
+ * (RES issued) × (average ORU cost per RES) is bounded by a constant; raising E buys supply by
+ * halving average production cost, which is the inverse of what a store of value needs. See
+ * RFC-017 §5.2 and §5.4.
+ *
  * INVARIANTS (guarded by res_proof_math_tests):
  *   1. T * MIN_CONVERGENCE_AMOUNT < 2^256 — if this fails the eligibility filter is vacuous
  *      again and the draw degenerates to "whoever the miner chose to include" (the A-6 bug).
- *   2. T == floor(2^240 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, floored. The
- *      pre-windowing target is not a multiple of W (its residue mod 32 is 28), so the division
- *      discards a remainder and neutrality is exact only to a relative 28/T ≈ 1.6e-63 — far
+ *      At E = 246 the margin is 2^15; the boundary is at E = 261.
+ *   2. T == floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, floored. The
+ *      pre-windowing target is not a multiple of W (its residue mod 32 is 27), so the division
+ *      discards a remainder and neutrality is exact only to a relative 27/T ≈ 2.4e-65 — far
  *      below the smallest quantity this protocol can express. The floor relation is what is
  *      pinned by test, not a lossless round trip.
  */
 inline const uint256 RES_PROBABILITY_TARGET_CONST{
-    uint256S("0000000000015798ee2308c39df9fb841a566d74f87a7a9a7aeb02c2d2f8e0d1")};
+    uint256S("000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479")};
 
 /** Pre-A9C value, retained so tests can assert the shift relation rather than a bare literal. */
 inline const uint256 RES_PROBABILITY_TARGET_UNWINDOWED{
-    uint256S("00000000002af31dc4611873bf3f70834acdae9f0f4f534f5d60585a5f1c1a3c")};
+    uint256S("000000000abcc77118461cefcfdc20d2b36ba7c3d3d4d3d758161697c7068f3b")};
 
 /**
  * A buried deployment is one where the height of the activation has been hardcoded into
@@ -161,6 +183,7 @@ struct Params {
     int nBlockSubsidyMaxHalvingShifts{-1};
     /** Fixed draw target bits: T = ResMintTargetArith(this); see Consensus::ResDrawTargetForBlock. */
     uint8_t res_mint_target_bits{14};
+    /** Confirmations required before spending an ORU coinbase or a body RES mint UTXO. */
     int nCoinbaseMaturity{100};
     /**
      * Hashes of blocks that
@@ -194,7 +217,8 @@ struct Params {
      * Sigma-CR-01 replay-domain separation only (RFC-014 §3.2).
      *
      * Always assign `Consensus::RES_PROBABILITY_TARGET_CONST`; see the note
-     * there for why the literal `2^240` printed in RFC-014 §2.1 is wrong.
+     * there for why the literal `2^240` printed in RFC-014 §2.1 is wrong, and for
+     * why RFC-017 sets the exponent to 246.
      */
     uint256 RES_PROBABILITY_TARGET;
     /**
@@ -211,7 +235,7 @@ struct Params {
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
-    /** ASERT (aserti3-2d) half-life τ in seconds (fixed genesis anchor). Mainnet 172800, testnet 3600, regtest 1800. */
+    /** ASERT (aserti3-2d) half-life τ in seconds. Mainnet 43200 (12h); parent time + height-1 anchor. */
     int64_t nPowASERTHalfLife{0};
     std::chrono::seconds PowTargetSpacing() const
     {
@@ -229,6 +253,15 @@ struct Params {
      */
     bool signet_blocks{false};
     std::vector<uint8_t> signet_challenge;
+
+    /**
+     * FENCE-W11: extra per-coinbase RES on mockable test chains only.
+     * Default 0. Set at CChainParams construction from -reswalletbootstrap
+     * (CreateChainParams / RegTestOptions / MockableChainOptions). Never read
+     * gArgs from ConnectBlock or the interpreter. Mainnet / testnet / signet
+     * remain 0. ConnectBlock `bad-cb-res-amount` uses this field.
+     */
+    CAmount res_wallet_bootstrap_coinbase{0};
 
     int DeploymentHeight(BuriedDeployment dep) const
     {

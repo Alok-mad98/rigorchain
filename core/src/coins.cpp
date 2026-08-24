@@ -124,14 +124,17 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
     for (size_t i = 0; i < tx.vout.size(); ++i) {
-        // Convergence (CVG2) is validated in-block only; it must not occupy the UTXO set.
+        // Convergence (OP_CONVERGE) is validated in-block only; it must not occupy the UTXO set.
+        // Skipping it here is what makes its value destroyed rather than merely locked, which
+        // is the premise of counting it as RFC-002 C(t) (see Consensus::GetConvergenceAmount).
         if (IsConvergenceScript(tx.vout[i].scriptPubKey)) {
             continue;
         }
         bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
         // Coinbase transactions can always be overwritten, in order to correctly
         // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
-        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase), overwrite);
+        Coin coin(tx.vout[i], nHeight, fCoinbase);
+        cache.AddCoin(COutPoint(txid, i), std::move(coin), overwrite);
     }
 }
 

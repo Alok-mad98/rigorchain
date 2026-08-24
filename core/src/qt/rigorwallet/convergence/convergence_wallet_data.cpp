@@ -60,7 +60,7 @@ QString ConvergenceWalletData::statusLabel(ConvergenceUserStatus status)
 static bool isConvergenceWalletTx(const interfaces::WalletTx& wtx)
 {
     if (wtx.semantic == wallet::TxSemanticKind::OruConvergence) return true;
-    const auto it = wtx.value_map.find("convergence_v2");
+    const auto it = wtx.value_map.find("convergence");
     return it != wtx.value_map.end() && it->second == "1";
 }
 
@@ -167,7 +167,7 @@ std::vector<ConvergenceHistoryRow> ConvergenceWalletData::buildHistory(WalletMod
         ConvergenceHistoryRow& row = rows[best];
         row.linked_mint_txid = mint_txid;
         row.result_block = mint_h;
-        row.res_amount = Consensus::RES_REWARD_AMOUNT;
+        row.res_amount = Consensus::GetResMintReward(mint_h);
         row.status = ConvergenceUserStatus::Minted;
         row.status_label = statusLabel(row.status);
     }

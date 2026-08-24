@@ -28,7 +28,7 @@ Consensus::RuntimeSupplyState ValidOruResState(const Consensus::Params& consensu
     s.res_mint_count_block = 0;
     s.res_mint_cumulative = 0;
     s.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    s.res_reward_amount = Consensus::RES_REWARD_AMOUNT;
+    s.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     return s;
 }
 
@@ -49,9 +49,9 @@ BOOST_AUTO_TEST_CASE(valid_res_recurrence_with_mint_passes)
     const Consensus::Params& consensus = Params().GetConsensus();
     Consensus::RuntimeSupplyState s = ValidOruResState(consensus);
     s.res_mint_parent = 0;
-    s.res_mint_block = Consensus::RES_REWARD_AMOUNT;
+    s.res_mint_block = Consensus::RES_REWARD_GENESIS;
     s.res_mint_count_block = 1;
-    s.res_mint_cumulative = Consensus::RES_REWARD_AMOUNT;
+    s.res_mint_cumulative = Consensus::RES_REWARD_GENESIS;
     const Consensus::RuntimeInvariantResult r = Consensus::VerifyRuntimeSupplyInvariants(s, consensus);
     BOOST_CHECK(r.passed);
     BOOST_CHECK(r.violations.empty());
@@ -87,9 +87,9 @@ BOOST_AUTO_TEST_CASE(res_mint_mismatch_fails_res_l6)
 {
     const Consensus::Params& consensus = Params().GetConsensus();
     Consensus::RuntimeSupplyState s = ValidOruResState(consensus);
-    s.res_mint_block = Consensus::RES_REWARD_AMOUNT;
+    s.res_mint_block = Consensus::RES_REWARD_GENESIS;
     s.res_mint_count_block = 0;
-    s.res_mint_cumulative = Consensus::RES_REWARD_AMOUNT;
+    s.res_mint_cumulative = Consensus::RES_REWARD_GENESIS;
     const Consensus::RuntimeInvariantResult r = Consensus::VerifyRuntimeSupplyInvariants(s, consensus);
     BOOST_CHECK(!r.passed);
     BOOST_REQUIRE_EQUAL(r.violations.size(), 1U);

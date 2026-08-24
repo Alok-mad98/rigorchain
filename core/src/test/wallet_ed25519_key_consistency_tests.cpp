@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(oru_export_wif_is_ed25519_signer)
     const CPubKey pubkey = key.GetPubKey();
     BOOST_REQUIRE_EQUAL(pubkey.size(), CPubKey::COMPRESSED_SIZE);
     BOOST_CHECK_EQUAL(pubkey[0], 0x00);
-    BOOST_CHECK_EQUAL(EncodeDestination(WitnessV0KeyHash(pubkey.GetID())), exported.address);
+    BOOST_CHECK_EQUAL(EncodeDestination(WitnessV0KeyHash(pubkey)), exported.address);
 
     uint256 hash;
     static const unsigned char oru_msg[] = "rigor-oru-key-consistency";
@@ -109,7 +109,10 @@ BOOST_AUTO_TEST_CASE(res_export_hex_is_ed25519_seed_and_secret)
         Span<const unsigned char>{secret_bytes.data(), ed25519::SEED_SIZE}, pk, sk));
     BOOST_CHECK(std::equal(sk.begin(), sk.end(), secret_bytes.begin()));
 
-    const CTxDestination derived{WitnessV1Res{XOnlyPubKey{Span<const unsigned char>{pk.data(), pk.size()}}}};
+    uint256 program;
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(Span<const unsigned char>{pk.data(), pk.size()},
+        Span<unsigned char>{program.begin(), 32}));
+    const CTxDestination derived{WitnessV1Res{XOnlyPubKey{Span<const unsigned char>{program.begin(), 32}}}};
     BOOST_CHECK_EQUAL(EncodeDestination(derived), exported.address);
 
     uint256 hash;

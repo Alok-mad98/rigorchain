@@ -50,7 +50,7 @@ QFont SplashScreenStatusFont()
     return f;
 }
 
-/** Production splash: logo + RIGOR Wallet product copy (no mining-reward / lottery / burn wording). */
+/** Production splash: logo + Rigor Wallet product copy (no mining-reward / lottery / burn wording). */
 QPixmap BuildProductionSplash(const NetworkStyle* networkStyle, qreal devicePixelRatio)
 {
     const int W = 720;
@@ -87,7 +87,7 @@ QPixmap BuildProductionSplash(const NetworkStyle* networkStyle, qreal devicePixe
     titleFont.setPointSizeF(28.0);
     p.setFont(titleFont);
     p.setPen(SPLASH_GOLD);
-    p.drawText(textX, y, QStringLiteral("RIGOR Wallet"));
+    p.drawText(textX, y, RigorWallet::WalletIdentity::brand().productName);
     y += 42;
 
     QFont body = QApplication::font();

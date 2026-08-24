@@ -309,15 +309,37 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
 
             if (fAllToMe)
             {
-                // Payment to self
-                CAmount nChange = wtx.change;
-                const CAmount self_debit = rec->amount_asset == ASSET_RES ? wtx.debit_res : wtx.debit_oru;
-                const CAmount self_credit = rec->amount_asset == ASSET_RES ? wtx.credit_res : wtx.credit_oru;
-                const CAmount nValue = self_credit - nChange;
+                // Payment to self: show the moved amount of this row's asset, not mixed TxGetChange.
+                CAmount payment = 0;
+                CAmount change_oru = 0;
+                CAmount change_res = 0;
+                for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+                    if (!wtx.txout_is_mine[i] || wtx.tx->vout[i].nValue <= 0) continue;
+                    const AssetType a = AssetTypeFromScriptPubKey(wtx.tx->vout[i].scriptPubKey);
+                    const bool is_change =
+                        i < wtx.txout_is_change.size() && wtx.txout_is_change[i];
+                    if (is_change) {
+                        if (a == ASSET_ORU) change_oru += wtx.tx->vout[i].nValue;
+                        else if (a == ASSET_RES) change_res += wtx.tx->vout[i].nValue;
+                    } else if (a == rec->amount_asset) {
+                        payment += wtx.tx->vout[i].nValue;
+                    }
+                }
+                if (payment <= 0) {
+                    payment = rec->amount_asset == ASSET_RES ? wtx.credit_res : wtx.credit_oru;
+                }
                 strHTML += "<b>" + tr("Total debit") + ":</b> " +
-                    BitcoinUnits::formatAmountHtmlForAsset(rec->amount_asset, -(self_debit - nChange), unit) + "<br>";
+                    BitcoinUnits::formatAmountHtmlForAsset(rec->amount_asset, -payment, unit) + "<br>";
                 strHTML += "<b>" + tr("Total credit") + ":</b> " +
-                    BitcoinUnits::formatAmountHtmlForAsset(rec->amount_asset, nValue, unit) + "<br>";
+                    BitcoinUnits::formatAmountHtmlForAsset(rec->amount_asset, payment, unit) + "<br>";
+                if (change_res > 0) {
+                    strHTML += "<b>" + tr("Change") + " (RES):</b> " +
+                        BitcoinUnits::formatAmountHtmlForAsset(ASSET_RES, change_res, unit) + "<br>";
+                }
+                if (change_oru > 0) {
+                    strHTML += "<b>" + tr("Change") + " (ORU):</b> " +
+                        BitcoinUnits::formatAmountHtmlForAsset(ASSET_ORU, change_oru, unit) + "<br>";
+                }
             }
 
             CAmount nTxFee = wtx.fee_oru;
@@ -342,7 +364,7 @@ QString TransactionDesc::toHTML(interfaces::Node& node, interfaces::Wallet& wall
                     strHTML += "<b>" + tr("Change") + " (ORU):</b> " +
                         BitcoinUnits::formatAmountHtmlForAsset(ASSET_ORU, change_oru, unit) + "<br>";
                 }
-            } else if (wtx.change > 0) {
+            } else if (!fAllToMe && wtx.change > 0) {
                 AssetType change_asset = ASSET_ORU;
                 for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
                     if (!wtx.txout_is_mine[i] || wtx.tx->vout[i].nValue <= 0) continue;

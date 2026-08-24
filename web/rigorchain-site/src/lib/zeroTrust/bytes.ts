@@ -1,5 +1,5 @@
 /**
- * Binary helpers for AlphaPlus zero-trust verification.
+ * Binary helpers for RIGOR zero-trust verification.
  * Consensus math uses Uint8Array only — never hex-string concatenation.
  */
 

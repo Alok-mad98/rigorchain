@@ -28,16 +28,10 @@ from .blocktools import (
     create_coinbase,
 )
 from .messages import CBlock, CTransaction, CTxOut, tx_from_hex
-from .script import CScript, OP_0, OP_1, OP_RETURN
+from .script import CScript, OP_0, OP_1, OP_RETURN, OP_CONVERGE, hash160
 
-# --- Witness v1 programs: CVG2 (32 bytes) / RES2 draw-claim (36 bytes) ---------
+# --- OP_CONVERGE burn lock: HASH160(RES program) inside the scriptPubKey ---------
 
-# Default 32-byte convergence program (tag + padding). CVG2 padding matches contrib devtest helper.
-CVG2_TAG = b"CVG2" + bytes.fromhex("11" * 28)
-
-# SECURITY-001-A / A-5: owner declaration carried in an OP_RETURN of the convergence tx.
-RESO_MAGIC = b"RESO"
-RESO_VERSION = b"\x01"
 DEFAULT_RES_OWNER_PROGRAM = bytes.fromhex("22" * 32)
 # Consensus-locked wire spelling (``RigorTags::Res2WirePrefix``).
 RES2_WIRE_PREFIX = b"RES2"
@@ -66,24 +60,17 @@ CVGE_MAGIC = b"CVGE"
 CVGE_PAYLOAD_SIZE = 45
 
 
-def make_convergence_program_32(amount_sats: int) -> bytes:
-    """32-byte witness v1 program: ``CVG2`` + 8-byte **big-endian** amount + zero padding (matches ``ExtractconvergenceAmount``)."""
-    if amount_sats < 0 or amount_sats > 0xFFFFFFFFFFFFFFFF:
-        raise ValueError("amount_sats must fit in uint64")
-    prog = bytearray(32)
-    prog[0:4] = b"CVG2"
-    prog[4:12] = int(amount_sats).to_bytes(8, "big", signed=False)
-    return bytes(prog)
+def make_converge_scriptpubkey(program_32: Optional[bytes] = None) -> CScript:
+    """Canonical OP_CONVERGE lock: OP_PUSHBYTES_20 || HASH160(program) || OP_CONVERGE."""
+    p = DEFAULT_RES_OWNER_PROGRAM if program_32 is None else program_32
+    if len(p) != 32:
+        raise ValueError("RES owner program must be 32 bytes")
+    return CScript([hash160(p), OP_CONVERGE])
 
 
-def make_convergence_script(amount_sats: int) -> CScript:
-    """
-    Witness v1 convergence output script (``OP_1`` + 32-byte program).
-
-    Consensus ``GetconvergenceAmount`` sums **output ``nValue``** on every ``IsconvergenceScript`` vout.
-    The embedded 8-byte field (BE) is decoded by ``ExtractconvergenceAmount`` / ``GetconvergenceAmountFromScript`` for tooling.
-    """
-    return make_cvg2_scriptpubkey(make_convergence_program_32(amount_sats))
+def make_convergence_script(_amount_sats: int) -> CScript:
+    """OP_CONVERGE burn lock. Amount is nValue, not encoded in the script."""
+    return make_converge_scriptpubkey()
 
 
 def wallet_prevtx_entry_for_signrawtransactionwithwallet(node, txid: str, vout: int) -> dict:
@@ -166,13 +153,7 @@ def prepare_unsigned_convergence_tx(
     if change_sats <= 0:
         raise AssertionError("UTXO too small for convergence output + fee")
 
-    prog = make_convergence_program_32(convergence_sats)
-    conv_spk_hex = "5120" + prog.hex()
-    dec = node.decodescript(conv_spk_hex)
-    if "address" not in dec:
-        raise AssertionError(f"decodescript did not yield address: {dec}")
-    convergence_addr = dec["address"]
-
+    conv_spk_hex = make_converge_scriptpubkey(res_owner_program).hex()
     change_addr = change_address if change_address is not None else node.getrawchangeaddress("bech32")
     convergence_amt_str = format(Decimal(convergence_sats) / Decimal(_COIN), "f")
     change_amt_str = format(Decimal(change_sats) / Decimal(_COIN), "f")
@@ -180,11 +161,8 @@ def prepare_unsigned_convergence_tx(
     raw = node.createrawtransaction(
         [{"txid": utxo["txid"], "vout": utxo["vout"]}],
         {
-            convergence_addr: {"amount": convergence_amt_str, "asset": "ORU"},
+            "script": {"hex": conv_spk_hex, "amount": convergence_amt_str, "asset": "ORU"},
             change_addr: {"amount": change_amt_str, "asset": "ORU"},
-            # SECURITY-001-A / A-5 R1: without a RESO owner declaration the convergence is a
-            # valid ORU burn but never enters F, so no draw would ever have a candidate.
-            "data": make_res_owner_declaration_payload(res_owner_program).hex(),
         },
     )
     spk_raw = utxo.get("scriptPubKey")
@@ -205,7 +183,7 @@ def prepare_unsigned_convergence_tx(
     meta = {
         "utxo": utxo,
         "convergence_sats": convergence_sats,
-        "convergence_addr": convergence_addr,
+        "convergence_spk": conv_spk_hex,
         "change_addr": change_addr,
     }
     return raw, prev_txs, meta
@@ -224,8 +202,8 @@ def create_convergence_tx(
     """
     Build and sign a consensus-shaped single-convergence ORUM-domain transaction using the wallet.
 
-    Picks a spendable ORUM-domain (ORU on wire) UTXO, pays ``convergence_orum`` to a witness-v1 CVG2 output
-    (amount in script matches ``nValue``), and returns change in ORU. Fee is relay policy only.
+    Picks a spendable ORUM-domain (ORU on wire) UTXO, pays ``convergence_orum`` to an OP_CONVERGE
+    output (owner HASH160 of ``res_owner_program``), and returns change in ORU. Fee is relay policy only.
     Does not broadcast; caller may ``sendrawtransaction`` / ``testmempoolaccept``.
 
     If ``spend_addresses`` is set, only UTXOs paid to those addresses are considered (recommended
@@ -251,22 +229,6 @@ def create_convergence_tx(
     if not signed.get("complete"):
         raise AssertionError(f"signrawtransactionwithwallet incomplete: {signed}")
     return tx_from_hex(signed["hex"])
-
-
-def make_res_owner_declaration_payload(program_32: Optional[bytes] = None) -> bytes:
-    """``RESO`` || version || 32-byte witness v1 RES program (``Consensus::RES_OWNER_PAYLOAD_SIZE``)."""
-    p = DEFAULT_RES_OWNER_PROGRAM if program_32 is None else program_32
-    if len(p) != 32:
-        raise ValueError("RES owner program must be 32 bytes")
-    return RESO_MAGIC + RESO_VERSION + p
-
-
-def make_cvg2_scriptpubkey(program_32: Optional[bytes] = None) -> CScript:
-    """P2TR-style witness v1 output script: OP_1 <32-byte program> (CVG2 convergence)."""
-    p = CVG2_TAG if program_32 is None else program_32
-    if len(p) != 32:
-        raise ValueError("convergence program must be 32 bytes")
-    return CScript([OP_1, p])
 
 
 def make_res2_claim_program_bytes(convergence_txid: Optional[bytes] = None) -> bytes:
@@ -385,12 +347,17 @@ def build_block(
     block_version: Optional[int] = None,
     rpc_node: Optional[object] = None,
     convergence_root: Optional[bytes] = None,
+    res_mint_out: Optional[CTxOut] = None,
+    pcorb_carrier_script: Optional[bytes] = None,
 ) -> CBlock:
     """Assemble a ``CBlock`` ready to wrap in ``msg_block`` for P2P submission.
 
     :param convergence_txs: Signed transactions (each typically spends ORUM-domain (ORU) to a CVG2 output).
-    :param res_claim_tx: Optional RES body / draw-claim tx (or ``None``). For consensus-valid winner
-        blocks past genesis, rules require a RES claim when there is a convergence winner.
+    :param res_claim_tx: Optional extra body tx (or ``None``). Consensus no longer issues RES
+        on a body transaction; a claim here is for negative tests only.
+    :param res_mint_out: Optional coinbase OP_RES_MINT ``CTxOut`` copied from GBT ``default_res_mint``.
+    :param pcorb_carrier_script: Optional tagged PCORB OP_RETURN script bytes from GBT
+        ``default_pcorb_carrier``.
     :param commitment: compact ``res_draw_target_nbits`` (``int``), legacy ``(ignored, nbits)`` tuple,
         object with ``res_draw_target_nbits``, or ``None`` to omit RIGOR output (invalid on non-genesis chains).
     :param target_bits: Block header ``nBits`` (PoW target compact form).
@@ -427,6 +394,11 @@ def build_block(
     )
     if coinbase_value_sats is not None:
         cb.vout[0].nValue = int(coinbase_value_sats)
+
+    if res_mint_out is not None:
+        cb.vout.append(res_mint_out)
+    if pcorb_carrier_script is not None:
+        cb.vout.append(CTxOut(0, CScript(pcorb_carrier_script)))
 
     block = _init_block_from_coinbase(
         hash_prev_block,

@@ -218,7 +218,7 @@ static RPCHelpMan getdescriptorinfo()
 
 static RPCHelpMan deriveaddresses()
 {
-    const std::string EXAMPLE_DESCRIPTOR = "wpkh([d34db33f/84h/0h/0h]xpub6DJ2dNUysrn5Vt36jH2KLBT2i1auw1tTSSomg8PhqNiUtx8QX2SvC9nrHu81fT41fvDUnhMjEzQgXnQjKEu3oaqMSzhSrHMxyyoEAmUHQbY/0/*)#cjjspncu";
+    const std::string EXAMPLE_DESCRIPTOR = "wpkh([d34db33f/84h/0h/0h]xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi/0h/*h)";
 
     return RPCHelpMan{"deriveaddresses",
         {"\nDerives one or more addresses corresponding to an output descriptor.\n"
@@ -227,9 +227,10 @@ static RPCHelpMan deriveaddresses()
          "    wsh(<script>)                                     Native witness v0 script-hash outputs\n"
          "    multi(<n>,<pubkey>,...) inside wsh()              Threshold multisig inside witness v0\n"
          "    raw(<hex script>)                                 Outputs whose scriptPubKey equals the specified hex script\n"
-         "    res(<ed25519_key>)                                Witness v1 native RES (Bech32m; 32-byte pubkey or 64-byte secret hex)\n"
-         "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one\n"
-         "or more path elements separated by \"/\", where \"h\" represents a hardened child key.\n"
+         "    res(<ed25519_key>)                                Witness v1 native RES (Bech32m; 32-byte pubkey, 64-byte secret hex, or hardened BIP32)\n"
+         "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xprv optionally followed by one\n"
+         "or more hardened path elements separated by \"/\", where \"h\" or \"'\" represents a hardened child key.\n"
+         "Ed25519 BIP32 is hardened-only (SLIP-0010); unhardened /* is rejected.\n"
          "For more information on output descriptors, see the documentation in the doc/descriptors.md file.\n"},
         {
             {"descriptor", RPCArg::Type::STR, RPCArg::Optional::NO, "The descriptor."},

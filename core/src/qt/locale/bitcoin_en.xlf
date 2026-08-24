@@ -3780,12 +3780,12 @@ For more information on using this console, type %6.
         <context-group purpose="location"><context context-type="linenumber">98</context></context-group>
       </trans-unit>
       <trans-unit id="_msg670">
-        <source xml:space="preserve">Bech32m (Taproot)</source>
+        <source xml:space="preserve">RES (Bech32m, witness v1)</source>
         <target xml:space="preserve"></target>
         <context-group purpose="location"><context context-type="linenumber">100</context></context-group>
       </trans-unit>
       <trans-unit id="_msg671">
-        <source xml:space="preserve">Bech32m (BIP-350) is an upgrade to Bech32, wallet support is still limited.</source>
+        <source xml:space="preserve">RES-domain receiving address: witness v1, 32-byte program, Bech32m encoding (BIP-350). Not ORU — choose this only for RES payouts.</source>
         <target xml:space="preserve"></target>
         <context-group purpose="location"><context context-type="linenumber">100</context></context-group>
       </trans-unit>

@@ -5,7 +5,8 @@
     ``ListConvergenceRootCommitmentTxids`` / ``list_convergence_commitment_txids``:
 
       F = block-order filter of txs satisfying
-          [is_valid] / [fee_positive] / [convergence_amount >= MIN].
+          [is_valid] / [convergence_amount >= MIN].
+          Fee is relay policy, not F membership.
 
     HONESTY BOUNDARY:
     - Coq refinement only; no consensus / runtime / FVR changes.
@@ -30,7 +31,6 @@ Definition min_convergence_amount : Z := 100000000%Z.
 
 Definition tx_passes_f_predicate (t : FMembershipTx) : bool :=
   t.(fmt_is_valid) &&
-  t.(fmt_fee_positive) &&
   (Z.leb min_convergence_amount t.(fmt_convergence_amount)).
 
 Definition coq_enumerate_F (txs : list FMembershipTx) : list (list nat) :=

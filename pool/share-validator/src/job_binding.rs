@@ -177,6 +177,8 @@ mod tests {
                 convergence_draw: None,
                 default_witness_commitment: None,
                 default_convergence_commitment: None,
+                default_res_mint: None,
+                default_pcorb_carrier: None,
                 weightlimit: Some(1_000_000),
                 version: None,
                 gbt_payload_hash: [0u8; 32],

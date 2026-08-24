@@ -297,10 +297,11 @@ RPCHelpMan sendtoaddress()
                     {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
                      "\"" + FeeModes("\"\n\"") + "\""},
                     {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "(only available if avoid_reuse wallet flag is set) ORU only: avoid spending from reused witness-v0 addresses.\n"
-                                         "Does not affect RES (witness v1 single-slot). If true, also enables avoidpartialspends for ORU."},
+                                         "Does not affect RES (witness v1 HD). If true, also enables avoidpartialspends for ORU."},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return extra information about the transaction."},
-                    {"asset", RPCArg::Type::STR, RPCArg::Default{"ORU"}, "Native transfer asset (POOL-T): \"ORU\" (8 decimals) or \"RES\" (2 decimals). Network fee (POOL-F) is always ORU."},
+                    {"asset", RPCArg::Type::STR, RPCArg::Default{"ORU"}, "Native transfer asset (POOL-T): \"ORU\" (8 decimals) or \"RES\" (6 decimals). Network fee (POOL-F) is always ORU."},
+                    {"converge_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "Optional ORU amount to destroy into an OP_CONVERGE output on the same transaction (ORU sends only). Must be >= " + FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT) + ". Owner HASH160 is generated from a fresh RES key. createconvergence is sugar for a send with only this output."},
                 },
                 {
                     RPCResult{"if verbose is not set or set to false",
@@ -331,6 +332,7 @@ RPCHelpMan sendtoaddress()
                     + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=\"2 pizzas\" comment_to=\"jeremy\" verbose=true") +
                     "\nSend 2.50 RES (native second asset) to a witness-v1-RES address\n"
                     + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=2.50 asset=RES")
+                    + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=0.1 converge_amount=1.0")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -413,6 +415,21 @@ RPCHelpMan sendtoaddress()
     const CAmount nAmount = AmountFromValue(request.params[1], amount_decimals);
     std::vector<CRecipient> recipients;
     recipients.push_back({script_pub_key, nAmount, fSubtractFeeFromAmount, send_asset});
+    if (!request.params[12].isNull()) {
+        if (send_asset != ASSET_ORU) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "converge_amount is only valid on ORU sends");
+        }
+        const CAmount converge_amount = AmountFromValue(request.params[12], /*decimals=*/8);
+        auto conv = wallet::MakeConvergenceRecipient(*pwallet, converge_amount, /*subtract_fee_from_convergence=*/false);
+        if (!conv) {
+            throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(conv).original);
+        }
+        if (!wallet::WalletStrictSendDestinationOk(conv->scriptPubKey, ASSET_ORU)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                "Destination native asset (witness script domain) does not match the selected asset parameter.");
+        }
+        recipients.push_back(*conv);
+    }
     const bool verbose{request.params[10].isNull() ? false : request.params[10].get_bool()};
 
     return SendMoney(*pwallet, coin_control_asset, recipients, mapValue, verbose);
@@ -517,9 +534,9 @@ RPCHelpMan sendres()
 RPCHelpMan createconvergence()
 {
     return RPCHelpMan{"createconvergence",
-        "\nCreate and broadcast a convergence transaction: spends ORU inputs and includes exactly one consensus convergence output "
-        "(witness v1 CVG2 program locking the given ORU amount). The convergence output is not spendable UTXO; it participates in "
-        "chain convergence / draw rules. Network fee is paid in ORU. Tags the wallet transaction like the Qt convergence flow "
+        "\nCreate and broadcast a convergence transaction: spends ORU inputs and includes exactly one OP_CONVERGE burn "
+        "(HASH160 of a fresh RES program inside the lock). Equivalent to sendtoaddress with converge_amount and no extra payment. "
+        "The burn is not a UTXO; it participates in the draw. Network fee is paid in ORU. Tags the wallet transaction "
         "(convergence_state=BROADCASTED). Convergence does not guarantee RES." +
             HELP_REQUIRING_PASSPHRASE,
         {
@@ -622,7 +639,7 @@ RPCHelpMan sendmany()
 {
     return RPCHelpMan{"sendmany",
         "Send multiple times. Amount precision is inferred from each destination script (script-as-asset): "
-        "Bech32 P2WPKH (rg1q…) uses 8 decimal places (ORU); Bech32m witness v1 RES (rg1p…) uses 2 decimal places (RES). "
+        "Bech32 P2WPKH (rg1q…) uses 8 decimal places (ORU); Bech32m witness v1 RES (rg1p…) uses 6 decimal places (RES). "
         "All recipients in one call must be the same asset; P2WSH and other script types are not supported here." +
         HELP_REQUIRING_PASSPHRASE,
                 {
@@ -631,7 +648,7 @@ RPCHelpMan sendmany()
                          .oneline_description = "\"\"",
                      }},
                     {"amounts", RPCArg::Type::OBJ_USER_KEYS, RPCArg::Optional::NO, "A json object with addresses (keys) and numeric amounts (values). "
-                        "Amount scale follows the address type: ORU P2WPKH (" + CURRENCY_UNIT + ", 8 decimals) or RES witness v1 (2 decimals).",
+                        "Amount scale follows the address type: ORU P2WPKH (" + CURRENCY_UNIT + ", 8 decimals) or RES witness v1 (6 decimals).",
                         {
                             {"address", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The Rigor address is the key; the amount uses the decimals implied by that address type"},
                         },

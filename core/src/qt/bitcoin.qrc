@@ -2,6 +2,8 @@
     <qresource prefix="/icons">
         <file alias="rigor">res/icons/rigor.png</file>
         <file alias="rigor.svg">res/icons/rigor.svg</file>
+        <file alias="check-white">res/icons/check-white.svg</file>
+        <file alias="radio-dot-white">res/icons/radio-dot-white.svg</file>
         <file alias="address-book">res/icons/address-book.png</file>
         <file alias="send">res/icons/send.png</file>
         <file alias="connect_0">res/icons/connect0.png</file>

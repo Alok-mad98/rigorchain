@@ -122,22 +122,9 @@ static bool VoutLooksLikeRigorDrawTargetCommitment(const CTxOut& out)
            std::equal(RigorTags::RIGOR.begin(), RigorTags::RIGOR.end(), vch.begin());
 }
 
-static CScript BuildRigorDrawTargetCommitmentScript(uint32_t res_target_nbits)
-{
-    std::vector<unsigned char> payload;
-    payload.reserve(RigorTags::RIGOR_COMMITMENT_PAYLOAD_SIZE);
-    payload.insert(payload.end(), RigorTags::RIGOR.begin(), RigorTags::RIGOR.end());
-    payload.push_back(static_cast<unsigned char>(res_target_nbits & 0xff));
-    payload.push_back(static_cast<unsigned char>((res_target_nbits >> 8) & 0xff));
-    payload.push_back(static_cast<unsigned char>((res_target_nbits >> 16) & 0xff));
-    payload.push_back(static_cast<unsigned char>((res_target_nbits >> 24) & 0xff));
-    return CScript() << OP_RETURN << payload;
-}
-
 void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pindexPrev, ChainstateManager& chainman)
 {
     assert(pindexPrev != nullptr);
-    const Consensus::Params& consensus = chainman.GetParams().GetConsensus();
 
     CMutableTransaction mtx(*block.vtx[0]);
     for (int i = int(mtx.vout.size()) - 1; i >= 0; --i) {
@@ -155,39 +142,6 @@ void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pind
     }
 
     chainman.GenerateCoinbaseCommitment(block, pindexPrev);
-
-    uint64_t block_new_convergence{0};
-    for (size_t i = 1; i < block.vtx.size(); ++i) {
-        block_new_convergence += GetTransactionConvergenceAmount(*block.vtx[i]);
-    }
-    ConvergenceCommitment fc;
-    fc.m_cumulative_convergence = pindexPrev->m_cumulative_convergence + block_new_convergence;
-    {
-        // SECURITY-001-A8: the draw this block pays belongs to the parent, so the eligible-set
-        // commitment is read off the parent rather than previewed over `block.vtx`.
-        ConvergenceDrawSet parent_draw_set;
-        ConvergenceDrawOutcome parent_outcome;
-        // A read failure leaves both empty, which is what ConnectBlock also derives from a parent
-        // that committed nothing. The root must be taken from the empty set rather than nulled:
-        // the eligible root of an empty set is Hash256 of the empty concatenation, not ZERO, and
-        // ConnectBlock compares against exactly that.
-        if (GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set)) {
-            parent_outcome = ResolveConvergenceDraw(parent_draw_set, consensus.RES_PROBABILITY_TARGET);
-        }
-        fc.m_draw_candidates.root = ConvergenceDrawEligibleRoot(parent_draw_set, parent_outcome);
-    }
-
-    CMutableTransaction mtx_cb(*block.vtx[0]);
-    CTxOut fr_out;
-    fr_out.nValue = 0;
-    fr_out.scriptPubKey = ConvergenceCommitmentScript(fc);
-    mtx_cb.vout.push_back(fr_out);
-    CTxOut rigor_out;
-    rigor_out.nValue = 0;
-    const uint32_t res_target_nbits = pindexPrev->nBits;
-    rigor_out.scriptPubKey = BuildRigorDrawTargetCommitmentScript(res_target_nbits);
-    mtx_cb.vout.push_back(rigor_out);
-    block.vtx[0] = MakeTransactionRef(std::move(mtx_cb));
 }
 
 static BlockAssembler::Options ClampOptions(BlockAssembler::Options options)
@@ -236,6 +190,7 @@ void BlockAssembler::resetBlock()
     nBlockTx = 0;
     nFeesOru = 0;
     nFeesRes = 0;
+    nFeesOruResTransferBurn = 0;
 }
 
 std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn, const CScript& scriptPubKeyResFeeIn)
@@ -280,6 +235,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     }
     // POOL-F (P8): template assembly sums only ORU `CTxMemPoolEntry::GetFee()`; RES transfer amounts never become res_fees.
     Assert(nFeesRes == 0);
+    Assert(nFeesOruResTransferBurn >= 0);
+    Assert(nFeesOruResTransferBurn <= nFeesOru);
 
     const auto time_1{SteadyClock::now()};
 
@@ -293,11 +250,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     const Consensus::Params& consensus = chainparams.GetConsensus();
-    coinbaseTx.vout[0].nValue = nFeesOru + GetBlockSubsidy(nHeight, consensus);
-    // Placeholder scriptSig: ConvergenceRoot C is written AFTER optional auto-mint insertion.
-    // FinalizeWindowedDrawSet excludes winners already paid by a mint in this block
-    // (BlockPaidWinner), so C computed before mint insertion disagrees with ConnectBlock and
-    // fails TestBlockValidity with bad-cb-convergence-root on payout blocks.
+    // RFC-018: do not claim the RES-transfer fee burn share.
+    coinbaseTx.vout[0].nValue = (nFeesOru - nFeesOruResTransferBurn) + GetBlockSubsidy(nHeight, consensus);
+    // Placeholder scriptSig: ConvergenceRoot C is written AFTER optional coinbase mint
+    // append. FinalizeWindowedDrawSet excludes winners already paid by a mint in this block
+    // (BlockPaidWinner), so C computed before the carrier is appended disagrees with ConnectBlock
+    // and fails TestBlockValidity with bad-cb-convergence-root on payout blocks.
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << std::vector<unsigned char>(32, 0);
     const CScript res_fee_script = ResolveMiningResFeeScript(scriptPubKeyResFeeIn, chainparams);
     if (nFeesRes > 0) {
@@ -322,19 +280,19 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         res_boot_out.scriptPubKey = res_fee_script;
         coinbaseTx.vout.push_back(res_boot_out);
     }
-    AppendAutoResMintBootstrapCoinbaseVout(chainparams, nHeight, coinbaseTx);
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
 
-    // Insert automatic RES mint before witness commitment so BlockWitnessMerkleRoot matches the
-    // committed coinbase (and CVGE / draw_candidate see the same vtx[] as ConnectBlock).
+    // Append the RES mint to the coinbase before the witness commitment, so
+    // BlockWitnessMerkleRoot matches ConnectBlock. There is no body mint and
+    // no funding input: the prize is fully determined by the parent, and the coinbase is
+    // authenticated by proof of work.
     //
-    // Mainnet/signet solo+GBT must assemble the mint whenever the parent draw has a winner —
-    // otherwise TestBlockValidity fails with bad-rigor-res-winner-mismatch and mining stalls.
-    // Funding spends a prior AutoResMintBootstrap P2WSH UTXO (fund via getautomintfundaddress).
-    // Mockable chains also create that UTXO from the height-1 coinbase bootstrap.
+    // While W(h) > 0, every template MUST carry the mint whenever the parent draw has a winner
+    // — otherwise TestBlockValidity fails with bad-rigor-res-winner-mismatch. After
+    // RES_REWARD_LAST_EPOCH, W(h) = 0: a winner does not authorize a mint (H-1). Omit without
+    // throwing so mining continues. Assembly is not gated on -miningresfeeaddr.
     {
         ConvergenceDrawSet parent_draw_set;
-        // In test harnesses, block data may not exist on disk; an empty set means no winner.
         const bool have_parent_draw = GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set);
         if (!have_parent_draw && pindexPrev->nHeight > 0) {
             LogPrintf("CreateNewBlock(): cannot read parent convergence draw set at height=%d hash=%s "
@@ -345,51 +303,28 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             have_parent_draw ? ResolveConvergenceDraw(parent_draw_set, consensus.RES_PROBABILITY_TARGET)
                              : ConvergenceDrawOutcome{};
         if (parent_outcome.HasWinner()) {
-            if (res_fee_script.empty()) {
-                throw std::runtime_error(strprintf(
-                    "%s: convergence draw winner present but Convergence mint assembly is not armed; "
-                    "enable wallet option \"Auto-settle Convergence when mining locally\" or set "
-                    "-miningresfeeaddr=<witness-v1-RES address> (arms settlement only; prize pays the winner; "
-                    "network fees are ORU-only)",
-                    __func__));
+            const CAmount res_reward = Consensus::GetResMintReward(nHeight);
+            if (res_reward <= 0) {
+                LogPrintf("CreateNewBlock(): RES schedule exhausted at height=%d; omitting mint despite draw winner\n",
+                          nHeight);
+            } else {
+                LogPrintf("CreateNewBlock(): parent draw has winner %s — appending coinbase RES mint for height %d\n",
+                          parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
+                          nHeight);
+                CMutableTransaction mtx_cb(*pblock->vtx[0]);
+                if (!TryAppendCoinbaseResMint(mtx_cb, parent_draw_set, parent_outcome, nHeight)) {
+                    throw std::runtime_error(strprintf(
+                        "%s: automatic Convergence RES mint assembly failed (winner present)",
+                        __func__));
+                }
+                pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
             }
-            LogPrintf("CreateNewBlock(): parent draw has winner %s — assembling automatic RES mint for height %d\n",
-                      parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
-                      nHeight);
-            auto mtxo = TryCreateAutomaticResMintTx(parent_draw_set, parent_outcome, nHeight, *m_assemble_coins, res_fee_script);
-            if (!mtxo) {
-                throw std::runtime_error(strprintf(
-                    "%s: automatic Convergence RES mint assembly failed (winner present). Fund the automint "
-                    "P2WSH via RPC getautomintfundaddress (send ORU), confirm or leave the fund tx in "
-                    "mempool, ensure mint assembly is armed (-miningresfeeaddr / wallet auto-settle), "
-                    "then retry getblocktemplate",
-                    __func__));
-            }
-            const CTransactionRef mint_ref = MakeTransactionRef(std::move(*mtxo));
-            // Sigop accounting must use the pre-spend view: GetTransactionSigOpCost reads each vin's
-            // prevout from the cache; UpdateCoins marks those entries spent first.
-            const int64_t mint_sigop_cost = GetTransactionSigOpCost(*mint_ref, *m_assemble_coins, STANDARD_SCRIPT_VERIFY_FLAGS);
-            CTxUndo mint_undo;
-            UpdateCoins(*mint_ref, *m_assemble_coins, mint_undo, nHeight);
-            const size_t ins_pos = pblock->vtx.size();
-            pblock->vtx.push_back(mint_ref);
-            pblocktemplate->vTxFees.push_back(0);
-            pblocktemplate->vTxSigOpsCost.push_back(mint_sigop_cost);
-            nBlockWeight += GetTransactionWeight(*mint_ref);
-            nBlockSigOpsCost += mint_sigop_cost;
-            ++nBlockTx;
-            LogPrintf("CreateNewBlock(): auto mint winner=%s winner_idx=%d |F|=%u res_txid=%s pos=%u weight=%d\n",
-                parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
-                parent_outcome.winner_index,
-                static_cast<unsigned>(parent_draw_set.candidates.size()),
-                mint_ref->GetHash().ToString(),
-                static_cast<unsigned>(ins_pos),
-                GetTransactionWeight(*mint_ref));
         }
     }
 
     // Coinbase scriptSig (ConvergenceRoot v1): canonical CScript() << height << 32-byte root.
-    // Must match ConnectBlock's BuildConvergenceDrawSet over the FINAL vtx[] (including auto-mint).
+    // Must match ConnectBlock's BuildConvergenceDrawSet over the FINAL vtx[] (coinbase mint
+    // included — paid-set exclusion uses the parent winner when OP_RES_MINT is present).
     // ConvergenceRoot is defined against UTXO at *block entry*, not mid-assembly m_assemble_coins.
     {
         CCoinsViewCache view_convergence_root_at_entry(&m_chainstate.CoinsTip());
@@ -404,42 +339,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
     pblocktemplate->vTxFees[0] = -nFeesOru;
 
-    uint64_t block_new_convergence{0};
-    for (size_t i = 1; i < pblock->vtx.size(); ++i) {
-        block_new_convergence += GetTransactionConvergenceAmount(*pblock->vtx[i]);
-    }
-    ConvergenceCommitment convergence_commit;
-    convergence_commit.m_cumulative_convergence = pindexPrev->m_cumulative_convergence + block_new_convergence;
-    {
-        // SECURITY-001-A8: commitment over the eligible subset of the draw being PAID, which the
-        // parent fixed. Nothing assembled here can move it.
-        ConvergenceDrawSet parent_draw_set;
-        ConvergenceDrawOutcome parent_outcome;
-        // A read failure leaves both empty, matching what ConnectBlock derives from a parent that
-        // committed nothing. The root is taken from the empty set rather than nulled, because the
-        // eligible root of an empty set is Hash256 of the empty concatenation, not ZERO.
-        if (GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set)) {
-            parent_outcome = ResolveConvergenceDraw(parent_draw_set, consensus.RES_PROBABILITY_TARGET);
-        }
-        convergence_commit.m_draw_candidates.root =
-            ConvergenceDrawEligibleRoot(parent_draw_set, parent_outcome);
-    }
-    {
-        CMutableTransaction mtx_cb(*pblock->vtx[0]);
-        CTxOut convergence_commit_out;
-        convergence_commit_out.nValue = 0;
-        convergence_commit_out.scriptPubKey = ConvergenceCommitmentScript(convergence_commit);
-        mtx_cb.vout.push_back(std::move(convergence_commit_out));
-        CTxOut rigor_out;
-        rigor_out.nValue = 0;
-        const uint32_t res_target_nbits = pindexPrev->nBits;
-        rigor_out.scriptPubKey = BuildRigorDrawTargetCommitmentScript(res_target_nbits);
-        mtx_cb.vout.push_back(std::move(rigor_out));
-        pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
-    }
-
-    LogPrintf("CreateNewBlock(): block weight: %u txs: %u oru_fees: %ld res_fees: %ld sigops %d\n",
-              GetBlockWeight(*pblock), nBlockTx, nFeesOru, nFeesRes, nBlockSigOpsCost);
+    LogPrintf("CreateNewBlock(): block weight: %u txs: %u oru_fees: %ld oru_fee_burn: %ld res_fees: %ld sigops %d\n",
+              GetBlockWeight(*pblock), nBlockTx, nFeesOru, nFeesOruResTransferBurn, nFeesRes, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -522,7 +423,12 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter)
     }
     CTxUndo undo;
     // POOL-F: mempool entry fee is always ORU (dual-pool RES spends pay ORU fee).
-    nFeesOru += iter->GetFee();
+    const CAmount fee = iter->GetFee();
+    nFeesOru += fee;
+    // RFC-018: classify before UpdateCoins while prevouts remain in the assemble view.
+    if (IsORBClaimTx(mtx, *m_assemble_coins)) {
+        nFeesOruResTransferBurn += Consensus::OruResTransferFeeBurnShare(fee);
+    }
     UpdateCoins(mtx, *m_assemble_coins, undo, nHeight);
     inBlock.insert(iter);
 

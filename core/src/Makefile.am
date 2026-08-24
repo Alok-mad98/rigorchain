@@ -141,6 +141,7 @@ BITCOIN_CORE_H = \
   compressor.h \
   consensus/consensus.h \
   consensus/fingerprint.h \
+  consensus/observational_metrics.h \
   consensus/statetag.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
@@ -379,8 +380,10 @@ libbitcoin_node_a_SOURCES = \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
+  consensus/observational_metrics.cpp \
   consensus/convergenceres.cpp \
   consensus/convergence_root.cpp \
+  consensus/convergence_root_eligibility.cpp \
   consensus/convergence_commitment.cpp \
   consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \
@@ -701,8 +704,8 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/res_proof.cpp \
   consensus/res_owner.h \
   consensus/res_proof.h \
-  consensus/res_mint_witness.cpp \
-  consensus/res_mint_witness.h \
+  consensus/res_mint_carrier.cpp \
+  consensus/res_mint_carrier.h \
   script/rigor_classify.cpp \
   script/interpreter.cpp \
   script/interpreter.h \
@@ -997,8 +1000,10 @@ libbitcoinkernel_la_SOURCES = \
   arith_uint256.cpp \
   arith_uint512.cpp \
   chain.cpp \
+  consensus/observational_metrics.cpp \
   consensus/convergenceres.cpp \
   consensus/convergence_root.cpp \
+  consensus/convergence_root_eligibility.cpp \
   consensus/convergenceres_verify.cpp \
   consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \

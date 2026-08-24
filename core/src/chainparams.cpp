@@ -11,6 +11,7 @@
 
 #include <chainparamsseeds.h>
 #include <consensus/merkle.h>
+#include <consensus/res_amount.h>
 #include <deploymentinfo.h>
 #include <hash.h> // for signet block challenge hash
 #include <script/interpreter.h>
@@ -18,6 +19,14 @@
 #include <util/system.h>
 
 #include <assert.h>
+
+namespace {
+/** FENCE-W11: CLI → Consensus::Params at chain construction. Not a ConnectBlock gArgs read. */
+CAmount ResWalletBootstrapFromArgs(const ArgsManager& args)
+{
+    return args.GetBoolArg("-reswalletbootstrap", false) ? RES_COIN : 0;
+}
+} // namespace
 
 void ReadSigNetArgs(const ArgsManager& args, CChainParams::SigNetOptions& options)
 {
@@ -36,6 +45,7 @@ void ReadSigNetArgs(const ArgsManager& args, CChainParams::SigNetOptions& option
 void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
 {
     if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
+    options.res_wallet_bootstrap_coinbase = ResWalletBootstrapFromArgs(args);
 
     // RIGOR: buried softforks are fixed genesis-active on every network (including
     // regtest). Reject Bitcoin-style delayed activation overrides so tests cannot
@@ -99,9 +109,13 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
     } else if (chain == CBaseChainParams::TESTNET) {
         return CChainParams::TestNet();
     } else if (chain == CBaseChainParams::DEVTEST) {
-        return CChainParams::DevTest();
+        CChainParams::MockableChainOptions opts;
+        opts.res_wallet_bootstrap_coinbase = ResWalletBootstrapFromArgs(args);
+        return CChainParams::DevTest(opts);
     } else if (chain == CBaseChainParams::SLOWTEST) {
-        return CChainParams::SlowTest();
+        CChainParams::MockableChainOptions opts;
+        opts.res_wallet_bootstrap_coinbase = ResWalletBootstrapFromArgs(args);
+        return CChainParams::SlowTest(opts);
     } else if (chain == CBaseChainParams::SIGNET) {
         auto opts = CChainParams::SigNetOptions{};
         ReadSigNetArgs(args, opts);

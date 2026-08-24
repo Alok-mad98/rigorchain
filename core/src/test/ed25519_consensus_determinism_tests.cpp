@@ -4,19 +4,29 @@
 
 #include <crypto/ed25519_provider.h>
 #include <hash.h>
+#include <key.h>
+#include <key_io.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
+#include <pubkey.h>
+#include <script/descriptor.h>
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sigcache.h>
+#include <script/signingprovider.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
 #include <util/strencodings.h>
 
-#include <boost/test/unit_test.hpp>
+#include <array>
 #include <cstring>
+#include <string>
+#include <vector>
+
+#include <boost/test/unit_test.hpp>
+#include <sodium.h>
 
 BOOST_FIXTURE_TEST_SUITE(ed25519_consensus_determinism_tests, BasicTestingSetup)
 
@@ -115,6 +125,114 @@ BOOST_AUTO_TEST_CASE(mandatory_and_standard_flags_same_crypto_outcome)
     BOOST_CHECK(ok_min);
     BOOST_CHECK_EQUAL(err_std, SCRIPT_ERR_OK);
     BOOST_CHECK_EQUAL(err_min, SCRIPT_ERR_OK);
+}
+
+BOOST_AUTO_TEST_CASE(runtime_is_libsodium_ed25519_1_0_18_or_newer)
+{
+    BOOST_REQUIRE(ed25519::EnsureRuntime());
+    BOOST_CHECK(sodium_library_version_major() > 10 ||
+                (sodium_library_version_major() == 10 && sodium_library_version_minor() >= 3));
+    BOOST_CHECK_EQUAL(std::string(crypto_sign_primitive()), std::string("ed25519"));
+}
+
+BOOST_AUTO_TEST_CASE(golden_acceptance_boundary)
+{
+    BOOST_REQUIRE(ed25519::EnsureRuntime());
+    const unsigned char msg[32] = {0};
+
+    unsigned char pk[32], sk[64], sig[64];
+    BOOST_REQUIRE(crypto_sign_keypair(pk, sk) == 0);
+    BOOST_REQUIRE(crypto_sign_detached(sig, nullptr, msg, sizeof(msg), sk) == 0);
+
+    BOOST_CHECK(ed25519::VerifyDetached(Span{sig, 64}, Span{msg, 32}, Span{pk, 32}));
+
+    static const unsigned char L_LE[32] = {
+        0xed,0xd3,0xf5,0x5c,0x1a,0x63,0x12,0x58,0xd6,0x9c,0xf7,0xa2,0xde,0xf9,0xde,0x14,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x10};
+    unsigned char mutated[64];
+    std::memcpy(mutated, sig, 64);
+    unsigned int carry = 0;
+    for (int i = 0; i < 32; i++) {
+        carry += mutated[32 + i] + L_LE[i];
+        mutated[32 + i] = static_cast<unsigned char>(carry & 0xff);
+        carry >>= 8;
+    }
+    BOOST_CHECK(!ed25519::VerifyDetached(Span{mutated, 64}, Span{msg, 32}, Span{pk, 32}));
+
+    static const unsigned char SMALL_ORDER[8][32] = {
+        {0x01},
+        {0xec,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+         0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f},
+        {0x00},
+        {0x00,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x80},
+        {0x26,0xe8,0x95,0x8f,0xc2,0xb2,0x27,0xb0,0x45,0xc3,0xf4,0x89,0xf2,0xef,0x98,0xf0,
+         0xd5,0xdf,0xac,0x05,0xd3,0xc6,0x33,0x39,0xb1,0x38,0x02,0x88,0x6d,0x53,0xfc,0x05},
+        {0xc7,0x17,0x6a,0x70,0x3d,0x4d,0xd8,0x4f,0xba,0x3c,0x0b,0x76,0x0d,0x10,0x67,0x0f,
+         0x2a,0x20,0x53,0xfa,0x2c,0x39,0xcc,0xc6,0x4e,0xc7,0xfd,0x77,0x92,0xac,0x03,0x7a},
+        {0x26,0xe8,0x95,0x8f,0xc2,0xb2,0x27,0xb0,0x45,0xc3,0xf4,0x89,0xf2,0xef,0x98,0xf0,
+         0xd5,0xdf,0xac,0x05,0xd3,0xc6,0x33,0x39,0xb1,0x38,0x02,0x88,0x6d,0x53,0xfc,0x85},
+        {0xc7,0x17,0x6a,0x70,0x3d,0x4d,0xd8,0x4f,0xba,0x3c,0x0b,0x76,0x0d,0x10,0x67,0x0f,
+         0x2a,0x20,0x53,0xfa,0x2c,0x39,0xcc,0xc6,0x4e,0xc7,0xfd,0x77,0x92,0xac,0x03,0xfa}};
+    for (const auto& so : SMALL_ORDER) {
+        BOOST_CHECK(!ed25519::VerifyDetached(Span{sig, 64}, Span{msg, 32}, Span{so, 32}));
+    }
+
+    unsigned char r0[64];
+    std::memcpy(r0, sig, 64);
+    std::memcpy(r0, SMALL_ORDER[0], 32);
+    BOOST_CHECK(!ed25519::VerifyDetached(Span{r0, 64}, Span{msg, 32}, Span{pk, 32}));
+
+    unsigned char zero[64]{};
+    BOOST_CHECK(!ed25519::VerifyDetached(Span{zero, 64}, Span{msg, 32}, Span{SMALL_ORDER[0], 32}));
+
+    unsigned char s1[64], s2[64];
+    BOOST_REQUIRE(crypto_sign_detached(s1, nullptr, msg, sizeof(msg), sk) == 0);
+    BOOST_REQUIRE(crypto_sign_detached(s2, nullptr, msg, sizeof(msg), sk) == 0);
+    BOOST_CHECK(std::memcmp(s1, s2, 64) == 0);
+}
+
+BOOST_AUTO_TEST_CASE(descriptor_rejects_unhardened_bip32)
+{
+    FlatSigningProvider keys;
+    std::string error;
+    CExtKey master;
+    std::vector<std::byte> seed(32, std::byte{0x22});
+    master.SetSeed(seed);
+    const std::string xpub = EncodeExtPubKey(master.Neuter());
+    const std::string xprv = EncodeExtKey(master);
+
+    BOOST_CHECK(!Parse("wpkh(" + xpub + "/0/*)", keys, error));
+    BOOST_CHECK(error.find("hardened") != std::string::npos);
+
+    BOOST_CHECK(!Parse("wpkh(" + xpub + "/0/*')", keys, error));
+    BOOST_CHECK(error.find("hardened") != std::string::npos);
+
+    auto ok = Parse("wpkh(" + xprv + "/0'/*')", keys, error);
+    BOOST_CHECK_MESSAGE(ok, error);
+}
+
+BOOST_AUTO_TEST_CASE(res_public_descriptor_omits_secret)
+{
+    std::array<unsigned char, ed25519::SEED_SIZE> seed{};
+    seed.fill(0x33);
+    std::array<unsigned char, ed25519::PUBKEY_SIZE> pk{};
+    std::array<unsigned char, ed25519::SECRETKEY_SIZE> sk{};
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pk, sk));
+    const std::string secret_hex = HexStr(Span<const unsigned char>{sk.data(), sk.size()});
+    const std::string pk_hex = HexStr(Span<const unsigned char>{pk.data(), pk.size()});
+
+    FlatSigningProvider keys;
+    std::string error;
+    auto desc = Parse("res(" + secret_hex + ")", keys, error);
+    BOOST_REQUIRE_MESSAGE(desc, error);
+
+    const std::string pub = desc->ToString();
+    BOOST_CHECK(pub.find(secret_hex) == std::string::npos);
+    BOOST_CHECK(pub.find(pk_hex) != std::string::npos);
+
+    std::string priv;
+    BOOST_CHECK(desc->ToPrivateString(keys, priv));
+    BOOST_CHECK(priv.find(secret_hex) != std::string::npos);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

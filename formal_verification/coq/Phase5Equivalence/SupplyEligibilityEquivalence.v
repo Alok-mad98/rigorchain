@@ -190,11 +190,13 @@ Lemma eligibility_row_all_resolved :
   forall r, In r draw_audit_rows ->
     eligibility_row_result r = SEER_Resolved.
 Proof.
-  intros r Hin. revert Hin.
-  vm_compute.
-  intros Hin.
-  repeat (destruct Hin as [Heq | Hin]; [subst r; reflexivity | ]).
-  contradiction.
+  intros r _.
+  unfold eligibility_row_result, project_eligibility_sigma.
+  (* project_eligibility_sigma is definitionally [map dc_eligible], so both
+     sides of bool_list_eqb are the same list; reflexivity of bool_list_eqb. *)
+  induction (map dc_eligible (dar_candidates r)) as [|b bs IH];
+    [reflexivity|].
+  simpl. rewrite Bool.eqb_reflx. exact IH.
 Qed.
 
 Lemma eligibility_flags_length_preserved :
@@ -208,7 +210,7 @@ Qed.
 
 Definition draw_audit_row_count : nat := length draw_audit_rows.
 
-Lemma draw_audit_row_count_value : draw_audit_row_count = 14%nat.
+Lemma draw_audit_row_count_value : draw_audit_row_count = 168%nat.
 Proof. vm_compute. reflexivity. Qed.
 
 (** ================================================================

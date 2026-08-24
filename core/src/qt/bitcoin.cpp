@@ -51,6 +51,8 @@
 
 #include <QApplication>
 #include <QDebug>
+#include <QStyle>
+#include <QStyleFactory>
 #include <QElapsedTimer>
 #include <QLatin1String>
 #include <QtGlobal>
@@ -276,7 +278,7 @@ static void WinBootLog(const char* step)
 static void WinShowError(const char* msg)
 {
     WinBootLog(msg);
-    MessageBoxA(nullptr, msg ? msg : "Unknown error", "RIGOR Wallet", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, msg ? msg : "Unknown error", "Rigor Wallet", MB_OK | MB_ICONERROR);
 }
 
 static void QtEarlyMessageHandler(QtMsgType type, const QMessageLogContext&, const QString& msg)
@@ -290,13 +292,13 @@ static void QtEarlyMessageHandler(QtMsgType type, const QMessageLogContext&, con
 
 static void WinAbortHandler(int)
 {
-    WinShowError("RIGOR Wallet aborted during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
+    WinShowError("Rigor Wallet aborted during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
     _exit(1);
 }
 
 static void WinTerminateHandler()
 {
-    std::string msg = "RIGOR Wallet terminated unexpectedly during startup. See rigor-wallet-boot.log.";
+    std::string msg = "Rigor Wallet terminated unexpectedly during startup. See rigor-wallet-boot.log.";
     if (auto ep = std::current_exception()) {
         try {
             std::rethrow_exception(ep);
@@ -313,7 +315,7 @@ static void WinTerminateHandler()
 
 static LONG WINAPI WinCrashFilter(EXCEPTION_POINTERS*)
 {
-    WinShowError("RIGOR Wallet crashed during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
+    WinShowError("Rigor Wallet crashed during startup. See rigor-wallet-boot.log in %TEMP% or %APPDATA%\\RIGOR.");
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -328,10 +330,10 @@ static bool WinGuiThreadSafeMessageBox(const bilingual_str& message, const std::
     } else {
         mb |= MB_ICONINFORMATION;
     }
-    const std::string text = (caption.empty() ? std::string("RIGOR Wallet") : caption) + "\n\n" +
+    const std::string text = (caption.empty() ? std::string("Rigor Wallet") : caption) + "\n\n" +
                              (message.translated.empty() ? message.original : message.translated);
     WinBootLog(text.c_str());
-    MessageBoxA(nullptr, text.c_str(), "RIGOR Wallet", mb);
+    MessageBoxA(nullptr, text.c_str(), "Rigor Wallet", mb);
     return false;
 }
 #endif
@@ -345,6 +347,12 @@ BitcoinApplication::BitcoinApplication()
     // Qt runs setlocale(LC_ALL, "") on initialization.
     RegisterMetaTypes();
     setQuitOnLastWindowClosed(false);
+#ifdef WIN32
+    // Native Windows styles ignore QSS radio/checkbox fills (selected = outline only).
+    if (QStyle* fusion = QStyleFactory::create(QStringLiteral("Fusion"))) {
+        setStyle(fusion);
+    }
+#endif
 }
 
 void BitcoinApplication::setupPlatformStyle()
@@ -360,7 +368,7 @@ void BitcoinApplication::setupPlatformStyle()
     if (!platformStyle) {
         qWarning("Failed to instantiate a UI platform style");
 #ifdef WIN32
-        MessageBoxA(nullptr, "Failed to create the RIGOR Wallet UI style.", "RIGOR Wallet", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, "Failed to create the Rigor Wallet UI style.", "Rigor Wallet", MB_OK | MB_ICONERROR);
 #endif
     }
 }

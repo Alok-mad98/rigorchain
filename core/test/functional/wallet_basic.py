@@ -700,25 +700,26 @@ class WalletTest(BitcoinTestFramework):
 
         if self.options.descriptors:
             self.log.info("Testing 'listunspent' outputs the parent descriptor(s) of coins")
-            # Create two multisig descriptors, and send a UTxO each.
-            multi_a = descsum_create("wsh(multi(1,tpubD6NzVbkrYhZ4YBNjUo96Jxd1u4XKWgnoc7LsA1jz3Yc2NiDbhtfBhaBtemB73n9V5vtJHwU6FVXwggTbeoJWQ1rzdz8ysDuQkpnaHyvnvzR/*,tpubD6NzVbkrYhZ4YHdDGMAYGaWxMSC1B6tPRTHuU5t3BcfcS3nrF523iFm5waFd1pP3ZvJt4Jr8XmCmsTBNx5suhcSgtzpGjGMASR3tau1hJz4/*))")
-            multi_b = descsum_create("wsh(multi(1,tpubD6NzVbkrYhZ4YHdDGMAYGaWxMSC1B6tPRTHuU5t3BcfcS3nrF523iFm5waFd1pP3ZvJt4Jr8XmCmsTBNx5suhcSgtzpGjGMASR3tau1hJz4/*,tpubD6NzVbkrYhZ4Y2RLiuEzNQkntjmsLpPYDm3LTRBYynUQtDtpzeUKAcb9sYthSFL3YR74cdFgF5mW8yKxv2W2CWuZDFR2dUpE5PF9kbrVXNZ/*))")
-            addr_a = self.nodes[0].deriveaddresses(multi_a, 0)[0]
-            addr_b = self.nodes[0].deriveaddresses(multi_b, 0)[0]
+            tprv = "tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK"
+            desc_a = descsum_create(f"wpkh({tprv}/0h/0h/0h)")
+            desc_b = descsum_create(f"wpkh({tprv}/1h/0h/0h)")
+            addr_a = self.nodes[0].deriveaddresses(desc_a)[0]
+            addr_b = self.nodes[0].deriveaddresses(desc_b)[0]
+            watch_a = descsum_create(f"addr({addr_a})")
+            watch_b = descsum_create(f"addr({addr_b})")
             txid_a = self.nodes[0].sendtoaddress(addr_a, 0.01)
             txid_b = self.nodes[0].sendtoaddress(addr_b, 0.01)
             self.generate(self.nodes[0], 1, sync_fun=self.no_op)
-            # Now import the descriptors, make sure we can identify on which descriptor each coin was received.
             self.nodes[0].createwallet(wallet_name="wo", descriptors=True, disable_private_keys=True)
             wo_wallet = self.nodes[0].get_wallet_rpc("wo")
             wo_wallet.importdescriptors([
                 {
-                    "desc": multi_a,
+                    "desc": watch_a,
                     "active": False,
                     "timestamp": "now",
                 },
                 {
-                    "desc": multi_b,
+                    "desc": watch_b,
                     "active": False,
                     "timestamp": "now",
                 },
@@ -726,9 +727,9 @@ class WalletTest(BitcoinTestFramework):
             coins = wo_wallet.listunspent(minconf=0)
             assert_equal(len(coins), 2)
             coin_a = next(c for c in coins if c["txid"] == txid_a)
-            assert_equal(coin_a["parent_descs"][0], multi_a)
+            assert_equal(coin_a["parent_descs"][0], watch_a)
             coin_b = next(c for c in coins if c["txid"] == txid_b)
-            assert_equal(coin_b["parent_descs"][0], multi_b)
+            assert_equal(coin_b["parent_descs"][0], watch_b)
             self.nodes[0].unloadwallet("wo")
 
         self.log.info("Test -spendzeroconfchange")

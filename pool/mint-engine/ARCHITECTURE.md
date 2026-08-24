@@ -1,7 +1,7 @@
 # mint-engine Architecture
 
 **Task:** TASK-MINT-ENGINE-001, TASK-MINING-018  
-**Spec:** `docs/mining/RES_BODY_MINT_OPERATIONAL_SPEC.md`
+**Spec:** historical — RES issuance is now a coinbase mint (`core/doc/mining-pool-gbt.md`). This crate is detached from the pool runtime.
 
 ## Module map
 

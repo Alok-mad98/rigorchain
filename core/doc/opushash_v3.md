@@ -8,7 +8,8 @@ OpuHash is a **compute-heavy** PoW: a **64 KiB** ChaCha20-filled buffer (fits ty
 - **CPU L2 cache optimization:** Keeping the buffer in L2 reduces memory-bandwidth advantage for wide-GPU paths and shifts competition toward **serial hash throughput**, narrowing the CPU vs GPU gap in practice.
 - **Determinism:** Same inputs produce the same `uint256` on every platform and thread.
 
-The design keeps **simple indexing** (`ReadLE32(current_h) ^ (round << 24)` with a bit mask, 8-byte loads, clamped bounds) for **auditability** and cross-platform stability—no SIMD requirement in the consensus path.
+The design keeps **simple indexing** (`ReadLE32(current_h)` masked to the buffer,
+8-byte loads, clamped bounds) for **auditability** and cross-platform stability—no SIMD requirement in the consensus path. Round count does not enter the index (a historical `round << 24` XOR was a no-op under the 16-bit mask and MUST NOT be reintroduced).
 
 ## Why 256 mix rounds?
 
@@ -20,7 +21,7 @@ Two hundred fifty-six rounds increase **computational depth** (each round applie
 |-----------|--------|
 | Buffer | **64 KiB** (`Consensus::OPUS_POW_BUFFER_SIZE = 64 * 1024`), ChaCha20 block-aligned |
 | Mix rounds | **256** (`Consensus::OPUS_POW_MIX_ROUNDS`) |
-| Index | `ReadLE32(current_h) ^ (round << 24)`, masked; offset clamped for 8-byte `ReadLE64` |
+| Index | `ReadLE32(current_h)` masked; offset clamped for 8-byte `ReadLE64` |
 | Fill | ChaCha20 keystream, 32-byte key from `base_hash`, IV/counter zeroed |
 | Round update | `CHashWriter(SER_GETHASH, PROTOCOL_VERSION) << current_h << mem_val` → `GetHash()` |
 | Final PoW | `CHashWriter` over `base_hash` and `mixed_hash` → `GetHash()` |
@@ -35,6 +36,6 @@ See `src/test/pow_tests.cpp` `OpuHash_v3plus_reference_vectors` and `test/functi
 
 ## Implementation
 
-- `src/consensus/arda_consensus_lock.h` — `OPUS_POW_BUFFER_SIZE`, `OPUS_POW_MIX_ROUNDS`.
+- `src/consensus/rigor_consensus_lock.h` — `OPUS_POW_BUFFER_SIZE`, `OPUS_POW_MIX_ROUNDS`.
 - `src/pow_opus.h` / `src/pow_opus.cpp` — thread-local buffer, no heap on the hot path.
 - `src/pow.cpp` — `CheckProofOfWork` uses `GetOpusHashFromBaseHash` (genesis exempt).

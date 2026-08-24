@@ -19,7 +19,6 @@ from __future__ import annotations
 from decimal import Decimal
 
 from test_framework.rigor_block_builder import (
-    make_convergence_program_32,
     prepare_unsigned_convergence_tx,
 )
 from test_framework.test_framework import BitcoinTestFramework
@@ -35,10 +34,11 @@ def _assert_p2wpkh_v0_script_hex(h: str) -> None:
 
 def _assert_convergence_vout_script_hex(h: str, expected_sats: int) -> None:
     x = h.lower()
-    # OP_1 (0x51) + push 32 bytes (0x20) + 32-byte program → 2 + 32 = 34 bytes → 68 hex chars
-    assert x.startswith("5120") and len(x) == 68, f"expected witness v1 32-byte program hex, got {h!r}"
-    want_prog = "5120" + make_convergence_program_32(expected_sats).hex()
-    assert x == want_prog.lower(), "CVG2 program (BE amount) must match convergence output nValue"
+    # OP_PUSHBYTES_20 + 20-byte HASH160 + OP_CONVERGE → 22 bytes → 44 hex chars
+    assert x.startswith("14") and x.endswith("bd") and len(x) == 44, (
+        f"expected OP_CONVERGE lock hex, got {h!r}"
+    )
+    del expected_sats
 
 
 def assert_signed_convergence_tx(node, raw_signed: str, prev_txs: list[dict], conv_sats: int) -> str:

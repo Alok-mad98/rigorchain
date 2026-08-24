@@ -8,6 +8,7 @@
 
 #include <arith_uint256.h>
 #include <consensus/amount.h>
+#include <consensus/observational_metrics.h>
 #include <consensus/params.h>
 #include <consensus/runtime_supply_state.h>
 #include <flatfile.h>
@@ -17,7 +18,6 @@
 #include <uint256.h>
 #include <util/time.h>
 
-#include <type_traits>
 #include <vector>
 
 /**
@@ -208,7 +208,6 @@ public:
     uint32_t nTime{0};
     uint32_t nBits{0};
     uint32_t nNonce{0};
-    uint64_t m_cumulative_convergence{0};
     uint256 m_draw_candidate_root{};
 
     /** Whether this block itself minted RES via body self-proof (cached; convergence window + RPC). */
@@ -218,21 +217,34 @@ public:
 
     /** ASSET_RES issued by valid body mint txs in this block (0 if none). Index/RPC only; not a draw input. */
     CAmount m_block_res_mint_sum{0};
-    /**
-     * Memory-only cache: cumulative RES minted up to and including this block
-     * (sum of ancestor m_block_res_mint_sum plus this block). Not serialized.
-     * ConnectBlock sets it; DisconnectBlock resets it to -1 so reorgs recompute from ancestors.
-     */
-    mutable CAmount m_chain_res_mint_total{-1};
 
     /** Total ORU converged (destroyed) by valid Converge transactions in this block (C(t)). */
     CAmount m_block_converge_sum{0};
+
     /**
-     * Memory-only cache: cumulative ORU supply up to and including this block (S_ORU(t)).
-     * Follows RFC-002 state equation: S_ORU(t+1) = S_ORU(t) + R(t) - C(t).
-     * Not serialized. ConnectBlock sets it; DisconnectBlock resets it to -1 so reorgs recompute from ancestors.
+     * NON-CONSENSUS observational caches (W1 issuance ledgers, W2 CVGE cumulative).
+     * Isolated from header / PoW / UTXO consensus fields. unique_ptr-backed so the
+     * scalars cannot be mistaken for CBlockIndex consensus members.
+     * W8 RFC-018 fee-burn has no chain cumulative here.
+     *
+     * Access only via Observational(). ConnectBlock calls Update() after validation.
+     * NEVER read during script execution or mint authorization.
      */
-    mutable CAmount m_chain_oru_total{-1};
+    mutable ObservationalMetricsHandle m_observational;
+
+    ObservationalMetrics& Observational() const { return m_observational.Get(); }
+
+    /** Prefix-sum of per-block C(t) (`m_block_converge_sum`) from genesis through this index. */
+    uint64_t GetChainConvergeSum() const
+    {
+        uint64_t sum = 0;
+        for (const CBlockIndex* p = this; p != nullptr; p = p->pprev) {
+            if (p->m_block_converge_sum > 0) {
+                sum += static_cast<uint64_t>(p->m_block_converge_sum);
+            }
+        }
+        return sum;
+    }
 
     /**
      * TASK-FVR-B observational mirror of ORU/RES mint ledgers at this height.
@@ -410,24 +422,6 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& fr
 /** Find the forking point between two chain tips. */
 const CBlockIndex* LastCommonAncestor(const CBlockIndex* pa, const CBlockIndex* pb);
 
-namespace disk_index_serdetail {
-template<typename S, typename = void>
-struct HasStreamEmpty : std::false_type {};
-template<typename S>
-struct HasStreamEmpty<S, std::void_t<decltype(std::declval<S&>().empty())>> : std::true_type {};
-
-template<typename S>
-std::enable_if_t<HasStreamEmpty<S>::value, bool> HasOptionalConvergeTail(S& s)
-{
-    return !s.empty();
-}
-template<typename S>
-std::enable_if_t<!HasStreamEmpty<S>::value, bool> HasOptionalConvergeTail(S&)
-{
-    return false;
-}
-} // namespace disk_index_serdetail
-
 /** Used to marshal pointers into hashes for db storage. */
 class CDiskBlockIndex : public CBlockIndex
 {
@@ -464,27 +458,18 @@ public:
         READWRITE(obj.nTime);
         READWRITE(obj.nBits);
         READWRITE(obj.nNonce);
-        READWRITE(Using<CustomUintFormatter<8>>(obj.m_cumulative_convergence));
+        {
+            uint64_t cumulative = obj.Observational().GetCumulativeConvergence();
+            READWRITE(Using<CustomUintFormatter<8>>(cumulative));
+            if (ser_action.ForRead()) {
+                obj.Observational().SetCumulativeConvergence(cumulative);
+            }
+        }
         READWRITE(obj.m_draw_candidate_root);
         READWRITE(obj.has_res);
         READWRITE(obj.last_res_mint_block_hash);
         READWRITE(VARINT_MODE(obj.m_block_res_mint_sum, VarIntMode::NONNEGATIVE_SIGNED));
-        // Per-block ORU convergence burn C(t) (RFC-002). Included in deterministic state_hash;
-        // must survive LoadBlockIndex / -reindex-chainstate (see TASK-H2 / long-run tri-node).
-        // Optional on read: legacy DB entries end after m_block_res_mint_sum (field defaults to 0).
-        SER_READ(obj, {
-            if (!disk_index_serdetail::HasOptionalConvergeTail(s)) {
-                obj.m_block_converge_sum = 0;
-            } else {
-                ::Unserialize(s, VARINT_MODE(obj.m_block_converge_sum, VarIntMode::NONNEGATIVE_SIGNED));
-            }
-        });
-        SER_WRITE(obj, {
-            // Do not use READWRITE here: SER_WRITE's lambda binds `const Type&`, but READWRITE still
-            // dispatches on the outer `ser_action` and would try to Unserialize into const for the
-            // CSerActionUnserialize instantiation of SerializationOps.
-            ::Serialize(s, VARINT_MODE(obj.m_block_converge_sum, VarIntMode::NONNEGATIVE_SIGNED));
-        });
+        READWRITE(VARINT_MODE(obj.m_block_converge_sum, VarIntMode::NONNEGATIVE_SIGNED));
     }
 
     uint256 ConstructBlockHash() const

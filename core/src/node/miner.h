@@ -140,6 +140,8 @@ private:
     uint64_t nBlockSigOpsCost;
     CAmount nFeesOru;
     CAmount nFeesRes;
+    /** RFC-018 burn share accumulated from RES-transfer (ASSET_RES input) fees. */
+    CAmount nFeesOruResTransferBurn;
     CTxMemPool::setEntries inBlock;
 
     // Chain context for the block

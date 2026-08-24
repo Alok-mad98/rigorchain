@@ -12,6 +12,8 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/rigor_consensus_lock.h>
+#include <primitives/block.h>
+#include <primitives/transaction.h>
 #include <test/util/setup_common.h>
 #include <univalue.h>
 #include <validation.h>
@@ -35,9 +37,10 @@ BOOST_AUTO_TEST_CASE(runtime_supply_mirror_matches_authoritative_index_fields)
     pindex.nHeight = 42;
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = 3 * COIN;
-    pindex.m_block_res_mint_sum = Consensus::RES_REWARD_AMOUNT;
-    pindex.m_chain_oru_total = 1000 * COIN;
-    pindex.m_chain_res_mint_total = Consensus::RES_REWARD_AMOUNT;
+    // The mirror populates res_reward_amount from the height schedule, so the block's mint must
+    // be the reward scheduled for THIS height or RES-L3 fails.
+    pindex.m_block_res_mint_sum = Consensus::GetResMintReward(pindex.nHeight);
+    pindex.Observational().LoadCachesForTest(Consensus::GetResMintReward(pindex.nHeight), 1000 * COIN);
 
     const CAmount parent_oru = 1000 * COIN - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
     const CAmount parent_res = 0;
@@ -52,10 +55,10 @@ BOOST_AUTO_TEST_CASE(runtime_supply_mirror_matches_authoritative_index_fields)
 
     BOOST_CHECK_EQUAL(mirror.height, pindex.nHeight);
     BOOST_CHECK_EQUAL(mirror.block_hash, pindex.GetBlockHash());
-    BOOST_CHECK_EQUAL(mirror.oru_supply_cumulative, pindex.m_chain_oru_total);
+    BOOST_CHECK_EQUAL(mirror.oru_supply_cumulative, pindex.Observational().GetChainOruTotal());
     BOOST_CHECK_EQUAL(mirror.oru_converge_burn_block, pindex.m_block_converge_sum);
     BOOST_CHECK_EQUAL(mirror.oru_subsidy_block, GetBlockSubsidy(pindex.nHeight, consensus));
-    BOOST_CHECK_EQUAL(mirror.res_mint_cumulative, pindex.m_chain_res_mint_total);
+    BOOST_CHECK_EQUAL(mirror.res_mint_cumulative, pindex.Observational().GetChainResMintTotal());
     BOOST_CHECK_EQUAL(mirror.res_mint_block, pindex.m_block_res_mint_sum);
     BOOST_CHECK_EQUAL(mirror.res_mint_count_block, 1);
     BOOST_CHECK_EQUAL(mirror.oru_supply_parent, parent_oru);
@@ -82,12 +85,12 @@ BOOST_AUTO_TEST_CASE(runtime_supply_recurrence_and_cap_invariants)
     s.oru_converge_burn_block = COIN;
     s.oru_supply_cumulative = s.oru_supply_parent + s.oru_subsidy_block - s.oru_converge_burn_block;
     s.res_mint_parent = 0;
-    s.res_mint_block = Consensus::RES_REWARD_AMOUNT;
+    s.res_mint_block = Consensus::RES_REWARD_GENESIS;
     s.res_mint_count_block = 1;
     s.res_mint_cumulative = s.res_mint_parent + s.res_mint_block;
     s.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    s.res_reward_amount = Consensus::RES_REWARD_AMOUNT;
-    s.utxo_res_balance = Consensus::RES_REWARD_AMOUNT;
+    s.res_reward_amount = Consensus::RES_REWARD_GENESIS;
+    s.utxo_res_balance = Consensus::RES_REWARD_GENESIS;
     s.utxo_non_res_balance = s.oru_supply_cumulative;
 
     BOOST_CHECK(Consensus::CheckRuntimeSupplyInvariants(s, consensus).empty());
@@ -109,8 +112,7 @@ BOOST_AUTO_TEST_CASE(runtime_supply_mirror_store_and_invalidate)
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = 0;
     pindex.m_block_res_mint_sum = 0;
-    pindex.m_chain_oru_total = GetBlockSubsidy(0, consensus);
-    pindex.m_chain_res_mint_total = 0;
+    pindex.Observational().LoadCachesForTest(0, GetBlockSubsidy(0, consensus));
 
     Consensus::RuntimeSupplyState mirror = Consensus::CaptureRuntimeSupplyState(
         &pindex, view, consensus, 0, CAmount{0}, CAmount{0});
@@ -137,11 +139,10 @@ BOOST_AUTO_TEST_CASE(coq_field_hook_matches_mirror_and_authoritative_caches)
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = 2 * COIN;
     pindex.m_block_res_mint_sum = 0;
-    pindex.m_chain_oru_total = 50 * COIN;
-    pindex.m_chain_res_mint_total = 0;
+    pindex.Observational().LoadCachesForTest(0, 50 * COIN);
 
     const CAmount parent_oru =
-        pindex.m_chain_oru_total - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
+        pindex.Observational().GetChainOruTotal() - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
 
     const Consensus::RuntimeSupplyState mirror = Consensus::CaptureRuntimeSupplyState(
         &pindex, view, consensus, 0, std::optional<CAmount>{parent_oru}, std::optional<CAmount>{0});
@@ -202,12 +203,11 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_phase5_cell_count_and_mirror_source)
     pindex.nHeight = 7;
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = COIN;
-    pindex.m_block_res_mint_sum = Consensus::RES_REWARD_AMOUNT;
-    pindex.m_chain_oru_total = 20 * COIN;
-    pindex.m_chain_res_mint_total = Consensus::RES_REWARD_AMOUNT;
+    pindex.m_block_res_mint_sum = Consensus::RES_REWARD_GENESIS;
+    pindex.Observational().LoadCachesForTest(Consensus::RES_REWARD_GENESIS, 20 * COIN);
 
     const CAmount parent_oru =
-        pindex.m_chain_oru_total - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
+        pindex.Observational().GetChainOruTotal() - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
 
     Consensus::RuntimeSupplyState mirror = Consensus::CaptureRuntimeSupplyState(
         &pindex, view, consensus, 1, std::optional<CAmount>{parent_oru}, std::optional<CAmount>{0});
@@ -217,7 +217,7 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_phase5_cell_count_and_mirror_source)
         Consensus::BuildRuntimeSupplyExport(&pindex, view, consensus);
 
     BOOST_CHECK(exp.mirror_source == Consensus::RuntimeSupplyMirrorSource::STORED_MIRROR);
-    BOOST_CHECK_EQUAL(exp.mirror.oru_supply_cumulative, pindex.m_chain_oru_total);
+    BOOST_CHECK_EQUAL(exp.mirror.oru_supply_cumulative, pindex.Observational().GetChainOruTotal());
     BOOST_CHECK_EQUAL(exp.authoritative_oru_converge_burn_block, pindex.m_block_converge_sum);
     BOOST_CHECK_EQUAL(exp.coq_hook.rs_oru_supply, exp.mirror.oru_supply_cumulative);
 
@@ -248,15 +248,14 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_fresh_capture_when_mirror_absent)
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = 0;
     pindex.m_block_res_mint_sum = 0;
-    pindex.m_chain_oru_total = GetBlockSubsidy(0, consensus) + GetBlockSubsidy(1, consensus);
-    pindex.m_chain_res_mint_total = 0;
+    pindex.Observational().LoadCachesForTest(0, GetBlockSubsidy(0, consensus) + GetBlockSubsidy(1, consensus));
 
     const Consensus::RuntimeSupplyExport exp =
         Consensus::BuildRuntimeSupplyExport(&pindex, view, consensus);
 
     BOOST_CHECK(exp.mirror_source == Consensus::RuntimeSupplyMirrorSource::CAPTURED_FRESH);
     BOOST_CHECK(!pindex.m_runtime_supply_mirror.has_value());
-    BOOST_CHECK_EQUAL(exp.mirror.oru_supply_cumulative, pindex.m_chain_oru_total);
+    BOOST_CHECK_EQUAL(exp.mirror.oru_supply_cumulative, pindex.Observational().GetChainOruTotal());
 }
 
 BOOST_AUTO_TEST_CASE(derived_oru_subsidy_cumulative_matches_manual_sum)
@@ -267,6 +266,27 @@ BOOST_AUTO_TEST_CASE(derived_oru_subsidy_cumulative_matches_manual_sum)
         manual += GetBlockSubsidy(h, consensus);
     }
     BOOST_CHECK_EQUAL(Consensus::ComputeDerivedOruSubsidyCumulative(5, consensus), manual);
+}
+
+BOOST_AUTO_TEST_CASE(observational_metrics_update_after_connect_shape)
+{
+    CBlockHeader hdr{};
+    CBlockIndex pindex{hdr};
+    CBlock block;
+    CMutableTransaction cb;
+    cb.vin.resize(1);
+    cb.vin[0].prevout.SetNull();
+    block.vtx.push_back(MakeTransactionRef(std::move(cb)));
+
+    pindex.Observational().Update(block, /*pindexPrev=*/nullptr, 5 * COIN, 100 * COIN);
+    BOOST_CHECK_EQUAL(pindex.Observational().GetChainResMintTotal(), 5 * COIN);
+    BOOST_CHECK_EQUAL(pindex.Observational().GetChainOruTotal(), 100 * COIN);
+    BOOST_CHECK_EQUAL(pindex.Observational().GetCumulativeConvergence(), 0U);
+
+    pindex.Observational().InvalidateLedgerCaches();
+    BOOST_CHECK(!pindex.Observational().HasResMintCache());
+    BOOST_CHECK(!pindex.Observational().HasOruCache());
+    BOOST_CHECK_EQUAL(pindex.Observational().GetCumulativeConvergence(), 0U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -242,7 +242,6 @@ RigorGUI::RigorGUI(interfaces::Node& node, const PlatformStyle *_platformStyle, 
     sendCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/send"))));
     receiveCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/receiving_addresses"))));
     historyAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/history"))));
-    diagnosticsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/export"))));
     if (convergenceAction) {
         convergenceAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/convergence"))));
     }
@@ -308,15 +307,6 @@ void RigorGUI::createActions()
     convergenceAction->setShortcut(QKeySequence(QStringLiteral("Alt+5")));
     tabGroup->addAction(convergenceAction);
 
-    // Diagnostics stay available under Settings → Advanced when Advanced Mode is on (not primary nav).
-    diagnosticsAction = new QAction(platformStyle->SingleColorIcon(QStringLiteral(":/icons/export")), tr("System &Diagnostics…"), this);
-    diagnosticsAction->setStatusTip(tr("Developer diagnostics — node, wallet, explorer, and verification status"));
-    diagnosticsAction->setToolTip(diagnosticsAction->statusTip());
-    diagnosticsAction->setCheckable(true);
-    diagnosticsAction->setShortcut(QKeySequence(QStringLiteral("Alt+6")));
-    tabGroup->addAction(diagnosticsAction);
-    diagnosticsAction->setVisible(false);
-
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -330,8 +320,6 @@ void RigorGUI::createActions()
     connect(historyAction, &QAction::triggered, this, &RigorGUI::gotoHistoryPage);
     connect(convergenceAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
     connect(convergenceAction, &QAction::triggered, this, &RigorGUI::gotoConvergencePage);
-    connect(diagnosticsAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
-    connect(diagnosticsAction, &QAction::triggered, this, &RigorGUI::gotoDiagnosticsPage);
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(tr("E&xit"), this);
@@ -360,13 +348,6 @@ void RigorGUI::createActions()
     changePassphraseAction->setStatusTip(tr("Change the passphrase used for wallet encryption"));
     m_key_management_action = new QAction(tr("&Key Management…"), this);
     m_key_management_action->setStatusTip(tr("Import private keys or descriptors; export cold-storage descriptors"));
-    m_advanced_mode_action = new QAction(tr("Enable &Advanced Mode"), this);
-    m_advanced_mode_action->setStatusTip(tr("Show System Diagnostics (explorer/indexer panels)"));
-    m_advanced_mode_action->setCheckable(true);
-    {
-        QSettings settings;
-        m_advanced_mode_action->setChecked(settings.value(QStringLiteral("rigor/advancedMode"), false).toBool());
-    }
     signMessageAction = new QAction(tr("Sign &message…"), this);
     signMessageAction->setStatusTip(tr("Sign messages with your Rigor addresses to prove you own them"));
     verifyMessageAction = new QAction(tr("&Verify message…"), this);
@@ -436,11 +417,6 @@ void RigorGUI::createActions()
         connect(backupWalletAction, &QAction::triggered, walletFrame, &WalletFrame::backupWallet);
         connect(changePassphraseAction, &QAction::triggered, walletFrame, &WalletFrame::changePassphrase);
         connect(m_key_management_action, &QAction::triggered, walletFrame, &WalletFrame::gotoKeyManagement);
-        connect(m_advanced_mode_action, &QAction::toggled, this, [this](bool enabled) {
-            QSettings settings;
-            settings.setValue(QStringLiteral("rigor/advancedMode"), enabled);
-            updateAdvancedModeVisibility(enabled);
-        });
         connect(signMessageAction, &QAction::triggered, [this]{ showNormalIfMinimized(); });
         connect(signMessageAction, &QAction::triggered, [this]{ gotoSignMessageTab(); });
         connect(m_load_psbt_action, &QAction::triggered, [this]{ gotoLoadPSBT(); });
@@ -565,10 +541,7 @@ void RigorGUI::createMenuBar()
         settings->addAction(m_mask_values_action);
         settings->addSeparator();
         m_advanced_menu = settings->addMenu(tr("&Advanced"));
-        m_advanced_menu->addAction(m_advanced_mode_action);
-        m_advanced_menu->addSeparator();
         m_advanced_menu->addAction(m_key_management_action);
-        m_advanced_menu->addAction(diagnosticsAction);
         m_advanced_menu->addAction(openRPCConsoleAction);
         settings->addSeparator();
     }
@@ -631,8 +604,6 @@ void RigorGUI::createMenuBar()
     help->addSeparator();
     help->addAction(aboutAction);
     help->addAction(aboutQtAction);
-
-    updateAdvancedModeVisibility(m_advanced_mode_action && m_advanced_mode_action->isChecked());
 }
 
 void RigorGUI::createToolBars()
@@ -648,7 +619,6 @@ void RigorGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(convergenceAction);
-        // Diagnostics intentionally omitted from primary navigation (Advanced Mode only).
         overviewAction->setChecked(true);
 
 #ifdef ENABLE_WALLET
@@ -864,7 +834,6 @@ void RigorGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     convergenceAction->setEnabled(enabled);
-    diagnosticsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -876,32 +845,6 @@ void RigorGUI::setWalletActionsEnabled(bool enabled)
     openAction->setEnabled(enabled);
     m_close_wallet_action->setEnabled(enabled);
     m_close_all_wallets_action->setEnabled(enabled);
-}
-
-void RigorGUI::updateAdvancedModeVisibility(bool enabled)
-{
-    if (diagnosticsAction) {
-        diagnosticsAction->setVisible(enabled);
-        // Keep off the primary toolbar; Advanced menu only.
-        if (!enabled && diagnosticsAction->isChecked() && overviewAction) {
-            overviewAction->trigger();
-        }
-    }
-    // Node Window + Window-menu Information/Console/Peers/Network Traffic stay
-    // available for full-node operators (previous Alpha EXE behavior). Only the
-    // Diagnostics page remains gated behind Advanced Mode.
-    if (openRPCConsoleAction) {
-        openRPCConsoleAction->setVisible(true);
-    }
-    if (m_key_management_action) {
-        m_key_management_action->setVisible(true);
-    }
-    for (QAction* action : m_window_rpc_actions) {
-        if (action) action->setVisible(true);
-    }
-    if (m_tray_node_window_action) {
-        m_tray_node_window_action->setVisible(true);
-    }
 }
 
 void RigorGUI::createTrayIcon()
@@ -1067,12 +1010,6 @@ void RigorGUI::gotoConvergencePage()
     convergenceAction->setChecked(true);
     if (walletFrame) walletFrame->gotoConvergencePage();
     qInfo().noquote() << QStringLiteral("[ui-perf] nav Convergence %1ms").arg(t.elapsed());
-}
-
-void RigorGUI::gotoDiagnosticsPage()
-{
-    diagnosticsAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoDiagnosticsPage();
 }
 
 void RigorGUI::gotoReceiveCoinsPage()
@@ -1374,7 +1311,6 @@ void RigorGUI::changeEvent(QEvent *e)
         sendCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/send"))));
         receiveCoinsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/receiving_addresses"))));
         historyAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/history"))));
-        diagnosticsAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/export"))));
         convergenceAction->setIcon(platformStyle->TextColorIcon(QIcon(QStringLiteral(":/icons/convergence"))));
     }
 
@@ -1505,10 +1441,8 @@ bool RigorGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 
 void RigorGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
 {
-    // RIGOR uses descriptor wallets (ORU witness v0 / RES witness v1). The Bitcoin-era
-    // HD status icon is misleading: wallet-wide IsHDEnabled() is false whenever RES
-    // single-slot ScriptPubKeyMans are active, so the tray showed "HD disabled" even
-    // though v0/v1 receive addresses work. Keep the control hidden.
+    // RIGOR uses descriptor wallets (ORU witness v0 / RES witness v1). Keep the
+    // Bitcoin-era HD status icon hidden; Key Management shows ORU/RES HD lines.
     Q_UNUSED(privkeyDisabled);
     Q_UNUSED(hdEnabled);
     labelWalletHDStatusIcon->hide();

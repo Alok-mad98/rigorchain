@@ -4,10 +4,12 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test a basic M-of-N multisig setup between multiple people using descriptor wallets and PSBTs, as well as a signing flow.
 
-This is meant to be documentation as much as functional tests, so it is kept as simple and readable as possible.
+Ed25519 BIP32 is hardened-only (SLIP-0010), so watch-only wallets cannot expand
+ranged xpubs. Participants exchange concrete pubkeys for a single receive and
+change script instead of a ranged xpub descriptor.
 """
 
-from test_framework.address import base58_to_byte
+from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_approx,
@@ -30,12 +32,6 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
         self.skip_if_no_sqlite()
 
     @staticmethod
-    def _get_xpub(wallet):
-        """Extract the wallet's xpubs using `listdescriptors` and pick the one from the `pkh` descriptor since it's least likely to be accidentally reused (legacy addresses)."""
-        descriptor = next(filter(lambda d: d["desc"].startswith("pkh"), wallet.listdescriptors()["descriptors"]))
-        return descriptor["desc"].split("]")[-1].split("/")[0]
-
-    @staticmethod
     def _check_psbt(psbt, to, value, multisig):
         """Helper function for any of the N participants to check the psbt with decodepsbt and verify it is OK before signing."""
         tx = multisig.decodepsbt(psbt)["tx"]
@@ -47,28 +43,22 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
                 amount += vout["value"]
         assert_approx(amount, float(value), vspan=0.001)
 
-    def participants_create_multisigs(self, xpubs):
-        """The multisig is created by importing the following descriptors. The resulting wallet is watch-only and every participant can do this."""
-        # some simple validation
-        assert_equal(len(xpubs), self.N)
-        # a sanity-check/assertion, this will throw if the base58 checksum of any of the provided xpubs are invalid
-        for xpub in xpubs:
-            base58_to_byte(xpub)
-
+    def participants_create_multisigs(self, recv_pks, chg_pks):
+        """Import the same non-ranged sortedmulti scripts into a watch-only wallet on each node."""
+        recv_desc = descsum_create(f"wsh(sortedmulti({self.M},{','.join(recv_pks)}))")
+        chg_desc = descsum_create(f"wsh(sortedmulti({self.M},{','.join(chg_pks)}))")
         for i, node in enumerate(self.nodes):
             node.createwallet(wallet_name=f"{self.name}_{i}", blank=True, descriptors=True, disable_private_keys=True)
             multisig = node.get_wallet_rpc(f"{self.name}_{i}")
-            external = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{f'/0/*,'.join(xpubs)}/0/*))")
-            internal = multisig.getdescriptorinfo(f"wsh(sortedmulti({self.M},{f'/1/*,'.join(xpubs)}/1/*))")
             result = multisig.importdescriptors([
-                {  # receiving addresses (internal: False)
-                    "desc": external["descriptor"],
+                {
+                    "desc": recv_desc,
                     "active": True,
                     "internal": False,
                     "timestamp": "now",
                 },
-                {  # change addresses (internal: True)
-                    "desc": internal["descriptor"],
+                {
+                    "desc": chg_desc,
                     "active": True,
                     "internal": True,
                     "timestamp": "now",
@@ -84,26 +74,27 @@ class WalletMultisigDescriptorPSBTTest(BitcoinTestFramework):
         self.log.info(f"Testing {self.name}...")
 
         participants = {
-            # Every participant generates an xpub. The most straightforward way is to create a new descriptor wallet.
-            # This wallet will be the participant's `signer` for the resulting multisig. Avoid reusing this wallet for any other purpose (for privacy reasons).
             "signers": [node.get_wallet_rpc(node.createwallet(wallet_name=f"participant_{self.nodes.index(node)}", descriptors=True)["name"]) for node in self.nodes],
-            # After participants generate and exchange their xpubs they will each create their own watch-only multisig.
-            # Note: these multisigs are all the same, this just highlights that each participant can independently verify everything on their own node.
             "multisigs": []
         }
 
-        self.log.info("Generate and exchange xpubs...")
-        xpubs = [self._get_xpub(signer) for signer in participants["signers"]]
+        self.log.info("Each participant contributes one receive pubkey and one change pubkey...")
+        recv_pks = []
+        chg_pks = []
+        for signer in participants["signers"]:
+            recv = signer.getnewaddress("", "bech32")
+            chg = signer.getrawchangeaddress("bech32")
+            recv_pks.append(signer.getaddressinfo(recv)["pubkey"])
+            chg_pks.append(signer.getaddressinfo(chg)["pubkey"])
 
-        self.log.info("Every participant imports the following descriptors to create the watch-only multisig...")
-        participants["multisigs"] = list(self.participants_create_multisigs(xpubs))
+        self.log.info("Every participant imports the same watch-only sortedmulti scripts...")
+        participants["multisigs"] = list(self.participants_create_multisigs(recv_pks, chg_pks))
 
         self.log.info("Check that every participant's multisig generates the same addresses...")
-        for _ in range(10):  # we check that the first 10 generated addresses are the same for all participant's multisigs
-            receive_addresses = [multisig.getnewaddress(address_type='bech32m') for multisig in participants["multisigs"]]
-            all(address == receive_addresses[0] for address in receive_addresses)
-            change_addresses = [multisig.getrawchangeaddress() for multisig in participants["multisigs"]]
-            all(address == change_addresses[0] for address in change_addresses)
+        receive_addresses = [multisig.getnewaddress(address_type='bech32m') for multisig in participants["multisigs"]]
+        assert all(address == receive_addresses[0] for address in receive_addresses)
+        change_addresses = [multisig.getrawchangeaddress() for multisig in participants["multisigs"]]
+        assert all(address == change_addresses[0] for address in change_addresses)
 
         self.log.info("Get a mature utxo to send to the multisig...")
         coordinator_wallet = participants["signers"][0]

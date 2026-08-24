@@ -133,6 +133,8 @@ BITCOIN_TESTS =\
   test/rigor_fee_tests.cpp \
   test/rigor_witness_tx_tests.cpp \
   test/ed25519_consensus_determinism_tests.cpp \
+  test/ed25519_slip10_tests.cpp \
+  test/ed25519_boundary_tests.cpp \
   test/selection_golden_tests.cpp \
   test/state_diff_tests.cpp \
   test/state_snapshot_tests.cpp \
@@ -337,6 +339,8 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/psbt.cpp \
  test/fuzz/random.cpp \
  test/fuzz/rbf.cpp \
+ test/fuzz/res_checktxinputs.cpp \
+ test/fuzz/res_mint_eval.cpp \
  test/fuzz/rolling_bloom_filter.cpp \
  test/fuzz/rpc.cpp \
  test/fuzz/script.cpp \

@@ -227,19 +227,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QCheckBox" name="autoSettleConvergenceMining">
-         <property name="toolTip">
-          <string>When this computer mines a block and a Convergence draw has a winner, automatically include the RES settlement so the winner is paid. Network fees stay ORU-only. Turn off only if you understand mining may stall after a winner until settlement is armed another way.</string>
-         </property>
-         <property name="text">
-          <string>Auto-settle &amp;Convergence when mining locally</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
         <layout class="QHBoxLayout" name="horizontalLayoutDefaultSendAsset">
          <item>
           <widget class="QLabel" name="labelDefaultSendAsset">

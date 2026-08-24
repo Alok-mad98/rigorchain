@@ -16,6 +16,7 @@ Require Import Rigor.Phase4FConsensus.ConsensusOracleBridge.
 Require Import Rigor.Phase4FConsensus.ConsensusMachine.
 Require Import Rigor.Phase4FConsensus.ConsensusGoldenTrace.
 Require Import Rigor.Phase4FConsensus.ConsensusGoldenVectorsData.
+Require Import Rigor.Phase4FConsensus.ConsensusDrawAudit.
 Require Import Rigor.Phase4FConsensus.SemanticObservationDerivation.
 Require Import Rigor.Phase4FConsensus.SemanticObservationCatalog.
 Require Import Rigor.Phase4FConsensus.FrozenCppOracle.
@@ -126,6 +127,11 @@ Proof.
   subst e. simpl. apply eligibility_projection_is_identity_map.
 Qed.
 
-(** Catalog covers the 14 draw-applicable rows. *)
-Lemma eligibility_catalog_length : length eligibility_catalog = 14%nat.
-Proof. vm_compute. reflexivity. Qed.
+(** Catalog covers the 168 draw-applicable rows. *)
+Lemma eligibility_catalog_length : length eligibility_catalog = 168%nat.
+Proof.
+  unfold eligibility_catalog.
+  rewrite map_length.
+  rewrite draw_audit_rows_length.
+  unfold draw_audit_rows_count. reflexivity.
+Qed.

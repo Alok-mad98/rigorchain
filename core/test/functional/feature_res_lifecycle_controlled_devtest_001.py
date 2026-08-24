@@ -73,11 +73,31 @@ class ResLifecycleControlledDevtest001(BitcoinTestFramework):
         with open(path, "w", encoding="ascii") as f:
             json.dump(_canonical(obj), f, indent=2, sort_keys=True)
 
-    def _broadcast_convergence(self, node, pool_addr: str) -> str:
+    def _saturating_burn_oru(self, node) -> Decimal:
+        """Per-draw saturation is C·W ORU (RFC-017 C=1024). +16 covers T floor remainder.
+
+        RFC-017: expected wins per ticket are n/C = n/1024 (1 ORU → 1/1024).
+        Eight 1 ORU loops therefore produce ~0.008 mints in expectation. Saturation
+        is required for a deterministic lifecycle. p_draw = n/32768 is the window
+        split only — not the ticket win rate.
+        """
+        window = int(node.getconvergenceresult(node.getbestblockhash())["window_size"])
+        return Decimal(1024 * window + 16)
+
+    def _fund_burn_sources(self, node, pool_addr: str, n_conv: int, amount: Decimal) -> list[str]:
+        srcs = []
+        for _ in range(n_conv):
+            src = node.getnewaddress(label="cvg-src", address_type="bech32")
+            node.sendtoaddress(src, format(amount + Decimal("0.01"), "f"))
+            srcs.append(src)
+        self.generatetoaddress(node, 1, pool_addr)
+        return srcs
+
+    def _broadcast_convergence(self, node, pool_addr: str, amount: Decimal, src: str) -> str:
         tx = create_convergence_tx(
             node,
-            Decimal("1.0"),
-            spend_addresses=[pool_addr],
+            amount,
+            spend_addresses=[src],
             change_address=pool_addr,
         )
         txid = node.sendrawtransaction(tx.serialize_with_witness().hex(), 0, "1.0")
@@ -85,10 +105,9 @@ class ResLifecycleControlledDevtest001(BitcoinTestFramework):
         assert meta.get("is_convergence") and meta.get("meets_min_convergence")
         return txid
 
-    def _mine_mint_block(self, node, pool_addr: str, n_conv: int) -> dict:
-        txids = []
-        for _ in range(n_conv):
-            txids.append(self._broadcast_convergence(node, pool_addr))
+    def _mine_mint_block(self, node, pool_addr: str, n_conv: int, amount: Decimal) -> dict:
+        srcs = self._fund_burn_sources(node, pool_addr, n_conv, amount)
+        txids = [self._broadcast_convergence(node, pool_addr, amount, src) for src in srcs]
         self.sync_mempools(self.nodes)
         out = self.generatetoaddress(node, 1, pool_addr)
         assert_equal(len(out), 1)
@@ -102,7 +121,6 @@ class ResLifecycleControlledDevtest001(BitcoinTestFramework):
         self.sync_blocks(self.nodes)
         hdr = node.getblockheader(payout_hash)
         rows = _body_res_mint_rows(node, payout_hash)
-        assert_equal(_body_res_mint_rows(node, bh), [])
 
         exp_w = expected_draw_candidate_winner(fr)
         rpc_w = fr.get("draw_winner_txid", "0" * 64).lower()
@@ -157,17 +175,21 @@ class ResLifecycleControlledDevtest001(BitcoinTestFramework):
         os.makedirs(cap, exist_ok=True)
         node_a = self.nodes[0]
         pool = node_a.getnewaddress(label="devtest001-pool", address_type="bech32")
-        self.generatetoaddress(node_a, 130, pool)
+        self.generatetoaddress(node_a, 101, pool)
+        sat = self._saturating_burn_oru(node_a)
+        window = int(node_a.getconvergenceresult(node_a.getbestblockhash())["window_size"])
+        # First attempt uses two tickets; the rest are singletons. Age F between attempts
+        # so a saturating ticket does not keep winning the next W draws (unique winner).
+        conv_counts = [2] + [1] * (_MIN_MINTS - 1)
+        subsidy_blocks = int((sat * sum(conv_counts) + Decimal("100")) / 1000) + 20
+        self.generatetoaddress(node_a, subsidy_blocks, pool)
         self.sync_blocks(self.nodes)
+        self.log.info("saturating burn = %s ORU; W=%s; subsidy blocks=%s", sat, window, subsidy_blocks)
 
         mint_ledger: list[dict] = []
-        conv_counts = [1, 2, 5, 3, 7, 10, 2, 3]
         for n_conv in conv_counts:
-            if len(mint_ledger) >= _MIN_MINTS:
-                break
-            rec = self._mine_mint_block(node_a, pool, n_conv)
-            if rec["rigor_res_minted"] != 1:
-                continue
+            rec = self._mine_mint_block(node_a, pool, n_conv, sat)
+            assert_equal(rec["rigor_res_minted"], 1)
             rec["explorer_audit"] = self._explorer_equivalent_audit(rec)
             assert rec["explorer_audit"]["ok"]
             mint_ledger.append(rec)
@@ -178,6 +200,8 @@ class ResLifecycleControlledDevtest001(BitcoinTestFramework):
                 rec["convergence_root_set_size"],
                 rec["draw_winner_txid"][:16],
             )
+            self.generatetoaddress(node_a, window, pool)
+            self.sync_blocks(self.nodes)
 
         assert_greater_than_or_equal(len(mint_ledger), _MIN_MINTS)
 

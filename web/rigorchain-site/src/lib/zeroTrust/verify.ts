@@ -1,6 +1,6 @@
 import { displayHexToNative, equalBytes, zero32 } from "./bytes";
 import { computeConvergenceRoot, computeSigma, isEligible, selectWinner } from "./consensus";
-import { ALPHAPLUS_GENESIS_HASH_DISPLAY } from "./constants";
+import { RIGOR_GENESIS_HASH_DISPLAY } from "./constants";
 import { displayHex, formatFee, formatOru, formatRes, hexEqual, normalizeHex } from "./format";
 import type {
   BlockPublicInput,
@@ -21,7 +21,7 @@ function combineFinal(checks: CheckStatus[]): FinalStatus {
 
 function genesisStatus(tipHash: string, height: number): CheckStatus {
   if (height === 0) {
-    return hexEqual(tipHash, ALPHAPLUS_GENESIS_HASH_DISPLAY) ? "MATCH" : "MISMATCH";
+    return hexEqual(tipHash, RIGOR_GENESIS_HASH_DISPLAY) ? "MATCH" : "MISMATCH";
   }
   return "NONE";
 }
@@ -121,7 +121,7 @@ async function runBlockPipeline(input: BlockPublicInput): Promise<{
   const genesis = genesisStatus(input.hashDisplay, height);
   const parentHash = parentHashStatus(input.previousHashDisplay, height);
   if (height === 0 && genesis === "MATCH") {
-    notes.push("Tip hash matches the published AlphaPlus genesis. Parent hash is empty at height 0.");
+    notes.push("Tip hash matches the published RIGOR genesis. Parent hash is empty at height 0.");
   }
 
   return {

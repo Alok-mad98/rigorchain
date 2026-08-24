@@ -15,9 +15,9 @@
   !define OUTFILE "${REPO_ROOT}/dist/windows/installers/RIGOR-Wallet.exe"
 !endif
 
-Name "RIGOR Wallet"
+Name "Rigor Wallet"
 OutFile "${OUTFILE}"
-InstallDir "$PROGRAMFILES64\RIGOR Wallet"
+InstallDir "$PROGRAMFILES64\Rigor Wallet"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 SetDateSave off
@@ -25,10 +25,10 @@ Unicode true
 CRCCheck force
 XPStyle on
 
-!define REGKEY "SOFTWARE\RIGOR Wallet"
-!define COMPANY "RIGOR Protocol"
+!define REGKEY "SOFTWARE\Rigor Wallet"
+!define COMPANY "Rigor Protocol"
 !define URL "https://rigorchain.com"
-!define PRODUCT_VERSION "0.1.1-alphaplus"
+!define PRODUCT_VERSION "0.1.2-alphaplus"
 
 !define MUI_ICON "${REPO_ROOT}/core/share/icons/rigor/rigor.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "${REPO_ROOT}/core/share/pixmaps/nsis-wizard.bmp"
@@ -41,11 +41,11 @@ XPStyle on
 !define MUI_ABORTWARNING
 
 VIProductVersion 0.1.0.0
-VIAddVersionKey ProductName "RIGOR Wallet"
+VIAddVersionKey ProductName "Rigor Wallet"
 VIAddVersionKey ProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
 VIAddVersionKey FileVersion "${PRODUCT_VERSION}"
-VIAddVersionKey FileDescription "RIGOR Wallet Installer (legacy; AlphaPlus production is rigor_alpha_installer.nsi)"
+VIAddVersionKey FileDescription "Rigor Wallet Installer (legacy; AlphaPlus production is rigor_alpha_installer.nsi)"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
@@ -55,7 +55,7 @@ VIAddVersionKey FileDescription "RIGOR Wallet Installer (legacy; AlphaPlus produ
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE English
 
-Section "RIGOR Wallet" SEC_MAIN
+Section "Rigor Wallet" SEC_MAIN
   SetOutPath "$INSTDIR"
   SetOverwrite on
 
@@ -74,14 +74,14 @@ Section "RIGOR Wallet" SEC_MAIN
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
-  CreateDirectory "$SMPROGRAMS\RIGOR Wallet"
-  CreateShortcut "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet.lnk" "$INSTDIR\rigor-qt.exe"
-  CreateShortcut "$DESKTOP\RIGOR Wallet.lnk" "$INSTDIR\rigor-qt.exe"
-  CreateShortcut "$SMPROGRAMS\RIGOR Wallet\Uninstall RIGOR Wallet.lnk" "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$SMPROGRAMS\Rigor Wallet"
+  CreateShortcut "$SMPROGRAMS\Rigor Wallet\Rigor Wallet.lnk" "$INSTDIR\rigor-qt.exe"
+  CreateShortcut "$DESKTOP\Rigor Wallet.lnk" "$INSTDIR\rigor-qt.exe"
+  CreateShortcut "$SMPROGRAMS\Rigor Wallet\Uninstall Rigor Wallet.lnk" "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKCU "${REGKEY}" "Path" "$INSTDIR"
   WriteRegStr HKCU "${REGKEY}" "Version" "${PRODUCT_VERSION}"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "DisplayName" "RIGOR Wallet"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "DisplayName" "Rigor Wallet"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "DisplayIcon" "$INSTDIR\rigor-qt.exe"
 SectionEnd
@@ -100,6 +100,10 @@ Section "Uninstall"
   Delete "$INSTDIR\*.dll"
 !endif
   Delete "$INSTDIR\Uninstall.exe"
+  Delete "$SMPROGRAMS\Rigor Wallet\Rigor Wallet.lnk"
+  Delete "$DESKTOP\Rigor Wallet.lnk"
+  Delete "$SMPROGRAMS\Rigor Wallet\Uninstall Rigor Wallet.lnk"
+  RMDir "$SMPROGRAMS\Rigor Wallet"
   Delete "$SMPROGRAMS\RIGOR Wallet\RIGOR Wallet.lnk"
   Delete "$DESKTOP\RIGOR Wallet.lnk"
   Delete "$SMPROGRAMS\RIGOR Wallet\Uninstall RIGOR Wallet.lnk"

@@ -2,8 +2,8 @@ Require Import Coq.ZArith.ZArith.
 Require Import Coq.Lists.List.
 Import ListNotations.
 Require Import Lia.
-Require Import Types.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Types.
+Require Import Rigor.legacy_account_model.Selection.
 
 (** PHASE-4A: the prior [probability := 1] constant made [split_invariance]
     vacuous. It is replaced by a REAL weight-conservation lemma: splitting one

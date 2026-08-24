@@ -31,9 +31,10 @@ bool CheckProofOfWork(uint256 header_hash, unsigned int nBits, const Consensus::
  * given height is not possible, given the proof-of-work on the prior block as
  * specified by old_nbits.
  *
- * This function checks that the new compact target is within ±25% (in target
- * space, after compact re-encoding) of the previous block's target, as a
- * headers-sync safety bound alongside ASERT.
+ * This function checks that the new compact target is within the consensus
+ * per-block clamp (currently ±12.5% in target space, after compact re-encoding)
+ * of the previous block's target. The same constants bound ASERT's output, so
+ * an honest ASERT header always passes this headers-sync check.
  *
  * Always returns true on networks where min difficulty blocks are allowed,
  * such as regtest/testnet.

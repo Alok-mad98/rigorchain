@@ -6,7 +6,6 @@
 #include <script/sign.h>
 
 #include <consensus/amount.h>
-#include <consensus/res_proof.h>
 #include <crypto/common.h>
 #include <crypto/ed25519_provider.h>
 #include <hash.h>
@@ -29,39 +28,62 @@
 
 #include <array>
 #include <cstring>
+#include <limits>
 
 typedef std::vector<unsigned char> valtype;
 
 static bool LookupResEdSecret(const SigningProvider& provider, const std::vector<unsigned char>& program, std::array<unsigned char, ed25519::SECRETKEY_SIZE>& secret_out)
 {
-    if (program.size() != ed25519::PUBKEY_SIZE) return false;
+    if (program.size() != WITNESS_V1_RES_SIZE) return false;
     const auto* fp = dynamic_cast<const FlatSigningProvider*>(&provider);
     if (!fp) return false;
     uint256 prog_id;
     std::memcpy(prog_id.begin(), program.data(), 32);
     const auto it = fp->res_v1_program_to_ed_secret.find(prog_id);
-    if (it == fp->res_v1_program_to_ed_secret.end()) return false;
-    secret_out = it->second;
-    return true;
+    if (it != fp->res_v1_program_to_ed_secret.end()) {
+        secret_out = it->second;
+        return true;
+    }
+    for (const auto& [_, key] : fp->keys) {
+        const std::vector<unsigned char> pk32 = key.GetPubKey().GetEd25519Payload();
+        if (pk32.size() != ed25519::PUBKEY_SIZE) continue;
+        uint256 hashed;
+        if (!ed25519::ResWitnessProgram(pk32, Span<unsigned char>{hashed.begin(), 32})) continue;
+        if (hashed != prog_id) continue;
+        std::array<unsigned char, ed25519::PUBKEY_SIZE> pub{};
+        if (!ed25519::SeedToKeypair(Span<const unsigned char>{key.begin(), ed25519::SEED_SIZE}, pub, secret_out)) continue;
+        return true;
+    }
+    return false;
+}
+
+static std::vector<unsigned char> Ed25519WitnessPubKey(const CPubKey& pubkey)
+{
+    std::vector<unsigned char> pk32 = pubkey.GetEd25519Payload();
+    if (pk32.size() == ed25519::PUBKEY_SIZE) return pk32;
+    return {pubkey.begin(), pubkey.end()};
 }
 
 MutableTransactionSignatureCreator::MutableTransactionSignatureCreator(const CMutableTransaction& tx, unsigned int input_idx, const CAmount& amount, int hash_type)
-    : m_txto{tx}, nIn{input_idx}, nHashType{hash_type}, amount{amount}, checker{&m_txto, nIn, amount, MissingDataBehavior::FAIL},
+    : m_txto{tx}, nIn{input_idx}, nHashType{hash_type}, amount{amount},
+      // Signing is not consensus: OP_RES_MINT maturity is enforced at CheckInputScripts
+      // with the real spend height. FENCE-W5: no chain height on this API.
+      checker{&m_txto, nIn, amount, MissingDataBehavior::FAIL, std::numeric_limits<int>::max()},
       m_txdata(nullptr)
 {
 }
 
 MutableTransactionSignatureCreator::MutableTransactionSignatureCreator(const CMutableTransaction& tx, unsigned int input_idx, const CAmount& amount, const PrecomputedTransactionData* txdata, int hash_type)
     : m_txto{tx}, nIn{input_idx}, nHashType{hash_type}, amount{amount},
-      checker{txdata ? MutableTransactionSignatureChecker{&m_txto, nIn, amount, *txdata, MissingDataBehavior::FAIL} :
-                       MutableTransactionSignatureChecker{&m_txto, nIn, amount, MissingDataBehavior::FAIL}},
+      checker{txdata ? MutableTransactionSignatureChecker{&m_txto, nIn, amount, *txdata, MissingDataBehavior::FAIL, std::numeric_limits<int>::max()} :
+                       MutableTransactionSignatureChecker{&m_txto, nIn, amount, MissingDataBehavior::FAIL, std::numeric_limits<int>::max()}},
       m_txdata(txdata)
 {
 }
 
 bool MutableTransactionSignatureCreator::CreateSig(const SigningProvider& provider, std::vector<unsigned char>& vchSig, const CKeyID& address, const CScript& scriptCode, SigVersion sigversion) const
 {
-    assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0);
+    assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::WITNESS_V1_RES);
 
     CKey key;
     if (!provider.GetKey(address, key)) {
@@ -96,9 +118,8 @@ bool MutableTransactionSignatureCreator::CreateSig(const SigningProvider& provid
     if (!key.Sign(hash, vchSig)) {
         return false;
     }
-    // Rigor ORUM keys sign with detached Ed25519 (64 bytes + hashtype). BIP143 witness v0
-    // supplies the message digest (scriptCode + sighash); verification is Ed25519 only.
-    if (sigversion == SigVersion::WITNESS_V0 && vchSig.size() == ed25519::SIGNATURE_SIZE) {
+    // Detached Ed25519 (64 bytes + hashtype) for BASE (OP_RES_MINT) and BIP143 witness v0.
+    if (vchSig.size() == ed25519::SIGNATURE_SIZE) {
         vchSig.push_back((unsigned char)hashtype);
         return true;
     }
@@ -186,6 +207,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
     case TxoutType::NONSTANDARD:
     case TxoutType::NULL_DATA:
     case TxoutType::WITNESS_UNKNOWN:
+    case TxoutType::CONVERGE:
         return false;
     case TxoutType::PUBKEY:
         if (!CreateSig(creator, sigdata, provider, sig, CPubKey(vSolutions[0]), scriptPubKey, sigversion)) return false;
@@ -201,7 +223,7 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
         }
         if (!CreateSig(creator, sigdata, provider, sig, pubkey, scriptPubKey, sigversion)) return false;
         ret.push_back(std::move(sig));
-        ret.push_back(ToByteVector(pubkey));
+        ret.push_back(Ed25519WitnessPubKey(pubkey));
         return true;
     }
     case TxoutType::SCRIPTHASH: {
@@ -250,6 +272,72 @@ static bool SignStep(const SigningProvider& provider, const BaseSignatureCreator
     case TxoutType::WITNESS_V1_RES:
         ret.push_back(vSolutions[0]);
         return true;
+    case TxoutType::RES_MINT: {
+        const uint160 pkh{vSolutions[0]};
+        const bool dummy_fee = &creator.Checker() == &DUMMY_CHECKER;
+        if (const auto* fp = dynamic_cast<const FlatSigningProvider*>(&provider)) {
+            for (const auto& [prog_id, secret] : fp->res_v1_program_to_ed_secret) {
+                std::vector<unsigned char> pk32(secret.begin() + ed25519::SEED_SIZE, secret.begin() + ed25519::SEED_SIZE + ed25519::PUBKEY_SIZE);
+                if (Hash160(Span<const unsigned char>(pk32.data(), pk32.size())) != pkh) continue;
+                if (dummy_fee) {
+                    std::vector<unsigned char> dummy_sig(ed25519::SIGNATURE_SIZE + 1, 0x42);
+                    dummy_sig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+                    ret.push_back(std::move(dummy_sig));
+                    ret.push_back(std::move(pk32));
+                    return true;
+                }
+                const auto* mtc = dynamic_cast<const MutableTransactionSignatureCreator*>(&creator);
+                if (!mtc) return false;
+                int nht = mtc->GetSighashType();
+                if (nht == SIGHASH_DEFAULT) nht = SIGHASH_ALL;
+                const uint256 sighash = SignatureHash(scriptPubKey, mtc->GetTransaction(), mtc->GetInputIndex(), nht,
+                    mtc->GetAmount(), SigVersion::WITNESS_V0, mtc->GetTxData());
+                std::vector<unsigned char> mint_sig(ed25519::SIGNATURE_SIZE + 1);
+                if (!ed25519::SignDetached(Span<const unsigned char>{sighash.begin(), 32},
+                        Span<const unsigned char>{secret.data(), ed25519::SECRETKEY_SIZE},
+                        Span<unsigned char>{mint_sig.data(), ed25519::SIGNATURE_SIZE})) {
+                    return false;
+                }
+                mint_sig[ed25519::SIGNATURE_SIZE] = static_cast<unsigned char>(nht);
+                ret.push_back(std::move(mint_sig));
+                ret.push_back(std::move(pk32));
+                return true;
+            }
+        }
+        CPubKey pubkey;
+        bool found = GetPubKey(provider, sigdata, CKeyID(pkh), pubkey);
+        if (!found) {
+            if (const auto* fp = dynamic_cast<const FlatSigningProvider*>(&provider)) {
+                auto match_pk = [&](const CPubKey& pk) {
+                    if (pk.size() != CPubKey::COMPRESSED_SIZE) return false;
+                    if (pk[0] != 0x00 && pk[0] != 0xFF) return false;
+                    return Hash160(Span<const unsigned char>(pk.data() + 1, pk.size() - 1)) == pkh;
+                };
+                for (const auto& [_, pk] : fp->pubkeys) {
+                    if (match_pk(pk)) { pubkey = pk; found = true; break; }
+                }
+                if (!found) {
+                    for (const auto& [_, key] : fp->keys) {
+                        const CPubKey pk = key.GetPubKey();
+                        if (match_pk(pk)) { pubkey = pk; found = true; break; }
+                    }
+                }
+            }
+        }
+        if (!found) {
+            sigdata.missing_pubkeys.push_back(CKeyID(pkh));
+            return false;
+        }
+        std::vector<unsigned char> pk(pubkey.begin(), pubkey.end());
+        if (pk.size() == CPubKey::COMPRESSED_SIZE && (pk[0] == 0x00 || pk[0] == 0xFF)) {
+            pk.assign(pubkey.begin() + 1, pubkey.end());
+        }
+        if (pk.size() != ed25519::PUBKEY_SIZE) return false;
+        if (!CreateSig(creator, sigdata, provider, sig, pubkey, scriptPubKey, SigVersion::WITNESS_V0)) return false;
+        ret.push_back(std::move(sig));
+        ret.push_back(std::move(pk));
+        return true;
+    }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
     return false; // silence -Wreturn-type (assert may be compiled out)
@@ -418,18 +506,21 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
         // builder was removed with the consensus branch that accepted it — its signature covered
         // the σ digest instead of the spending transaction, so the transactions it produced could
         // be re-pointed at anyone by anyone.
-        if (program.size() != ed25519::PUBKEY_SIZE) {
+        if (program.size() != WITNESS_V1_RES_SIZE) {
             solved = false;
         } else {
             const bool dummy_fee = &creator.Checker() == &DUMMY_CHECKER;
             if (dummy_fee) {
-                // Fee estimation must match real key-path witness: detached Ed25519 (64) + hashtype (1).
-                // See non-dummy branch below and DummySignatureChecker::CheckEd25519Signature size checks.
                 std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
                 witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+                std::vector<unsigned char> dummy_pk(ed25519::PUBKEY_SIZE, 0x42);
+                std::array<unsigned char, ed25519::SECRETKEY_SIZE> ed_sk{};
+                if (LookupResEdSecret(provider, program, ed_sk)) {
+                    dummy_pk.assign(ed_sk.begin() + ed25519::SEED_SIZE, ed_sk.begin() + ed25519::SEED_SIZE + ed25519::PUBKEY_SIZE);
+                }
                 sigdata.scriptWitness.stack.clear();
                 sigdata.scriptWitness.stack.push_back(std::move(witSig));
-                sigdata.scriptWitness.stack.push_back(program);
+                sigdata.scriptWitness.stack.push_back(std::move(dummy_pk));
                 sigdata.witness = true;
                 result.clear();
             } else {
@@ -441,7 +532,7 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
                     if (!LookupResEdSecret(provider, program, ed_sk)) {
                         solved = false;
                     } else {
-                        std::vector<unsigned char> ed_pk(program.begin(), program.end());
+                        std::vector<unsigned char> ed_pk(ed_sk.begin() + ed25519::SEED_SIZE, ed_sk.begin() + ed25519::SEED_SIZE + ed25519::PUBKEY_SIZE);
                         {
                                 CScript scriptCode;
                                 scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(ed_pk))) << OP_EQUALVERIFY << OP_CHECKSIG;
@@ -450,7 +541,7 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
                                     nht = SIGHASH_ALL;
                                 }
                                 const uint256 sighash = SignatureHash(scriptCode, mtc->GetTransaction(), mtc->GetInputIndex(), nht,
-                                    mtc->GetAmount(), SigVersion::WITNESS_V0, mtc->GetTxData());
+                                    mtc->GetAmount(), SigVersion::WITNESS_V1_RES, mtc->GetTxData());
                                 std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
                                 if (!ed25519::SignDetached(Span<const unsigned char>{sighash.begin(), 32},
                                         Span<const unsigned char>{ed_sk.data(), ed25519::SECRETKEY_SIZE},
@@ -460,7 +551,7 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
                                     witSig[ed25519::SIGNATURE_SIZE] = static_cast<unsigned char>(nht);
                                     sigdata.scriptWitness.stack.clear();
                                     sigdata.scriptWitness.stack.push_back(std::move(witSig));
-                                    sigdata.scriptWitness.stack.push_back(program);
+                                    sigdata.scriptWitness.stack.push_back(std::move(ed_pk));
                                     sigdata.witness = true;
                                     result.clear();
                                 }
@@ -659,6 +750,7 @@ public:
     }
     bool CheckLockTime(const CScriptNum& nLockTime) const override { return true; }
     bool CheckSequence(const CScriptNum& nSequence) const override { return true; }
+    int GetSpendHeight() const override { return std::numeric_limits<int>::max(); }
 };
 }
 
@@ -715,7 +807,6 @@ bool IsSegWitOutput(const SigningProvider& provider, const CScript& script)
 }
 
 bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, const std::map<COutPoint, Coin>& coins, int nHashType, std::map<int, bilingual_str>& input_errors,
-                     const RigorSigmaEvalSigningContext* rigor_eval,
                      const std::map<int, SignatureData>* extra_input_sigs)
 {
     bool fHashSingle = ((nHashType & ~SIGHASH_ANYONECANPAY) == SIGHASH_SINGLE);
@@ -739,9 +830,6 @@ bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, 
     }
     if (spent_outputs.size() == mtx.vin.size()) {
         txdata.Init(txConst, std::move(spent_outputs), true);
-    }
-    if (rigor_eval) {
-        txdata.SetRigorResEvalContext(rigor_eval->parent, rigor_eval->height, rigor_eval->block, rigor_eval->eval_tx, rigor_eval->convergence_root_expected, rigor_eval->res_probability_target);
     }
 
     // Sign what we can:

@@ -1,5 +1,9 @@
 # SECURITY-001-A — Final Report
 
+> **Historical RFC — not an active consensus parameter.** RFC-014 `E = 240` /
+> `T = 2^240` / `C = 65536` ORU figures in this report are a security-decision
+> record. They are **not active consensus parameters**. Body text is unchanged.
+
 **Task:** `TASK-SECURITY-001-PRE-MAINNET-SECURITY-REMEDIATION-MASTER`, subtask A
 **Control plan:** `TASK-SECURITY-001-CONSENSUS-REMEDIATION-CONTROL`, Phases 0–6
 **Date:** 2026-08-02

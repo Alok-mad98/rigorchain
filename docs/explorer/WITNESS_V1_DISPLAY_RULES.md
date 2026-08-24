@@ -11,10 +11,21 @@
 | Use in UI/docs | Do NOT use |
 |----------------|------------|
 | Witness **v1** | Taproot, BIP341, x-only pubkey path |
+| **OP_CONVERGE** | Convergence burn / draw-entry (not a witness v1 program) |
 | **RES** program | “P2TR”, “Taproot address” |
 | **PCORB** mint proof | “Tapscript”, “control block”, “script path” (Bitcoin sense) |
-| **CVG2** convergence | Generic “OP_RETURN convergence” |
 | **ORU** witness v0 | — |
+
+Historical RFC-014 / retired design: Witness v1 prefix ASCII `CVG2` was an earlier convergence encoding. It is **not** a live consensus script. Do not label live Convergence as “CVG2” or “Witness v1 convergence.” `OP_CONVERGE` is the only live Convergence classification.
+
+Development databases created before script alignment may contain retired
+classifications. Public network launch will rebuild the explorer view and
+indexed observations from genesis using current consensus classification
+rules. No production
+CVG2 migration is required. Historical CVG2 conversion is not a consensus
+concern.
+
+Policy: [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATION_NOTES.md).
 
 “Script path” is retired vocabulary for RES: SECURITY-001-A / A-7 left a witness v1 RES output with
 exactly one spending path, the Ed25519 key path. The PCORB proof is not a RES spend path at all — it
@@ -24,13 +35,14 @@ RIGOR witness v1 is **not** Bitcoin Taproot. Display MUST NOT imply BIP341 seman
 
 ---
 
-## 2. Program classes (32-byte witness v1)
+## 2. Program classes
 
 | Class | Prefix / rule | Asset domain | Display label |
 |-------|---------------|--------------|---------------|
-| **CVG2 convergence** | First 4 bytes `CVG2` | ORU (convergence fee) | “Convergence (CVG2)” |
-| **RES2** | Wire prefix `RES2` in program | RES | “RES (RES2)” |
-| **Native RES** | 32-byte Ed25519 pubkey program | RES | “RES (native)” |
+| **OP_CONVERGE** | 22-byte lock: `OP_PUSHBYTES_20 \|\| HASH160 \|\| OP_CONVERGE (0xbd)` | ORU | Script: `OP_CONVERGE`. Asset: ORU. State: Unspendable burn output / draw participation |
+| **RES2** | Witness v1, wire prefix `RES2` | RES | “RES (RES2)” |
+| **Native RES** | Witness v1, 32-byte Ed25519 pubkey | RES | “RES (native)” |
+| **Retired CVG2 v1** | Historical RFC-014 / retired design: first 4 bytes `CVG2` | NONE (not a third asset) | “Historical RFC-014 / retired Witness v1 CVG2 (not OP_CONVERGE)” |
 | **Unknown v1** | Not matching above | Invalid at consensus | “Invalid v1 program” |
 
 Addresses: testnet Bech32 HRP **`trg`**; v1 programs use **`trg1p`** style per descriptor policy — not `bc1p`.
@@ -62,7 +74,7 @@ there is no signature to display or verify.
 
 **Sidebar disclaimer (required on mint pages):**
 
-> `target_prev` binds the proof to parent proof-of-work compact bits for replay (Sigma-CR-01). RES draw inequality uses the constant `res_probability_target` (2^240), not `target_prev`.
+> `target_prev` binds the proof to parent proof-of-work compact bits for replay (Sigma-CR-01). RES draw inequality uses the constant `res_probability_target` (RFC-017 shipping `E = 246`, windowed; Historical RFC-014: `2^240`), not `target_prev`.
 
 ---
 

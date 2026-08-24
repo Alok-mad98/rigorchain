@@ -7,23 +7,33 @@
 
 #include <arith_uint256.h>
 #include <chain.h>
-#include <logging.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <pow_opus.h>
 #include <primitives/block.h>
+#include <sync.h>
 #include <uint256.h>
-#include <util/system.h>
+#include <util/hasher.h>
 
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdint>
+#include <deque>
+#include <unordered_map>
+
+static_assert(Consensus::MAINNET_POW_ASERT_HALF_LIFE >= 4 * MAX_FUTURE_BLOCK_TIME,
+              "mainnet ASERT half-life must keep max-future next-block ease inside a small factor");
 
 namespace {
 
-/** Per-block transition clamp (±25%) used by PermittedDifficultyTransition and as a sanity bound. */
-constexpr int64_t ASERT_RATIO_UNIT_PPM = 1'000'000;
-constexpr int64_t MIN_ADJUSTMENT_FACTOR_PPM = 750'000;
-constexpr int64_t MAX_ADJUSTMENT_FACTOR_PPM = 1'250'000;
+using Consensus::ASERT_RATIO_UNIT_PPM;
+using Consensus::MAX_ADJUSTMENT_FACTOR_PPM;
+using Consensus::MIN_ADJUSTMENT_FACTOR_PPM;
+
+Mutex g_opus_pow_ok_mutex;
+std::unordered_map<uint256, uint32_t, BlockHasher> g_opus_pow_ok GUARDED_BY(g_opus_pow_ok_mutex);
+std::deque<uint256> g_opus_pow_ok_fifo GUARDED_BY(g_opus_pow_ok_mutex);
+constexpr size_t OPUS_POW_OK_CACHE_MAX = 8192;
 
 /** Q16.16 radix for aserti3-2d exponent (65536). */
 constexpr int64_t ASERT_RADIX = 65536;
@@ -162,39 +172,100 @@ arith_uint256 AsertNextTargetWide(const arith_uint256& target_ref, uint64_t fact
     return AsertWideToTarget(v, pow_limit);
 }
 
-const CBlockIndex* GenesisIndex(const CBlockIndex* pindex)
+const CBlockIndex* AsertAnchorIndex(const CBlockIndex* pindexLast)
 {
-    assert(pindex != nullptr);
-    const CBlockIndex* g = pindex;
-    while (g->pprev != nullptr) {
-        g = g->pprev;
+    assert(pindexLast != nullptr);
+    if (pindexLast->nHeight < Consensus::ASERT_ANCHOR_HEIGHT) {
+        return pindexLast;
     }
-    return g;
+    // Fast path: well-formed contiguous index (production / IBD). GetAncestor
+    // asserts pprev on a skip miss, so refuse it on synthetic/fuzz chains whose
+    // height does not match pprev->nHeight + 1.
+    if (pindexLast->pprev != nullptr &&
+        pindexLast->pprev->nHeight == pindexLast->nHeight - 1) {
+        const CBlockIndex* ancestor = pindexLast->GetAncestor(Consensus::ASERT_ANCHOR_HEIGHT);
+        if (ancestor != nullptr && ancestor->nHeight == Consensus::ASERT_ANCHOR_HEIGHT) {
+            return ancestor;
+        }
+    }
+    const CBlockIndex* walk = pindexLast;
+    while (walk->pprev != nullptr && walk->nHeight > Consensus::ASERT_ANCHOR_HEIGHT &&
+           walk->pprev->nHeight < walk->nHeight) {
+        walk = walk->pprev;
+        if (walk->nHeight == Consensus::ASERT_ANCHOR_HEIGHT) {
+            return walk;
+        }
+    }
+    return walk;
+}
+
+arith_uint256 ClampTargetToPrev(const arith_uint256& next_target, uint32_t prev_nbits,
+                                const arith_uint256& pow_limit)
+{
+    bool fNegative = false;
+    bool fOverflow = false;
+    arith_uint256 prev_target;
+    prev_target.SetCompact(prev_nbits, &fNegative, &fOverflow);
+    if (fNegative || fOverflow || prev_target == 0) {
+        return next_target;
+    }
+
+    arith_uint256 max_target = MulDivU256(prev_target, static_cast<uint64_t>(MAX_ADJUSTMENT_FACTOR_PPM),
+                                          static_cast<uint64_t>(ASERT_RATIO_UNIT_PPM));
+    arith_uint256 min_target = MulDivU256(prev_target, static_cast<uint64_t>(MIN_ADJUSTMENT_FACTOR_PPM),
+                                          static_cast<uint64_t>(ASERT_RATIO_UNIT_PPM));
+    if (max_target > pow_limit) {
+        max_target = pow_limit;
+    }
+    if (min_target == 0) {
+        min_target = 1;
+    }
+    if (min_target > pow_limit) {
+        min_target = pow_limit;
+    }
+
+    arith_uint256 clamped = next_target;
+    if (clamped > max_target) {
+        clamped = max_target;
+    }
+    if (clamped < min_target) {
+        clamped = min_target;
+    }
+    if (clamped > pow_limit) {
+        clamped = pow_limit;
+    }
+    if (clamped == 0) {
+        clamped = 1;
+    }
+    return clamped;
 }
 
 /**
- * ASERT (aserti3-2d) fixed genesis anchor.
- * time_error = (eval_time - genesis_time) - (eval_height - 0) * spacing
- * exponent_q = trunc( time_error * 65536 / half_life )   [Q16.16 units]
- * next = anchor_target * 2^(exponent_q / 65536) via integer polynomial + shifts (BCH Nov 2020 spec).
+ * ASERT (aserti3-2d), BCH Nov 2020 integer path.
+ *
+ * Anchor: genesis while producing height 1; height 1 thereafter (TASK-012 R4-B).
+ * Evaluation time/height: the parent header (TASK-012 R1). The child nTime does
+ * not enter the exponent, so GBT ntime rolling cannot produce bad-diffbits.
+ *
+ * time_error = (parent_time - anchor_time) - (parent_height - anchor_height) * spacing
+ * exponent_q = trunc( time_error * 65536 / half_life )
+ * next = clamp_to_prev(anchor_target * 2^(exponent_q / 65536))
  */
 unsigned int GetNextWorkASERT(const CBlockIndex* pindexLast, const CBlockHeader* pblock, const Consensus::Params& params)
 {
     assert(pindexLast != nullptr);
+    (void)pblock;
     if (params.nPowASERTHalfLife <= 0) {
         return pindexLast->nBits;
     }
 
-    const CBlockIndex* const pindexGenesis = GenesisIndex(pindexLast);
-    assert(pindexGenesis->nHeight == 0);
+    const CBlockIndex* const pindexAnchor = AsertAnchorIndex(pindexLast);
 
-    const int eval_height = pindexLast->nHeight + 1;
-    const uint32_t eval_time = (pblock != nullptr) ? pblock->GetBlockTime() : pindexLast->nTime;
-
-    const int64_t anchor_time = pindexGenesis->GetBlockTime();
+    const int64_t height_diff =
+        static_cast<int64_t>(pindexLast->nHeight) - static_cast<int64_t>(pindexAnchor->nHeight);
     const int64_t time_error =
-        static_cast<int64_t>(eval_time) - anchor_time -
-        static_cast<int64_t>(eval_height) * params.nPowTargetSpacing;
+        static_cast<int64_t>(pindexLast->GetBlockTime()) - static_cast<int64_t>(pindexAnchor->GetBlockTime()) -
+        height_diff * params.nPowTargetSpacing;
 
     const __int128 numer = static_cast<__int128>(time_error) * static_cast<__int128>(ASERT_RADIX);
     const __int128 denom = static_cast<__int128>(params.nPowASERTHalfLife);
@@ -220,7 +291,7 @@ unsigned int GetNextWorkASERT(const CBlockIndex* pindexLast, const CBlockHeader*
     const arith_uint256 pow_limit = UintToArith256(params.powLimit);
 
     arith_uint256 target_ref;
-    target_ref.SetCompact(pindexGenesis->nBits);
+    target_ref.SetCompact(pindexAnchor->nBits);
 
     arith_uint256 next_target = AsertNextTargetWide(target_ref, factor, num_shifts, pow_limit);
 
@@ -230,6 +301,8 @@ unsigned int GetNextWorkASERT(const CBlockIndex* pindexLast, const CBlockHeader*
     if (next_target > pow_limit) {
         next_target = pow_limit;
     }
+
+    next_target = ClampTargetToPrev(next_target, pindexLast->nBits, pow_limit);
 
     return next_target.GetCompact();
 }
@@ -344,14 +417,35 @@ bool CheckProofOfWork(uint256 header_hash, unsigned int nBits, const Consensus::
         return true;
     }
 
-    const uint256 pow_hash = GetOpusHashFromBaseHash(header_hash);
-    if (gArgs.GetBoolArg("-debugpowcompare", false)) {
-        LogPrintf("NODE header_hash: %s\n", header_hash.ToString());
-        LogPrintf("NODE OpuHash digest: %s\n", pow_hash.ToString());
+    // Success cache: the same header is hashed in CheckHeadersPoW and again in
+    // ContextualCheckBlockHeader. Failures are not cached (random junk must not
+    // evict honest entries).
+    {
+        LOCK(g_opus_pow_ok_mutex);
+        const auto it = g_opus_pow_ok.find(header_hash);
+        if (it != g_opus_pow_ok.end() && it->second == nBits) {
+            return true;
+        }
     }
+
+    const uint256 pow_hash = GetOpusHashFromBaseHash(header_hash);
 
     if (UintToArith256(pow_hash) > bnTarget) {
         return false;
+    }
+
+    {
+        LOCK(g_opus_pow_ok_mutex);
+        if (g_opus_pow_ok.size() >= OPUS_POW_OK_CACHE_MAX) {
+            g_opus_pow_ok.erase(g_opus_pow_ok_fifo.front());
+            g_opus_pow_ok_fifo.pop_front();
+        }
+        auto [it, inserted] = g_opus_pow_ok.emplace(header_hash, nBits);
+        if (inserted) {
+            g_opus_pow_ok_fifo.push_back(header_hash);
+        } else {
+            it->second = nBits;
+        }
     }
 
     return true;

@@ -1,0 +1,83 @@
+{
+  "task": "TASK-RIGOR-SUPPLY-LAYER-SEMANTIC-CONSISTENCY-P1-001",
+  "equivalence_claimed": false,
+  "refinement_proved": false,
+  "hash_kernel_shared_binary_with_cpp": false,
+  "rfc018_fee_burn": [
+    {
+      "id": "FB-SEM-000",
+      "res_transfer_fee": 6000,
+      "burn": 3000,
+      "contributes_to_circulating": 0
+    }
+  ],
+  "cvg2_locked_oru": [
+    {
+      "id": "CVG2-000",
+      "locked_atoms": 300000000,
+      "contributes_to_circulating": 0
+    }
+  ],
+  "res_six_decimal_display": [
+    {
+      "id": "RES-DISP-0",
+      "atoms": 0,
+      "display": "0.000000"
+    },
+    {
+      "id": "RES-DISP-1",
+      "atoms": 1000000,
+      "display": "1.000000"
+    },
+    {
+      "id": "RES-DISP-TENTH",
+      "atoms": 100000,
+      "display": "0.100000"
+    },
+    {
+      "id": "RES-DISP-ATOM",
+      "atoms": 1,
+      "display": "0.000001"
+    },
+    {
+      "id": "RES-DISP-W0",
+      "atoms": 40000000,
+      "display": "40.000000"
+    }
+  ],
+  "circulating_supply": [
+    {
+      "id": "CIRC-000",
+      "issued": 1000000000,
+      "converge_destroyed": 100000000,
+      "fee_burn": 50000000,
+      "underclaim": 0,
+      "ledger_rfc002": 900000000,
+      "circulating_spendable": 850000000,
+      "wrong_if_cvg2_counted_as_circulating": 1150000000,
+      "indexed_rows_circulating": 100000000
+    }
+  ],
+  "wallet_spendable": [
+    {
+      "id": "WAL-000",
+      "coins": [
+        {
+          "owned": true,
+          "mature": true,
+          "trusted": true,
+          "unspendable": false,
+          "value": 500000000
+        },
+        {
+          "owned": true,
+          "mature": true,
+          "trusted": true,
+          "unspendable": true,
+          "value": 300000000
+        }
+      ],
+      "balance": 500000000
+    }
+  ]
+}

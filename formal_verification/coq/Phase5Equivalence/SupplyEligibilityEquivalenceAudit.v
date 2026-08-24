@@ -19,7 +19,7 @@ Definition se_disagreement : nat := se_catalog_disagreement_count.
 Definition se_missing : nat := se_catalog_missing_count.
 Definition se_partial : nat := se_catalog_partial_count.
 
-Lemma se_resolved_value : se_resolved = 18%nat.
+Lemma se_resolved_value : se_resolved = 172%nat.
 Proof. exact se_catalog_resolved_count_value. Qed.
 
 Lemma se_disagreement_value : se_disagreement = 0%nat.
@@ -57,7 +57,7 @@ Proof. exact supply_eligibility_status_partial_value. Qed.
 (** REQUIRED: projection layer recorded. *)
 Definition se_projection_layer_recorded : Prop :=
   supply_eligibility_projection_verified = true /\
-  se_catalog_count = 21%nat /\
+  se_catalog_count = 175%nat /\
   se_catalog_missing_count = 2%nat /\
   se_catalog_partial_count = 1%nat.
 
@@ -72,10 +72,10 @@ Proof.
   - exact se_catalog_partial_count_value.
 Qed.
 
-(** REQUIRED: eligibility identity verified for all 14 draw rows. *)
+(** REQUIRED: eligibility identity verified for all 168 draw rows. *)
 Lemma se_eligibility_identity_honest :
-  draw_audit_row_count = 14%nat /\
-  length eligibility_identity_catalog = 14%nat.
+  draw_audit_row_count = 168%nat /\
+  length eligibility_identity_catalog = 168%nat.
 Proof.
   split; [exact draw_audit_row_count_value | exact eligibility_identity_catalog_count].
 Qed.

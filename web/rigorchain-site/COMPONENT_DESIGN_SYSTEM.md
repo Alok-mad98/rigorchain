@@ -141,7 +141,7 @@ Mismatch: show `MismatchBanner` if explorer panel ≠ RPC.
 │ root         abcd…1234                   │
 │ sigma        ef01…5678                   │
 │ winner       txid…                       │
-│ P(target)    2^-16 = 1/65536  (static) │
+│ P(target)    E=246, C=1024 ORU/mint    │
 └────────────────────────────────────────┘
 ```
 

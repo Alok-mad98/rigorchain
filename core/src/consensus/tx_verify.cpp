@@ -200,9 +200,12 @@ bool AccumulateTxInputPools(const CTransaction& tx, TxValidationState& state, co
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-spend-non-asset-input");
         }
 
-        if (coin.IsCoinBase() && nSpendHeight - coin.nHeight < consensus_params.nCoinbaseMaturity) {
-            return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "bad-txns-premature-spend-of-coinbase",
-                strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin.nHeight));
+        if (coin.IsCoinBase()) {
+            const int coin_height = static_cast<int>(coin.nHeight);
+            if (nSpendHeight - coin_height < consensus_params.nCoinbaseMaturity) {
+                return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "bad-txns-premature-spend-of-coinbase",
+                    strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin_height));
+            }
         }
 
         if (!MoneyRange(coin.out.nValue)) {
@@ -212,6 +215,9 @@ bool AccumulateTxInputPools(const CTransaction& tx, TxValidationState& state, co
         if (in_asset == ASSET_ORU) {
             pools.oru_in += coin.out.nValue;
         } else {
+            // ASSET_NONE was rejected above, so RES is the only remaining case. Asserting it
+            // rather than testing it keeps a future asset class from silently contributing to
+            // neither pool, which would read as free value on the fee equation.
             assert(in_asset == ASSET_RES);
             if (!IsValidResConsensusAmount(coin.out.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-input-invalid");
@@ -315,45 +321,10 @@ bool CheckTxInputs_RES_DualPool(const CTransaction& tx, TxValidationState& state
     return true;
 }
 
-/**
- * The only context-free issuance shape: ORU-funded body mint.
- *
- * Winner coupling, window `already_paid`, and the 21M cap still need the parent draw
- * (ConnectBlock). This rejects every other ORU→RES creation at CheckTxInputs:
- * unparseable / failing proof, amount ≠ 100.00 RES, or more than one RES output.
- */
-bool CheckOruFundedResMintShape(const CTransaction& tx, TxValidationState& state,
-                                const Consensus::Params& consensus_params)
-{
-    Consensus::ConvergeProof proof;
-    if (!Consensus::ParseConvergeProof(tx, proof)) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "mixed-asset-output");
-    }
-    if (!Consensus::VerifyConvergeProof(proof, consensus_params.RES_PROBABILITY_TARGET, nullptr, nullptr)) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-proof");
-    }
-
-    const CTxOut* payout = nullptr;
-    for (const auto& o : tx.vout) {
-        if (!IsResScript(o.scriptPubKey)) continue;
-        if (payout != nullptr) {
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
-        }
-        payout = &o;
-    }
-    if (payout == nullptr || payout->nValue != Consensus::RES_REWARD_AMOUNT) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
-    }
-    if (tx.GetValueOut(ASSET_RES) != Consensus::RES_REWARD_AMOUNT) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-res-amount");
-    }
-    return true;
-}
-
 } // namespace
 
 // RFC-003 semantic domain: RES prevouts dominate (RES Spend even when ORU inputs pay POOL-F fee).
-// ORU-only prevouts → ORU transfer / convergence / body RES mint. Coinbase does not use this.
+// ORU-only prevouts → ORU transfer or convergence. Coinbase does not use this.
 std::optional<AssetType> Consensus::GetTransactionInputAsset(const CTransaction& tx, const CCoinsViewCache& inputs)
 {
     if (tx.vin.empty()) {
@@ -403,7 +374,6 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
     const bool has_res_in = pools.res_in > 0;
     const bool has_oru_in = pools.oru_in > 0;
-    bool oru_creating_res = false;
 
     for (const auto& out : tx.vout) {
         if (IsConvergenceScript(out.scriptPubKey)) {
@@ -420,12 +390,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
         if (out_asset == ASSET_RES) {
             if (!has_res_in) {
-                if (*semantic_domain == ASSET_ORU) {
-                    // Ordinary ORU payments cannot create RES. The mint-shape check below
-                    // is the sole exception, and it still does not authorize the draw.
-                    oru_creating_res = true;
-                    continue;
-                }
+                // No body transaction creates RES. There is no ORU-funded mint shape to make an
+                // exception for: the only new RES in a block is in its coinbase, authorized by
+                // the parent's resolved draw.
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "mixed-asset-output");
             }
             continue;
@@ -437,10 +404,6 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
             }
             continue;
         }
-    }
-
-    if (oru_creating_res && !CheckOruFundedResMintShape(tx, state, consensus_params)) {
-        return false;
     }
 
     if (!has_res_in) {

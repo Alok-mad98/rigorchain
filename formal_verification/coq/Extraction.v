@@ -1,8 +1,8 @@
-Require Import Types.
+Require Import Rigor.legacy_account_model.Types.
 Require Import ConvergeRoot.
 Require Import Sigma.
 Require Import Execution.
-Require Import Selection.
+Require Import Rigor.legacy_account_model.Selection.
 From Coq Require Import Extraction.
 
 Extraction Language OCaml.

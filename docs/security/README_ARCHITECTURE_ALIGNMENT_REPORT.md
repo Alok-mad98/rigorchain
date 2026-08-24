@@ -129,6 +129,6 @@ transaction/block formats, or parameter headers.
 |---------|-----------|
 | Public narrative | `README.md`, this report, `PROTOCOL_TERMINOLOGY_ALIGNMENT.md` |
 | Implementation constraints | `ARCHITECTURE.md`, `.cursorrules` |
-| Normative rules | `docs/rfc/` |
+| Normative rules | `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`; historical RFCs in `docs/archive/rfc/` |
 | What is proved | `docs/FORMAL-VERIFICATION-VERDICT.md` |
 | Historical security decisions | `docs/security/SECURITY-001-*`, `TASK-SECURITY-001-*` (unchanged wording) |

@@ -5,6 +5,8 @@
 **Purpose:** Canonical index of the specification layer. All future formal models and
 proofs MUST reference documents listed here.
 
+> **Parameter boundary.** RFC-014 `E = 240` / `C = 65536` ORU and RFC-015 fixed `100 RES` are **Historical RFC** values and **not active consensus parameters**. See SPEC-000 / SPEC-002 and `docs/archive/rfc/HISTORICAL_PARAMETER_STATUS.md`.
+
 ---
 
 ## Authority
@@ -59,9 +61,10 @@ ESTABLISHED SPEC entry:
 
 | Document | Role |
 |----------|------|
-| `RFC-000-consensus-constitution.md` | Constitutional invariants |
-| `RFC-008-canonical-mathematical-specification.md` | Canonical formula interpretation |
-| `RFC-009` … `RFC-015` | Frozen convergence, economics, witness rules |
+| `docs/archive/rfc/RFC-000-consensus-constitution.md` | Historical constitutional record |
+| `docs/archive/rfc/RFC-008-canonical-mathematical-specification.md` | Historical formula record |
+| `docs/archive/rfc/RFC-009-canonical-serialization-specification.md` … RFC-015 | Historical freeze / economics / witness records |
+| `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md` | Public mathematics |
 | `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` | Mainnet freeze statement |
 | `ARCHITECTURE.md` | Engineering architecture (non-normative for consensus semantics) |
 

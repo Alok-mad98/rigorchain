@@ -25,16 +25,16 @@ def getdescriptors(args):
 
     sys.stdout.write(json.dumps({
         "receive": [
-            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/0/*)#vt6w3l3j",
-            "sh(wpkh([00000001/49'/1'/" + args.account + "']" + xpub + "/0/*))#r0grqw5x",
-            "wpkh([00000001/84'/1'/" + args.account + "']" + xpub + "/0/*)#x30uthjs",
-            "res([00000001/86'/1'/" + args.account + "']" + xpub + "/0/*)#vevalsyh"
+            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/0'/*')",
+            "sh(wpkh([00000001/49'/1'/" + args.account + "']" + xpub + "/0'/*'))",
+            "wpkh([00000001/84'/1'/" + args.account + "']" + xpub + "/0'/*')",
+            "res([00000001/86'/1'/" + args.account + "']" + xpub + "/0'/*')"
         ],
         "internal": [
-            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/1/*)#all0v2p2",
-            "sh(wpkh([00000001/49'/1'/" + args.account + "']" + xpub + "/1/*))#kwx4c3pe",
-            "wpkh([00000001/84'/1'/" + args.account + "']" + xpub + "/1/*)#h92akzzg",
-            "res([00000001/86'/1'/" + args.account + "']" + xpub + "/1/*)#adfuz950"
+            "pkh([00000001/44'/1'/" + args.account + "']" + xpub + "/1'/*')",
+            "sh(wpkh([00000001/49'/1'/" + args.account + "']" + xpub + "/1'/*'))",
+            "wpkh([00000001/84'/1'/" + args.account + "']" + xpub + "/1'/*')",
+            "res([00000001/86'/1'/" + args.account + "']" + xpub + "/1'/*')"
 
         ]
     }))

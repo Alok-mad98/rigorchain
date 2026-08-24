@@ -50,6 +50,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
         // Product About copy only — no Bitcoin Core / upstream MIT dump.
         const QString compliance = RigorWallet::WalletIdentity::aboutComplianceHtml();
         ui->aboutMessage->setTextFormat(Qt::RichText);
+        ui->aboutMessage->setOpenExternalLinks(true);
         ui->scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         text = version + "\n" + productName;
         ui->aboutMessage->setText(version + "<br><br>" + compliance);

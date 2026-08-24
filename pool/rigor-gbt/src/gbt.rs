@@ -67,6 +67,14 @@ pub struct ConvergenceDraw {
     pub winner: Option<ConvergenceDrawWinner>,
 }
 
+/// Coinbase OP_RES_MINT output published by the node when this template pays a winner.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct GbtResMint {
+    pub value: i64,
+    #[serde(rename = "scriptPubKey")]
+    pub script_pubkey: String,
+}
+
 /// Parsed `getblocktemplate` response (RIGOR-extended fields).
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct GbtTemplate {
@@ -104,6 +112,12 @@ pub struct GbtTemplate {
     #[serde(default)]
     pub convergence_draw: Option<ConvergenceDraw>,
     pub default_convergence_commitment: Option<String>,
+    /// Coinbase OP_RES_MINT. Absent when the parent awarded nobody. Not a body transaction.
+    #[serde(default)]
+    pub default_res_mint: Option<GbtResMint>,
+    /// Canonical tagged PCORB OP_RETURN scriptPubKey (hex). Absent iff `default_res_mint` is.
+    #[serde(default)]
+    pub default_pcorb_carrier: Option<String>,
     pub prev_nbits: String,
 }
 

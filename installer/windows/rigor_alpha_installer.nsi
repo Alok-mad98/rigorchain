@@ -19,9 +19,9 @@
   !define OUTFILE "${REPO_ROOT}/dist/alpha/windows/rigor-wallet-0.1.0-alpha.exe"
 !endif
 
-Name "RIGOR Wallet Alpha"
+Name "Rigor Wallet Alpha"
 OutFile "${OUTFILE}"
-InstallDir "$PROGRAMFILES64\RIGOR Alpha"
+InstallDir "$PROGRAMFILES64\Rigor Alpha"
 RequestExecutionLevel admin
 ; Non-solid lzma: /SOLID on Linux makensis has produced CRC/"NSIS Error" installers
 ; with large static Qt PE payloads (~50–80 MiB). Per-file lzma is more reliable cross-build.
@@ -29,8 +29,8 @@ SetCompressor lzma
 Unicode true
 CRCCheck on
 
-!define REGKEY "SOFTWARE\RIGOR Alpha"
-!define COMPANY "RIGOR Protocol"
+!define REGKEY "SOFTWARE\Rigor Alpha"
+!define COMPANY "Rigor Protocol"
 !define DATADIR_HINT "$APPDATA\RIGOR"
 
 !define MUI_ICON "${REPO_ROOT}/core/share/icons/rigor/rigor.ico"
@@ -42,12 +42,12 @@ CRCCheck on
 !define MUI_ABORTWARNING
 
 VIProductVersion 0.1.0.0
-VIAddVersionKey ProductName "RIGOR Wallet Alpha"
+VIAddVersionKey ProductName "Rigor Wallet Alpha"
 VIAddVersionKey ProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey FileVersion "${PRODUCT_VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
-VIAddVersionKey FileDescription "RIGOR Wallet Alpha Installer (unsigned)"
-VIAddVersionKey LegalCopyright "Copyright (C) 2026 RIGOR contributors"
+VIAddVersionKey FileDescription "Rigor Wallet Alpha Installer (unsigned)"
+VIAddVersionKey LegalCopyright "Copyright (C) 2026 Rigor contributors"
 
 !insertmacro MUI_PAGE_WELCOME
 ; Forward slashes: makensis on Linux/WSL cannot open Windows-style backslashes.
@@ -62,13 +62,13 @@ VIAddVersionKey LegalCopyright "Copyright (C) 2026 RIGOR contributors"
 
 Function .onInit
   ${IfNot} ${RunningX64}
-    MessageBox MB_OK|MB_ICONSTOP "RIGOR Alpha requires 64-bit Windows."
+    MessageBox MB_OK|MB_ICONSTOP "Rigor Alpha requires 64-bit Windows."
     Abort
   ${EndIf}
   SetRegView 64
 FunctionEnd
 
-Section "RIGOR Alpha (required)" SEC_MAIN
+Section "Rigor Alpha (required)" SEC_MAIN
   SectionIn RO
   SetOutPath "$INSTDIR"
   SetOverwrite on
@@ -100,16 +100,16 @@ Section "RIGOR Alpha (required)" SEC_MAIN
 
   ; Working directory must be $INSTDIR (not config\) or shortcuts start in the wrong folder.
   SetOutPath "$INSTDIR"
-  CreateDirectory "$SMPROGRAMS\RIGOR Alpha"
-  CreateShortcut "$SMPROGRAMS\RIGOR Alpha\RIGOR Wallet.lnk" "$INSTDIR\rigor-wallet.exe"
-  CreateShortcut "$SMPROGRAMS\RIGOR Alpha\RIGOR Miner.lnk" "$INSTDIR\rigor-miner.exe"
-  CreateShortcut "$SMPROGRAMS\RIGOR Alpha\RIGOR CLI.lnk" "$INSTDIR\rigor-cli.exe"
-  CreateShortcut "$SMPROGRAMS\RIGOR Alpha\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$SMPROGRAMS\Rigor Alpha"
+  CreateShortcut "$SMPROGRAMS\Rigor Alpha\Rigor Wallet.lnk" "$INSTDIR\rigor-wallet.exe"
+  CreateShortcut "$SMPROGRAMS\Rigor Alpha\Rigor Miner.lnk" "$INSTDIR\rigor-miner.exe"
+  CreateShortcut "$SMPROGRAMS\Rigor Alpha\Rigor CLI.lnk" "$INSTDIR\rigor-cli.exe"
+  CreateShortcut "$SMPROGRAMS\Rigor Alpha\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKLM "${REGKEY}" "Path" "$INSTDIR"
   WriteRegStr HKLM "${REGKEY}" "Version" "${PRODUCT_VERSION}"
   WriteRegStr HKLM "${REGKEY}" "DataDir" "${DATADIR_HINT}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha" "DisplayName" "RIGOR Wallet Alpha"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha" "DisplayName" "Rigor Wallet Alpha"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha" "DisplayIcon" "$INSTDIR\rigor-wallet.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha" "Publisher" "${COMPANY}"
@@ -118,7 +118,7 @@ SectionEnd
 
 Section "Desktop shortcut" SEC_DESKTOP
   SetOutPath "$INSTDIR"
-  CreateShortcut "$DESKTOP\RIGOR Wallet.lnk" "$INSTDIR\rigor-wallet.exe"
+  CreateShortcut "$DESKTOP\Rigor Wallet.lnk" "$INSTDIR\rigor-wallet.exe"
 SectionEnd
 
 Section "Uninstall"
@@ -143,7 +143,9 @@ Section "Uninstall"
   RMDir /r "$INSTDIR\imageformats"
   RMDir /r "$INSTDIR\qt-runtime"
   Delete "$INSTDIR\*.dll"
+  RMDir /r "$SMPROGRAMS\Rigor Alpha"
   RMDir /r "$SMPROGRAMS\RIGOR Alpha"
+  Delete "$DESKTOP\Rigor Wallet.lnk"
   Delete "$DESKTOP\RIGOR Wallet.lnk"
   DeleteRegKey HKLM "${REGKEY}"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorAlpha"
@@ -151,8 +153,8 @@ Section "Uninstall"
   ; Datadir under %APPDATA%\RIGOR is retained (user funds). Remove manually if desired.
 SectionEnd
 
-LangString DESC_SEC_MAIN ${LANG_ENGLISH} "RIGOR Wallet, Node, and Miner binaries."
-LangString DESC_SEC_DESKTOP ${LANG_ENGLISH} "Optional desktop shortcut for RIGOR Wallet."
+LangString DESC_SEC_MAIN ${LANG_ENGLISH} "Rigor Wallet, Node, and Miner binaries."
+LangString DESC_SEC_DESKTOP ${LANG_ENGLISH} "Optional desktop shortcut for Rigor Wallet."
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_MAIN} $(DESC_SEC_MAIN)
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_DESKTOP} $(DESC_SEC_DESKTOP)

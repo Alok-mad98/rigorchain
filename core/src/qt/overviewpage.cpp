@@ -145,11 +145,7 @@ public:
         QRect boundingRect;
         painter->drawText(addressRect, Qt::AlignLeft | Qt::AlignVCenter, addressLine, &boundingRect);
 
-        if(amount < 0)
-        {
-            foreground = COLOR_NEGATIVE;
-        }
-        else if(!confirmed)
+        if(!confirmed)
         {
             foreground = COLOR_UNCONFIRMED;
         }

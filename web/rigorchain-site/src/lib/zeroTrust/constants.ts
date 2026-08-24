@@ -1,12 +1,12 @@
 /**
- * Frozen AlphaPlus constants used by the browser verifier.
+ * Frozen RIGOR constants used by the browser verifier.
  * These are published protocol constants, not live API results.
  */
 
 import { displayHexToNative } from "./bytes";
 
-/** RFC-016 AlphaPlus / Alpha1 mainnet genesis (display hex). */
-export const ALPHAPLUS_GENESIS_HASH_DISPLAY =
+/** RFC-016 RIGOR mainnet genesis (display hex). */
+export const RIGOR_GENESIS_HASH_DISPLAY =
   "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758";
 
 /** RES_PROBABILITY_TARGET_CONST display hex (params.h). */
@@ -19,8 +19,8 @@ export const RES_BASE = 100n;
 /** Explorer observational short ID. This portal does not use it as a verdict. */
 export const DRAW_FINGERPRINT_LABEL = "Draw Fingerprint";
 
-export function alphaplusGenesisNative(): Uint8Array {
-  return displayHexToNative(ALPHAPLUS_GENESIS_HASH_DISPLAY);
+export function rigorGenesisNative(): Uint8Array {
+  return displayHexToNative(RIGOR_GENESIS_HASH_DISPLAY);
 }
 
 export function resProbabilityTargetNative(): Uint8Array {

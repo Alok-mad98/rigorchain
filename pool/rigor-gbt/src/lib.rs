@@ -30,7 +30,8 @@ pub use api::TemplateCacheApi;
 pub use cache::TemplateCache;
 pub use error::{GbtError, GbtResult};
 pub use gbt::{
-    ConvergenceDraw, ConvergenceDrawCandidate, ConvergenceDrawWinner, GbtTemplate, GbtTransaction,
+    ConvergenceDraw, ConvergenceDrawCandidate, ConvergenceDrawWinner, GbtResMint, GbtTemplate,
+    GbtTransaction,
 };
 pub use record::{build_template_record, normalize_gbt_record, GbtRecord, JobSnapshot, TemplateRecord};
 pub use rpc::{BlockchainInfo, RigordRpc};

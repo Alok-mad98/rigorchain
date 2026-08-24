@@ -318,11 +318,11 @@ void TestGUI(interfaces::Node& node, const std::shared_ptr<CWallet>& wallet)
     mini_gui.initModelForWallet(node, wallet, platformStyle.get());
     WalletModel& walletModel = *mini_gui.walletModel;
 
-    // Dual-asset key model UX: ORU HD + RES dedicated must report correctly even when
-    // wallet-wide IsHDEnabled() is false due to non-ranged RES ScriptPubKeyMans.
+    // Dual-asset key model UX: default wallets report ORU HD + RES HD.
     QVERIFY(walletModel.wallet().oruHdEnabled());
-    QVERIFY(walletModel.wallet().resDedicatedKeyMode());
-    QVERIFY(!walletModel.wallet().hdEnabled());
+    QVERIFY(walletModel.wallet().resHdEnabled());
+    QVERIFY(walletModel.wallet().hdEnabled());
+    QVERIFY(!walletModel.wallet().resDedicatedKeyMode());
     SendCoinsDialog& sendCoinsDialog = mini_gui.sendCoinsDialog;
     TransactionView& transactionView = mini_gui.transactionView;
 

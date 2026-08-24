@@ -87,7 +87,7 @@ Protocol
 | `INV-DET` | Determinism | \(S_{t+1} = F(S_t, T_t)\) |
 | `INV-UTXO` | Conservation (ORU) | \(\sum \mathrm{ORU}_{in} = \sum \mathrm{ORU}_{out} + fee\) |
 | `INV-RES` | Conservation (RES) | \(\sum \mathrm{RES}_{in} = \sum \mathrm{RES}_{out}\) |
-| `INV-FAIR` | Fairness (65536) | \(P = 2^{-16} = 1/65536\) |
+| `INV-FAIR` | Fairness (`E = 246`) | \(C = 1024\) ORU/mint; Historical RFC-014: \(1/65536\) |
 | `INV-CONV` | Convergence stability (125) | \(1000 \to 500 \to 250 \to 125,\; 125 = 5^3\) |
 | `INV-EQUIV` | Non-equivalence | `equivalence_claimed = false` |
 

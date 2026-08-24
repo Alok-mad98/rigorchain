@@ -136,7 +136,7 @@ Proof. reflexivity. Qed.
 Definition eligibility_audit_total : nat := length eligibility_catalog.
 
 Lemma eligibility_audit_total_value :
-  eligibility_audit_total = 14%nat.
+  eligibility_audit_total = 168%nat.
 Proof. apply eligibility_catalog_length. Qed.
 
 (** Every catalog row has projected flags equal to imported flags. *)
@@ -157,7 +157,7 @@ Definition eligibility_total_eligible_count : nat :=
   fold_right Nat.add 0 (map ece_eligible_count eligibility_catalog).
 
 Lemma eligibility_total_eligible_count_value :
-  eligibility_total_eligible_count = 18%nat.
+  eligibility_total_eligible_count = 628%nat.
 Proof. vm_compute. reflexivity. Qed.
 
 (** ================================================================
@@ -203,6 +203,6 @@ Proof. split; reflexivity. Qed.
 
 Lemma eligibility_catalog_full_identity :
   all_eligibility_rows_identity = true /\
-  eligibility_audit_total = 14%nat.
+  eligibility_audit_total = 168%nat.
 Proof. split; [ apply all_eligibility_rows_identity_value
               | apply eligibility_audit_total_value ]. Qed.

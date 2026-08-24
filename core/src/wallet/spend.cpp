@@ -8,9 +8,10 @@
 #include <consensus_rigor/fee.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
-#include <consensus/res_owner.h>
 #include <consensus/validation.h>
 #include <crypto/ed25519_provider.h>
+#include <hash.h>
+#include <script/interpreter.h>
 #include <interfaces/chain.h>
 #include <numeric>
 #include <outputtype.h>
@@ -183,6 +184,8 @@ static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
 {
     switch (type) {
         case TxoutType::WITNESS_V1_RES:
+        case TxoutType::RES_MINT:
+        case TxoutType::CONVERGE:
             return OutputType::BECH32M;
         case TxoutType::WITNESS_V0_KEYHASH:
         case TxoutType::WITNESS_V0_SCRIPTHASH:
@@ -1757,33 +1760,11 @@ bool FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& nFeeRet,
     return true;
 }
 
-util::Result<CreatedTransactionResult> CreateConvergenceTransaction(
-    CWallet& wallet,
-    CAmount amount_oru,
-    int change_pos,
-    const CCoinControl& coin_control,
-    bool sign,
-    bool subtract_fee_from_convergence)
+util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amount_oru, bool subtract_fee_from_convergence)
 {
-    if (amount_oru <= 0) {
-        return util::Error{_("Convergence amount must be positive")};
+    if (amount_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(amount_oru)) {
+        return util::Error{_("Convergence amount must be at least 1 ORU")};
     }
-    CCoinControl cc = coin_control;
-    if (!cc.m_asset_type.has_value()) {
-        cc.m_asset_type = ASSET_ORU;
-    } else if (*cc.m_asset_type != ASSET_ORU) {
-        return util::Error{_("Convergence requires ORU")};
-    }
-    // Change must be native witness v0 P2WPKH (ORU). Witness v1 programs that are not CVG2 are classified as
-    // Res in AssetTypeFromScriptPubKey; using the wallet default (e.g. bech32m) would create mixed-asset txs.
-    cc.m_change_type = OutputType::BECH32;
-    // Convergence uses normal ORU network fees only; do not depend on fee estimator or -fallbackfee (regtest / thin
-    // mempools often have no estimates). Use relay floor and mempool minimum when the caller did not set a rate.
-    if (!cc.m_feerate) {
-        cc.m_feerate = std::max(GetRequiredFeeRate(wallet), wallet.chain().mempoolMinFee());
-    }
-    // SECURITY-001-A / A-5 R1: a convergence only enters the draw if it names the owner that
-    // the RES must be paid to. A fresh key per convergence keeps separate draws unlinkable.
     auto res_dest = wallet.GetNewDestination(OutputType::BECH32M, "");
     if (!res_dest) {
         return util::Error{_("Cannot generate a RES payout address for the convergence")};
@@ -1792,12 +1773,58 @@ util::Result<CreatedTransactionResult> CreateConvergenceTransaction(
     if (res_key == nullptr) {
         return util::Error{_("Generated payout address is not a RES address")};
     }
-    const std::vector<unsigned char> res_program32(res_key->begin(), res_key->end());
+    // OP_CONVERGE / OP_RES_MINT bind HASH160(ed25519_pk), not HASH160(SHA256(pk)).
+    // WitnessV1Res is the SHA256 program; recover the 32-byte pubkey from the wallet.
+    const CScript dest_spk = GetScriptForDestination(*res_dest);
+    const std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(dest_spk);
+    std::vector<unsigned char> pk32;
+    if (const auto* fp = dynamic_cast<const FlatSigningProvider*>(provider.get())) {
+        for (const auto& [_, pk] : fp->pubkeys) {
+            pk32 = pk.GetEd25519Payload();
+            if (pk32.size() == ed25519::PUBKEY_SIZE) break;
+        }
+        if (pk32.size() != ed25519::PUBKEY_SIZE) {
+            for (const auto& [_, origin] : fp->origins) {
+                pk32 = origin.first.GetEd25519Payload();
+                if (pk32.size() == ed25519::PUBKEY_SIZE) break;
+            }
+        }
+        if (pk32.size() != ed25519::PUBKEY_SIZE) {
+            for (const auto& [_, secret] : fp->res_v1_program_to_ed_secret) {
+                if (secret.size() < ed25519::SECRETKEY_SIZE) continue;
+                pk32.assign(secret.begin() + ed25519::SEED_SIZE, secret.begin() + ed25519::SEED_SIZE + ed25519::PUBKEY_SIZE);
+                break;
+            }
+        }
+    }
+    if (pk32.size() != ed25519::PUBKEY_SIZE) {
+        return util::Error{_("Cannot recover RES pubkey for the convergence owner lock")};
+    }
+    (void)res_key;
+    const CScript burn = GetConvergeScript(Hash160(pk32));
+    return CRecipient{burn, amount_oru, subtract_fee_from_convergence, ASSET_ORU};
+}
 
-    const std::vector<CRecipient> vec{
-        {Consensus::ConvergenceOutputScript(), amount_oru, subtract_fee_from_convergence, ASSET_ORU},
-        {Consensus::ResOwnerDeclarationScript(res_program32), 0, false, ASSET_ORU},
-    };
-    return CreateTransaction(wallet, vec, change_pos, cc, sign);
+util::Result<CreatedTransactionResult> CreateConvergenceTransaction(
+    CWallet& wallet,
+    CAmount amount_oru,
+    int change_pos,
+    const CCoinControl& coin_control,
+    bool sign,
+    bool subtract_fee_from_convergence)
+{
+    CCoinControl cc = coin_control;
+    if (!cc.m_asset_type.has_value()) {
+        cc.m_asset_type = ASSET_ORU;
+    } else if (*cc.m_asset_type != ASSET_ORU) {
+        return util::Error{_("Convergence requires ORU")};
+    }
+    cc.m_change_type = OutputType::BECH32;
+    if (!cc.m_feerate) {
+        cc.m_feerate = std::max(GetRequiredFeeRate(wallet), wallet.chain().mempoolMinFee());
+    }
+    auto rec = MakeConvergenceRecipient(wallet, amount_oru, subtract_fee_from_convergence);
+    if (!rec) return util::Error{util::ErrorString(rec)};
+    return CreateTransaction(wallet, {*rec}, change_pos, cc, sign);
 }
 } // namespace wallet

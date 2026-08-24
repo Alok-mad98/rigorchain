@@ -115,7 +115,7 @@ A-5 custody rules remain in force. Pool mint construction is **retired as target
 - RES body mint bytes, when required, come only from `rigord` automint / GBT.
 - `pool/mint-engine` remains as **legacy audit code** only.
 
-See `docs/pool/POOL_RES_REMOVAL_IMPLEMENTATION_REPORT.md` and `docs/pool/POOL_NODE_AUTOMINT_RUNBOOK.md`.
+See `docs/pool/POOL_RES_REMOVAL_IMPLEMENTATION_REPORT.md`. GBT miners copy `default_res_mint` and `default_pcorb_carrier` into the coinbase.
 
 ---
 

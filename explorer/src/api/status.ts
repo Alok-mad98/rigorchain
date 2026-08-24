@@ -2,7 +2,11 @@ import type { Pool } from "pg";
 import type { Config } from "../config";
 import { buildCompliancePayload, EQUIVALENCE_CLAIMED } from "../compliance";
 import { getOrCreateChainState } from "../db";
+import { CIRCULATING_ORU_SQL_PREDICATE } from "../circulating";
+import { atomsToOruDisplay, atomsToResDisplay } from "../amount";
 import { rpc } from "../rpcCli";
+import { getRfc018FeeBurnTip } from "../rfc018FeeBurnStore";
+import { rfc018FeeBurnView } from "../rfc018FeeBurn";
 
 /** FVR-M compliance display — read-only, never computed at runtime. */
 export const DRAW_STATUS_DISPLAY = "DRAW: PERMANENTLY IMPOSSIBLE (FVR-M)";
@@ -20,18 +24,6 @@ export type StatusDashboard = {
   mining_activity: Record<string, unknown>;
   system_integrity: Record<string, unknown>;
 };
-
-function atomsToOruDisplay(atoms: string | bigint): string {
-  const a = BigInt(String(atoms));
-  const base = 100000000n;
-  return `${a / base}.${(a % base).toString().padStart(8, "0")} ORU`;
-}
-
-function atomsToResDisplay(atoms: string | bigint): string {
-  const a = BigInt(String(atoms));
-  const base = 100n;
-  return `${a / base}.${(a % base).toString().padStart(2, "0")} RES`;
-}
 
 /** getblockchaininfo amounts are ValueFromAmount decimals; getconvergencestats ORU is sat atoms. */
 function formatOruAmount(value: unknown, asAtoms = false): string | null {
@@ -221,8 +213,8 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   const economic = await pool.query(
     `
       SELECT
-        (SELECT COALESCE(SUM(amount_atoms), 0) FROM oru_utxos WHERE spent = FALSE) AS oru_utxo_atoms,
-        (SELECT COUNT(*)::int FROM oru_utxos WHERE spent = FALSE) AS oru_utxo_count,
+        (SELECT COALESCE(SUM(amount_atoms), 0) FROM oru_utxos WHERE ${CIRCULATING_ORU_SQL_PREDICATE}) AS oru_utxo_atoms,
+        (SELECT COUNT(*)::int FROM oru_utxos WHERE ${CIRCULATING_ORU_SQL_PREDICATE}) AS oru_utxo_count,
         (SELECT COALESCE(SUM(u.amount_atoms), 0)
            FROM oru_utxos u
            JOIN outputs o ON o.txid = u.txid AND o.vout_index = u.vout_index
@@ -279,6 +271,26 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
     `,
   );
   const eco = economic.rows[0] ?? {};
+  let feeBurnTip: Awaited<ReturnType<typeof getRfc018FeeBurnTip>> = null;
+  try {
+    feeBurnTip = await getRfc018FeeBurnTip(pool);
+  } catch {
+    feeBurnTip = null;
+  }
+  const rfc018FeeBurn = {
+    ...rfc018FeeBurnView(
+      feeBurnTip?.burned_oru ?? 0n,
+      feeBurnTip?.cumulative_burned_oru ?? 0n,
+      atomsToOruDisplay,
+    ),
+    indexed: feeBurnTip != null,
+    height: feeBurnTip != null ? feeBurnTip.height.toString() : null,
+  };
+  const totalIssuedDisplay =
+    formatOruAmount(runtimeSupply.oru_subsidy_cumulative_derived) ??
+    formatOruAmount(runtimeSupply.oru_supply_cumulative);
+  const circulatingDisplay = atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0"));
+  const convergenceDestroyedDisplay = formatOruAmount(blockchainInfo.cumulative_convergence);
 
   const reorgWindow = await pool.query(
     `
@@ -356,10 +368,39 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
       tip_height: nodeHeight >= 0 ? nodeHeight : indexerHeight,
       network_res_minted_display:
         formatResAtoms(convStats.total_res_minted) ?? atomsToResDisplay(String(eco.res_mint_total_atoms ?? "0")),
-      oru_burned_lifetime_display: formatOruAmount(blockchainInfo.cumulative_convergence),
+      oru_burned_lifetime_display: convergenceDestroyedDisplay,
+      cumulative_convergence_display: convergenceDestroyedDisplay,
+      rfc018_fee_burn: rfc018FeeBurn,
+      supply_chart: {
+        total_issued_oru: {
+          display: totalIssuedDisplay,
+          source: "getruntimesupply.oru_subsidy_cumulative_derived (Σ R); ledger S_ORU is not this series",
+        },
+        cumulative_convergence: {
+          display: convergenceDestroyedDisplay,
+          rpc: blockchainInfo.cumulative_convergence ?? null,
+          source: "getblockchaininfo.cumulative_convergence (Convergence destroyed ORU)",
+        },
+        rfc018_fee_burn: {
+          block_burned_oru: rfc018FeeBurn.block_burned_oru,
+          cumulative_burned_oru: rfc018FeeBurn.cumulative_burned_oru,
+          block_burned_oru_display: rfc018FeeBurn.block_burned_oru_display,
+          cumulative_burned_oru_display: rfc018FeeBurn.cumulative_burned_oru_display,
+          source: "explorer rfc018_fee_burn_stats (not consensus)",
+        },
+        oru_circulating_spendable: {
+          atoms: String(eco.oru_utxo_atoms ?? "0"),
+          display: circulatingDisplay,
+          source: "indexed oru_utxos with CIRCULATING_ORU_SQL_PREDICATE (OP_CONVERGE excluded)",
+        },
+        never_merged: true,
+        note: "Total issued, Convergence destroyed, Deflationary Fee Burn, and circulating spendable are four separate series. Do not add or subtract them into one explorer figure.",
+        equivalence_claimed: EQUIVALENCE_CLAIMED,
+      },
       oru_in_current_window_display: formatOruAmount(convStats.active_oru, true),
       oru_since_last_mint_display: formatOruAmount(blockchainInfo.current_convergence_sum),
       oru_indexed_utxo_total_display: atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0")),
+      oru_circulating_spendable_display: atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0")),
       oru_utxo_count: eco.oru_utxo_count ?? 0,
       oru_mature_transferable_display: atomsToOruDisplay(String(eco.oru_mature_transferable_atoms ?? "0")),
       oru_mature_transferable_count: eco.oru_mature_transferable_count ?? 0,

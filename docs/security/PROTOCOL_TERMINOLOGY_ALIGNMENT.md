@@ -15,7 +15,7 @@ required.
 
 | | Old term | New term |
 |---|----------|----------|
-| Principle | **the script is the asset** / **script-as-asset** | **the script is the compliance layer** / **script-as-compliance** |
+| Principle | **the script is the asset** / **script-as-asset** | **the script is the compliance/classification layer** / **script-as-compliance** |
 | Meaning (old) | The `scriptPubKey` itself encodes asset identity and is treated as a complete definition of the asset. | — |
 | Meaning (new) | The script defines the **validity conditions** under which an asset output may exist, transfer, and remain spendable. Asset *class* is still inferred from `scriptPubKey`; asset *legitimacy* requires UTXO commitments, script rules, economic proofs, and deterministic consensus verification. | |
 
@@ -114,5 +114,28 @@ purpose text were aligned.
 ## 8. Authority
 
 When narrative docs disagree with this table, this table and `README.md` govern for
-**public-facing** language. Normative byte layouts and arithmetic remain in `docs/rfc/`
-and `core/src/consensus/`.
+**public-facing** language. Public mathematics is
+`docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`. Historical RFC texts are
+`docs/archive/rfc/`. Byte layouts in C++ remain `core/src/consensus/`.
+
+---
+
+## 9. Public protocol-feature names (not RFC numbers)
+
+Public architecture copy describes **what the protocol is**, not which internal
+document implemented it. RFC files remain the engineer specification IDs.
+
+| Internal identifier | Public architecture name | Meaning |
+|---------------------|--------------------------|---------|
+| RFC-017 / RFC-017 Monetary Policy / RES Monetary Rules | **Deterministic Reserve Issuance** | RES is not created by Proof-of-Work. Issuance follows a fixed schedule, a bounded maximum supply, Convergence-triggered authorization, and a deterministic mint amount. |
+| RFC-018 / RFC-018 Fee Burn / Fee Burn Rules | **Deflationary Fee Burn** | Eligible RES-transfer ORU fee components are permanently removed from circulation. Not a global consensus supply state, not a wallet balance, not a UTXO, not a miner-controlled parameter. |
+
+Keep RFC-017 / RFC-018 in:
+
+- `docs/archive/rfc/` (historical RFC corpus)
+- engineer appendices and audit archives
+- historical labels such as **Historical RFC-014 / retired design**
+
+Do not write **RES mining** or **RES block reward mining**.
+
+Correct: RES is deterministically issued after protocol-defined conditions.

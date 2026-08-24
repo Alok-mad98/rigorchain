@@ -1,13 +1,15 @@
 # SPEC-000: RIGOR Consensus Specification
 
 > **SECURITY-001-A8 (Sigma-PoW-01):** σ = Hash256(txid ‖ C ‖ B_{h-1} ‖ LE32(h)); draw deferred one block; `bind_commit` deleted. See `docs/security/SECURITY_001_A8_REPORT.md`.
+>
+> **Parameter boundary.** RFC-014 `E = 240` / `C = 65536` ORU and RFC-015 fixed `100 RES` are **Historical RFC** values and **not active consensus parameters**. Active draw exponent and mint schedule: RFC-017 (`E = 246`, `C = 1024` ORU, `W(k)`).
 
 
 **Task:** `TASK-SPEC-001`  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED (skeleton)  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-009`, `RFC-014`, `RFC-015`  
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-009`, `RFC-014`, `RFC-015`, `RFC-017`  
 **Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
 
 ---
@@ -68,8 +70,8 @@ when a block satisfies draw eligibility and a unique winner is selected.
 
 RES MUST satisfy:
 
-- Mint amount per successful draw: **100 RES** (RFC-015)
-- Maximum total supply: **21,000,000 RES** (RFC-015)
+- Mint amount per successful draw: **RFC-017 `W(k)`** via `GetResMintReward(h)` (`RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs)
+- Maximum total supply: **21,000,000 RES** (RFC-015 / RFC-017)
 - At most **one** successful RES mint per block height
 - No RES mint outside the convergence draw path
 
@@ -104,15 +106,15 @@ an explicit **Level-5 hard-fork constitutional process** (`PROTOCOL_CHANGE_SEVER
 
 | Locked item | Frozen value / rule |
 |-------------|---------------------|
-| `RES_PROBABILITY_TARGET` | `2^240` (RFC-014) |
+| `RES_PROBABILITY_TARGET` | RFC-017 shipping: unwindowed `E = 246` (`C = 1024` ORU per mint), then windowed by `W = 32`. Historical RFC-014 parameter: `2^240`. |
 | Inequality form | `H_i < T · f_i` with cross-multiply tie-break (RFC-000) |
 | Inequality RHS source | Constitutional constant only — NOT PoW difficulty (RFC-014) |
 | σ preimage layout | 100 bytes exactly (RFC-000 / RFC-008) |
 | `B_{h-1}` (σ seed) | Parent block hash, verbatim in σ slot `[64..95]` (SECURITY-001-A8 / Sigma-PoW-01). Replaces `bind_commit`. |
 | Draw timing | Deferred one block: height `h` pays the set committed by `h-1` (SECURITY-001-A8) |
 | Draw gate | `\|F\| ≥ 1` (RFC-015) |
-| RES per mint | 100 RES (RFC-015) |
-| RES supply cap | 21,000,000 RES (RFC-015) |
+| RES per mint | RFC-017 `W(k)`: `GetResMintReward(h)`; `RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs. Historical RFC-015: constant 100 RES. |
+| RES supply cap | 21,000,000 RES (RFC-015 / RFC-017) |
 | Activation model | Genesis-only (no fork height, no versionbits bridge) |
 
 Variable-T sourcing of the convergence inequality RHS from PoW difficulty is
@@ -178,10 +180,10 @@ reserve asset. RES supply at height `h` evolves as:
 
 ```
 S_RES(0) = 0
-S_RES(h+1) = S_RES(h) + mint_amount · M(h+1)
+S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
 ```
 
-where `M(h) ∈ {0, 1}` and `mint_amount` is the frozen per-mint quantity (100 RES).
+where `M(h) ∈ {0, 1}` and `GetResMintReward(h)` is the RFC-017 schedule `W(k)` at epoch `k = floor(h / 210000)` (`RES_REWARD_GENESIS` = 40.000000 RES; cutoff 250 epochs). Historical RFC-015 used a constant 100 RES mint.
 
 ### 2.7 State
 

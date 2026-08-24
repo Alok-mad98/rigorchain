@@ -1,4 +1,7 @@
 import { Link } from "react-router-dom";
+import { Button } from "../components/Button";
+import { DarkCard } from "../components/DarkCard";
+import { SectionTitle } from "../components/SectionTitle";
 import { ThreeLayerModel } from "../components/ThreeLayerModel";
 import { useSystemState } from "../context/SystemStateContext";
 
@@ -8,67 +11,78 @@ export function LandingPage() {
   return (
     <div className="page landing-page">
       <section className="hero">
+        <img src="/assets/rigor-mark.png" alt="" className="hero-mark" width={56} height={56} />
         <p className="tag">WWW.RIGORCHAIN.COM</p>
-        <h1>AlphaPlus</h1>
+        <h1>RIGOR</h1>
         <p className="hero-sub">
-          Deterministic proof-of-work protocol — native assets <strong>ORU</strong> and{" "}
-          <strong>RES</strong>
-        </p>
-        <p className="hero-sub muted">
-          You do not need to trust a node. You can independently verify the result yourself.
+          A dual-asset UTXO protocol built on script-derived asset classification,
+          stateless monetary architecture, and formally verified consensus invariants.
         </p>
       </section>
 
       <section className="card prose-section">
-        <h2>What is AlphaPlus?</h2>
+        <h2>What is RIGOR?</h2>
         <p>
-          AlphaPlus is the official public name for this RIGOR chain. There is <strong>no premine</strong>.
-          Miners secure the ledger with PoW. ORU pays for execution. RES is issued only through
-          Convergence. The website is a read-only observer: tools, documentation, and an independent
-          verifier — not a marketing funnel.
+          RIGOR is a dual-asset UTXO protocol built on script-derived asset
+          classification, stateless monetary architecture, and formally verified
+          consensus invariants. ORU provides PoW security and fees. RES is
+          deterministically issued after protocol-defined Convergence conditions —
+          not mined. Script is the compliance/classification layer. There is no token
+          registry, account ledger, or global asset state. Invariants are properties
+          of the protocol model; the C++ node is not claimed equivalent
+          (<code>equivalence_claimed = false</code>).
         </p>
+        <pre className="pipeline-diagram">{`RIGOR =
+    Dual Native Assets
+  + UTXO Monetary Model
+  + Deterministic Issuance
+  + Deflationary Mechanisms
+  + Probabilistic Selection
+  + Adaptive Proof-of-Work
+  + Cryptographic Ownership
+
+equivalence_claimed = false`}</pre>
       </section>
 
-      <section className="grid-3 identity-grid">
-        <article className="card">
-          <h3>No premine</h3>
-          <p>Issuance follows frozen subsidy and mint rules. This site does not allocate coins.</p>
-        </article>
-        <article className="card">
-          <h3>PoW</h3>
-          <p>Mining finds valid headers and orders blocks. Pool policy cannot mint RES.</p>
-        </article>
-        <article className="card">
-          <h3>ORU</h3>
+      <SectionTitle>Core identity</SectionTitle>
+      <section className="identity-grid">
+        <DarkCard title="PoW" to="/mining" linkLabel="Mining">
+          <p>Miners find valid headers and order blocks. Pool policy cannot mint RES.</p>
+        </DarkCard>
+        <DarkCard title="ORU" to="/wallet/oru" linkLabel="Wallet · ORU">
           <p>Execution and fee resource. Terminal subsidy floor 125 = 5³.</p>
-        </article>
-        <article className="card">
-          <h3>RES</h3>
-          <p>Scarce settlement asset. Distinct from ORU. Conservation is per transition.</p>
-        </article>
-        <article className="card">
-          <h3>Convergence</h3>
+        </DarkCard>
+        <DarkCard title="RES" to="/wallet/res" linkLabel="Wallet · RES">
+          <p>Reserve asset. Deterministic issuance after Convergence — not mined. Capped supply.</p>
+        </DarkCard>
+        <DarkCard title="Convergence" to="/wallet/convergence" linkLabel="Wallet · Convergence">
           <p>Deterministic winner selection over committed set F — not a lottery UI.</p>
-        </article>
-        <article className="card">
-          <h3>Zero Trust</h3>
-          <p>
-            <Link to="/zero-trust-verification">Verify TXID or block hash</Link> in this browser.
-          </p>
-        </article>
+        </DarkCard>
+      </section>
+      <section className="identity-spotlight" aria-label="Zero Trust">
+        <DarkCard title="Zero Trust" to="/zero-trust-verification" linkLabel="Verify">
+          <p>Anyone can verify a TXID or block hash without trusting a server.</p>
+        </DarkCard>
       </section>
 
+      <section className="cta-row">
+        <Button to="/download">Download</Button>
+        <Button to="/zero-trust-verification">Verify independently</Button>
+        <Button to="/documentation">Documentation</Button>
+        <Button to="/documentation/formal-verification">Formal verification</Button>
+      </section>
+
+      <SectionTitle>Start in 30 seconds</SectionTitle>
       <section className="card prose-section">
-        <h2>Start in 30 seconds</h2>
         <ol className="journey-list">
           <li>
-            <Link to="/about">Understand AlphaPlus</Link>
+            <Link to="/about">Understand RIGOR</Link>
           </li>
           <li>
             <Link to="/download">Download wallet</Link> then <Link to="/download/miner">miner</Link>
           </li>
           <li>
-            <Link to="/mining/windows">Start mining</Link> and observe ORU in the{" "}
+            <Link to="/mining">Start mining</Link> and observe ORU in the{" "}
             <Link to="/wallet">wallet</Link>
           </li>
           <li>
@@ -79,39 +93,33 @@ export function LandingPage() {
       </section>
 
       <section className="card prose-section">
-        <h2>Official public surfaces</h2>
-        <p>
-          Download · Wallet · Mining · Explorer · Documentation ·{" "}
-          <Link to="/zero-trust-verification">Zero-Trust Verification ⭐</Link>
-        </p>
-        <p className="muted">
-          Explorer is a viewer. The verifier is an independent validation layer: the browser
-          recomputes AlphaPlus consensus outputs without trusting nodes, wallets, or APIs.
-        </p>
-      </section>
-
-      <section className="card prose-section">
         <h2>Experimental system overview</h2>
         <p>
-          RIGOR is a deterministic dual-asset protocol under live formal verification. It is{" "}
-          <em>not</em> presented as a finished cryptocurrency or production mainnet. Protocol rules are
-          frozen; runtime archive generation toward height 2,100,001 is ongoing and provisional.
+          Formal verification covers protocol-model invariants and a correspondence
+          boundary (golden vectors, differential gate). It is{" "}
+          <em>not</em> presented as a finished cryptocurrency, a refinement proof, or production
+          mainnet. Protocol rules are frozen; <span className="mono">equivalence_claimed = false</span>.
         </p>
       </section>
 
-      <h2 className="section-title">Three-layer model</h2>
+      <SectionTitle>Three-layer model</SectionTitle>
       <ThreeLayerModel />
 
       <section className="grid-3">
         <article className="card">
-          <h3>65536 principle</h3>
-          <p className="math-block">P(success) = 2<sup>−16</sup> = 1/65536</p>
-          <p>Hash-space bounded fairness via deterministic σ digest inequality.</p>
+          <h3>Shipping draw economics</h3>
+          <p className="math-block">
+            E = 246 · C = 1024 ORU / mint
+          </p>
+          <p className="muted">
+            Expected wins per committed ORU ≈ n / 1024. Historical RFC-014 parameter: 1/65536
+            (C = 65536 ORU) is not the shipping target.
+          </p>
         </article>
         <article className="card">
           <h3>125 convergence constant</h3>
           <p className="math-block">1000 → 500 → 250 → 125 = 5³</p>
-          <p>Terminal ORU subsidy floor — frozen protocol constant.</p>
+          <p className="muted">Terminal ORU subsidy floor — frozen protocol constant.</p>
         </article>
         <article className="card">
           <h3>Live observation</h3>
@@ -124,24 +132,6 @@ export function LandingPage() {
             <dd>IN_PROGRESS</dd>
           </dl>
         </article>
-      </section>
-
-      <section className="cta-row">
-        <Link to="/zero-trust-verification" className="btn-link">
-          Zero-Trust Verification ⭐
-        </Link>
-        <Link to="/download" className="btn-link">
-          Download
-        </Link>
-        <Link to="/explorer" className="btn-link">
-          Explorer
-        </Link>
-        <Link to="/documentation" className="btn-link">
-          Documentation
-        </Link>
-        <Link to="/status" className="btn-link">
-          PROOF-034 status
-        </Link>
       </section>
 
       <section className="pipeline-diagram mono">

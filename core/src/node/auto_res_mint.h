@@ -7,34 +7,20 @@
 
 #include <consensus/convergence_logic.h>
 #include <primitives/transaction.h>
-#include <uint256.h>
-
-#include <optional>
-#include <vector>
-
-class CCoinsViewCache;
-class CChainParams;
-class CScript;
-
-/** P2WSH(OP_TRUE) scriptPubKey funding deterministic auto-mint spends (mockable chains; height-1 coinbase vout). */
-const CScript& AutoResMintBootstrapScriptPubKey();
-
-/** One-shot ORU bootstrap for auto-mint funding at height 1 on mockable chains. */
-void AppendAutoResMintBootstrapCoinbaseVout(const CChainParams& params, int n_height, CMutableTransaction& coinbase);
 
 /**
  * SECURITY-001-A8: the mint a template must carry pays the draw committed by the parent block,
  * so the template builder consumes the parent's set rather than previewing a draw over the
- * transactions it is still choosing. Nothing here can influence the outcome; the only decision
- * left is whether to assemble the mint at all.
+ * transactions it is still choosing. Nothing here can influence the outcome.
  *
- * Returns nullopt when the parent awarded nobody, when the winner cannot be funded, or when
- * this node is not configured to assemble mints.
+ * Appends the OP_RES_MINT payout to `coinbase`. There is no funding input: the coinbase is
+ * authenticated by proof of work, and the prize, amount and payout program are all fixed by
+ * the parent. Returns false when there is no winner, when W(h) = 0, or when the winner's
+ * declaration is malformed.
  */
-std::optional<CMutableTransaction> TryCreateAutomaticResMintTx(const ConvergenceDrawSet& parent_draw_set,
+bool TryAppendCoinbaseResMint(CMutableTransaction& coinbase,
+    const ConvergenceDrawSet& parent_draw_set,
     const ConvergenceDrawOutcome& parent_outcome,
-    int block_height,
-    const CCoinsViewCache& assemble_view,
-    const CScript& mining_res_receive_script);
+    int block_height);
 
 #endif // BITCOIN_NODE_AUTO_RES_MINT_H

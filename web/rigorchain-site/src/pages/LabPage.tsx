@@ -42,7 +42,7 @@ export function LabPage() {
           <li>Deterministic transition: S<sub>t+1</sub> = F(S<sub>t</sub>, T<sub>t</sub>)</li>
           <li>UTXO integrity — no hidden state mutation</li>
           <li>Dual conservation (ORU + RES)</li>
-          <li>Probabilistic fairness: P = 1/65536 in hash space</li>
+          <li>Probabilistic fairness: E = 246, C = 1024 ORU per mint (≈ n / 1024)</li>
           <li>Convergence stability: terminal subsidy 125 = 5³</li>
           <li>equivalence_claimed = false (global invariant)</li>
         </ul>
@@ -56,7 +56,7 @@ export function LabPage() {
         <div className="tag-row">
           <span className="tag-chip">PROOF-034 (RUNNING)</span>
           <span className="tag-chip">RUNTIME-SOAK</span>
-          <span className="tag-chip">FORMAL-PROOF</span>
+          <span className="tag-chip">COQ-MODEL</span>
           <span className="tag-chip">VISUALIZATION</span>
         </div>
       </section>
@@ -99,7 +99,8 @@ export function LabPage() {
       </section>
 
       <p className="muted">
-        <Link to="/status">Live status</Link> · <Link to="/experiment">PROOF-034 details</Link>
+        <Link to="/status">Live status</Link> · <Link to="/experiment">PROOF-034 details</Link> ·{" "}
+        <Link to="/documentation/formal-verification">Formal verification freeze</Link>
       </p>
     </div>
   );

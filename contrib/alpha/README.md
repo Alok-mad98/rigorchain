@@ -51,7 +51,7 @@ contrib/alpha/run_uat_checklist.sh
 5. Start mining (`rigor-miner` or stack script)  
 6. Create CONVERGENCE  
 7. Wait W=32  
-8. Observe **100.00 RES minted** (or verified no-mint)  
+8. Observe **RES minted** at `GetResMintReward(h)` (genesis epoch: 40.000000 RES) or verified no-mint  
 9. Verify result in wallet / RPC  
 
 Harness evidence also covered by `contrib/testing/local_mainnet_simulation/run_full_acceptance.sh`.

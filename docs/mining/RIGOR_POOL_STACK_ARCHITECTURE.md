@@ -777,7 +777,7 @@ erDiagram
 | Source | Asset | In `coinbasevalue`? | Miner payout? |
 |--------|-------|---------------------|----------------|
 | Block subsidy + ORU fees | ORU | **YES** | **YES** (PPLNS) |
-| RES body mint (100 RES) | RES | **NO** | **NO** (pool treasury default) |
+| RES body mint (`GetResMintReward(h)`) | RES | **NO** | **NO** (pool treasury default) |
 | RES mempool fees (coinbase vout) | RES | **NO** | **NO** |
 
 ### 7.2 Model comparison

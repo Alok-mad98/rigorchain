@@ -302,7 +302,7 @@ BOOST_AUTO_TEST_CASE(cross_multiplication_no_overflow)
 BOOST_AUTO_TEST_CASE(inequality_holds_basic)
 {
     // RFC-014 Conv-Decouple-01: inequality RHS is the constitutional constant
-    // `RES_PROBABILITY_TARGET` = floor(2^240 / MIN_CONVERGENCE_AMOUNT) (SECURITY-001-A A-6).
+    // `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017 shipping).
     // This test does not use the BasicTestingSetup fixture, so the constant is read from
     // its definition rather than from Params().
     const uint256& T = Consensus::RES_PROBABILITY_TARGET_CONST;

@@ -1,7 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { injectSsrRoot, renderBlockRoot, renderStatusRoot, renderTxRoot } from "./uiSsr";
-import { CVG2_SCRIPT_LABEL } from "./txSummary";
+import { CONVERGENCE_LOCK_DESTINATION_LABEL } from "./txSummary";
+import { CONVERGENCE_OUTPUT_STATE, OP_CONVERGE_SCRIPT_NAME } from "./script";
 
 describe("uiSsr", () => {
   it("replaces the Loading placeholder with rendered block amounts", () => {
@@ -88,7 +89,7 @@ describe("uiSsr", () => {
           height: "305",
           hash: "award",
           res_minted_display: "0",
-          res_award_note: "100.00 RES paid in block 306",
+          res_award_note: "40.000000 RES paid in block 306",
           res_payout_block_hash: "payout306",
         },
         txs: [],
@@ -96,16 +97,16 @@ describe("uiSsr", () => {
       "award",
     );
     assert.match(html, /RES award/);
-    assert.match(html, /100\.00 RES paid in block 306/);
+    assert.match(html, /40\.000000 RES paid in block 306/);
     assert.match(html, /href="\/block\/payout306"/);
   });
 
-  it("labels a CVG2 output as an unspendable script, not a receiver", () => {
+  it("labels an OP_CONVERGE output as an unspendable burn, not a receiver", () => {
     const html = renderTxRoot(
       {
         summary: {
           sender: "rg1qk4v6avkzfu3rmzaph2jrhep8w4vvwj9xjrlpn9",
-          receiver: "rg1pgdtywvsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqp5565f",
+          receiver: null,
           amount_role: "convergence_lock",
           amount_display: "1000.00000000",
         },
@@ -114,14 +115,18 @@ describe("uiSsr", () => {
             vout_index: 0,
             asset_kind: "ORU",
             value_atoms: "100000000000",
-            witness_version: 1,
-            address: "rg1pgdtywvsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqp5565f",
+            witness_version: null,
+            address: null,
+            script_pubkey: "14" + "00".repeat(20) + "bd",
+            is_convergence: true,
           },
         ],
       },
       "6383575272fbc1a5d78ae2ea8ece4ce714e1aa3ee692f441b2a53d83e9140f2d",
     );
-    assert.match(html, new RegExp(CVG2_SCRIPT_LABEL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(html, new RegExp(CONVERGENCE_LOCK_DESTINATION_LABEL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(html, new RegExp(OP_CONVERGE_SCRIPT_NAME));
+    assert.match(html, new RegExp(CONVERGENCE_OUTPUT_STATE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.doesNotMatch(html, /<th>Receiver<\/th>/);
     assert.match(html, /<th>Amount<\/th>/);
     assert.match(html, /Draw Fingerprint/);
@@ -153,5 +158,59 @@ describe("uiSsr", () => {
     assert.doesNotMatch(html, /draw_candidate_root_computed/);
     assert.doesNotMatch(html, /\|F\| distribution/);
     assert.doesNotMatch(html, /04644ee72744a48d/);
+  });
+
+  it("renders Convergence destroyed, RFC-018 fee burn, and circulating as separate S4 rows", () => {
+    const html = renderStatusRoot({
+      chain_identity: {},
+      block_health: {},
+      convergence_health: {},
+      economic_snapshot: {
+        network_res_minted_display: "40.000000 RES",
+        oru_supply_cumulative_display: "1000.00000000 ORU",
+        cumulative_convergence_display: "12.00000000 ORU",
+        oru_circulating_spendable_display: "980.00000000 ORU",
+        rfc018_fee_burn: {
+          block_burned_oru: "500",
+          cumulative_burned_oru: "1500",
+          cumulative_burned_oru_display: "0.00001500 ORU",
+        },
+        supply_chart: {
+          total_issued_oru: { display: "1250.00000000 ORU" },
+        },
+      },
+      mining_activity: {},
+      system_integrity: { explorer_compliance: {} },
+    });
+    assert.match(html, /Total issued ORU/);
+    assert.match(html, /1250\.00000000 ORU/);
+    assert.match(html, /Convergence destroyed ORU/);
+    assert.match(html, /12\.00000000 ORU/);
+    assert.match(html, /Deflationary Fee Burn ORU/);
+    assert.match(html, /0\.00001500 ORU/);
+    assert.match(html, /Circulating spendable ORU/);
+    assert.match(html, /980\.00000000 ORU/);
+    assert.doesNotMatch(html, /ORU burned \(lifetime\)/);
+  });
+
+  it("renders per-block RFC-018 fee burn on the block page without merging Convergence", () => {
+    const html = renderBlockRoot(
+      {
+        block: { height: "10", block_hash: "bb" },
+        summary: { height: "10", hash: "bb", oru_subsidy_display: "50.00000000" },
+        rfc018_fee_burn: {
+          block_burned_oru: "500",
+          cumulative_burned_oru: "1500",
+          block_burned_oru_display: "0.00000500 ORU",
+          cumulative_burned_oru_display: "0.00001500 ORU",
+        },
+        txs: [],
+      },
+      "bb",
+    );
+    assert.match(html, /Deflationary Fee Burn \(this block\)/);
+    assert.match(html, /0\.00000500 ORU/);
+    assert.match(html, /Deflationary Fee Burn \(cumulative\)/);
+    assert.match(html, /0\.00001500 ORU/);
   });
 });

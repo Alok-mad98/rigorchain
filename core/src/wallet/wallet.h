@@ -577,7 +577,7 @@ public:
     void blockDisconnected(const interfaces::BlockInfo& block) override;
     void updatedBlockTip() override;
 
-    /** CONVERGENCE_STATE_MACHINE_V2: draw result + RES maturity promotion (see convergencestate.h). */
+    /** Convergence draw result + RES maturity promotion (see convergencestate.h). */
     void UpdateConvergenceStateForBlock(const interfaces::BlockInfo& block) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     /** WALLET_EXTREME_SAFETY_V1: revert convergence metadata when a block is disconnected (reorg). */
     void UpdateConvergenceStateOnDisconnect(const interfaces::BlockInfo& block) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
@@ -853,13 +853,18 @@ public:
 
     /**
      * RIGOR UX: true when active ORU (BECH32 / wpkh) ScriptPubKeyMans are ranged HD.
-     * Independent of wallet-wide IsHDEnabled(), which is false when RES single-slot SPKMs are active.
      */
     bool IsOruHDEnabled() const;
 
     /**
-     * RIGOR UX: true when active RES (BECH32M / res()) ScriptPubKeyMans use dedicated non-ranged keys.
-     * Intentional dual-asset model — not “HD disabled”.
+     * RIGOR UX: true when active RES (BECH32M / res()) ScriptPubKeyMans are ranged HD
+     * (hardened-only SLIP-0010; default receive/change wildcard paths).
+     */
+    bool IsResHDEnabled() const;
+
+    /**
+     * RIGOR UX: true when active RES (BECH32M / res()) ScriptPubKeyMans use dedicated
+     * non-ranged keys (imported res(<32-byte hex> / secret), not the default HD wallet).
      */
     bool IsResDedicatedKeyMode() const;
 

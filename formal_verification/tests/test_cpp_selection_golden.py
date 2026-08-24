@@ -43,8 +43,8 @@ def test_single_tx_winner():
         height=1,
         prev_hex="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         target_hex="ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        expected_c_hex=None,
-        expected_sigma_hex=['30f0b752feab4e693dfabc7ec970f5fb7f2188585f14f4076a1cea0393406a1c'],
+        expected_c_hex="6dc8daeb8077a87be2712c5c8cceeed7a2d2e20c8b2e33adfefabccb32877a4d",
+        expected_sigma_hex=['2d28080da537ba65fee631d7b68207599d3c08f2b7cfed007dde7495bc930b09'],
         expected_eligible=[True],
         expected_winner=0,
     )

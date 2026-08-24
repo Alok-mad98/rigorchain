@@ -128,7 +128,8 @@ public:
      */
     bool SignCompact(const uint256& hash, std::vector<unsigned char>& vchSig) const;
 
-    //! Derive BIP32 child key.
+    //! Derive a hardened BIP32 child (SLIP-0010). Non-hardened indices fail closed:
+    //! Ed25519 public derivation would make the child seed a function of the xpub.
     [[nodiscard]] bool Derive(CKey& keyChild, ChainCode &ccChild, unsigned int nChild, const ChainCode& cc) const;
 
     /**

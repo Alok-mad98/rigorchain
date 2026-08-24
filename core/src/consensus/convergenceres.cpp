@@ -10,6 +10,7 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <script/interpreter.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
@@ -40,17 +41,16 @@ uint256 InitialResDrawTarget(const Params& consensusParams)
 
 const CScript& ConvergenceOutputScript()
 {
-    static const std::vector<unsigned char> kDefaultconvergenceProgram = [] {
-        std::vector<unsigned char> p(32, 0x00);
-        // MUST match RigorTags::CVG2 prefix — `MatchCvg2WitnessScript` / RFC-000 §13 CVG2 container.
-        p[0] = 0x43; // C
-        p[1] = 0x56; // V
-        p[2] = 0x47; // G
-        p[3] = 0x32; // 2
-        return p;
+    static const CScript script = [] {
+        std::vector<unsigned char> program(32, 0xa1);
+        return GetConvergeScriptForProgram(program);
     }();
-    static const CScript script = CScript() << OP_1 << kDefaultconvergenceProgram;
     return script;
+}
+
+CScript ConvergenceOutputScript(const uint160& owner_hash160)
+{
+    return GetConvergeScript(owner_hash160);
 }
 
 bool IsConvergenceOutputScript(const CScript& script)

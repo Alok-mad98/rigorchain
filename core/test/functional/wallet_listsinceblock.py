@@ -398,19 +398,25 @@ class ListSinceBlockTest(BitcoinTestFramework):
         """Make sure we can track coins by descriptor."""
         self.log.info("Test descriptor lookup by scriptPubKey.")
 
-        # Create a watchonly wallet tracking two multisig descriptors.
-        multi_a = descsum_create("wsh(multi(1,tpubD6NzVbkrYhZ4YBNjUo96Jxd1u4XKWgnoc7LsA1jz3Yc2NiDbhtfBhaBtemB73n9V5vtJHwU6FVXwggTbeoJWQ1rzdz8ysDuQkpnaHyvnvzR/*,tpubD6NzVbkrYhZ4YHdDGMAYGaWxMSC1B6tPRTHuU5t3BcfcS3nrF523iFm5waFd1pP3ZvJt4Jr8XmCmsTBNx5suhcSgtzpGjGMASR3tau1hJz4/*))")
-        multi_b = descsum_create("wsh(multi(1,tpubD6NzVbkrYhZ4YHdDGMAYGaWxMSC1B6tPRTHuU5t3BcfcS3nrF523iFm5waFd1pP3ZvJt4Jr8XmCmsTBNx5suhcSgtzpGjGMASR3tau1hJz4/*,tpubD6NzVbkrYhZ4Y2RLiuEzNQkntjmsLpPYDm3LTRBYynUQtDtpzeUKAcb9sYthSFL3YR74cdFgF5mW8yKxv2W2CWuZDFR2dUpE5PF9kbrVXNZ/*))")
+        # Watch-only wallets cannot expand hardened BIP32 from tpub. Track two
+        # concrete addresses derived from a private descriptor on the node.
+        tprv = "tprv8ZgxMBicQKsPd7Uf69XL1XwhmjHopUGep8GuEiJDZmbQz6o58LninorQAfcKZWARbtRtfnLcJ5MQ2AtHcQJCCRUcMRvmDUjyEmNUWwx8UbK"
+        desc_a = descsum_create(f"wpkh({tprv}/0h/0h/0h)")
+        desc_b = descsum_create(f"wpkh({tprv}/1h/0h/0h)")
+        addr_a = self.nodes[0].deriveaddresses(desc_a)[0]
+        addr_b = self.nodes[0].deriveaddresses(desc_b)[0]
+        watch_a = descsum_create(f"addr({addr_a})")
+        watch_b = descsum_create(f"addr({addr_b})")
         self.nodes[0].createwallet(wallet_name="wo", descriptors=True, disable_private_keys=True)
         wo_wallet = self.nodes[0].get_wallet_rpc("wo")
         wo_wallet.importdescriptors([
             {
-                "desc": multi_a,
+                "desc": watch_a,
                 "active": False,
                 "timestamp": "now",
             },
             {
-                "desc": multi_b,
+                "desc": watch_b,
                 "active": False,
                 "timestamp": "now",
             },
@@ -418,8 +424,6 @@ class ListSinceBlockTest(BitcoinTestFramework):
 
         # Send a coin to each descriptor.
         assert_equal(len(wo_wallet.listsinceblock()["transactions"]), 0)
-        addr_a = self.nodes[0].deriveaddresses(multi_a, 0)[0]
-        addr_b = self.nodes[0].deriveaddresses(multi_b, 0)[0]
         self.nodes[2].sendtoaddress(addr_a, 1)
         self.nodes[2].sendtoaddress(addr_b, 2)
         self.generate(self.nodes[2], 1)
@@ -428,9 +432,9 @@ class ListSinceBlockTest(BitcoinTestFramework):
         coins = wo_wallet.listsinceblock()["transactions"]
         assert_equal(len(coins), 2)
         coin_a = next(c for c in coins if c["amount"] == 1)
-        assert_equal(coin_a["parent_descs"][0], multi_a)
+        assert_equal(coin_a["parent_descs"][0], watch_a)
         coin_b = next(c for c in coins if c["amount"] == 2)
-        assert_equal(coin_b["parent_descs"][0], multi_b)
+        assert_equal(coin_b["parent_descs"][0], watch_b)
 
     def test_send_to_self(self):
         """We can make listsinceblock output our change outputs."""

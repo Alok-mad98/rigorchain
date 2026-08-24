@@ -48,7 +48,7 @@
 | Header | txid (large), wtxid (small, labeled), block link, confirmations |
 | Inputs/outputs | Values with ORU/RES tags |
 | Witness panel | For v1 RES: 2-item key-path (the only RES spend path since A-7). For a RES mint's ORU funding input: 6-item PCORB table |
-| Convergence | If CVG2: convergence fee amount, link to convergence lineage |
+| Convergence | If `OP_CONVERGE`: burn amount, Script `OP_CONVERGE`, Asset ORU, State unspendable burn / draw participation; link to convergence lineage |
 | Mint proof | If RES mint: replay binding sidebar |
 
 **Reject:** `/tx/{wtxid}` routes without redirect to txid.

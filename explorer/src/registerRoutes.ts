@@ -112,11 +112,24 @@ export function registerApiRoutes(app: Express, pool: Pool, config: Config): voi
         `
           SELECT
             (SELECT cumulative_convergence FROM blocks WHERE height = $1 LIMIT 1) AS cumulative_convergence,
-            (SELECT COALESCE(SUM(mint_amount),0) FROM res_mints rm JOIN blocks b ON b.block_hash = rm.block_hash WHERE b.height <= $1) AS res_mint_total_atoms
+            (SELECT COALESCE(SUM(mint_amount),0) FROM res_mints rm JOIN blocks b ON b.block_hash = rm.block_hash WHERE b.height <= $1) AS res_mint_total_atoms,
+            (SELECT burned_oru::text FROM rfc018_fee_burn_stats WHERE height = $1 LIMIT 1) AS rfc018_block_burned_oru,
+            (SELECT cumulative_burned_oru::text FROM rfc018_fee_burn_stats WHERE height = $1 LIMIT 1) AS rfc018_cumulative_burned_oru
         `,
         [chain.last_height],
       );
-      res.json({ chain_state: chain, stats: stats.rows[0] ?? {} });
+      const row = stats.rows[0] ?? {};
+      const blockBurn = row.rfc018_block_burned_oru != null ? String(row.rfc018_block_burned_oru) : "0";
+      const cumBurn = row.rfc018_cumulative_burned_oru != null ? String(row.rfc018_cumulative_burned_oru) : "0";
+      res.json({
+        chain_state: chain,
+        stats: row,
+        rfc018_fee_burn: {
+          block_burned_oru: blockBurn,
+          cumulative_burned_oru: cumBurn,
+          indexed: row.rfc018_block_burned_oru != null,
+        },
+      });
     });
   };
 
