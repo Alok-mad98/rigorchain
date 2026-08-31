@@ -68,7 +68,7 @@ REJECT_BAD_CONVERGENCE_MISSING = "bad-convergence-missing"
 # RIGOR / convergence helpers (``compute_convergence_hash`` from ``rigor_model``)
 # ---------------------------------------------------------------------------
 def build_rigor_commitment(_winner_unused: bytes, res_draw_target_nbits: int):
-    """``OP_RETURN`` payload ``RIGOR`` + uint32 LE compact draw target (8 bytes; winner binds in RES2 claim witness)."""
+    """``RIGOR_MARKER_RETURN`` payload ``RIGOR`` + uint32 LE compact draw target (8 bytes; winner binds in RES2 claim witness)."""
     return make_rigor_commitment_script(int(res_draw_target_nbits) & 0xFFFFFFFF)
 
 
@@ -81,32 +81,32 @@ def gfr_res_probability_target_hex(fr: dict) -> str:
 
 
 def _conv_payload_bounds(conv_script_hex: str):
-    """Return ``(raw_bytearray, payload_start, payload_end)`` for CVGE v2 OP_RETURN push.
+    """Return ``(raw_bytearray, payload_start, payload_end)`` for CVGE v2 RIGOR_MARKER_RETURN push.
 
-    ``convergenceCommitmentScript`` uses ``CScript() << OP_RETURN << payload``; for a 45-byte payload
-    Bitcoin uses a direct push (opcode ``0x2d``), not ``OP_PUSHDATA1``. Accept both encodings.
+    ``convergenceCommitmentScript`` uses ``CScript() << RIGOR_MARKER_RETURN << payload``; for a 45-byte payload
+    Bitcoin uses a direct push (opcode ``0x2d``), not ``RIGOR_PUSHDATA1``. Accept both encodings.
     """
     raw = bytearray(bytes.fromhex(conv_script_hex))
-    assert raw[0] == 0x6A  # OP_RETURN
+    assert raw[0] == 0x6A  # RIGOR_MARKER_RETURN
     i = 1
     op = raw[i]
-    OP_PUSHDATA1 = 0x4C
-    OP_PUSHDATA2 = 0x4D
-    OP_PUSHDATA4 = 0x4E
-    if op < OP_PUSHDATA1:
+    RIGOR_PUSHDATA1 = 0x4C
+    RIGOR_PUSHDATA2 = 0x4D
+    RIGOR_PUSHDATA4 = 0x4E
+    if op < RIGOR_PUSHDATA1:
         ln = op
         start = i + 1
-    elif op == OP_PUSHDATA1:
+    elif op == RIGOR_PUSHDATA1:
         ln = raw[i + 1]
         start = i + 2
-    elif op == OP_PUSHDATA2:
+    elif op == RIGOR_PUSHDATA2:
         ln = int.from_bytes(raw[i + 1 : i + 3], "little")
         start = i + 3
-    elif op == OP_PUSHDATA4:
+    elif op == RIGOR_PUSHDATA4:
         ln = int.from_bytes(raw[i + 1 : i + 5], "little")
         start = i + 5
     else:
-        raise AssertionError(f"unexpected push opcode after OP_RETURN: 0x{op:02x}")
+        raise AssertionError(f"unexpected push opcode after RIGOR_MARKER_RETURN: 0x{op:02x}")
     assert ln == 45, f"CVGE v2 payload must be 45 bytes, got push len {ln}"
     return raw, start, start + ln
 
@@ -476,7 +476,7 @@ class RigorAttackBlocksTest(BitcoinTestFramework):
     # Case 3 — RIGOR commitment output missing (non-genesis chain)
     # -----------------------------------------------------------------------
     def case_03_bad_rigor_commitment_missing(self, node, tpl, res_a, res_b):
-        self.log.info("Case 3: omit RIGOR OP_RETURN → %s", REJECT_BAD_RIGOR_COMMITMENT_MISSING)
+        self.log.info("Case 3: omit RIGOR RIGOR_MARKER_RETURN → %s", REJECT_BAD_RIGOR_COMMITMENT_MISSING)
         b = self._assemble_attack_block(node, tpl, res_a, res_b, commitment=None)
         solve_block_opus(b)
         self._assert_rejected_exact(node, b, REJECT_BAD_RIGOR_COMMITMENT_MISSING)
@@ -485,8 +485,8 @@ class RigorAttackBlocksTest(BitcoinTestFramework):
     # Case 4 — CVGE output missing / not parseable (ContextualCheckBlock)
     # -----------------------------------------------------------------------
     def case_04_bad_convergence_missing(self, node, tpl, res_a, res_b):
-        self.log.info("Case 4: replace CVGE with minimal OP_RETURN → %s", REJECT_BAD_CONVERGENCE_MISSING)
-        bad_conv = bytes.fromhex("6a0100")  # OP_RETURN OP_0
+        self.log.info("Case 4: replace CVGE with minimal RIGOR_MARKER_RETURN → %s", REJECT_BAD_CONVERGENCE_MISSING)
+        bad_conv = bytes.fromhex("6a0100")  # RIGOR_MARKER_RETURN RIGOR_PUSH_0
         b = self._assemble_attack_block(node, tpl, res_a, res_b, cvge_script_pubkey=bad_conv)
         solve_block_opus(b)
         self._assert_rejected_exact(node, b, REJECT_BAD_CONVERGENCE_MISSING)

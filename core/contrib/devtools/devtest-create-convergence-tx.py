@@ -8,6 +8,7 @@ Uses ``createrawtransaction`` with a ``script`` output for the OP_CONVERGE lock
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from decimal import Decimal, ROUND_DOWN
@@ -20,7 +21,15 @@ OP_CONVERGE = 0xBD
 
 def hash160(data: bytes) -> bytes:
     sha = hashlib.sha256(data).digest()
-    return hashlib.new("ripemd160", sha).digest()
+    try:
+        return hashlib.new("ripemd160", sha).digest()
+    except ValueError:
+        # OpenSSL 3 does not enable RIPEMD-160 in the default provider.
+        functional = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "test", "functional"))
+        if functional not in sys.path:
+            sys.path.insert(0, functional)
+        from test_framework.ripemd160 import ripemd160
+        return ripemd160(sha)
 
 
 def make_converge_script_hex(program_32: Optional[bytes] = None) -> str:

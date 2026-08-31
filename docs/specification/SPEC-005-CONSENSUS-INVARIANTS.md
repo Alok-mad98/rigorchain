@@ -322,8 +322,8 @@ violates argmin / tie-break rules.
 `C = 1024` ORU per mint). Historical RFC-014 parameter: `2^240`. It MUST NOT be derived from PoW difficulty,
 header `nBits`, ASERT state, or any variable consensus quantity.
 
-SUPERSEDED by SECURITY-001-A8: `target_prev` is no longer a σ input. Historically, PoW-derived `target_prev` was permitted only inside `bind_commit` for replay
-binding.
+SUPERSEDED by SECURITY-001-A8: `target_prev` is no longer a σ input. Historical
+Sigma-CR-01 `bind_commit` is deleted.
 
 **Failure condition:** Eligibility or winner predicates use PoW difficulty as the
 inequality right-hand side (variable-T or dual-T).
@@ -355,9 +355,10 @@ or with draw predicates failed.
 
 **Statement:** All validation predicates use only the immutable constitutional
 constant set frozen at mainnet genesis. Parameters including
-`RES_PROBABILITY_TARGET`, `k = 10`, RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`,
-draw gate `|F| ≥ 1`, bootstrap bind hash, and genesis-only activation MUST NOT
-change without Level-5 governance.
+`RES_PROBABILITY_TARGET`, `CONVERGENCE_DRAW_WINDOW = 32`, RFC-017 `W(k)` /
+`GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`, Sigma-PoW-01 parent
+hash σ seed, and genesis-only activation MUST NOT change without Level-5
+governance. Historical `k = 10` / `bind_commit` are superseded.
 
 **Failure condition:** A validator accepts a block using a non-frozen parameter
 value or deprecated pre-freeze constant set.

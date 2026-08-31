@@ -147,10 +147,8 @@ void StartWallets(WalletContext& context, CScheduler& scheduler)
         pwallet->postInitProcess();
     }
 
-    // Schedule periodic wallet flushes and tx rebroadcasts
-    if (context.args->GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET)) {
-        scheduler.scheduleEvery([&context] { MaybeCompactWalletDB(context); }, std::chrono::milliseconds{500});
-    }
+    // Schedule periodic tx rebroadcasts. SQLite commits on every batch, so
+    // there is no separate flush/compact pass to schedule.
     scheduler.scheduleEvery([&context] { MaybeResendWalletTxs(context); }, 1min);
 }
 

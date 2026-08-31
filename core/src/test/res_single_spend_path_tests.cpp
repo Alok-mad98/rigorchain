@@ -31,7 +31,7 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <script/rigor_tags.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
@@ -74,7 +74,7 @@ CScriptWitness MakeRemovedPcorbScriptPathWitness(const std::vector<unsigned char
     wit.stack.emplace_back(32, 0x33);          // convergence_root
     wit.stack.emplace_back(ed25519::SIGNATURE_SIZE, 0x44); // σ signature
     wit.stack.push_back(ed_pk32);              // pubkey, formerly required to equal the program
-    const CScript leaf = CScript() << OP_1;    // the leaf the removed branch demanded
+    const CScript leaf = CScript() << RIGOR_PUSH_1;    // the leaf the removed branch demanded
     wit.stack.emplace_back(leaf.begin(), leaf.end());
     wit.stack.emplace_back(32, 0x00);          // reserved
     wit.stack.emplace_back(64, 0x00);          // reserved
@@ -124,11 +124,11 @@ BOOST_AUTO_TEST_CASE(script_rejects_removed_pcorb_script_path_even_with_matching
     spend.vin[0].scriptWitness = MakeRemovedPcorbScriptPathWitness(program);
 
     ScriptError err = SCRIPT_ERR_OK;
-    const bool ok = VerifyScript(spend.vin[0].scriptSig,
+    const bool ok = VerifyRigorPredicate(spend.vin[0].scriptSig,
         prev_spk,
         &spend.vin[0].scriptWitness,
-        SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS,
-        MutableTransactionSignatureChecker(&spend, 0, txCredit.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL),
+        SCRIPT_VERIFY_WITNESS,
+        MutableTransactionSignatureChecker(&spend, 0, txCredit.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK(!ok);
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
@@ -149,14 +149,14 @@ BOOST_AUTO_TEST_CASE(relay_accepts_key_path_two_item_witness)
 
     CMutableTransaction spend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
     CScriptWitness wit;
-    wit.stack.emplace_back(ed25519::SIGNATURE_SIZE + 1, 0x42); // detached sig + hashtype
+    wit.stack.emplace_back(ed25519::SIGNATURE_SIZE, 0x42); // detached 64-byte Ed25519 sig
     wit.stack.push_back(spend_sk.GetPubKey().GetEd25519Payload());
     spend.vin[0].scriptWitness = std::move(wit);
 
     BOOST_CHECK(IsWitnessStandard(CTransaction(spend), coins));
 }
 
-BOOST_AUTO_TEST_CASE(v1_program_is_sha256_of_pubkey)
+BOOST_AUTO_TEST_CASE(v1_program_is_the_pubkey)
 {
     CKey spend_sk;
     CScript prev_spk;
@@ -164,10 +164,10 @@ BOOST_AUTO_TEST_CASE(v1_program_is_sha256_of_pubkey)
     const std::vector<unsigned char> pk32 = spend_sk.GetPubKey().GetEd25519Payload();
     std::vector<unsigned char> program;
     BOOST_REQUIRE(Consensus::DeriveResWitnessProgramFromPubKey(spend_sk.GetPubKey(), program));
-    BOOST_CHECK(program != pk32);
-    uint256 hashed;
-    BOOST_REQUIRE(ed25519::ResWitnessProgram(pk32, Span<unsigned char>{hashed.begin(), 32}));
-    BOOST_CHECK(std::equal(program.begin(), program.end(), hashed.begin()));
+    BOOST_CHECK(program == pk32);
+    uint256 copied;
+    BOOST_REQUIRE(ed25519::ResWitnessProgram(pk32, Span<unsigned char>{copied.begin(), 32}));
+    BOOST_CHECK(std::equal(program.begin(), program.end(), copied.begin()));
 
     int wver = 0;
     std::vector<unsigned char> wprog;

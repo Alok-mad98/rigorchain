@@ -91,16 +91,18 @@ class AddressTypeTest(BitcoinTestFramework):
 
         self.log.info("RPC rejects legacy and p2sh-segwit address types")
         for addr_type in ("legacy", "p2sh-segwit"):
+            # ParseOutputType does not accept these names; the wallet reports them as
+            # unknown rather than the older "disabled on RigorChain" parameter error.
             assert_raises_rpc_error(
-                -8,
-                "disabled on RigorChain",
+                -5,
+                "Unknown address type",
                 self.nodes[0].getnewaddress,
                 "",
                 addr_type,
             )
             assert_raises_rpc_error(
-                -8,
-                "disabled on RigorChain",
+                -5,
+                "Unknown address type",
                 self.nodes[0].getrawchangeaddress,
                 addr_type,
             )

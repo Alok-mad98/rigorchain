@@ -11,15 +11,17 @@
 # Environment:
 #   COQ=1               also compile Kernel/NegativeCoreHarness.v + Kernel/GoldenHarness.v (requires coqc 8.15)
 #   EXTRACT=1           re-extract the OCaml hash kernel (requires coqc + ocamlopt)
-#   TEST_BITCOIN=path   Boost suites; default core/src/test/test_bitcoin if executable
-#   SKIP_TEST_BITCOIN=1 do not run test_bitcoin (portable CLI still covers CSHA256)
+#   TEST_RIGOR=path     Boost suites; default core/src/test/test_rigor if executable
+#                       (TEST_BITCOIN remains a one-release alias)
+#   SKIP_TEST_RIGOR=1   do not run test_rigor (portable CLI still covers CSHA256)
+#                       (SKIP_TEST_BITCOIN remains a one-release alias)
 #
 # Coverage (hash / σ / root):
-#   Step 2b golden lock  = pinned 422/215 + NegativeCore/InvalidCvg/ScriptMintNeg/DCR-neg/EdgeCross + surface_splits
+#   Step 2b golden lock  = pinned 433/226 + NegativeCore/InvalidCvg/ScriptMintNeg/ScriptAsset/DCR-neg/EdgeCross + surface_splits
 #   Step 3 portable CLI  = authoritative CSHA256 Transform / FIPS / HashKernel check
 #   Step 4 σ/root CLI    = production ComputeSigmaHash + ComputeConvergenceRootFromEligibilityTxids
-#   test_bitcoin         = BOOST integration (encoder, σ, A-9-C hex, optional FIPS)
-#   STALE binary warning = BOOST lacks sha256_fips_golden; rebuild test_bitcoin
+#   test_rigor           = BOOST integration (encoder, σ, A-9-C hex, optional FIPS)
+#   STALE binary warning = BOOST lacks sha256_fips_golden; rebuild test_rigor
 #
 # Status: docs/verification/FV-RELEASE-CHECKLIST.md (gate internals: FORMAL-VERIFICATION-STATUS.md)
 set -euo pipefail
@@ -90,7 +92,7 @@ fi
 echo "generated artifacts match working tree"
 cov "Generated artifacts match working tree: PASS"
 python3 "$ROOT/formal_verification/scripts/check_golden_lock.py"
-cov "Golden lock (422/215 + NegativeCore/InvalidCvg/ScriptMintNeg/DCR-neg/EdgeCross + surface_splits): PASS"
+cov "Golden lock (433/226 + NegativeCore/InvalidCvg/ScriptMintNeg/ScriptAsset/DCR-neg/EdgeCross + surface_splits): PASS"
 
 echo "== 3. Tripartite hash: portable C++ CSHA256 vs hashlib vs extracted Coq =="
 if command -v g++ >/dev/null || command -v c++ >/dev/null; then
@@ -107,6 +109,7 @@ if [[ "${EXTRACT:-0}" == "1" ]]; then
     exit 1
   fi
   bash "$ROOT/formal_verification/scripts/extract_hash_kernel.sh"
+  bash "$ROOT/formal_verification/scripts/extract_classify_supply.sh"
 fi
 if [[ -x "$EXTRACTED" ]]; then
   :
@@ -123,7 +126,94 @@ if [[ -x "$EXTRACTED" ]]; then
 else
   cov "Hash check (C++ CLI + hashlib; extracted Coq absent): PASS"
 fi
-echo "    Hash FIPS / CSHA256 for this gate: portable CLI above (not SIMD, not test_bitcoin)."
+echo "    Hash FIPS / CSHA256 for this gate: portable CLI above (not SIMD, not test_rigor)."
+
+echo "== 3b. Level 1/2 classify / sighash layout / supply shadow =="
+if command -v g++ >/dev/null || command -v c++ >/dev/null; then
+  bash "$ROOT/formal_verification/scripts/build_cpp_classify_cli.sh"
+else
+  echo "FAIL: g++/c++ required to build the C++ classify CLI"
+  exit 1
+fi
+if [[ "${EXTRACT:-0}" != "1" ]]; then
+  if ! command -v ocamlopt >/dev/null; then
+    echo "FAIL: ocamlopt required to build classify/supply/sighash CLIs from committed kernels"
+    exit 1
+  fi
+  for k in classify_kernel.ml supply_kernel.ml sighash_kernel.ml \
+           classify_cli.ml supply_cli.ml sighash_cli.ml; do
+    if [[ ! -f extracted/$k ]]; then
+      echo "FAIL: extracted/$k missing (committed extraction)"
+      exit 1
+    fi
+  done
+  echo "building classify/supply/sighash CLIs from committed extraction"
+  (cd extracted && rm -f classify_kernel.mli supply_kernel.mli sighash_kernel.mli \
+    && ocamlopt -w -3 -o classify_cli classify_kernel.ml classify_cli.ml \
+    && ocamlopt -w -3 -o supply_cli supply_kernel.ml supply_cli.ml \
+    && ocamlopt -w -3 -o sighash_cli sighash_kernel.ml sighash_cli.ml)
+fi
+for cli in classify_cli supply_cli sighash_cli cpp_classify_cli; do
+  if [[ ! -x extracted/$cli ]]; then
+    echo "FAIL: extracted/$cli is not executable"
+    exit 1
+  fi
+done
+python3 tests/classify_triple_diff.py
+python3 tests/sighash_preimage_diff.py
+python3 tests/supply_shadow_diff.py
+cov "Level 1/2 classify/sighash/supply (C++ + Python + extracted Coq): PASS"
+
+echo "== 3c. Consensus Kernel extracted oracle ↔ C++ Kernel (P050/P051/P052/P053) =="
+if [[ -x extracted/consensus_kernel_cli && -x extracted/cpp_consensus_kernel_cli ]]; then
+  python3 tests/test_consensus_kernel_extraction.py
+  python3 tests/test_consensus_kernel_production_integration.py
+  python3 tests/test_consensus_kernel_bridge.py
+  python3 "$ROOT/tools/lint-consensus-kernel-production-source.py"
+  if [[ -x extracted/consensus_kernel_refinement_cli ]]; then
+    python3 "$ROOT/tools/run_consensus_kernel_refinement.py"
+  else
+    echo "P053 refinement CLI absent (run formal_verification/run_consensus_kernel_refinement_gate.sh)"
+  fi
+  python3 "$ROOT/tools/lint-consensus-kernel-c-api.py"
+  python3 "$ROOT/tools/lint-consensus-kernel-single-authority.py"
+  python3 "$ROOT/tools/lint-consensus-kernel-shadow.py"
+  python3 "$ROOT/tools/run_consensus_kernel_shadow.py"
+  bash "$ROOT/formal_verification/run_consensus_kernel_formal_refinement.sh"
+  bash "$ROOT/formal_verification/run_connectblock_kernel_boundary.sh"
+  bash "$ROOT/formal_verification/run_transaction_kernel_refinement.sh"
+  bash "$ROOT/formal_verification/run_consensus_surface_closure.sh"
+  if [[ -x extracted/consensus_kernel_c_cli && -x extracted/consensus_kernel_c_abi_cli ]]; then
+    python3 "$ROOT/formal_verification/test_consensus_kernel_c_abi.py"
+  else
+    echo "P053 C ABI CLIs absent (run formal_verification/extract_consensus_kernel_c.sh)"
+  fi
+  cov "Consensus Kernel oracle differential + production source lint: PASS"
+else
+  echo "skipped (run formal_verification/extract_consensus_kernel.sh first)"
+  cov "Consensus Kernel oracle differential: SKIP (CLIs absent)"
+fi
+
+echo "== 3d. Consensus Kernel governance authority lock (P060) =="
+python3 "$ROOT/tools/lint-consensus-authority.py"
+cov "Consensus Kernel governance authority lock: PASS"
+
+echo "== 3e. Consensus Kernel mainnet release-build audit (P061) =="
+python3 "$ROOT/tools/audit-consensus-release-build.py"
+cov "Consensus Kernel mainnet release-build audit: PASS"
+
+echo "== 3f. Consensus Kernel audit-scope lock (P062) =="
+python3 "$ROOT/tools/lint-audit-scope.py"
+cov "Consensus Kernel audit-scope lock: PASS"
+
+echo "== 3g. UTXO ledger transition boundary (P063) =="
+python3 "$ROOT/tools/lint-ledger-kernel-boundary.py"
+cov "UTXO ledger transition boundary: PASS"
+echo "    fuzz ≠ theorem ≠ refinement. refinement_proved stays false."
+
+echo "== 3h. UTXO state-transition boundary (P065) =="
+python3 "$ROOT/tools/lint-utxo-state-transition-boundary.py"
+cov "UTXO state-transition boundary: PASS"
 
 echo "== 4. Portable σ / ConvergenceRoot CLI vs golden families =="
 if command -v g++ >/dev/null || command -v c++ >/dev/null; then
@@ -158,34 +248,40 @@ else
   cov "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v: SKIP (COQ=1 to compile)"
 fi
 
-echo "== 6. Optional C++ Boost suites (test_bitcoin) =="
-if [[ "${SKIP_TEST_BITCOIN:-0}" == "1" ]]; then
-  echo "skipped (SKIP_TEST_BITCOIN=1). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
-  cov "test_bitcoin: SKIP (SKIP_TEST_BITCOIN=1)"
+echo "== 6. Optional C++ Boost suites (test_rigor) =="
+SKIP_TEST_RIGOR="${SKIP_TEST_RIGOR:-${SKIP_TEST_BITCOIN:-0}}"
+TEST_RIGOR="${TEST_RIGOR:-${TEST_BITCOIN:-}}"
+if [[ "${SKIP_TEST_RIGOR}" == "1" ]]; then
+  echo "skipped (SKIP_TEST_RIGOR=1). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
+  cov "test_rigor: SKIP (SKIP_TEST_RIGOR=1)"
 else
-  if [[ -z "${TEST_BITCOIN:-}" && -x "$ROOT/core/src/test/test_bitcoin" ]]; then
-    TEST_BITCOIN="$ROOT/core/src/test/test_bitcoin"
-    echo "auto-detected TEST_BITCOIN=$TEST_BITCOIN"
+  if [[ -z "${TEST_RIGOR}" && -x "$ROOT/core/src/test/test_rigor" ]]; then
+    TEST_RIGOR="$ROOT/core/src/test/test_rigor"
+    echo "auto-detected TEST_RIGOR=$TEST_RIGOR"
+  elif [[ -z "${TEST_RIGOR}" && -x "$ROOT/core/src/test/test_bitcoin" ]]; then
+    TEST_RIGOR="$ROOT/core/src/test/test_bitcoin"
+    echo "auto-detected leftover TEST_RIGOR=$TEST_RIGOR (rebuild as test_rigor)"
   fi
-  if [[ -n "${TEST_BITCOIN:-}" && -x "${TEST_BITCOIN}" ]]; then
-    if "${TEST_BITCOIN}" --list_content 2>/dev/null | grep -q sha256_fips_golden; then
-      echo "test_bitcoin includes sha256_fips_golden (BOOST FIPS present)"
-      cov "test_bitcoin BOOST: current (sha256_fips_golden present)"
+  if [[ -n "${TEST_RIGOR}" && -x "${TEST_RIGOR}" ]]; then
+    if "${TEST_RIGOR}" --list_content 2>/dev/null | grep -q sha256_fips_golden; then
+      echo "test_rigor includes sha256_fips_golden (BOOST FIPS present)"
+      cov "test_rigor BOOST: current (sha256_fips_golden present)"
     else
-      echo "WARN: test_bitcoin is STALE (no sha256_fips_golden)."
+      echo "WARN: test_rigor is STALE (no sha256_fips_golden)."
       echo "      Covered anyway: CSHA256/FIPS via portable CLI (step 3); σ/root via step 4."
       echo "      Not covered: BOOST test sha256_fips_golden until you rebuild:"
       echo "        cd $ROOT/core && make -j\$(nproc)   # operator full build"
-      echo "        ./src/test/test_bitcoin --run_test=selection_golden_tests,convergence_consensus_tests"
-      echo "      Skip this step: SKIP_TEST_BITCOIN=1"
-      cov "test_bitcoin BOOST: STALE (no sha256_fips_golden; portable CLI covers hash FIPS)"
+      echo "        ./src/test/test_rigor --run_test=selection_golden_tests,convergence_consensus_tests"
+      echo "      Skip this step: SKIP_TEST_RIGOR=1"
+      cov "test_rigor BOOST: STALE (no sha256_fips_golden; portable CLI covers hash FIPS)"
     fi
-    "${TEST_BITCOIN}" --run_test=selection_golden_tests
-    "${TEST_BITCOIN}" --run_test=convergence_consensus_tests
+    "${TEST_RIGOR}" --run_test=selection_golden_tests
+    "${TEST_RIGOR}" --run_test=convergence_consensus_tests
+    "${TEST_RIGOR}" --run_test=rigor_classification_vector_tests,rigor_sighash_vector_tests,connectblock_res_mint_p0_041_tests,w32_reorg_stability_chain_tests
   else
-    echo "skipped (no test_bitcoin). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
-    echo "  After operator make: TEST_BITCOIN=$ROOT/core/src/test/test_bitcoin"
-    cov "test_bitcoin: SKIP (binary absent)"
+    echo "skipped (no test_rigor). Portable CLIs still cover CSHA256/FIPS (step 3) and σ/root (step 4)."
+    echo "  After operator make: TEST_RIGOR=$ROOT/core/src/test/test_rigor"
+    cov "test_rigor: SKIP (binary absent)"
   fi
 fi
 

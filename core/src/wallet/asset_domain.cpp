@@ -8,31 +8,8 @@
 
 namespace wallet {
 
-bool WitnessRFCBindingOk(const CScript& script_pub_key, AssetType send_asset)
-{
-    int witnessversion;
-    std::vector<unsigned char> witnessprogram;
-    if (!script_pub_key.IsWitnessProgram(witnessversion, witnessprogram)) {
-        // OP_CONVERGE (and other non-witness locks) are classified by script, not witness version.
-        return true;
-    }
-    if (send_asset == ASSET_ORU && witnessversion != 0) {
-        return false;
-    }
-    if (send_asset == ASSET_RES && witnessversion != 1) {
-        return false;
-    }
-    if (send_asset == ASSET_RES && IsConvergenceScript(script_pub_key)) {
-        return false;
-    }
-    return true;
-}
-
 bool WalletStrictSendDestinationOk(const CScript& script_pub_key, AssetType send_asset)
 {
-    if (!WitnessRFCBindingOk(script_pub_key, send_asset)) {
-        return false;
-    }
     return AssetTypeFromScriptPubKey(script_pub_key) == send_asset;
 }
 

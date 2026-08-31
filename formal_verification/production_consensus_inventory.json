@@ -1,0 +1,59 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-MAINNET-READINESS-AUDIT-P0-061",
+  "date": "2026-08-30",
+  "extracted_kernel": {
+    "role": "VERIFICATION_ORACLE_ONLY",
+    "linked_into_production": false,
+    "called_from_connect_block": false
+  },
+  "issuance": {
+    "authority": "GetBlockSubsidy",
+    "file": "core/src/consensus/rigor_issuance.cpp",
+    "pack": "ComputeRigorIssuance"
+  },
+  "res_schedule": {
+    "authority": "GetResMintReward",
+    "file": "core/src/consensus/rigor_consensus_lock.h"
+  },
+  "supply": {
+    "authority": "RigorSupplyDelta",
+    "file": "core/src/consensus/rigor_supply.cpp"
+  },
+  "draw": {
+    "authority": "ResolveConvergenceDraw",
+    "file": "core/src/consensus/convergence_logic.cpp",
+    "assembly": "GetConvergenceDrawSetForBlock"
+  },
+  "classification": {
+    "authority": "ClassifyRigorTxout",
+    "file": "core/src/script/rigor_classify.cpp",
+    "asset": "ClassifyRigorAsset"
+  },
+  "spend": {
+    "authority": "VerifyRigorPredicate",
+    "file": "core/src/script/predicate_verify.cpp"
+  },
+  "pow": {
+    "authority": "PowBoundary",
+    "check": "CheckProofOfWork",
+    "digest": "GetRigorPowHash",
+    "asert": "GetNextWorkRequired"
+  },
+  "connect_block": {
+    "file": "core/src/validation.cpp",
+    "role": "orchestration",
+    "execution_source": "handwritten_cpp"
+  },
+  "not_in_release": [
+    "formal_verification/extracted",
+    "OCaml runtime",
+    "verify-only ABI (consensus/bridge)",
+    "shadow adapters (consensus/shadow)",
+    "txkernel verify-only input",
+    "oracle CLIs"
+  ],
+  "refinement": true,
+  "equivalence": false,
+  "full_node_proven": false,
+  "production_kernel_switched": false
+}

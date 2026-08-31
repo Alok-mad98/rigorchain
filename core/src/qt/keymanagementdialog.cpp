@@ -53,8 +53,8 @@ QString DetectAssetLabel(const QString& address)
 {
     const auto asset = GetAssetTypeFromAddress(address.toStdString(), Params());
     if (!asset) return QStringLiteral("Unknown / invalid");
-    if (*asset == ASSET_ORU) return QStringLiteral("ORU (Witness v0 / Bech32)");
-    if (*asset == ASSET_RES) return QStringLiteral("RES (Witness v1 / Bech32m)");
+    if (*asset == ASSET_ORU) return QStringLiteral("ORU (P2WPKH / Bech32)");
+    if (*asset == ASSET_RES) return QStringLiteral("RES (native v1 / Bech32m)");
     return QStringLiteral("Unsupported");
 }
 

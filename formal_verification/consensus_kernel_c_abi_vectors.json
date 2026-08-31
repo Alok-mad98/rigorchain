@@ -1,0 +1,54 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-C-ABI-EXTRACTION-BRIDGE-P0-053",
+  "note": "Finite C ABI domain. Does not modify phase3_golden_vectors.json.",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "issuance_heights": [0, 1, 99, 100, 101, 209999, 210000, 419999, 420000],
+  "issuance": [
+    {"height": 0, "epoch": 0, "oru_subsidy": 0, "res_reward_schedule": 40000000},
+    {"height": 1, "epoch": 0, "oru_subsidy": 100000000000, "res_reward_schedule": 40000000},
+    {"height": 99, "epoch": 0, "oru_subsidy": 100000000000, "res_reward_schedule": 40000000},
+    {"height": 100, "epoch": 0, "oru_subsidy": 100000000000, "res_reward_schedule": 40000000},
+    {"height": 101, "epoch": 0, "oru_subsidy": 100000000000, "res_reward_schedule": 40000000},
+    {"height": 209999, "epoch": 0, "oru_subsidy": 100000000000, "res_reward_schedule": 40000000},
+    {"height": 210000, "epoch": 1, "oru_subsidy": 50000000000, "res_reward_schedule": 14142196},
+    {"height": 419999, "epoch": 1, "oru_subsidy": 50000000000, "res_reward_schedule": 14142196},
+    {"height": 420000, "epoch": 2, "oru_subsidy": 25000000000, "res_reward_schedule": 7698004}
+  ],
+  "maturity": [
+    {"spend": 0, "coin": 0, "eligible": false},
+    {"spend": 100, "coin": 0, "eligible": true, "genesis_source": false},
+    {"spend": 100, "coin": 1, "eligible": false},
+    {"spend": 101, "coin": 1, "eligible": true},
+    {"spend": 100, "coin": 99, "eligible": false},
+    {"spend": 199, "coin": 99, "eligible": true},
+    {"spend": 200, "coin": 100, "eligible": true},
+    {"spend": 201, "coin": 101, "eligible": true}
+  ],
+  "classify": [
+    {"id": "ORU", "script": "00141111111111111111111111111111111111111111", "asset": "ORU"},
+    {"id": "RES", "script": "5120aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "asset": "RES"},
+    {"id": "empty", "script": "-", "asset": "INVALID"},
+    {"id": "random", "script": "deadbeef", "asset": "INVALID"},
+    {"id": "wrong_witness", "script": "00200000000000000000000000000000000000000000000000000000000000000000", "asset": "INVALID"}
+  ],
+  "draw": {
+    "h": 101,
+    "c_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "b_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "cases": [
+      {"id": "empty", "kind": "empty"},
+      {"id": "one", "kind": "draw", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
+      {"id": "two", "kind": "draw", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,0000000000000000000000000000000000000000000000000000000000000002:209715200000000"},
+      {"id": "same_target", "kind": "draw", "spec": "0000000000000000000000000000000000000000000000000000000000000002:209715200000000,0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
+      {"id": "boundary_target", "kind": "draw-t0", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"}
+    ]
+  },
+  "supply": [
+    {"id": "normal", "height": 1, "fees": 0, "burn": 0, "converge": 0, "mint": 0, "has_winner": 0, "card": 0, "oru_cb": 0, "ok": true},
+    {"id": "burn", "height": 1, "fees": 100, "burn": 5, "converge": 0, "mint": 0, "has_winner": 0, "card": 0, "oru_cb": 0, "ok": true, "layers_identical": false},
+    {"id": "mint", "height": 1, "fees": 0, "burn": 0, "converge": 0, "mint": 40000000, "has_winner": 1, "card": 1, "oru_cb": 0, "ok": true},
+    {"id": "reject", "height": 1, "fees": 0, "burn": 0, "converge": 0, "mint": 40000000, "has_winner": 0, "card": 1, "oru_cb": 0, "ok": false},
+    {"id": "overflow", "height": 1, "fees": 0, "burn": 0, "converge": 0, "mint": 0, "has_winner": 0, "card": 0, "oru_cb": 200000000000, "ok": false}
+  ]
+}

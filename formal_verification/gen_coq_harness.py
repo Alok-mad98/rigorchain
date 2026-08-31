@@ -160,11 +160,25 @@ SMW_REJECT_COQ = {
     "pcorb_field_size": "SmwPcorbFieldSize",
 }
 
-SMW_ASSET_COQ = {"ORU": "SmwORU", "RES": "SmwRES", "NONE": "SmwNone"}
+SMW_ASSET_COQ = {"ORU": "SmwORU", "RES": "SmwRES", "NONE": "SmwNone", "INVALID": "SmwInvalid"}
 
 
 def coq_hex_stack(items):
     return "[" + ";".join(hexbytes(h) for h in items) + "]"
+
+
+def emit_script_asset(P, idx, vid, inp, exp):
+    """Emit asset_from_script / is_allowed / is_res pins (shared with C++)."""
+    spk = hexbytes(inp["script_hex"])
+    asset = SMW_ASSET_COQ[exp["asset"]]
+    P(f"(* {vid} ScriptAsset asset={exp['asset']} allowed={exp['is_allowed']} is_res={exp['is_res']} *)")
+    allow_pin = f"(is_allowed_script {spk})" if exp["is_allowed"] else f"(negb (is_allowed_script {spk}))"
+    res_pin = f"(is_res_script {spk})" if exp["is_res"] else f"(negb (is_res_script {spk}))"
+    expr = (
+        f"andb (smw_asset_eqb (asset_from_script {spk}) {asset}) "
+        f"(andb {allow_pin} {res_pin})"
+    )
+    emit_check(P, idx, vid, expr)
 
 
 def emit_script_mint_neg(P, idx, vid, inp, exp):
@@ -675,7 +689,6 @@ def main():
     NP("Require Import Rigor.ReplayReorgCore.ConnectBlockMint.")
     NP("Require Import Rigor.ReplayReorgCore.StateTransition.")
     NP("Require Import Rigor.ReplayReorgCore.ScriptShape.")
-    NP("Require Import Rigor.ReplayReorgCore.CvgCovenant.")
     NP("From Rigor Require Import ResSchedule.")
     NP("Require ScriptMintWitness.")
     NP("")
@@ -685,9 +698,9 @@ def main():
     NP("Definition neg_spk (k : AssetKind) : list nat :=")
     NP("  match k with")
     NP("  | AssetORU => ScriptMintWitness.canonical_p2wpkh")
-    NP("  | AssetRES => ScriptMintWitness.canonical_res2_script")
-    NP("  | AssetNone => [ScriptMintWitness.OP_RETURN]")
-    NP("  | AssetCVG => CvgCovenant.canonical_cvg_claim_script")
+    NP("  | AssetRES => ScriptMintWitness.canonical_native_res")
+    NP("  | AssetNone => [ScriptMintWitness.RIGOR_MARKER_RETURN]")
+    NP("  | AssetInvalid => ScriptMintWitness.canonical_p2pkh")
     NP("  end.")
     NP("Definition neg_out (v : Z) (k : AssetKind) : TxOut :=")
     NP("  {| out_value := v; out_script := neg_spk k |}.")
@@ -716,12 +729,13 @@ def main():
         vid = v["id"]; mod = v["module"]; inp = v["input"]; exp = v["expected"]
         kernel_mods = {
             "ConvergenceRoot", "DrawCandidateRoot", "InvalidCvg", "ScriptMintNeg",
+            "ScriptAsset",
             "SigmaPoW01", "Inequality", "RunSelection", "WindowExclusion", "SigmaEncoder",
             "EdgeCross",
         }
         must_enforce = {
             "NegativeCore", "InvalidCvg", "ScriptMintNeg", "DrawCandidateRoot",
-            "EdgeCross",
+            "EdgeCross", "ScriptAsset",
         }
         enforce = v.get("coq_enforce", mod in kernel_mods)
         if mod in must_enforce and not enforce:
@@ -760,6 +774,11 @@ def main():
         if mod == "ScriptMintNeg":
             emit_script_mint_neg(P, idx, vid, inp, exp)
             index_map.append((idx, vid, mod, "smw"))
+            idx += 1
+            continue
+        if mod == "ScriptAsset":
+            emit_script_asset(P, idx, vid, inp, exp)
+            index_map.append((idx, vid, mod, "sass"))
             idx += 1
             continue
         if mod == "ConvergenceRoot":

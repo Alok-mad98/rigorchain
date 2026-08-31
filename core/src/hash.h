@@ -42,7 +42,7 @@ typedef uint256 ChainCode;
  * Differential lock (not a refinement proof): CSHA256 / this composition
  * must match Coq RigorSha256 on the golden HashKernel / FIPS vectors.
  * Gate: formal_verification/tests/test_hash_kernel_tripartite.py
- * (portable Transform CLI) and selection_golden_tests (test_bitcoin).
+ * (portable Transform CLI) and selection_golden_tests (test_rigor).
  *
  * NO VARIANTS ALLOWED - consensus depends on exact byte-for-byte match.
  */

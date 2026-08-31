@@ -41,9 +41,8 @@ bool ExternalSignerScriptPubKeyMan::SetupDescriptor(std::unique_ptr<Descriptor> 
     return true;
 }
 
-ExternalSigner ExternalSignerScriptPubKeyMan::GetExternalSigner() {
-    const std::string command = gArgs.GetArg("-signer", "");
-    if (command == "") {
+ExternalSigner ExternalSignerScriptPubKeyMan::GetExternalSigner(const std::string& command) {
+    if (command.empty()) {
         throw std::runtime_error(strprintf("%s: restart %s with -signer=<cmd>", __func__, GetApplicationInvocationBaseName()));
     }
     std::vector<ExternalSigner> signers;
@@ -59,6 +58,7 @@ bool ExternalSignerScriptPubKeyMan::DisplayAddress(const CScript scriptPubKey, c
     // TODO: avoid the need to infer a descriptor from inside a descriptor wallet
     auto provider = GetSolvingProvider(scriptPubKey);
     auto descriptor = InferDescriptor(scriptPubKey, *provider);
+    if (!descriptor) return false;
 
     signer.DisplayAddress(descriptor->ToString());
     // TODO inspect result
@@ -66,10 +66,10 @@ bool ExternalSignerScriptPubKeyMan::DisplayAddress(const CScript scriptPubKey, c
 }
 
 // If sign is true, transaction must previously have been filled
-TransactionError ExternalSignerScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
+TransactionError ExternalSignerScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbt, const PrecomputedTransactionData& txdata, const uint256& chain_id, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
 {
     if (!sign) {
-        return DescriptorScriptPubKeyMan::FillPSBT(psbt, txdata, sighash_type, false, bip32derivs, n_signed, finalize);
+        return DescriptorScriptPubKeyMan::FillPSBT(psbt, txdata, chain_id, sighash_type, false, bip32derivs, n_signed, finalize);
     }
 
     // Already complete if every input is now signed
@@ -81,11 +81,11 @@ TransactionError ExternalSignerScriptPubKeyMan::FillPSBT(PartiallySignedTransact
     if (complete) return TransactionError::OK;
 
     std::string strFailReason;
-    if(!GetExternalSigner().SignTransaction(psbt, strFailReason)) {
+    if(!GetExternalSigner(m_storage.GetExternalSignerCommand()).SignTransaction(psbt, strFailReason)) {
         tfm::format(std::cerr, "Failed to sign: %s\n", strFailReason);
         return TransactionError::EXTERNAL_SIGNER_FAILED;
     }
-    if (finalize) FinalizePSBT(psbt); // This won't work in a multisig setup
+    if (finalize) FinalizePSBT(psbt, chain_id); // This won't work in a multisig setup
     return TransactionError::OK;
 }
 } // namespace wallet

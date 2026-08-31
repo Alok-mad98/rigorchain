@@ -7,6 +7,9 @@
 **A-8 amendment:** 2026-08-04 — Sigma-CR-01 `bind_commit` / `k = 10` **superseded** by Sigma-PoW-01 (see `docs/security/SECURITY_001_A8_REPORT.md`)  
 **Closure alignment:** 2026-08-05 — `TASK-MAINNET-CLOSURE-001` aligns freeze §3.1 with live `params.h` / RFC-014 v1.2 / Coq `Selection.v` (removes obsolete literal `T = 2^240` display)  
 **Shipping parameter alignment:** 2026-08-20 — `TASK-RIGOR-SHIPPING-PARAMETER-SYNCHRONIZATION-P0-001` aligns freeze §3.1 / §3.3 with RFC-017 shipping (`E = 246`, `C = 1024` ORU, height-dependent `W(k)`). Historical RFC-014 `E = 240` / `C = 65536` / constant `100 RES` remain historical reference only.  
+**P0-018 signing domain:** 2026-08-24 — cryptographic boundary table updated to the unique tagged Ed25519 sighash (`docs/security/RIGOR_ED25519_SIGNING_DOMAIN_AUDIT_P0_018.md` §4). RFC-015's `64 + 1 hashtype` wording is superseded for signature format. 
+**TASK-010 R-2 / O-1 (Scheme A):** 2026-08-25 — native witness v1 RES classification is a pure byte predicate. On-curve / canonical Ed25519 is **not** a ConnectBlock / `AssetTypeFromScriptPubKey` rule; it gates address encode/decode, relay policy (`IsStandard`), and wallet destination construction. A 32-byte v1 program that is not a public key is still `ASSET_RES` and is unspendable. Changing classification to inspect the curve is a Level-5 consensus fork.
+**TASK-010 R-10 functional gate:** 2026-08-25 — Scheme A is verified by `feature_rigor_dual_native.py`, `feature_res_maturity.py`, `feature_rigor_asset_mix_reject.py`, `wallet_address_types.py`, and `rpc_rawtransaction.py` (descriptor wallet / raw-tx path; BDB legacy-multisig subsection is skipped on SQLite-only builds).
 **Prior baseline tag:** `mainnet-freeze-rfc014-2026-05-25` (`4437597197`)  
 **Recommended release tag:** `mainnet-freeze-rfc015-2026-05-26` (economics); post-A9C trees must cite RFC-014 **v1.2** + RFC-017 + this declaration §3.1
 
@@ -198,12 +201,14 @@ The following spending / key-management rules are frozen for mainnet. Changing a
 | Default wallet paths | `wpkh` / `res` use `/0'/*'` or `/1'/*'` (not `/0/*`) |
 | Watch-only HD | Ranged xpub cannot expand hardened children; import `addr()` / 32-byte hex |
 | `res()` public form | Prints the 32-byte pubkey; never the 64-byte secret |
-| Witness v1 RES program | `SHA256(32-byte Ed25519 pubkey)`; spend is `<sig><pk>` |
+| Witness v1 RES program | 32-byte program, neither CVG2 nor RES2. Spend is `<sig><pk>` with `pk == program`. Classification is a pure byte predicate (script as asset). |
+| On-curve Ed25519 (TASK-010 O-1 / R-2 Scheme A) | **Not consensus.** `ed25519::IsCanonicalOnCurvePubkey` applies to Bech32m encode/decode, `IsStandard` / relay, and `IsValidDestination` (wallet / RPC / templates). An off-curve v1/32 output is `ASSET_RES`, consensus-legal, and unspendable. |
 | ORU P2WPKH program | `HASH160(32-byte Ed25519 pubkey)` |
-| `OP_RES_MINT` | Coinbase-only; BIP143 (`WITNESS_V0`) sighash; owner = `HASH160(pk)` |
-| `SIGHASH_SINGLE` out of range | Hash is `uint256::ZERO` (not `ONE`); signature rejected |
+| `OP_RES_MINT` / `OP_CONVERGE` owner | `HASH160(pk32)`, equal to `HASH160(v1 program)` |
+| Asset class | `AssetTypeFromScriptPubKey(scriptPubKey)` only; never stored on `CTxOut`. Unknown scripts are `ASSET_INVALID` |
+| Signature encoding | Fixed 64-byte Ed25519; 63/65/66-byte encodings rejected; no hashtype byte |
 | RES2 spend | Deleted; RES2 programs are not creatable |
-| v1 sighash domain | BIP143 plus `uint32_t{1}` (`SigVersion::WITNESS_V1_RES`) |
+| Unique sighash domain | `SHA256d(tag \|\| chain_id \|\| nVersion \|\| hashPrevouts \|\| hashSequence \|\| hashOutputs \|\| this prevout \|\| spent scriptPubKey \|\| amount \|\| nSequence \|\| nLockTime)` with tags `RGRORU01` / `RGRRES01` / `RGRMNT01`. `chain_id` is genesis hash, passed as an explicit `SignatureHash` argument or `PrecomputedTransactionData::m_chain_id` — never read as a consensus global. |
 
 ---
 

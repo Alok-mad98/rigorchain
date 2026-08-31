@@ -262,7 +262,7 @@ Actual execution surfaces:
 |---------|-----------|
 | Witness v0 | ORU P2WPKH implied script (32-byte pubkey; program = HASH160(pk)) |
 | P2WSH (v0, 32-byte program) | Inner witness script at `SigVersion::WITNESS_V0` — largest inherited surface |
-| Witness v1 | RES Ed25519 key-path; program = SHA256(pk); no RES2 spend |
+| Witness v1 | RES Ed25519 key-path; program = pk32; spend requires `pk == program`; no RES2 spend |
 | Signature verification | Ed25519 only; secp256k1 CHECKSIG → `SCRIPT_ERR_SECP256K1_DISABLED` |
 | CVG2 validation | Structural commitment check; unspendable; not inserted into the UTXO set |
 
@@ -283,7 +283,7 @@ Used for:
 
 **P2WSH is the largest inherited execution surface.** Inner scripts may still use Bitcoin-shaped opcodes (including timelocks) under witness v0 rules. That surface is real. It is also bounded: new bare / P2SH / P2PKH outputs are consensus-invalid, and CHECKSIG cannot take the secp256k1 path.
 
-`SigVersion::BASE` remains as an interpreter remnant for the implied P2PKH template inside P2WPKH. It is not a license to create legacy chain outputs.
+`SigVersion::WITNESS_V0` is the ORU P2WPKH signing domain (`RGRORU01`). There is no `SigVersion::BASE`; P2PKH templates are not a consensus spend path.
 
 #### Witness v1 reserved usage
 
@@ -295,9 +295,9 @@ Witness v1 is reserved for:
 
 | 32-byte v1 program | Classification | Spend |
 |--------------------|----------------|-------|
-| Prefix `CVG2` | ORU-domain Convergence commitment | Unspendable; **not** inserted into the UTXO set |
-| Prefix `RES2` (wire spelling) | Not creatable | Spend branch deleted; creation rejected |
-| Neither prefix (native) | RES | Two-item Ed25519 key-path; program is **SHA256(pk)**; witness is `<sig><32-byte pk>` |
+| Prefix `CVG2` | INVALID (not creatable) | Unspendable; **not** inserted into the UTXO set |
+| Prefix `RES2` (wire spelling) | INVALID (not creatable) | Spend branch deleted; creation rejected |
+| Neither prefix (native) | RES | Two-item Ed25519 key-path; program **is the 32-byte pubkey**; witness is `<sig><32-byte pk>` with `pk == program` |
 
 A 36-byte “claim program” size exists in headers for historical wallet/semantic code. `IsAllowedScript` requires a 32-byte v1 program. Those 36-byte programs are **not** consensus chain outputs.
 
@@ -454,12 +454,12 @@ Public surfaces:
 
 | Source | What it confirms |
 |--------|------------------|
-| `core/src/consensus/tx_check.cpp` | `IsAllowedScript`: witness v0, or witness v1 with 32-byte program; `OP_RETURN` at nValue 0 |
-| `core/src/primitives/transaction.cpp` | `AssetTypeFromScriptPubKey`: v0 → ORU; v1 CVG2 → ORU; other v1/32 → RES |
-| `core/src/script/standard.cpp` | `IsConvergenceScript` / `IsResScript` |
-| `core/src/script/interpreter.cpp` | v0 P2WPKH/P2WSH/native Ed25519; v1 RES2 and native key-path; no BIP341 |
+| `core/src/consensus/tx_check.cpp` | `IsAllowedScript`: v0/20, native v1/32 (not CVG2/RES2), `OP_RES_MINT`, `OP_CONVERGE`; `OP_RETURN` at nValue 0 |
+| `core/src/script/rigor_classify.cpp` | `AssetTypeFromScriptPubKey`: v0/20 → ORU; native v1/32 → RES; `OP_CONVERGE` → ORU; `OP_RES_MINT` → RES; unknown → `ASSET_INVALID` |
+| `core/src/script/standard.cpp` | `IsConvergenceScript` / `IsResScript` (thin wrappers over the classifier) |
+| `core/src/script/interpreter.cpp` | v0 P2WPKH Ed25519; v1 RES `pk == program` then Ed25519; no BIP341 |
 | `core/src/validation.cpp` | Taproot/BIP341 validation path removed; v1 is Ed25519 key-path |
-| `core/src/coins.cpp` | CVG2 outputs are not added to the UTXO set |
+| `core/src/coins.cpp` | CVG2 outputs are not a consensus type (rejected at CheckTransaction) |
 | `docs/architecture/ARCHITECTURE.md` | Script is the compliance layer |
 | RFC-015 Alpha1 §5–6 | Dual-asset witness binding |
 

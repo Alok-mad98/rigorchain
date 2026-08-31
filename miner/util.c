@@ -143,57 +143,6 @@ void stderr_msg(const char *fmt, ...)
 	va_end(ap);
 }
 
-/* Modify the representation of integer numbers which would cause an overflow
- * so that they are treated as floating-point numbers.
- * This is a hack to overcome the limitations of some versions of Jansson. */
-static char *hack_json_numbers(const char *in)
-{
-	char *out;
-	int i, off, intoff;
-	bool in_str, in_int;
-
-	out = calloc(2 * strlen(in) + 1, 1);
-	if (!out)
-		return NULL;
-	off = intoff = 0;
-	in_str = in_int = false;
-	for (i = 0; in[i]; i++) {
-		char c = in[i];
-		if (c == '"') {
-			in_str = !in_str;
-		} else if (c == '\\') {
-			out[off++] = c;
-			if (!in[++i])
-				break;
-		} else if (!in_str && !in_int && isdigit(c)) {
-			intoff = off;
-			in_int = true;
-		} else if (in_int && !isdigit(c)) {
-			if (c != '.' && c != 'e' && c != 'E' && c != '+' && c != '-') {
-				in_int = false;
-				if (off - intoff > 4) {
-					char *end;
-#if JSON_INTEGER_IS_LONG_LONG
-					errno = 0;
-					strtoll(out + intoff, &end, 10);
-					if (!*end && errno == ERANGE) {
-#else
-					long l;
-					errno = 0;
-					l = strtol(out + intoff, &end, 10);
-					if (!*end && (errno == ERANGE || l > INT_MAX)) {
-#endif
-						out[off++] = '.';
-						out[off++] = '0';
-					}
-				}
-			}
-		}
-		out[off++] = in[i];
-	}
-	return out;
-}
-
 static void databuf_free(struct data_buffer *db)
 {
 	if (!db)
@@ -366,7 +315,6 @@ json_t *json_rpc_call(CURL *curl, const char *url,
 	int rc;
 	long http_rc;
 	struct data_buffer all_data = {0};
-	char *json_buf;
 	json_error_t err;
 	struct curl_slist *headers = NULL;
 	char curl_err_str[CURL_ERROR_SIZE];
@@ -409,6 +357,7 @@ json_t *json_rpc_call(CURL *curl, const char *url,
 		curl_easy_setopt(curl, CURLOPT_SOCKOPTFUNCTION, sockopt_keepalive_cb);
 #endif
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, rpc_req);
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, rpc_req ? (long)strlen(rpc_req) : 0L);
 
 	if (opt_protocol)
 		applog(LOG_DEBUG, "JSON protocol request:\n%s\n", rpc_req);
@@ -468,10 +417,11 @@ json_t *json_rpc_call(CURL *curl, const char *url,
 		goto err_out;
 	}
 
-	json_buf = hack_json_numbers(all_data.buf);
-	errno = 0; /* needed for Jansson < 2.1 */
-	val = JSON_LOADS(json_buf, &err);
-	free(json_buf);
+	/* Parse the node's bytes as-is. Rewriting large integers as reals (the
+	 * historic cpuminer workaround for 32-bit Jansson) would push satoshi
+	 * amounts through a double; json_int_t is 64-bit here instead. */
+	errno = 0;
+	val = JSON_LOADS(all_data.buf, &err);
 	if (!val) {
 		applog(LOG_ERR, "JSON decode failed(%d): %s", err.line, err.text);
 		goto err_out;

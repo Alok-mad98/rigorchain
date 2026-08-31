@@ -1,0 +1,45 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-EXTRACTION-EXECUTABLE-P0-050",
+  "date": "2026-08-30",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "extracted_kernel_output": "formal_verification/extracted/consensus_kernel.ml + consensus_kernel_cli",
+  "cpp_adapter": "formal_verification/tools/cpp_consensus_kernel_cli.cpp",
+  "production_path": "C++ Consensus Kernel (GetBlockSubsidy, GetResMintReward, RigorIssuanceEpoch, ClassifyRigorAsset, RigorSupplyDelta, ResolveConvergenceDraw)",
+  "connect_block": "orchestration; not extracted; not switched (P051)",
+  "feature_flag": "EXTRACTED_CONSENSUS_KERNEL default OFF — P051 confirmed Option C; still no production linkage",
+  "adapter_may": [
+    "hex / decimal I/O",
+    "Z ↔ decimal string",
+    "construct Consensus::Params with frozen lock constants",
+    "invoke production Kernel functions"
+  ],
+  "adapter_must_not": [
+    "reimplement epoch / subsidy / RES schedule / draw / classify / supply"
+  ],
+  "still_cpp": [
+    "ConnectBlock",
+    "GetConvergenceDrawSetForBlock (F assembly)",
+    "UTXO / DB / P2P / wallet / miner / GBT construction",
+    "RigorSupplyDelta reject-state sink / LogPrintf",
+    "ParseCoinbaseConvergenceRootScriptSig (no Coq twin)"
+  ],
+  "extracted": [
+    "issuance_epoch",
+    "oru_subsidy",
+    "get_res_mint_reward",
+    "res_issued_at_height",
+    "compute_rigor_issuance",
+    "coinbase_mature / COINBASE_MATURITY",
+    "classify",
+    "apply_delta / genesis_supply / coinbase_oru_cap / ledger_oru_delta",
+    "rigor_res_coinbase_expected",
+    "resolve_convergence_draw / select_winner"
+  ],
+  "supply_accounting": {
+    "cpp_oru_circulating_delta": "subsidy - converge (RFC-002 ledger)",
+    "coq_apply_delta_circulating": "subsidy - converge - fee_burn (RFC-018 UTXO)",
+    "extracted_ledger_oru_delta": "subsidy - converge — maps to C++ circulating_delta",
+    "do_not_unify": true
+  }
+}

@@ -97,7 +97,6 @@ WalletAssetContext AssetContext::fromSemantic(wallet::TxSemanticKind semantic)
         return WalletAssetContext::Convergence;
     case TxSemanticKind::ResTransfer:
     case TxSemanticKind::ResMint:
-    case TxSemanticKind::ResClaim:
         return WalletAssetContext::RES;
     case TxSemanticKind::OruCoinbase:
     case TxSemanticKind::OruTransfer:
@@ -117,7 +116,6 @@ AssetBadgeKind AssetContext::badgeKindFromSemantic(wallet::TxSemanticKind semant
     case TxSemanticKind::OruTransfer:
         return AssetBadgeKind::ORU;
     case TxSemanticKind::ResTransfer:
-    case TxSemanticKind::ResClaim:
         return AssetBadgeKind::RES;
     case TxSemanticKind::OruConvergence:
         return AssetBadgeKind::CVG;

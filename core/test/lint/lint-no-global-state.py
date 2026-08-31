@@ -72,20 +72,20 @@ FORBIDDEN = (
         "SetRigorResEvalContext",
         r"\bSetRigorResEvalContext\b",
         "dead interpreter injection API (W5). Do not restore block-level rigor "
-        "context onto PrecomputedTransactionData / EvalScript.",
+        "context onto PrecomputedTransactionData / the predicate verifier.",
     ),
     (
         "m_chain_res_mint_total",
         r"\bm_chain_res_mint_total\b",
         "observational issuance ledger (W1). Must not feed T, f_i, mint auth, "
-        "or EvalScript. Allowed only in ObservationalMetrics and runtime-supply "
+        "or the predicate verifier. Allowed only in ObservationalMetrics and runtime-supply "
         "observational files.",
     ),
     (
         "m_chain_oru_total",
         r"\bm_chain_oru_total\b",
         "observational RFC-002 S_ORU ledger (W1). Must not feed T, f_i, mint auth, "
-        "or EvalScript. Allowed only in ObservationalMetrics and runtime-supply "
+        "or the predicate verifier. Allowed only in ObservationalMetrics and runtime-supply "
         "observational files.",
     ),
 )

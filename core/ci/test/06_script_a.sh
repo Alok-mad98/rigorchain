@@ -53,7 +53,7 @@ if [[ ${USE_MEMORY_SANITIZER} == "true" ]]; then
   # using the Linux getrandom syscall. Avoid using getrandom by undefining
   # HAVE_SYS_GETRANDOM. See https://github.com/google/sanitizers/issues/852 for
   # details.
-  CI_EXEC 'grep -v HAVE_SYS_GETRANDOM src/config/bitcoin-config.h > src/config/bitcoin-config.h.tmp && mv src/config/bitcoin-config.h.tmp src/config/bitcoin-config.h'
+  CI_EXEC 'grep -v HAVE_SYS_GETRANDOM src/config/rigor-config.h > src/config/rigor-config.h.tmp && mv src/config/rigor-config.h.tmp src/config/rigor-config.h'
 fi
 
 if [[ "${RUN_TIDY}" == "true" ]]; then

@@ -1,0 +1,65 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-CPP-REFINEMENT-BRIDGE-P0-052",
+  "date": "2026-08-30",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "equivalence_claimed": false,
+  "production_consensus_modified": false,
+  "protocol_parameters_modified": false,
+  "bridge_status": "CLOSED",
+  "semantic_mapping": "COMPLETE",
+  "duplicate_kernel_found": false,
+  "note": "Object mapping only. Not a C++ refinement. Not an equivalence proof. Not a production switch.",
+  "issuance": {
+    "coq": "issuance_epoch / oru_subsidy / get_res_mint_reward / res_issued_at_height",
+    "cpp": "RigorIssuanceEpoch / GetBlockSubsidy / GetResMintReward / ComputeRigorIssuance",
+    "status": "mapped"
+  },
+  "supply": {
+    "coq": "apply_delta / ledger_oru_delta / coinbase_oru_cap",
+    "cpp": "RigorSupplyDelta",
+    "status": "layer_aligned",
+    "supply_layer_semantics": "ALIGNED_BY_LAYER",
+    "cpp_oru_circulating_delta": "ledger_oru_delta (subsidy - converge)",
+    "coq_apply_delta_circulating": "subsidy - converge - fee_burn",
+    "identical": false
+  },
+  "draw": {
+    "coq": "select_winner / pick_better_tx",
+    "cpp": "ResolveConvergenceDraw",
+    "status": "mapped",
+    "state_assembly": "GetConvergenceDrawSetForBlock is not Kernel"
+  },
+  "classification": {
+    "coq": "AssetClassification.classify",
+    "cpp": "ClassifyRigorAsset → AssetTypeFromScriptPubKey → ClassifyRigorTxout",
+    "cpp_authority": "ClassifyRigorTxout",
+    "status": "mapped",
+    "ClassifyRigorSpendPredicate": "DOES_NOT_EXIST"
+  },
+  "coinbase_layout": {
+    "coq": "cpp_res_coinbase_expected_bridge / mint classify shape",
+    "cpp": "RigorResCoinbaseExpected",
+    "status": "mapped",
+    "builder": "not Kernel"
+  },
+  "maturity": {
+    "coq": "WindowGeneric.COINBASE_MATURITY / coinbase_mature",
+    "cpp": "COINBASE_MATURITY = 100",
+    "status": "mapped"
+  },
+  "genesis": {
+    "schedule_res": 40000000,
+    "actual_oru": 0,
+    "actual_res": 0,
+    "draw": "none",
+    "circulating_delta": 0,
+    "schedule_is_not_actual": true
+  },
+  "missing_proofs": [
+    "forall-height Coq↔C++ refinement of GetBlockSubsidy",
+    "ResolveConvergenceDraw ↔ select_winner on production SHA256 σ",
+    "ClassifyRigorTxout ∀-byte VST",
+    "RigorSupplyDelta reject-reason refinement"
+  ]
+}

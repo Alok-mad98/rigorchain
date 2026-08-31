@@ -13,7 +13,7 @@
  * so the template builder consumes the parent's set rather than previewing a draw over the
  * transactions it is still choosing. Nothing here can influence the outcome.
  *
- * Appends the OP_RES_MINT payout to `coinbase`. There is no funding input: the coinbase is
+ * Appends the RIGOR_MARKER_RES_MINT payout to `coinbase`. There is no funding input: the coinbase is
  * authenticated by proof of work, and the prize, amount and payout program are all fixed by
  * the parent. Returns false when there is no winner, when W(h) = 0, or when the winner's
  * declaration is malformed.

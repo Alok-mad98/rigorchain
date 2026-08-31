@@ -342,19 +342,12 @@ def main() -> int:
         f"    vectors={lock['shared_vectors']}  Coq-enforced lemmas={lock['coq_enforced_lemmas']} "
         f"(GoldenHarness {lock['golden_harness_lemmas']} + NegativeCore {lock['negative_core_harness_lemmas']})"
     )
-    print(
-        f"    must-enforce: NegativeCore {lock['must_enforce_families']['NegativeCore']['vectors']}/"
-        f"{lock['must_enforce_families']['NegativeCore']['coq_enforced']}  "
-        f"InvalidCvg {lock['must_enforce_families']['InvalidCvg']['vectors']}/"
-        f"{lock['must_enforce_families']['InvalidCvg']['coq_enforced']}  "
-        f"ScriptMintNeg {lock['must_enforce_families']['ScriptMintNeg']['vectors']}/"
-        f"{lock['must_enforce_families']['ScriptMintNeg']['coq_enforced']}  "
-        f"DCR-neg DCR-024..035 "
-        f"{lock['must_enforce_families']['DrawCandidateRoot']['negative_last'] - lock['must_enforce_families']['DrawCandidateRoot']['negative_first'] + 1}/"
-        f"{lock['must_enforce_families']['DrawCandidateRoot']['negative_last'] - lock['must_enforce_families']['DrawCandidateRoot']['negative_first'] + 1}  "
-        f"EdgeCross {lock['must_enforce_families']['EdgeCross']['vectors']}/"
-        f"{lock['must_enforce_families']['EdgeCross']['coq_enforced']}"
+    must = "  ".join(
+        f"{fam} {spec['vectors']}/{spec['coq_enforced']}"
+        for fam, spec in lock["must_enforce_families"].items()
+        if "negative_prefix" not in spec
     )
+    print(f"    must-enforce: {must}")
     split_ids = [vid for spec in lock["surface_splits"]["rows"] for vid in spec["ids"]]
     print(
         f"    surface-splits ({len(split_ids)}): {', '.join(split_ids)}  "

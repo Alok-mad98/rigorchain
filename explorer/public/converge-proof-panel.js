@@ -119,12 +119,12 @@
       <h2>ConvergeProof</h2>
       <p class="converge-proof-meta">kind: ${escapeHtml(panel.kind ?? "—")}</p>
       ${renderFlow(panel, routes)}
-      <h3>PCORB witness (indexed)</h3>`;
+      <h3>Mint proof</h3>`;
 
     if (panel.pcorb_witness && panel.pcorb_witness.length > 0) {
       html += renderPcorbTable(panel.pcorb_witness, routes);
     } else {
-      html += `<p class="muted">No PCORB witness stack indexed for this transaction.</p>`;
+      html += `<p class="muted">Live mint is coinbase OP_RES_MINT. Body PCORB witness is not required.</p>`;
     }
 
     html += `<h3>RES mint linkage</h3>${renderLinkage(panel.res_mint_linkage || {}, routes)}

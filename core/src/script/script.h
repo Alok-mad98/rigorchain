@@ -8,16 +8,20 @@
 
 /*
  * ============================================================================
- *  Rigorchain Architecture Guard (Script-Is-Asset)
- *  Rigorchain forbids Bitcoin Taproot semantics.
- *  Witness v1 is RIGOR-defined: CVG2 convergence commitments and native RES (RES2-prefixed or untagged Ed25519 key path). Not BIP341.
- *  Do not introduce BIP341/BIP342 script-path, annex, or tapleaf behavior here.
+ *  Rigorchain Architecture Guard
+ *  Monetary truth is the UTXO set. Scripts classify outputs; they are not assets
+ *  and they do not mint. Tickets are `<HASH160> <0xbd CONVERGE marker>` (destroyed,
+ *  never a UTXO). Witness v1 is native RES transfer only (untagged 32-byte Ed25519
+ *  pubkey). Retired CVG2 and RES2-prefixed programs are consensus-invalid to create.
+ *  There is no Script VM. Do not introduce BIP341/BIP342 script-path, annex, or
+ *  tapleaf behavior here.
  * ============================================================================
  */
 
 #include <attributes.h>
 #include <crypto/common.h>
 #include <prevector.h>
+#include <script/rigor_bytes.h>
 #include <serialize.h>
 
 #include <assert.h>
@@ -38,7 +42,7 @@ static const int MAX_OPS_PER_SCRIPT = 201;
 // Maximum number of public keys per multisig
 static const int MAX_PUBKEYS_PER_MULTISIG = 20;
 
-/** The limit of keys in OP_CHECKSIGADD-based scripts. It is due to the stack limit in BIP342. */
+/** The limit of keys in RIGOR_RESERVED_LEGACY_CHECKSIGADD-based scripts. It is due to the stack limit in BIP342. */
 static constexpr unsigned int MAX_PUBKEYS_PER_MULTI_A = 999;
 
 // Maximum script length in bytes
@@ -75,172 +79,7 @@ std::vector<unsigned char> ToByteVector(const T& in)
     return std::vector<unsigned char>(in.begin(), in.end());
 }
 
-/** Script opcodes */
-enum opcodetype
-{
-    // push value
-    OP_0 = 0x00,
-    OP_FALSE = OP_0,
-    OP_PUSHDATA1 = 0x4c,
-    OP_PUSHDATA2 = 0x4d,
-    OP_PUSHDATA4 = 0x4e,
-    OP_1NEGATE = 0x4f,
-    OP_RESERVED = 0x50,
-    OP_1 = 0x51,
-    OP_TRUE=OP_1,
-    OP_2 = 0x52,
-    OP_3 = 0x53,
-    OP_4 = 0x54,
-    OP_5 = 0x55,
-    OP_6 = 0x56,
-    OP_7 = 0x57,
-    OP_8 = 0x58,
-    OP_9 = 0x59,
-    OP_10 = 0x5a,
-    OP_11 = 0x5b,
-    OP_12 = 0x5c,
-    OP_13 = 0x5d,
-    OP_14 = 0x5e,
-    OP_15 = 0x5f,
-    OP_16 = 0x60,
-
-    // control
-    OP_NOP = 0x61,
-    OP_VER = 0x62,
-    OP_IF = 0x63,
-    OP_NOTIF = 0x64,
-    OP_VERIF = 0x65,
-    OP_VERNOTIF = 0x66,
-    OP_ELSE = 0x67,
-    OP_ENDIF = 0x68,
-    OP_VERIFY = 0x69,
-    OP_RETURN = 0x6a,
-
-    // stack ops
-    OP_TOALTSTACK = 0x6b,
-    OP_FROMALTSTACK = 0x6c,
-    OP_2DROP = 0x6d,
-    OP_2DUP = 0x6e,
-    OP_3DUP = 0x6f,
-    OP_2OVER = 0x70,
-    OP_2ROT = 0x71,
-    OP_2SWAP = 0x72,
-    OP_IFDUP = 0x73,
-    OP_DEPTH = 0x74,
-    OP_DROP = 0x75,
-    OP_DUP = 0x76,
-    OP_NIP = 0x77,
-    OP_OVER = 0x78,
-    OP_PICK = 0x79,
-    OP_ROLL = 0x7a,
-    OP_ROT = 0x7b,
-    OP_SWAP = 0x7c,
-    OP_TUCK = 0x7d,
-
-    // splice ops
-    OP_CAT = 0x7e,
-    OP_SUBSTR = 0x7f,
-    OP_LEFT = 0x80,
-    OP_RIGHT = 0x81,
-    OP_SIZE = 0x82,
-
-    // bit logic
-    OP_INVERT = 0x83,
-    OP_AND = 0x84,
-    OP_OR = 0x85,
-    OP_XOR = 0x86,
-    OP_EQUAL = 0x87,
-    OP_EQUALVERIFY = 0x88,
-    OP_RESERVED1 = 0x89,
-    OP_RESERVED2 = 0x8a,
-
-    // numeric
-    OP_1ADD = 0x8b,
-    OP_1SUB = 0x8c,
-    OP_2MUL = 0x8d,
-    OP_2DIV = 0x8e,
-    OP_NEGATE = 0x8f,
-    OP_ABS = 0x90,
-    OP_NOT = 0x91,
-    OP_0NOTEQUAL = 0x92,
-
-    OP_ADD = 0x93,
-    OP_SUB = 0x94,
-    OP_MUL = 0x95,
-    OP_DIV = 0x96,
-    OP_MOD = 0x97,
-    OP_LSHIFT = 0x98,
-    OP_RSHIFT = 0x99,
-
-    OP_BOOLAND = 0x9a,
-    OP_BOOLOR = 0x9b,
-    OP_NUMEQUAL = 0x9c,
-    OP_NUMEQUALVERIFY = 0x9d,
-    OP_NUMNOTEQUAL = 0x9e,
-    OP_LESSTHAN = 0x9f,
-    OP_GREATERTHAN = 0xa0,
-    OP_LESSTHANOREQUAL = 0xa1,
-    OP_GREATERTHANOREQUAL = 0xa2,
-    OP_MIN = 0xa3,
-    OP_MAX = 0xa4,
-
-    OP_WITHIN = 0xa5,
-
-    // crypto
-    OP_RIPEMD160 = 0xa6,
-    OP_SHA1 = 0xa7,
-    OP_SHA256 = 0xa8,
-    OP_HASH160 = 0xa9,
-    OP_HASH256 = 0xaa,
-    OP_CODESEPARATOR = 0xab,
-    OP_CHECKSIG = 0xac,
-    OP_CHECKSIGVERIFY = 0xad,
-    OP_CHECKMULTISIG = 0xae,
-    OP_CHECKMULTISIGVERIFY = 0xaf,
-
-    // expansion
-    OP_NOP1 = 0xb0,
-    OP_CHECKLOCKTIMEVERIFY = 0xb1,
-    OP_NOP2 = OP_CHECKLOCKTIMEVERIFY,
-    OP_CHECKSEQUENCEVERIFY = 0xb2,
-    OP_NOP3 = OP_CHECKSEQUENCEVERIFY,
-    OP_NOP4 = 0xb3,
-    OP_NOP5 = 0xb4,
-    OP_NOP6 = 0xb5,
-    OP_NOP7 = 0xb6,
-    OP_NOP8 = 0xb7,
-    OP_NOP9 = 0xb8,
-    OP_NOP10 = 0xb9,
-
-    // Opcode added by BIP 342 (Tapscript) — disabled on Rigor.
-    OP_CHECKSIGADD = 0xba,
-
-    // RES mint lock: scriptPubKey is `<maturity_height> <20-byte pubkey_hash> OP_RES_MINT`.
-    // Spend pops those two items plus `<sig> <pubkey>` and checks height + Ed25519.
-    OP_RES_MINT = 0xbb,
-
-    // 0xbc is BURNED. It was OP_CVG_CLAIM, a one-shot convergence covenant lock whose spend
-    // minted RES to the ticket owner. Retired: a covenant ticket could not authorize its own
-    // draw win, so a covenant-funded mint had to carry the same ConvergeProof as an ORU-funded
-    // one. Do not reassign 0xbc — the number appears in retired design docs and in the Coq
-    // covenant modules, which model it as unreachable. HasValidOps rejects 0xbc even though
-    // MAX_OPCODE now sits above it (OP_CONVERGE = 0xbd).
-
-    // ORU-domain convergence burn: scriptPubKey is `<20-byte HASH160(RES program)> OP_CONVERGE`.
-    // Unspendable. AddCoins skips it (destroyed, not a UTXO). Owner is the HASH160 in the
-    // script — the same digest OP_RES_MINT pays. No sibling OP_RETURN, no witness v1 dual-use.
-    OP_CONVERGE = 0xbd,
-
-    OP_INVALIDOPCODE = 0xff,
-};
-
-// Maximum value that an opcode can be
-static const unsigned int MAX_OPCODE = OP_CONVERGE;
-
-/** Retired OP_CVG_CLAIM. Not a usable opcode; HasValidOps and EvalScript reject it. */
-static constexpr opcodetype OP_CVG_CLAIM_BURNED = static_cast<opcodetype>(0xbc);
-
-std::string GetOpName(opcodetype opcode);
+/** Numeric opcodes (legacy reserved bytes 0x8b+) are parser-visible only. There is no Script VM. */
 
 class scriptnum_error : public std::runtime_error
 {
@@ -251,7 +90,7 @@ public:
 class CScriptNum
 {
 /**
- * Numeric opcodes (OP_1ADD, etc) are restricted to operating on 4-byte integers.
+ * Numeric opcodes (RIGOR_RESERVED_LEGACY_1ADD, etc) are restricted to operating on 4-byte integers.
  * The semantics are subtle, though: operands must be in the range [-2^31 +1...2^31 -1],
  * but results may overflow (and are valid as long as they are not used in a subsequent
  * numeric operation). CScriptNum enforces those semantics by storing results as
@@ -443,11 +282,11 @@ protected:
     {
         if (n == -1 || (n >= 1 && n <= 16))
         {
-            push_back(n + (OP_1 - 1));
+            push_back(n + (RIGOR_PUSH_1 - 1));
         }
         else if (n == 0)
         {
-            push_back(OP_0);
+            push_back(RIGOR_PUSH_0);
         }
         else
         {
@@ -491,25 +330,25 @@ public:
 
     CScript& operator<<(const std::vector<unsigned char>& b) LIFETIMEBOUND
     {
-        if (b.size() < OP_PUSHDATA1)
+        if (b.size() < RIGOR_PUSHDATA1)
         {
             insert(end(), (unsigned char)b.size());
         }
         else if (b.size() <= 0xff)
         {
-            insert(end(), OP_PUSHDATA1);
+            insert(end(), RIGOR_PUSHDATA1);
             insert(end(), (unsigned char)b.size());
         }
         else if (b.size() <= 0xffff)
         {
-            insert(end(), OP_PUSHDATA2);
+            insert(end(), RIGOR_PUSHDATA2);
             uint8_t _data[2];
             WriteLE16(_data, b.size());
             insert(end(), _data, _data + sizeof(_data));
         }
         else
         {
-            insert(end(), OP_PUSHDATA4);
+            insert(end(), RIGOR_PUSHDATA4);
             uint8_t _data[4];
             WriteLE32(_data, b.size());
             insert(end(), _data, _data + sizeof(_data));
@@ -531,53 +370,47 @@ public:
     /** Encode/decode small integers: */
     static int DecodeOP_N(opcodetype opcode)
     {
-        if (opcode == OP_0)
+        if (opcode == RIGOR_PUSH_0)
             return 0;
-        assert(opcode >= OP_1 && opcode <= OP_16);
-        return (int)opcode - (int)(OP_1 - 1);
+        assert(opcode >= RIGOR_PUSH_1 && opcode <= RIGOR_PUSH_16);
+        return (int)opcode - (int)(RIGOR_PUSH_1 - 1);
     }
     static opcodetype EncodeOP_N(int n)
     {
         assert(n >= 0 && n <= 16);
         if (n == 0)
-            return OP_0;
-        return (opcodetype)(OP_1+n-1);
+            return RIGOR_PUSH_0;
+        return (opcodetype)(RIGOR_PUSH_1+n-1);
     }
 
     /**
-     * Pre-version-0.6, Bitcoin always counted CHECKMULTISIGs
-     * as 20 sigops. With pay-to-script-hash, that changed:
-     * CHECKMULTISIGs serialized in scriptSigs are
-     * counted more accurately, assuming they are of the form
-     *  ... OP_N CHECKMULTISIG ...
+     * Bitcoin-era CHECKSIG/CHECKMULTISIG byte counting. Not used by CheckBlock
+     * or GetLegacySigOpCount. Tests and fuzz only.
      */
-    unsigned int GetSigOpCount(bool fAccurate) const;
+    unsigned int CountScriptOpsLegacyTestOnly(bool fAccurate) const;
 
     /**
-     * Accurately count sigOps, including sigOps in
-     * pay-to-script-hash transactions:
+     * Same, plus the historical P2SH redeemScript unwrap. Tests and fuzz only.
      */
-    unsigned int GetSigOpCount(const CScript& scriptSig) const;
+    unsigned int CountScriptOpsLegacyTestOnly(const CScript& scriptSig) const;
 
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
 
-    /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
+    /** Called by IsStandardTx (NULL_DATA remainder must be push-only). */
     bool IsPushOnly(const_iterator pc) const;
     bool IsPushOnly() const;
 
-    /** Check if the script contains valid OP_CODES */
+    /** Parser-valid bytes only (no burned 0xbc, no vacant 0xbe–0xfe). */
     bool HasValidOps() const;
 
     /**
-     * Returns whether the script is guaranteed to fail at execution,
-     * regardless of the initial stack. This allows outputs to be pruned
-     * instantly when entering the UTXO set.
+     * RETURN-marker outputs and oversized scripts are not UTXOs.
      */
     bool IsUnspendable() const
     {
-        return (size() > 0 && *begin() == OP_RETURN) || (size() > MAX_SCRIPT_SIZE);
+        return (size() > 0 && *begin() == RIGOR_MARKER_RETURN) || (size() > MAX_SCRIPT_SIZE);
     }
 
     void clear()

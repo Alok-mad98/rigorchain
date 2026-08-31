@@ -15,6 +15,7 @@ import test_framework.messages
 from test_framework.p2p import (
     P2PInterface,
     P2P_SERVICES,
+    NODE_WITNESS,
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -118,12 +119,14 @@ class NetTest(BitcoinTestFramework):
                 "addr_processed": 0,
                 "addr_rate_limited": 0,
                 "addr_relay_enabled": False,
-                "bip152_hb_from": False,
-                "bip152_hb_to": False,
                 "bytesrecv": 0,
                 "bytesrecv_per_msg": {},
                 "bytessent": 0,
                 "bytessent_per_msg": {},
+                "capabilities": [],
+                "capabilities_advertised": False,
+                "compact_block_hb_from": False,
+                "compact_block_hb_to": False,
                 "connection_type": "inbound",
                 "conntime": no_version_peer_conntime,
                 "id": no_version_peer_id,
@@ -225,8 +228,8 @@ class NetTest(BitcoinTestFramework):
 
     def test_service_flags(self):
         self.log.info("Test service flags")
-        self.nodes[0].add_p2p_connection(P2PInterface(), services=(1 << 4) | (1 << 63))
-        assert_equal(['UNKNOWN[2^4]', 'UNKNOWN[2^63]'], self.nodes[0].getpeerinfo()[-1]['servicesnames'])
+        self.nodes[0].add_p2p_connection(P2PInterface(), services=NODE_WITNESS | (1 << 4) | (1 << 63))
+        assert_equal(['WITNESS', 'UNKNOWN[2^4]', 'UNKNOWN[2^63]'], self.nodes[0].getpeerinfo()[-1]['servicesnames'])
         self.nodes[0].disconnect_p2ps()
 
     def test_getnodeaddresses(self):

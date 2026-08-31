@@ -261,8 +261,9 @@ governance.
 ### 3.8 Draw Context (consensus-critical extension)
 
 **Definition:** Per-block convergence trace: candidate set `F`, convergence root
-`C`, per-candidate digests and eligibility, replay bind material (`bind_commit`),
-and optional winner selection outcome.
+`C`, per-candidate digests and eligibility, parent block hash `B_{h-1}` as the
+σ seed (Sigma-PoW-01), and optional winner selection outcome. Historical
+`bind_commit` is superseded.
 
 **Why consensus depends on it:** RES mint authorization flows exclusively through
 the draw. Incorrect root, eligibility, or winner selection MUST reject the block.
@@ -274,12 +275,12 @@ PoW-derived inequality RHS; or winner violates deterministic selection order.
 
 ### 3.9 PoW Context (consensus-critical extension)
 
-**Definition:** ASERT difficulty state: compact target at tip, anchor parameters,
-and header fields needed to verify `Hash256(header) < ExpandCompact(nBits)`.
+**Definition:** ASERT difficulty state: compact target at tip, height-1 (or genesis) anchor,
+and header fields needed to verify `OpuHash(SHA256d(header)) < ExpandCompact(nBits)`.
 
 **Why consensus depends on it:** PoW validity and fork choice depend on difficulty
-state. `target_prev` participates in replay binding only; it MUST NOT define the
-RES inequality RHS (RFC-014).
+state. Parent compact target is **not** a σ input (SECURITY-001-A8). It MUST NOT
+define the RES inequality RHS (RFC-014).
 
 **Failure condition:** Header accepted with insufficient work; ASERT update
 violates frozen rule; or PoW target used as convergence probability source.
@@ -432,7 +433,7 @@ Placeholder invariant catalog (superseded by authoritative [SPEC-005 Consensus I
 | **SI-007** | Single RES mint | `M(h) ∈ {0, 1}` — at most one successful RES mint per block |
 | **SI-008** | Chainwork monotonicity | Cumulative chainwork strictly increases along the active chain |
 | **SI-009** | Draw–mint coherence | RES mint in block `h` exists iff draw produced authorized winner and supply headroom |
-| **SI-010** | Replay bind integrity | σ and mint proofs use correct `bind_commit`, height, and bootstrap stand-in when `h < k` |
+| **SI-010** | Replay bind integrity | σ uses parent hash `B_{h-1}` and height `h` (Sigma-PoW-01); mint proofs bind the same parent `C` |
 | **SI-011** | Script-as-compliance | Asset *class* is derivable from script; no persisted parallel asset field; legitimacy via consensus |
 | **SI-012** | Identity domain | Consensus references use transaction identity (txid), not witness-weighted alternate ids |
 | **SI-013** | Deterministic transition | Identical `(S(h), Block(h+1))` yields identical accept/reject and identical `S(h+1)` when accepted |

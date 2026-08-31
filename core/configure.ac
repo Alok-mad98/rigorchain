@@ -7,9 +7,9 @@ define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2023)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Rigor Core]])
-AC_INIT([Rigor Core],m4_join([.], _CLIENT_VERSION_MAJOR, _CLIENT_VERSION_MINOR, _CLIENT_VERSION_BUILD)m4_if(_CLIENT_VERSION_RC, [0], [], [rc]_CLIENT_VERSION_RC),[https://github.com/bitcoin/bitcoin/issues],[rigor],[https://bitcoincore.org/])
+AC_INIT([Rigor Core],m4_join([.], _CLIENT_VERSION_MAJOR, _CLIENT_VERSION_MINOR, _CLIENT_VERSION_BUILD)m4_if(_CLIENT_VERSION_RC, [0], [], [rc]_CLIENT_VERSION_RC),[https://github.com/rigorchain/rigorchain/issues],[rigor],[https://rigorchain.org/])
 AC_CONFIG_SRCDIR([src/validation.cpp])
-AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
+AC_CONFIG_HEADERS([src/config/rigor-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
@@ -29,17 +29,17 @@ if test -n "$PKG_CONFIG_LIBDIR"; then
   PKG_CONFIG="env PKG_CONFIG_LIBDIR=$PKG_CONFIG_LIBDIR $PKG_CONFIG"
 fi
 
-BITCOIN_DAEMON_NAME=rigord
-BITCOIN_GUI_NAME=rigor-qt
-BITCOIN_TEST_NAME=test_bitcoin
-BITCOIN_CLI_NAME=rigor-cli
-BITCOIN_TX_NAME=rigor-tx
-BITCOIN_UTIL_NAME=bitcoin-util
-BITCOIN_CHAINSTATE_NAME=bitcoin-chainstate
-BITCOIN_WALLET_TOOL_NAME=rigor-wallet
+RIGOR_DAEMON_NAME=rigord
+RIGOR_GUI_NAME=rigor-qt
+RIGOR_TEST_NAME=test_rigor
+RIGOR_CLI_NAME=rigor-cli
+RIGOR_TX_NAME=rigor-tx
+RIGOR_UTIL_NAME=rigor-util
+RIGOR_CHAINSTATE_NAME=rigor-chainstate
+RIGOR_WALLET_TOOL_NAME=rigor-wallet
 dnl Multi Process
-BITCOIN_MP_NODE_NAME=bitcoin-node
-BITCOIN_MP_GUI_NAME=bitcoin-gui
+RIGOR_MP_NODE_NAME=rigor-node
+RIGOR_MP_GUI_NAME=rigor-gui
 
 dnl Unless the user specified ARFLAGS, force it to be cr
 dnl This is also the default as-of libtool 2.4.7
@@ -50,9 +50,9 @@ fi
 
 AC_CANONICAL_HOST
 
-AH_TOP([#ifndef BITCOIN_CONFIG_H])
-AH_TOP([#define BITCOIN_CONFIG_H])
-AH_BOTTOM([#endif //BITCOIN_CONFIG_H])
+AH_TOP([#ifndef RIGOR_CONFIG_H])
+AH_TOP([#define RIGOR_CONFIG_H])
+AH_BOTTOM([#endif //RIGOR_CONFIG_H])
 
 dnl Automake init set-up and checks
 AM_INIT_AUTOMAKE([1.13 no-define subdir-objects foreign])
@@ -150,16 +150,6 @@ AC_ARG_WITH([sqlite],
   [enable sqlite wallet support (default: yes; required when wallet is enabled)])],
   [use_sqlite=$withval],
   [use_sqlite=yes])
-
-AC_ARG_WITH([bdb],
-  [AS_HELP_STRING([--with-bdb],
-  [Rigor: Berkeley DB wallet support is removed. This option is rejected if set to yes.])],
-  [use_bdb=$withval],
-  [use_bdb=no])
-if test "$use_bdb" = "yes"; then
-  AC_MSG_ERROR([Rigor wallet is SQLite-only: Berkeley DB is not supported. Omit --with-bdb or use --without-bdb.])
-fi
-use_bdb=no
 
 AC_ARG_ENABLE([usdt],
   [AS_HELP_STRING([--enable-usdt],
@@ -642,31 +632,31 @@ CORE_CPPFLAGS="$CORE_CPPFLAGS -DHAVE_BUILD_INFO"
 
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
-  [build bitcoin-cli bitcoin-tx bitcoin-util bitcoin-wallet (default=yes)])],
+  [build rigor-cli rigor-tx rigor-util rigor-wallet (default=yes)])],
   [build_bitcoin_utils=$withval],
   [build_bitcoin_utils=yes])
 
 AC_ARG_ENABLE([util-cli],
   [AS_HELP_STRING([--enable-util-cli],
-  [build bitcoin-cli])],
+  [build rigor-cli])],
   [build_bitcoin_cli=$enableval],
   [build_bitcoin_cli=$build_bitcoin_utils])
 
 AC_ARG_ENABLE([util-tx],
   [AS_HELP_STRING([--enable-util-tx],
-  [build bitcoin-tx])],
+  [build rigor-tx])],
   [build_bitcoin_tx=$enableval],
   [build_bitcoin_tx=$build_bitcoin_utils])
 
 AC_ARG_ENABLE([util-wallet],
   [AS_HELP_STRING([--enable-util-wallet],
-  [build bitcoin-wallet])],
+  [build rigor-wallet])],
   [build_bitcoin_wallet=$enableval],
   [build_bitcoin_wallet=$build_bitcoin_utils])
 
 AC_ARG_ENABLE([util-util],
   [AS_HELP_STRING([--enable-util-util],
-  [build bitcoin-util])],
+  [build rigor-util])],
   [build_bitcoin_util=$enableval],
   [build_bitcoin_util=$build_bitcoin_utils])
 
@@ -678,9 +668,11 @@ AC_ARG_ENABLE([experimental-util-chainstate],
 
 AC_ARG_WITH([libs],
   [AS_HELP_STRING([--with-libs],
-  [build libraries (default=yes)])],
-  [build_bitcoin_libs=$withval],
-  [build_bitcoin_libs=yes])
+  [obsolete: libbitcoinconsensus was removed; RIGOR has no C consensus ABI])],
+  [if test "$withval" != "no"; then
+     AC_MSG_WARN([--with-libs is ignored: libbitcoinconsensus was removed (wrong signature domain, no honest C ABI)])
+   fi])
+build_bitcoin_libs=no
 
 AC_ARG_WITH([experimental-kernel-lib],
   [AS_HELP_STRING([--with-experimental-kernel-lib],
@@ -690,7 +682,7 @@ AC_ARG_WITH([experimental-kernel-lib],
 
 AC_ARG_WITH([daemon],
   [AS_HELP_STRING([--with-daemon],
-  [build bitcoind daemon (default=yes)])],
+  [build rigord daemon (default=yes)])],
   [build_bitcoind=$withval],
   [build_bitcoind=yes])
 
@@ -762,13 +754,6 @@ case $host in
          dnl of search paths in case it's not already there.
          if test "$suppress_external_warnings" != "no"; then
            AX_CHECK_PREPROC_FLAG([-Xclang -internal-isystem/usr/local/include], [CORE_CPPFLAGS="$CORE_CPPFLAGS -Xclang -internal-isystem/usr/local/include"], [], [$CXXFLAG_WERROR])
-         fi
-
-         if test "$use_bdb" != "no" && $BREW list --versions berkeley-db@4 >/dev/null && test "$BDB_CFLAGS" = "" && test "$BDB_LIBS" = ""; then
-           bdb_prefix=$($BREW --prefix berkeley-db@4 2>/dev/null)
-           dnl This must precede the call to BITCOIN_FIND_BDB48 below.
-           BDB_CFLAGS="-I$bdb_prefix/include"
-           BDB_LIBS="-L$bdb_prefix/lib -ldb_cxx-4.8"
          fi
 
          if $BREW list --versions qt@5 >/dev/null; then
@@ -912,7 +897,7 @@ AX_PTHREAD
 dnl Check if -latomic is required for <std::atomic>
 CHECK_ATOMIC
 
-dnl The following macro will add the necessary defines to bitcoin-config.h, but
+dnl The following macro will add the necessary defines to rigor-config.h, but
 dnl they also need to be passed down to any subprojects. Pull the results out of
 dnl the cache and add them to CPPFLAGS.
 AC_SYS_LARGEFILE
@@ -1475,7 +1460,7 @@ if test "$use_boost" = "yes"; then
   dnl Check for Boost headers
   AX_BOOST_BASE([1.64.0],[],[AC_MSG_ERROR([Boost is not available!])])
   if test "$want_boost" = "no"; then
-    AC_MSG_ERROR([only libbitcoinconsensus can be built without Boost])
+    AC_MSG_ERROR([Boost is required])
   fi
 
   dnl we don't use multi_index serialization
@@ -1619,7 +1604,16 @@ if test x$use_libevent = xyes; then
 fi
 
 dnl libsodium check (required for Ed25519 support)
-PKG_CHECK_MODULES([SODIUM], [libsodium >= 1.0.18], [], [AC_MSG_ERROR([libsodium version 1.0.18 or greater not found.])])
+dnl F-10: prefer static linkage so consensus verify is not a runtime shared-library lottery.
+PKG_CHECK_MODULES([SODIUM], [libsodium >= 1.0.18], [
+  SODIUM_STATIC_LIBS=`$PKG_CONFIG --static --libs libsodium 2>/dev/null`
+  if test "x$SODIUM_STATIC_LIBS" != x; then
+    SODIUM_LIBS="$SODIUM_STATIC_LIBS"
+    AC_MSG_NOTICE([linking libsodium statically into the consensus binary])
+  else
+    AC_MSG_WARN([pkg-config --static --libs libsodium failed; falling back to dynamic SODIUM_LIBS])
+  fi
+], [AC_MSG_ERROR([libsodium version 1.0.18 or greater not found.])])
 dnl H-1: the Ed25519 verifier is a consensus rule. Nodes MUST run libsodium >= 1.0.18
 dnl (library version 10.3). ECC_Start() refuses to start on a too-old or non-ed25519 runtime.
 
@@ -1676,8 +1670,8 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_MULTIPROCESS], [test "$build_multiprocess" = "yes"])
-AM_CONDITIONAL([BUILD_BITCOIN_NODE], [test "$build_multiprocess" = "yes"])
-AM_CONDITIONAL([BUILD_BITCOIN_GUI], [test "$build_multiprocess" = "yes"])
+AM_CONDITIONAL([BUILD_RIGOR_NODE], [test "$build_multiprocess" = "yes"])
+AM_CONDITIONAL([BUILD_RIGOR_GUI], [test "$build_multiprocess" = "yes"])
 
 dnl codegen tools check
 
@@ -1690,24 +1684,24 @@ if test "$build_multiprocess" != "no"; then
   AC_SUBST(MPGEN_PREFIX)
 fi
 
-AC_MSG_CHECKING([whether to build bitcoind])
-AM_CONDITIONAL([BUILD_BITCOIND], [test $build_bitcoind = "yes"])
+AC_MSG_CHECKING([whether to build rigord])
+AM_CONDITIONAL([BUILD_RIGORD], [test $build_bitcoind = "yes"])
 AC_MSG_RESULT($build_bitcoind)
 
-AC_MSG_CHECKING([whether to build bitcoin-cli])
-AM_CONDITIONAL([BUILD_BITCOIN_CLI], [test $build_bitcoin_cli = "yes"])
+AC_MSG_CHECKING([whether to build rigor-cli])
+AM_CONDITIONAL([BUILD_RIGOR_CLI], [test $build_bitcoin_cli = "yes"])
 AC_MSG_RESULT($build_bitcoin_cli)
 
-AC_MSG_CHECKING([whether to build bitcoin-tx])
-AM_CONDITIONAL([BUILD_BITCOIN_TX], [test $build_bitcoin_tx = "yes"])
+AC_MSG_CHECKING([whether to build rigor-tx])
+AM_CONDITIONAL([BUILD_RIGOR_TX], [test $build_bitcoin_tx = "yes"])
 AC_MSG_RESULT($build_bitcoin_tx)
 
-AC_MSG_CHECKING([whether to build bitcoin-wallet])
-AM_CONDITIONAL([BUILD_BITCOIN_WALLET], [test $build_bitcoin_wallet = "yes"])
+AC_MSG_CHECKING([whether to build rigor-wallet])
+AM_CONDITIONAL([BUILD_RIGOR_WALLET], [test $build_bitcoin_wallet = "yes"])
 AC_MSG_RESULT($build_bitcoin_wallet)
 
-AC_MSG_CHECKING([whether to build bitcoin-util])
-AM_CONDITIONAL([BUILD_BITCOIN_UTIL], [test $build_bitcoin_util = "yes"])
+AC_MSG_CHECKING([whether to build rigor-util])
+AM_CONDITIONAL([BUILD_RIGOR_UTIL], [test $build_bitcoin_util = "yes"])
 AC_MSG_RESULT($build_bitcoin_util)
 
 AC_MSG_CHECKING([whether to build experimental bitcoin-chainstate])
@@ -1716,20 +1710,14 @@ if test "$build_bitcoin_chainstate" = "yes"; then
     AC_MSG_ERROR([experimental bitcoin-chainstate cannot be built without the experimental bitcoinkernel library. Use --with-experimental-kernel-lib]);
   fi
 fi
-AM_CONDITIONAL([BUILD_BITCOIN_CHAINSTATE], [test $build_bitcoin_chainstate = "yes"])
+AM_CONDITIONAL([BUILD_RIGOR_CHAINSTATE], [test $build_bitcoin_chainstate = "yes"])
 AC_MSG_RESULT($build_bitcoin_chainstate)
 
 AC_MSG_CHECKING([whether to build libraries])
-AM_CONDITIONAL([BUILD_BITCOIN_LIBS], [test $build_bitcoin_libs = "yes"])
+AM_CONDITIONAL([BUILD_RIGOR_LIBS], [false])
+AC_MSG_RESULT(no)
 
-if test "$build_bitcoin_libs" = "yes"; then
-  AC_DEFINE([HAVE_CONSENSUS_LIB], [1], [Define this symbol if the consensus lib has been built])
-  AC_CONFIG_FILES([libbitcoinconsensus.pc:libbitcoinconsensus.pc.in])
-fi
-
-AM_CONDITIONAL([BUILD_BITCOIN_KERNEL_LIB], [test "$build_experimental_kernel_lib" != "no" && ( test "$build_experimental_kernel_lib" = "yes" || test "$build_bitcoin_chainstate" = "yes" )])
-
-AC_MSG_RESULT($build_bitcoin_libs)
+AM_CONDITIONAL([BUILD_RIGOR_KERNEL_LIB], [test "$build_experimental_kernel_lib" != "no" && ( test "$build_experimental_kernel_lib" = "yes" || test "$build_bitcoin_chainstate" = "yes" )])
 
 AC_LANG_POP
 
@@ -1846,7 +1834,7 @@ fi
 
 AM_CONDITIONAL([ENABLE_ZMQ], [test "$use_zmq" = "yes"])
 
-AC_MSG_CHECKING([whether to build test_bitcoin])
+AC_MSG_CHECKING([whether to build test_rigor])
 if test "$use_tests" = "yes"; then
   if test "$enable_fuzz" = "yes"; then
     AC_MSG_RESULT([no, because fuzzing is enabled])
@@ -1876,7 +1864,6 @@ AM_CONDITIONAL([TARGET_LINUX], [test "$TARGET_OS" = "linux"])
 AM_CONDITIONAL([TARGET_WINDOWS], [test "$TARGET_OS" = "windows"])
 AM_CONDITIONAL([ENABLE_WALLET], [test "$enable_wallet" = "yes"])
 AM_CONDITIONAL([USE_SQLITE], [test "$use_sqlite" = "yes"])
-AM_CONDITIONAL([USE_BDB], [test "$use_bdb" = "yes"])
 AM_CONDITIONAL([ENABLE_TESTS], [test "$BUILD_TEST" = "yes"])
 AM_CONDITIONAL([ENABLE_FUZZ], [test "$enable_fuzz" = "yes"])
 AM_CONDITIONAL([ENABLE_FUZZ_BINARY], [test "$enable_fuzz_binary" = "yes"])
@@ -1919,16 +1906,16 @@ AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 AC_SUBST(COPYRIGHT_HOLDERS, "_COPYRIGHT_HOLDERS")
 AC_SUBST(COPYRIGHT_HOLDERS_SUBSTITUTION, "_COPYRIGHT_HOLDERS_SUBSTITUTION")
 AC_SUBST(COPYRIGHT_HOLDERS_FINAL, "_COPYRIGHT_HOLDERS_FINAL")
-AC_SUBST(BITCOIN_DAEMON_NAME)
-AC_SUBST(BITCOIN_GUI_NAME)
-AC_SUBST(BITCOIN_TEST_NAME)
-AC_SUBST(BITCOIN_CLI_NAME)
-AC_SUBST(BITCOIN_TX_NAME)
-AC_SUBST(BITCOIN_UTIL_NAME)
-AC_SUBST(BITCOIN_CHAINSTATE_NAME)
-AC_SUBST(BITCOIN_WALLET_TOOL_NAME)
-AC_SUBST(BITCOIN_MP_NODE_NAME)
-AC_SUBST(BITCOIN_MP_GUI_NAME)
+AC_SUBST(RIGOR_DAEMON_NAME)
+AC_SUBST(RIGOR_GUI_NAME)
+AC_SUBST(RIGOR_TEST_NAME)
+AC_SUBST(RIGOR_CLI_NAME)
+AC_SUBST(RIGOR_TX_NAME)
+AC_SUBST(RIGOR_UTIL_NAME)
+AC_SUBST(RIGOR_CHAINSTATE_NAME)
+AC_SUBST(RIGOR_WALLET_TOOL_NAME)
+AC_SUBST(RIGOR_MP_NODE_NAME)
+AC_SUBST(RIGOR_MP_GUI_NAME)
 
 AC_SUBST(RELDFLAGS)
 AC_SUBST(CORE_LDFLAGS)
@@ -1959,7 +1946,6 @@ AC_SUBST(ARM_CRC_CXXFLAGS)
 AC_SUBST(ARM_SHANI_CXXFLAGS)
 AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_SQLITE)
-AC_SUBST(USE_BDB)
 AC_SUBST(ENABLE_EXTERNAL_SIGNER)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
@@ -2008,11 +1994,10 @@ echo "Options used to compile and link:"
 echo "  external signer = $use_external_signer"
 echo "  multiprocess    = $build_multiprocess"
 echo "  with experimental syscall sandbox support = $use_syscall_sandbox"
-echo "  with libs       = $build_bitcoin_libs"
+echo "  with libs       = no (libbitcoinconsensus removed)"
 echo "  with wallet     = $enable_wallet"
 if test "$enable_wallet" != "no"; then
     echo "    with sqlite   = $use_sqlite"
-    echo "    with bdb      = $use_bdb"
 fi
 echo "  with gui / qt   = $bitcoin_enable_qt"
 if test $bitcoin_enable_qt != "no"; then
@@ -2022,7 +2007,7 @@ echo "  with zmq        = $use_zmq"
 if test $enable_fuzz = "no"; then
     echo "  with test       = $use_tests"
 else
-    echo "  with test       = not building test_bitcoin because fuzzing is enabled"
+    echo "  with test       = not building test_rigor because fuzzing is enabled"
 fi
 echo "  with fuzz binary = $enable_fuzz_binary"
 echo "  with bench      = $use_bench"

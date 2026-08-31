@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
 #include <chain.h>
 #include <consensus/convergenceres.h>
 #include <consensus/validation.h>
@@ -31,7 +32,7 @@
 
 #include <pubkey.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/signingprovider.h>
 #include <script/conv_sign_trace.h>
 #include <script/standard.h>
@@ -157,7 +158,7 @@ static UniValue FinishTransaction(const std::shared_ptr<CWallet> pwallet, const 
     }
 
     CMutableTransaction mtx;
-    complete = FinalizeAndExtractPSBT(psbtx, mtx);
+    complete = FinalizeAndExtractPSBT(psbtx, mtx, Params().GetConsensus().hashGenesisBlock);
 
     UniValue result(UniValue::VOBJ);
 
@@ -301,7 +302,7 @@ RPCHelpMan sendtoaddress()
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return extra information about the transaction."},
                     {"asset", RPCArg::Type::STR, RPCArg::Default{"ORU"}, "Native transfer asset (POOL-T): \"ORU\" (8 decimals) or \"RES\" (6 decimals). Network fee (POOL-F) is always ORU."},
-                    {"converge_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "Optional ORU amount to destroy into an OP_CONVERGE output on the same transaction (ORU sends only). Must be >= " + FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT) + ". Owner HASH160 is generated from a fresh RES key. createconvergence is sugar for a send with only this output."},
+                    {"converge_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "Optional ORU amount to destroy into an RIGOR_MARKER_CONVERGE output on the same transaction (ORU sends only). Must be >= " + FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT) + ". Owner HASH160 is generated from a fresh RES key. createconvergence is sugar for a send with only this output."},
                 },
                 {
                     RPCResult{"if verbose is not set or set to false",
@@ -378,19 +379,9 @@ RPCHelpMan sendtoaddress()
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Invalid address: %s", address));
     }
 
-    // RFC-ADDRESS-001: Validate address-asset binding (witness version + script-inferred domain)
+    // W1.1D: script-as-asset is the only send check. Do not infer asset from
+    // witness version. The error string below is a frozen integrator identifier.
     const CScript script_pub_key = GetScriptForDestination(dest);
-    if (!wallet::WitnessRFCBindingOk(script_pub_key, send_asset)) {
-        if (send_asset == ASSET_ORU) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot send ORU to V1 (RES) address. Use V0 (ORU) address for ORU.");
-        }
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot send RES to V0 (ORU) address. Use V1 (RES) address for RES.");
-    }
-    // W1.1D FREEZE INVARIANT (L3 RPC enforcement, INV-X-1/X-2): script-as-asset
-    // mismatch is the authoritative integrator-visible rejection. The error string
-    // below is a FROZEN canonical identifier (integrators pattern-match it) and
-    // MUST NOT be reworded. This check is the third layer in the defense-in-depth
-    // against witness-version spoofing (L1=key_io parser, L2=WalletStrictSendDestinationOk).
     if (AssetTypeFromScriptPubKey(script_pub_key) != send_asset) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
             "Destination native asset (witness script domain) does not match the selected asset parameter.");
@@ -534,7 +525,7 @@ RPCHelpMan sendres()
 RPCHelpMan createconvergence()
 {
     return RPCHelpMan{"createconvergence",
-        "\nCreate and broadcast a convergence transaction: spends ORU inputs and includes exactly one OP_CONVERGE burn "
+        "\nCreate and broadcast a convergence transaction: spends ORU inputs and includes exactly one RIGOR_MARKER_CONVERGE burn "
         "(HASH160 of a fresh RES program inside the lock). Equivalent to sendtoaddress with converge_amount and no extra payment. "
         "The burn is not a UTXO; it participates in the draw. Network fee is paid in ORU. Tags the wallet transaction "
         "(convergence_state=BROADCASTED). Convergence does not guarantee RES." +
@@ -1087,10 +1078,9 @@ RPCHelpMan fundrawtransaction()
                 "or signrawtransactionwithwallet for that.\n"
                 "All existing inputs must either have their previous output transaction be in the wallet\n"
                 "or be in the UTXO set. Solving data must be provided for non-wallet inputs.\n"
-                "Note that all inputs selected must be of standard form and P2SH scripts must be\n"
-                "in the wallet using importaddress or addmultisigaddress (to calculate fees).\n"
-                "You can see whether this is the case by checking the \"solvable\" field in the listunspent output.\n"
-                "Only pay-to-pubkey, multisig, and P2SH versions thereof are currently supported for watch-only\n",
+                "All inputs selected must be native RIGOR outputs the wallet can solve: witness v0\n"
+                "ORU (wpkh) or witness v1 RES. You can see whether this is the case by checking the\n"
+                "\"solvable\" field in the listunspent output.\n",
                 {
                     {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hex string of the raw transaction"},
                     {"options", RPCArg::Type::OBJ, RPCArg::Optional::OMITTED, "for backward compatibility: passing in a true instead of an object will result in {\"includeWatching\":true}",

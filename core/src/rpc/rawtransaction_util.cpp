@@ -5,6 +5,7 @@
 
 #include <rpc/rawtransaction_util.h>
 
+#include <chainparams.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <core_io.h>
@@ -150,10 +151,10 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
             has_data = true;
             auto [data, asset] = ParseDataAndAsset(outputs[name_]);
             if (asset != ASSET_ORU) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, OP_RETURN outputs must omit asset or use \"ORU\"");
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, RIGOR_MARKER_RETURN outputs must omit asset or use \"ORU\"");
             }
 
-            CTxOut out(0, CScript() << OP_RETURN << data);
+            CTxOut out(0, CScript() << RIGOR_MARKER_RETURN << data);
             rawTx.vout.push_back(out);
         } else if (name_ == "script") {
             const UniValue& details = outputs[name_];
@@ -167,7 +168,15 @@ void AddOutputs(CMutableTransaction& rawTx, const UniValue& outputs_in)
             auto [nAmount, asset] = ParseAmountAndAsset(details, "script");
             const std::vector<unsigned char> script_data = ParseHexV(hex_v.getValStr(), "script hex");
             CScript scriptPubKey(script_data.begin(), script_data.end());
-            if (AssetTypeFromScriptPubKey(scriptPubKey) != asset) {
+            if (!IsRigorConstructibleScript(scriptPubKey)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "script hex is not a RIGOR lock or RIGOR_MARKER_RETURN");
+            }
+            const AssetType classified = AssetTypeFromScriptPubKey(scriptPubKey);
+            if (classified == ASSET_NONE) {
+                if (nAmount != 0) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "RIGOR_MARKER_RETURN outputs must have amount 0");
+                }
+            } else if (classified != asset) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "script hex asset does not match \"asset\"");
             }
             rawTx.vout.emplace_back(nAmount, scriptPubKey);
@@ -279,7 +288,6 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
                     newcoin.out.nValue = coin->second.out.nValue;
                     newcoin.fCoinBase = coin->second.fCoinBase;
                     newcoin.nHeight = coin->second.nHeight;
-                    newcoin.nFlags = coin->second.nFlags;
                 } else {
                     newcoin.out.nValue = MAX_MONEY;
                     if (prevOut.exists("amount")) {
@@ -366,11 +374,12 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FillableSigningProvider* keyst
 void SignTransaction(CMutableTransaction& mtx, const SigningProvider* keystore, const std::map<COutPoint, Coin>& coins, const UniValue& hashType, UniValue& result)
 {
     int nHashType = ParseSighashString(hashType);
+    (void)nHashType;
 
     // Script verification errors
     std::map<int, bilingual_str> input_errors;
 
-    bool complete = SignTransaction(mtx, keystore, coins, nHashType, input_errors);
+    bool complete = SignTransaction(mtx, keystore, coins, Params().GetConsensus().hashGenesisBlock, input_errors);
     SignTransactionResultToJSON(mtx, complete, coins, input_errors, result);
 }
 

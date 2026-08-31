@@ -10,7 +10,7 @@ the node should pretend that it does not have it to avoid fingerprinting.
 
 import time
 
-from test_framework.blocktools import (create_block, create_coinbase)
+from test_framework.blocktools import (DEFAULT_COINBASE_SCRIPT_PUBKEY, create_block, create_coinbase)
 from test_framework.messages import CInv, MSG_BLOCK
 from test_framework.p2p import (
     P2PInterface,
@@ -35,7 +35,7 @@ class P2PFingerprintTest(BitcoinTestFramework):
     def build_chain(self, nblocks, prev_hash, prev_height, prev_median_time):
         blocks = []
         for _ in range(nblocks):
-            coinbase = create_coinbase(prev_height + 1)
+            coinbase = create_coinbase(prev_height + 1, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY)
             block_time = prev_median_time + 1
             block = create_block(int(prev_hash, 16), coinbase, block_time)
             block.solve()
@@ -69,7 +69,7 @@ class P2PFingerprintTest(BitcoinTestFramework):
         self.nodes[0].setmocktime(int(time.time()) - 60 * 24 * 60 * 60)
 
         # Generating a chain of 10 blocks
-        block_hashes = self.generatetoaddress(self.nodes[0], 10, self.nodes[0].get_deterministic_priv_key().address)
+        block_hashes = self.generatetoaddress(self.nodes[0], 10, self.nodes[0].get_deterministic_witness_mining_address())
 
         # Create longer chain starting 2 blocks before current tip
         height = len(block_hashes) - 2
@@ -98,7 +98,7 @@ class P2PFingerprintTest(BitcoinTestFramework):
 
         # Longest chain is extended so stale is much older than chain tip
         self.nodes[0].setmocktime(0)
-        block_hash = int(self.generatetoaddress(self.nodes[0], 1, self.nodes[0].get_deterministic_priv_key().address)[-1], 16)
+        block_hash = int(self.generatetoaddress(self.nodes[0], 1, self.nodes[0].get_deterministic_witness_mining_address())[-1], 16)
         assert_equal(self.nodes[0].getblockcount(), 14)
         node0.wait_for_block(block_hash, timeout=3)
 

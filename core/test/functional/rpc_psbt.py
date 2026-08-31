@@ -30,7 +30,7 @@ from test_framework.psbt import (
     PSBT_IN_WITNESS_UTXO,
     PSBT_OUT_TAP_TREE,
 )
-from test_framework.script import CScript, OP_TRUE
+from test_framework.script import CScript, RIGOR_PUSH_1
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     rigor_mixed_asset_fund_options,
@@ -86,7 +86,7 @@ class PSBTTest(BitcoinTestFramework):
         # Mine a transaction that credits the offline address
         offline_addr = offline_node.getnewaddress(address_type="bech32m")
         online_addr = w2.getnewaddress(address_type="bech32m")
-        wonline.importaddress(offline_addr, "", False)
+        wonline.importdescriptors([{"desc": offline_node.getaddressinfo(offline_addr)["desc"], "timestamp": "now"}])
         mining_wallet = mining_node.get_wallet_rpc(self.default_wallet_name)
         mining_wallet.sendtoaddress(address=offline_addr, amount=1.0)
         self.generate(mining_node, nblocks=1, sync_fun=lambda: self.sync_all([online_node, mining_node]))
@@ -231,65 +231,37 @@ class PSBTTest(BitcoinTestFramework):
         # Locks are ignored for manually selected inputs
         self.nodes[0].walletcreatefundedpsbt([{"txid": utxo1['txid'], "vout": utxo1['vout']}], {self.nodes[2].getnewaddress(address_type='bech32m'):1}, 0, rigor_mixed_asset_fund_options())
 
-        # Create p2sh, p2wpkh, and p2wsh addresses
+        # CheckTransaction rejects anything that is not witness v0 ORU or witness v1 RES
+        # (see feature_single_key_outputs.py). Bitcoin leftover p2sh/p2wsh funding is gone.
         pubkey0 = self.nodes[0].getaddressinfo(self.nodes[0].getnewaddress(address_type='bech32m'))['pubkey']
         pubkey1 = self.nodes[1].getaddressinfo(self.nodes[1].getnewaddress(address_type='bech32m'))['pubkey']
         pubkey2 = self.nodes[2].getaddressinfo(self.nodes[2].getnewaddress(address_type='bech32m'))['pubkey']
 
-        # Setup watchonly wallets
-        self.nodes[2].createwallet(wallet_name='wmulti', disable_private_keys=True)
-        wmulti = self.nodes[2].get_wallet_rpc('wmulti')
-
-        # Create all the addresses (RigorChain: legacy / p2sh-segwit multisig are unavailable; use distinct bech32 P2WSH multisigs)
-        def fresh_msig_bech32():
-            keys = []
-            for _ in range(3):
-                k = ECKey()
-                k.generate()
-                keys.append(k.get_pubkey().get_bytes().hex())
-            return wmulti.addmultisigaddress(2, keys, "", "bech32")['address']
-
-        p2sh = fresh_msig_bech32()
-        p2wsh = fresh_msig_bech32()
-        p2sh_p2wsh = fresh_msig_bech32()
-        if not self.options.descriptors:
-            wmulti.importaddress(p2sh)
-            wmulti.importaddress(p2wsh)
-            wmulti.importaddress(p2sh_p2wsh)
-        p2wpkh = self.nodes[1].getnewaddress("", "bech32")
-        p2pkh = self.nodes[1].getnewaddress("", "bech32m")
-        p2sh_p2wpkh = self.nodes[1].getnewaddress("", "bech32m")
+        oru = self.nodes[1].getnewaddress("", "bech32")
+        res = self.nodes[1].getnewaddress("", "bech32m")
+        res2 = self.nodes[1].getnewaddress("", "bech32m")
 
         # fund those addresses
-        rawtx = self.nodes[0].createrawtransaction([], {p2sh:10, p2wsh:10, p2wpkh:10, p2sh_p2wsh:10, p2sh_p2wpkh:10, p2pkh:10})
+        rawtx = self.nodes[0].createrawtransaction([], {oru: 10, res: 10, res2: 10})
         rawtx = self.nodes[0].fundrawtransaction(rawtx, rigor_mixed_asset_fund_options({"changePosition": 3}))
         signed_tx = self.nodes[0].signrawtransactionwithwallet(rawtx['hex'])['hex']
         txid = self.nodes[0].sendrawtransaction(signed_tx)
         self.generate(self.nodes[0], 6)
 
         # Find the output pos
-        p2sh_pos = -1
-        p2wsh_pos = -1
-        p2wpkh_pos = -1
-        p2pkh_pos = -1
-        p2sh_p2wsh_pos = -1
-        p2sh_p2wpkh_pos = -1
+        oru_pos = -1
+        res_pos = -1
+        res2_pos = -1
         decoded = self.nodes[0].decoderawtransaction(signed_tx)
         for out in decoded['vout']:
-            if out['scriptPubKey']['address'] == p2sh:
-                p2sh_pos = out['n']
-            elif out['scriptPubKey']['address'] == p2wsh:
-                p2wsh_pos = out['n']
-            elif out['scriptPubKey']['address'] == p2wpkh:
-                p2wpkh_pos = out['n']
-            elif out['scriptPubKey']['address'] == p2sh_p2wsh:
-                p2sh_p2wsh_pos = out['n']
-            elif out['scriptPubKey']['address'] == p2sh_p2wpkh:
-                p2sh_p2wpkh_pos = out['n']
-            elif out['scriptPubKey']['address'] == p2pkh:
-                p2pkh_pos = out['n']
+            if out['scriptPubKey']['address'] == oru:
+                oru_pos = out['n']
+            elif out['scriptPubKey']['address'] == res:
+                res_pos = out['n']
+            elif out['scriptPubKey']['address'] == res2:
+                res2_pos = out['n']
 
-        inputs = [{"txid": txid, "vout": p2wpkh_pos}, {"txid": txid, "vout": p2sh_p2wpkh_pos}, {"txid": txid, "vout": p2pkh_pos}]
+        inputs = [{"txid": txid, "vout": oru_pos}, {"txid": txid, "vout": res_pos}, {"txid": txid, "vout": res2_pos}]
         outputs = [{self.nodes[1].getnewaddress(address_type='bech32m'): 29.99}]
 
         # spend single key from node 1
@@ -381,22 +353,11 @@ class PSBTTest(BitcoinTestFramework):
             assert_raises_rpc_error(-4, msg, self.nodes[1].walletcreatefundedpsbt, inputs, outputs_array, 0, {"feeRate": 1, "add_inputs": bool_add})
 
         self.log.info("Test various PSBT operations")
-        # partially sign multisig things with node 1
-        psbtx = wmulti.walletcreatefundedpsbt(inputs=[{"txid":txid,"vout":p2wsh_pos},{"txid":txid,"vout":p2sh_pos},{"txid":txid,"vout":p2sh_p2wsh_pos}], outputs={self.nodes[1].getnewaddress(address_type='bech32m'):29.99}, options={'changeAddress': self.nodes[1].getrawchangeaddress('bech32m')})['psbt']
-        walletprocesspsbt_out = self.nodes[1].walletprocesspsbt(psbtx)
-        psbtx = walletprocesspsbt_out['psbt']
-        assert_equal(walletprocesspsbt_out['complete'], False)
-
-        # Unload wmulti, we don't need it anymore
-        wmulti.unloadwallet()
-
-        # partially sign with node 2. This should be complete and sendable
-        walletprocesspsbt_out = self.nodes[2].walletprocesspsbt(psbtx)
-        assert_equal(walletprocesspsbt_out['complete'], True)
-        self.nodes[2].sendrawtransaction(self.nodes[2].finalizepsbt(walletprocesspsbt_out['psbt'])['hex'])
+        # A RIGOR PSBT is complete after its one signer, or it is not fundable. There is no
+        # k-of-n partial-signature hand-off. See feature_single_key_outputs.py.
 
         # check that walletprocesspsbt fails to decode a non-psbt
-        rawtx = self.nodes[1].createrawtransaction([{"txid":txid,"vout":p2wpkh_pos}], {self.nodes[1].getnewaddress(address_type='bech32m'):9.99})
+        rawtx = self.nodes[1].createrawtransaction([{"txid":txid,"vout":oru_pos}], {self.nodes[1].getnewaddress(address_type='bech32m'):9.99})
         assert_raises_rpc_error(-22, "TX decode failed", self.nodes[1].walletprocesspsbt, rawtx)
 
         # Convert a non-psbt to psbt and make sure we can decode it
@@ -939,7 +900,7 @@ class PSBTTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].combinepsbt([psbt1, psbt1]), psbt1)
 
         self.log.info("Test that PSBT inputs are being checked via script execution")
-        acs_prevout = CTxOut(nValue=0, scriptPubKey=CScript([OP_TRUE]))
+        acs_prevout = CTxOut(nValue=0, scriptPubKey=CScript([RIGOR_PUSH_1]))
         tx = CTransaction()
         tx.vin = [CTxIn(outpoint=COutPoint(hash=int('dd' * 32, 16), n=0), scriptSig=b"")]
         tx.vout = [CTxOut(nValue=0, scriptPubKey=b"")]

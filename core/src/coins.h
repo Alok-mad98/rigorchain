@@ -24,21 +24,13 @@
 /**
  * A UTXO entry.
  *
- * Serialized format (LevelDB / coins cache):
+ * Serialized format (LevelDB / coins cache) — Bitcoin Core layout, no trailing flags:
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
  * - the non-spent CTxOut (via TxOutCompression; native asset is implied by scriptPubKey)
- * - VARINT(nFlags) — reserved, always 0. Consensus meaning lives in scriptPubKey
- *   (`OP_RES_MINT` for body RES mint locks).
  *
- * ---------------------------------------------------------------------------
- * Consensus / upgrade notes for future developers
- * ---------------------------------------------------------------------------
- * - RES mint maturity is encoded in the output script (`OP_RES_MINT`), not in Coin flags.
- * - ApplyTxInUndo() copies nHeight/fCoinBase from a sibling output when undo
- *   metadata is missing (legacy undo). Do not copy nFlags from a sibling:
- *   flags are per-output and currently unused.
- * - Block undo uses TxInUndoFormatter in undo.h; keep it aligned with this format.
- * ---------------------------------------------------------------------------
+ * Consensus meaning lives in scriptPubKey (`RIGOR_MARKER_RES_MINT` for body RES mint locks).
+ * ApplyTxInUndo() copies nHeight/fCoinBase from a sibling output when undo
+ * metadata is missing (legacy undo). Block undo uses TxInUndoFormatter in undo.h.
  */
 class Coin
 {
@@ -52,9 +44,6 @@ public:
     //! at which height this containing transaction was included in the active block chain
     uint32_t nHeight : 31;
 
-    //! Reserved extension flags. Always 0; mint identity is the output script.
-    uint32_t nFlags{0};
-
     //! construct a Coin from a CTxOut and height/coinbase information.
     Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn) {}
     Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn),nHeight(nHeightIn) {}
@@ -63,7 +52,6 @@ public:
         out.SetNull();
         fCoinBase = false;
         nHeight = 0;
-        nFlags = 0;
     }
 
     //! empty constructor
@@ -83,9 +71,6 @@ public:
         uint32_t code = nHeight * uint32_t{2} + fCoinBase;
         ::Serialize(s, VARINT(code));
         ::Serialize(s, Using<TxOutCompression>(out));
-        // Always encode nFlags so concatenated snapshot streams stay aligned (optional
-        // trailing read would otherwise consume the next coin's prefix).
-        ::Serialize(s, VARINT(nFlags));
     }
 
     template<typename Stream>
@@ -95,12 +80,6 @@ public:
         nHeight = code >> 1;
         fCoinBase = code & 1;
         ::Unserialize(s, Using<TxOutCompression>(out));
-        nFlags = 0;
-        try {
-            ::Unserialize(s, VARINT(nFlags));
-        } catch (const std::ios_base::failure&) {
-            nFlags = 0;
-        }
     }
 
     /** Either this coin never existed (see e.g. coinEmpty in coins.cpp), or it

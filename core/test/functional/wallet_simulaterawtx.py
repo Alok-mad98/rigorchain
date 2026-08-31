@@ -48,7 +48,7 @@ class SimulateTxTest(BitcoinTestFramework):
         address2 = w1.getnewaddress(address_type='bech32m')
 
         # Add address1 as watch-only to w2
-        w2.importpubkey(pubkey=w1.getaddressinfo(address1)["pubkey"])
+        w2.importdescriptors([{"desc": w1.getaddressinfo(address1)["desc"], "timestamp": "now"}])
 
         tx1 = node.createrawtransaction([], [{address1: 5.0}])
         tx2 = node.createrawtransaction([], [{address2: 10.0}])

@@ -200,8 +200,8 @@ public:
     int nVersion;
     std::string cleanSubVer;
     bool fInbound;
-    bool m_bip152_highbandwidth_to;
-    bool m_bip152_highbandwidth_from;
+    bool m_compact_block_hb_to;
+    bool m_compact_block_hb_from;
     int m_starting_height;
     uint64_t nSendBytes;
     mapMsgTypeSize mapSendBytesPerMsgType;
@@ -506,10 +506,10 @@ public:
      */
     Network ConnectedThroughNetwork() const;
 
-    // We selected peer as (compact blocks) high-bandwidth peer (BIP152)
-    std::atomic<bool> m_bip152_highbandwidth_to{false};
-    // Peer selected us as (compact blocks) high-bandwidth peer (BIP152)
-    std::atomic<bool> m_bip152_highbandwidth_from{false};
+    // Compact-block high-bandwidth (we selected this peer).
+    std::atomic<bool> m_compact_block_hb_to{false};
+    // Compact-block high-bandwidth (peer selected us).
+    std::atomic<bool> m_compact_block_hb_from{false};
 
     /** Whether this peer provides all services that we want. Used for eviction decisions */
     std::atomic_bool m_has_all_wanted_services{false};
@@ -517,10 +517,6 @@ public:
     /** Whether we should relay transactions to this peer. This only changes
      * from false to true. It will never change back to false. */
     std::atomic_bool m_relays_txs{false};
-
-    /** Whether this peer has loaded a bloom filter. Used only in inbound
-     *  eviction logic. */
-    std::atomic_bool m_bloom_filter_loaded{false};
 
     /** UNIX epoch time of the last block received from this peer that we had
      * not yet seen (e.g. not already received from another peer), that passed
@@ -580,10 +576,12 @@ public:
      */
     bool ReceiveMsgBytes(Span<const uint8_t> msg_bytes, bool& complete) EXCLUSIVE_LOCKS_REQUIRED(!cs_vRecv);
 
-    void SetCommonVersion(int greatest_common_version)
+    /** Set the post-VERSION serialization stream version (SERIALIZATION_VERSION).
+     *  This is not the RIGOR P2P protocol number advertised in VERSION. */
+    void SetCommonVersion(int serialization_version)
     {
         Assume(m_greatest_common_version == INIT_PROTO_VERSION);
-        m_greatest_common_version = greatest_common_version;
+        m_greatest_common_version = serialization_version;
     }
     int GetCommonVersion() const
     {

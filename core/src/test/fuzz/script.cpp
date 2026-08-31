@@ -7,11 +7,13 @@
 #include <core_io.h>
 #include <core_memusage.h>
 #include <key_io.h>
+#include <consensus/tx_check.h>
+#include <primitives/transaction.h>
 #include <policy/policy.h>
 #include <pubkey.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sign.h>
@@ -54,9 +56,10 @@ FUZZ_TARGET_INIT(script, initialize_script)
     TxoutType which_type;
     bool is_standard_ret = IsStandard(script, std::nullopt, which_type);
     if (!is_standard_ret) {
-        assert(which_type == TxoutType::NONSTANDARD ||
-               which_type == TxoutType::NULL_DATA ||
-               which_type == TxoutType::MULTISIG);
+        assert(which_type != TxoutType::WITNESS_V0_KEYHASH &&
+               which_type != TxoutType::WITNESS_V1_RES &&
+               which_type != TxoutType::RES_MINT &&
+               which_type != TxoutType::CONVERGE);
     }
     if (which_type == TxoutType::NONSTANDARD) {
         assert(!is_standard_ret);
@@ -72,15 +75,15 @@ FUZZ_TARGET_INIT(script, initialize_script)
     CTxDestination address;
     bool extract_destination_ret = ExtractDestination(script, address);
     if (!extract_destination_ret) {
-        assert(which_type == TxoutType::PUBKEY ||
-               which_type == TxoutType::NONSTANDARD ||
-               which_type == TxoutType::NULL_DATA ||
-               which_type == TxoutType::MULTISIG ||
-               which_type == TxoutType::CONVERGE);
+        assert(which_type != TxoutType::WITNESS_V0_KEYHASH &&
+               which_type != TxoutType::WITNESS_V1_RES);
     }
     if (which_type == TxoutType::NONSTANDARD ||
         which_type == TxoutType::NULL_DATA ||
-        which_type == TxoutType::MULTISIG) {
+        which_type == TxoutType::MULTISIG ||
+        which_type == TxoutType::PUBKEYHASH ||
+        which_type == TxoutType::RES_MINT ||
+        which_type == TxoutType::CONVERGE) {
         assert(!extract_destination_ret);
     }
 
@@ -91,13 +94,27 @@ FUZZ_TARGET_INIT(script, initialize_script)
     (void)RecursiveDynamicUsage(script);
 
     std::vector<std::vector<unsigned char>> solutions;
-    (void)Solver(script, solutions);
+    const TxoutType solved = Solver(script, solutions);
+    assert(solved == which_type);
+    const AssetType asset = AssetTypeFromScriptPubKey(script);
+    const bool allowed = Consensus::IsAllowedScript(script);
+    if (allowed) {
+        assert(asset == ASSET_ORU || asset == ASSET_RES);
+        assert(solved == TxoutType::WITNESS_V0_KEYHASH ||
+               solved == TxoutType::WITNESS_V1_RES ||
+               solved == TxoutType::RES_MINT ||
+               solved == TxoutType::CONVERGE);
+    } else if (solved == TxoutType::NULL_DATA) {
+        assert(asset == ASSET_NONE);
+    } else {
+        assert(asset == ASSET_INVALID);
+    }
 
     (void)script.HasValidOps();
     (void)script.IsPayToScriptHash();
     (void)script.IsPayToWitnessScriptHash();
     (void)script.IsPushOnly();
-    (void)script.GetSigOpCount(/* fAccurate= */ false);
+    (void)script.CountScriptOpsLegacyTestOnly(/* fAccurate= */ false);
 
     {
         const std::vector<uint8_t> bytes = ConsumeRandomLengthByteVector(fuzzed_data_provider);
@@ -114,11 +131,11 @@ FUZZ_TARGET_INIT(script, initialize_script)
     if (other_script) {
         {
             CScript script_mut{script};
-            (void)FindAndDelete(script_mut, *other_script);
+            (void)script_mut;
         }
         const std::vector<std::string> random_string_vector = ConsumeRandomLengthStringVector(fuzzed_data_provider);
         const uint32_t u32{fuzzed_data_provider.ConsumeIntegral<uint32_t>()};
-        const uint32_t flags{u32 | SCRIPT_VERIFY_P2SH};
+        const uint32_t flags{u32};
         {
             CScriptWitness wit;
             for (const auto& s : random_string_vector) {
@@ -149,11 +166,15 @@ FUZZ_TARGET_INIT(script, initialize_script)
         const CTxDestination tx_destination_2{ConsumeTxDestination(fuzzed_data_provider)};
         const std::string encoded_dest{EncodeDestination(tx_destination_1)};
         const UniValue json_dest{DescribeAddress(tx_destination_1)};
-        Assert(tx_destination_1 == DecodeDestination(encoded_dest));
         (void)GetKeyForDestination(/*store=*/{}, tx_destination_1);
         const CScript dest{GetScriptForDestination(tx_destination_1)};
         const bool valid{IsValidDestination(tx_destination_1)};
-        Assert(dest.empty() != valid);
+        if (valid) {
+            Assert(!dest.empty());
+            Assert(tx_destination_1 == DecodeDestination(encoded_dest));
+        } else {
+            Assert(encoded_dest.empty() || !IsValidDestination(DecodeDestination(encoded_dest)));
+        }
 
         Assert(valid == IsValidDestinationString(encoded_dest));
 

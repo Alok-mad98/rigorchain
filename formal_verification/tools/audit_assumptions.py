@@ -11,8 +11,12 @@ a result is unconditional.
 
 Usage:
     cd formal_verification && python3 tools/audit_assumptions.py [--json OUT]
-    ... --modules 'ReplayReorgCore/*'   audit a subset (substring or glob)
+    ... --project coq/_CoqProject.protocol-core
+    ... --modules ResSchedule.v --modules OrderIndependence.v
     ... --strict                        exit non-zero if anything rests on axioms
+
+--modules may be repeated. Each value is a glob, substring, or comma-separated
+list of those. Paths are resolved against the project file, not the process cwd.
 
 Requires the corpus to be built first (`make` in formal_verification/coq).
 """
@@ -43,20 +47,73 @@ DECLARED_AXIOM_RE = re.compile(
 )
 
 
-def module_of(rel_path: str) -> str:
-    """coq/_CoqProject entry -> logical module name under the `Rigor` root."""
-    return "Rigor." + rel_path[:-2].replace("/", ".")
+def resolve_project(path: Path | None) -> Path:
+    if path is None:
+        return COQ_PROJECT.resolve()
+    if path.is_absolute():
+        if path.is_file():
+            return path.resolve()
+        raise FileNotFoundError(f"Coq project file not found: {path}")
+    for cand in (COQ_DIR / path, FV / path, FV.parent / path):
+        if cand.is_file():
+            return cand.resolve()
+    raise FileNotFoundError(f"Coq project file not found: {path}")
 
 
-def project_modules() -> list[tuple[str, str]]:
-    """Return [(relative .v path, logical module name)] in _CoqProject order."""
-    out: list[tuple[str, str]] = []
-    for line in COQ_PROJECT.read_text(encoding="utf-8").splitlines():
+def project_r_flags(project: Path) -> list[str]:
+    """Turn `-R dir Logical` lines into coqc argv (dirs relative to coq/)."""
+    flags: list[str] = []
+    for line in project.read_text(encoding="utf-8").splitlines():
         line = line.strip()
-        if not line or line.startswith("-"):
+        if not line.startswith("-R "):
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            raise ValueError(f"{project}: malformed -R line: {line}")
+        rel, logical = parts[1], parts[2]
+        abs_dir = (COQ_DIR / rel).resolve() if rel != "." else COQ_DIR.resolve()
+        flags.extend(["-R", str(abs_dir), logical])
+    if not flags:
+        raise ValueError(f"{project}: no -R mappings")
+    return flags
+
+
+def module_of(rel_path: str, mappings: list[tuple[str, str]]) -> str:
+    """Project entry -> logical module name using `-R` mappings."""
+    best: tuple[int, str, str] | None = None
+    for directory, logical in mappings:
+        if directory == ".":
+            cand = (0, logical, rel_path)
+        elif rel_path == directory or rel_path.startswith(directory.rstrip("/") + "/"):
+            rest = rel_path[len(directory) :].lstrip("/")
+            cand = (len(directory), logical, rest)
+        else:
+            continue
+        if best is None or cand[0] > best[0]:
+            best = cand
+    if best is None:
+        return "Rigor." + rel_path[:-2].replace("/", ".")
+    _, logical, rest = best
+    return logical + "." + rest[:-2].replace("/", ".")
+
+
+def project_modules(project: Path) -> list[tuple[str, str]]:
+    """Return [(relative .v path, logical module name)] in project order."""
+    mappings: list[tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
+    for line in project.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("-R "):
+            parts = line.split()
+            if len(parts) >= 3:
+                mappings.append((parts[1], parts[2]))
+            continue
+        if line.startswith("-"):
             continue
         if line.endswith(".v"):
-            out.append((line, module_of(line)))
+            out.append((line, module_of(line, mappings)))
     return out
 
 
@@ -76,21 +133,23 @@ def declared_axioms_in(path: Path) -> list[str]:
     return [name for _, name in DECLARED_AXIOM_RE.findall(text)]
 
 
-def audit_module(rel_path: str, module: str, names: list[str]) -> dict[str, dict]:
+def audit_module(
+    rel_path: str, module: str, names: list[str], r_flags: list[str]
+) -> dict[str, dict]:
     """Run `Print Assumptions` for every name in one module."""
     if not names:
         return {}
     lines = [f"Require Import {module}."]
     for n in names:
         # Sentinel lines let us attribute each Coq response to a name.
-        lines.append(f'Print Assumptions {module}.{n}.')
+        lines.append(f"Print Assumptions {module}.{n}.")
     src = "\n".join(lines) + "\n"
 
     with tempfile.TemporaryDirectory() as tmp:
         vfile = Path(tmp) / "RigorAssumptionProbe.v"
         vfile.write_text(src, encoding="utf-8")
         proc = subprocess.run(
-            ["coqc", "-q", "-R", str(COQ_DIR), "Rigor", str(vfile)],
+            ["coqc", "-q", *r_flags, str(vfile)],
             capture_output=True,
             text=True,
             cwd=str(COQ_DIR),
@@ -110,7 +169,7 @@ def audit_module(rel_path: str, module: str, names: list[str]) -> dict[str, dict
             }
         merged: dict[str, dict] = {}
         for n in names:
-            merged.update(audit_module(rel_path, module, [n]))
+            merged.update(audit_module(rel_path, module, [n], r_flags))
         return merged
 
     return parse_assumptions(proc.stdout, rel_path, module, names)
@@ -178,9 +237,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", type=Path, default=None, help="write full inventory as JSON")
     ap.add_argument(
-        "--modules",
+        "--project",
+        type=Path,
         default=None,
-        help="only audit _CoqProject paths matching this glob or substring",
+        help="Coq project file (default: coq/_CoqProject)",
+    )
+    ap.add_argument(
+        "--modules",
+        action="append",
+        default=None,
+        help="filter project paths (repeatable; each item may be comma-separated glob/substring)",
     )
     ap.add_argument(
         "--strict",
@@ -189,14 +255,26 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    modules = project_modules()
+    try:
+        project = resolve_project(args.project)
+        r_flags = project_r_flags(project)
+    except (FileNotFoundError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    print(f"project: {project}", file=sys.stderr)
+    print(f"coqc -R: {' '.join(r_flags)}", file=sys.stderr)
+    modules = project_modules(project)
     if args.modules:
-        pat = args.modules
+        pats: list[str] = []
+        for item in args.modules:
+            pats.extend(p.strip() for p in item.split(",") if p.strip())
         modules = [
-            (p, m) for p, m in modules if fnmatch.fnmatch(p, pat) or pat in p
+            (p, m)
+            for p, m in modules
+            if any(fnmatch.fnmatch(p, pat) or pat in p for pat in pats)
         ]
         if not modules:
-            print(f"no _CoqProject entry matches {pat!r}", file=sys.stderr)
+            print(f"no project entry matches {pats!r}", file=sys.stderr)
             return 2
     inventory: dict[str, dict] = {}
     declared: list[tuple[str, str]] = []
@@ -211,7 +289,7 @@ def main() -> int:
             declared.append((rel_path, ax))
         names = results_in(path)
         print(f"[{i}/{total}] {rel_path}: {len(names)} results", file=sys.stderr)
-        for name, rec in audit_module(rel_path, module, names).items():
+        for name, rec in audit_module(rel_path, module, names, r_flags).items():
             inventory[f"{module}.{name}"] = rec
 
     axiom_free = [k for k, v in inventory.items() if v["status"] == "AXIOM_FREE"]

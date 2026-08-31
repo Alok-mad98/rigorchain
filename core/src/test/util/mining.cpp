@@ -4,19 +4,23 @@
 
 #include <test/util/mining.h>
 
+#include <algorithm>
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/validation.h>
 #include <key_io.h>
 #include <node/context.h>
 #include <pow.h>
+#include <script/rigor_tags.h>
 #include <script/standard.h>
 #include <test/util/script.h>
 #include <util/check.h>
 #include <validation.h>
 #include <versionbits.h>
 
+using node::ApplyArgsManOptions;
 using node::BlockAssembler;
 using node::NodeContext;
 
@@ -55,8 +59,8 @@ std::vector<std::shared_ptr<CBlock>> CreateBlockChain(size_t total_height, const
             block.vtx, convergence_root_dummy, static_cast<int>(height + 1), params.GetConsensus());
         assert(convergence_root.IsNull());
         coinbase_tx = CMutableTransaction(*block.vtx[0]);
-        coinbase_tx.vin[0].scriptSig =
-            CScript() << (height + 1) << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+        coinbase_tx.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+            static_cast<int>(height + 1), convergence_root, uint256{});
         block.vtx[0] = MakeTransactionRef(std::move(coinbase_tx));
 
         block.nVersion = VERSIONBITS_LAST_OLD_BLOCK_VERSION;
@@ -106,6 +110,52 @@ std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coi
 std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
 {
     BlockAssembler::Options assembler_options;
-    ApplyArgsManOptions(*node.args, assembler_options);
+    ApplyArgsManOptions(*node.args, Assert(node.chainman)->GetParams(), assembler_options);
     return PrepareBlock(node, coinbase_scriptPubKey, assembler_options);
+}
+
+static bool VoutLooksLikeConvergenceCommitment(const CTxOut& out)
+{
+    const CScript& s = out.scriptPubKey;
+    CScript::const_iterator pc = s.begin();
+    opcodetype opcode;
+    std::vector<unsigned char> vch;
+    if (!s.GetOp(pc, opcode) || opcode != RIGOR_MARKER_RETURN) return false;
+    if (!s.GetOp(pc, opcode, vch)) return false;
+    return vch.size() >= 4 && vch[0] == 0x43 && vch[1] == 0x56 && vch[2] == 0x47 && vch[3] == 0x45;
+}
+
+static bool VoutLooksLikeRigorDrawTargetCommitment(const CTxOut& out)
+{
+    const CScript& s = out.scriptPubKey;
+    CScript::const_iterator pc = s.begin();
+    opcodetype opcode;
+    std::vector<unsigned char> vch;
+    if (!s.GetOp(pc, opcode) || opcode != RIGOR_MARKER_RETURN) return false;
+    if (!s.GetOp(pc, opcode, vch)) return false;
+    if (vch.size() != RigorTags::RIGOR_COMMITMENT_PAYLOAD_SIZE) return false;
+    return vch.size() >= RigorTags::RIGOR.size() &&
+           std::equal(RigorTags::RIGOR.begin(), RigorTags::RIGOR.end(), vch.begin());
+}
+
+void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pindexPrev, ChainstateManager& chainman)
+{
+    assert(pindexPrev != nullptr);
+
+    CMutableTransaction mtx(*block.vtx[0]);
+    for (int i = int(mtx.vout.size()) - 1; i >= 0; --i) {
+        if (VoutLooksLikeConvergenceCommitment(mtx.vout[i]) || VoutLooksLikeRigorDrawTargetCommitment(mtx.vout[i])) {
+            mtx.vout.erase(mtx.vout.begin() + i);
+        }
+    }
+    block.vtx[0] = MakeTransactionRef(std::move(mtx));
+
+    const int wpos = GetWitnessCommitmentIndex(block);
+    if (wpos != NO_WITNESS_COMMITMENT) {
+        mtx = CMutableTransaction(*block.vtx[0]);
+        mtx.vout.erase(mtx.vout.begin() + wpos);
+        block.vtx[0] = MakeTransactionRef(std::move(mtx));
+    }
+
+    chainman.GenerateCoinbaseCommitment(block, pindexPrev);
 }

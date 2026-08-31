@@ -7,7 +7,7 @@
 Test logic for skipping signature validation on blocks which we've assumed
 valid (https://github.com/bitcoin/bitcoin/pull/9484)
 
-We build a chain that includes and invalid signature for one of the
+We build a chain that includes an invalid Ed25519 signature for one of the
 transactions:
 
     0:        genesis block
@@ -32,21 +32,25 @@ Start three nodes:
 
 from test_framework.blocktools import (
     COINBASE_MATURITY,
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
+    add_witness_commitment,
     create_block,
     create_coinbase,
+    get_regtest_block_subsidy_sats,
 )
-from test_framework.key import ECKey
+from test_framework.ed25519 import Ed25519Key
 from test_framework.messages import (
     CBlockHeader,
     COutPoint,
     CTransaction,
     CTxIn,
+    CTxInWitness,
     CTxOut,
     msg_block,
     msg_headers,
 )
 from test_framework.p2p import P2PInterface
-from test_framework.script import (CScript, OP_TRUE)
+from test_framework.script_util import key_to_p2wpkh_script
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 
@@ -89,14 +93,14 @@ class AssumeValidTest(BitcoinTestFramework):
 
         self.blocks = []
 
-        # Get a pubkey for the coinbase TXO
-        coinbase_key = ECKey()
-        coinbase_key.generate()
-        coinbase_pubkey = coinbase_key.get_pubkey().get_bytes()
+        # Ed25519 P2WPKH for the coinbase TXO we later spend with a bad signature.
+        coinbase_key = Ed25519Key.from_seed_int(11)
+        coinbase_pk32 = coinbase_key.get_pubkey_bytes()
+        coinbase_spk = key_to_p2wpkh_script(coinbase_pk32)
 
         # Create the first block with a coinbase output to our key
         height = 1
-        block = create_block(self.tip, create_coinbase(height, coinbase_pubkey), self.block_time)
+        block = create_block(self.tip, create_coinbase(height, script_pubkey=coinbase_spk), self.block_time)
         self.blocks.append(block)
         self.block_time += 1
         block.solve()
@@ -107,21 +111,29 @@ class AssumeValidTest(BitcoinTestFramework):
 
         # Bury the block 100 deep so the coinbase output is spendable
         for _ in range(100):
-            block = create_block(self.tip, create_coinbase(height), self.block_time)
+            block = create_block(self.tip, create_coinbase(height, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), self.block_time)
             block.solve()
             self.blocks.append(block)
             self.tip = block.sha256
             self.block_time += 1
             height += 1
 
-        # Create a transaction spending the coinbase output with an invalid (null) signature
+        # Spend the coinbase output with an all-zero Ed25519 signature. The output shape is a
+        # real P2WPKH so the transaction only fails in script verification (NULLFAIL), which is
+        # exactly what -assumevalid is allowed to skip; a bad script *shape* would instead be
+        # rejected by CheckTransaction regardless of -assumevalid.
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(self.block1.vtx[0].sha256, 0), scriptSig=b""))
-        tx.vout.append(CTxOut(49 * 100000000, CScript([OP_TRUE])))
+        tx.vout.append(CTxOut(get_regtest_block_subsidy_sats(1) - 10000, coinbase_spk))
+        tx.wit.vtxinwit = [CTxInWitness()]
+        tx.wit.vtxinwit[0].scriptWitness.stack = [b"\x00" * 64, coinbase_pk32]
         tx.calc_sha256()
 
-        block102 = create_block(self.tip, create_coinbase(height), self.block_time, txlist=[tx])
+        block102 = create_block(self.tip, create_coinbase(height, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), self.block_time, txlist=[tx])
         self.block_time += 1
+        # Witness data needs a coinbase commitment, or ContextualCheckBlock rejects the block as
+        # unexpected-witness before script checks are even reached.
+        add_witness_commitment(block102)
         block102.solve()
         self.blocks.append(block102)
         self.tip = block102.sha256
@@ -130,7 +142,7 @@ class AssumeValidTest(BitcoinTestFramework):
 
         # Bury the assumed valid block 2100 deep
         for _ in range(2100):
-            block = create_block(self.tip, create_coinbase(height), self.block_time)
+            block = create_block(self.tip, create_coinbase(height, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), self.block_time)
             block.solve()
             self.blocks.append(block)
             self.tip = block.sha256

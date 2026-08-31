@@ -4,10 +4,12 @@
 
 #include <key.h>
 #include <key_io.h>
-#include <script/interpreter.h>
+#include <consensus/tx_check.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
 
@@ -33,39 +35,38 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
     CScript s;
     std::vector<std::vector<unsigned char> > solutions;
 
-    // Bare P2PK / P2PKH / P2SH / MULTISIG: not standard for coinbase outputs (IsStandard), but Solver
-    // must classify them for nested redeem/witness scripts and descriptor inference (Bitcoin-compatible).
+    // Bare P2PK / P2PKH / P2SH / MULTISIG are not RIGOR consensus types (Solver == ClassifyRigorTxout).
     s.clear();
-    s << ToByteVector(pubkeys[0]) << OP_CHECKSIG;
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::PUBKEY);
+    s << ToByteVector(pubkeys[0]) << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     s.clear();
-    s << OP_DUP << OP_HASH160 << ToByteVector(pubkeys[0].GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::PUBKEYHASH);
+    s << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(pubkeys[0].GetID()) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     CScript redeemScript(s);
     s.clear();
-    s << OP_HASH160 << ToByteVector(CScriptID(redeemScript)) << OP_EQUAL;
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::SCRIPTHASH);
+    s << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(CScriptID(redeemScript)) << RIGOR_RESERVED_LEGACY_EQUAL;
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     s.clear();
-    s << OP_1 <<
+    s << RIGOR_PUSH_1 <<
         ToByteVector(pubkeys[0]) <<
         ToByteVector(pubkeys[1]) <<
-        OP_2 << OP_CHECKMULTISIG;
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::MULTISIG);
+        RIGOR_PUSH_2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     s.clear();
-    s << OP_2 <<
+    s << RIGOR_PUSH_2 <<
         ToByteVector(pubkeys[0]) <<
         ToByteVector(pubkeys[1]) <<
         ToByteVector(pubkeys[2]) <<
-        OP_3 << OP_CHECKMULTISIG;
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::MULTISIG);
+        RIGOR_PUSH_3 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::NULL_DATA
     s.clear();
-    s << OP_RETURN <<
+    s << RIGOR_MARKER_RETURN <<
         std::vector<unsigned char>({0}) <<
         std::vector<unsigned char>({75}) <<
         std::vector<unsigned char>({255});
@@ -74,29 +75,25 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
 
     // TxoutType::WITNESS_V0_KEYHASH
     s.clear();
-    s << OP_0 << ToByteVector(pubkeys[0].GetID());
+    s << RIGOR_PUSH_0 << ToByteVector(pubkeys[0].GetID());
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V0_KEYHASH);
     BOOST_CHECK_EQUAL(solutions.size(), 1U);
     BOOST_CHECK(solutions[0] == ToByteVector(pubkeys[0].GetID()));
 
-    // TxoutType::WITNESS_V0_SCRIPTHASH (32-byte program; arbitrary witness script — e.g. Ed25519 multisig — hashes here)
+    // TxoutType::WITNESS_V0_SCRIPTHASH is not a Rigor consensus type (P2WSH removed).
     uint256 scriptHash;
     CSHA256().Write(redeemScript.data(), redeemScript.size())
         .Finalize(scriptHash.begin());
 
     s.clear();
-    s << OP_0 << ToByteVector(scriptHash);
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V0_SCRIPTHASH);
-    BOOST_CHECK_EQUAL(solutions.size(), 1U);
-    BOOST_CHECK(solutions[0] == ToByteVector(scriptHash));
+    s << RIGOR_PUSH_0 << ToByteVector(scriptHash);
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     s.clear();
-    s << OP_0 << ToByteVector(uint256::ONE);
-    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V0_SCRIPTHASH);
-    BOOST_CHECK_EQUAL(solutions.size(), 1U);
-    BOOST_CHECK(solutions[0] == ToByteVector(uint256::ONE));
+    s << RIGOR_PUSH_0 << ToByteVector(uint256::ONE);
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
-    // TxoutType::WITNESS_V1_RES — 32-byte witness v1 (including retired CVG2-tagged programs).
+    // TxoutType::WITNESS_V1_RES — native 32-byte witness v1 only (not CVG2 / RES2).
     {
         std::vector<unsigned char> prog(32, 0xab);
         prog[0] = 'C';
@@ -104,18 +101,18 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
         prog[2] = 'G';
         prog[3] = '2';
         s.clear();
-        s << OP_1 << prog;
-        BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
+        s << RIGOR_PUSH_1 << prog;
+        BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
     }
     {
         std::vector<unsigned char> prog(32, 0xab);
-        prog[0] = 'C';
-        prog[1] = 'V';
-        prog[2] = 'G';
+        prog[0] = 'R';
+        prog[1] = 'E';
+        prog[2] = 'S';
         prog[3] = '2';
         s.clear();
-        s << OP_1 << prog;
-        BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
+        s << RIGOR_PUSH_1 << prog;
+        BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
     }
     {
         std::vector<unsigned char> prog(32, 0xcd);
@@ -124,12 +121,15 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
         prog[2] = 'B';
         prog[3] = '2';
         s.clear();
-        s << OP_1 << prog;
+        s << RIGOR_PUSH_1 << prog;
         BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
     }
-    // Any witness v1 with 32-byte program is classified as WITNESS_V1_RES in Rigor (CVG2/ORB2 vs other is not a Solver distinction).
     s.clear();
-    s << OP_1 << ToByteVector(uint256::ZERO);
+    s << RIGOR_PUSH_1 << TestEd25519PubKey();
+    BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
+
+    s.clear();
+    s << RIGOR_PUSH_1 << ToByteVector(uint256::ZERO);
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::WITNESS_V1_RES);
 
     {
@@ -155,12 +155,12 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
 
     // Unknown witness version / length (not v0/v1 RES): NONSTANDARD
     s.clear();
-    s << OP_16 << ToByteVector(uint256::ONE);
+    s << RIGOR_PUSH_16 << ToByteVector(uint256::ONE);
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::NONSTANDARD
     s.clear();
-    s << OP_9 << OP_ADD << OP_11 << OP_EQUAL;
+    s << RIGOR_PUSH_9 << RIGOR_RESERVED_LEGACY_ADD << RIGOR_PUSH_11 << RIGOR_RESERVED_LEGACY_EQUAL;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 }
 
@@ -176,47 +176,47 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_failure)
 
     // TxoutType::PUBKEY with incorrectly sized pubkey
     s.clear();
-    s << std::vector<unsigned char>(30, 0x01) << OP_CHECKSIG;
+    s << std::vector<unsigned char>(30, 0x01) << RIGOR_RESERVED_LEGACY_CHECKSIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::PUBKEYHASH with incorrectly sized key hash
     s.clear();
-    s << OP_DUP << OP_HASH160 << ToByteVector(pubkey) << OP_EQUALVERIFY << OP_CHECKSIG;
+    s << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(pubkey) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::SCRIPTHASH with incorrectly sized script hash
     s.clear();
-    s << OP_HASH160 << std::vector<unsigned char>(21, 0x01) << OP_EQUAL;
+    s << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(21, 0x01) << RIGOR_RESERVED_LEGACY_EQUAL;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::MULTISIG 0/2
     s.clear();
-    s << OP_0 << ToByteVector(pubkey) << OP_1 << OP_CHECKMULTISIG;
+    s << RIGOR_PUSH_0 << ToByteVector(pubkey) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::MULTISIG 2/1
     s.clear();
-    s << OP_2 << ToByteVector(pubkey) << OP_1 << OP_CHECKMULTISIG;
+    s << RIGOR_PUSH_2 << ToByteVector(pubkey) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::MULTISIG n = 2 with 1 pubkey
     s.clear();
-    s << OP_1 << ToByteVector(pubkey) << OP_2 << OP_CHECKMULTISIG;
+    s << RIGOR_PUSH_1 << ToByteVector(pubkey) << RIGOR_PUSH_2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::MULTISIG n = 1 with 0 pubkeys
     s.clear();
-    s << OP_1 << OP_1 << OP_CHECKMULTISIG;
+    s << RIGOR_PUSH_1 << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::NULL_DATA with other opcodes
     s.clear();
-    s << OP_RETURN << std::vector<unsigned char>({75}) << OP_ADD;
+    s << RIGOR_MARKER_RETURN << std::vector<unsigned char>({75}) << RIGOR_RESERVED_LEGACY_ADD;
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 
     // TxoutType::WITNESS_UNKNOWN with incorrect program size
     s.clear();
-    s << OP_0 << std::vector<unsigned char>(19, 0x01);
+    s << RIGOR_PUSH_0 << std::vector<unsigned char>(19, 0x01);
     BOOST_CHECK_EQUAL(Solver(s, solutions), TxoutType::NONSTANDARD);
 }
 
@@ -230,51 +230,47 @@ BOOST_AUTO_TEST_CASE(script_standard_ExtractDestination)
     CScript s;
     CTxDestination address;
 
-    // Bare P2PK / P2PKH / P2SH: Solver classifies them; ExtractDestination maps to PKHash / ScriptHash.
+    // Bare P2PK / P2PKH / P2SH are classified by Solver but are not RIGOR destinations.
     s.clear();
-    s << ToByteVector(pubkey) << OP_CHECKSIG;
-    BOOST_CHECK(ExtractDestination(s, address));
-    BOOST_CHECK(std::holds_alternative<PKHash>(address));
+    s << ToByteVector(pubkey) << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    BOOST_CHECK(!ExtractDestination(s, address));
 
     s.clear();
-    s << OP_DUP << OP_HASH160 << ToByteVector(pubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
-    BOOST_CHECK(ExtractDestination(s, address));
-    BOOST_CHECK(std::holds_alternative<PKHash>(address));
+    s << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(pubkey.GetID()) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    BOOST_CHECK(!ExtractDestination(s, address));
 
     CScript redeemScript(s);
     s.clear();
-    s << OP_HASH160 << ToByteVector(CScriptID(redeemScript)) << OP_EQUAL;
-    BOOST_CHECK(ExtractDestination(s, address));
-    BOOST_CHECK(std::holds_alternative<ScriptHash>(address));
+    s << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(CScriptID(redeemScript)) << RIGOR_RESERVED_LEGACY_EQUAL;
+    BOOST_CHECK(!ExtractDestination(s, address));
 
     // TxoutType::MULTISIG
     s.clear();
-    s << OP_1 << ToByteVector(pubkey) << OP_1 << OP_CHECKMULTISIG;
+    s << RIGOR_PUSH_1 << ToByteVector(pubkey) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     BOOST_CHECK(!ExtractDestination(s, address));
 
     // TxoutType::NULL_DATA
     s.clear();
-    s << OP_RETURN << std::vector<unsigned char>({75});
+    s << RIGOR_MARKER_RETURN << std::vector<unsigned char>({75});
     BOOST_CHECK(!ExtractDestination(s, address));
 
     // TxoutType::WITNESS_V0_KEYHASH — HASH160 of the 32-byte Ed25519 payload, not the 0x00||pk wrapper.
     s.clear();
-    s << OP_0 << ToByteVector(pubkey.GetID());
+    s << RIGOR_PUSH_0 << ToByteVector(pubkey.GetID());
     BOOST_CHECK(ExtractDestination(s, address));
     WitnessV0KeyHash keyhash(pubkey.GetEd25519KeyHash());
     BOOST_CHECK(std::get<WitnessV0KeyHash>(address) == keyhash);
 
-    // TxoutType::WITNESS_V0_SCRIPTHASH
+    // TxoutType::WITNESS_V0_SCRIPTHASH is not extracted (P2WSH removed).
     s.clear();
     WitnessV0ScriptHash scripthash;
     CSHA256().Write(redeemScript.data(), redeemScript.size()).Finalize(scripthash.begin());
-    s << OP_0 << ToByteVector(scripthash);
-    BOOST_CHECK(ExtractDestination(s, address));
-    BOOST_CHECK(std::get<WitnessV0ScriptHash>(address) == scripthash);
+    s << RIGOR_PUSH_0 << ToByteVector(scripthash);
+    BOOST_CHECK(!ExtractDestination(s, address));
 
     // v1 program with wrong length for WITNESS_V1_RES (not 32 bytes): NONSTANDARD
     s.clear();
-    s << OP_1 << ToByteVector(pubkey);
+    s << RIGOR_PUSH_1 << ToByteVector(pubkey);
     BOOST_CHECK(!ExtractDestination(s, address));
 }
 
@@ -289,43 +285,22 @@ BOOST_AUTO_TEST_CASE(script_standard_GetScriptFor_)
 
     CScript expected, result;
 
-    // PKHash
-    expected.clear();
-    expected << OP_DUP << OP_HASH160 << ToByteVector(pubkeys[0].GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
+    // PKHash / ScriptHash / P2WSH constructors no longer emit Bitcoin scripts.
     result = GetScriptForDestination(PKHash(pubkeys[0]));
-    BOOST_CHECK(result == expected);
+    BOOST_CHECK(result.empty());
 
-    // CScriptID
-    CScript redeemScript(result);
-    expected.clear();
-    expected << OP_HASH160 << ToByteVector(CScriptID(redeemScript)) << OP_EQUAL;
+    CScript redeemScript = CScript() << ToByteVector(pubkeys[0]) << RIGOR_RESERVED_LEGACY_CHECKSIG;
     result = GetScriptForDestination(ScriptHash(redeemScript));
-    BOOST_CHECK(result == expected);
+    BOOST_CHECK(result.empty());
 
     // CNoDestination
     expected.clear();
     result = GetScriptForDestination(CNoDestination());
     BOOST_CHECK(result == expected);
 
-    // GetScriptForRawPubKey
-    expected.clear();
-    expected << ToByteVector(pubkeys[0]) << OP_CHECKSIG;
-    result = GetScriptForRawPubKey(pubkeys[0]);
-    BOOST_CHECK(result == expected);
-
-    // GetScriptForMultisig
-    expected.clear();
-    expected << OP_2 <<
-        ToByteVector(pubkeys[0]) <<
-        ToByteVector(pubkeys[1]) <<
-        ToByteVector(pubkeys[2]) <<
-        OP_3 << OP_CHECKMULTISIG;
-    result = GetScriptForMultisig(2, std::vector<CPubKey>(pubkeys, pubkeys + 3));
-    BOOST_CHECK(result == expected);
-
     // WitnessV0KeyHash
     expected.clear();
-    expected << OP_0 << ToByteVector(pubkeys[0].GetID());
+    expected << RIGOR_PUSH_0 << ToByteVector(pubkeys[0].GetID());
     result = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0]));
     BOOST_CHECK(result == expected);
     result = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0].GetID()));
@@ -333,16 +308,36 @@ BOOST_AUTO_TEST_CASE(script_standard_GetScriptFor_)
 
     // WitnessV0ScriptHash (multisig)
     CScript witnessScript;
-    witnessScript << OP_1 << ToByteVector(pubkeys[0]) << OP_1 << OP_CHECKMULTISIG;
-
-    uint256 scriptHash;
-    CSHA256().Write(witnessScript.data(), witnessScript.size())
-        .Finalize(scriptHash.begin());
-
-    expected.clear();
-    expected << OP_0 << ToByteVector(scriptHash);
+    witnessScript << RIGOR_PUSH_1 << ToByteVector(pubkeys[0]) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
     result = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
-    BOOST_CHECK(result == expected);
+    BOOST_CHECK(result.empty());
+}
+
+BOOST_AUTO_TEST_CASE(unknown_script_is_asset_invalid)
+{
+    CScript unknown;
+    unknown << RIGOR_PUSH_1;
+    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(unknown), ASSET_INVALID);
+    BOOST_CHECK(!IsRigorConstructibleScript(unknown));
+
+    CScript p2wsh;
+    p2wsh << RIGOR_PUSH_0 << std::vector<unsigned char>(32, 0x01);
+    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(p2wsh), ASSET_INVALID);
+    BOOST_CHECK(!IsRigorConstructibleScript(p2wsh));
+
+    CScript p2pkh;
+    p2pkh << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(20, 0x11) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(p2pkh), ASSET_INVALID);
+    BOOST_CHECK(!IsRigorConstructibleScript(p2pkh));
+
+    CScript opreturn;
+    opreturn << RIGOR_MARKER_RETURN;
+    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(opreturn), ASSET_NONE);
+    BOOST_CHECK(IsRigorConstructibleScript(opreturn));
+    BOOST_CHECK(!Consensus::IsAllowedScript(unknown));
+    BOOST_CHECK(!Consensus::IsAllowedScript(p2wsh));
+    BOOST_CHECK(!Consensus::IsAllowedScript(p2pkh));
+    BOOST_CHECK(!Consensus::IsAllowedScript(opreturn));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

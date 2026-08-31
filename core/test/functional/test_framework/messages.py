@@ -38,12 +38,14 @@ MAX_STANDARD_TX_WEIGHT = 400000
 MAX_BLOOM_FILTER_SIZE = 36000
 MAX_BLOOM_HASH_FUNCS = 50
 
-COIN = 100000000  # 1 btc in satoshis
-MAX_MONEY = 21000000 * COIN
+COIN = 100000000  # 1 ORU in base units
+MAX_MONEY = 10_000_000_000 * COIN  # overflow bound; not an ORU supply cap (amount.h)
 
 # Must match enum AssetType in primitives/transaction.h
 ASSET_ORU = 0
 ASSET_RES = 1
+ASSET_NONE = 2
+ASSET_INVALID = 4
 
 MAX_BIP125_RBF_SEQUENCE = 0xfffffffd  # Sequence number that is rbf-opt-in (BIP 125) and csv-opt-out (BIP 68)
 SEQUENCE_FINAL = 0xffffffff  # Sequence number that disables nLockTime if set for every input of a tx
@@ -74,7 +76,7 @@ WITNESS_SCALE_FACTOR = 4
 DEFAULT_ANCESTOR_LIMIT = 25    # default max number of in-mempool ancestors
 DEFAULT_DESCENDANT_LIMIT = 25  # default max number of in-mempool descendants
 
-# Default setting for -datacarriersize. 80 bytes of data, +1 for OP_RETURN, +2 for the pushdata opcodes.
+# Default setting for -datacarriersize. 80 bytes of data, +1 for RIGOR_MARKER_RETURN, +2 for the pushdata opcodes.
 MAX_OP_RETURN_RELAY = 83
 
 DEFAULT_MEMPOOL_EXPIRY_HOURS = 336  # hours
@@ -364,7 +366,7 @@ class CInv:
 
     def __repr__(self):
         return "CInv(type=%s hash=%064x)" \
-            % (self.typemap[self.type], self.hash)
+            % (self.typemap.get(self.type, "type=%d" % self.type), self.hash)
 
     def __eq__(self, other):
         return isinstance(other, CInv) and self.hash == other.hash and self.type == other.type
@@ -633,7 +635,7 @@ class CTransaction:
     def is_valid(self):
         self.calc_sha256()
         for tout in self.vout:
-            if tout.nValue < 0 or tout.nValue > 21000000 * COIN:
+            if tout.nValue < 0 or tout.nValue > MAX_MONEY:
                 return False
         return True
 
@@ -645,7 +647,9 @@ class CTransaction:
         return (WITNESS_SCALE_FACTOR - 1) * without_witness_size + with_witness_size
 
     def get_vsize(self):
-        return math.ceil(self.get_weight() / WITNESS_SCALE_FACTOR)
+        # RIGOR Fee Mechanism: RPC/mempool "vsize" is wire size in bytes.
+        # No BIP141 weight, virtual size, or witness discount.
+        return len(self.serialize_with_witness())
 
     def __repr__(self):
         return "CTransaction(nVersion=%i vin=%s vout=%s wit=%s nLockTime=%i)" \
@@ -775,9 +779,10 @@ class CBlock(CBlockHeader):
         return self.get_merkle_root(hashes)
 
     def is_valid(self):
+        from test_framework.rigor_pow import header80_from_block, rigor_pow_digest_int
         self.calc_sha256()
         target = uint256_from_compact(self.nBits)
-        if self.sha256 > target:
+        if rigor_pow_digest_int(header80_from_block(self)) > target:
             return False
         for tx in self.vtx:
             if not tx.is_valid():
@@ -787,11 +792,8 @@ class CBlock(CBlockHeader):
         return True
 
     def solve(self):
-        self.rehash()
-        target = uint256_from_compact(self.nBits)
-        while self.sha256 > target:
-            self.nNonce += 1
-            self.rehash()
+        from test_framework.rigor_pow import solve_block
+        solve_block(self)
 
     # Calculate the block weight using witness and non-witness
     # serialization size (does NOT use sigops).
@@ -1295,6 +1297,41 @@ class msg_wtxidrelay:
 
     def __repr__(self):
         return "msg_wtxidrelay()"
+
+
+class msg_rigorcap:
+    """RIGOR capability advertisement (VERSION..VERACK window)."""
+    __slots__ = ("protocol_version", "capability_bitmap")
+    msgtype = b"rigorcap"
+
+    # Must match core/src/rigor_capability.h RIGOR_LOCAL_ACTIVE_CAPABILITIES
+    CAP_TX_RELAY = 1 << 0
+    CAP_BLOCK_RELAY = 1 << 1
+    CAP_ADDR_RELAY = 1 << 2
+    CAP_COMPACT_BLOCK = 1 << 3
+    CAP_TX_SYNC = 1 << 4
+    CAP_RES_RELAY = 1 << 5
+    CAP_FUTURE_RELAY_0 = 1 << 16
+    CAP_FUTURE_RELAY_1 = 1 << 17
+    LOCAL_ACTIVE = CAP_TX_RELAY | CAP_BLOCK_RELAY | CAP_ADDR_RELAY | CAP_COMPACT_BLOCK
+
+    def __init__(self, protocol_version=1, capability_bitmap=None):
+        self.protocol_version = protocol_version
+        self.capability_bitmap = self.LOCAL_ACTIVE if capability_bitmap is None else capability_bitmap
+
+    def deserialize(self, f):
+        self.protocol_version = struct.unpack("<I", f.read(4))[0]
+        self.capability_bitmap = struct.unpack("<Q", f.read(8))[0]
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<I", self.protocol_version)
+        r += struct.pack("<Q", self.capability_bitmap)
+        return r
+
+    def __repr__(self):
+        return "msg_rigorcap(protocol_version=%i capability_bitmap=0x%x)" % (
+            self.protocol_version, self.capability_bitmap)
 
 
 class msg_no_witness_tx(msg_tx):

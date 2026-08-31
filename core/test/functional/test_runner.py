@@ -92,13 +92,9 @@ EXTENDED_SCRIPTS = [
 
 BASE_SCRIPTS = [
     # Scripts that are run by default.
-    # Default Rigor builds omit BDB; --legacy-wallet jobs always skip, so they are omitted.
-    # Legacy-only scripts (no --descriptors path in the runner) are omitted too—run after a BDB
-    # build, e.g. test_runner.py rpc_rawtransaction.py --legacy-wallet
     # Longest test should go first, to favor running tests in parallel
     # vv Tests less than 5m vv
     'feature_fee_estimation.py',
-    'feature_block.py',
     'feature_bootstrap_deterministic_blocks.py',
     'feature_taproot_reject.py --descriptors',
     'feature_rigor_dual_native.py --descriptors',
@@ -129,7 +125,11 @@ BASE_SCRIPTS = [
     'feature_fault_injection.py --descriptors',
     # vv Tests less than 2m vv
     'mining_getblocktemplate_longpoll.py',
-    'p2p_segwit.py',
+    'p2p_witness_mandatory.py',
+    'p2p_witness_required.py',
+    'p2p_compactblock_stress.py',
+    'p2p_no_bloom.py',
+    'p2p_eclipse_resistance.py',
     'feature_maxuploadtarget.py',
     'mempool_updatefromblock.py',
     'mempool_persist.py --descriptors',
@@ -138,7 +138,6 @@ BASE_SCRIPTS = [
     'wallet_fundrawtransaction.py --descriptors',
     'wallet_bumpfee.py --descriptors',
     'wallet_backup.py --descriptors',
-    'feature_segwit.py --descriptors',
     'p2p_tx_download.py',
     'wallet_avoidreuse.py --descriptors',
     'feature_abortnode.py',
@@ -170,12 +169,12 @@ BASE_SCRIPTS = [
     'rpc_bind.py --nonloopback',
     'p2p_headers_sync_with_minchainwork.py',
     'p2p_feefilter.py',
-    'feature_csv_activation.py',
     'p2p_sendheaders.py',
     'wallet_listtransactions.py --descriptors',
     # vv Tests less than 30s vv
     'p2p_invalid_messages.py',
-    'rpc_createmultisig.py',
+    'feature_single_key_outputs.py',
+    'feature_pruned_reorg_depth.py',
     'p2p_timeouts.py',
     'rpc_signer.py',
     'wallet_signer.py --descriptors',
@@ -197,7 +196,6 @@ BASE_SCRIPTS = [
     'mempool_resurrect.py',
     'wallet_txn_doublespend.py --mineblock',
     'tool_wallet.py --descriptors',
-    'tool_signet_miner.py --descriptors',
     'wallet_txn_clone.py',
     'wallet_txn_clone.py --segwit',
     'rpc_getchaintips.py',
@@ -240,7 +238,6 @@ BASE_SCRIPTS = [
     'rpc_net.py',
     'wallet_keypool.py --descriptors',
     'wallet_descriptor.py --descriptors',
-    'wallet_miniscript.py --descriptors',
     'p2p_nobloomfilter_messages.py',
     'p2p_filter.py',
     'rpc_setban.py',
@@ -250,9 +247,7 @@ BASE_SCRIPTS = [
     'p2p_invalid_block.py',
     'p2p_invalid_tx.py',
     'example_test.py',
-    'wallet_multisig_descriptor_psbt.py --descriptors',
     'wallet_txn_doublespend.py --descriptors',
-    'wallet_backwards_compatibility.py --descriptors',
     'wallet_txn_clone.py --mineblock',
     'feature_notifications.py',
     'rpc_getblockfilter.py',
@@ -274,7 +269,6 @@ BASE_SCRIPTS = [
     'rpc_generate.py',
     'wallet_balance.py --descriptors',
     'p2p_initial_headers_sync.py',
-    'feature_nulldummy.py',
     'mempool_accept.py',
     'mempool_expiry.py',
     'wallet_importdescriptors.py --descriptors',
@@ -283,8 +277,9 @@ BASE_SCRIPTS = [
     'wallet_cold_storage_uat.py --descriptors',
     'wallet_crosschain.py',
     'mining_basic.py',
+    'mining_solo_gbt_copy_bytes.py',
+    'mining_pow_pipeline_p0_042.py',
     'mining_prev_nbits.py',
-    'feature_signet.py',
     'rpc_named_arguments.py',
     'feature_startupnotify.py',
     'wallet_simulaterawtx.py --descriptors',
@@ -293,7 +288,6 @@ BASE_SCRIPTS = [
     'p2p_leak.py',
     'wallet_encryption.py --descriptors',
     'feature_dersig.py',
-    'feature_cltv.py',
     'rpc_uptime.py',
     'feature_discover.py',
     'wallet_resendwallettransactions.py --descriptors',
@@ -349,7 +343,6 @@ BASE_SCRIPTS = [
     'p2p_i2p_ports.py',
     'p2p_i2p_sessions.py',
     'feature_config_args.py',
-    'feature_presegwit_node_upgrade.py',
     'feature_settings.py',
     'rpc_getdescriptorinfo.py',
     'rpc_mempool_info.py',
@@ -357,7 +350,6 @@ BASE_SCRIPTS = [
     'feature_dirsymlinks.py',
     'feature_help.py',
     'feature_shutdown.py',
-    'wallet_migration.py',
     'p2p_ibd_txrelay.py',
     # Don't append tests at the end to avoid merge conflicts
     # Put them in a random line within the section that fits their approximate run-time
@@ -377,18 +369,10 @@ NON_SCRIPTS = [
     "create_cache.py",
     "test_runner.py",
     # Intentionally not in BASE/EXTENDED (silences check_script_list WARNING).
-    # Default Rigor builds omit BDB — legacy-wallet-only scripts; run manually after a BDB build, e.g.
-    #   test_runner.py rpc_rawtransaction.py --legacy-wallet
+    # TODO: still written against legacy (non-descriptor) wallets. RIGOR has no
+    # legacy wallet at all, so this cannot be run as-is; it needs converting to
+    # importdescriptors before it can go back into BASE.
     "rpc_rawtransaction.py",
-    "wallet_dump.py",
-    "wallet_implicitsegwit.py",
-    "wallet_import_rescan.py",
-    "wallet_import_with_label.py",
-    "wallet_importmulti.py",
-    "wallet_inactive_hdchains.py",
-    "wallet_pruning.py",
-    "wallet_upgradewallet.py",
-    "wallet_watchonly.py",
     # Controlled / chaos / CVE harnesses — not part of default pull-tester suite.
     "cve_2024_52911_consensus_test.py",
     "fault_injection_core.py",
@@ -454,7 +438,7 @@ def main():
 
     logging.debug("Temporary test directory at %s" % tmpdir)
 
-    enable_bitcoind = config["components"].getboolean("ENABLE_BITCOIND")
+    enable_bitcoind = config["components"].getboolean("ENABLE_RIGORD")
 
     if not enable_bitcoind:
         print("No functional tests to run.")
@@ -820,7 +804,7 @@ class RPCCoverage():
     Coverage calculation works by having each test script subprocess write
     coverage files into a particular directory. These files contain the RPC
     commands invoked during testing, as well as a complete listing of RPC
-    commands per `bitcoin-cli help` (`rpc_interface.txt`).
+    commands per `rigor-cli help` (`rpc_interface.txt`).
 
     After all tests complete, the commands run are combined and diff'd against
     the complete list to calculate uncovered RPC commands.

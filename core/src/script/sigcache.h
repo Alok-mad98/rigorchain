@@ -6,7 +6,7 @@
 #ifndef BITCOIN_SCRIPT_SIGCACHE_H
 #define BITCOIN_SCRIPT_SIGCACHE_H
 
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <span.h>
 #include <util/hasher.h>
 
@@ -18,17 +18,14 @@
 // more (~32.25 MiB)
 static constexpr size_t DEFAULT_MAX_SIG_CACHE_BYTES{32 << 20};
 
-class CPubKey;
-
 class CachingTransactionSignatureChecker : public TransactionSignatureChecker
 {
 private:
     bool store;
 
 public:
-    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, bool storeIn, PrecomputedTransactionData& txdataIn, int nSpendHeightIn = 0) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn, MissingDataBehavior::ASSERT_FAIL, nSpendHeightIn), store(storeIn) {}
+    CachingTransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, bool storeIn, PrecomputedTransactionData& txdataIn, const uint256& chain_id, int nSpendHeightIn = 0) : TransactionSignatureChecker(txToIn, nInIn, amountIn, txdataIn, MissingDataBehavior::ASSERT_FAIL, chain_id, nSpendHeightIn), store(storeIn) {}
 
-    bool VerifyECDSASignature(const std::vector<unsigned char>& vchSig, const CPubKey& vchPubKey, const uint256& sighash) const override;
     bool VerifyEd25519Signature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, const uint256& sighash) const override;
 };
 

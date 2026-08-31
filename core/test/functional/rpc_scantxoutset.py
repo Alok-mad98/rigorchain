@@ -124,7 +124,7 @@ class ScantxoutsetTest(BitcoinTestFramework):
         self.log.info("BIP67 sortedmulti under wsh() matches native witness script hash.")
 
         def multisig_threshold(script_bytes):
-            """Return m for OP_m ... OP_n OP_CHECKMULTISIG multisig redeemscript."""
+            """Return m for OP_m ... OP_n RIGOR_RESERVED_LEGACY_CHECKMULTISIG multisig redeemscript."""
             assert script_bytes[-1] == 0xae
             return script_bytes[0] - 0x50
 

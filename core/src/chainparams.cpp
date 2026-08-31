@@ -6,15 +6,13 @@
 #include <chainparams.h>
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/rigor-config.h>
 #endif
 
-#include <chainparamsseeds.h>
 #include <consensus/merkle.h>
 #include <consensus/res_amount.h>
 #include <deploymentinfo.h>
-#include <hash.h> // for signet block challenge hash
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <util/string.h>
 #include <util/system.h>
 
@@ -28,68 +26,14 @@ CAmount ResWalletBootstrapFromArgs(const ArgsManager& args)
 }
 } // namespace
 
-void ReadSigNetArgs(const ArgsManager& args, CChainParams::SigNetOptions& options)
-{
-    if (args.IsArgSet("-signetseednode")) {
-        options.seeds.emplace(args.GetArgs("-signetseednode"));
-    }
-    if (args.IsArgSet("-signetchallenge")) {
-        const auto signet_challenge = args.GetArgs("-signetchallenge");
-        if (signet_challenge.size() != 1) {
-            throw std::runtime_error(strprintf("%s: -signetchallenge cannot be multiple values.", __func__));
-        }
-        options.challenge.emplace(ParseHex(signet_challenge[0]));
-    }
-}
-
 void ReadRegTestArgs(const ArgsManager& args, CChainParams::RegTestOptions& options)
 {
     if (auto value = args.GetBoolArg("-fastprune")) options.fastprune = *value;
     options.res_wallet_bootstrap_coinbase = ResWalletBootstrapFromArgs(args);
 
-    // RIGOR: buried softforks are fixed genesis-active on every network (including
-    // regtest). Reject Bitcoin-style delayed activation overrides so tests cannot
-    // reintroduce height-gated BIP matrices.
-    if (args.IsArgSet("-testactivationheight")) {
-        throw std::runtime_error(
-            "-testactivationheight is disabled on RIGOR; buried softforks are "
-            "genesis-active and cannot be delayed.");
-    }
-
-    if (!args.IsArgSet("-vbparams")) return;
-
-    for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
-        std::vector<std::string> vDeploymentParams = SplitString(strDeployment, ':');
-        if (vDeploymentParams.size() < 3 || 4 < vDeploymentParams.size()) {
-            throw std::runtime_error("Version bits parameters malformed, expecting deployment:start:end[:min_activation_height]");
-        }
-        CChainParams::VersionBitsParameters vbparams{};
-        if (!ParseInt64(vDeploymentParams[1], &vbparams.start_time)) {
-            throw std::runtime_error(strprintf("Invalid nStartTime (%s)", vDeploymentParams[1]));
-        }
-        if (!ParseInt64(vDeploymentParams[2], &vbparams.timeout)) {
-            throw std::runtime_error(strprintf("Invalid nTimeout (%s)", vDeploymentParams[2]));
-        }
-        if (vDeploymentParams.size() >= 4) {
-            if (!ParseInt32(vDeploymentParams[3], &vbparams.min_activation_height)) {
-                throw std::runtime_error(strprintf("Invalid min_activation_height (%s)", vDeploymentParams[3]));
-            }
-        } else {
-            vbparams.min_activation_height = 0;
-        }
-        bool found = false;
-        for (int j=0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
-            if (vDeploymentParams[0] == VersionBitsDeploymentInfo[j].name) {
-                options.version_bits_parameters[Consensus::DeploymentPos(j)] = vbparams;
-                found = true;
-                LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, min_activation_height=%d\n", vDeploymentParams[0], vbparams.start_time, vbparams.timeout, vbparams.min_activation_height);
-                break;
-            }
-        }
-        if (!found) {
-            throw std::runtime_error(strprintf("Invalid deployment (%s)", vDeploymentParams[0]));
-        }
-    }
+    // Buried softforks and BIP9 windows are fixed in chainparams. -testactivationheight
+    // and -vbparams are not registered (see SetupChainParamsBaseOptions), so ParseParameters
+    // rejects them on every chain before chainparams are built.
 }
 
 static std::unique_ptr<const CChainParams> globalChainParams;
@@ -101,7 +45,7 @@ const CChainParams &Params() {
 
 std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, const std::string& chain)
 {
-    // Production builds still construct test/signet/regtest params here so
+    // Production builds still construct test/regtest params here so
     // SetupServerArgs can fill help-text defaults. Runtime selection is gated
     // in SelectParams / GetChainName.
     if (chain == CBaseChainParams::MAIN) {
@@ -116,10 +60,6 @@ std::unique_ptr<const CChainParams> CreateChainParams(const ArgsManager& args, c
         CChainParams::MockableChainOptions opts;
         opts.res_wallet_bootstrap_coinbase = ResWalletBootstrapFromArgs(args);
         return CChainParams::SlowTest(opts);
-    } else if (chain == CBaseChainParams::SIGNET) {
-        auto opts = CChainParams::SigNetOptions{};
-        ReadSigNetArgs(args, opts);
-        return CChainParams::SigNet(opts);
     } else if (chain == CBaseChainParams::REGTEST) {
         auto opts = CChainParams::RegTestOptions{};
         ReadRegTestArgs(args, opts);
@@ -132,7 +72,7 @@ void SelectParams(const std::string& network)
 {
 #ifdef RIGOR_PRODUCTION_MAINNET
     if (network != CBaseChainParams::MAIN) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
 #endif
     SelectBaseParams(network);

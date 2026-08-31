@@ -25,19 +25,59 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    OP_FALSE,
-    OP_INVALIDOPCODE,
-    OP_RETURN,
+    RIGOR_PUSH_0,
+    RIGOR_BYTE_INVALID,
+    RIGOR_MARKER_RETURN,
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_rpc_error,
 )
-from test_framework.wallet import (
-    getnewdestination,
-    MiniWallet,
-)
+
+
+class WalletSpender:
+    """Descriptor-wallet stand-in for MiniWallet.
+
+    MiniWallet signs Ed25519 P2WPKH (``<64-byte sig> <32-byte pk>``).
+    This helper uses wallet RPC when a descriptor wallet is already loaded.
+    """
+
+    def __init__(self, node):
+        self.node = node
+        self._spent = set()
+
+    def create_self_transfer(self, fee_rate=Decimal("0.003")):
+        utxos = [
+            u for u in self.node.listunspent(minconf=1)
+            if (u["txid"], u["vout"]) not in self._spent
+        ]
+        assert utxos, "WalletSpender has no confirmed ORU coins"
+        utxo = max(utxos, key=lambda u: Decimal(str(u["amount"])))
+        dest = self.node.getnewaddress(address_type="bech32")
+        vin = [{"txid": utxo["txid"], "vout": utxo["vout"]}]
+        utxo_amt = Decimal(str(utxo["amount"]))
+        # First pass: sign a dummy amount so we can measure witness vsize.
+        probe = self.node.signrawtransactionwithwallet(
+            self.node.createrawtransaction(vin, {dest: format(utxo_amt - Decimal("0.0001"), "f")})
+        )
+        assert_equal(probe["complete"], True)
+        vsize = (tx_from_hex(probe["hex"]).get_weight() + 3) // 4
+        fee = fee_rate * Decimal(vsize) / Decimal(1000)
+        amount = utxo_amt - fee
+        assert amount > 0, "selected utxo cannot cover requested feerate"
+        signed = self.node.signrawtransactionwithwallet(
+            self.node.createrawtransaction(vin, {dest: format(amount, "f")})
+        )
+        assert_equal(signed["complete"], True)
+        self._spent.add((utxo["txid"], utxo["vout"]))
+        tx = tx_from_hex(signed["hex"])
+        return {"txid": tx.rehash(), "hex": signed["hex"], "tx": tx, "fee": fee}
+
+    def send_self_transfer(self, *, from_node):
+        tx = self.create_self_transfer()
+        from_node.sendrawtransaction(tx["hex"])
+        return tx
 
 
 TXID = "1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000"
@@ -63,10 +103,11 @@ class multidict(dict):
 
 class RawTransactionsTest(BitcoinTestFramework):
     def add_options(self, parser):
-        self.add_wallet_options(parser, descriptors=False)
+        self.add_wallet_options(parser)
 
     def set_test_params(self):
         self.num_nodes = 3
+        self.setup_clean_chain = True
         self.extra_args = [
             ["-txindex"],
             ["-txindex"],
@@ -77,12 +118,18 @@ class RawTransactionsTest(BitcoinTestFramework):
             args.append("-whitelist=noban@127.0.0.1")
         self.supports_cli = False
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def setup_network(self):
         super().setup_network()
         self.connect_nodes(0, 2)
 
     def run_test(self):
-        self.wallet = MiniWallet(self.nodes[0])
+        mining_addr = self.nodes[0].getnewaddress(address_type="bech32")
+        self.generatetoaddress(self.nodes[0], 160, mining_addr)
+        self.sync_all()
+        self.wallet = WalletSpender(self.nodes[0])
 
         self.getrawtransaction_tests()
         self.getrawtransaction_verbosity_tests()
@@ -266,26 +313,26 @@ class RawTransactionsTest(BitcoinTestFramework):
         # sequence number out of range
         for invalid_seq in [-1, 4294967296]:
             inputs = [{'txid': TXID, 'vout': 1, 'sequence': invalid_seq}]
-            address = getnewdestination()[2]
+            address = self.nodes[0].getnewaddress(address_type="bech32")
             outputs = {address: 1}
             assert_raises_rpc_error(-8, 'Invalid parameter, sequence number is out of range',
                                     self.nodes[0].createrawtransaction, inputs, outputs)
         # with valid sequence number
         for valid_seq in [1000, 4294967294]:
             inputs = [{'txid': TXID, 'vout': 1, 'sequence': valid_seq}]
-            address = getnewdestination()[2]
+            address = self.nodes[0].getnewaddress(address_type="bech32")
             outputs = {address: 1}
             rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
             decrawtx = self.nodes[0].decoderawtransaction(rawtx)
             assert_equal(decrawtx['vin'][0]['sequence'], valid_seq)
 
         # Test `createrawtransaction` invalid `outputs`
-        address = getnewdestination()[2]
+        address = self.nodes[0].getnewaddress(address_type="bech32")
         assert_raises_rpc_error(-3, "JSON value of type string is not of expected type array", self.nodes[0].createrawtransaction, [], 'foo')
         self.nodes[0].createrawtransaction(inputs=[], outputs={})  # Should not throw for backwards compatibility
         self.nodes[0].createrawtransaction(inputs=[], outputs=[])
         assert_raises_rpc_error(-8, "Data must be hexadecimal string", self.nodes[0].createrawtransaction, [], {'data': 'foo'})
-        assert_raises_rpc_error(-5, "Invalid Bitcoin address", self.nodes[0].createrawtransaction, [], {'foo': 0})
+        assert_raises_rpc_error(-5, "Invalid Rigor address", self.nodes[0].createrawtransaction, [], {'foo': 0})
         assert_raises_rpc_error(-3, "Invalid amount", self.nodes[0].createrawtransaction, [], {address: 'foo'})
         assert_raises_rpc_error(-3, "Amount out of range", self.nodes[0].createrawtransaction, [], {address: -1})
         assert_raises_rpc_error(-8, "Invalid parameter, duplicated address: %s" % address, self.nodes[0].createrawtransaction, [], multidict([(address, 1), (address, 1)]))
@@ -316,7 +363,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             self.nodes[2].createrawtransaction(inputs=[{'txid': TXID, 'vout': 9}], outputs=[{address: 99}]),
         )
         # Two outputs
-        address2 = getnewdestination()[2]
+        address2 = self.nodes[0].getnewaddress(address_type="bech32")
         tx = tx_from_hex(self.nodes[2].createrawtransaction(inputs=[{'txid': TXID, 'vout': 9}], outputs=OrderedDict([(address, 99), (address2, 99)])))
         assert_equal(len(tx.vout), 2)
         assert_equal(
@@ -334,7 +381,7 @@ class RawTransactionsTest(BitcoinTestFramework):
     def sendrawtransaction_tests(self):
         self.log.info("Test sendrawtransaction with missing input")
         inputs = [{'txid': TXID, 'vout': 1}]  # won't exist
-        address = getnewdestination()[2]
+        address = self.nodes[0].getnewaddress(address_type="bech32")
         outputs = {address: 4.998}
         rawtx = self.nodes[2].createrawtransaction(inputs, outputs)
         assert_raises_rpc_error(-25, "bad-txns-inputs-missingorspent", self.nodes[2].sendrawtransaction, rawtx)
@@ -351,44 +398,59 @@ class RawTransactionsTest(BitcoinTestFramework):
         # Test that datacarrier transaction with default maxunspendable (0) does not get sent
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.001
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_RETURN] + [OP_FALSE] * 30))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_MARKER_RETURN] + [RIGOR_PUSH_0] * 30))]
         tx_hex = tx.serialize().hex()
         assert_raises_rpc_error(-25, max_unspendable_exceeded, self.nodes[2].sendrawtransaction, tx_hex)
 
         # Test that oversized script gets rejected by sendrawtransaction
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.001
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_FALSE] * 10001))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_PUSH_0] * 10001))]
         tx_hex = tx.serialize().hex()
         assert_raises_rpc_error(-25, max_unspendable_exceeded, self.nodes[2].sendrawtransaction, tx_hex)
 
         # Test that script containing invalid opcode gets rejected by sendrawtransaction
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.01
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_INVALIDOPCODE]))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_BYTE_INVALID]))]
         tx_hex = tx.serialize().hex()
         assert_raises_rpc_error(-25, max_unspendable_exceeded, self.nodes[2].sendrawtransaction, tx_hex)
 
         # Test a transaction where unspendable output exceeds maxunspendable
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.001
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_RETURN] + [OP_FALSE] * 30))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_MARKER_RETURN] + [RIGOR_PUSH_0] * 30))]
         tx_hex = tx.serialize().hex()
         assert_raises_rpc_error(-25, max_unspendable_exceeded, self.nodes[2].sendrawtransaction, tx_hex, 0, 0.0009)
 
-        # Test a transaction where unspendable output is below maxunspendable
+        # Test a transaction where unspendable output is below maxunspendable.
+        # Rigor still rejects a valued RIGOR_MARKER_RETURN (consensus: bad-txns-opreturn-value).
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.001
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_RETURN] + [OP_FALSE] * 30))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_MARKER_RETURN] + [RIGOR_PUSH_0] * 30))]
         tx_hex = tx.serialize().hex()
-        self.nodes[2].sendrawtransaction(hexstring=tx_hex, maxfeerate='0', maxunspendable='0.0011')
+        assert_raises_rpc_error(
+            -26,
+            "bad-txns-opreturn-value",
+            self.nodes[2].sendrawtransaction,
+            tx_hex,
+            0,
+            0.0011,
+        )
 
-        # Test a transaction where unspendable output equals maxunspendable
+        # Same consensus reject when unspendable output equals maxunspendable
         tx = self.wallet.create_self_transfer()['tx']
         tx_val = 0.001
-        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([OP_RETURN] + [OP_FALSE] * 30))]
+        tx.vout = [CTxOut(int(Decimal(tx_val) * COIN), CScript([RIGOR_MARKER_RETURN] + [RIGOR_PUSH_0] * 30))]
         tx_hex = tx.serialize().hex()
-        self.nodes[2].sendrawtransaction(hexstring=tx_hex, maxfeerate='0', maxunspendable='0.001')
+        assert_raises_rpc_error(
+            -26,
+            "bad-txns-opreturn-value",
+            self.nodes[2].sendrawtransaction,
+            tx_hex,
+            0,
+            0.001,
+        )
 
     def sendrawtransaction_testmempoolaccept_tests(self):
         self.log.info("Test sendrawtransaction/testmempoolaccept with maxfeerate")

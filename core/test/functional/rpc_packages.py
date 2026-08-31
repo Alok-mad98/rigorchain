@@ -47,7 +47,7 @@ class RPCPackagesTest(BitcoinTestFramework):
         node = self.nodes[0]
 
         # get an UTXO that requires signature to be spent
-        deterministic_address = node.get_deterministic_priv_key().address
+        deterministic_address = node.get_deterministic_witness_mining_address()
         blockhash = self.generatetoaddress(node, 1, deterministic_address)[0]
         coinbase = node.getblock(blockhash=blockhash, verbosity=2)["tx"][0]
         coin = {
@@ -90,7 +90,7 @@ class RPCPackagesTest(BitcoinTestFramework):
         self.assert_testres_equal(self.independent_txns_hex, self.independent_txns_testres)
 
         self.log.info("Test an otherwise valid package with an extra garbage tx appended")
-        address = node.get_deterministic_priv_key().address
+        address = node.get_deterministic_witness_mining_address()
         garbage_tx = node.createrawtransaction([{"txid": "00" * 32, "vout": 5}], {address: 1})
         tx = tx_from_hex(garbage_tx)
         # Only the txid and wtxids are returned because validation is incomplete for the independent txns.
@@ -111,7 +111,7 @@ class RPCPackagesTest(BitcoinTestFramework):
         assert_equal(testres_bad_sig, self.independent_txns_testres + [{
             "txid": tx_bad_sig.rehash(),
             "wtxid": tx_bad_sig.getwtxid(), "allowed": False,
-            "reject-reason": "mandatory-script-verify-flag-failed (Operation not valid with the current stack size)"
+            "reject-reason": "mandatory-script-verify-flag-failed (Witness program hash mismatch)"
         }])
 
         self.log.info("Check testmempoolaccept reports txns in packages that exceed max feerate")
@@ -178,6 +178,7 @@ class RPCPackagesTest(BitcoinTestFramework):
             # Submit the transaction now so its child should have no problem validating
             node.sendrawtransaction(rawtx)
         assert_equal(testres_single, testres_multiple_ab)
+        self.generate(node, 1)
 
     def test_multiple_parents(self):
         node = self.nodes[0]
@@ -194,11 +195,11 @@ class RPCPackagesTest(BitcoinTestFramework):
                 parent_coins.append(parent_tx["new_utxo"])
                 package_hex.append(parent_tx["hex"])
 
-            child_tx = self.wallet.create_self_transfer_multi(utxos_to_spend=parent_coins, fee_per_output=2000)
+            child_tx = self.wallet.create_self_transfer_multi(utxos_to_spend=parent_coins, fee_per_output=20000)
             for _ in range(10):
                 random.shuffle(package_hex)
                 testres_multiple = node.testmempoolaccept(rawtxs=package_hex + [child_tx['hex']])
-                assert all([testres["allowed"] for testres in testres_multiple])
+                assert all(testres.get("allowed") for testres in testres_multiple), testres_multiple
 
             testres_single = []
             # Test accept and then submit each one individually, which should be identical to package testaccept

@@ -102,7 +102,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build/sign/broadcast convergence tx (with OP_RETURN data output) on devtest."
     )
-    parser.add_argument("--cli", default="./src/rigor-cli", help="Path to bitcoin-cli compatible binary.")
+    parser.add_argument("--cli", default="./src/rigor-cli", help="Path to rigor-cli binary.")
     parser.add_argument("--chain", default="devtest", help="Chain name, default devtest.")
     parser.add_argument(
         "--cli-extra",

@@ -5,7 +5,7 @@
 #include <consensus/res_owner.h>
 
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 

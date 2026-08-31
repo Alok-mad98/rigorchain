@@ -14,10 +14,7 @@ import os
 
 from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.wallet import (
-    MiniWallet,
-    MiniWalletMode,
-)
+from test_framework.wallet import MiniWallet
 
 
 class MempoolCompatibilityTest(BitcoinTestFramework):
@@ -39,7 +36,7 @@ class MempoolCompatibilityTest(BitcoinTestFramework):
 
         old_node, new_node = self.nodes
         assert "unbroadcastcount" not in old_node.getmempoolinfo()
-        new_wallet = MiniWallet(new_node, mode=MiniWalletMode.RAW_P2PK)
+        new_wallet = MiniWallet(new_node)
         self.generate(new_wallet, 1, sync_fun=self.no_op)
         self.generate(new_node, COINBASE_MATURITY, sync_fun=self.no_op)
         # Sync the nodes to ensure old_node has the block that contains the coinbase that new_wallet will spend.

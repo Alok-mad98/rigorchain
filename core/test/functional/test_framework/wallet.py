@@ -6,24 +6,18 @@
 
 from copy import deepcopy
 from decimal import Decimal
-from enum import Enum
 from typing import (
     Any,
     List,
     Optional,
 )
 from test_framework.address import (
-    get_mini_wallet_privkey,
+    get_mini_wallet_key,
     key_to_p2wpkh,
     mini_wallet_wpkh_address,
     mini_wallet_wpkh_script_pubkey,
-    output_key_to_p2tr,
 )
 from test_framework.descriptors import descsum_create
-from test_framework.key import (
-    ECKey,
-    compute_xonly_pubkey,
-)
 from test_framework.messages import (
     COIN,
     COutPoint,
@@ -34,20 +28,12 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    LegacySignatureHash,
-    OP_NOP,
-    OP_RETURN,
-    OP_TRUE,
-    SIGHASH_ALL,
-    SegwitV0SignatureHash,
-    hash160,
-    taproot_construct,
+    RIGOR_MARKER_RETURN,
+    SIGHASH_DOMAIN_ORU_V1,
+    rigor_signature_hash,
 )
 from test_framework.script_util import (
-    key_to_p2pk_script,
-    key_to_p2pkh_script,
     key_to_p2wpkh_script,
-    keyhash_to_p2pkh_script,
 )
 from test_framework.util import (
     assert_equal,
@@ -57,49 +43,22 @@ from test_framework.blocktools import COINBASE_MATURITY
 
 DEFAULT_FEE = Decimal("0.0001")
 
-class MiniWalletMode(Enum):
-    """Determines the transaction type the MiniWallet is creating and spending.
-
-    For most purposes, the default mode ADDRESS_OP_TRUE should be sufficient;
-    it uses a fixed bech32 P2WPKH (witness v0) address funded by the shared
-    regtest chain cache (see BitcoinTestFramework._initialize_chain).
-    However, if the transactions need to be modified by the user (e.g. prepending
-    scriptSig for testing opcodes that are activated by a soft-fork), or the txs
-    should contain an actual signature, the raw modes RAW_OP_TRUE and RAW_P2PK
-    can be useful. Summary of modes:
-
-                    |      output       |           |  tx is   | can modify |  needs
-         mode       |    description    |  address  | standard | scriptSig  | signing
-    ----------------+-------------------+-----------+----------+------------+----------
-    ADDRESS_OP_TRUE | P2WPKH (v0)       |  bech32   |   yes    |    no      |   yes
-    RAW_OP_TRUE     | anyone-can-spend  |  - (raw)  |   no     |    yes     |   no
-    RAW_P2PK        | pay-to-public-key |  - (raw)  |   yes    |    yes     |   yes
-    """
-    ADDRESS_OP_TRUE = 1
-    RAW_OP_TRUE = 2
-    RAW_P2PK = 3
+# RIGOR mempool "vsize" is serialized size with witness (no BIP141 discount).
+# 1-in-1-out native P2WPKH: 64-byte Ed25519 sig + 32-byte pk.
+P2WPKH_1IN_1OUT_VSIZE = 183
 
 
 class MiniWallet:
-    def __init__(self, test_node, *, mode=MiniWalletMode.ADDRESS_OP_TRUE):
+    """Ed25519 P2WPKH test wallet. There is no anyone-can-spend mode (ASSET_INVALID)."""
+
+    def __init__(self, test_node):
         self._test_node = test_node
         self._utxos = []
-        self._mode = mode
-
-        assert isinstance(mode, MiniWalletMode)
-        if mode == MiniWalletMode.RAW_OP_TRUE:
-            self._scriptPubKey = bytes(CScript([OP_TRUE]))
-        elif mode == MiniWalletMode.RAW_P2PK:
-            # use simple deterministic private key (k=1)
-            self._priv_key = ECKey()
-            self._priv_key.set((1).to_bytes(32, 'big'), True)
-            pub_key = self._priv_key.get_pubkey()
-            self._scriptPubKey = key_to_p2pk_script(pub_key.get_bytes())
-        elif mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            self._priv_key = get_mini_wallet_privkey()
-            self._pubkey = self._priv_key.get_pubkey().get_bytes()
-            self._address = mini_wallet_wpkh_address()
-            self._scriptPubKey = mini_wallet_wpkh_script_pubkey()
+        self._key = get_mini_wallet_key()
+        self._pubkey = self._key.get_pubkey_bytes()
+        self._address = mini_wallet_wpkh_address()
+        self._scriptPubKey = mini_wallet_wpkh_script_pubkey()
+        self._chain_id = int(self._test_node.getblockhash(0), 16)
 
         # When the pre-mined test framework chain is used, it contains coinbase
         # outputs to the MiniWallet's default address in blocks 76-100
@@ -115,13 +74,13 @@ class MiniWallet:
         """Pad a transaction with extra outputs until it reaches a target weight (or higher).
         returns the tx
         """
-        tx.vout.append(CTxOut(nValue=0, scriptPubKey=CScript([OP_RETURN, b'a'])))
+        tx.vout.append(CTxOut(nValue=0, scriptPubKey=CScript([RIGOR_MARKER_RETURN, b'a'])))
         dummy_vbytes = (target_weight - tx.get_weight() + 3) // 4
-        tx.vout[-1].scriptPubKey = CScript([OP_RETURN, b'a' * dummy_vbytes])
+        tx.vout[-1].scriptPubKey = CScript([RIGOR_MARKER_RETURN, b'a' * dummy_vbytes])
         # Lower bound: must meet the requested padding target.
         assert_greater_than_or_equal(tx.get_weight(), target_weight)
-        # Upper bound: upstream assumed at most +15 weight over target, but large OP_RETURN
-        # pushes cross opcode boundaries (e.g. >75 bytes → OP_PUSHDATA1) and add discrete
+        # Upper bound: upstream assumed at most +15 weight over target, but large RIGOR_MARKER_RETURN
+        # pushes cross opcode boundaries (e.g. >75 bytes → RIGOR_PUSHDATA1) and add discrete
         # overhead. Keep a generous cap so fault tests can target ~MAX_STANDARD_TX_WEIGHT.
         assert tx.get_weight() <= target_weight + 8192, (
             f"_bulk_tx overshot: weight={tx.get_weight()} target={target_weight} dummy_vbytes={dummy_vbytes}"
@@ -169,41 +128,20 @@ class MiniWallet:
         for tx in txs:
             self.scan_tx(tx)
 
-    def sign_tx(self, tx, fixed_length=True, *, utxos_to_spend=None):
-        if self._mode == MiniWalletMode.RAW_P2PK:
-            (sighash, err) = LegacySignatureHash(CScript(self._scriptPubKey), tx, 0, SIGHASH_ALL)
-            assert err is None
-            # for exact fee calculation, create only signatures with fixed size by default (>49.89% probability):
-            # 65 bytes: high-R val (33 bytes) + low-S val (32 bytes)
-            # with the DER header/skeleton data of 6 bytes added, this leads to a target size of 71 bytes
-            der_sig = b''
-            while not len(der_sig) == 71:
-                der_sig = self._priv_key.sign_ecdsa(sighash)
-                if not fixed_length:
-                    break
-            tx.vin[0].scriptSig = CScript([der_sig + bytes(bytearray([SIGHASH_ALL]))])
-            tx.rehash()
-        elif self._mode == MiniWalletMode.RAW_OP_TRUE:
-            for i in tx.vin:
-                i.scriptSig = CScript([OP_NOP] * 43)  # pad to identical size
-        elif self._mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            assert utxos_to_spend is not None
-            assert_equal(len(utxos_to_spend), len(tx.vin))
-            script_code = keyhash_to_p2pkh_script(hash160(self._pubkey))
-            tx.wit.vtxinwit = [CTxInWitness() for _ in range(len(tx.vin))]
-            for i, utxo in enumerate(utxos_to_spend):
-                value_sats = int(Decimal(utxo['value']) * COIN)
-                # BIP143: hashPrevouts / hashSequence / hashOutputs use the full witness serialization of
-                # inputs/outputs (nValue + scriptPubKey; native asset is implied by script template).
-                sighash = SegwitV0SignatureHash(script_code, tx, i, SIGHASH_ALL, value_sats)
-                der_sig = self._priv_key.sign_ecdsa(sighash)
-                if fixed_length:
-                    while len(der_sig) != 71:
-                        der_sig = self._priv_key.sign_ecdsa(sighash)
-                tx.wit.vtxinwit[i].scriptWitness.stack = [der_sig + bytes([SIGHASH_ALL]), self._pubkey]
-            tx.rehash()
-        else:
-            assert False
+    def sign_tx(self, tx, *, utxos_to_spend=None):
+        assert utxos_to_spend is not None
+        assert_equal(len(utxos_to_spend), len(tx.vin))
+        spent_spk = CScript(self._scriptPubKey)
+        tx.wit.vtxinwit = [CTxInWitness() for _ in range(len(tx.vin))]
+        for i, utxo in enumerate(utxos_to_spend):
+            value_sats = int(Decimal(utxo['value']) * COIN)
+            sighash = rigor_signature_hash(
+                spent_spk, tx, i, value_sats, self._chain_id, SIGHASH_DOMAIN_ORU_V1,
+            )
+            sig = self._key.sign(sighash)
+            assert_equal(len(sig), 64)
+            tx.wit.vtxinwit[i].scriptWitness.stack = [sig, self._pubkey]
+        tx.rehash()
 
     def generate(self, num_blocks, **kwargs):
         """Generate blocks with coinbase outputs to the internal address, and call rescan_utxos"""
@@ -224,10 +162,9 @@ class MiniWallet:
         return self._scriptPubKey
 
     def get_descriptor(self):
-        return descsum_create(f'raw({self._scriptPubKey.hex()})')
+        return descsum_create(f'addr({self._address})')
 
     def get_address(self):
-        assert_equal(self._mode, MiniWalletMode.ADDRESS_OP_TRUE)
         return self._address
 
     def get_utxo(self, *, txid: str = '', vout: Optional[int] = None, mark_as_spent=True) -> dict:
@@ -284,8 +221,7 @@ class MiniWallet:
         assert_greater_than_or_equal(tx.vout[0].nValue, amount + fee)
         tx.vout[0].nValue -= (amount + fee)           # change output -> MiniWallet
         tx.vout.append(CTxOut(amount, scriptPubKey))  # arbitrary output -> to be returned
-        if self._mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            self.sign_tx(tx, utxos_to_spend=[st["utxo_spent"]])
+        self.sign_tx(tx, utxos_to_spend=[st["utxo_spent"]])
         txid = self.sendrawtransaction(from_node=from_node, tx_hex=tx.serialize().hex())
         return txid, 1
 
@@ -333,8 +269,8 @@ class MiniWallet:
 
         if target_weight:
             self._bulk_tx(tx, target_weight)
-            # ``_bulk_tx`` appends ``OP_RETURN`` vouts → BIP143 ``hashOutputs`` (and legacy
-            # sighash preimage) changes; re-sign so policy hits ``tx-size`` / relay rather than
+            # ``_bulk_tx`` appends ``RIGOR_MARKER_RETURN`` vouts → RGRORU01
+            # ``hash_outputs`` changes; re-sign so policy hits ``tx-size`` / relay rather than
             # a stale witness/signature failure.
             self.sign_tx(tx, utxos_to_spend=utxos_to_spend)
 
@@ -360,30 +296,16 @@ class MiniWallet:
         utxo_to_spend = utxo_to_spend or self.get_utxo()
         assert fee_rate >= 0
         assert fee >= 0
-        # calculate fee
-        if self._mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            # Fee estimate: use upper bound so we never underpay feerate. Observed
-            # 1-in-1-out native P2WPKH vsize is 110 or 111 depending on witness
-            # serialization / ceil(weight/4) (Core vs RIGOR templates).
-            vsize = Decimal(111)
-        elif self._mode == MiniWalletMode.RAW_OP_TRUE:
-            vsize = Decimal(104)  # anyone-can-spend
-        elif self._mode == MiniWalletMode.RAW_P2PK:
-            vsize = Decimal(168)  # P2PK (73 bytes scriptSig + 35 bytes scriptPubKey + 60 bytes other)
-        else:
-            assert False
+        vsize = Decimal(P2WPKH_1IN_1OUT_VSIZE)
         send_value = utxo_to_spend["value"] - (fee or (fee_rate * vsize / 1000))
 
         # create tx
         tx = self.create_self_transfer_multi(utxos_to_spend=[utxo_to_spend], locktime=locktime, sequence=sequence, amount_per_output=int(COIN * send_value), target_weight=target_weight)
         if not target_weight:
             actual_v = tx["tx"].get_vsize()
-            if self._mode == MiniWalletMode.ADDRESS_OP_TRUE:
-                assert actual_v in (110, 111), (
-                    f"unexpected P2WPKH 1-in-1-out vsize {actual_v}; update MiniWallet if template changed"
-                )
-            else:
-                assert_equal(actual_v, int(vsize))
+            assert actual_v == P2WPKH_1IN_1OUT_VSIZE, (
+                f"unexpected P2WPKH 1-in-1-out serialized size {actual_v}; update MiniWallet if template changed"
+            )
         tx["new_utxo"] = tx.pop("new_utxos")[0]
         # For P2WPKH, callers that mutate vout after create_self_transfer must re-sign (see util.create_lots_of_big_transactions).
         tx["utxo_spent"] = utxo_to_spend
@@ -422,23 +344,24 @@ class MiniWallet:
         return chain
 
 
-def getnewdestination(address_type='bech32m'):
-    """Generate a random destination of the specified type and return the
-       corresponding public key, scriptPubKey and address. Supported types are
-       'bech32' (witness v0) and 'bech32m' (witness v1 RES). Can be used when a
-       random destination is needed, but no compiled wallet is available (e.g. as
-       replacement to the getnewaddress/getaddressinfo RPCs)."""
-    key = ECKey()
-    key.generate()
-    pubkey = key.get_pubkey().get_bytes()
+def getnewdestination(address_type='bech32'):
+    """Generate a random Ed25519 destination.
+
+    ``bech32`` is witness v0 P2WPKH (HASH160 of the 32-byte payload).
+    ``bech32m`` is witness v1 RES (program = 32-byte Ed25519 pubkey).
+    """
+    from test_framework.address import output_key_to_p2tr
+    from test_framework.ed25519 import Ed25519Key
+    from test_framework.script_util import output_key_to_p2tr_script
+
+    key = Ed25519Key()
+    pk32 = key.get_pubkey_bytes()
     if address_type == 'bech32':
-        scriptpubkey = key_to_p2wpkh_script(pubkey)
-        address = key_to_p2wpkh(pubkey)
+        scriptpubkey = key_to_p2wpkh_script(pk32)
+        address = key_to_p2wpkh(pk32)
     elif address_type == 'bech32m':
-        tap = taproot_construct(compute_xonly_pubkey(key.get_bytes())[0])
-        pubkey = tap.output_pubkey
-        scriptpubkey = tap.scriptPubKey
-        address = output_key_to_p2tr(pubkey)
+        scriptpubkey = output_key_to_p2tr_script(pk32)
+        address = output_key_to_p2tr(pk32)
     else:
         assert False
-    return pubkey, scriptpubkey, address
+    return pk32, scriptpubkey, address

@@ -26,7 +26,7 @@
 #include <rpc/server_util.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <util/strencodings.h>
@@ -46,11 +46,12 @@
 
 #include <memory>
 #include <stdint.h>
+#include <stdexcept>
 
 using node::BlockAssembler;
 using node::CBlockTemplate;
 using node::NodeContext;
-using node::RegenerateCommitments;
+using node::RebuildTemplateCommitments;
 using node::UpdateTime;
 
 /**
@@ -364,6 +365,11 @@ static RPCHelpMan generateblock()
 
     ChainstateManager& chainman = EnsureChainman(node);
     {
+        // One cs_main span for the whole assembly. C is derived from the active
+        // chainstate's UTXO view, so the template, the caller's txs, the rebuilt
+        // commitment, and TestBlockValidity must all observe the same tip. Releasing
+        // the lock between them lets the tip move and yields a template committing a
+        // root computed against a different view.
         LOCK(cs_main);
 
         std::unique_ptr<CBlockTemplate> blocktemplate(BlockAssembler{chainman.ActiveChainstate(), nullptr}.CreateNewBlock(coinbase_script));
@@ -371,24 +377,16 @@ static RPCHelpMan generateblock()
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         }
         block = blocktemplate->block;
-    }
 
-    // CreateNewBlock inserts a body RES automint when the parent draw has a winner.
-    // generateblock assembles from a null mempool and historically asserted vtx.size()==1;
-    // that CHECK_NONFATAL aborted the RPC (solo footgun). Consensus is unchanged: tell
-    // the caller to use generatetoaddress / getblocktemplate instead.
-    if (block.vtx.size() != 1) {
-        throw JSONRPCError(RPC_MISC_ERROR,
-            "generateblock cannot be used when CreateNewBlock inserts a RES automint; "
-            "use generatetoaddress or getblocktemplate");
-    }
+        // Mint is a coinbase RIGOR_MARKER_RES_MINT output, not a second transaction. After the
+        // caller's txs are appended, rebuild C / paid-winner and the witness
+        // commitment in one step so the merkle root cannot be left stale.
+        block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
 
-    // Add transactions
-    block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
-    RegenerateCommitments(block, chainman);
-
-    {
-        LOCK(cs_main);
+        std::string rebuild_err;
+        if (!RebuildTemplateCommitments(block, chainman, rebuild_err)) {
+            throw JSONRPCError(RPC_INTERNAL_ERROR, rebuild_err);
+        }
 
         BlockValidationState state;
         if (!TestBlockValidity(state, chainman.GetParams(), chainman.ActiveChainstate(), block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), GetAdjustedTime, false, false)) {
@@ -429,7 +427,7 @@ static RPCHelpMan getmininginfo()
                         {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
                         {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
                         {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
-                        {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
+                        {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
                         {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
                     }},
                 RPCExamples{
@@ -525,6 +523,32 @@ static std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
     return s;
 }
 
+namespace {
+/**
+ * Memoized getblocktemplate result.
+ *
+ * The key must name every input the assembled template depends on. A payout
+ * script left out of the key would silently serve one miner a template paying
+ * another, so it is stored and compared alongside the tip and mempool cursor.
+ */
+struct GbtTemplateCache {
+    const CBlockIndex* pindex_prev{nullptr};
+    CScript payout;
+    unsigned int transactions_updated_last{0};
+    int64_t time_start{0};
+    std::unique_ptr<CBlockTemplate> tmpl;
+
+    bool IsStale(const CBlockIndex* tip, const CScript& want_payout,
+                 unsigned int mempool_updated, int64_t now) const
+    {
+        return pindex_prev != tip || payout != want_payout ||
+               (mempool_updated != transactions_updated_last && now - time_start > 5);
+    }
+};
+
+GbtTemplateCache g_gbt_cache GUARDED_BY(cs_main);
+} // namespace
+
 static RPCHelpMan getblocktemplate()
 {
     return RPCHelpMan{"getblocktemplate",
@@ -553,6 +577,7 @@ static RPCHelpMan getblocktemplate()
                     {"segwit", RPCArg::Type::STR, RPCArg::Optional::NO, "(literal) indicates client side segwit support"},
                     {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "other client side supported softfork deployment"},
                 }},
+                {"coinbase_address", RPCArg::Type::STR, /* treat as named arg */ RPCArg::Optional::OMITTED, "ORU witness-v0 address (rg1q… / rgrt1q…). Node assembles the canonical coinbase payout; the miner must copy default_coinbase_tx"},
             },
             RPCArgOptions{.oneline_description="\"template_request\""}},
         },
@@ -600,9 +625,10 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::STR, "longpollid", "an id to include with a request to longpoll on an update to this template"},
                 {RPCResult::Type::STR, "target", "The hash target"},
                 {RPCResult::Type::NUM_TIME, "mintime", "The minimum timestamp appropriate for the next block time, expressed in " + UNIX_EPOCH_TIME},
-                {RPCResult::Type::ARR, "mutable", "list of ways the block template may be changed",
+                {RPCResult::Type::NUM_TIME, "maxtime", "The maximum timestamp a miner may set without violating MAX_FUTURE_BLOCK_TIME (2 hours past adjusted time when this template was built)"},
+                {RPCResult::Type::ARR, "mutable", "RIGOR SOLO: only 'time' is advertised. nNonce is the grind. Coinbase scriptSig / RIGOR_MARKER_RES_MINT / C are not BIP22-mutable",
                 {
-                    {RPCResult::Type::STR, "value", "A way the block template may be changed, e.g. 'time', 'transactions', 'prevblock'"},
+                    {RPCResult::Type::STR, "value", "A way the block template may be changed; RIGOR advertises only 'time'"},
                 }},
                 {RPCResult::Type::STR_HEX, "noncerange", "A range of valid nonces"},
                 {RPCResult::Type::NUM, "sigoplimit", "limit of sigops in blocks"},
@@ -612,12 +638,18 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::STR, "bits", "compressed target of next block"},
                 {RPCResult::Type::STR, "prev_nbits", "compressed nBits of the previous block (== pindexPrev->nBits)"},
                 {RPCResult::Type::NUM, "height", "The height of the next block"},
-                {RPCResult::Type::STR_HEX, "signet_challenge", /*optional=*/true, "Only on signet"},
                 {RPCResult::Type::STR_HEX, "default_witness_commitment", /*optional=*/true, "a valid witness commitment for the unmodified block template"},
-                {RPCResult::Type::OBJ, "default_res_mint", /*optional=*/true, "Coinbase OP_RES_MINT payout when the parent draw named a winner. Miners MUST copy this output into the coinbase; it is not in `transactions`. Omitted when there is no mint",
+                {RPCResult::Type::STR_HEX, "default_coinbase_scriptsig", "Exact coinbase vin[0].scriptSig bytes: BIP34 height || OP_PUSHBYTES_32(C) || OP_PUSHBYTES_32(paid-winner). Copy these bytes; do not re-encode"},
+                {RPCResult::Type::STR_HEX, "default_coinbase_tx", /*optional=*/true, "Witness-serialized canonical coinbase from CreateNewBlock. Miner copies these bytes; do not rebuild outputs. Only present when template_request.coinbase_address was given"},
+                {RPCResult::Type::STR_HEX, "default_coinbase_txid", /*optional=*/true, "txid (no-witness hash) of default_coinbase_tx, RPC hex. Only present alongside default_coinbase_tx"},
+                {RPCResult::Type::STR_HEX, "merkleroot", /*optional=*/true, "Header merkle root of this unmodified template (RPC hex). Only present alongside default_coinbase_tx"},
+                {RPCResult::Type::STR, "coinbase_address", /*optional=*/true, "Echo of template_request.coinbase_address when provided"},
+                {RPCResult::Type::STR_HEX, "paid_winner_txid", "Third scriptSig push as RPC hex (uint256 GetHex). All zeros when this template does not mint"},
+                {RPCResult::Type::BOOL, "rigor_coinbase_immutable", "true: coinbase scriptSig, RIGOR_MARKER_RES_MINT, and C must not be mutated; rebuild via a new getblocktemplate if the tx set changes"},
+                {RPCResult::Type::OBJ, "default_res_mint", /*optional=*/true, "Coinbase RIGOR_MARKER_RES_MINT payout when the parent draw named a winner. Miners MUST copy this output into the coinbase; it is not in `transactions`. Omitted when there is no mint",
                 {
                     {RPCResult::Type::NUM, "value", "W(h) in RES atoms"},
-                    {RPCResult::Type::STR_HEX, "scriptPubKey", "OP_RES_MINT script paying the winner's declared program"},
+                    {RPCResult::Type::STR_HEX, "scriptPubKey", "RIGOR_MARKER_RES_MINT script paying the winner's declared program"},
                 }},
                 {RPCResult::Type::ARR, "convergence_txids", /*optional=*/true, "Txids of the convergence set F this template COMMITS (drawn by the next block, not this one). Spans the whole CONVERGENCE_DRAW_WINDOW, so it includes candidates buried in earlier blocks and excludes any a mint inside the window already paid",
                 {
@@ -639,7 +671,7 @@ static RPCHelpMan getblocktemplate()
                         {RPCResult::Type::OBJ, "", "", {
                             {RPCResult::Type::STR_HEX, "txid", "Convergence txid"},
                             {RPCResult::Type::NUM, "weight", "Draw weight f_i (convergence amount in Tharns)"},
-                            {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160 of the RES program this convergence declared; the coinbase OP_RES_MINT must pay this hash"},
+                    {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160(pk32) declared by this convergence; the coinbase RIGOR_MARKER_RES_MINT must pay this hash"},
                             {RPCResult::Type::STR_HEX, "sigma", "σ_i for this candidate"},
                             {RPCResult::Type::BOOL, "eligible", "Whether σ_i < T·f_i"},
                         }},
@@ -649,7 +681,7 @@ static RPCHelpMan getblocktemplate()
                         {RPCResult::Type::NUM, "index", "Index into candidates"},
                         {RPCResult::Type::STR_HEX, "txid", "Winning convergence txid; the RES mint proof must name it"},
                         {RPCResult::Type::NUM, "weight", "Winning convergence amount in Tharns"},
-                        {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160 the coinbase OP_RES_MINT must pay"},
+                    {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160(pk32) the coinbase RIGOR_MARKER_RES_MINT must pay"},
                     }},
                 }},
             }},
@@ -667,6 +699,8 @@ static RPCHelpMan getblocktemplate()
     std::string strMode = "template";
     UniValue lpval = NullUniValue;
     std::set<std::string> setClientRules;
+    CScript gbt_payout = GetScriptForDestination(WitnessV0KeyHash{});
+    std::string gbt_payout_addr;
     Chainstate& active_chainstate = chainman.ActiveChainstate();
     CChain& active_chain = active_chainstate.m_chain;
     if (!request.params[0].isNull())
@@ -719,6 +753,23 @@ static RPCHelpMan getblocktemplate()
                 setClientRules.insert(v.get_str());
             }
         }
+        const UniValue& addrval = find_value(oparam, "coinbase_address");
+        if (!addrval.isNull()) {
+            if (!addrval.isStr()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "coinbase_address must be a string");
+            }
+            const CTxDestination dest = DecodeDestination(addrval.get_str());
+            if (!IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid coinbase_address");
+            }
+            // Classify the destination, never the serialized script bytes.
+            if (!std::holds_alternative<WitnessV0KeyHash>(dest)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                    "coinbase_address must be an ORU witness v0 key-hash address");
+            }
+            gbt_payout = GetScriptForDestination(dest);
+            gbt_payout_addr = addrval.get_str();
+        }
     }
 
     if (strMode != "template")
@@ -739,7 +790,6 @@ static RPCHelpMan getblocktemplate()
         }
     }
 
-    static unsigned int nTransactionsUpdatedLast;
     const CTxMemPool& mempool = EnsureMemPool(node);
 
     if (!lpval.isNull())
@@ -761,7 +811,7 @@ static RPCHelpMan getblocktemplate()
         {
             // NOTE: Spec does not specify behaviour for non-string longpollid, but this makes testing easier
             hashWatchedChain = active_chain.Tip()->GetBlockHash();
-            nTransactionsUpdatedLastLP = nTransactionsUpdatedLast;
+            nTransactionsUpdatedLastLP = g_gbt_cache.transactions_updated_last;
         }
 
         // Release lock while waiting
@@ -806,50 +856,42 @@ static RPCHelpMan getblocktemplate()
 
     const Consensus::Params& consensusParams = chainman.GetParams().GetConsensus();
 
-    // GBT must be called with 'signet' set in the rules for signet chains
-    if (consensusParams.signet_blocks && setClientRules.count("signet") != 1) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the signet rule set (call with {\"rules\": [\"segwit\", \"signet\"]})");
-    }
-
     // GBT must be called with 'segwit' set in the rules
     if (setClientRules.count("segwit") != 1) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "getblocktemplate must be called with the segwit rule set (call with {\"rules\": [\"segwit\"]})");
     }
 
     // Update block
-    static CBlockIndex* pindexPrev;
-    static int64_t time_start;
-    static std::unique_ptr<CBlockTemplate> pblocktemplate;
-    if (pindexPrev != active_chain.Tip() ||
-        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - time_start > 5))
+    if (g_gbt_cache.IsStale(active_chain.Tip(), gbt_payout, mempool.GetTransactionsUpdated(), GetTime()))
     {
-        // Clear pindexPrev so future calls make a new block, despite any failures from here on
-        pindexPrev = nullptr;
+        // Clear the key so future calls rebuild, despite any failures from here on
+        g_gbt_cache.pindex_prev = nullptr;
 
         // Store the pindexBest used before CreateNewBlock, to avoid races
-        nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
+        g_gbt_cache.transactions_updated_last = mempool.GetTransactionsUpdated();
         CBlockIndex* pindexPrevNew = active_chain.Tip();
-        time_start = GetTime();
+        g_gbt_cache.time_start = GetTime();
 
-        // Create new block — coinbase vout[0] must satisfy Rigor ``CheckTxOutAssetWitnessBinding``
-        // (witness v0/v1 or OP_RETURN only). A bare P2PKH dummy is consensus-invalid; use P2WPKH.
-        const CScript scriptDummy = GetScriptForDestination(WitnessV0KeyHash{});
-        pblocktemplate = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(scriptDummy);
-        if (!pblocktemplate)
+        // Payout comes from template_request.coinbase_address when the miner
+        // supplied one; otherwise a dummy witness-v0 script (tests / explorers).
+        g_gbt_cache.tmpl = BlockAssembler{active_chainstate, &mempool}.CreateNewBlock(gbt_payout);
+        if (!g_gbt_cache.tmpl)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
         // Need to update only after we know CreateNewBlock succeeded
-        pindexPrev = pindexPrevNew;
+        g_gbt_cache.pindex_prev = pindexPrevNew;
+        g_gbt_cache.payout = gbt_payout;
     }
-    CHECK_NONFATAL(pindexPrev);
+    CHECK_NONFATAL(g_gbt_cache.pindex_prev);
+    const CBlockIndex* const pindexPrev = g_gbt_cache.pindex_prev;
+    const std::unique_ptr<CBlockTemplate>& pblocktemplate = g_gbt_cache.tmpl;
     CBlock* pblock = &pblocktemplate->block; // pointer for convenience
 
     // Update nTime
     UpdateTime(pblock, consensusParams, pindexPrev);
     pblock->nNonce = 0;
 
-    // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
-    const bool fPreSegWit = !DeploymentActiveAfter(pindexPrev, chainman, Consensus::DEPLOYMENT_SEGWIT);
+    const bool fPreSegWit = false;
 
     UniValue aCaps(UniValue::VARR); aCaps.push_back("proposal");
 
@@ -896,9 +938,9 @@ static RPCHelpMan getblocktemplate()
     arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
     UniValue aMutable(UniValue::VARR);
+    // P0-014 M-1: SOLO advertises only time. Mutating transactions without
+    // rebuilding C is consensus-invalid; do not invite that via BIP22.
     aMutable.push_back("time");
-    aMutable.push_back("transactions");
-    aMutable.push_back("prevblock");
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("capabilities", aCaps);
@@ -906,11 +948,6 @@ static RPCHelpMan getblocktemplate()
     UniValue aRules(UniValue::VARR);
     aRules.push_back("csv");
     if (!fPreSegWit) aRules.push_back("!segwit");
-    if (consensusParams.signet_blocks) {
-        // indicate to miner that they must understand signet rules
-        // when attempting to mine with this template
-        aRules.push_back("!signet");
-    }
 
     UniValue vbavailable(UniValue::VOBJ);
     for (int j = 0; j < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++j) {
@@ -961,9 +998,12 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("transactions", transactions);
     result.pushKV("coinbaseaux", aux);
     result.pushKV("coinbasevalue", (int64_t)pblock->vtx[0]->vout[0].nValue);
-    result.pushKV("longpollid", active_chain.Tip()->GetBlockHash().GetHex() + ToString(nTransactionsUpdatedLast));
+    result.pushKV("longpollid", active_chain.Tip()->GetBlockHash().GetHex() + ToString(g_gbt_cache.transactions_updated_last));
     result.pushKV("target", hashTarget.GetHex());
     result.pushKV("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1);
+    // nTime is mutable for BIP22 miners. ASERT scores the parent timestamp, so
+    // rolling nTime within [mintime, maxtime] does not require recomputing bits.
+    result.pushKV("maxtime", (int64_t)TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime()) + MAX_FUTURE_BLOCK_TIME);
     result.pushKV("mutable", aMutable);
     result.pushKV("noncerange", "00000000ffffffff");
     int64_t nSigOpLimit = MAX_BLOCK_SIGOPS_COST;
@@ -984,13 +1024,28 @@ static RPCHelpMan getblocktemplate()
     result.pushKV("prev_nbits", strprintf("%08x", pindexPrev->nBits));
     result.pushKV("height", (int64_t)(pindexPrev->nHeight+1));
 
-    if (consensusParams.signet_blocks) {
-        result.pushKV("signet_challenge", HexStr(consensusParams.signet_challenge));
-    }
 
     if (!pblocktemplate->vchCoinbaseCommitment.empty()) {
         result.pushKV("default_witness_commitment", HexStr(pblocktemplate->vchCoinbaseCommitment));
     }
+
+    result.pushKV("default_coinbase_scriptsig", HexStr(pblock->vtx[0]->vin[0].scriptSig));
+    // Without coinbase_address the template pays an all-zero witness key hash,
+    // so the coinbase and its merkle root are placeholders. Emitting them would
+    // invite a copy-bytes miner to burn its own subsidy.
+    if (!gbt_payout_addr.empty()) {
+        result.pushKV("default_coinbase_tx", EncodeHexTx(*pblock->vtx[0]));
+        result.pushKV("default_coinbase_txid", pblock->vtx[0]->GetHash().GetHex());
+        result.pushKV("merkleroot", BlockMerkleRoot(*pblock).GetHex());
+        result.pushKV("coinbase_address", gbt_payout_addr);
+    }
+    {
+        Consensus::CoinbaseConvergenceRootScriptSig parsed;
+        std::string parse_err;
+        CHECK_NONFATAL(Consensus::ParseCoinbaseConvergenceRootScriptSig(pblock->vtx[0]->vin[0].scriptSig, parsed, parse_err));
+        result.pushKV("paid_winner_txid", parsed.paid_winner_txid.GetHex());
+    }
+    result.pushKV("rigor_coinbase_immutable", true);
 
     {
         const CTxOut* mint_out = nullptr;
@@ -1007,10 +1062,13 @@ static RPCHelpMan getblocktemplate()
 
     // Rigor GBT: the set F this template commits, from which the NEXT block draws.
     //
-    // A-9-C: F spans the whole draw window, so it is not a function of this template's body. An
-    // external builder that derived C from this block's convergence transactions alone would
-    // commit the wrong root and have every block rejected as `bad-cb-convergence-root`, so the
-    // windowed txid list is served here, along with the exact root it must place in the coinbase.
+    // A-9-C: F is the 31-block window tail PLUS this template's own convergence transactions, so
+    // it is NOT a function of this body alone. An external builder that derived C from this
+    // block's convergence transactions alone would commit the wrong root and have every block
+    // rejected as `bad-cb-convergence-root`, so the full windowed txid list is served here along
+    // with the exact root it must place in the coinbase. A builder that ADDS or DROPS a
+    // convergence transaction must re-derive C itself: add/remove that txid from this list,
+    // re-sort byte-wise, and Hash256 the concatenation (consensus/convergence_root_eligibility.cpp).
     {
         // The template's transactions are not applied to the tip view, so CoinsTip() is already
         // the block-entry view ConnectBlock will use.

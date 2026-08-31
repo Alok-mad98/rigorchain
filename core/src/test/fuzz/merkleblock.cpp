@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -28,17 +29,12 @@ FUZZ_TARGET(merkleblock)
         [&] {
             CMerkleBlock merkle_block;
             const std::optional<CBlock> opt_block = ConsumeDeserializable<CBlock>(fuzzed_data_provider);
-            CBloomFilter bloom_filter;
             std::set<uint256> txids;
             if (opt_block && !opt_block->vtx.empty()) {
-                if (fuzzed_data_provider.ConsumeBool()) {
-                    merkle_block = CMerkleBlock{*opt_block, bloom_filter};
-                } else if (fuzzed_data_provider.ConsumeBool()) {
-                    LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000) {
-                        txids.insert(ConsumeUInt256(fuzzed_data_provider));
-                    }
-                    merkle_block = CMerkleBlock{*opt_block, txids};
+                LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000) {
+                    txids.insert(ConsumeUInt256(fuzzed_data_provider));
                 }
+                merkle_block = CMerkleBlock{*opt_block, txids};
             }
             partial_merkle_tree = merkle_block.txn;
         });

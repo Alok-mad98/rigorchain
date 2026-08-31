@@ -1,6 +1,15 @@
-# Extraction leftovers (ExtractHashKernel.v is not in _CoqProject).
+# Extraction leftovers (ExtractHashKernel.v / ExtractClassifySupply.v are not in _CoqProject).
 hash256_kernel.ml
 hash256_kernel.mli
+classify_kernel.ml
+classify_kernel.mli
+supply_kernel.ml
+supply_kernel.mli
+sighash_kernel.ml
+sighash_kernel.mli
 ExtractHashKernel.vo
 ExtractHashKernel.glob
 .ExtractHashKernel.aux
+ExtractClassifySupply.vo
+ExtractClassifySupply.glob
+.ExtractClassifySupply.aux

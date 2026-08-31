@@ -221,7 +221,7 @@ struct CreatedTransactionResult
  */
 util::Result<CreatedTransactionResult> CreateTransaction(CWallet& wallet, const std::vector<CRecipient>& vecSend, int change_pos, const CCoinControl& coin_control, bool sign = true);
 
-/** Spend ORU to the consensus OP_CONVERGE burn (draw entry). Same CreateTransaction path as send. */
+/** Spend ORU to the consensus RIGOR_MARKER_CONVERGE burn (draw entry). Same CreateTransaction path as send. */
 util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amount_oru, bool subtract_fee_from_convergence);
 util::Result<CreatedTransactionResult> CreateConvergenceTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true, bool subtract_fee_from_convergence = false);
 

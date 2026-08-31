@@ -16,6 +16,7 @@ from collections import defaultdict
 # Avoid wildcard * imports
 # Use lexicographically sorted multi-line imports
 from test_framework.blocktools import (
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
     create_block,
     create_coinbase,
 )
@@ -180,7 +181,7 @@ class ExampleTest(BitcoinTestFramework):
             # Use the blocktools functionality to manually build a block.
             # Calling the generate() rpc is easier, but this allows us to exactly
             # control the blocks and transactions.
-            block = create_block(self.tip, create_coinbase(height+1), self.block_time)
+            block = create_block(self.tip, create_coinbase(height+1, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), self.block_time)
             block.solve()
             block_message = msg_block(block)
             # Send message is used to send a P2P message to the node over our P2PInterface

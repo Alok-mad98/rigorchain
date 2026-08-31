@@ -31,17 +31,16 @@ Exact **read-only** rules for how the indexer classifies and stores RES-related 
 
 A transaction is indexed as **RES mint** when ALL hold:
 
-1. Included in block body (non-coinbase) at height `H`.
-2. Block header/RPC: `rigor_res_minted == 1` for that block (cross-check).
-3. Spends/create pattern matches node RES mint path: **ORU-domain** inputs creating a witness v1 RES output, with the PCORB proof on `vin[0]`.
-4. `vin[0]` witness carries the **6-item** PCORB proof (SECURITY-001-A / A-7). Any push beyond index 5 is funding-input material, not proof — for a devtest P2WSH-funded mint it is the redeem script, giving 7 items. There are no reserved-zero items to check: former items 9–10 were removed with the RES script path.
-5. `listconvergencehistory` includes block at `H` (cross-check optional).
+1. It is the **coinbase** at height `H`.
+2. One output is canonical `OP_RES_MINT` (`<height> <20-byte HASH160> 0xbb`).
+3. Block RPC `rigor_res_minted == 1` is a cross-check (`CBlockIndex::has_res`). A missing coinbase mint on a `has_res=1` block is a mismatch, not a body-tx fallback.
+4. The paid winner is the **parent** draw (`getconvergenceresult(parent).draw_winner_txid`). This block's `rigor_winner` is the next window, not this mint.
 
 **Indexer MUST NOT:**
 
 - Infer mint from probability heuristics.
 - Mark mint from mempool alone.
-- Use coinbase txid-bound mint programs (consensus does not use that model).
+- Treat a body-tx PCORB witness as issuance. Live mint has no funding input and no 6-field proof stack.
 
 ### 3.1 Mint amount
 

@@ -1,0 +1,183 @@
+[
+  {
+    "comment": "ScriptAsset classifier rows from phase3_golden_vectors.json. SSOT is generate_phase3_vectors.py.",
+    "vectors": [
+      {
+        "id": "SASS-000",
+        "name": "v0_p2wpkh",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "00140000000000000000000000000000000000000000"
+        },
+        "expected": {
+          "asset": "ORU",
+          "is_allowed": true,
+          "is_res": false
+        },
+        "note": "Witness v0/20 \u2192 ORU",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-001",
+        "name": "native_res_rfc8032",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "5120d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+        },
+        "expected": {
+          "asset": "RES",
+          "is_allowed": true,
+          "is_res": true
+        },
+        "note": "Witness v1/32 RFC8032 pk1 \u2192 RES",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-002",
+        "name": "op_converge",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "140000000000000000000000000000000000000000bd"
+        },
+        "expected": {
+          "asset": "ORU",
+          "is_allowed": true,
+          "is_res": false
+        },
+        "note": "RIGOR_MARKER_CONVERGE \u2192 ORU",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-003",
+        "name": "op_res_mint",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "0164140000000000000000000000000000000000000000bb"
+        },
+        "expected": {
+          "asset": "RES",
+          "is_allowed": true,
+          "is_res": true
+        },
+        "note": "RIGOR_MARKER_RES_MINT \u2192 RES",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-004",
+        "name": "v0_p2wsh",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "00200000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "Witness v0/32 \u2192 INVALID",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-005",
+        "name": "p2pkh",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "76a914000000000000000000000000000000000000000088ac"
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "P2PKH \u2192 INVALID",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-006",
+        "name": "cvg2",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "CVG2 prefix \u2192 INVALID",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-007",
+        "name": "res2",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "51205245533200000000000000000000000000000000000000000000000000000000"
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "RES2 prefix \u2192 INVALID",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-008",
+        "name": "empty",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": ""
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "Empty script \u2192 INVALID",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-009",
+        "name": "op_return",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "6a0178"
+        },
+        "expected": {
+          "asset": "NONE",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "RIGOR_MARKER_RETURN + push \u2192 NONE",
+        "coq_enforce": true
+      },
+      {
+        "id": "SASS-010",
+        "name": "v1_len20",
+        "module": "ScriptAsset",
+        "input": {
+          "kind": "classifier",
+          "script_hex": "51140000000000000000000000000000000000000000"
+        },
+        "expected": {
+          "asset": "INVALID",
+          "is_allowed": false,
+          "is_res": false
+        },
+        "note": "Witness v1/20 \u2192 INVALID",
+        "coq_enforce": true
+      }
+    ]
+  }
+]

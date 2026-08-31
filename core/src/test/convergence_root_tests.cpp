@@ -14,17 +14,19 @@
 #include <consensus/res_proof.h>
 #include <hash.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
+#include <test/util/pcorb_carrier.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <undo.h>
 
 BOOST_FIXTURE_TEST_SUITE(convergence_root_tests, BasicTestingSetup)
 
 namespace {
 
-const CScript g_oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
+const CScript g_oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
 
 CMutableTransaction MakeRegtestLikeCoinbase()
 {
@@ -33,7 +35,7 @@ CMutableTransaction MakeRegtestLikeCoinbase()
     cb.vin[0].prevout.SetNull();
     cb.vout.resize(1);
     cb.vout[0].nValue = 50 * COIN;
-    cb.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    cb.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
     return cb;
 }
 
@@ -70,21 +72,34 @@ BOOST_AUTO_TEST_CASE(script_sig_parse_roundtrip)
 {
     const int height = 100;
     const uint256 convergence_root = InsecureRand256();
+    const uint256 paid = InsecureRand256();
 
-    const CScript sig = CScript() << height << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+    const CScript sig = Consensus::BuildCoinbaseCommitmentScriptSig(height, convergence_root, paid);
 
     Consensus::CoinbaseConvergenceRootScriptSig parsed;
     std::string err;
     BOOST_REQUIRE(Consensus::ParseCoinbaseConvergenceRootScriptSig(sig, parsed, err));
     BOOST_CHECK_EQUAL(parsed.height, height);
     BOOST_CHECK_EQUAL(parsed.convergence_root, convergence_root);
+    BOOST_CHECK_EQUAL(parsed.paid_winner_txid, paid);
 }
 
-BOOST_AUTO_TEST_CASE(script_sig_third_push_rejected)
+BOOST_AUTO_TEST_CASE(script_sig_two_pushes_rejected)
 {
     const int height = 100;
     const uint256 convergence_root = InsecureRand256();
     CScript sig = CScript() << height << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+
+    Consensus::CoinbaseConvergenceRootScriptSig parsed;
+    std::string err;
+    BOOST_CHECK(!Consensus::ParseCoinbaseConvergenceRootScriptSig(sig, parsed, err));
+}
+
+BOOST_AUTO_TEST_CASE(script_sig_fourth_push_rejected)
+{
+    const int height = 100;
+    const uint256 convergence_root = InsecureRand256();
+    CScript sig = Consensus::BuildCoinbaseCommitmentScriptSig(height, convergence_root, uint256{});
     sig << std::vector<unsigned char>{1, 2, 3};
 
     Consensus::CoinbaseConvergenceRootScriptSig parsed;
@@ -106,7 +121,7 @@ BOOST_AUTO_TEST_CASE(convergence_root_zero_when_no_qualifying_convergence_subset
     noise.vin[0].prevout.n = 0;
     noise.vout.resize(1);
     noise.vout[0].nValue = 1;
-    noise.vout[0].scriptPubKey = CScript() << OP_1;
+    noise.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
     const std::vector<CTransactionRef> vtx{cb, MakeTransactionRef(noise)};
     BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromConvergenceSet(vtx, coins, 200, Params().GetConsensus()), uint256());
 }
@@ -177,6 +192,12 @@ BOOST_AUTO_TEST_CASE(list_convergence_root_commitment_txids_size_gates_root)
     BOOST_CHECK(!Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_two).IsNull());
     BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromEligibilityTxids(ids_two),
         Consensus::ComputeConvergenceRootFromConvergenceSet(vtx_two, coins, 200, Params().GetConsensus()));
+
+    const std::vector<CTransactionRef> vtx_zero{cb};
+    BOOST_CHECK(Consensus::ListConvergenceRootCommitmentTxids(vtx_zero, coins, 200, Params().GetConsensus()).empty());
+    BOOST_CHECK(Consensus::ComputeConvergenceRootFromEligibilityTxids({}).IsNull());
+    BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromConvergenceSet(vtx_zero, coins, 200, Params().GetConsensus()),
+                      Consensus::ComputeConvergenceRootFromEligibilityTxids({}));
 }
 
 // SECURITY-001-A / A-5 R1.
@@ -191,7 +212,7 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_gates_draw_eligibility)
 
     const auto cb = MakeTransactionRef(MakeRegtestLikeCoinbase());
     const auto declared = MakeconvergenceTx(h_a, Consensus::ConvergenceOutputScript());
-    const CScript retired_cvg2 = CScript() << OP_1 << std::vector<unsigned char>(32, 0x43);
+    const CScript retired_cvg2 = CScript() << RIGOR_PUSH_1 << std::vector<unsigned char>(32, 0x43);
     const auto undeclared = MakeconvergenceTx(h_b, retired_cvg2);
 
     BOOST_REQUIRE(Consensus::IsConvergenceTx(*declared));
@@ -216,7 +237,7 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_must_be_unique)
     CMutableTransaction mtx{*MakeconvergenceTx(h_a, Consensus::ConvergenceOutputScript())};
     BOOST_REQUIRE(Consensus::HasResOwnerDeclaration(CTransaction(mtx)));
 
-    mtx.vout.emplace_back(COIN, GetConvergeScriptForProgram(std::vector<unsigned char>(32, 0x77)));
+    mtx.vout.emplace_back(COIN, GetConvergeScriptForPubKey(std::vector<unsigned char>(32, 0x77)));
     const auto doubled = MakeTransactionRef(mtx);
     BOOST_CHECK(!Consensus::HasResOwnerDeclaration(*doubled));
 
@@ -228,10 +249,10 @@ BOOST_AUTO_TEST_CASE(res_owner_declaration_must_be_unique)
 BOOST_AUTO_TEST_CASE(converge_script_shape)
 {
     const std::vector<unsigned char> program32(32, 0x5a);
-    const CScript canonical = GetConvergeScriptForProgram(program32);
+    const CScript canonical = GetConvergeScriptForPubKey(program32);
     BOOST_REQUIRE_EQUAL(canonical.size(), 22U);
     BOOST_CHECK_EQUAL(canonical[0], 20);
-    BOOST_CHECK_EQUAL(canonical[21], OP_CONVERGE);
+    BOOST_CHECK_EQUAL(canonical[21], RIGOR_MARKER_CONVERGE);
 
     uint160 parsed_hash;
     BOOST_REQUIRE(ParseConvergeScript(canonical, parsed_hash));
@@ -252,21 +273,21 @@ BOOST_AUTO_TEST_CASE(converge_script_shape)
     BOOST_CHECK(!ParseConvergeScript(too_long, parsed_hash));
 
     CScript wrong_opcode = canonical;
-    wrong_opcode[21] = OP_RETURN;
+    wrong_opcode[21] = RIGOR_MARKER_RETURN;
     BOOST_CHECK(!ParseConvergeScript(wrong_opcode, parsed_hash));
 }
 
 BOOST_AUTO_TEST_CASE(converge_script_push_encoding_is_canonical)
 {
     const std::vector<unsigned char> program32(32, 0x5a);
-    const CScript canonical = GetConvergeScriptForProgram(program32);
+    const CScript canonical = GetConvergeScriptForPubKey(program32);
     const uint160 owner = Hash160(program32);
 
     CScript pushdata1;
-    pushdata1.push_back(OP_PUSHDATA1);
+    pushdata1.push_back(RIGOR_PUSHDATA1);
     pushdata1.push_back(20);
     pushdata1.insert(pushdata1.end(), owner.begin(), owner.end());
-    pushdata1.push_back(OP_CONVERGE);
+    pushdata1.push_back(RIGOR_MARKER_CONVERGE);
 
     uint160 parsed_hash;
     BOOST_CHECK(!ParseConvergeScript(pushdata1, parsed_hash));
@@ -297,10 +318,11 @@ BOOST_AUTO_TEST_CASE(coinbase_convergence_root_script_sig_validation)
     const uint256 expected = Consensus::ComputeConvergenceRootFromConvergenceSet(vtx, coins, 200, Params().GetConsensus());
 
     const int height = 200;
-    const CScript good = CScript() << height << std::vector<unsigned char>(expected.begin(), expected.end());
+    const CScript good = Consensus::BuildCoinbaseCommitmentScriptSig(height, expected, uint256{});
     std::string err;
     BOOST_CHECK(Consensus::ValidateCoinbaseConvergenceRootScriptSig(good, height, vtx, coins, Params().GetConsensus(), err));
     BOOST_CHECK(Consensus::ValidateCoinbaseConvergenceRootScriptSig(good, height, expected, err));
+    BOOST_CHECK(Consensus::ValidateCoinbaseConvergenceRootScriptSig(good, height, expected, uint256{}, err));
 
     const auto committed_ids = Consensus::ListConvergenceRootCommitmentTxids(vtx, coins, height, Params().GetConsensus());
     BOOST_CHECK_EQUAL(Consensus::ComputeConvergenceRootFromEligibilityTxids(committed_ids), expected);
@@ -310,7 +332,7 @@ BOOST_AUTO_TEST_CASE(coinbase_convergence_root_script_sig_validation)
     BOOST_CHECK_EQUAL(parsed_cb.convergence_root, expected);
     BOOST_CHECK_EQUAL(parsed_cb.convergence_root, Consensus::ComputeConvergenceRootFromEligibilityTxids(committed_ids));
 
-    const CScript legacy = CScript() << height << OP_0;
+    const CScript legacy = CScript() << height << RIGOR_PUSH_0;
     BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(legacy, height, vtx, coins, Params().GetConsensus(), err));
 
     uint256 wrong = expected;
@@ -318,9 +340,9 @@ BOOST_AUTO_TEST_CASE(coinbase_convergence_root_script_sig_validation)
     const CScript bad_root = CScript() << height << std::vector<unsigned char>(wrong.begin(), wrong.end());
     BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(bad_root, height, vtx, coins, Params().GetConsensus(), err));
 
-    CScript three_pushes = good;
-    three_pushes << OP_1;
-    BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(three_pushes, height, vtx, coins, Params().GetConsensus(), err));
+    CScript four_pushes = good;
+    four_pushes << RIGOR_PUSH_1;
+    BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(four_pushes, height, vtx, coins, Params().GetConsensus(), err));
 
     std::vector<unsigned char> short31(expected.begin(), expected.end());
     short31.resize(31);
@@ -328,10 +350,47 @@ BOOST_AUTO_TEST_CASE(coinbase_convergence_root_script_sig_validation)
     BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(bad_len, height, vtx, coins, Params().GetConsensus(), err));
 
     CScript pushdata1_root = CScript() << height;
-    pushdata1_root.push_back(static_cast<unsigned char>(OP_PUSHDATA1));
+    pushdata1_root.push_back(static_cast<unsigned char>(RIGOR_PUSHDATA1));
     pushdata1_root.push_back(32);
     pushdata1_root.insert(pushdata1_root.end(), expected.begin(), expected.end());
     BOOST_CHECK(!Consensus::ValidateCoinbaseConvergenceRootScriptSig(pushdata1_root, height, vtx, coins, Params().GetConsensus(), err));
+}
+
+BOOST_AUTO_TEST_CASE(in_block_chained_convergence_live_matches_undo)
+{
+    CCoinsView base;
+    CCoinsViewCache coins(&base);
+    const uint256 h_parent = uint256S("0x1111111111111111111111111111111111111111111111111111111111111111");
+    coins.AddCoin(COutPoint(h_parent, 0), Coin(CTxOut(20 * COIN, g_oru_spk), 100, false), false);
+
+    CMutableTransaction tx_parent;
+    tx_parent.vin.resize(1);
+    tx_parent.vin[0].prevout = COutPoint(h_parent, 0);
+    tx_parent.vout.resize(1);
+    tx_parent.vout[0].nValue = 20 * COIN;
+    tx_parent.vout[0].scriptPubKey = g_oru_spk;
+    const CTransactionRef parent_ref = MakeTransactionRef(tx_parent);
+
+    const auto ticket = MakeconvergenceTx(parent_ref->GetHash(), Consensus::ConvergenceOutputScript());
+    const auto cb = MakeTransactionRef(MakeRegtestLikeCoinbase());
+    const std::vector<CTransactionRef> vtx{cb, parent_ref, ticket};
+    const int height = 200;
+
+    const auto live_ids = Consensus::ListConvergenceRootCommitmentTxids(vtx, coins, height, Params().GetConsensus());
+    BOOST_REQUIRE_EQUAL(live_ids.size(), 1U);
+    BOOST_CHECK_EQUAL(live_ids[0], ticket->GetHash());
+
+    CBlock block;
+    block.vtx = vtx;
+    CBlockUndo block_undo;
+    block_undo.vtxundo.resize(2);
+    block_undo.vtxundo[0].vprevout.push_back(Coin(CTxOut(20 * COIN, g_oru_spk), 100, false));
+    block_undo.vtxundo[1].vprevout.push_back(Coin(CTxOut(20 * COIN, g_oru_spk), height, false));
+
+    std::vector<ConvergenceDrawCandidate> undo_cands;
+    BOOST_REQUIRE(BuildBlockConvergenceCandidatesFromUndo(block, height, block_undo, Params().GetConsensus(), undo_cands));
+    BOOST_REQUIRE_EQUAL(undo_cands.size(), 1U);
+    BOOST_CHECK_EQUAL(undo_cands[0].txid, ticket->GetHash());
 }
 
 BOOST_AUTO_TEST_CASE(res_proof_digest_ignores_coinbase_script_sig_conceptually)

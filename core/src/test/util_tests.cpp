@@ -7,6 +7,7 @@
 #include <key.h>  // For CKey
 #include <sync.h>
 #include <test/util/random.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
 #include <key_io.h>
@@ -373,8 +374,14 @@ BOOST_AUTO_TEST_CASE(util_ParseMoney)
     BOOST_CHECK_EQUAL(ParseMoney("0.00000001 ").value(), COIN/100000000);
     BOOST_CHECK_EQUAL(ParseMoney(" 0.00000001").value(), COIN/100000000);
 
-    // Parsing amount that cannot be represented should fail
-    BOOST_CHECK(!ParseMoney("100000000.00"));
+    // Parsing amount that cannot be represented should fail. The whole-ORU bound is
+    // MAX_MONEY, not Bitcoin's 21e6: RIGOR issuance is uncapped, so 1e8 ORU is a
+    // representable amount and only the overflow bound rejects.
+    BOOST_CHECK_EQUAL(ParseMoney("100000000.00").value(), CAmount{100000000} * COIN);
+    BOOST_CHECK_EQUAL(ParseMoney("10000000000.00").value(), MAX_MONEY);
+    BOOST_CHECK(!ParseMoney("10000000000.01"));
+    BOOST_CHECK(!ParseMoney("10000000001.00"));
+    BOOST_CHECK(!ParseMoney("99999999999.00"));
     BOOST_CHECK(!ParseMoney("0.000000001"));
 
     // Parsing empty string should fail
@@ -1625,13 +1632,15 @@ BOOST_AUTO_TEST_CASE(message_verify)
             "message too"),
         MessageVerificationResult::ERR_INVALID_ADDRESS);
 
-    // Valid witness address, but not a P2WPKH (no single public key to verify against).
-    const WitnessV0ScriptHash wsh_addr_id(uint256::ONE);
-    const std::string wsh_addr = EncodeDestination(wsh_addr_id);
-    BOOST_CHECK(!wsh_addr.empty());
+    // P2WSH is not a RIGOR destination and cannot be encoded.
+    BOOST_CHECK(EncodeDestination(WitnessV0ScriptHash(uint256::ONE)).empty());
+
+    // Valid native RES address, but not a P2WPKH (no single ORU key to verify against).
+    const std::string res_addr = EncodeDestination(WitnessV1Res{XOnlyPubKey{TestEd25519PubKey()}});
+    BOOST_CHECK(!res_addr.empty());
     BOOST_CHECK_EQUAL(
         MessageVerify(
-            wsh_addr,
+            res_addr,
             "signature should be irrelevant",
             "message too"),
         MessageVerificationResult::ERR_ADDRESS_NO_KEY);

@@ -61,7 +61,7 @@ void initialize_process_message()
             /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {
-        MineBlock(g_setup->m_node, CScript() << OP_TRUE);
+        MineBlock(g_setup->m_node, CScript() << RIGOR_PUSH_1);
     }
     SyncWithValidationInterfaceQueue();
 }
@@ -111,9 +111,6 @@ FUZZ_TARGET_MSG(cfheaders);
 FUZZ_TARGET_MSG(cfilter);
 FUZZ_TARGET_MSG(cmpctblock);
 FUZZ_TARGET_MSG(feefilter);
-FUZZ_TARGET_MSG(filteradd);
-FUZZ_TARGET_MSG(filterclear);
-FUZZ_TARGET_MSG(filterload);
 FUZZ_TARGET_MSG(getaddr);
 FUZZ_TARGET_MSG(getblocks);
 FUZZ_TARGET_MSG(getblocktxn);
@@ -125,10 +122,10 @@ FUZZ_TARGET_MSG(getheaders);
 FUZZ_TARGET_MSG(headers);
 FUZZ_TARGET_MSG(inv);
 FUZZ_TARGET_MSG(mempool);
-FUZZ_TARGET_MSG(merkleblock);
 FUZZ_TARGET_MSG(notfound);
 FUZZ_TARGET_MSG(ping);
 FUZZ_TARGET_MSG(pong);
+FUZZ_TARGET_MSG(rigorcap);
 FUZZ_TARGET_MSG(sendaddrv2);
 FUZZ_TARGET_MSG(sendcmpct);
 FUZZ_TARGET_MSG(sendheaders);

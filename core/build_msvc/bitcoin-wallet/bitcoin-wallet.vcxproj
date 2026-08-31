@@ -9,8 +9,8 @@
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\bitcoin-wallet.cpp" />
-    <ClCompile Include="..\..\src\init\bitcoin-wallet.cpp">
+    <ClCompile Include="..\..\src\rigor-wallet.cpp" />
+    <ClCompile Include="..\..\src\init\rigor-wallet.cpp">
       <ObjectFileName>$(IntDir)init_bitcoin-wallet.obj</ObjectFileName>
     </ClCompile>
   </ItemGroup>

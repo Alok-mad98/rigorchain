@@ -114,20 +114,20 @@ class ListDescriptorsTest(BitcoinTestFramework):
         }])
         assert_raises_rpc_error(-4, 'Can\'t get descriptor string', watch_only_wallet.listdescriptors, True)
 
-        self.log.info('Test non-active non-range combo descriptor')
+        self.log.info('Test non-active non-range wpkh descriptor')
         node.createwallet(wallet_name='w4', blank=True, descriptors=True)
         wallet = node.get_wallet_rpc('w4')
         wallet.importdescriptors([{
-            'desc': descsum_create('combo(' + node.get_deterministic_priv_key().key + ')'),
+            'desc': descsum_create('wpkh(' + node.get_deterministic_priv_key().key + ')'),
             'timestamp': TIME_GENESIS_BLOCK,
         }])
-        combo_list = wallet.listdescriptors()
-        assert_equal('w4', combo_list['wallet_name'])
-        assert_equal(1, len(combo_list['descriptors']))
-        ce = combo_list['descriptors'][0]
+        wpkh_list = wallet.listdescriptors()
+        assert_equal('w4', wpkh_list['wallet_name'])
+        assert_equal(1, len(wpkh_list['descriptors']))
+        ce = wpkh_list['descriptors'][0]
         assert_equal(False, ce['active'])
         assert_equal(TIME_GENESIS_BLOCK, ce['timestamp'])
-        assert ce['desc'].startswith('combo(')
+        assert ce['desc'].startswith('wpkh(')
 
 
 if __name__ == '__main__':

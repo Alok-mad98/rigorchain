@@ -1,0 +1,58 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-PRODUCTION-INTEGRATION-P0-051",
+  "date": "2026-08-30",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "option": "C",
+  "production_kernel_switch": "NOT_READY",
+  "extracted_kernel_linked_into_production": false,
+  "canonical_source": {
+    "coq": [
+      "formal_verification/rigor_v01/IssuanceHeightBoundary.v",
+      "formal_verification/coq/ResSchedule.v",
+      "formal_verification/rigor_v01/CanonicalIssuance.v",
+      "formal_verification/rigor_v01/AssetClassification.v",
+      "formal_verification/rigor_v01/MintSupplyConservation.v",
+      "formal_verification/coq/legacy_account_model/Selection.v",
+      "formal_verification/coq/Sigma.v"
+    ],
+    "extraction_driver": "formal_verification/coq/ExtractConsensusKernel.v"
+  },
+  "generated_artifact": {
+    "path": "formal_verification/extracted/consensus_kernel.ml",
+    "role": "oracle_executable_source",
+    "production_binary_dependency": false,
+    "sha256": "f7d95ffef95946014b76bf14838abd273bc56dc02575f2d31df09c627fbe5d31"
+  },
+  "production_binary_dependency": {
+    "authority": "handwritten_cpp",
+    "archives": [
+      "libbitcoin_consensus",
+      "libbitcoin_node",
+      "libbitcoinkernel"
+    ],
+    "sources": [
+      "core/src/consensus/rigor_issuance.cpp",
+      "core/src/consensus/rigor_supply.cpp",
+      "core/src/consensus/rigor_consensus_lock.h",
+      "core/src/script/rigor_classify.cpp",
+      "core/src/consensus/convergence_logic.cpp"
+    ],
+    "ocaml_runtime": false,
+    "extracted_object": false,
+    "feature_flag": "EXTRACTED_CONSENSUS_KERNEL remains OFF; no production #ifdef added"
+  },
+  "oracle_toolchain": {
+    "coq": "The Coq Proof Assistant, version 8.15.0",
+    "ocaml": "ocamlopt 4.13.1",
+    "cxx": "g++ 11.4.0 -std=c++17 for cpp_consensus_kernel_cli only",
+    "host": "x86_64",
+    "link_mode": "standalone oracle CLIs; not linked into bitcoind",
+    "integer_model": "extracted inductive Z; ExtrOcamlNatInt for script-byte nat"
+  },
+  "reproducible_build_note": "Oracle extraction is reproducible given Coq 8.15 + the committed driver. Production bitcoind does not consume that artifact.",
+  "architecture_endian_integer": {
+    "production": "C++ int / int64_t / uint256; host endian for in-memory uint256; wire is existing Bitcoin serialization",
+    "extracted_oracle": "OCaml inductive Z independent of host word size for amounts/T/σ"
+  }
+}

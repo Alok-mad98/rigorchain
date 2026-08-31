@@ -25,7 +25,6 @@ enum class TxSemanticKind : uint8_t {
     OruConvergence,
     ResTransfer,
     ResMint,
-    ResClaim,
     MixedInputDomain,
 };
 

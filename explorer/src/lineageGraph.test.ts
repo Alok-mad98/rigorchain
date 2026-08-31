@@ -7,19 +7,7 @@ import {
   LINEAGE_READONLY_NOTICE,
   LINEAGE_RPC_NOTICE,
 } from "./lineageGraph";
-import { buildPcorbItems, buildTxWitnessPanel } from "./witnessPanel";
-
-function pcorbStack(): string[] {
-  return [
-    "a".repeat(64),
-    "0100000000000000",
-    "b".repeat(64),
-    "0200000000000000",
-    "ffffffff",
-    "c".repeat(64),
-    "75757575757551",
-  ];
-}
+import { buildTxWitnessPanel } from "./witnessPanel";
 
 describe("lineageGraph", () => {
   it("builds multi-candidate lineage with winner branch", () => {
@@ -85,24 +73,26 @@ describe("lineageGraph", () => {
     const candidateNodes = graph.nodes.filter((n) => n.kind === "candidate");
     assert.equal(candidateNodes.length, 4);
     assert.ok(graph.edges.some((e) => e.from === "candidate:cand2" && e.to === "winner:winner"));
-    assert.ok(graph.nodes.some((n) => n.kind === "pcorb" || n.kind === "sigma_digest"));
+    assert.ok(graph.nodes.some((n) => n.kind === "sigma_digest"));
+    assert.ok(graph.nodes.some((n) => n.kind === "res_mint"));
+    assert.equal(graph.pcorb.present, false);
   });
 
-  it("includes a PCORB node for RES mint lineage", () => {
+  it("links sigma to coinbase OP_RES_MINT without a PCORB hop", () => {
     const txid = "minttx";
     const convPanel = buildTxConvergencePanel([]);
     const witness = buildTxWitnessPanel(
       txid,
-      [{ vin_index: 0, coinbase: false, txinwitness: pcorbStack() }],
+      [{ vin_index: 0, coinbase: true, txinwitness: [] }],
       [
         {
-          mint_vout_index: 0,
+          mint_vout_index: 1,
           mint_amount: "10000",
           winner_convergence_txid: "winner",
           block_hash: "bh",
           block_height: 20,
           convergence_root: "c".repeat(64),
-          proof_items: { witness_stack: pcorbStack() },
+          proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
       { block_hash: "bh", height: 20, rigor_winner: "winner", rigor_res_minted: 1 },
@@ -121,12 +111,12 @@ describe("lineageGraph", () => {
           block_hash: "bh",
           block_height: 20,
           convergence_root: "c".repeat(64),
-          proof_items: { witness_stack: pcorbStack() },
+          proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
       linkedMintRows: [],
       witnessPanel: witness,
-      vouts: [{ vout_index: 0, asset_kind: "RES", value_atoms: "10000", address: "trg1pabc" }],
+      vouts: [{ vout_index: 1, asset_kind: "RES", value_atoms: "10000", address: null }],
       block: { block_hash: "bh", height: 20 },
       indexerTipHeight: 25,
     });
@@ -144,10 +134,11 @@ describe("lineageGraph", () => {
     });
 
     assert.equal(graph.visible, true);
-    assert.equal(graph.pcorb.present, true);
-    assert.equal(graph.pcorb.item_count, 6);
+    assert.equal(graph.pcorb.present, false);
     assert.equal(graph.mint.state, "Confirmed");
-    assert.equal(buildPcorbItems(pcorbStack()).length, 6);
+    assert.ok(graph.nodes.some((n) => n.kind === "res_mint"));
+    assert.ok(graph.edges.some((e) => e.from === "sigma_digest" && e.to === `mint:${txid}`));
+    assert.equal(graph.nodes.some((n) => n.kind === "pcorb"), false);
   });
 
   it("exposes read-only authority notices", () => {

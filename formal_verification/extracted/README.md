@@ -15,7 +15,14 @@ bash ../scripts/build_cpp_sigma_root_cli.sh
 ./cpp_sigma_root_cli root
 python3 ../tests/test_hash_kernel_tripartite.py
 python3 ../tests/test_sigma_root_cli.py
+bash ../scripts/build_cpp_classify_cli.sh
+python3 ../tests/classify_triple_diff.py
 ```
+
+`classify_kernel.ml` / `supply_kernel.ml` / `sighash_kernel.ml` are committed
+extractions of Coq `classify` / `apply_delta` / `sighash_preimage`. Rebuild the
+OCaml CLIs with `ocamlopt` (see `run_differential_gate.sh` step 3b).
+`cpp_classify_cli` is production `AssetTypeFromScriptPubKey`.
 
 Extracted OCaml is the Coq kernel compiled, not a shared object with C++.
 The portable C++ CLIs are also not the SIMD code paths; those still have to match

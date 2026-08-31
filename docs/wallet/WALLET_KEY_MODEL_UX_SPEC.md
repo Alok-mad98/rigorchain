@@ -12,7 +12,7 @@ RIGOR dual-asset wallet key-model presentation for users and UI surfaces.
 | Asset | Script / address | Key model | HD ranged derivation |
 |-------|------------------|-----------|----------------------|
 | **ORU** | Witness v0 / Bech32 (`wpkh`, BIP84-style descriptors) | Ed25519 HD wallet | **Yes** — hardened-only (`/0'/*'`, SLIP-0010) |
-| **RES** | Witness v1 / Bech32m (`res(...)`) | Ed25519 HD wallet | **Yes** — same hardened-only paths; program = `SHA256(pk)` |
+| **RES** | Witness v1 / Bech32m (`res(...)`) | Ed25519 HD wallet | **Yes** — same hardened-only paths; program = `pk32` |
 
 - **ORU = HD derived keys.** New receive/change addresses come from a ranged `wpkh` descriptor.
 - **RES = HD derived keys.** Default `res([fp/86'/coin'/0']xpub/0'/*')` (or `/1'/*'` for change). Imported non-ranged `res(<32-byte hex>)` is **dedicated key mode** (watch-only or a single imported program).

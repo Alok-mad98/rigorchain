@@ -20,9 +20,10 @@
       OP_CVG_CLAIM = 0xbc (188)
 
     This module is the byte-level source of truth. [ScriptMintWitness.asset_from_script]
-    maps the template to [SmwCVG]; [StateTransition.asset_kind_of_script] maps that
-    to [AssetCVG]. Legacy witness-v1 CVG2 scripts still classify as ORU until a
-    later C++ migration. Not a script interpreter, not [ConnectEvaluateResMintTx],
+    maps the template to [SmwInvalid]; [StateTransition.asset_kind_of_script] maps that
+    to [AssetInvalid]. There is no [SmwCVG] / [AssetCVG] constructor (TASK-010 C-4 / R-9). Legacy
+    witness-v1 CVG2 scripts also classify as [AssetInvalid]
+    (C++ [ASSET_INVALID]), not ORU. Not a script interpreter, not [ConnectEvaluateResMintTx],
     not a C++ refinement. Honesty flags stay false. No [Axiom] / [Admitted]. *)
 From Coq Require Import List.
 From Coq Require Import Arith.

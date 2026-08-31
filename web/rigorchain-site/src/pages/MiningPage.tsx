@@ -11,35 +11,39 @@ export function MiningPage() {
       <header className="page-header">
         <h1>Mining</h1>
         <p className="muted">
-          Windows Miner ecosystem. Miners verify blocks independently of the pool or node UI.
+          Test-phase mining is local SOLO: wallet address → rigor-miner → local rigord GBT →
+          submitblock. The pool is not the test path.
         </p>
       </header>
 
       <SectionTitle>Mining Overview</SectionTitle>
       <section className="card prose-section">
         <p>
-          Mining discovers valid headers. RES allocation is a deterministic draw over the committed
-          set F — not a pool policy. Start with a wallet address, a miner binary, and an optional
-          pool.
+          Mining discovers valid headers (OpuHash / ASERT). RES allocation is a deterministic draw
+          over committed set F — not a miner or pool policy. The shipped client copies the node
+          template and grinds <code>nNonce</code> only.
         </p>
+        <pre className="mono-json">{`wallet --coinbase-addr=rg1q…
+        ↓
+rigor-miner  +  local rigord
+        ↓
+getblocktemplate  →  nonce grind  →  submitblock
+        ↓
+ProcessNewBlock  →  P2P`}</pre>
         <p className="muted">
-          Installer scripts: <code>installer/windows/rigor-miner.cmd</code>,{" "}
-          <code>start-wallet.cmd</code>. This page does not run miners.
+          Installer: <code>installer/windows/rigor-miner.cmd</code>. This page does not run miners.
         </p>
       </section>
 
       <section className="card-grid">
         <DarkCard title="Miner Download" to="/download/miner" linkLabel="Get miner">
-          <p>Windows and Linux miner artifacts. Verify checksums, then connect a wallet address.</p>
+          <p>Windows and Linux SOLO miner. Verify checksums, then pass a wallet <code>rg1q</code> address.</p>
         </DarkCard>
-        <DarkCard title="Pool Dashboard" to="/mining/pool" linkLabel="Pool status">
-          <p>Read-only pool observer. Hashrate and workers are display data, not consensus.</p>
+        <DarkCard title="Windows SOLO Guide" to="/mining/windows" linkLabel="Tutorial">
+          <p>Wallet → local rigord → rigor-miner GBT → submitblock → verify the tip independently.</p>
         </DarkCard>
         <DarkCard title="Mining Economics" to="/mining/economics" linkLabel="Economics">
           <p>ORU subsidy 1000 → 500 → 250 → 125. No premine. RES is not mined.</p>
-        </DarkCard>
-        <DarkCard title="Windows Miner Guide" to="/mining/windows" linkLabel="Tutorial">
-          <p>Wallet → miner → pool → observe ORU → verify a found block independently.</p>
         </DarkCard>
       </section>
 
@@ -55,6 +59,10 @@ export function MiningPage() {
           Verify the hash in{" "}
           <Link to="/zero-trust-verification?mode=block">Block Verification</Link>. Advanced
           auditors can paste <code>getblock &lt;hash&gt; 2</code> JSON into Advanced Raw Block mode.
+        </p>
+        <p className="muted">
+          A quarantined Alpha pool observer exists at <Link to="/mining/pool">/mining/pool</Link>.
+          It is not the test-phase mining path and is not a consensus authority.
         </p>
       </section>
     </div>

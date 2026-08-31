@@ -10,7 +10,7 @@
 #include <primitives/transaction.h>
 #include <pubkey.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sigcache.h>
@@ -50,14 +50,11 @@ SignedSpend MakeValidOruSpend()
     CTransaction credit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction spend = BuildSpendingTransaction(CScript(), CScriptWitness(), credit);
 
-    CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
     PrecomputedTransactionData txdata(spend);
-    const uint256 sighash = SignatureHash(scriptCode, spend, 0, SIGHASH_ALL, credit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, spend, 0, credit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
     CScriptWitness witness;
     witness.stack.push_back(witSig);
     witness.stack.push_back(pk32);
@@ -74,12 +71,12 @@ BOOST_AUTO_TEST_CASE(same_tx_two_checkers_same_result)
 
     ScriptError err_a{SCRIPT_ERR_UNKNOWN_ERROR};
     ScriptError err_b{SCRIPT_ERR_UNKNOWN_ERROR};
-    MutableTransactionSignatureChecker checker_a(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL);
-    MutableTransactionSignatureChecker checker_b(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL);
+    MutableTransactionSignatureChecker checker_a(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId());
+    MutableTransactionSignatureChecker checker_b(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId());
 
-    const bool ok_a = VerifyScript(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+    const bool ok_a = VerifyRigorPredicate(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
         &s.spend.vin[0].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, checker_a, &err_a);
-    const bool ok_b = VerifyScript(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+    const bool ok_b = VerifyRigorPredicate(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
         &s.spend.vin[0].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, checker_b, &err_b);
 
     BOOST_CHECK(ok_a);
@@ -96,12 +93,12 @@ BOOST_AUTO_TEST_CASE(same_tx_caching_checker_repeatable)
 
     ScriptError err1{SCRIPT_ERR_UNKNOWN_ERROR};
     ScriptError err2{SCRIPT_ERR_UNKNOWN_ERROR};
-    CachingTransactionSignatureChecker cache_a(&spend_tx, 0, s.credit.vout[0].nValue, /*store=*/true, txdata);
-    CachingTransactionSignatureChecker cache_b(&spend_tx, 0, s.credit.vout[0].nValue, /*store=*/true, txdata);
+    CachingTransactionSignatureChecker cache_a(&spend_tx, 0, s.credit.vout[0].nValue, /*store=*/true, txdata, TestSighashChainId());
+    CachingTransactionSignatureChecker cache_b(&spend_tx, 0, s.credit.vout[0].nValue, /*store=*/true, txdata, TestSighashChainId());
 
-    const bool ok1 = VerifyScript(spend_tx.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+    const bool ok1 = VerifyRigorPredicate(spend_tx.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
         &spend_tx.vin[0].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, cache_a, &err1);
-    const bool ok2 = VerifyScript(spend_tx.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+    const bool ok2 = VerifyRigorPredicate(spend_tx.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
         &spend_tx.vin[0].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, cache_b, &err2);
 
     BOOST_CHECK(ok1);
@@ -112,14 +109,14 @@ BOOST_AUTO_TEST_CASE(same_tx_caching_checker_repeatable)
 BOOST_AUTO_TEST_CASE(mandatory_and_standard_flags_same_crypto_outcome)
 {
     SignedSpend s = MakeValidOruSpend();
-    MutableTransactionSignatureChecker checker(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL);
+    MutableTransactionSignatureChecker checker(&s.spend, 0, s.credit.vout[0].nValue, s.txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId());
 
     ScriptError err_std{SCRIPT_ERR_UNKNOWN_ERROR};
     ScriptError err_min{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok_std = VerifyScript(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+    const bool ok_std = VerifyRigorPredicate(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
         &s.spend.vin[0].scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, checker, &err_std);
-    const bool ok_min = VerifyScript(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
-        &s.spend.vin[0].scriptWitness, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, checker, &err_min);
+    const bool ok_min = VerifyRigorPredicate(s.spend.vin[0].scriptSig, s.credit.vout[0].scriptPubKey,
+        &s.spend.vin[0].scriptWitness, SCRIPT_VERIFY_WITNESS, checker, &err_min);
 
     BOOST_CHECK(ok_std);
     BOOST_CHECK(ok_min);

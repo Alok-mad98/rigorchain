@@ -86,8 +86,8 @@ CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
             prev,
             m_node.chainman->ActiveChainstate().CoinsTip(),
             m_node.chainman->GetConsensus());
-        tx_coinbase.vin.at(0).scriptSig = CScript{} << (prev->nHeight + 1)
-            << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+        tx_coinbase.vin.at(0).scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+            prev->nHeight + 1, convergence_root, uint256{});
         block.vtx.at(0) = MakeTransactionRef(std::move(tx_coinbase));
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }

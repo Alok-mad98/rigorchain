@@ -17,7 +17,6 @@ const char *ADDRV2="addrv2";
 const char *SENDADDRV2="sendaddrv2";
 const char *INV="inv";
 const char *GETDATA="getdata";
-const char *MERKLEBLOCK="merkleblock";
 const char *GETBLOCKS="getblocks";
 const char *GETHEADERS="getheaders";
 const char *TX="tx";
@@ -28,9 +27,6 @@ const char *MEMPOOL="mempool";
 const char *PING="ping";
 const char *PONG="pong";
 const char *NOTFOUND="notfound";
-const char *FILTERLOAD="filterload";
-const char *FILTERADD="filteradd";
-const char *FILTERCLEAR="filterclear";
 const char *SENDHEADERS="sendheaders";
 const char *FEEFILTER="feefilter";
 const char *SENDCMPCT="sendcmpct";
@@ -43,8 +39,9 @@ const char *GETCFHEADERS="getcfheaders";
 const char *CFHEADERS="cfheaders";
 const char *GETCFCHECKPT="getcfcheckpt";
 const char *CFCHECKPT="cfcheckpt";
-const char *WTXIDRELAY="wtxidrelay";
+const char *WTXID_RELAY="wtxidrelay";
 const char *SENDTXRCNCL="sendtxrcncl";
+const char *RIGORCAP="rigorcap";
 } // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
@@ -58,7 +55,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::SENDADDRV2,
     NetMsgType::INV,
     NetMsgType::GETDATA,
-    NetMsgType::MERKLEBLOCK,
     NetMsgType::GETBLOCKS,
     NetMsgType::GETHEADERS,
     NetMsgType::TX,
@@ -69,9 +65,6 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::PING,
     NetMsgType::PONG,
     NetMsgType::NOTFOUND,
-    NetMsgType::FILTERLOAD,
-    NetMsgType::FILTERADD,
-    NetMsgType::FILTERCLEAR,
     NetMsgType::SENDHEADERS,
     NetMsgType::FEEFILTER,
     NetMsgType::SENDCMPCT,
@@ -84,8 +77,9 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::CFHEADERS,
     NetMsgType::GETCFCHECKPT,
     NetMsgType::CFCHECKPT,
-    NetMsgType::WTXIDRELAY,
+    NetMsgType::WTXID_RELAY,
     NetMsgType::SENDTXRCNCL,
+    NetMsgType::RIGORCAP,
 };
 const static std::vector<std::string> allNetMessageTypesVec(std::begin(allNetMessageTypes), std::end(allNetMessageTypes));
 
@@ -162,7 +156,6 @@ std::string CInv::GetCommand() const
     // WTX is not a message type, just an inv type
     case MSG_WTX:            return cmd.append("wtx");
     case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
-    case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
     case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
     default:
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
@@ -194,7 +187,6 @@ static std::string serviceFlagToStr(size_t bit)
     switch ((ServiceFlags)service_flag) {
     case NODE_NONE: abort();  // impossible
     case NODE_NETWORK:         return "NETWORK";
-    case NODE_BLOOM:           return "BLOOM";
     case NODE_WITNESS:         return "WITNESS";
     case NODE_COMPACT_FILTERS: return "COMPACT_FILTERS";
     case NODE_NETWORK_LIMITED: return "NETWORK_LIMITED";

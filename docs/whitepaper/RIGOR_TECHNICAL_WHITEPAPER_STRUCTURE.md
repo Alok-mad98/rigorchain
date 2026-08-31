@@ -263,8 +263,7 @@ epoch 250). Formally verified *monetary invariants* in the Coq schedule model;
 | V1 scripts | **Yes** | RES key-path (32-byte Ed25519 program). Live Convergence is `OP_CONVERGE`, not a v1 program. |
 | Witness rules | **Yes** | BIP141-shaped witness programs; v1 is **not** Taproot |
 | Validation paths | **Yes** | `IsAllowedScript` + `CheckTxOutAssetWitnessBinding` + script interpreter |
-| `SigVersion::BASE` | Interpreter remnant | Bare / P2SH heritage; new P2PKH/P2SH outputs are consensus-invalid |
-| `SigVersion::WITNESS_V0` | **Yes** | P2WPKH implied script; P2WSH inner-script execution |
+| `SigVersion::WITNESS_V0` | **Yes** | ORU P2WPKH unique sighash (`RGRORU01`); no `BASE` alias |
 | Taproot / Tapscript | **No** | Removed from consensus path |
 | General-purpose VM | **No** | Not implemented |
 

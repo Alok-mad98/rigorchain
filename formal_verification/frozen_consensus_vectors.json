@@ -1,0 +1,42 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-GOVERNANCE-CLOSURE-P0-060",
+  "freeze_id": "P0-060",
+  "note": "Governance freeze of already-closed Kernel pins. Does not invent new protocol values. P053 vector JSON refinement_proved stays false.",
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "p053_vector_refinement_proved": false,
+  "coq_admitted": 0,
+  "coq_axioms": 0,
+  "coq_parameters": 0,
+  "genesis": {
+    "height": 0,
+    "epoch": 0,
+    "oru_actual": 0,
+    "res_actual": 0,
+    "res_schedule": 40000000,
+    "draw": "none"
+  },
+  "epoch": [
+    {"height": 0, "epoch": 0, "oru": 0, "res_schedule": 40000000},
+    {"height": 1, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
+    {"height": 99, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
+    {"height": 100, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
+    {"height": 101, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
+    {"height": 209999, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
+    {"height": 210000, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196},
+    {"height": 419999, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196}
+  ],
+  "spend": [
+    {"id": "valid", "expect": true},
+    {"id": "invalid", "expect": false},
+    {"id": "bad_signature", "expect": false},
+    {"id": "bad_sighash", "expect": false},
+    {"id": "malformed_witness", "expect": false}
+  ],
+  "draw": [
+    {"id": "empty", "expect_winner": false},
+    {"id": "single", "expect_winner": true},
+    {"id": "tie", "expect_order_independent": true},
+    {"id": "weight_zero", "expect_winner": false}
+  ]
+}

@@ -81,7 +81,7 @@ Hash256(x) = SHA256(SHA256(x))
 ```
 
 for all byte strings `x` used in consensus (PoW, txid, convergence root, σ,
-bind_commit, merkle commitments).
+parent block hash, merkle commitments).
 
 ### 2.2 Assumed properties
 
@@ -128,7 +128,7 @@ resistance; it requires deterministic evaluation only.
 answers whether:
 
 ```
-Hash256(header) < ExpandCompact(nBits)
+OpuHash(SHA256d(header)) < ExpandCompact(nBits)
 ```
 
 and whether `nBits` is the correct ASERT output from frozen difficulty rules.
@@ -278,9 +278,9 @@ inputs. No external randomness oracle participates.
 
 Draw outputs are computed from:
 
-- Candidate set `F` (mint-classified transactions in block)
-- Convergence root `C`
-- Replay bind `bind_commit = Hash256(B_{h-k} ‖ LE32(target_prev))`
+- Candidate set `F` (convergence-ticket transactions in the parent window)
+- Convergence root `C` committed by the parent coinbase
+- Parent block hash `B_{h-1}` as the σ seed (Sigma-PoW-01; historical `bind_commit` superseded)
 - Per-candidate σ digests and eligibility inequality
 - Cross-multiply winner selection with txid tie-break
 

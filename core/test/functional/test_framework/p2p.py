@@ -70,6 +70,7 @@ from test_framework.messages import (
     msg_version,
     MSG_WTX,
     msg_wtxidrelay,
+    msg_rigorcap,
     NODE_NETWORK,
     NODE_WITNESS,
     sha256,
@@ -83,10 +84,10 @@ from test_framework.util import (
 logger = logging.getLogger("TestFramework.p2p")
 
 # The minimum P2P version that this test framework supports
-MIN_P2P_VERSION_SUPPORTED = 60001
+MIN_P2P_VERSION_SUPPORTED = 1
 # The P2P version that this test framework implements and sends in its `version` message
-# Version 70016 supports wtxid relay
-P2P_VERSION = 70016
+# RIGOR_PROTOCOL_CURRENT_VERSION. Feature differences use RIGORCAP, not version gates.
+P2P_VERSION = 1
 # The services that this test framework offers in its `version` message
 P2P_SERVICES = NODE_NETWORK | NODE_WITNESS
 # The P2P user agent string that this test framework sends in its `version` message
@@ -132,6 +133,7 @@ MESSAGEMAP = {
     b"verack": msg_verack,
     b"version": msg_version,
     b"wtxidrelay": msg_wtxidrelay,
+    b"rigorcap": msg_rigorcap,
 }
 
 MAGIC_BYTES = {
@@ -426,6 +428,7 @@ class P2PInterface(P2PConnection):
     def on_sendtxrcncl(self, message): pass
     def on_tx(self, message): pass
     def on_wtxidrelay(self, message): pass
+    def on_rigorcap(self, message): pass
 
     def on_inv(self, message):
         want = msg_getdata()
@@ -443,10 +446,7 @@ class P2PInterface(P2PConnection):
 
     def on_version(self, message):
         assert message.nVersion >= MIN_P2P_VERSION_SUPPORTED, "Version {} received. Test framework only supports versions greater than {}".format(message.nVersion, MIN_P2P_VERSION_SUPPORTED)
-        if message.nVersion >= 70016 and self.wtxidrelay:
-            self.send_message(msg_wtxidrelay())
-        if self.support_addrv2:
-            self.send_message(msg_sendaddrv2())
+        self.send_message(msg_rigorcap())
         self.send_message(msg_verack())
         self.nServices = message.nServices
         self.relay = message.relay

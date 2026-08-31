@@ -144,7 +144,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     converge_layout->setContentsMargins(10, 6, 10, 6);
     m_checkConverge = new QCheckBox(tr("Destroy ORU (Convergence)"), m_frameConverge);
     m_checkConverge->setObjectName(QStringLiteral("checkConverge"));
-    m_checkConverge->setToolTip(tr("Destroy ORU into OP_CONVERGE, same as the Convergence page. Pay To may be empty (destroy only) or filled (pay and destroy in one transaction). The owner HASH160 is a fresh RES key in this wallet. Minimum %1.")
+    m_checkConverge->setToolTip(tr("Destroy ORU into RIGOR_MARKER_CONVERGE, same as the Convergence page. Pay To may be empty (destroy only) or filled (pay and destroy in one transaction). The owner HASH160 is a fresh RES key in this wallet. Minimum %1.")
                                     .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT)));
     m_convergeAmount = new BitcoinAmountField(m_frameConverge);
     m_convergeAmount->setObjectName(QStringLiteral("convergeAmount"));
@@ -549,7 +549,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
         const QString burn_amt = BitcoinUnits::formatAmountForAsset(
             ASSET_ORU, m_current_transaction->getConvergeAmount(), model->getOptionsModel()->getDisplayUnit(), false,
             BitcoinUnits::SeparatorStyle::STANDARD, true);
-        formatted.append(tr("%1 destroyed into OP_CONVERGE (owner HASH160 is a fresh RES key in this wallet).").arg(burn_amt));
+        formatted.append(tr("%1 destroyed into RIGOR_MARKER_CONVERGE (owner HASH160 is a fresh RES key in this wallet).").arg(burn_amt));
     }
 
     if (sends_full_available_balance) {
@@ -716,7 +716,7 @@ bool SendCoinsDialog::signWithExternalSigner(PartiallySignedTransaction& psbtx, 
         return false;
     }
     // fillPSBT does not always properly finalize
-    complete = FinalizeAndExtractPSBT(psbtx, mtx);
+    complete = FinalizeAndExtractPSBT(psbtx, mtx, Params().GetConsensus().hashGenesisBlock);
     return true;
 }
 

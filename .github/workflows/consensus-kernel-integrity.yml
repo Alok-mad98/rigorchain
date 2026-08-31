@@ -1,0 +1,76 @@
+# P060: Consensus Kernel integrity. Blocks merge on authority / assumption / gate drift.
+# Fail: CONSENSUS_KERNEL_INTEGRITY_FAILED
+# Do not apt-install Ubuntu Coq — pin coqorg/coq:8.15.0.
+
+name: consensus-kernel-integrity
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  authority-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: C++ compiler
+        run: sudo apt-get update && sudo apt-get install -y g++
+      - name: Unique Kernel authority lock
+        run: python3 tools/lint-consensus-authority.py
+      - name: Frozen vectors + governance test
+        run: SKIP_COQ=1 bash formal_verification/run_consensus_kernel_governance.sh
+      - name: Mainnet readiness audit
+        run: bash formal_verification/run_consensus_mainnet_readiness.sh
+      - name: Audit-scope lock
+        run: python3 tools/lint-audit-scope.py
+      - name: Ledger transition lint
+        run: python3 tools/lint-ledger-kernel-boundary.py
+      - name: UTXO state-transition lint
+        run: python3 tools/lint-utxo-state-transition-boundary.py
+      - name: Integrity failed
+        if: failure()
+        run: |
+          echo "CONSENSUS_KERNEL_INTEGRITY_FAILED"
+          exit 1
+
+  coq-assumptions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: coqorg/coq:8.15.0
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python
+        run: apt-get update && apt-get install -y --no-install-recommends python3
+      - name: Coq assumption gate
+        run: python3 tools/check-coq-consensus-assumptions.py
+      - name: Integrity failed
+        if: failure()
+        run: |
+          echo "CONSENSUS_KERNEL_INTEGRITY_FAILED"
+          exit 1
+
+  kernel-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: coqorg/coq:8.15.0
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: apt-get update && apt-get install -y --no-install-recommends python3 g++ make
+      - name: Kernel refinement gate
+        run: bash formal_verification/run_consensus_kernel_refinement_gate.sh
+      - name: Differential gate
+        run: SKIP_TEST_RIGOR=1 bash formal_verification/scripts/run_differential_gate.sh
+      - name: Integrity failed
+        if: failure()
+        run: |
+          echo "CONSENSUS_KERNEL_INTEGRITY_FAILED"
+          exit 1

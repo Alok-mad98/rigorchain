@@ -1,4 +1,5 @@
 // Copyright (c) 2012-2020 The Bitcoin Core developers
+// Copyright (c) 2026 The RigorChain developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -6,39 +7,39 @@
 #define BITCOIN_VERSION_H
 
 /**
- * network protocol versioning
+ * Serialization stream version (historical Bitcoin Core value).
+ * Used by CDataStream / GetSerializeSize / CNode::GetCommonVersion after VERSION.
+ * NOT a P2P feature gate. Must not collide with SERIALIZE_TRANSACTION_NO_WITNESS
+ * or ADDRV2_FORMAT. Never store RIGOR_PROTOCOL_* in the stream nVersion.
+ *
+ * PROTOCOL_VERSION is the serialization constant. SERIALIZATION_VERSION is the
+ * RIGOR name for the same value. Feature enablement is HasCapability().
  */
-
 static const int PROTOCOL_VERSION = 70016;
+static const int SERIALIZATION_VERSION = PROTOCOL_VERSION;
 
-//! initial proto version, to be increased after version/verack negotiation
+//! Initial stream version used to serialize the VERSION message itself
+//! (historical Bitcoin Core handshake framing). Increased after version/verack.
 static const int INIT_PROTO_VERSION = 209;
 
-//! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 31800;
+/**
+ * RIGOR P2P protocol versions (capability negotiation).
+ *
+ * Feature differences are peer.HasCapability(), never `if (peerVersion >= X)`.
+ * MIN <= CURRENT is the accepted VERSION.nVersion range. Raise CURRENT
+ * (and MIN if dropping old peers) on a protocol upgrade. There is no
+ * spare ceiling above CURRENT.
+ */
+static const int RIGOR_PROTOCOL_MIN_VERSION = 1;
+static const int RIGOR_PROTOCOL_CURRENT_VERSION = 1;
 
-//! BIP 0031, pong message, is enabled for all versions AFTER this one
-static const int BIP0031_VERSION = 60000;
-
-//! "filter*" commands are disabled without NODE_BLOOM after and including this version
-static const int NO_BLOOM_VERSION = 70011;
-
-//! "sendheaders" command and announcing blocks with headers starts with this version
-static const int SENDHEADERS_VERSION = 70012;
-
-//! "feefilter" tells peers to filter invs to you by fee starts with this version
-static const int FEEFILTER_VERSION = 70013;
-
-//! short-id-based block download starts with this version
-static const int SHORT_IDS_BLOCKS_VERSION = 70014;
-
-//! not banning for invalid compact blocks starts with this version
-static const int INVALID_CB_NO_BAN_VERSION = 70015;
-
-//! "wtxidrelay" command for wtxid-based relay starts with this version
-static const int WTXID_RELAY_VERSION = 70016;
-
-// Make sure that none of the values above collide with
-// `SERIALIZE_TRANSACTION_NO_WITNESS` or `ADDRV2_FORMAT`.
+static_assert(RIGOR_PROTOCOL_MIN_VERSION <= RIGOR_PROTOCOL_CURRENT_VERSION,
+              "RIGOR protocol min cannot exceed current");
+static_assert(RIGOR_PROTOCOL_MIN_VERSION != PROTOCOL_VERSION,
+              "P2P min version must not be the Bitcoin serialization constant");
+static_assert(RIGOR_PROTOCOL_CURRENT_VERSION != PROTOCOL_VERSION,
+              "P2P current version must not be the Bitcoin serialization constant");
+static_assert(PROTOCOL_VERSION > RIGOR_PROTOCOL_CURRENT_VERSION,
+              "Bitcoin serialization constant must be rejected as a P2P version");
 
 #endif // BITCOIN_VERSION_H

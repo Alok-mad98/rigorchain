@@ -1,13 +1,15 @@
 {
-	"_comment1" : "Any long-format command line argument ",
-	"_comment2" : "may be used in this JSON configuration file",
+	"_comment1": "Any long-format command line argument",
+	"_comment2": "may be used in this JSON configuration file",
+	"_comment3": "SOLO requires GBT + ORU witness-v0 coinbase-addr; scrypt/getwork are not RIGOR SOLO",
 
-	"url" : "http://127.0.0.1:9332/",
-	"user" : "rpcuser",
-	"pass" : "rpcpass",
+	"url": "http://127.0.0.1:8761/",
+	"user": "rpcuser",
+	"pass": "rpcpass",
 
-	"algo" : "scrypt",
-	"threads" : "4",
+	"algo": "sha256d",
+	"threads": "4",
+	"coinbase-addr": "rgrt1q...",
 
-	"quiet" : true
+	"quiet": true
 }

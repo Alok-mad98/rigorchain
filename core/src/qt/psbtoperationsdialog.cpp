@@ -4,6 +4,7 @@
 
 #include <qt/psbtoperationsdialog.h>
 
+#include <chainparams.h>
 #include <core_io.h>
 #include <interfaces/node.h>
 #include <key_io.h>
@@ -55,7 +56,7 @@ void PSBTOperationsDialog::openWithPSBT(PartiallySignedTransaction psbtx)
 {
     m_transaction_data = psbtx;
 
-    bool complete = FinalizePSBT(psbtx); // Make sure all existing signatures are fully combined before checking for completeness.
+    bool complete = FinalizePSBT(psbtx, Params().GetConsensus().hashGenesisBlock); // Make sure all existing signatures are fully combined before checking for completeness.
     if (m_wallet_model) {
         size_t n_could_sign;
         TransactionError err = m_wallet_model->wallet().fillPSBT(SIGHASH_ALL, /*sign=*/false, /*bip32derivs=*/true, &n_could_sign, m_transaction_data, complete);
@@ -109,7 +110,7 @@ void PSBTOperationsDialog::signTransaction()
 void PSBTOperationsDialog::broadcastTransaction()
 {
     CMutableTransaction mtx;
-    if (!FinalizeAndExtractPSBT(m_transaction_data, mtx)) {
+    if (!FinalizeAndExtractPSBT(m_transaction_data, mtx, Params().GetConsensus().hashGenesisBlock)) {
         // This is never expected to fail unless we were given a malformed PSBT
         // (e.g. with an invalid signature.)
         showStatus(tr("Unknown error processing transaction."), StatusLevel::ERR);
@@ -180,7 +181,7 @@ void PSBTOperationsDialog::updateTransactionDisplay() {
 std::string PSBTOperationsDialog::renderTransaction(const PartiallySignedTransaction &psbtx)
 {
     const BitcoinUnit oru_unit = m_client_model->getOptionsModel()->getDisplayUnit();
-    const PSBTAnalysis analysis = AnalyzePSBT(psbtx);
+    const PSBTAnalysis analysis = AnalyzePSBT(psbtx, Params().GetConsensus().hashGenesisBlock);
     QString tx_description = PsbtFormat::RenderPsbtHtmlSummary(psbtx, analysis, oru_unit);
 
     size_t num_unsigned = CountPSBTUnsignedInputs(psbtx);
@@ -227,7 +228,7 @@ size_t PSBTOperationsDialog::couldSignInputs(const PartiallySignedTransaction &p
 }
 
 void PSBTOperationsDialog::showTransactionStatus(const PartiallySignedTransaction &psbtx) {
-    PSBTAnalysis analysis = AnalyzePSBT(psbtx);
+    PSBTAnalysis analysis = AnalyzePSBT(psbtx, Params().GetConsensus().hashGenesisBlock);
     size_t n_could_sign = couldSignInputs(psbtx);
 
     switch (analysis.next) {

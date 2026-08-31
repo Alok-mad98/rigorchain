@@ -1,0 +1,301 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-REFINEMENT-EXECUTION-P0-053",
+  "note": "Finite canonical execution domain V. Does not modify phase3_golden_vectors.json. Not a ∀-proof.",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "refinement_scope": "finite canonical vector domain",
+  "not_proven": ["forall height", "forall byte", "forall state"],
+  "current_authority": "C++ production kernel",
+  "extracted_kernel": "verification oracle",
+  "issuance_heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "issuance": [
+    {
+      "id": "P053-ISS-0",
+      "height": 0,
+      "epoch": 0,
+      "oru_subsidy": 0,
+      "res_schedule": 40000000,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
+    },
+    {
+      "id": "P053-ISS-1",
+      "height": 1,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_issued": 40000000
+    },
+    {
+      "id": "P053-ISS-99",
+      "height": 99,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_issued": 40000000
+    },
+    {
+      "id": "P053-ISS-100",
+      "height": 100,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_issued": 40000000
+    },
+    {
+      "id": "P053-ISS-101",
+      "height": 101,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_issued": 40000000
+    },
+    {
+      "id": "P053-ISS-209999",
+      "height": 209999,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_issued": 40000000
+    },
+    {
+      "id": "P053-ISS-210000",
+      "height": 210000,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196,
+      "res_issued": 14142196
+    },
+    {
+      "id": "P053-ISS-210001",
+      "height": 210001,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196,
+      "res_issued": 14142196
+    },
+    {
+      "id": "P053-ISS-419999",
+      "height": 419999,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196,
+      "res_issued": 14142196
+    },
+    {
+      "id": "P053-ISS-420000",
+      "height": 420000,
+      "epoch": 2,
+      "oru_subsidy": 25000000000,
+      "res_schedule": 7698004,
+      "res_issued": 7698004
+    }
+  ],
+  "maturity": [
+    {
+      "id": "P053-MAT-G0",
+      "source_height": 0,
+      "genesis_maturity_source": false,
+      "fact": "Genesis produces no maturity source"
+    },
+    {
+      "id": "P053-MAT-H0-SPEND100",
+      "spend": 100,
+      "coin": 0,
+      "formula_mature": true,
+      "genesis_source_exists": false
+    },
+    {
+      "id": "P053-MAT-H1-100",
+      "spend": 100,
+      "coin": 1,
+      "oru_mature": false,
+      "res_mature": false
+    },
+    {
+      "id": "P053-MAT-H1-101",
+      "spend": 101,
+      "coin": 1,
+      "oru_mature": true,
+      "res_mature": true
+    },
+    {
+      "id": "P053-MAT-H99-100",
+      "spend": 100,
+      "coin": 99,
+      "oru_mature": false,
+      "res_mature": false
+    },
+    {
+      "id": "P053-MAT-H99-199",
+      "spend": 199,
+      "coin": 99,
+      "oru_mature": true,
+      "res_mature": true
+    },
+    {
+      "id": "P053-MAT-H100-200",
+      "spend": 200,
+      "coin": 100,
+      "oru_mature": true,
+      "res_mature": true
+    },
+    {
+      "id": "P053-MAT-H101-201",
+      "spend": 201,
+      "coin": 101,
+      "oru_mature": true,
+      "res_mature": true
+    }
+  ],
+  "classify": [
+    {
+      "id": "P053-CL-ORU",
+      "script": "00141111111111111111111111111111111111111111",
+      "asset": "ORU"
+    },
+    {
+      "id": "P053-CL-RES",
+      "script": "5120aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "asset": "RES"
+    },
+    {
+      "id": "P053-CL-INVALID-EMPTY",
+      "script": "-",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P053-CL-INVALID-P2PKH",
+      "script": "76a914000000000000000000000000000000000000000088ac",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P053-CL-INVALID-V0-32",
+      "script": "00200000000000000000000000000000000000000000000000000000000000000000",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P053-CL-MALFORMED-TRUNC",
+      "script": "0014",
+      "asset": "INVALID"
+    }
+  ],
+  "draw": {
+    "note": "Kernel only: select_winner / ResolveConvergenceDraw(F,T). Not GetConvergenceDrawSetForBlock.",
+    "h": 101,
+    "c_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "b_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "weight_saturating": "209715200000000",
+    "txid_a": "0000000000000000000000000000000000000000000000000000000000000001",
+    "txid_b": "0000000000000000000000000000000000000000000000000000000000000002",
+    "txid_c": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "cases": [
+      {"id": "P053-DRAW-EMPTY", "kind": "empty"},
+      {"id": "P053-DRAW-SINGLE", "kind": "single", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
+      {"id": "P053-DRAW-EQ-WEIGHT", "kind": "equal_weight", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,0000000000000000000000000000000000000000000000000000000000000002:209715200000000"},
+      {"id": "P053-DRAW-EQ-WEIGHT-SWAP", "kind": "equal_weight_swap", "spec": "0000000000000000000000000000000000000000000000000000000000000002:209715200000000,0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
+      {"id": "P053-DRAW-DIFF-WEIGHT", "kind": "different_sigma", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:104857600000000"},
+      {"id": "P053-DRAW-T0", "kind": "t0", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"}
+    ],
+    "equal_sigma_collision_constructed": false
+  },
+  "supply_delta": [
+    {
+      "id": "P053-SUP-ORU-ONLY",
+      "kind": "oru_only",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "OK"
+    },
+    {
+      "id": "P053-SUP-RES-ONLY",
+      "kind": "res_only",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 40000000,
+      "has_winner": 1,
+      "card": 1,
+      "oru_cb": 0,
+      "res_cb": 40000000,
+      "boot": 0,
+      "expect_status": "OK"
+    },
+    {
+      "id": "P053-SUP-FEE",
+      "kind": "fee",
+      "height": 1,
+      "fees": 100,
+      "burn": 0,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "OK"
+    },
+    {
+      "id": "P053-SUP-BURN",
+      "kind": "burn",
+      "height": 1,
+      "fees": 100,
+      "burn": 5,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "OK",
+      "layers_identical": false
+    },
+    {
+      "id": "P053-SUP-CONVERGE",
+      "kind": "converge",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 10,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "OK"
+    },
+    {
+      "id": "P053-SUP-REJECT-CPP",
+      "kind": "reject_cpp",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 40000000,
+      "has_winner": 0,
+      "card": 1,
+      "oru_cb": 0,
+      "res_cb": 40000000,
+      "boot": 0,
+      "expect_status": "REJECT"
+    },
+    {
+      "id": "P053-SUP-REJECT-COQ",
+      "kind": "reject_coq",
+      "apply_delta": ["1", "0", "1", "0", "0", "1", "0", "0"],
+      "expect_status": "REJECT"
+    }
+  ]
+}

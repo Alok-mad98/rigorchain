@@ -16,23 +16,20 @@ from test_framework.messages import (
     CTxIn,
     CTxOut,
 )
-from test_framework.script import CScript, OP_1
+from test_framework.script import CScript, RIGOR_PUSH_1
 
 from res_security.harness import RES_REWARD_ATOMS
 
-RES2_PREFIX = b"RES2"
-
 
 def res2_script(program32: Optional[bytes] = None) -> CScript:
-    prog = bytearray(32)
+    """Native witness v1 RES (32-byte program). Historical name kept for call sites."""
     if program32 is None:
-        prog[0:4] = RES2_PREFIX
-        prog[4:] = b"\x22" * 28
+        prog = b"\x22" * 32
     else:
         if len(program32) != 32:
             raise ValueError("RES program must be 32 bytes")
-        prog[:] = program32
-    return CScript([OP_1, bytes(prog)])
+        prog = program32
+    return CScript([RIGOR_PUSH_1, prog])
 
 
 def fake_oru_funded_res_mint(
@@ -48,7 +45,7 @@ def fake_oru_funded_res_mint(
 ) -> CTransaction:
     """Build a body ORU→RES tx. Consensus rejects this at CheckTxInputs (`mixed-asset-output`).
 
-    The PCORB carrier and OP_RES_MINT payout now live on the coinbase; leftover witness
+    The PCORB carrier and RIGOR_MARKER_RES_MINT payout now live on the coinbase; leftover witness
     fields are ignored. The unused kwargs keep the historical call site compiling.
     """
     _ = (bind_hash, proof_height, target_prev, convergence_root, convergence_txid, amount_sats)

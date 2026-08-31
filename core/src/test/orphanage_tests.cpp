@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vin.resize(1);
         tx.vin[0].prevout.n = 0;
         tx.vin[0].prevout.hash = InsecureRand256();
-        tx.vin[0].scriptSig << OP_1;
+        tx.vin[0].scriptSig << RIGOR_PUSH_1;
         tx.vout.resize(1);
         tx.vout[0].nValue = 1*CENT;
         tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
         tx.vout[0].nValue = 1*CENT;
         tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(key.GetPubKey()));
         SignatureData empty;
-        BOOST_CHECK(SignSignature(keystore, *txPrev, tx, 0, SIGHASH_ALL, empty));
+        BOOST_CHECK(SignSignature(keystore, *txPrev, tx, 0, TestSighashChainId(), empty));
 
         orphanage.AddTx(MakeTransactionRef(tx), i);
     }
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
             tx.vin[j].prevout.hash = txPrev->GetHash();
         }
         SignatureData empty;
-        BOOST_CHECK(SignSignature(keystore, *txPrev, tx, 0, SIGHASH_ALL, empty));
+        BOOST_CHECK(SignSignature(keystore, *txPrev, tx, 0, TestSighashChainId(), empty));
         // Re-use same signature for other inputs
         // (they don't have to be valid for this test)
         for (unsigned int j = 1; j < tx.vin.size(); j++)

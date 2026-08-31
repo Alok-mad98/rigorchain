@@ -4,8 +4,8 @@
 
 bin_PROGRAMS += qt/rigor-qt
 
-if BUILD_BITCOIN_GUI
-  bin_PROGRAMS += bitcoin-gui
+if BUILD_RIGOR_GUI
+  bin_PROGRAMS += rigor-gui
 endif
 
 EXTRA_LIBRARIES += qt/libbitcoinqt.a
@@ -412,7 +412,7 @@ QT_FORMS_H=$(join $(dir $(QT_FORMS_UI)),$(addprefix ui_, $(notdir $(QT_FORMS_UI:
 # Most files will depend on the forms and moc files as includes. Generate them
 # before anything else.
 $(QT_MOC): $(QT_FORMS_H)
-$(qt_libbitcoinqt_a_OBJECTS) $(qt_rigor_qt_OBJECTS) $(bitcoin_gui_OBJECTS) : | $(QT_MOC)
+$(qt_libbitcoinqt_a_OBJECTS) $(qt_rigor_qt_OBJECTS) $(rigor_gui_OBJECTS) : | $(QT_MOC)
 
 # bitcoin-qt and bitcoin-gui binaries #
 bitcoin_qt_cppflags = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BITCOIN_QT_INCLUDES) \
@@ -431,24 +431,24 @@ if ENABLE_ZMQ
 bitcoin_qt_ldadd += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 bitcoin_qt_ldadd += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
-  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) \
+  $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(SQLITE_LIBS) $(SODIUM_LIBS)
 bitcoin_qt_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 bitcoin_qt_libtoolflags = $(AM_LIBTOOLFLAGS) --tag CXX
 
 qt_rigor_qt_CPPFLAGS = $(bitcoin_qt_cppflags)
 qt_rigor_qt_CXXFLAGS = $(bitcoin_qt_cxxflags)
-qt_rigor_qt_SOURCES = $(bitcoin_qt_sources) init/bitcoin-qt.cpp
+qt_rigor_qt_SOURCES = $(bitcoin_qt_sources) init/rigor-qt.cpp
 qt_rigor_qt_LDADD = $(bitcoin_qt_ldadd)
 qt_rigor_qt_LDFLAGS = $(bitcoin_qt_ldflags)
 qt_rigor_qt_LIBTOOLFLAGS = $(bitcoin_qt_libtoolflags)
 
-bitcoin_gui_CPPFLAGS = $(bitcoin_qt_cppflags)
-bitcoin_gui_CXXFLAGS = $(bitcoin_qt_cxxflags)
-bitcoin_gui_SOURCES = $(bitcoin_qt_sources) init/bitcoin-gui.cpp
-bitcoin_gui_LDADD = $(bitcoin_qt_ldadd) $(LIBBITCOIN_IPC) $(LIBBITCOIN_UTIL) $(LIBMULTIPROCESS_LIBS)
-bitcoin_gui_LDFLAGS = $(bitcoin_qt_ldflags)
-bitcoin_gui_LIBTOOLFLAGS = $(bitcoin_qt_libtoolflags)
+rigor_gui_CPPFLAGS = $(bitcoin_qt_cppflags)
+rigor_gui_CXXFLAGS = $(bitcoin_qt_cxxflags)
+rigor_gui_SOURCES = $(bitcoin_qt_sources) init/rigor-gui.cpp
+rigor_gui_LDADD = $(bitcoin_qt_ldadd) $(LIBBITCOIN_IPC) $(LIBBITCOIN_UTIL) $(LIBMULTIPROCESS_LIBS)
+rigor_gui_LDFLAGS = $(bitcoin_qt_ldflags)
+rigor_gui_LIBTOOLFLAGS = $(bitcoin_qt_libtoolflags)
 
 #locale/foo.ts -> locale/foo.qm
 QT_QM=$(QT_TS:.ts=.qm)

@@ -21,7 +21,7 @@ derived by parsing its `scriptPubKey` every time it is needed; legitimacy still 
 the full consensus path. If a patch requires reading an asset label out of the UTXO set,
 the design is wrong. Script is the compliance layer, not a substitute for validation.
 
-**Witness v0 and v1 only.** P2WPKH, P2WSH, and the v1 RES program. No Taproot or BIP341
+**Witness v0 and v1 only.** P2WPKH (single Ed25519 key) and the v1 RES program. No P2WSH, no Taproot or BIP341
 semantics, no hidden state machines, no dynamic storage execution model.
 
 **The UTXO set is the only state.** Asset ownership changes by spending old outputs and

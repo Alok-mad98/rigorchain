@@ -57,11 +57,11 @@ class CScriptOp(int):
         if len(d) < 0x4c:
             return b'' + bytes([len(d)]) + d  # OP_PUSHDATA
         elif len(d) <= 0xff:
-            return b'\x4c' + bytes([len(d)]) + d  # OP_PUSHDATA1
+            return b'\x4c' + bytes([len(d)]) + d  # RIGOR_PUSHDATA1
         elif len(d) <= 0xffff:
-            return b'\x4d' + struct.pack(b'<H', len(d)) + d  # OP_PUSHDATA2
+            return b'\x4d' + struct.pack(b'<H', len(d)) + d  # RIGOR_PUSHDATA2
         elif len(d) <= 0xffffffff:
-            return b'\x4e' + struct.pack(b'<I', len(d)) + d  # OP_PUSHDATA4
+            return b'\x4e' + struct.pack(b'<I', len(d)) + d  # RIGOR_PUSHDATA4
         else:
             raise ValueError("Data too long to encode in a PUSHDATA op")
 
@@ -72,19 +72,19 @@ class CScriptOp(int):
             raise ValueError('Integer must be in range 0 <= n <= 16, got %d' % n)
 
         if n == 0:
-            return OP_0
+            return RIGOR_PUSH_0
         else:
-            return CScriptOp(OP_1 + n - 1)
+            return CScriptOp(RIGOR_PUSH_1 + n - 1)
 
     def decode_op_n(self):
         """Decode a small integer opcode, returning an integer"""
-        if self == OP_0:
+        if self == RIGOR_PUSH_0:
             return 0
 
-        if not (self == OP_0 or OP_1 <= self <= OP_16):
+        if not (self == RIGOR_PUSH_0 or RIGOR_PUSH_1 <= self <= RIGOR_PUSH_16):
             raise ValueError('op %r is not an OP_N' % self)
 
-        return int(self - OP_1 + 1)
+        return int(self - RIGOR_PUSH_1 + 1)
 
     def is_small_int(self):
         """Return true if the op pushes a small integer to the stack"""
@@ -119,262 +119,260 @@ for n in range(0xff + 1):
 
 
 # push value
-OP_0 = CScriptOp(0x00)
-OP_FALSE = OP_0
-OP_PUSHDATA1 = CScriptOp(0x4c)
-OP_PUSHDATA2 = CScriptOp(0x4d)
-OP_PUSHDATA4 = CScriptOp(0x4e)
-OP_1NEGATE = CScriptOp(0x4f)
-OP_RESERVED = CScriptOp(0x50)
-OP_1 = CScriptOp(0x51)
-OP_TRUE = OP_1
-OP_2 = CScriptOp(0x52)
-OP_3 = CScriptOp(0x53)
-OP_4 = CScriptOp(0x54)
-OP_5 = CScriptOp(0x55)
-OP_6 = CScriptOp(0x56)
-OP_7 = CScriptOp(0x57)
-OP_8 = CScriptOp(0x58)
-OP_9 = CScriptOp(0x59)
-OP_10 = CScriptOp(0x5a)
-OP_11 = CScriptOp(0x5b)
-OP_12 = CScriptOp(0x5c)
-OP_13 = CScriptOp(0x5d)
-OP_14 = CScriptOp(0x5e)
-OP_15 = CScriptOp(0x5f)
-OP_16 = CScriptOp(0x60)
+RIGOR_PUSH_0 = CScriptOp(0x00)
+RIGOR_PUSHDATA1 = CScriptOp(0x4c)
+RIGOR_PUSHDATA2 = CScriptOp(0x4d)
+RIGOR_PUSHDATA4 = CScriptOp(0x4e)
+RIGOR_RESERVED_LEGACY_1NEGATE = CScriptOp(0x4f)
+RIGOR_RESERVED_INERT_50 = CScriptOp(0x50)
+RIGOR_PUSH_1 = CScriptOp(0x51)
+RIGOR_PUSH_2 = CScriptOp(0x52)
+RIGOR_PUSH_3 = CScriptOp(0x53)
+RIGOR_PUSH_4 = CScriptOp(0x54)
+RIGOR_PUSH_5 = CScriptOp(0x55)
+RIGOR_PUSH_6 = CScriptOp(0x56)
+RIGOR_PUSH_7 = CScriptOp(0x57)
+RIGOR_PUSH_8 = CScriptOp(0x58)
+RIGOR_PUSH_9 = CScriptOp(0x59)
+RIGOR_PUSH_10 = CScriptOp(0x5a)
+RIGOR_PUSH_11 = CScriptOp(0x5b)
+RIGOR_PUSH_12 = CScriptOp(0x5c)
+RIGOR_PUSH_13 = CScriptOp(0x5d)
+RIGOR_PUSH_14 = CScriptOp(0x5e)
+RIGOR_PUSH_15 = CScriptOp(0x5f)
+RIGOR_PUSH_16 = CScriptOp(0x60)
 
 # control
-OP_NOP = CScriptOp(0x61)
-OP_VER = CScriptOp(0x62)
-OP_IF = CScriptOp(0x63)
-OP_NOTIF = CScriptOp(0x64)
-OP_VERIF = CScriptOp(0x65)
-OP_VERNOTIF = CScriptOp(0x66)
-OP_ELSE = CScriptOp(0x67)
-OP_ENDIF = CScriptOp(0x68)
-OP_VERIFY = CScriptOp(0x69)
-OP_RETURN = CScriptOp(0x6a)
+RIGOR_RESERVED_LEGACY_NOP = CScriptOp(0x61)
+RIGOR_RESERVED_LEGACY_VER = CScriptOp(0x62)
+RIGOR_RESERVED_LEGACY_IF = CScriptOp(0x63)
+RIGOR_RESERVED_LEGACY_NOTIF = CScriptOp(0x64)
+RIGOR_RESERVED_LEGACY_VERIF = CScriptOp(0x65)
+RIGOR_RESERVED_LEGACY_VERNOTIF = CScriptOp(0x66)
+RIGOR_RESERVED_LEGACY_ELSE = CScriptOp(0x67)
+RIGOR_RESERVED_LEGACY_ENDIF = CScriptOp(0x68)
+RIGOR_RESERVED_LEGACY_VERIFY = CScriptOp(0x69)
+RIGOR_MARKER_RETURN = CScriptOp(0x6a)
 
 # stack ops
-OP_TOALTSTACK = CScriptOp(0x6b)
-OP_FROMALTSTACK = CScriptOp(0x6c)
-OP_2DROP = CScriptOp(0x6d)
-OP_2DUP = CScriptOp(0x6e)
-OP_3DUP = CScriptOp(0x6f)
-OP_2OVER = CScriptOp(0x70)
-OP_2ROT = CScriptOp(0x71)
-OP_2SWAP = CScriptOp(0x72)
-OP_IFDUP = CScriptOp(0x73)
-OP_DEPTH = CScriptOp(0x74)
-OP_DROP = CScriptOp(0x75)
-OP_DUP = CScriptOp(0x76)
-OP_NIP = CScriptOp(0x77)
-OP_OVER = CScriptOp(0x78)
-OP_PICK = CScriptOp(0x79)
-OP_ROLL = CScriptOp(0x7a)
-OP_ROT = CScriptOp(0x7b)
-OP_SWAP = CScriptOp(0x7c)
-OP_TUCK = CScriptOp(0x7d)
+RIGOR_RESERVED_LEGACY_TOALTSTACK = CScriptOp(0x6b)
+RIGOR_RESERVED_LEGACY_FROMALTSTACK = CScriptOp(0x6c)
+RIGOR_RESERVED_LEGACY_2DROP = CScriptOp(0x6d)
+RIGOR_RESERVED_LEGACY_2DUP = CScriptOp(0x6e)
+RIGOR_RESERVED_LEGACY_3DUP = CScriptOp(0x6f)
+RIGOR_RESERVED_LEGACY_2OVER = CScriptOp(0x70)
+RIGOR_RESERVED_LEGACY_2ROT = CScriptOp(0x71)
+RIGOR_RESERVED_LEGACY_2SWAP = CScriptOp(0x72)
+RIGOR_RESERVED_LEGACY_IFDUP = CScriptOp(0x73)
+RIGOR_RESERVED_LEGACY_DEPTH = CScriptOp(0x74)
+RIGOR_RESERVED_LEGACY_DROP = CScriptOp(0x75)
+RIGOR_RESERVED_LEGACY_DUP = CScriptOp(0x76)
+RIGOR_RESERVED_LEGACY_NIP = CScriptOp(0x77)
+RIGOR_RESERVED_LEGACY_OVER = CScriptOp(0x78)
+RIGOR_RESERVED_LEGACY_PICK = CScriptOp(0x79)
+RIGOR_RESERVED_LEGACY_ROLL = CScriptOp(0x7a)
+RIGOR_RESERVED_LEGACY_ROT = CScriptOp(0x7b)
+RIGOR_RESERVED_LEGACY_SWAP = CScriptOp(0x7c)
+RIGOR_RESERVED_LEGACY_TUCK = CScriptOp(0x7d)
 
 # splice ops
-OP_CAT = CScriptOp(0x7e)
-OP_SUBSTR = CScriptOp(0x7f)
-OP_LEFT = CScriptOp(0x80)
-OP_RIGHT = CScriptOp(0x81)
-OP_SIZE = CScriptOp(0x82)
+RIGOR_RESERVED_LEGACY_CAT = CScriptOp(0x7e)
+RIGOR_RESERVED_LEGACY_SUBSTR = CScriptOp(0x7f)
+RIGOR_RESERVED_LEGACY_LEFT = CScriptOp(0x80)
+RIGOR_RESERVED_LEGACY_RIGHT = CScriptOp(0x81)
+RIGOR_RESERVED_LEGACY_SIZE = CScriptOp(0x82)
 
 # bit logic
-OP_INVERT = CScriptOp(0x83)
-OP_AND = CScriptOp(0x84)
-OP_OR = CScriptOp(0x85)
-OP_XOR = CScriptOp(0x86)
-OP_EQUAL = CScriptOp(0x87)
-OP_EQUALVERIFY = CScriptOp(0x88)
-OP_RESERVED1 = CScriptOp(0x89)
-OP_RESERVED2 = CScriptOp(0x8a)
+RIGOR_RESERVED_LEGACY_INVERT = CScriptOp(0x83)
+RIGOR_RESERVED_LEGACY_AND = CScriptOp(0x84)
+RIGOR_RESERVED_LEGACY_OR = CScriptOp(0x85)
+RIGOR_RESERVED_LEGACY_XOR = CScriptOp(0x86)
+RIGOR_RESERVED_LEGACY_EQUAL = CScriptOp(0x87)
+RIGOR_RESERVED_LEGACY_EQUALVERIFY = CScriptOp(0x88)
+RIGOR_RESERVED_INERT_89 = CScriptOp(0x89)
+RIGOR_RESERVED_INERT_8A = CScriptOp(0x8a)
 
 # numeric
-OP_1ADD = CScriptOp(0x8b)
-OP_1SUB = CScriptOp(0x8c)
-OP_2MUL = CScriptOp(0x8d)
-OP_2DIV = CScriptOp(0x8e)
-OP_NEGATE = CScriptOp(0x8f)
-OP_ABS = CScriptOp(0x90)
-OP_NOT = CScriptOp(0x91)
-OP_0NOTEQUAL = CScriptOp(0x92)
+RIGOR_RESERVED_LEGACY_1ADD = CScriptOp(0x8b)
+RIGOR_RESERVED_LEGACY_1SUB = CScriptOp(0x8c)
+RIGOR_RESERVED_LEGACY_2MUL = CScriptOp(0x8d)
+RIGOR_RESERVED_LEGACY_2DIV = CScriptOp(0x8e)
+RIGOR_RESERVED_LEGACY_NEGATE = CScriptOp(0x8f)
+RIGOR_RESERVED_LEGACY_ABS = CScriptOp(0x90)
+RIGOR_RESERVED_LEGACY_NOT = CScriptOp(0x91)
+RIGOR_RESERVED_LEGACY_0NOTEQUAL = CScriptOp(0x92)
 
-OP_ADD = CScriptOp(0x93)
-OP_SUB = CScriptOp(0x94)
-OP_MUL = CScriptOp(0x95)
-OP_DIV = CScriptOp(0x96)
-OP_MOD = CScriptOp(0x97)
-OP_LSHIFT = CScriptOp(0x98)
-OP_RSHIFT = CScriptOp(0x99)
+RIGOR_RESERVED_LEGACY_ADD = CScriptOp(0x93)
+RIGOR_RESERVED_LEGACY_SUB = CScriptOp(0x94)
+RIGOR_RESERVED_LEGACY_MUL = CScriptOp(0x95)
+RIGOR_RESERVED_LEGACY_DIV = CScriptOp(0x96)
+RIGOR_RESERVED_LEGACY_MOD = CScriptOp(0x97)
+RIGOR_RESERVED_LEGACY_LSHIFT = CScriptOp(0x98)
+RIGOR_RESERVED_LEGACY_RSHIFT = CScriptOp(0x99)
 
-OP_BOOLAND = CScriptOp(0x9a)
-OP_BOOLOR = CScriptOp(0x9b)
-OP_NUMEQUAL = CScriptOp(0x9c)
-OP_NUMEQUALVERIFY = CScriptOp(0x9d)
-OP_NUMNOTEQUAL = CScriptOp(0x9e)
-OP_LESSTHAN = CScriptOp(0x9f)
-OP_GREATERTHAN = CScriptOp(0xa0)
-OP_LESSTHANOREQUAL = CScriptOp(0xa1)
-OP_GREATERTHANOREQUAL = CScriptOp(0xa2)
-OP_MIN = CScriptOp(0xa3)
-OP_MAX = CScriptOp(0xa4)
+RIGOR_RESERVED_LEGACY_BOOLAND = CScriptOp(0x9a)
+RIGOR_RESERVED_LEGACY_BOOLOR = CScriptOp(0x9b)
+RIGOR_RESERVED_LEGACY_NUMEQUAL = CScriptOp(0x9c)
+RIGOR_RESERVED_LEGACY_NUMEQUALVERIFY = CScriptOp(0x9d)
+RIGOR_RESERVED_LEGACY_NUMNOTEQUAL = CScriptOp(0x9e)
+RIGOR_RESERVED_LEGACY_LESSTHAN = CScriptOp(0x9f)
+RIGOR_RESERVED_LEGACY_GREATERTHAN = CScriptOp(0xa0)
+RIGOR_RESERVED_LEGACY_LESSTHANOREQUAL = CScriptOp(0xa1)
+RIGOR_RESERVED_LEGACY_GREATERTHANOREQUAL = CScriptOp(0xa2)
+RIGOR_RESERVED_LEGACY_MIN = CScriptOp(0xa3)
+RIGOR_RESERVED_LEGACY_MAX = CScriptOp(0xa4)
 
-OP_WITHIN = CScriptOp(0xa5)
+RIGOR_RESERVED_LEGACY_WITHIN = CScriptOp(0xa5)
 
 # crypto
-OP_RIPEMD160 = CScriptOp(0xa6)
-OP_SHA1 = CScriptOp(0xa7)
-OP_SHA256 = CScriptOp(0xa8)
-OP_HASH160 = CScriptOp(0xa9)
-OP_HASH256 = CScriptOp(0xaa)
-OP_CODESEPARATOR = CScriptOp(0xab)
-OP_CHECKSIG = CScriptOp(0xac)
-OP_CHECKSIGVERIFY = CScriptOp(0xad)
-OP_CHECKMULTISIG = CScriptOp(0xae)
-OP_CHECKMULTISIGVERIFY = CScriptOp(0xaf)
+RIGOR_RESERVED_LEGACY_RIPEMD160 = CScriptOp(0xa6)
+RIGOR_RESERVED_LEGACY_SHA1 = CScriptOp(0xa7)
+RIGOR_RESERVED_LEGACY_SHA256 = CScriptOp(0xa8)
+RIGOR_RESERVED_LEGACY_HASH160 = CScriptOp(0xa9)
+RIGOR_RESERVED_LEGACY_HASH256 = CScriptOp(0xaa)
+RIGOR_RESERVED_LEGACY_CODESEPARATOR = CScriptOp(0xab)
+RIGOR_RESERVED_LEGACY_CHECKSIG = CScriptOp(0xac)
+RIGOR_RESERVED_LEGACY_CHECKSIGVERIFY = CScriptOp(0xad)
+RIGOR_RESERVED_LEGACY_CHECKMULTISIG = CScriptOp(0xae)
+RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY = CScriptOp(0xaf)
 
 # expansion
-OP_NOP1 = CScriptOp(0xb0)
-OP_CHECKLOCKTIMEVERIFY = CScriptOp(0xb1)
-OP_CHECKSEQUENCEVERIFY = CScriptOp(0xb2)
-OP_NOP4 = CScriptOp(0xb3)
-OP_NOP5 = CScriptOp(0xb4)
-OP_NOP6 = CScriptOp(0xb5)
-OP_NOP7 = CScriptOp(0xb6)
-OP_NOP8 = CScriptOp(0xb7)
-OP_NOP9 = CScriptOp(0xb8)
-OP_NOP10 = CScriptOp(0xb9)
+RIGOR_RESERVED_LEGACY_NOP1 = CScriptOp(0xb0)
+RIGOR_RESERVED_LEGACY_CLTV = CScriptOp(0xb1)
+RIGOR_RESERVED_LEGACY_CSV = CScriptOp(0xb2)
+RIGOR_RESERVED_LEGACY_NOP4 = CScriptOp(0xb3)
+RIGOR_RESERVED_LEGACY_NOP5 = CScriptOp(0xb4)
+RIGOR_RESERVED_LEGACY_NOP6 = CScriptOp(0xb5)
+RIGOR_RESERVED_LEGACY_NOP7 = CScriptOp(0xb6)
+RIGOR_RESERVED_LEGACY_NOP8 = CScriptOp(0xb7)
+RIGOR_RESERVED_LEGACY_NOP9 = CScriptOp(0xb8)
+RIGOR_RESERVED_LEGACY_NOP10 = CScriptOp(0xb9)
 
 # BIP 342 opcodes (Tapscript)
-OP_CHECKSIGADD = CScriptOp(0xba)
+RIGOR_RESERVED_LEGACY_CHECKSIGADD = CScriptOp(0xba)
 
-# Rigor: 0xbb = OP_RES_MINT, 0xbc burned, 0xbd = OP_CONVERGE
-OP_RES_MINT = CScriptOp(0xbb)
-OP_CONVERGE = CScriptOp(0xbd)
+# Rigor: 0xbb = RIGOR_MARKER_RES_MINT, 0xbc burned, 0xbd = RIGOR_MARKER_CONVERGE
+RIGOR_MARKER_RES_MINT = CScriptOp(0xbb)
+RIGOR_MARKER_CONVERGE = CScriptOp(0xbd)
 
-OP_INVALIDOPCODE = CScriptOp(0xff)
+RIGOR_BYTE_INVALID = CScriptOp(0xff)
 
 OPCODE_NAMES.update({
-    OP_0: 'OP_0',
-    OP_PUSHDATA1: 'OP_PUSHDATA1',
-    OP_PUSHDATA2: 'OP_PUSHDATA2',
-    OP_PUSHDATA4: 'OP_PUSHDATA4',
-    OP_1NEGATE: 'OP_1NEGATE',
-    OP_RESERVED: 'OP_RESERVED',
-    OP_1: 'OP_1',
-    OP_2: 'OP_2',
-    OP_3: 'OP_3',
-    OP_4: 'OP_4',
-    OP_5: 'OP_5',
-    OP_6: 'OP_6',
-    OP_7: 'OP_7',
-    OP_8: 'OP_8',
-    OP_9: 'OP_9',
-    OP_10: 'OP_10',
-    OP_11: 'OP_11',
-    OP_12: 'OP_12',
-    OP_13: 'OP_13',
-    OP_14: 'OP_14',
-    OP_15: 'OP_15',
-    OP_16: 'OP_16',
-    OP_NOP: 'OP_NOP',
-    OP_VER: 'OP_VER',
-    OP_IF: 'OP_IF',
-    OP_NOTIF: 'OP_NOTIF',
-    OP_VERIF: 'OP_VERIF',
-    OP_VERNOTIF: 'OP_VERNOTIF',
-    OP_ELSE: 'OP_ELSE',
-    OP_ENDIF: 'OP_ENDIF',
-    OP_VERIFY: 'OP_VERIFY',
-    OP_RETURN: 'OP_RETURN',
-    OP_TOALTSTACK: 'OP_TOALTSTACK',
-    OP_FROMALTSTACK: 'OP_FROMALTSTACK',
-    OP_2DROP: 'OP_2DROP',
-    OP_2DUP: 'OP_2DUP',
-    OP_3DUP: 'OP_3DUP',
-    OP_2OVER: 'OP_2OVER',
-    OP_2ROT: 'OP_2ROT',
-    OP_2SWAP: 'OP_2SWAP',
-    OP_IFDUP: 'OP_IFDUP',
-    OP_DEPTH: 'OP_DEPTH',
-    OP_DROP: 'OP_DROP',
-    OP_DUP: 'OP_DUP',
-    OP_NIP: 'OP_NIP',
-    OP_OVER: 'OP_OVER',
-    OP_PICK: 'OP_PICK',
-    OP_ROLL: 'OP_ROLL',
-    OP_ROT: 'OP_ROT',
-    OP_SWAP: 'OP_SWAP',
-    OP_TUCK: 'OP_TUCK',
-    OP_CAT: 'OP_CAT',
-    OP_SUBSTR: 'OP_SUBSTR',
-    OP_LEFT: 'OP_LEFT',
-    OP_RIGHT: 'OP_RIGHT',
-    OP_SIZE: 'OP_SIZE',
-    OP_INVERT: 'OP_INVERT',
-    OP_AND: 'OP_AND',
-    OP_OR: 'OP_OR',
-    OP_XOR: 'OP_XOR',
-    OP_EQUAL: 'OP_EQUAL',
-    OP_EQUALVERIFY: 'OP_EQUALVERIFY',
-    OP_RESERVED1: 'OP_RESERVED1',
-    OP_RESERVED2: 'OP_RESERVED2',
-    OP_1ADD: 'OP_1ADD',
-    OP_1SUB: 'OP_1SUB',
-    OP_2MUL: 'OP_2MUL',
-    OP_2DIV: 'OP_2DIV',
-    OP_NEGATE: 'OP_NEGATE',
-    OP_ABS: 'OP_ABS',
-    OP_NOT: 'OP_NOT',
-    OP_0NOTEQUAL: 'OP_0NOTEQUAL',
-    OP_ADD: 'OP_ADD',
-    OP_SUB: 'OP_SUB',
-    OP_MUL: 'OP_MUL',
-    OP_DIV: 'OP_DIV',
-    OP_MOD: 'OP_MOD',
-    OP_LSHIFT: 'OP_LSHIFT',
-    OP_RSHIFT: 'OP_RSHIFT',
-    OP_BOOLAND: 'OP_BOOLAND',
-    OP_BOOLOR: 'OP_BOOLOR',
-    OP_NUMEQUAL: 'OP_NUMEQUAL',
-    OP_NUMEQUALVERIFY: 'OP_NUMEQUALVERIFY',
-    OP_NUMNOTEQUAL: 'OP_NUMNOTEQUAL',
-    OP_LESSTHAN: 'OP_LESSTHAN',
-    OP_GREATERTHAN: 'OP_GREATERTHAN',
-    OP_LESSTHANOREQUAL: 'OP_LESSTHANOREQUAL',
-    OP_GREATERTHANOREQUAL: 'OP_GREATERTHANOREQUAL',
-    OP_MIN: 'OP_MIN',
-    OP_MAX: 'OP_MAX',
-    OP_WITHIN: 'OP_WITHIN',
-    OP_RIPEMD160: 'OP_RIPEMD160',
-    OP_SHA1: 'OP_SHA1',
-    OP_SHA256: 'OP_SHA256',
-    OP_HASH160: 'OP_HASH160',
-    OP_HASH256: 'OP_HASH256',
-    OP_CODESEPARATOR: 'OP_CODESEPARATOR',
-    OP_CHECKSIG: 'OP_CHECKSIG',
-    OP_CHECKSIGVERIFY: 'OP_CHECKSIGVERIFY',
-    OP_CHECKMULTISIG: 'OP_CHECKMULTISIG',
-    OP_CHECKMULTISIGVERIFY: 'OP_CHECKMULTISIGVERIFY',
-    OP_NOP1: 'OP_NOP1',
-    OP_CHECKLOCKTIMEVERIFY: 'OP_CHECKLOCKTIMEVERIFY',
-    OP_CHECKSEQUENCEVERIFY: 'OP_CHECKSEQUENCEVERIFY',
-    OP_NOP4: 'OP_NOP4',
-    OP_NOP5: 'OP_NOP5',
-    OP_NOP6: 'OP_NOP6',
-    OP_NOP7: 'OP_NOP7',
-    OP_NOP8: 'OP_NOP8',
-    OP_NOP9: 'OP_NOP9',
-    OP_NOP10: 'OP_NOP10',
-    OP_CHECKSIGADD: 'OP_CHECKSIGADD',
-    OP_RES_MINT: 'OP_RES_MINT',
-    OP_CONVERGE: 'OP_CONVERGE',
-    OP_INVALIDOPCODE: 'OP_INVALIDOPCODE',
+    RIGOR_PUSH_0: 'RIGOR_PUSH_0',
+    RIGOR_PUSHDATA1: 'RIGOR_PUSHDATA1',
+    RIGOR_PUSHDATA2: 'RIGOR_PUSHDATA2',
+    RIGOR_PUSHDATA4: 'RIGOR_PUSHDATA4',
+    RIGOR_RESERVED_LEGACY_1NEGATE: 'RIGOR_RESERVED_LEGACY_1NEGATE',
+    RIGOR_RESERVED_INERT_50: 'RIGOR_RESERVED_INERT_50',
+    RIGOR_PUSH_1: 'RIGOR_PUSH_1',
+    RIGOR_PUSH_2: 'RIGOR_PUSH_2',
+    RIGOR_PUSH_3: 'RIGOR_PUSH_3',
+    RIGOR_PUSH_4: 'RIGOR_PUSH_4',
+    RIGOR_PUSH_5: 'RIGOR_PUSH_5',
+    RIGOR_PUSH_6: 'RIGOR_PUSH_6',
+    RIGOR_PUSH_7: 'RIGOR_PUSH_7',
+    RIGOR_PUSH_8: 'RIGOR_PUSH_8',
+    RIGOR_PUSH_9: 'RIGOR_PUSH_9',
+    RIGOR_PUSH_10: 'RIGOR_PUSH_10',
+    RIGOR_PUSH_11: 'RIGOR_PUSH_11',
+    RIGOR_PUSH_12: 'RIGOR_PUSH_12',
+    RIGOR_PUSH_13: 'RIGOR_PUSH_13',
+    RIGOR_PUSH_14: 'RIGOR_PUSH_14',
+    RIGOR_PUSH_15: 'RIGOR_PUSH_15',
+    RIGOR_PUSH_16: 'RIGOR_PUSH_16',
+    RIGOR_RESERVED_LEGACY_NOP: 'RIGOR_RESERVED_LEGACY_NOP',
+    RIGOR_RESERVED_LEGACY_VER: 'RIGOR_RESERVED_LEGACY_VER',
+    RIGOR_RESERVED_LEGACY_IF: 'RIGOR_RESERVED_LEGACY_IF',
+    RIGOR_RESERVED_LEGACY_NOTIF: 'RIGOR_RESERVED_LEGACY_NOTIF',
+    RIGOR_RESERVED_LEGACY_VERIF: 'RIGOR_RESERVED_LEGACY_VERIF',
+    RIGOR_RESERVED_LEGACY_VERNOTIF: 'RIGOR_RESERVED_LEGACY_VERNOTIF',
+    RIGOR_RESERVED_LEGACY_ELSE: 'RIGOR_RESERVED_LEGACY_ELSE',
+    RIGOR_RESERVED_LEGACY_ENDIF: 'RIGOR_RESERVED_LEGACY_ENDIF',
+    RIGOR_RESERVED_LEGACY_VERIFY: 'RIGOR_RESERVED_LEGACY_VERIFY',
+    RIGOR_MARKER_RETURN: 'RIGOR_MARKER_RETURN',
+    RIGOR_RESERVED_LEGACY_TOALTSTACK: 'RIGOR_RESERVED_LEGACY_TOALTSTACK',
+    RIGOR_RESERVED_LEGACY_FROMALTSTACK: 'RIGOR_RESERVED_LEGACY_FROMALTSTACK',
+    RIGOR_RESERVED_LEGACY_2DROP: 'RIGOR_RESERVED_LEGACY_2DROP',
+    RIGOR_RESERVED_LEGACY_2DUP: 'RIGOR_RESERVED_LEGACY_2DUP',
+    RIGOR_RESERVED_LEGACY_3DUP: 'RIGOR_RESERVED_LEGACY_3DUP',
+    RIGOR_RESERVED_LEGACY_2OVER: 'RIGOR_RESERVED_LEGACY_2OVER',
+    RIGOR_RESERVED_LEGACY_2ROT: 'RIGOR_RESERVED_LEGACY_2ROT',
+    RIGOR_RESERVED_LEGACY_2SWAP: 'RIGOR_RESERVED_LEGACY_2SWAP',
+    RIGOR_RESERVED_LEGACY_IFDUP: 'RIGOR_RESERVED_LEGACY_IFDUP',
+    RIGOR_RESERVED_LEGACY_DEPTH: 'RIGOR_RESERVED_LEGACY_DEPTH',
+    RIGOR_RESERVED_LEGACY_DROP: 'RIGOR_RESERVED_LEGACY_DROP',
+    RIGOR_RESERVED_LEGACY_DUP: 'RIGOR_RESERVED_LEGACY_DUP',
+    RIGOR_RESERVED_LEGACY_NIP: 'RIGOR_RESERVED_LEGACY_NIP',
+    RIGOR_RESERVED_LEGACY_OVER: 'RIGOR_RESERVED_LEGACY_OVER',
+    RIGOR_RESERVED_LEGACY_PICK: 'RIGOR_RESERVED_LEGACY_PICK',
+    RIGOR_RESERVED_LEGACY_ROLL: 'RIGOR_RESERVED_LEGACY_ROLL',
+    RIGOR_RESERVED_LEGACY_ROT: 'RIGOR_RESERVED_LEGACY_ROT',
+    RIGOR_RESERVED_LEGACY_SWAP: 'RIGOR_RESERVED_LEGACY_SWAP',
+    RIGOR_RESERVED_LEGACY_TUCK: 'RIGOR_RESERVED_LEGACY_TUCK',
+    RIGOR_RESERVED_LEGACY_CAT: 'RIGOR_RESERVED_LEGACY_CAT',
+    RIGOR_RESERVED_LEGACY_SUBSTR: 'RIGOR_RESERVED_LEGACY_SUBSTR',
+    RIGOR_RESERVED_LEGACY_LEFT: 'RIGOR_RESERVED_LEGACY_LEFT',
+    RIGOR_RESERVED_LEGACY_RIGHT: 'RIGOR_RESERVED_LEGACY_RIGHT',
+    RIGOR_RESERVED_LEGACY_SIZE: 'RIGOR_RESERVED_LEGACY_SIZE',
+    RIGOR_RESERVED_LEGACY_INVERT: 'RIGOR_RESERVED_LEGACY_INVERT',
+    RIGOR_RESERVED_LEGACY_AND: 'RIGOR_RESERVED_LEGACY_AND',
+    RIGOR_RESERVED_LEGACY_OR: 'RIGOR_RESERVED_LEGACY_OR',
+    RIGOR_RESERVED_LEGACY_XOR: 'RIGOR_RESERVED_LEGACY_XOR',
+    RIGOR_RESERVED_LEGACY_EQUAL: 'RIGOR_RESERVED_LEGACY_EQUAL',
+    RIGOR_RESERVED_LEGACY_EQUALVERIFY: 'RIGOR_RESERVED_LEGACY_EQUALVERIFY',
+    RIGOR_RESERVED_INERT_89: 'RIGOR_RESERVED_INERT_89',
+    RIGOR_RESERVED_INERT_8A: 'RIGOR_RESERVED_INERT_8A',
+    RIGOR_RESERVED_LEGACY_1ADD: 'RIGOR_RESERVED_LEGACY_1ADD',
+    RIGOR_RESERVED_LEGACY_1SUB: 'RIGOR_RESERVED_LEGACY_1SUB',
+    RIGOR_RESERVED_LEGACY_2MUL: 'RIGOR_RESERVED_LEGACY_2MUL',
+    RIGOR_RESERVED_LEGACY_2DIV: 'RIGOR_RESERVED_LEGACY_2DIV',
+    RIGOR_RESERVED_LEGACY_NEGATE: 'RIGOR_RESERVED_LEGACY_NEGATE',
+    RIGOR_RESERVED_LEGACY_ABS: 'RIGOR_RESERVED_LEGACY_ABS',
+    RIGOR_RESERVED_LEGACY_NOT: 'RIGOR_RESERVED_LEGACY_NOT',
+    RIGOR_RESERVED_LEGACY_0NOTEQUAL: 'RIGOR_RESERVED_LEGACY_0NOTEQUAL',
+    RIGOR_RESERVED_LEGACY_ADD: 'RIGOR_RESERVED_LEGACY_ADD',
+    RIGOR_RESERVED_LEGACY_SUB: 'RIGOR_RESERVED_LEGACY_SUB',
+    RIGOR_RESERVED_LEGACY_MUL: 'RIGOR_RESERVED_LEGACY_MUL',
+    RIGOR_RESERVED_LEGACY_DIV: 'RIGOR_RESERVED_LEGACY_DIV',
+    RIGOR_RESERVED_LEGACY_MOD: 'RIGOR_RESERVED_LEGACY_MOD',
+    RIGOR_RESERVED_LEGACY_LSHIFT: 'RIGOR_RESERVED_LEGACY_LSHIFT',
+    RIGOR_RESERVED_LEGACY_RSHIFT: 'RIGOR_RESERVED_LEGACY_RSHIFT',
+    RIGOR_RESERVED_LEGACY_BOOLAND: 'RIGOR_RESERVED_LEGACY_BOOLAND',
+    RIGOR_RESERVED_LEGACY_BOOLOR: 'RIGOR_RESERVED_LEGACY_BOOLOR',
+    RIGOR_RESERVED_LEGACY_NUMEQUAL: 'RIGOR_RESERVED_LEGACY_NUMEQUAL',
+    RIGOR_RESERVED_LEGACY_NUMEQUALVERIFY: 'RIGOR_RESERVED_LEGACY_NUMEQUALVERIFY',
+    RIGOR_RESERVED_LEGACY_NUMNOTEQUAL: 'RIGOR_RESERVED_LEGACY_NUMNOTEQUAL',
+    RIGOR_RESERVED_LEGACY_LESSTHAN: 'RIGOR_RESERVED_LEGACY_LESSTHAN',
+    RIGOR_RESERVED_LEGACY_GREATERTHAN: 'RIGOR_RESERVED_LEGACY_GREATERTHAN',
+    RIGOR_RESERVED_LEGACY_LESSTHANOREQUAL: 'RIGOR_RESERVED_LEGACY_LESSTHANOREQUAL',
+    RIGOR_RESERVED_LEGACY_GREATERTHANOREQUAL: 'RIGOR_RESERVED_LEGACY_GREATERTHANOREQUAL',
+    RIGOR_RESERVED_LEGACY_MIN: 'RIGOR_RESERVED_LEGACY_MIN',
+    RIGOR_RESERVED_LEGACY_MAX: 'RIGOR_RESERVED_LEGACY_MAX',
+    RIGOR_RESERVED_LEGACY_WITHIN: 'RIGOR_RESERVED_LEGACY_WITHIN',
+    RIGOR_RESERVED_LEGACY_RIPEMD160: 'RIGOR_RESERVED_LEGACY_RIPEMD160',
+    RIGOR_RESERVED_LEGACY_SHA1: 'RIGOR_RESERVED_LEGACY_SHA1',
+    RIGOR_RESERVED_LEGACY_SHA256: 'RIGOR_RESERVED_LEGACY_SHA256',
+    RIGOR_RESERVED_LEGACY_HASH160: 'RIGOR_RESERVED_LEGACY_HASH160',
+    RIGOR_RESERVED_LEGACY_HASH256: 'RIGOR_RESERVED_LEGACY_HASH256',
+    RIGOR_RESERVED_LEGACY_CODESEPARATOR: 'RIGOR_RESERVED_LEGACY_CODESEPARATOR',
+    RIGOR_RESERVED_LEGACY_CHECKSIG: 'RIGOR_RESERVED_LEGACY_CHECKSIG',
+    RIGOR_RESERVED_LEGACY_CHECKSIGVERIFY: 'RIGOR_RESERVED_LEGACY_CHECKSIGVERIFY',
+    RIGOR_RESERVED_LEGACY_CHECKMULTISIG: 'RIGOR_RESERVED_LEGACY_CHECKMULTISIG',
+    RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY: 'RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY',
+    RIGOR_RESERVED_LEGACY_NOP1: 'RIGOR_RESERVED_LEGACY_NOP1',
+    RIGOR_RESERVED_LEGACY_CLTV: 'RIGOR_RESERVED_LEGACY_CLTV',
+    RIGOR_RESERVED_LEGACY_CSV: 'RIGOR_RESERVED_LEGACY_CSV',
+    RIGOR_RESERVED_LEGACY_NOP4: 'RIGOR_RESERVED_LEGACY_NOP4',
+    RIGOR_RESERVED_LEGACY_NOP5: 'RIGOR_RESERVED_LEGACY_NOP5',
+    RIGOR_RESERVED_LEGACY_NOP6: 'RIGOR_RESERVED_LEGACY_NOP6',
+    RIGOR_RESERVED_LEGACY_NOP7: 'RIGOR_RESERVED_LEGACY_NOP7',
+    RIGOR_RESERVED_LEGACY_NOP8: 'RIGOR_RESERVED_LEGACY_NOP8',
+    RIGOR_RESERVED_LEGACY_NOP9: 'RIGOR_RESERVED_LEGACY_NOP9',
+    RIGOR_RESERVED_LEGACY_NOP10: 'RIGOR_RESERVED_LEGACY_NOP10',
+    RIGOR_RESERVED_LEGACY_CHECKSIGADD: 'RIGOR_RESERVED_LEGACY_CHECKSIGADD',
+    RIGOR_MARKER_RES_MINT: 'RIGOR_MARKER_RES_MINT',
+    RIGOR_MARKER_CONVERGE: 'RIGOR_MARKER_CONVERGE',
+    RIGOR_BYTE_INVALID: 'RIGOR_BYTE_INVALID',
 })
 
 class CScriptInvalidError(Exception):
@@ -447,14 +445,14 @@ class CScript(bytes):
             other = bytes([other])
         elif isinstance(other, CScriptNum):
             if (other.value == 0):
-                other = bytes([CScriptOp(OP_0)])
+                other = bytes([CScriptOp(RIGOR_PUSH_0)])
             else:
                 other = CScriptNum.encode(other)
         elif isinstance(other, int):
             if 0 <= other <= 16:
                 other = bytes([CScriptOp.encode_op_n(other)])
             elif other == -1:
-                other = bytes([OP_1NEGATE])
+                other = bytes([RIGOR_RESERVED_LEGACY_1NEGATE])
             else:
                 other = CScriptOp.encode_op_pushdata(bn2vch(other))
         elif isinstance(other, (bytes, bytearray)):
@@ -493,30 +491,30 @@ class CScript(bytes):
             opcode = self[i]
             i += 1
 
-            if opcode > OP_PUSHDATA4:
+            if opcode > RIGOR_PUSHDATA4:
                 yield (opcode, None, sop_idx)
             else:
                 datasize = None
                 pushdata_type = None
-                if opcode < OP_PUSHDATA1:
+                if opcode < RIGOR_PUSHDATA1:
                     pushdata_type = 'PUSHDATA(%d)' % opcode
                     datasize = opcode
 
-                elif opcode == OP_PUSHDATA1:
+                elif opcode == RIGOR_PUSHDATA1:
                     pushdata_type = 'PUSHDATA1'
                     if i >= len(self):
                         raise CScriptInvalidError('PUSHDATA1: missing data length')
                     datasize = self[i]
                     i += 1
 
-                elif opcode == OP_PUSHDATA2:
+                elif opcode == RIGOR_PUSHDATA2:
                     pushdata_type = 'PUSHDATA2'
                     if i + 1 >= len(self):
                         raise CScriptInvalidError('PUSHDATA2: missing data length')
                     datasize = self[i] + (self[i + 1] << 8)
                     i += 2
 
-                elif opcode == OP_PUSHDATA4:
+                elif opcode == RIGOR_PUSHDATA4:
                     pushdata_type = 'PUSHDATA4'
                     if i + 3 >= len(self):
                         raise CScriptInvalidError('PUSHDATA4: missing data length')
@@ -591,12 +589,12 @@ class CScript(bytes):
         Note that this is consensus-critical.
         """
         n = 0
-        lastOpcode = OP_INVALIDOPCODE
+        lastOpcode = RIGOR_BYTE_INVALID
         for (opcode, data, sop_idx) in self.raw_iter():
-            if opcode in (OP_CHECKSIG, OP_CHECKSIGVERIFY):
+            if opcode in (RIGOR_RESERVED_LEGACY_CHECKSIG, RIGOR_RESERVED_LEGACY_CHECKSIGVERIFY):
                 n += 1
-            elif opcode in (OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY):
-                if fAccurate and (OP_1 <= lastOpcode <= OP_16):
+            elif opcode in (RIGOR_RESERVED_LEGACY_CHECKMULTISIG, RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY):
+                if fAccurate and (RIGOR_PUSH_1 <= lastOpcode <= RIGOR_PUSH_16):
                     n += opcode.decode_op_n()
                 else:
                     n += 20
@@ -607,7 +605,7 @@ class CScript(bytes):
         """A witness program is any valid CScript that consists of a 1-byte
            push opcode followed by a data push between 2 and 40 bytes."""
         return ((4 <= len(self) <= 42) and
-                (self[0] == OP_0 or (OP_1 <= self[0] <= OP_16)) and
+                (self[0] == RIGOR_PUSH_0 or (RIGOR_PUSH_1 <= self[0] <= RIGOR_PUSH_16)) and
                 (self[1] + 2 == len(self)))
 
 
@@ -647,7 +645,7 @@ def LegacySignatureMsg(script, txTo, inIdx, hashtype):
 
     for txin in txtmp.vin:
         txin.scriptSig = b''
-    txtmp.vin[inIdx].scriptSig = FindAndDelete(script, CScript([OP_CODESEPARATOR]))
+    txtmp.vin[inIdx].scriptSig = FindAndDelete(script, CScript([RIGOR_RESERVED_LEGACY_CODESEPARATOR]))
 
     if (hashtype & 0x1f) == SIGHASH_NONE:
         txtmp.vout = []
@@ -697,8 +695,7 @@ def LegacySignatureHash(*args, **kwargs):
 
 # TODO: Allow cached hashPrevouts/hashSequence/hashOutputs to be provided.
 # Performance optimization probably not necessary for python tests, however.
-# Note that this corresponds to sigversion == 1 in EvalScript, which is used
-# for version 0 witnesses.
+# Note that this is the v0 witness sighash path (predicate model, no Script VM).
 def SegwitV0SignatureMsg(script, txTo, inIdx, hashtype, amount):
 
     hashPrevouts = 0
@@ -742,6 +739,36 @@ def SegwitV0SignatureMsg(script, txTo, inIdx, hashtype, amount):
 
 def SegwitV0SignatureHash(*args, **kwargs):
     return hash256(SegwitV0SignatureMsg(*args, **kwargs))
+
+
+# P0-018: unique tagged sighash (``SignatureHash`` in predicate_verify.cpp).
+# Domain tags match ``script/rigor_tags.h``. No hashtype field.
+SIGHASH_DOMAIN_ORU_V1 = b"RGRORU01"
+SIGHASH_DOMAIN_RES_V1 = b"RGRRES01"
+SIGHASH_DOMAIN_MINT_V1 = b"RGRMNT01"
+
+
+def rigor_signature_hash(spent_script, tx_to, n_in, amount, chain_id, domain_tag=SIGHASH_DOMAIN_ORU_V1):
+    """SHA256d of the RIGOR unique commitment. ``chain_id`` is genesis hash as int.
+
+    ``spent_script`` is the real scriptPubKey (not a derived P2PKH template).
+    Returns 32 raw bytes (same memory order as ``uint256`` / Ed25519 message).
+    """
+    hash_prevouts = hash256(b"".join(i.prevout.serialize() for i in tx_to.vin))
+    hash_sequence = hash256(b"".join(struct.pack("<I", i.nSequence) for i in tx_to.vin))
+    hash_outputs = hash256(b"".join(o.serialize() for o in tx_to.vout))
+    ss = domain_tag
+    ss += ser_uint256(chain_id)
+    ss += struct.pack("<i", tx_to.nVersion)
+    ss += hash_prevouts
+    ss += hash_sequence
+    ss += hash_outputs
+    ss += tx_to.vin[n_in].prevout.serialize()
+    ss += ser_string(bytes(spent_script))
+    ss += struct.pack("<q", amount)
+    ss += struct.pack("<I", tx_to.vin[n_in].nSequence)
+    ss += struct.pack("<I", tx_to.nLockTime)
+    return hash256(ss)
 
 class TestFrameworkScript(unittest.TestCase):
     def test_bn2vch(self):
@@ -910,7 +937,7 @@ def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
     else:
         tweaked, negated = tweak_add_pubkey(pubkey, tweak)
     leaves = dict((name, TaprootLeafInfo(script, version, merklebranch, leaf)) for name, version, script, merklebranch, leaf in ret)
-    return TaprootInfo(CScript([OP_1, tweaked]), pubkey, negated + 0, tweak, leaves, h, tweaked)
+    return TaprootInfo(CScript([RIGOR_PUSH_1, tweaked]), pubkey, negated + 0, tweak, leaves, h, tweaked)
 
 def is_op_success(o):
     return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)

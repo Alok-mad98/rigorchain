@@ -16,19 +16,15 @@
 #include <optional>
 #include <string>
 
-static const std::string OUTPUT_TYPE_STRING_LEGACY = "legacy";
-static const std::string OUTPUT_TYPE_STRING_P2SH_SEGWIT = "p2sh-segwit";
 static const std::string OUTPUT_TYPE_STRING_BECH32 = "bech32";
 static const std::string OUTPUT_TYPE_STRING_BECH32M = "bech32m";
 static const std::string OUTPUT_TYPE_STRING_UNKNOWN = "unknown";
+static const std::string OUTPUT_TYPE_STRING_LEGACY = "legacy";
+static const std::string OUTPUT_TYPE_STRING_P2SH_SEGWIT = "p2sh-segwit";
 
 std::optional<OutputType> ParseOutputType(const std::string& type)
 {
-    if (type == OUTPUT_TYPE_STRING_LEGACY) {
-        return OutputType::LEGACY;
-    } else if (type == OUTPUT_TYPE_STRING_P2SH_SEGWIT) {
-        return OutputType::P2SH_SEGWIT;
-    } else if (type == OUTPUT_TYPE_STRING_BECH32) {
+    if (type == OUTPUT_TYPE_STRING_BECH32) {
         return OutputType::BECH32;
     } else if (type == OUTPUT_TYPE_STRING_BECH32M) {
         return OutputType::BECH32M;
@@ -57,7 +53,7 @@ CTxDestination GetDestinationForKey(const CPubKey& key, OutputType type)
     case OutputType::BECH32M:
     case OutputType::LEGACY:
     case OutputType::P2SH_SEGWIT:
-    case OutputType::UNKNOWN: {} // This function should never be used with BECH32M or UNKNOWN, so let it assert
+    case OutputType::UNKNOWN: {}
     } // no default case, so the compiler can warn about missing cases
     assert(false);
 }
@@ -69,39 +65,19 @@ std::vector<CTxDestination> GetAllDestinationsForKey(const CPubKey& key)
 
 CTxDestination AddAndGetDestinationForScript(FillableSigningProvider& keystore, const CScript& script, OutputType type)
 {
-    // Add script to keystore
-    keystore.AddCScript(script);
-    // Note that scripts over 520 bytes are not yet supported.
-    switch (type) {
-    case OutputType::BECH32: {
-        CTxDestination witdest = WitnessV0ScriptHash(script);
-        CScript witprog = GetScriptForDestination(witdest);
-        keystore.AddCScript(witprog);
-        return witdest;
-    }
-    case OutputType::BECH32M:
-    case OutputType::LEGACY:
-    case OutputType::P2SH_SEGWIT:
-    case OutputType::UNKNOWN: {} // This function should not be used for BECH32M or UNKNOWN, so let it assert
-    } // no default case, so the compiler can warn about missing cases
-    assert(false);
+    (void)keystore;
+    (void)script;
+    (void)type;
+    // Arbitrary-script wrapping (P2WSH / P2SH) is not a RIGOR destination.
+    return CNoDestination();
 }
 
 std::optional<OutputType> OutputTypeFromDestination(const CTxDestination& dest) {
-    if (std::holds_alternative<PKHash>(dest) ||
-        std::holds_alternative<ScriptHash>(dest)) {
-        return std::nullopt;
-    }
-    if (std::holds_alternative<WitnessV0KeyHash>(dest) ||
-        std::holds_alternative<WitnessV0ScriptHash>(dest)) {
+    if (std::holds_alternative<WitnessV0KeyHash>(dest)) {
         return OutputType::BECH32;
     }
-    if (std::holds_alternative<WitnessV1Res>(dest) ||
-        std::holds_alternative<WitnessUnknown>(dest)) {
-        if (std::holds_alternative<WitnessV1Res>(dest)) {
-            return OutputType::BECH32M;
-        }
-        return std::nullopt;
+    if (std::holds_alternative<WitnessV1Res>(dest)) {
+        return OutputType::BECH32M;
     }
     return std::nullopt;
 }

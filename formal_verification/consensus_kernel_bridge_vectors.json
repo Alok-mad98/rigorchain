@@ -1,0 +1,102 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-CPP-REFINEMENT-BRIDGE-P0-052",
+  "note": "Bridge pins. Does not modify phase3_golden_vectors.json.",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "vectors": [
+    {
+      "id": "P052-G0-ORU",
+      "height": 0,
+      "epoch": 0,
+      "oru_subsidy": 0,
+      "res_schedule": 40000000,
+      "res_issued": 0,
+      "schedule_is_not_actual": true
+    },
+    {
+      "id": "P052-G0-DRAW",
+      "height": 0,
+      "draw": "NONE"
+    },
+    {
+      "id": "P052-G0-DELTA",
+      "height": 0,
+      "ledger_oru_delta": 0,
+      "cpp_oru_circulating_delta": 0
+    },
+    {
+      "id": "P052-H1",
+      "height": 1,
+      "epoch": 0,
+      "oru_subsidy": 100000000000
+    },
+    {
+      "id": "P052-H99",
+      "height": 99,
+      "epoch": 0
+    },
+    {
+      "id": "P052-H100-MATURITY",
+      "spend": 100,
+      "coin": 1,
+      "mature": false
+    },
+    {
+      "id": "P052-H101-MATURITY",
+      "spend": 101,
+      "coin": 1,
+      "mature": true
+    },
+    {
+      "id": "P052-H209999-EPOCH",
+      "height": 209999,
+      "epoch": 0
+    },
+    {
+      "id": "P052-H210000-EPOCH",
+      "height": 210000,
+      "epoch": 1
+    },
+    {
+      "id": "P052-H210001-EPOCH",
+      "height": 210001,
+      "epoch": 1
+    },
+    {
+      "id": "P052-H419999-EPOCH",
+      "height": 419999,
+      "epoch": 1
+    },
+    {
+      "id": "P052-H420000-EPOCH",
+      "height": 420000,
+      "epoch": 2
+    },
+    {
+      "id": "P052-CLASSIFY-EMPTY",
+      "script": "",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P052-CLASSIFY-ORU",
+      "script": "00141111111111111111111111111111111111111111",
+      "asset": "ORU"
+    },
+    {
+      "id": "P052-CLASSIFY-RES",
+      "script": "5120aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "asset": "RES"
+    },
+    {
+      "id": "P052-SUPPLY-LAYER",
+      "subsidy": 100,
+      "converge": 10,
+      "burn": 5,
+      "ledger_oru_delta": 90,
+      "coq_circulating_delta": 85,
+      "cpp_oru_circulating_delta": 90,
+      "layers_identical": false
+    }
+  ]
+}

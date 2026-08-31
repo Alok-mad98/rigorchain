@@ -63,7 +63,7 @@ BOOST_AUTO_TEST_CASE(feerate_unchanged_for_res_vs_oru_semantics)
 
 BOOST_AUTO_TEST_CASE(res_transfer_rejects_subtract_fee_from_amount)
 {
-    std::vector<CRecipient> vec{{CScript() << OP_RETURN, 1 * RES_COIN, /*subtract=*/true, ASSET_RES}};
+    std::vector<CRecipient> vec{{CScript() << RIGOR_MARKER_RETURN, 1 * RES_COIN, /*subtract=*/true, ASSET_RES}};
     const auto err = wallet::CheckResTransferFeeSemantics(vec);
     BOOST_REQUIRE(err.has_value());
 }

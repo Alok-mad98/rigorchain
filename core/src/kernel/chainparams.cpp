@@ -14,12 +14,13 @@
 #include <logging.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <uint256.h>
 #include <util/strencodings.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -28,7 +29,28 @@
 
 namespace {
 static_assert(Consensus::ORU_INITIAL_BLOCK_SUBSIDY == 1000 * COIN);
+static_assert(Consensus::ORU_GENESIS_BLOCK_SUBSIDY == 0);
 static_assert(Consensus::ORU_SUBSIDY_MAX_SHIFTS == 3);
+
+// Mainnet operator pubkey: mechanism is compiled in; the operator key
+// ceremony is pending. This value is not an operational signing key until
+// that ceremony publishes one. Secret material is not in this repository.
+constexpr const char* SEED_MANIFEST_PUBKEY_MAIN =
+    "d6520b135d07e7e3c83769cbb6aab02a778d887b0d487f8d5c9b884b71bb89f5";
+// Test-only. Publicly derivable from SHA256("RIGOR_SEED_MANIFEST_TEST") as
+// the Ed25519 seed. Do not treat this as a secret.
+constexpr const char* SEED_MANIFEST_PUBKEY_TEST =
+    "52ca3ecbacb34a495df3b2a47e30b758450efb0dbd99218a932826a2f98c8072";
+
+void SetSeedManifestFields(std::array<unsigned char, 32>& pubkey,
+                           std::vector<std::string>& epochs,
+                           bool mainnet)
+{
+    const auto hex = ParseHex(mainnet ? SEED_MANIFEST_PUBKEY_MAIN : SEED_MANIFEST_PUBKEY_TEST);
+    assert(hex.size() == pubkey.size());
+    std::copy(hex.begin(), hex.end(), pubkey.begin());
+    epochs = {"2026Q3", "2026Q4"};
+}
 } // namespace
 
 static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesisOutputScript, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
@@ -62,8 +84,12 @@ namespace GenesisLockMainnet {
 // Must be <= wall-clock UTC at launch. RFC-016 §6.3 forbids further timestamp refresh.
 constexpr uint32_t TIMESTAMP = 1786125600; // 2026-08-07 18:00:00 UTC
 constexpr uint32_t NONCE = 0;
-// ~1.68e7 expected OpuHash trials (~10 min at ~28 kH/s = typical 8-thread PC).
-constexpr uint32_t NBITS = 0x1e010000;
+// SPEC-008 §8.2. Target 2^223, so ~8.59e9 expected SHA3-256 trials. That is ~10 min
+// on a typical 8-thread PC linking an optimized Keccak (~16 MH/s), which is the same
+// design intent as the OpuHash-era 0x1e010000 (~1.68e7 trials at ~28 kH/s), rescaled
+// by the measured cost ratio R = 2^9. Genesis is PoW-exempt and NONCE stays 0: this
+// is the seed difficulty for block 1, not a mined proof.
+constexpr uint32_t NBITS = 0x1d008000;
 constexpr int32_t VERSION = 1;
 static const char* const TIMESTAMP_MSG =
     "Selection not computation. Convergence defines state. Naming is consensus.";
@@ -82,9 +108,8 @@ public:
         consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
         consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
         consensus.nCoinbaseMaturity = 100;
-        // Rigor mainnet uses a fresh genesis (genesis-lockdown.md). Do not copy Bitcoin's historical
-        // script_flag_exceptions or buried-fork heights — those Bitcoin block hashes never occur here.
-        // Policy: all buried softforks are genesis-active (BIP34/65/66/CSV @1, Segwit @0).
+        // Rigor mainnet uses a fresh genesis (genesis-lockdown.md). Buried softforks
+        // are genesis-active (BIP34/65/66/CSV @1, Segwit @0); script flags are constant.
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
@@ -99,9 +124,12 @@ public:
         // finding A-6 and the derivation in consensus/params.h.
         // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
         consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
-        // 2^240 − 1: genesis compact 0x1e010000 (2^232) remains legal; 8 half-lives of
-        // easing headroom; floor ≈ 2^16 hashes so powLimit is not a free header.
-        consensus.powLimit = uint256S("0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        // 2^231 − 1 (SPEC-008 §8.2): genesis compact 0x1d008000 (2^223) remains legal;
+        // the genesis/powLimit separation stays at 2^8, so ASERT keeps 8 half-lives of
+        // easing headroom and the startup-time audit's "~47 steps to powLimit" is
+        // unchanged. Floor ≈ 2^25 hashes so powLimit is not a free header — that is
+        // the OpuHash-era 2^16 scaled by the measured cost ratio R = 2^9.
+        consensus.powLimit = uint256S("0000007fffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
         consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
         consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours
@@ -126,14 +154,26 @@ public:
          *   2) Subtract safety margin (for example, 2k-10k blocks) and pin that value here.
          *   3) Never set above your own honest tip chainwork.
          *
-         * Bootstrap floor: 2^26. One honest 0x1e010000 block is ≈2^24 work; four
-         * such blocks (or one GBT-sized headers batch at genesis difficulty) pass
-         * the header-work gate. A 2000-header powLimit (2^240) flood does not.
+         * Bootstrap floor: 2^35, which is four genesis-difficulty blocks (one
+         * 0x1d008000 block is ≈2^33 work). SPEC-008 §8.3.
+         *
+         * What the gate buys: a peer stays in HeadersSyncState::PRESYNC — one bit
+         * of memory per header — until its chain carries this much work, so an
+         * attacker must burn ≈2^35 hashes before we commit storage to their chain.
+         * That bound holds however the attacker splits the work up. A header
+         * counts only for the work it carries, and producing a header that passes
+         * the PoW check at all costs exactly that work, so 1024 powLimit headers
+         * and four genesis-difficulty blocks cost the same 2^35 hashes. Header
+         * count is not a meaningful unit here; only work is.
+         *
+         * An earlier note claimed a 2000-header powLimit batch cannot clear this
+         * gate. It cannot be made to (the scaled figures are 2000 × 2^25 = 2^35.97
+         * against a 2^35 gate), and that is not a weakness for the reason above.
+         * Do not reintroduce a header-count invariant.
+         *
          * Raise toward canonical tip chainwork before each mainnet release.
          */
-        // 2^26: four genesis-difficulty blocks (0x1e010000 ≈ 2^24 work) pass the
-        // headers-sync gate; a full 2000-header powLimit batch (2000 × 2^16) does not.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000004000000");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000800000000");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -155,14 +195,16 @@ public:
         const CScript genesis_output_script(mainnet_genesis_spk.begin(), mainnet_genesis_spk.end());
         genesis = CreateGenesisBlock(GenesisLockMainnet::TIMESTAMP_MSG, genesis_output_script,
             GenesisLockMainnet::TIMESTAMP, GenesisLockMainnet::NONCE, GenesisLockMainnet::NBITS,
-            GenesisLockMainnet::VERSION, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+            GenesisLockMainnet::VERSION, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         consensus.hashGenesisBlock = genesis.GetHash();
         // Mainnet genesis timestamp/payload is customized for this chain.
         // Validate consistency against the computed merkle root instead of Bitcoin's legacy constant.
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        // RFC-016 §2.2 / §6.1 — Alpha1 genesis identity (v0.1.1-alpha).
-        assert(consensus.hashGenesisBlock == uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758"));
+        // P0-038 — Genesis ORU reward 0. Pre-P0-038 hash 1c2d6436…d758 is foreign; wipe datadir.
+        assert(genesis.hashMerkleRoot == uint256S("0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd"));
+        assert(consensus.hashGenesisBlock == uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"));
+        assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         // Genesis values are derived from the locked timestamp payload above.
 
 
@@ -186,6 +228,7 @@ public:
 
         // Mainnet DNS seeds (Rigor network).
         vSeeds.clear();
+        vSeeds.emplace_back("seed.rigor.network.");
         vSeeds.emplace_back("seed1.rigor.network.");
         vSeeds.emplace_back("seed2.rigor.network.");
         vSeeds.emplace_back("seed3.rigor.network.");
@@ -198,8 +241,9 @@ public:
 
         bech32_hrp = "rg";
 
-        // Keep fixed seeds empty until dedicated ORU seed snapshots are generated.
+        // Keep compiled-in pnSeed empty until a signed epoch snapshot is published.
         vFixedSeeds.clear();
+        SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/true);
 
         fDefaultConsistencyChecks = false;
         fRequireStandard = true;
@@ -228,7 +272,6 @@ public:
         consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
         consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
         consensus.nCoinbaseMaturity = 100;
-        // No script_flag_exceptions: Bitcoin-era exception hashes never occur on Rigor testnet.
         // Policy: all buried softforks are genesis-active (same as mainnet).
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
@@ -280,11 +323,13 @@ public:
         const std::string testnet_genesis_timestamp = "Selection not computation. Convergence defines state. Naming is consensus.";
         const std::vector<unsigned char> testnet_genesis_spk = ParseHex("00142222222222222222222222222222222222222222");
         const CScript testnet_genesis_output_script(testnet_genesis_spk.begin(), testnet_genesis_spk.end());
-        genesis = CreateGenesisBlock(testnet_genesis_timestamp.c_str(), testnet_genesis_output_script, 1778224715, 0, 0x207fffff, 1, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+        genesis = CreateGenesisBlock(testnet_genesis_timestamp.c_str(), testnet_genesis_output_script, 1778224715, 0, 0x207fffff, 1, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        assert(consensus.hashGenesisBlock == uint256S("0xdc14491196188457f5e2d9f5951e38b788a1c714dd606225b7490dafa9ef8bca"));
+        assert(genesis.hashMerkleRoot == uint256S("0x54ace6b8a887ef617d5d583c7fb326a88805b7f7afba190de470898ea2885343"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce"));
+        assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         // Genesis values are derived from the locked timestamp payload above.
 
         checkpointData = {
@@ -295,6 +340,7 @@ public:
 
         // Rigor public testnet: DNS seeds only (no Bitcoin bootstrap peers).
         vFixedSeeds.clear();
+        SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
         vSeeds.clear();
         vSeeds.emplace_back("seed1.testnet.rigor.network.");
         vSeeds.emplace_back("seed2.testnet.rigor.network.");
@@ -337,8 +383,6 @@ public:
         consensus.res_mint_target_bits = 1;
         // Align with mainnet/signet: ORU and RES coinbase outputs mature after 100 confirmations.
         consensus.nCoinbaseMaturity = 100;
-        consensus.script_flag_exceptions.emplace( // BIP16 exception
-            uint256S("0x00000000dd30457c001f4095d208cc1296b0eed002427aa599874af7a432b105"), SCRIPT_VERIFY_NONE);
         // All buried softforks active from genesis / block 1 — no Bitcoin-era delayed heights.
         // BIP34 @1 also gates coinbase ConvergenceRoot (`bad-cb-convergence-root`).
         consensus.BIP34Height = 1;
@@ -386,12 +430,13 @@ public:
         const std::string devtest_genesis_timestamp = "[Rigor Devtest] In V0 we trust, in V1 we execute — fast validation chain.";
         const std::vector<unsigned char> devtest_genesis_spk = ParseHex("00143333333333333333333333333333333333333333");
         const CScript devtest_genesis_output_script(devtest_genesis_spk.begin(), devtest_genesis_spk.end());
-        genesis = CreateGenesisBlock(devtest_genesis_timestamp.c_str(), devtest_genesis_output_script, 1774915600, 2, 0x207fffff, 1, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+        genesis = CreateGenesisBlock(devtest_genesis_timestamp.c_str(), devtest_genesis_output_script, 1774915600, 2, 0x207fffff, 1, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        // Hash recomputed after c43babf39f rebranded pszTimestamp to RIGOR wording (TASK-H5).
-        assert(consensus.hashGenesisBlock == uint256S("0x407381b8179c92027826909806920e3633d5487cac816e8fff419223d30641c7"));
+        assert(genesis.hashMerkleRoot == uint256S("0xada94f709a0bb27dfb0d1862eb4c0962c8a7c000c1c6e21dc5a7841f869c0a93"));
+        assert(consensus.hashGenesisBlock == uint256S("0x9762f59ecfe1050ca45e404dc95e32ae5a93b9a046e116f2f2f562e44f21dce0"));
+        assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
 
         checkpointData = {
             {
@@ -400,6 +445,7 @@ public:
         };
 
         vFixedSeeds.clear();
+        SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
         vSeeds.clear();
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
@@ -422,121 +468,6 @@ public:
 };
 
 /**
- * Signet: test network with an additional consensus parameter (see BIP325).
- */
-class SigNetParams : public CChainParams {
-public:
-    explicit SigNetParams(const SigNetOptions& options)
-    {
-        std::vector<uint8_t> bin;
-        vSeeds.clear();
-
-        if (!options.challenge) {
-            bin = ParseHex("512103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae");
-            vSeeds.emplace_back("seed.signet.bitcoin.sprovoost.nl.");
-
-            // Hardcoded nodes can be removed once there are more DNS seeds
-            vSeeds.emplace_back("178.128.221.177");
-            vSeeds.emplace_back("v7ajjeirttkbnt32wpy3c6w3emwnfr3fkla7hpxcfokr3ysd3kqtzmqd.onion:38333");
-
-            consensus.nMinimumChainWork = uint256{};
-            consensus.defaultAssumeValid = uint256{};
-            m_assumed_blockchain_size = 1;
-            m_assumed_chain_state_size = 0;
-            chainTxData = ChainTxData{0, 0, 0};
-        } else {
-            bin = *options.challenge;
-            consensus.nMinimumChainWork = uint256{};
-            consensus.defaultAssumeValid = uint256{};
-            m_assumed_blockchain_size = 0;
-            m_assumed_chain_state_size = 0;
-            chainTxData = ChainTxData{
-                0,
-                0,
-                0,
-            };
-            LogPrintf("Signet with challenge %s\n", HexStr(bin));
-        }
-
-        if (options.seeds) {
-            vSeeds = *options.seeds;
-        }
-
-        strNetworkID = CBaseChainParams::SIGNET;
-        consensus.signet_blocks = true;
-        consensus.signet_challenge.assign(bin.begin(), bin.end());
-        consensus.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
-        consensus.nCoinbaseMaturity = 100;
-        // All buried softforks active from genesis / block 1 (same policy as mainnet/regtest).
-        consensus.BIP34Height = 1;
-        consensus.BIP34Hash = uint256{};
-        consensus.BIP65Height = 1;
-        consensus.BIP66Height = 1;
-        consensus.CSVHeight = 1;
-        consensus.SegwitHeight = 0;
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
-        consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
-        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours (same as mainnet)
-        consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 259; // 90% of 288
-        consensus.nMinerConfirmationWindow = 288; // nPowTargetTimespan / nPowTargetSpacing
-        consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = Consensus::BIP9Deployment::NEVER_ACTIVE;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = Consensus::BIP9Deployment::NO_TIMEOUT;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0; // No activation delay
-
-        // REMOVED: DEPLOYMENT_TAPROOT configuration (signet)
-        // violates RIGOR "Script as Asset" constitution (no Taproot/BIP341 complexity)
-
-        // message start is defined as the first 4 bytes of the sha256d of the block script
-        HashWriter h{};
-        h << consensus.signet_challenge;
-        uint256 hash = h.GetHash();
-        memcpy(pchMessageStart, hash.begin(), 4);
-
-        nDefaultPort = 38760;
-        nPruneAfterHeight = 1000;
-
-        const std::string signet_genesis_timestamp = "Selection not computation. Convergence defines state. Naming is consensus.";
-        const std::vector<unsigned char> signet_genesis_spk = ParseHex("00144444444444444444444444444444444444444444");
-        const CScript signet_genesis_output_script(signet_genesis_spk.begin(), signet_genesis_spk.end());
-        genesis = CreateGenesisBlock(signet_genesis_timestamp.c_str(), signet_genesis_output_script, 1778224715, 0, 0x207fffff, 1, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-        consensus.hashGenesisBlock = genesis.GetHash();
-        assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
-        assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        assert(consensus.hashGenesisBlock == uint256S("0x85b91b276d162f9fe04fec1f24ecf84c46bd027d75e4be1943412d221ff8f9a7"));
-        // Genesis values are derived from the locked timestamp payload above.
-
-        vFixedSeeds.clear();
-
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
-        base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
-        base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
-
-        bech32_hrp = "srg";
-
-        fDefaultConsistencyChecks = false;
-        fRequireStandard = true;
-        m_is_test_chain = true;
-        m_is_mockable_chain = false;
-    }
-};
-
-/**
  * Regression test: intended for private networks only. Has minimal difficulty to ensure that
  * blocks can be found instantly.
  */
@@ -554,7 +485,7 @@ public:
         consensus.nCoinbaseMaturity = 100;
         // Same genesis-active policy as public nets. BIP34/65/66/CSV @1 exempts
         // the genesis coinbase from BIP34 height-encoding; Segwit @0 is from genesis.
-        // -testactivationheight cannot override these (rejected in ReadRegTestArgs).
+        // These cannot be overridden: -testactivationheight is not a registered argument.
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1;
@@ -597,22 +528,16 @@ public:
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
 
-        // opts.activation_heights is unused: buried heights are fixed above.
-
-        for (const auto& [deployment_pos, version_bits_params] : opts.version_bits_parameters) {
-            consensus.vDeployments[deployment_pos].nStartTime = version_bits_params.start_time;
-            consensus.vDeployments[deployment_pos].nTimeout = version_bits_params.timeout;
-            consensus.vDeployments[deployment_pos].min_activation_height = version_bits_params.min_activation_height;
-        }
-
         const std::string regtest_genesis_timestamp = "Selection not computation. Convergence defines state. Naming is consensus.";
         const std::vector<unsigned char> regtest_genesis_spk = ParseHex("00145555555555555555555555555555555555555555");
         const CScript regtest_genesis_output_script(regtest_genesis_spk.begin(), regtest_genesis_spk.end());
-        genesis = CreateGenesisBlock(regtest_genesis_timestamp.c_str(), regtest_genesis_output_script, 1778224715, 0, 0x207fffff, 1, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+        genesis = CreateGenesisBlock(regtest_genesis_timestamp.c_str(), regtest_genesis_output_script, 1778224715, 0, 0x207fffff, 1, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
-        assert(consensus.hashGenesisBlock == uint256S("0xcc31d596fd01d27134f1ad83e50dc93699c984683acc420477ad986ffa5f348e"));
+        assert(genesis.hashMerkleRoot == uint256S("0xd3da525deee10cd11754b3269e919f8388184ec1f01a1222ad5419d00f0b43e3"));
+        assert(consensus.hashGenesisBlock == uint256S("0x3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63"));
+        assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         // Genesis values are derived from the locked timestamp payload above.
 
         checkpointData = {
@@ -622,6 +547,7 @@ public:
         };
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
+        SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
         vSeeds.clear();
         vSeeds.emplace_back("dummySeed.invalid.");
 
@@ -657,11 +583,6 @@ public:
         bech32_hrp = "rgrt";
     }
 };
-
-std::unique_ptr<const CChainParams> CChainParams::SigNet(const SigNetOptions& options)
-{
-    return std::make_unique<const SigNetParams>(options);
-}
 
 std::unique_ptr<const CChainParams> CChainParams::RegTest(const RegTestOptions& options)
 {
@@ -740,10 +661,13 @@ public:
         const std::string slowtest_genesis_timestamp = "[Rigor Slowtest] In V0 we trust, in V1 we execute — low-speed validation chain.";
         const std::vector<unsigned char> slowtest_genesis_spk = ParseHex("00146666666666666666666666666666666666666666");
         const CScript slowtest_genesis_output_script(slowtest_genesis_spk.begin(), slowtest_genesis_spk.end());
-        genesis = CreateGenesisBlock(slowtest_genesis_timestamp.c_str(), slowtest_genesis_output_script, 1777177700, 0, 0x1e0fffff, 1, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+        genesis = CreateGenesisBlock(slowtest_genesis_timestamp.c_str(), slowtest_genesis_output_script, 1777177700, 0, 0x1e0fffff, 1, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis));
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
+        assert(genesis.hashMerkleRoot == uint256S("0x46ee1198cb3aeee9160bf0f88b1c99d167024fedbbf9e926d81a9f2c49d32c85"));
+        assert(consensus.hashGenesisBlock == uint256S("0x18ddf722cf24b35ad9e3b548ddba22a2e54535fd5932d4d699fa9602f6d3efb8"));
+        assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
 
         checkpointData = {
             {
@@ -752,6 +676,7 @@ public:
         };
 
         vFixedSeeds.clear();
+        SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
         vSeeds.clear();
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);

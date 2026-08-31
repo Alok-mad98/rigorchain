@@ -3,11 +3,13 @@ core/src/qt/bitcoin-qt
 core/src/qt/test/test_bitcoin-qt
 core/src/test/fuzz/fuzz
 core/src/test/test_bitcoin
+core/src/test/test_rigor
 core/src/rigord
 core/src/bitcoind
 core/src/bitcoin-wallet
 core/src/rigor-cli
 core/src/rigor-tx
+core/src/rigor-util
 core/src/rigor-wallet
 core/src/bitcoin-cli
 core/src/bitcoin-tx
@@ -58,9 +60,6 @@ config.log
 config.status
 configure
 libtool
-src/config/bitcoin-config.h
-src/config/bitcoin-config.h.in
-src/config/stamp-h1
 src/obj
 share/setup.nsi
 share/qt/Info.plist
@@ -266,9 +265,18 @@ formal_verification/coq/CoqMakefile
 formal_verification/coq/CoqMakefile.conf
 formal_verification/coq/CoqMakefile.conf.conf
 formal_verification/coq/.CoqMakefile.*
+# v0.1 live model (formal_verification/rigor_v01)
+formal_verification/rigor_v01/**/*.vo
+formal_verification/rigor_v01/**/*.vos
+formal_verification/rigor_v01/**/*.vok
+formal_verification/rigor_v01/**/*.glob
+formal_verification/rigor_v01/**/*.aux
+formal_verification/rigor_v01/**/.*.aux
 # coq_makefile -f _CoqProject -o Makefile.coq regenerates these; _CoqProject is the only source.
 formal_verification/coq/Makefile.coq
 formal_verification/coq/Makefile.coq.conf
+formal_verification/coq/Makefile.protocol-core
+formal_verification/coq/Makefile.protocol-core.conf
 formal_verification/coq/**/.Makefile*.d
 formal_verification/coq/**/Makefile.conf
 # Extraction.v output.
@@ -283,6 +291,10 @@ formal_verification/coq/rigor.mli
 .release/
 simulation/**/state_trace.jsonl
 replay/convergence_drift_report.json
+logs/consensus_kernel_canary/*.json
+logs/consensus_kernel_canary/*.jsonl
+core/logs/
+core/src/logs/
 
 # Compiled binaries that were previously tracked (TASK-HYGIENE-001)
 core/src/compute_rfc001_vectors
@@ -335,6 +347,9 @@ contrib/testing/m1*/
 .runtime/
 contrib/testing/local_mainnet_simulation/out/
 miner/minerd
+miner/test_gbt_solo
+miner/fuzz_gbt_solo
+miner/test-driver
 core/build-mingw-alpha/
 core/build-linux-alpha/
 

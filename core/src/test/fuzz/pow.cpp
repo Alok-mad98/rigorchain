@@ -6,6 +6,7 @@
 #include <chainparams.h>
 #include <pow.h>
 #include <primitives/block.h>
+#include <rigor_kernel/pow_digest.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
@@ -76,10 +77,8 @@ FUZZ_TARGET_INIT(pow, initialize_pow)
             }
         }
         {
-            const std::optional<uint256> hash = ConsumeDeserializable<uint256>(fuzzed_data_provider);
-            if (hash) {
-                (void)CheckProofOfWork(*hash, fuzzed_data_provider.ConsumeIntegral<unsigned int>(), consensus_params);
-            }
+            (void)CheckProofOfWork(*block_header, fuzzed_data_provider.ConsumeIntegral<unsigned int>(), consensus_params);
+            (void)rigor_kernel::GetRigorPowHash(*block_header);
         }
     }
 }

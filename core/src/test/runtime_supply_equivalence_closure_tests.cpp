@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/runtime_supply_equivalence_closure.h>
-#include <consensus/runtime_supply_witness_equivalence_candidate.h>
+#include <node/supply_monitor/runtime_supply_equivalence_closure.h>
+#include <node/supply_monitor/runtime_supply_witness_equivalence_candidate.h>
 
 #include <boost/test/unit_test.hpp>
 

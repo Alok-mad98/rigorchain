@@ -35,10 +35,7 @@ LIBBITCOINQT=qt/libbitcoinqt.a
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
-if BUILD_BITCOIN_LIBS
-LIBBITCOINCONSENSUS=libbitcoinconsensus.la
-endif
-if BUILD_BITCOIN_KERNEL_LIB
+if BUILD_RIGOR_KERNEL_LIB
 LIBBITCOINKERNEL=libbitcoinkernel.la
 endif
 if ENABLE_WALLET
@@ -78,34 +75,34 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_WALLET_TOOL) \
   $(LIBBITCOIN_ZMQ)
 
-if BUILD_BITCOIND
+if BUILD_RIGORD
   bin_PROGRAMS += rigord
 endif
 
-if BUILD_BITCOIN_NODE
-  bin_PROGRAMS += bitcoin-node
+if BUILD_RIGOR_NODE
+  bin_PROGRAMS += rigor-node
 endif
 
-if BUILD_BITCOIN_CLI
+if BUILD_RIGOR_CLI
   bin_PROGRAMS += rigor-cli
 endif
 
-if BUILD_BITCOIN_TX
+if BUILD_RIGOR_TX
   bin_PROGRAMS += rigor-tx
 endif
 
 if ENABLE_WALLET
-if BUILD_BITCOIN_WALLET
+if BUILD_RIGOR_WALLET
   bin_PROGRAMS += rigor-wallet
 endif
 endif
 
-if BUILD_BITCOIN_UTIL
-  bin_PROGRAMS += bitcoin-util
+if BUILD_RIGOR_UTIL
+  bin_PROGRAMS += rigor-util
 endif
 
-if BUILD_BITCOIN_CHAINSTATE
-  bin_PROGRAMS += bitcoin-chainstate
+if BUILD_RIGOR_CHAINSTATE
+  bin_PROGRAMS += rigor-chainstate
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -123,11 +120,11 @@ BITCOIN_CORE_H = \
   chain.h \
   chainparams.h \
   chainparamsbase.h \
-  chainparamsseeds.h \
   checkqueue.h \
   clientversion.h \
   coins.h \
   connect_block_rigor_checks.h \
+  consensus/kernel/genesis_authority.h \
   common/alphaplus_security.h \
   common/bloom.h \
   common/init.h \
@@ -141,7 +138,7 @@ BITCOIN_CORE_H = \
   compressor.h \
   consensus/consensus.h \
   consensus/fingerprint.h \
-  consensus/observational_metrics.h \
+  node/supply_monitor/observational_metrics.h \
   consensus/statetag.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
@@ -235,7 +232,11 @@ BITCOIN_CORE_H = \
   policy/settings.h \
   pow.h \
   pow_opus.h \
+  rigor_kernel/keccak.h \
+  rigor_kernel/pow_digest.h \
   protocol.h \
+  rigor_capability.h \
+  seed_manifest.h \
   psbt.h \
   random.h \
   randomenv.h \
@@ -255,14 +256,12 @@ BITCOIN_CORE_H = \
   scheduler.h \
   script/descriptor.h \
   script/keyorigin.h \
-  script/miniscript.h \
   script/sigcache.h \
   script/sign.h \
   script/signingprovider.h \
   script/rigor_tags.h \
   script/standard.h \
   shutdown.h \
-  signet.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -323,7 +322,6 @@ BITCOIN_CORE_H = \
   validation.h \
   validationinterface.h \
   versionbits.h \
-  wallet/bdb.h \
   wallet/coincontrol.h \
   wallet/coinselection.h \
   wallet/context.h \
@@ -339,7 +337,6 @@ BITCOIN_CORE_H = \
   wallet/receive.h \
   wallet/rpc/util.h \
   wallet/rpc/wallet.h \
-  wallet/salvage.h \
   wallet/scriptpubkeyman.h \
   wallet/spend.h \
   wallet/fee_domain.h \
@@ -380,7 +377,7 @@ libbitcoin_node_a_SOURCES = \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
-  consensus/observational_metrics.cpp \
+  node/supply_monitor/observational_metrics.cpp \
   consensus/convergenceres.cpp \
   consensus/convergence_root.cpp \
   consensus/convergence_root_eligibility.cpp \
@@ -388,21 +385,22 @@ libbitcoin_node_a_SOURCES = \
   consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \
   consensus/rigor_res.cpp \
+  consensus/kernel/genesis_authority.cpp \
   consensus/state_snapshot.cpp \
   consensus/replay_snapshot.cpp \
   consensus/state_diff.cpp \
-  consensus/runtime_supply_state.cpp \
-  consensus/coq_supply_field_hook.cpp \
-  consensus/runtime_supply_export.cpp \
-  consensus/runtime_supply_invariant_checker.cpp \
-  consensus/runtime_supply_witness_chain.cpp \
-  consensus/runtime_supply_witness_coq_adapter.cpp \
-  consensus/runtime_supply_coq_chas_adapter.cpp \
-  consensus/runtime_supply_witness_equivalence_candidate.cpp \
-  consensus/runtime_supply_global_candidate_equivalence.cpp \
-  consensus/runtime_supply_equivalence_closure.cpp \
-  consensus/runtime_supply_draw_closure.cpp \
-  consensus/runtime_supply_phase5_summary.cpp \
+  node/supply_monitor/runtime_supply_state.cpp \
+  node/supply_monitor/coq_supply_field_hook.cpp \
+  node/supply_monitor/runtime_supply_export.cpp \
+  node/supply_monitor/runtime_supply_invariant_checker.cpp \
+  node/supply_monitor/runtime_supply_witness_chain.cpp \
+  node/supply_monitor/runtime_supply_witness_coq_adapter.cpp \
+  node/supply_monitor/runtime_supply_coq_chas_adapter.cpp \
+  node/supply_monitor/runtime_supply_witness_equivalence_candidate.cpp \
+  node/supply_monitor/runtime_supply_global_candidate_equivalence.cpp \
+  node/supply_monitor/runtime_supply_equivalence_closure.cpp \
+  node/supply_monitor/runtime_supply_draw_closure.cpp \
+  node/supply_monitor/runtime_supply_phase5_summary.cpp \
   proof/runtime_vector_harness.cpp \
   consensus/tx_verify.cpp \
   consensus_rigor/fee.cpp \
@@ -478,7 +476,6 @@ libbitcoin_node_a_SOURCES = \
   rpc/txoutproof.cpp \
   script/sigcache.cpp \
   shutdown.cpp \
-  signet.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -493,9 +490,6 @@ libbitcoin_node_a_SOURCES = \
 
 if ENABLE_WALLET
 libbitcoin_node_a_SOURCES += wallet/init.cpp
-if USE_BDB
-libbitcoin_node_a_CPPFLAGS += $(BDB_CPPFLAGS)
-endif
 endif
 if !ENABLE_WALLET
 libbitcoin_node_a_SOURCES += dummywallet.cpp
@@ -517,9 +511,6 @@ endif
 
 # wallet #
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS) $(SQLITE_CFLAGS)
-if USE_BDB
-libbitcoin_wallet_a_CPPFLAGS += $(BDB_CPPFLAGS)
-endif
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   wallet/coincontrol.cpp \
@@ -563,9 +554,6 @@ libbitcoin_wallet_a_SOURCES = \
 
 if USE_SQLITE
 libbitcoin_wallet_a_SOURCES += wallet/sqlite.cpp
-endif
-if USE_BDB
-libbitcoin_wallet_a_SOURCES += wallet/bdb.cpp wallet/salvage.cpp
 endif
 #
 
@@ -680,6 +668,11 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/fingerprint.cpp \
   consensus/fingerprint.h \
   consensus/params.h \
+  consensus/rigor_issuance.cpp \
+  consensus/rigor_issuance.h \
+  consensus/rigor_supply.cpp \
+  consensus/rigor_supply.h \
+  consensus/rigor_coinbase_layout.h \
   consensus/selection.cpp \
   consensus/selection.h \
   consensus/convergenceres_verify.cpp \
@@ -696,19 +689,25 @@ libbitcoin_consensus_a_SOURCES = \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \
+  rigor_kernel/keccak.cpp \
+  rigor_kernel/keccak.h \
+  rigor_kernel/pow_digest.cpp \
+  rigor_kernel/pow_digest.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
   pubkey.cpp \
   pubkey.h \
-  script/bitcoinconsensus.cpp \
   consensus/res_proof.cpp \
   consensus/res_owner.h \
   consensus/res_proof.h \
-  consensus/res_mint_carrier.cpp \
-  consensus/res_mint_carrier.h \
+  script/rigor_bytes.cpp \
+  script/rigor_bytes.h \
+  script/rigor_opcode_namespace.cpp \
+  script/rigor_opcode_namespace.h \
+  script/rigor_predicate_registry.h \
   script/rigor_classify.cpp \
-  script/interpreter.cpp \
-  script/interpreter.h \
+  script/predicate_verify.cpp \
+  script/predicate_verify.h \
   script/script.cpp \
   script/script.h \
   script/script_error.cpp \
@@ -755,6 +754,8 @@ libbitcoin_common_a_SOURCES = \
   policy/feerate.cpp \
   policy/policy.cpp \
   protocol.cpp \
+  rigor_capability.cpp \
+  seed_manifest.cpp \
   psbt.cpp \
   rpc/external_signer.cpp \
   rpc/rawtransaction_util.cpp \
@@ -762,7 +763,6 @@ libbitcoin_common_a_SOURCES = \
   rpc/util.cpp \
   scheduler.cpp \
   script/descriptor.cpp \
-  script/miniscript.cpp \
   script/sign.cpp \
   script/conv_sign_trace.cpp \
   script/signingprovider.cpp \
@@ -833,13 +833,13 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # rigord (daemon) & bitcoin-node binaries #
-bitcoin_daemon_sources = bitcoind.cpp
+bitcoin_daemon_sources = rigord.cpp
 bitcoin_bin_cppflags = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 bitcoin_bin_cxxflags = $(AM_CXXFLAGS) $(PIE_FLAGS)
 bitcoin_bin_ldflags = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-bitcoin_daemon_sources += bitcoind-res.rc
+bitcoin_daemon_sources += rigord-res.rc
 endif
 
 bitcoin_bin_ldadd = \
@@ -854,30 +854,27 @@ bitcoin_bin_ldadd = \
   $(LIBMEMENV)
 
 bitcoin_bin_ldadd += $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(SQLITE_LIBS) $(SODIUM_LIBS)
-if USE_BDB
-bitcoin_bin_ldadd += $(BDB_LIBS)
-endif
 
-rigord_SOURCES = $(bitcoin_daemon_sources) init/bitcoind.cpp
+rigord_SOURCES = $(bitcoin_daemon_sources) init/rigord.cpp
 rigord_CPPFLAGS = $(bitcoin_bin_cppflags)
 rigord_CXXFLAGS = $(bitcoin_bin_cxxflags)
 rigord_LDFLAGS = $(bitcoin_bin_ldflags)
 rigord_LDADD = $(LIBBITCOIN_NODE) $(bitcoin_bin_ldadd)
 
-bitcoin_node_SOURCES = $(bitcoin_daemon_sources) init/bitcoin-node.cpp
-bitcoin_node_CPPFLAGS = $(bitcoin_bin_cppflags)
-bitcoin_node_CXXFLAGS = $(bitcoin_bin_cxxflags)
-bitcoin_node_LDFLAGS = $(bitcoin_bin_ldflags)
-bitcoin_node_LDADD = $(LIBBITCOIN_NODE) $(bitcoin_bin_ldadd) $(LIBBITCOIN_IPC) $(LIBMULTIPROCESS_LIBS)
+rigor_node_SOURCES = $(bitcoin_daemon_sources) init/rigor-node.cpp
+rigor_node_CPPFLAGS = $(bitcoin_bin_cppflags)
+rigor_node_CXXFLAGS = $(bitcoin_bin_cxxflags)
+rigor_node_LDFLAGS = $(bitcoin_bin_ldflags)
+rigor_node_LDADD = $(LIBBITCOIN_NODE) $(bitcoin_bin_ldadd) $(LIBBITCOIN_IPC) $(LIBMULTIPROCESS_LIBS)
 
 # rigor-cli binary #
-rigor_cli_SOURCES = bitcoin-cli.cpp
+rigor_cli_SOURCES = rigor-cli.cpp
 rigor_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
 rigor_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 rigor_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-rigor_cli_SOURCES += bitcoin-cli-res.rc
+rigor_cli_SOURCES += rigor-cli-res.rc
 endif
 
 rigor_cli_LDADD = \
@@ -891,13 +888,13 @@ rigor_cli_LDADD += $(EVENT_LIBS) $(SODIUM_LIBS)
 #
 
 # rigor-tx binary #
-rigor_tx_SOURCES = bitcoin-tx.cpp
+rigor_tx_SOURCES = rigor-tx.cpp
 rigor_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 rigor_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 rigor_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-rigor_tx_SOURCES += bitcoin-tx-res.rc
+rigor_tx_SOURCES += rigor-tx-res.rc
 endif
 
 rigor_tx_LDADD = \
@@ -910,8 +907,8 @@ rigor_tx_LDADD = \
 #
 
 # rigor-wallet binary #
-rigor_wallet_SOURCES = bitcoin-wallet.cpp
-rigor_wallet_SOURCES += init/bitcoin-wallet.cpp
+rigor_wallet_SOURCES = rigor-wallet.cpp
+rigor_wallet_SOURCES += init/rigor-wallet.cpp
 rigor_wallet_CPPFLAGS = $(bitcoin_bin_cppflags)
 rigor_wallet_CXXFLAGS = $(bitcoin_bin_cxxflags)
 rigor_wallet_LDFLAGS = $(bitcoin_bin_ldflags)
@@ -936,26 +933,22 @@ rigor_wallet_LDADD = \
   $(EVENT_PTHREADS_LIBS) \
   $(SODIUM_LIBS)
 
-if USE_BDB
-rigor_wallet_LDADD += $(BDB_LIBS)
-endif
-
 if TARGET_WINDOWS
-rigor_wallet_SOURCES += bitcoin-wallet-res.rc
+rigor_wallet_SOURCES += rigor-wallet-res.rc
 endif
 #
 
-# bitcoin-util binary #
-bitcoin_util_SOURCES = bitcoin-util.cpp
-bitcoin_util_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-bitcoin_util_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bitcoin_util_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
+# rigor-util binary #
+rigor_util_SOURCES = rigor-util.cpp
+rigor_util_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+rigor_util_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+rigor_util_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS)
 
 if TARGET_WINDOWS
-bitcoin_util_SOURCES += bitcoin-util-res.rc
+rigor_util_SOURCES += rigor-util-res.rc
 endif
 
-bitcoin_util_LDADD = \
+rigor_util_LDADD = \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
   $(LIBUNIVALUE) \
@@ -965,19 +958,19 @@ bitcoin_util_LDADD = \
 #
 
 # bitcoin-chainstate binary #
-bitcoin_chainstate_SOURCES = bitcoin-chainstate.cpp
-bitcoin_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
-bitcoin_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+rigor_chainstate_SOURCES = rigor-chainstate.cpp
+rigor_chainstate_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)
+rigor_chainstate_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
-bitcoin_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS) $(LIBTOOL_APP_LDFLAGS) -static
-bitcoin_chainstate_LDADD = $(LIBBITCOINKERNEL)
+rigor_chainstate_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(PTHREAD_FLAGS) $(LIBTOOL_APP_LDFLAGS) -static
+rigor_chainstate_LDADD = $(LIBBITCOINKERNEL)
 
 # libtool is unable to calculate this indirect dependency, presumably because it's a subproject.
-bitcoin_chainstate_LDADD += $(SODIUM_LIBS)
+rigor_chainstate_LDADD += $(SODIUM_LIBS)
 #
 
 # bitcoinkernel library #
-if BUILD_BITCOIN_KERNEL_LIB
+if BUILD_RIGOR_KERNEL_LIB
 lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
@@ -1000,7 +993,7 @@ libbitcoinkernel_la_SOURCES = \
   arith_uint256.cpp \
   arith_uint512.cpp \
   chain.cpp \
-  consensus/observational_metrics.cpp \
+  node/supply_monitor/observational_metrics.cpp \
   consensus/convergenceres.cpp \
   consensus/convergence_root.cpp \
   consensus/convergence_root_eligibility.cpp \
@@ -1020,6 +1013,10 @@ libbitcoinkernel_la_SOURCES = \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \
   consensus/tx_verify.cpp \
+  consensus/rigor_issuance.cpp \
+  consensus/rigor_supply.cpp \
+  consensus/rigor_res.cpp \
+  consensus/kernel/genesis_authority.cpp \
   core_read.cpp \
   crypto/ed25519_provider.cpp \
   dbwrapper.cpp \
@@ -1054,14 +1051,15 @@ libbitcoinkernel_la_SOURCES = \
   random.cpp \
   randomenv.cpp \
   scheduler.cpp \
-  script/interpreter.cpp \
+  script/predicate_verify.cpp \
+  script/rigor_bytes.cpp \
+  script/rigor_opcode_namespace.cpp \
   script/rigor_classify.cpp \
   script/script.cpp \
   script/script_error.cpp \
   script/sigcache.cpp \
   script/standard.cpp \
   shutdown.cpp \
-  signet.cpp \
   support/cleanse.cpp \
   support/lockedpool.cpp \
   sync.cpp \
@@ -1095,23 +1093,7 @@ libbitcoinkernel_la_SOURCES = \
 # Required for obj/build.h to be generated first.
 # More details: https://www.gnu.org/software/automake/manual/html_node/Built-Sources-Example.html
 libbitcoinkernel_la-clientversion.l$(OBJEXT): obj/build.h
-endif # BUILD_BITCOIN_KERNEL_LIB
-#
-
-# bitcoinconsensus library #
-if BUILD_BITCOIN_LIBS
-lib_LTLIBRARIES += $(LIBBITCOINCONSENSUS)
-
-include_HEADERS = script/bitcoinconsensus.h
-libbitcoinconsensus_la_SOURCES = support/cleanse.cpp $(crypto_libbitcoin_crypto_base_la_SOURCES) $(libbitcoin_consensus_a_SOURCES)
-
-libbitcoinconsensus_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS)
-# Interpreter consensus paths are Ed25519-first (v0/v1 witness).
-libbitcoinconsensus_la_LIBADD = $(SODIUM_LIBS)
-libbitcoinconsensus_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -DBUILD_BITCOIN_INTERNAL
-libbitcoinconsensus_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-
-endif
+endif # BUILD_RIGOR_KERNEL_LIB
 #
 
 CTAES_DIST =  crypto/ctaes/bench.c
@@ -1145,12 +1127,12 @@ CLEANFILES += obj/build.h
 EXTRA_DIST = $(CTAES_DIST)
 
 
-config/bitcoin-config.h: config/stamp-h1
+config/rigor-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)
-config/stamp-h1: $(top_srcdir)/$(subdir)/config/bitcoin-config.h.in $(top_builddir)/config.status
+config/stamp-h1: $(top_srcdir)/$(subdir)/config/rigor-config.h.in $(top_builddir)/config.status
 	$(AM_V_at)$(MAKE) -C $(top_builddir) $(subdir)/$(@)
-$(top_srcdir)/$(subdir)/config/bitcoin-config.h.in:  $(am__configure_deps)
-	$(AM_V_at)$(MAKE) -C $(top_srcdir) $(subdir)/config/bitcoin-config.h.in
+$(top_srcdir)/$(subdir)/config/rigor-config.h.in:  $(am__configure_deps)
+	$(AM_V_at)$(MAKE) -C $(top_srcdir) $(subdir)/config/rigor-config.h.in
 
 clean-local:
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno

@@ -13,10 +13,10 @@ BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Valid)
 {
     uint256 dummy;
     CScript p2wsh;
-    p2wsh << OP_0 << ToByteVector(dummy);
+    p2wsh << RIGOR_PUSH_0 << ToByteVector(dummy);
     BOOST_CHECK(p2wsh.IsPayToWitnessScriptHash());
 
-    std::vector<unsigned char> bytes = {OP_0, 32};
+    std::vector<unsigned char> bytes = {RIGOR_PUSH_0, 32};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(CScript(bytes.begin(), bytes.end()).IsPayToWitnessScriptHash());
 }
@@ -25,7 +25,7 @@ BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Invalid_NotOp0)
 {
     uint256 dummy;
     CScript notp2wsh;
-    notp2wsh << OP_1 << ToByteVector(dummy);
+    notp2wsh << RIGOR_PUSH_1 << ToByteVector(dummy);
     BOOST_CHECK(!notp2wsh.IsPayToWitnessScriptHash());
 }
 
@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Invalid_Size)
 {
     uint160 dummy;
     CScript notp2wsh;
-    notp2wsh << OP_0 << ToByteVector(dummy);
+    notp2wsh << RIGOR_PUSH_0 << ToByteVector(dummy);
     BOOST_CHECK(!notp2wsh.IsPayToWitnessScriptHash());
 }
 
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Invalid_Nop)
 {
     uint256 dummy;
     CScript notp2wsh;
-    notp2wsh << OP_0 << OP_NOP << ToByteVector(dummy);
+    notp2wsh << RIGOR_PUSH_0 << RIGOR_RESERVED_LEGACY_NOP << ToByteVector(dummy);
     BOOST_CHECK(!notp2wsh.IsPayToWitnessScriptHash());
 }
 
@@ -54,15 +54,15 @@ BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Invalid_EmptyScript)
 BOOST_AUTO_TEST_CASE(IsPayToWitnessScriptHash_Invalid_Pushdata)
 {
     // A script is not P2WSH if OP_PUSHDATA is used to push the hash.
-    std::vector<unsigned char> bytes = {OP_0, OP_PUSHDATA1, 32};
+    std::vector<unsigned char> bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA1, 32};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(!CScript(bytes.begin(), bytes.end()).IsPayToWitnessScriptHash());
 
-    bytes = {OP_0, OP_PUSHDATA2, 32, 0};
+    bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA2, 32, 0};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(!CScript(bytes.begin(), bytes.end()).IsPayToWitnessScriptHash());
 
-    bytes = {OP_0, OP_PUSHDATA4, 32, 0, 0, 0};
+    bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA4, 32, 0, 0, 0};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(!CScript(bytes.begin(), bytes.end()).IsPayToWitnessScriptHash());
 }
@@ -95,17 +95,17 @@ BOOST_AUTO_TEST_CASE(IsWitnessProgram_Valid)
     // Witness programs have a minimum data push of 2 bytes.
     std::vector<unsigned char> program = {42, 18};
     CScript wit;
-    wit << OP_0 << program;
+    wit << RIGOR_PUSH_0 << program;
     BOOST_CHECK(IsExpectedWitnessProgram(wit, 0, program));
 
     wit.clear();
     // Witness programs have a maximum data push of 40 bytes.
     program.resize(40);
-    wit << OP_16 << program;
+    wit << RIGOR_PUSH_16 << program;
     BOOST_CHECK(IsExpectedWitnessProgram(wit, 16, program));
 
     program.resize(32);
-    std::vector<unsigned char> bytes = {OP_5, static_cast<unsigned char>(program.size())};
+    std::vector<unsigned char> bytes = {RIGOR_PUSH_5, static_cast<unsigned char>(program.size())};
     bytes.insert(bytes.end(), program.begin(), program.end());
     BOOST_CHECK(IsExpectedWitnessProgram(CScript(bytes.begin(), bytes.end()), 5, program));
 }
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(IsWitnessProgram_Invalid_Version)
 {
     std::vector<unsigned char> program(10);
     CScript nowit;
-    nowit << OP_1NEGATE << program;
+    nowit << RIGOR_RESERVED_LEGACY_1NEGATE << program;
     BOOST_CHECK(IsNoWitnessProgram(nowit));
 }
 
@@ -122,12 +122,12 @@ BOOST_AUTO_TEST_CASE(IsWitnessProgram_Invalid_Size)
 {
     std::vector<unsigned char> program(1);
     CScript nowit;
-    nowit << OP_0 << program;
+    nowit << RIGOR_PUSH_0 << program;
     BOOST_CHECK(IsNoWitnessProgram(nowit));
 
     nowit.clear();
     program.resize(41);
-    nowit << OP_0 << program;
+    nowit << RIGOR_PUSH_0 << program;
     BOOST_CHECK(IsNoWitnessProgram(nowit));
 }
 
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(IsWitnessProgram_Invalid_Nop)
 {
     std::vector<unsigned char> program(10);
     CScript nowit;
-    nowit << OP_0 << OP_NOP << program;
+    nowit << RIGOR_PUSH_0 << RIGOR_RESERVED_LEGACY_NOP << program;
     BOOST_CHECK(IsNoWitnessProgram(nowit));
 }
 
@@ -148,15 +148,15 @@ BOOST_AUTO_TEST_CASE(IsWitnessProgram_Invalid_EmptyScript)
 BOOST_AUTO_TEST_CASE(IsWitnessProgram_Invalid_Pushdata)
 {
     // A script is no witness program if OP_PUSHDATA is used to push the hash.
-    std::vector<unsigned char> bytes = {OP_0, OP_PUSHDATA1, 32};
+    std::vector<unsigned char> bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA1, 32};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(IsNoWitnessProgram(CScript(bytes.begin(), bytes.end())));
 
-    bytes = {OP_0, OP_PUSHDATA2, 32, 0};
+    bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA2, 32, 0};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(IsNoWitnessProgram(CScript(bytes.begin(), bytes.end())));
 
-    bytes = {OP_0, OP_PUSHDATA4, 32, 0, 0, 0};
+    bytes = {RIGOR_PUSH_0, RIGOR_PUSHDATA4, 32, 0, 0, 0};
     bytes.insert(bytes.end(), 32, 0);
     BOOST_CHECK(IsNoWitnessProgram(CScript(bytes.begin(), bytes.end())));
 }

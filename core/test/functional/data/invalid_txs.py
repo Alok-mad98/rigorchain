@@ -33,31 +33,32 @@ from test_framework.messages import (
 from test_framework.blocktools import create_tx_with_script, MAX_BLOCK_SIGOPS
 from test_framework.script import (
     CScript,
-    OP_0,
-    OP_2DIV,
-    OP_2MUL,
-    OP_AND,
-    OP_CAT,
-    OP_CHECKSIG,
-    OP_DIV,
-    OP_INVERT,
-    OP_LEFT,
-    OP_LSHIFT,
-    OP_MOD,
-    OP_MUL,
-    OP_OR,
-    OP_RETURN,
-    OP_RIGHT,
-    OP_RSHIFT,
-    OP_SUBSTR,
-    OP_XOR,
+    RIGOR_PUSH_0,
+    RIGOR_RESERVED_LEGACY_2DIV,
+    RIGOR_RESERVED_LEGACY_2MUL,
+    RIGOR_RESERVED_LEGACY_AND,
+    RIGOR_RESERVED_LEGACY_CAT,
+    RIGOR_RESERVED_LEGACY_CHECKSIG,
+    RIGOR_RESERVED_LEGACY_DIV,
+    RIGOR_RESERVED_LEGACY_INVERT,
+    RIGOR_RESERVED_LEGACY_LEFT,
+    RIGOR_RESERVED_LEGACY_LSHIFT,
+    RIGOR_RESERVED_LEGACY_MOD,
+    RIGOR_RESERVED_LEGACY_MUL,
+    RIGOR_RESERVED_LEGACY_OR,
+    RIGOR_MARKER_RETURN,
+    RIGOR_RESERVED_LEGACY_RIGHT,
+    RIGOR_RESERVED_LEGACY_RSHIFT,
+    RIGOR_RESERVED_LEGACY_SUBSTR,
+    RIGOR_RESERVED_LEGACY_XOR,
 )
 from test_framework.script_util import (
     MIN_PADDING,
     MIN_STANDARD_TX_NONWITNESS_SIZE,
-    script_to_p2sh_script,
+    program_to_witness_script,
 )
-basic_p2sh = script_to_p2sh_script(CScript([OP_0]))
+# P2SH is ASSET_INVALID. Dummy outputs must be a real ORU script shape.
+dummy_wpkh = program_to_witness_script(0, bytes(20))
 
 class BadTxTemplate:
     """Allows simple construction of a certain kind of invalid tx. Base class to be subclassed."""
@@ -123,7 +124,7 @@ class SizeTooSmall(BadTxTemplate):
     def get_tx(self):
         tx = CTransaction()
         tx.vin.append(self.valid_txin)
-        tx.vout.append(CTxOut(0, CScript([OP_RETURN] + ([OP_0] * (MIN_PADDING - 2)))))
+        tx.vout.append(CTxOut(0, CScript([RIGOR_MARKER_RETURN] + ([RIGOR_PUSH_0] * (MIN_PADDING - 2)))))
         assert len(tx.serialize_without_witness()) == 64
         assert MIN_STANDARD_TX_NONWITNESS_SIZE - 1 == 64
         tx.calc_sha256()
@@ -142,7 +143,7 @@ class BadInputOutpointIndex(BadTxTemplate):
 
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(self.spend_tx.sha256, bad_idx), b"", SEQUENCE_FINAL))
-        tx.vout.append(CTxOut(0, basic_p2sh))
+        tx.vout.append(CTxOut(1, dummy_wpkh))
         tx.calc_sha256()
         return tx
 
@@ -155,7 +156,7 @@ class DuplicateInput(BadTxTemplate):
         tx = CTransaction()
         tx.vin.append(self.valid_txin)
         tx.vin.append(self.valid_txin)
-        tx.vout.append(CTxOut(1, basic_p2sh))
+        tx.vout.append(CTxOut(1, dummy_wpkh))
         tx.calc_sha256()
         return tx
 
@@ -168,7 +169,7 @@ class PrevoutNullInput(BadTxTemplate):
         tx = CTransaction()
         tx.vin.append(self.valid_txin)
         tx.vin.append(CTxIn(COutPoint(hash=0, n=0xffffffff)))
-        tx.vout.append(CTxOut(1, basic_p2sh))
+        tx.vout.append(CTxOut(1, dummy_wpkh))
         tx.calc_sha256()
         return tx
 
@@ -181,18 +182,18 @@ class NonexistentInput(BadTxTemplate):
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(self.spend_tx.sha256 + 1, 0), b"", SEQUENCE_FINAL))
         tx.vin.append(self.valid_txin)
-        tx.vout.append(CTxOut(1, basic_p2sh))
+        tx.vout.append(CTxOut(1, dummy_wpkh))
         tx.calc_sha256()
         return tx
 
 
 class SpendTooMuch(BadTxTemplate):
-    reject_reason = 'bad-txns-in-belowout'
+    reject_reason = 'bad-txns-orum-in-belowout'
     expect_disconnect = True
 
     def get_tx(self):
         return create_tx_with_script(
-            self.spend_tx, 0, script_pub_key=basic_p2sh, amount=(self.spend_avail + 1))
+            self.spend_tx, 0, script_pub_key=dummy_wpkh, amount=(self.spend_avail + 1))
 
 
 class CreateNegative(BadTxTemplate):
@@ -200,7 +201,7 @@ class CreateNegative(BadTxTemplate):
     expect_disconnect = True
 
     def get_tx(self):
-        return create_tx_with_script(self.spend_tx, 0, amount=-1)
+        return create_tx_with_script(self.spend_tx, 0, amount=-1, script_pub_key=dummy_wpkh)
 
 
 class CreateTooLarge(BadTxTemplate):
@@ -208,7 +209,7 @@ class CreateTooLarge(BadTxTemplate):
     expect_disconnect = True
 
     def get_tx(self):
-        return create_tx_with_script(self.spend_tx, 0, amount=MAX_MONEY + 1)
+        return create_tx_with_script(self.spend_tx, 0, amount=MAX_MONEY + 1, script_pub_key=dummy_wpkh)
 
 
 class CreateSumTooLarge(BadTxTemplate):
@@ -216,14 +217,14 @@ class CreateSumTooLarge(BadTxTemplate):
     expect_disconnect = True
 
     def get_tx(self):
-        tx = create_tx_with_script(self.spend_tx, 0, amount=MAX_MONEY)
+        tx = create_tx_with_script(self.spend_tx, 0, amount=MAX_MONEY, script_pub_key=dummy_wpkh)
         tx.vout = [tx.vout[0]] * 2
         tx.calc_sha256()
         return tx
 
 
 class InvalidOPIFConstruction(BadTxTemplate):
-    reject_reason = "mandatory-script-verify-flag-failed (Invalid OP_IF construction)"
+    reject_reason = "mandatory-script-verify-flag-failed (Invalid RIGOR_RESERVED_LEGACY_IF construction)"
     expect_disconnect = True
     valid_in_block = True
 
@@ -239,7 +240,7 @@ class TooManySigops(BadTxTemplate):
     expect_disconnect = False
 
     def get_tx(self):
-        lotsa_checksigs = CScript([OP_CHECKSIG] * (MAX_BLOCK_SIGOPS))
+        lotsa_checksigs = CScript([RIGOR_RESERVED_LEGACY_CHECKSIG] * (MAX_BLOCK_SIGOPS))
         return create_tx_with_script(
             self.spend_tx, 0,
             script_pub_key=lotsa_checksigs,
@@ -252,7 +253,7 @@ def getDisabledOpcodeTemplate(opcode):
         vin = self.valid_txin
         vin.scriptSig = CScript([opcode])
         tx.vin.append(vin)
-        tx.vout.append(CTxOut(1, basic_p2sh))
+        tx.vout.append(CTxOut(1, dummy_wpkh))
         tx.calc_sha256()
         return tx
 
@@ -265,21 +266,21 @@ def getDisabledOpcodeTemplate(opcode):
 
 # Disabled opcode tx templates (CVE-2010-5137)
 DisabledOpcodeTemplates = [getDisabledOpcodeTemplate(opcode) for opcode in [
-    OP_CAT,
-    OP_SUBSTR,
-    OP_LEFT,
-    OP_RIGHT,
-    OP_INVERT,
-    OP_AND,
-    OP_OR,
-    OP_XOR,
-    OP_2MUL,
-    OP_2DIV,
-    OP_MUL,
-    OP_DIV,
-    OP_MOD,
-    OP_LSHIFT,
-    OP_RSHIFT]]
+    RIGOR_RESERVED_LEGACY_CAT,
+    RIGOR_RESERVED_LEGACY_SUBSTR,
+    RIGOR_RESERVED_LEGACY_LEFT,
+    RIGOR_RESERVED_LEGACY_RIGHT,
+    RIGOR_RESERVED_LEGACY_INVERT,
+    RIGOR_RESERVED_LEGACY_AND,
+    RIGOR_RESERVED_LEGACY_OR,
+    RIGOR_RESERVED_LEGACY_XOR,
+    RIGOR_RESERVED_LEGACY_2MUL,
+    RIGOR_RESERVED_LEGACY_2DIV,
+    RIGOR_RESERVED_LEGACY_MUL,
+    RIGOR_RESERVED_LEGACY_DIV,
+    RIGOR_RESERVED_LEGACY_MOD,
+    RIGOR_RESERVED_LEGACY_LSHIFT,
+    RIGOR_RESERVED_LEGACY_RSHIFT]]
 
 
 def iter_all_templates():

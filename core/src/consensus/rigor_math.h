@@ -177,8 +177,8 @@ inline int uint512::Compare(const uint512& o) const
  *   - H is taken as a 256-bit unsigned integer (the Sigma / draw digest).
  *   - T is the immutable RFC-017 shipping constant RES_PROBABILITY_TARGET = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (C=1024 ORU)
  *     (carried in `Consensus::Params`). It is NOT derived from `nBits`,
- *     ASERT state, or any header field; `target_prev` is retained in
- *     `bind_commit` for Sigma-CR-01 replay-domain separation only.
+ *     ASERT state, or any header field. Historical Sigma-CR-01 `bind_commit` /
+ *     `target_prev` as a σ input is superseded (SECURITY-001-A8 / Sigma-PoW-01).
  *   - f is the untransformed on-chain integer weight (Mint Cost for a
  *     RES mint candidate; transaction fee for a RES spend candidate). It MUST
  *     be integer and ≥ 1 per RFC-000 §7. No exponent, no normalization.

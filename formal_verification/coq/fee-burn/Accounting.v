@@ -276,7 +276,7 @@ Proof. reflexivity. Qed.
 (** * Finite golden pins (share function; RES-transfer) *)
 
 Definition ORU_COIN : Z := 100000000.
-Definition MAX_MONEY : Z := 21000000 * ORU_COIN.
+Definition MAX_MONEY : Z := 10000000000 * ORU_COIN.
 
 Lemma burn_pin_zero :
   oru_res_transfer_fee_burn_share 0 = 0.

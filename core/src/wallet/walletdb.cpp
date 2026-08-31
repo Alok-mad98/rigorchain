@@ -14,9 +14,6 @@
 #include <util/system.h>
 #include <util/time.h>
 #include <util/translation.h>
-#ifdef USE_BDB
-#include <wallet/bdb.h>
-#endif
 #ifdef USE_SQLITE
 #include <wallet/sqlite.h>
 #endif
@@ -333,8 +330,10 @@ ReadKeyValue(CWallet* pwallet, DataStream& ssKey, CDataStream& ssValue,
         if (filter_fn && !filter_fn(strType)) {
             return true;
         }
-        // Legacy entries in descriptor wallets are not allowed, abort immediately
-        if (pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS) && DBKeys::LEGACY_TYPES.count(strType) > 0) {
+        // RIGOR has no legacy wallet support, so a legacy record is never valid. Do not gate this
+        // on WALLET_FLAG_DESCRIPTORS: a crafted file can simply omit the flags record, which would
+        // otherwise let legacy keys load into a legacy key manager.
+        if (DBKeys::LEGACY_TYPES.count(strType) > 0) {
             wss.unexpected_legacy_entry = true;
             return false;
         }
@@ -808,6 +807,14 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
                 pwallet->WalletLogPrintf("Error reading wallet database: Unknown non-tolerable wallet flags found\n");
                 return DBErrors::CORRUPT;
             }
+            // An already-persisted wallet must be a descriptor wallet. Rejecting here rather
+            // than in a caller means every entry point (node, GUI, rigor-wallet) fails closed
+            // at the same place. Wallets being created have no FLAGS record yet and are
+            // initialised by the caller, so they do not reach this branch.
+            if (!pwallet->IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
+                pwallet->WalletLogPrintf("Error: not a descriptor wallet. RIGOR has no legacy wallet support.\n");
+                return DBErrors::LEGACY_WALLET;
+            }
         }
 
 #ifndef ENABLE_EXTERNAL_SIGNER
@@ -1061,33 +1068,6 @@ DBErrors WalletBatch::ZapSelectTx(std::vector<uint256>& vTxHashIn, std::vector<u
     return DBErrors::LOAD_OK;
 }
 
-void MaybeCompactWalletDB(WalletContext& context)
-{
-    static std::atomic<bool> fOneThread(false);
-    if (fOneThread.exchange(true)) {
-        return;
-    }
-
-    for (const std::shared_ptr<CWallet>& pwallet : GetWallets(context)) {
-        WalletDatabase& dbh = pwallet->GetDatabase();
-
-        unsigned int nUpdateCounter = dbh.nUpdateCounter;
-
-        if (dbh.nLastSeen != nUpdateCounter) {
-            dbh.nLastSeen = nUpdateCounter;
-            dbh.nLastWalletUpdate = GetTime();
-        }
-
-        if (dbh.nLastFlushed != nUpdateCounter && GetTime() - dbh.nLastWalletUpdate >= 2) {
-            if (dbh.PeriodicFlush()) {
-                dbh.nLastFlushed = nUpdateCounter;
-            }
-        }
-    }
-
-    fOneThread = false;
-}
-
 bool WalletBatch::WriteDestData(const std::string &address, const std::string &key, const std::string &value)
 {
     return WriteIC(std::make_pair(DBKeys::DESTDATA, std::make_pair(address, key)), value);
@@ -1170,82 +1150,42 @@ std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const Databas
         return nullptr;
     }
 
-    std::optional<DatabaseFormat> format;
+    bool have_wallet = false;
     if (exists) {
-        if (IsBDBFile(BDBDataFile(path))) {
-#ifndef USE_BDB
+        if (IsBerkeleyDBFile(path)) {
             error = Untranslated(strprintf(
-                "Failed to load database path '%s'. This wallet uses the legacy Berkeley DB format, which is not supported in this build. "
-                "Create a new SQLite descriptor wallet or restore from a compatible export.",
+                "Failed to load database path '%s'. This is a Berkeley DB wallet. RIGOR wallets are SQLite descriptor "
+                "wallets only; there is no migration path. Create a new wallet and import descriptors.",
                 fs::PathToString(path)));
             status = DatabaseStatus::FAILED_BAD_FORMAT;
             return nullptr;
-#else
-            format = DatabaseFormat::BERKELEY;
-#endif
         }
-        if (IsSQLiteFile(SQLiteDataFile(path))) {
-            if (format) {
-                error = Untranslated(strprintf("Failed to load database path '%s'. Data is in ambiguous format.", fs::PathToString(path)));
-                status = DatabaseStatus::FAILED_BAD_FORMAT;
-                return nullptr;
-            }
-            format = DatabaseFormat::SQLITE;
-        }
+        have_wallet = IsSQLiteFile(SQLiteDataFile(path));
     } else if (options.require_existing) {
         error = Untranslated(strprintf("Failed to load database path '%s'. Path does not exist.", fs::PathToString(path)));
         status = DatabaseStatus::FAILED_NOT_FOUND;
         return nullptr;
     }
 
-    if (!format && options.require_existing) {
-        error = Untranslated(strprintf("Failed to load database path '%s'. Data is not in recognized format.", fs::PathToString(path)));
+    if (!have_wallet && options.require_existing) {
+        error = Untranslated(strprintf("Failed to load database path '%s'. Data is not a RIGOR SQLite wallet.", fs::PathToString(path)));
         status = DatabaseStatus::FAILED_BAD_FORMAT;
         return nullptr;
     }
 
-    if (format && options.require_create) {
+    if (have_wallet && options.require_create) {
         error = Untranslated(strprintf("Failed to create database path '%s'. Database already exists.", fs::PathToString(path)));
         status = DatabaseStatus::FAILED_ALREADY_EXISTS;
         return nullptr;
     }
 
-    // A db already exists so format is set, but options also specifies the format, so make sure they agree
-    if (format && options.require_format && format != options.require_format) {
-        error = Untranslated(strprintf("Failed to load database path '%s'. Data is not in required format.", fs::PathToString(path)));
-        status = DatabaseStatus::FAILED_BAD_FORMAT;
-        return nullptr;
-    }
-
-    // Format is not set when a db doesn't already exist, so use the format specified by the options if it is set.
-    if (!format && options.require_format) format = options.require_format;
-
-    // Default new wallet databases to SQLite (Berkeley DB is optional compile-only legacy).
-    if (!format) {
 #ifdef USE_SQLITE
-        format = DatabaseFormat::SQLITE;
+    return MakeSQLiteDatabase(path, options, status, error);
 #else
-        error = Untranslated(strprintf("Failed to open database path '%s'. SQLite wallet support is required but not available in this build.", fs::PathToString(path)));
-        status = DatabaseStatus::FAILED_BAD_FORMAT;
-        return nullptr;
-#endif
-    }
-
-    if (format == DatabaseFormat::SQLITE) {
-#ifdef USE_SQLITE
-        return MakeSQLiteDatabase(path, options, status, error);
-#endif
-        error = Untranslated(strprintf("Failed to open database path '%s'. Build does not support SQLite database format.", fs::PathToString(path)));
-        status = DatabaseStatus::FAILED_BAD_FORMAT;
-        return nullptr;
-    }
-
-#ifdef USE_BDB
-    return MakeBerkeleyDatabase(path, options, status, error);
-#endif
-    error = Untranslated(strprintf("Failed to open database path '%s'. Build does not support Berkeley DB database format.", fs::PathToString(path)));
+    error = Untranslated(strprintf("Failed to open database path '%s'. This build has no SQLite support, so it cannot open any wallet.", fs::PathToString(path)));
     status = DatabaseStatus::FAILED_BAD_FORMAT;
     return nullptr;
+#endif
 }
 
 /** Return object for accessing dummy database with no read/write capabilities. */
@@ -1257,28 +1197,11 @@ std::unique_ptr<WalletDatabase> CreateDummyWalletDatabase()
 /** Return object for accessing temporary in-memory database. */
 std::unique_ptr<WalletDatabase> CreateMockWalletDatabase(DatabaseOptions& options)
 {
-
-    std::optional<DatabaseFormat> format;
-    if (options.require_format) format = options.require_format;
-    if (!format) {
 #ifdef USE_SQLITE
-        format = DatabaseFormat::SQLITE;
-#elif defined(USE_BDB)
-        format = DatabaseFormat::BERKELEY;
-#endif
-    }
-
-    if (format == DatabaseFormat::SQLITE) {
-#ifdef USE_SQLITE
-        return std::make_unique<SQLiteDatabase>(":memory:", "", options, true);
-#endif
-        assert(false);
-    }
-
-#ifdef USE_BDB
-    return std::make_unique<BerkeleyDatabase>(std::make_shared<BerkeleyEnvironment>(), "", options);
-#endif
+    return std::make_unique<SQLiteDatabase>(":memory:", "", options, true);
+#else
     assert(false);
+#endif
 }
 
 std::unique_ptr<WalletDatabase> CreateMockWalletDatabase()

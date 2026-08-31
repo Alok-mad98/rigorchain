@@ -169,50 +169,47 @@ if __name__ == "__main__":
     })
     
     # Collect PCORB hash vectors
+    # SECURITY-001-A8: target_prev is not a sigma input.
     txid = create_test_txid(0)
-    bind_hash = create_test_txid(1)
+    prev_block_hash = create_test_txid(1)
     convergence_root = create_test_txid(2)
     height = 100
-    target_prev = 0x1d00ffff
     
     h = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height, target_prev, convergence_root
+        txid, prev_block_hash, height, convergence_root
     )
     vectors.append({
         'test_name': 'PCORBHash_basic',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height,
-        'target_prev': target_prev,
         'convergence_root': convergence_root.hex(),
         'pcorb_hash': h.hex()
     })
     
     height2 = 999999
     h2 = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height2, target_prev, convergence_root
+        txid, prev_block_hash, height2, convergence_root
     )
     vectors.append({
         'test_name': 'PCORBHash_different_height',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height2,
-        'target_prev': target_prev,
         'convergence_root': convergence_root.hex(),
         'pcorb_hash': h2.hex()
     })
     
-    target_prev2 = 0x1e012345
+    convergence_root2 = create_test_txid(3)
     h3 = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height, target_prev2, convergence_root
+        txid, prev_block_hash, height, convergence_root2
     )
     vectors.append({
-        'test_name': 'PCORBHash_different_target',
+        'test_name': 'PCORBHash_different_convergence_root',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height,
-        'target_prev': target_prev2,
-        'convergence_root': convergence_root.hex(),
+        'convergence_root': convergence_root2.hex(),
         'pcorb_hash': h3.hex()
     })
     

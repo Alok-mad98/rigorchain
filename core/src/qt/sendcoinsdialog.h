@@ -103,7 +103,7 @@ private:
     void persistSendAssetToOptions();
     /** WALLET_EXTREME_SAFETY_V1: disable send when offline or not synced; show warning. */
     void updateExtremeSafetyControls();
-    /** Enable the OP_CONVERGE burn row on ORU sends only. */
+    /** Enable the RIGOR_MARKER_CONVERGE burn row on ORU sends only. */
     void updateConvergeControls();
     CAmount selectedConvergeAmount() const;
 

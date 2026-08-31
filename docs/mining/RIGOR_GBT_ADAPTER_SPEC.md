@@ -14,6 +14,8 @@
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
 **Status:** AUTHORITATIVE IMPLEMENTATION-FACING SPEC (documentation only)
 
+**P0-014 SOLO overlay (shipped `rigord`, not this pool adapter):** GBT advertises `mutable: ["time"]` only, serves `default_coinbase_scriptsig` / `paid_winner_txid` / `rigor_coinbase_immutable`, and consensus requires the BIP141 reserved nonce to be 32 zero bytes. Witness extranonce and in-place `transactions` mutation below describe the **unshipped** pool stack. Do not treat them as `core/` rules.
+
 ---
 
 ## SECTION 1 — Purpose

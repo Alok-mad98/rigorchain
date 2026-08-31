@@ -37,7 +37,7 @@ inline CTransactionRef create_placeholder_tx(size_t num_inputs, size_t num_outpu
         for (auto& b : prog) {
             b = static_cast<unsigned char>(InsecureRandBits(8));
         }
-        mtx.vout[o].scriptPubKey = CScript() << OP_0 << prog;
+        mtx.vout[o].scriptPubKey = CScript() << RIGOR_PUSH_0 << prog;
     }
     return MakeTransactionRef(mtx);
 }
@@ -405,7 +405,7 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
 
     // Transactions with a same-txid-different-witness transaction in the mempool should be ignored,
     // and the mempool entry's wtxid returned.
-    CScript witnessScript = CScript() << OP_DROP << OP_TRUE;
+    CScript witnessScript = CScript() << RIGOR_RESERVED_LEGACY_DROP << RIGOR_PUSH_1;
     CScript scriptPubKey = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
     auto mtx_parent = CreateValidMempoolTransaction(/*input_transaction=*/m_coinbase_txns[0], /*input_vout=*/0,
                                                     /*input_height=*/0, /*input_signing_key=*/coinbaseKey,
@@ -537,7 +537,7 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
     Package package_mixed;
 
     // Give all the parents anyone-can-spend scripts so we don't have to deal with signing the child.
-    CScript acs_script = CScript() << OP_TRUE;
+    CScript acs_script = CScript() << RIGOR_PUSH_1;
     CScript acs_spk = GetScriptForDestination(WitnessV0ScriptHash(acs_script));
     CScriptWitness acs_witness;
     acs_witness.stack.push_back(std::vector<unsigned char>(acs_script.begin(), acs_script.end()));
@@ -551,7 +551,7 @@ BOOST_FIXTURE_TEST_CASE(package_witness_swap_tests, TestChain100Setup)
     package_mixed.push_back(ptx_parent1);
 
     // parent2 will have a same-txid-different-witness tx already in the mempool
-    CScript grandparent2_script = CScript() << OP_DROP << OP_TRUE;
+    CScript grandparent2_script = CScript() << RIGOR_RESERVED_LEGACY_DROP << RIGOR_PUSH_1;
     CScript grandparent2_spk = GetScriptForDestination(WitnessV0ScriptHash(grandparent2_script));
     CScriptWitness parent2_witness1;
     parent2_witness1.stack.push_back(std::vector<unsigned char>(1));

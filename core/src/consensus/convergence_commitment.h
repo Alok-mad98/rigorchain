@@ -43,15 +43,17 @@ struct ConvergenceDrawCandidates {
     }
 };
 
-/** Coinbase OP_RETURN convergence commitment. Magic: ASCII "CVGE", version 2: cumulative + ConvergenceDrawCandidates root only. */
+/** Coinbase RIGOR_MARKER_RETURN convergence commitment. Magic: ASCII "CVGE", version 2: cumulative + ConvergenceDrawCandidates root only. */
 struct ConvergenceCommitment
 {
     static constexpr uint8_t EXPECTED_VERSION = 2;
     uint8_t m_version{EXPECTED_VERSION};
     /**
-     * FENCE-W2: committed prefix-sum of CVG2 amounts. Audit/commitment field.
-     * ConnectBlock compares it to parent + this block (`bad-convergence-cumulative`).
+     * Prefix-sum of destroyed ORU (observational). Not a ConnectBlock input.
      * MUST NOT be an input to T, f_i, mint authorization, or script evaluation.
+     *
+     * Historical: this field was committed in a coinbase CVGE RIGOR_MARKER_RETURN and
+     * compared as `bad-convergence-cumulative`. That reject no longer exists.
      */
     uint64_t m_cumulative_convergence{0};
     ConvergenceDrawCandidates m_draw_candidates{};
@@ -63,7 +65,7 @@ struct ConvergenceCommitment
     }
 };
 
-/** Build scriptPubKey: OP_RETURN <serialized commitment>. */
+/** Build scriptPubKey: RIGOR_MARKER_RETURN <serialized commitment>. */
 CScript ConvergenceCommitmentScript(const ConvergenceCommitment& fc);
 
 std::optional<ConvergenceCommitment> ParseConvergenceCommitmentPayload(const std::vector<unsigned char>& data);

@@ -94,20 +94,8 @@ class ListTransactionsTest(BitcoinTestFramework):
                             {"category": "receive", "amount": Decimal("0.44")},
                             {"txid": txid})
 
-        if not self.options.descriptors:
-            # include_watchonly is a legacy wallet feature, so don't test it for descriptor wallets
-            self.log.info("Test 'include_watchonly' feature (legacy wallet)")
-            pubkey = self.nodes[1].getaddressinfo(self.nodes[1].getnewaddress(address_type='bech32m'))['pubkey']
-            multisig = self.nodes[1].createmultisig(1, [pubkey])
-            self.nodes[0].importaddress(multisig["redeemScript"], "watchonly", False, True)
-            txid = self.nodes[1].sendtoaddress(multisig["address"], 0.1)
-            self.generate(self.nodes[1], 1)
-            assert_equal(len(self.nodes[0].listtransactions(label="watchonly", include_watchonly=True)), 1)
-            assert_equal(len(self.nodes[0].listtransactions(dummy="watchonly", include_watchonly=True)), 1)
-            assert len(self.nodes[0].listtransactions(label="watchonly", count=100, include_watchonly=False)) == 0
-            assert_array_result(self.nodes[0].listtransactions(label="watchonly", count=100, include_watchonly=True),
-                                {"category": "receive", "amount": Decimal("0.1")},
-                                {"txid": txid, "label": "watchonly"})
+        # include_watchonly was covered here through a legacy-wallet multisig import. RIGOR has
+        # neither a legacy wallet nor multisig, so the setup is unconstructible.
 
         self.run_rbf_opt_in_test()
         self.run_externally_generated_address_test()
@@ -234,8 +222,8 @@ class ListTransactionsTest(BitcoinTestFramework):
         # refill keypool otherwise the second node wouldn't recognize addresses generated on the first nodes
         self.nodes[0].keypoolrefill(1000)
         self.stop_nodes()
-        wallet0 = os.path.join(self.nodes[0].datadir, self.chain, self.default_wallet_name, "wallet.dat")
-        wallet2 = os.path.join(self.nodes[2].datadir, self.chain, self.default_wallet_name, "wallet.dat")
+        wallet0 = os.path.join(self.nodes[0].datadir, self.chain, self.default_wallet_name, self.wallet_data_filename)
+        wallet2 = os.path.join(self.nodes[2].datadir, self.chain, self.default_wallet_name, self.wallet_data_filename)
         shutil.copyfile(wallet0, wallet2)
         self.start_nodes()
         # reconnect nodes
@@ -289,7 +277,7 @@ class ListTransactionsTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Negative from", self.nodes[0].listtransactions, skip=-1)
 
     def test_op_return(self):
-        """Test if OP_RETURN outputs will be displayed correctly."""
+        """Test if RIGOR_MARKER_RETURN outputs will be displayed correctly."""
         raw_tx = self.nodes[0].createrawtransaction([], [{'data': 'aa'}])
         funded_tx = self.nodes[0].fundrawtransaction(raw_tx)
         signed_tx = self.nodes[0].signrawtransactionwithwallet(funded_tx['hex'])

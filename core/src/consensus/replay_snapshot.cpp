@@ -83,14 +83,14 @@ inline bool ReadHash256(const std::string& buf, size_t& pos, uint256& out)
     return true;
 }
 
-//! Witness-V1 lock-program shape per RFC-003 §5: exactly `OP_1 0x20 <32>`.
+//! Witness-V1 lock-program shape per RFC-003 §5: exactly `RIGOR_PUSH_1 0x20 <32>`.
 //! This matches the SegWit V1 witness program prefix, which in RIGOR is the
 //! container for both RES (`ORB2`) and ORU-convergence (`CVG2`) outputs.
 //! Counting these UTXOs is informational only.
 inline bool HasV1LockProgramShape(const CScript& spk)
 {
     return spk.size() == 34 &&
-           static_cast<uint8_t>(spk[0]) == 0x51 /*OP_1*/ &&
+           static_cast<uint8_t>(spk[0]) == 0x51 /*RIGOR_PUSH_1*/ &&
            static_cast<uint8_t>(spk[1]) == 0x20 /*push 32*/;
 }
 

@@ -15,6 +15,8 @@ class CBlock;
 class CChainParams;
 class CScript;
 class CTxIn;
+class CBlockIndex;
+class ChainstateManager;
 namespace node {
 struct NodeContext;
 } // namespace node
@@ -32,5 +34,9 @@ std::shared_ptr<CBlock> PrepareBlock(const node::NodeContext& node, const CScrip
 
 /** RPC-like helper function, returns the generated coin */
 CTxIn generatetoaddress(const node::NodeContext&, const std::string& address);
+
+/** Test-only: rebuild BIP141 witness commitment after coinbase outputs change.
+ *  Does not rewrite scriptSig. Strips leftover non-consensus CVGE / RIGR RIGOR_MARKER_RETURN tags. */
+void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pindexPrev, ChainstateManager& chainman);
 
 #endif // BITCOIN_TEST_UTIL_MINING_H

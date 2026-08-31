@@ -21,7 +21,7 @@ const DOWNLOADS = [
   },
   {
     title: "Miner",
-    body: "Windows and Linux miner artifacts for RIGOR proof-of-work.",
+    body: "Windows and Linux SOLO miner (local GBT + submitblock). Not a pool client.",
     to: "/download/miner",
   },
 ] as const;

@@ -2,93 +2,73 @@
 
 This document is a pre-merge checklist for RIGOR consensus changes.
 
-RIGOR identity:
+Monetary truth is the **UTXO set**. Scripts classify outputs; they are not assets
+and they do not mint. Consensus state is derived from block + transaction + UTXO
++ deterministic rules. There is no global mint accumulator.
 
-- Script-Native, Self-Proving Cryptoeconomic State Machine
-- Consensus state must be derived from `scriptPubKey + witness + deterministic functions`
+## Canonical block validation (ConnectBlock)
 
-## Canonical Block Validation Flow
+1. Header / PoW / merkle checks.
+2. Reconstruct the **parent** draw set F over the last W=32 blocks. Exclude tickets
+   already paid inside that window (`m_paid_winner_txid` on each index).
+3. Resolve the parent draw: σ = Hash256(txid ‖ C ‖ B_{h-1} ‖ LE32(h)), eligible
+   iff σ < T · f_i, winner = argmin by 512-bit cross-multiplication.
+4. This block's coinbase `scriptSig` must be exactly `<BIP34 height> <32-byte C>`
+   where C is the window root this block commits (`bad-cb-convergence-root`).
+5. If the parent draw named a winner and W(h) > 0, the coinbase must carry
+   exactly one `OP_RES_MINT` paying that ticket's HASH160 at GetResMintReward(h).
+   Otherwise it must carry none.
+6. Body transactions cannot create RES (`mixed-asset-output`).
+7. Coinbase total RES equals the mint (plus mockable bootstrap only).
 
-Every block must follow this order:
+Do not skip or reorder the mint coupling against the parent draw.
 
-1. Parse scripts
-2. Identify Convergence set
-3. Compute winner
-4. Read coinbase commitment
-5. Verify winner equals commitment
-6. Identify RES claim
-7. Verify RES equals winner
-8. Compute target
-9. Verify target equals commitment
-10. Verify full block consistency
+## Single source rules
 
-Do not skip or reorder steps.
+- The draw paid at height h is a function of the **parent** block's committed F.
+- Template C is `GetTemplateConvergenceRoot` (windowed). Do not use the
+  block-local `ComputeConvergenceRootFromConvergenceSet` in a producer.
+- Read-path winners go through `GetConvergenceWinnerForBlock`, not a single-block
+  `GetBlockWinnerFromBlockUndo`.
 
-## Single Source Rules
+## Commitment rules
 
-- Winner source must be unique:
-  - `GetBlockWinner(...)` is the only non-test API
-  - `GetBlockWinner(...)` must call `CollectConvergenceWinnerTxid(...)`
-- Do not recompute winner in unrelated modules.
+- The only consensus commitment of F is the coinbase **scriptSig** C.
+- Empty F ⇒ C = 0. Any nonempty F ⇒ Hash256(concat(sort(txids))).
+- CVGE / RIGR / PCORB coinbase `OP_RETURN` tags are **not** required, matched, or
+  rejected. `bad-convergence-cumulative` and `bad-convergence-draw-candidate-root`
+  do not exist.
 
-## Commitment Rules
+## RES issuance rules
 
-- Coinbase must include RIGOR commitment payload:
-  - `OP_RETURN "CVGE" (CVGE wire tag) + cumulative + ConvergenceDrawCandidates root (see convergence_commitment.h)`
-- If commitment is missing: reject block
-- If committed winner differs from computed winner: reject block
-- If committed target differs from deterministically computed target: reject block
+- New RES exists only as coinbase RES mint marker (`0xbb`).
+- At most one mint per block.
+- No winner ⇒ no mint. Winner and W(h) > 0 ⇒ exactly one mint.
+- The CONVERGE marker (`0xbd`) is a ticket/commitment lock, not an issuance event.
 
-## RES Binding Rules
+## Convergence ticket rules
 
-- At most one RES claim per block
-- RES claim is not independent:
-  - `res_winner_txid == committed_winner_txid`
-- If committed winner is zero, RES claim must not exist
-- If committed winner is non-zero, RES claim must exist
+- Ticket shape: `<20-byte HASH160> <0xbd CONVERGE marker>` (22 bytes). Retired witness-v1
+  CVG2 programs are consensus-invalid.
+- Ownership is that HASH160. Scripts do not hold a monetary balance.
+- `AddCoins` skips the output: the ORU is destroyed, not locked in the UTXO set.
+- CONVERGE outputs are unspendable (not a consensus spend predicate).
 
-## convergence Rules
+## Randomness binding (σ)
 
-- convergence type is script-inferred (`CVG2`), not a stored asset field
-- Convergence outputs must not enter UTXO set
-- Convergence outputs must not be spendable
-- Do not modify `CTxOut` serialization or DB schema for asset tagging
+```
+σ = Hash256( txid(32) ‖ C(32) ‖ B_{h-1}(32) ‖ LE32(h) )   // 100 bytes
+```
 
-## Randomness Binding Rule (Critical)
+T is `RES_PROBABILITY_TARGET` (constant). Parent `nBits` is **not** a σ input.
 
-convergence hash preimage must be:
+## Strictly forbidden changes
 
-- `H(txid || bind_hash || height || target_prev)`
-
-where:
-
-- `target_prev = pindexPrev->nBits`
-
-Forbidden:
-
-- using current block target (`target(H)`) in convergence hash
-
-## Strictly Forbidden Changes
-
-- Modifying block header format (80-byte header layout)
-- Adding asset fields to transaction outputs
-- Writing Convergence outputs into UTXO
-- Allowing multiple RES claims per block
-- Allowing RES without winner
-- Allowing winner without commitment
+- Modifying the 80-byte block header layout
+- Adding an asset field to `CTxOut`
+- Writing CONVERGE-marker outputs into the UTXO set
+- Allowing body transactions to create RES
+- Allowing more than one RES mint marker per coinbase
+- Allowing a mint without a winner, or omitting a mint when a winner exists and W(h) > 0
+- Reintroducing CVGE cumulative / PCORB / covenant mint paths
 - Introducing non-deterministic consensus dependencies
-
-## Implementation Discipline
-
-For consensus changes, follow:
-
-1. unify
-2. isolate
-3. verify
-4. commit
-
-Guidance:
-
-- Change one layer at a time
-- If a step breaks, revert only the latest step
-- Avoid broad rewrites of validation paths in one patch

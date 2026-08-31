@@ -18,7 +18,7 @@ class CreateCache(BitcoinTestFramework):
         self.num_nodes = 0
 
     def add_options(self, parser):
-        # test_runner passes --descriptors/--legacy-wallet when building cache
+        # test_runner passes --descriptors when building cache
         self.add_wallet_options(parser)
 
     def setup_network(self):

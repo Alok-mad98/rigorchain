@@ -88,7 +88,7 @@ export async function getRfc018FeeBurnTip(
 }
 
 function asAsset(kind: string | null | undefined): IndexedAsset {
-  if (kind === "ORU" || kind === "RES") return kind;
+  if (kind === "ORU" || kind === "RES" || kind === "INVALID") return kind;
   return "NONE";
 }
 

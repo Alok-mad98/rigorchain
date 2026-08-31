@@ -7,7 +7,7 @@
 #define BITCOIN_VALIDATION_H
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/rigor-config.h>
 #endif
 
 #include <arith_uint256.h>
@@ -15,6 +15,7 @@
 #include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/convergence_logic.h>
+#include <consensus/rigor_issuance.h>
 #include <consensus/replay_snapshot.h>
 #include <consensus/state_snapshot.h>
 #include <deploymentstatus.h>
@@ -75,19 +76,40 @@ static const int MAX_SCRIPTCHECK_THREADS = 15;
 static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 /** Default for -stopatheight */
 static const int DEFAULT_STOPATHEIGHT = 0;
-/** Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will not be pruned. */
-static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
+/**
+ * Deepest reorg a pruned node is expected to survive from local data alone.
+ *
+ * This is the operational guarantee, not a consensus rule: past this depth the blocks to
+ * disconnect are gone and ConnectBlock/DisconnectTip abort rather than reorg.
+ */
+static const unsigned int MAX_SUPPORTED_REORG_DEPTH = 288;
+/**
+ * Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will
+ * not be pruned.
+ *
+ * Connecting a block costs more than its own data in RIGOR: the convergence draw enumerates F
+ * over CONVERGENCE_DRAW_WINDOW blocks, so ConnectBlock reads the block and undo data of the
+ * window ending at the parent. A reorg of depth D therefore needs data down to
+ * tip - D - CONVERGENCE_DRAW_WINDOW, and the keep window has to cover the sum, not just the
+ * deeper of the two. See the static_assert in validation.cpp that ties the three together.
+ */
+static const unsigned int MIN_BLOCKS_TO_KEEP = 320;
 static const signed int DEFAULT_CHECKBLOCKS = 6;
 static constexpr int DEFAULT_CHECKLEVEL{3};
-// Require that user allocate at least 550 MiB for block & undo files (blk???.dat and rev???.dat)
-// At 1MB per block, 288 blocks = 288MB.
-// Add 15% for Undo data = 331MB
-// Add 20% for Orphan block rate = 397MB
-// We want the low water mark after pruning to be at least 397 MB and since we prune in
-// full block file chunks, we need the high water mark which triggers the prune to be
-// one 128MB block file + added 15% undo data = 147MB greater for a total of 545MB
-// Setting the target to >= 550 MiB will make it likely we can respect the target.
-static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
+// Minimum -prune target. CheckBlock rejects GetSerializeSize(NO_WITNESS) * 4 > BLOCK_WEIGHT_LIMIT
+// (1_000_000), so a full RIGOR block is ~250 KB of base data, not Bitcoin's ~1 MB. Deriving the
+// floor from that, on Bitcoin's own reasoning:
+//   MIN_BLOCKS_TO_KEEP (320) * 250 KB           =  76 MiB
+//   add 15% for undo data                       =  88 MiB
+//   add 20% for orphan block rate               = 105 MiB
+// That is the low water mark. Pruning frees whole block files, so the high water mark that
+// triggers it must sit one MAX_BLOCKFILE_SIZE (32 MiB) + 15% undo = 37 MiB above it = 142 MiB.
+// Rounding up to 150 MiB makes the target respectable in practice.
+//
+// Keeping Bitcoin's 550 MiB here would retain ~2100 blocks against a 320-block requirement and
+// make one prune step free 23% of the whole target, i.e. a pruned RIGOR node holds ~5x what the
+// policy asks for and prunes in far coarser height steps than Bitcoin does.
+static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 150 * 1024 * 1024;
 
 /** Current sync state passed to tip changed callbacks. */
 enum class SynchronizationState {
@@ -103,8 +125,6 @@ extern uint256 g_best_block;
 
 /** Documentation for argument 'checklevel'. */
 extern const std::vector<std::string> CHECKLEVEL_DOC;
-
-CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams);
 
 bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});
 
@@ -320,10 +340,11 @@ private:
     ScriptError error{SCRIPT_ERR_UNKNOWN_ERROR};
     PrecomputedTransactionData *txdata;
     int nSpendHeight;
+    uint256 m_chain_id;
 
 public:
-    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn, int nSpendHeightIn = 0) :
-        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), nSpendHeight(nSpendHeightIn) { }
+    CScriptCheck(const CTxOut& outIn, const CTransaction& txToIn, unsigned int nInIn, unsigned int nFlagsIn, bool cacheIn, PrecomputedTransactionData* txdataIn, const uint256& chain_id, int nSpendHeightIn = 0) :
+        m_tx_out(outIn), ptxTo(&txToIn), nIn(nInIn), nFlags(nFlagsIn), cacheStore(cacheIn), txdata(txdataIn), nSpendHeight(nSpendHeightIn), m_chain_id(chain_id) { }
 
     CScriptCheck(const CScriptCheck&) = delete;
     CScriptCheck& operator=(const CScriptCheck&) = delete;
@@ -376,9 +397,9 @@ bool BuildConvergenceWindowTail(const CBlockIndex* parent_index,
 
 /**
  * SECURITY-001-A8 / A-9-C: the convergence set committed by `block_index` — the set that the
- * block at `block_index.nHeight + 1` draws from and pays out. Spans the CONVERGENCE_DRAW_WINDOW
- * blocks ending at `block_index`. Per-block contributions are served from a cache kept warm by
- * ConnectBlock, falling back to reading each block and its undo data from disk.
+ * block at `block_index.nHeight + 1` draws from and pays out. Served from the draw set
+ * recorded on the block index at ConnectBlock (survives prune), then a process-local cache,
+ * then a reconstruction from blk/rev of the CONVERGENCE_DRAW_WINDOW ending at `block_index`.
  *
  * Returns false only on a storage failure, which callers must not treat as a statement about
  * the chain.
@@ -428,6 +449,19 @@ ConvergenceDrawSet GetTemplateConvergenceDrawSet(const CBlock& block,
     const CBlockIndex* parent,
     const CCoinsViewCache& view_at_block_entry,
     const Consensus::Params& consensus_params);
+
+/**
+ * Winner this template's coinbase mint pays. `out` is nullopt when the coinbase does not mint
+ * or the parent draw has no winner.
+ *
+ * Returns false only if the coinbase mints and the parent draw cannot be read. Callers must not
+ * treat that as "no winner" — it is a storage / window failure, the same signal as an unset
+ * `GetTemplateConvergenceDrawSet`.
+ */
+bool GetTemplatePaidWinner(const CBlock& block,
+    const CBlockIndex* parent,
+    const Consensus::Params& consensus_params,
+    std::optional<uint256>& out);
 
 /**
  * SECURITY-001-A9-C: the ConvergenceRoot a block with this body, built on `parent`, must commit in
@@ -1315,7 +1349,7 @@ class BlockValidationState;
 
 /** Rigor-specific block validation helpers exposed for unit tests. */
 namespace rigor {
-/** Coinbase RIGOR OP_RETURN carries parent compact `nBits` (must match `pindex->pprev->nBits` when parent exists). */
+/** Coinbase RIGOR RIGOR_MARKER_RETURN carries parent compact `nBits` (must match `pindex->pprev->nBits` when parent exists). */
 bool CheckRigorDrawTargetCommitment(BlockValidationState& state,
                                     const CBlock& block,
                                     const CBlockIndex* pindex,

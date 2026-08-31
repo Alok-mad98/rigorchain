@@ -13,6 +13,7 @@
 #include <pow.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
+#include <test/util/mining.h>
 #include <test/util/random.h>
 #include <test/util/txmempool.h>
 #include <timedata.h>
@@ -47,17 +48,17 @@ static const CScript SCRIPT_PUBKEY_ALT{GetScriptForDestination(WitnessV0KeyHash(
 
 using node::BlockAssembler;
 using node::CBlockTemplate;
-using node::RefreshCoinbaseWitnessAndconvergence;
 
 namespace miner_tests {
 
 // Production BlockAssembler always defaults test_block_validity=true (see node/miner.h). This file is only linked
-// into test/test_bitcoin, which defines RIGORCHAIN_MINER_TESTS_SKIP_TEMPLATE_VALIDITY (Makefile.test.include) so
+// into test/test_rigor, which defines RIGORCHAIN_MINER_TESTS_SKIP_TEMPLATE_VALIDITY (Makefile.test.include) so
 // AssemblerForTest() can default to skipping TestBlockValidity for legacy mining fixtures. Without that define,
 // default to true (fail closed). bitcoind / libbitcoinnode are unaffected.
 //
 // Explicit AssemblerForTest(..., true) must stay in sync with the exceptions we still need full validation for:
 //  - bad-blk-sigops, bad-txns-inputs-missingorspent (x2), bad-cb-multiple, bad-rigor-script-type (legacy P2SH / non-witness fixture)
+//  - cannot reconstruct convergence window (header-only dummy chain; R-3)
 #ifdef RIGORCHAIN_MINER_TESTS_SKIP_TEMPLATE_VALIDITY
 constexpr bool kAssemblerDefaultTemplateValidity{false};
 #else
@@ -129,7 +130,7 @@ void MinerTestingSetup::TestPackageSelection(const CScript& scriptPubKey, const 
     // rate package with a low fee rate parent.
     CMutableTransaction tx;
     tx.vin.resize(1);
-    tx.vin[0].scriptSig = CScript() << OP_1;
+    tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
     tx.vin[0].prevout.hash = txFirst[0]->GetHash();
     tx.vin[0].prevout.n = 0;
     tx.vout.resize(1);
@@ -246,22 +247,16 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         auto pblocktemplate = AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey);
         BOOST_CHECK(pblocktemplate);
 
-        // block sigops > limit: 1000 CHECKMULTISIG + 1
+        // One transaction whose live WPKH outputs exceed BLOCK_SIGOPS_COST_LIMIT.
         tx.vin.resize(1);
-        // NOTE: OP_NOP is used to force 20 SigOps for the CHECKMULTISIG
-        tx.vin[0].scriptSig = CScript() << OP_0 << OP_0 << OP_0 << OP_NOP << OP_CHECKMULTISIG << OP_1;
+        tx.vin[0].scriptSig = CScript();
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
         tx.vin[0].prevout.n = 0;
-        tx.vout.resize(1);
-        SetMthOutput(tx.vout[0], scriptPubKey, BLOCKSUBSIDY);
-        for (unsigned int i = 0; i < 1001; ++i) {
-            tx.vout[0].nValue -= LOWFEE;
-            hash = tx.GetHash();
-            bool spendsCoinbase = i == 0; // only first tx spends coinbase
-            // If we don't set the # of sig ops in the CTxMemPoolEntry, template creation fails
-            tx_mempool.addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(spendsCoinbase).FromTx(tx));
-            tx.vin[0].prevout.hash = hash;
-        }
+        const size_t n_over = static_cast<size_t>(MAX_BLOCK_SIGOPS_COST / WITNESS_SCALE_FACTOR) + 1;
+        tx.vout.assign(n_over, CTxOut(1, scriptPubKey));
+        // Default mempool sigOpCost is 4, so the assembler includes this tx;
+        // CheckBlock then applies GetLegacySigOpCount (one per live WPKH output).
+        tx_mempool.addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
 
         BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool, true).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-blk-sigops"));
     }
@@ -271,6 +266,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         LOCK(tx_mempool.cs);
 
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
+        tx.vout.resize(1);
         SetMthOutput(tx.vout[0], scriptPubKey, BLOCKSUBSIDY);
         for (unsigned int i = 0; i < 1001; ++i) {
             tx.vout[0].nValue -= LOWFEE;
@@ -292,12 +288,12 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
 
         // block size > limit
         tx.vin[0].scriptSig = CScript();
-        // 18 * (520char + DROP) + OP_1 = 9433 bytes
+        // 18 * (520char + DROP) + RIGOR_PUSH_1 = 9433 bytes
         std::vector<unsigned char> vchData(520);
         for (unsigned int i = 0; i < 18; ++i) {
-            tx.vin[0].scriptSig << vchData << OP_DROP;
+            tx.vin[0].scriptSig << vchData << RIGOR_RESERVED_LEGACY_DROP;
         }
-        tx.vin[0].scriptSig << OP_1;
+        tx.vin[0].scriptSig << RIGOR_PUSH_1;
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
         SetMthOutput(tx.vout[0], scriptPubKey, BLOCKSUBSIDY);
         for (unsigned int i = 0; i < 128; ++i) {
@@ -326,14 +322,14 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         LOCK(tx_mempool.cs);
 
         // child with higher feerate than parent
-        tx.vin[0].scriptSig = CScript() << OP_1;
+        tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
         tx.vin[0].prevout.hash = txFirst[1]->GetHash();
         SetMthOutput(tx.vout[0], scriptPubKey, BLOCKSUBSIDY - HIGHFEE);
         hash = tx.GetHash();
         tx_mempool.addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
         tx.vin[0].prevout.hash = hash;
         tx.vin.resize(2);
-        tx.vin[1].scriptSig = CScript() << OP_1;
+        tx.vin[1].scriptSig = CScript() << RIGOR_PUSH_1;
         tx.vin[1].prevout.hash = txFirst[0]->GetHash();
         tx.vin[1].prevout.n = 0;
         tx.vout[0].nValue = tx.vout[0].nValue + BLOCKSUBSIDY - HIGHERFEE; // First txn output + fresh coinbase - new txn fee
@@ -349,7 +345,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         // coinbase in tx_mempool, template creation fails
         tx.vin.resize(1);
         tx.vin[0].prevout.SetNull();
-        tx.vin[0].scriptSig = CScript() << OP_0 << OP_1;
+        tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_0 << RIGOR_PUSH_1;
         SetMthOutput(tx.vout[0], scriptPubKey, 0);
         hash = tx.GetHash();
         // give it a fee so it'll get mined
@@ -364,7 +360,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
 
         // double spend txn pair in tx_mempool, template creation fails
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
-        tx.vin[0].scriptSig = CScript() << OP_1;
+        tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
         SetMthOutput(tx.vout[0], scriptPubKey, BLOCKSUBSIDY - HIGHFEE);
         hash = tx.GetHash();
         tx_mempool.addUnchecked(entry.Fee(HIGHFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
@@ -405,11 +401,36 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         }
         BOOST_CHECK(AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey));
 
-        // invalid p2sh txn in tx_mempool, template creation fails
+        // R-3: a missing window must not be written as a three-push all-zero C.
+        // Skip-validity (this file's default) leaves the two-push placeholder.
+        {
+            const auto tmpl = AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey);
+            BOOST_REQUIRE(tmpl);
+            Consensus::CoinbaseConvergenceRootScriptSig parsed;
+            std::string parse_err;
+            BOOST_CHECK(!Consensus::ParseCoinbaseConvergenceRootScriptSig(
+                tmpl->block.vtx[0]->vin[0].scriptSig, parsed, parse_err));
+        }
+        // Production assembler refuses rather than committing the placeholder as C.
+        BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool, true).CreateNewBlock(scriptPubKey),
+                              std::runtime_error, HasReason("cannot reconstruct convergence window"));
+
+        // Delete the dummy blocks again.
+        while (m_node.chainman->ActiveChain().Tip()->nHeight > nHeight) {
+            CBlockIndex* del = m_node.chainman->ActiveChain().Tip();
+            m_node.chainman->ActiveChain().SetTip(*Assert(del->pprev));
+            m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(del->pprev->GetBlockHash());
+            delete del->phashBlock;
+            delete del;
+        }
+
+        // invalid p2sh txn in tx_mempool, template creation fails.
+        // Must run on the restored chain: the dummy header-only tip has no window,
+        // so test_block_validity=true throws at R-3 before CheckBlock.
         tx.vin[0].prevout.hash = txFirst[0]->GetHash();
         tx.vin[0].prevout.n = 0;
-        tx.vin[0].scriptSig = CScript() << OP_1;
-        CScript script = CScript() << OP_0;
+        tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
+        CScript script = CScript() << RIGOR_PUSH_0;
         SetMthOutput(tx.vout[0], GetScriptForDestination(ScriptHash(script)), BLOCKSUBSIDY - LOWFEE);
         hash = tx.GetHash();
         tx_mempool.addUnchecked(entry.Fee(LOWFEE).Time(Now<NodeSeconds>()).SpendsCoinbase(true).FromTx(tx));
@@ -421,15 +442,6 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
         // Legacy Bitcoin used invalid-in-mempool P2SH to force TestBlockValidity to fail with block-validation-failed.
         // Rigor rejects non-witness templates earlier (CheckBlock: bad-rigor-script-type) or via CheckTxOutAssetWitnessBinding.
         BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool, true).CreateNewBlock(scriptPubKey), std::runtime_error, HasReason("bad-rigor-script-type"));
-
-        // Delete the dummy blocks again.
-        while (m_node.chainman->ActiveChain().Tip()->nHeight > nHeight) {
-            CBlockIndex* del = m_node.chainman->ActiveChain().Tip();
-            m_node.chainman->ActiveChain().SetTip(*Assert(del->pprev));
-            m_node.chainman->ActiveChainstate().CoinsTip().SetBestBlock(del->pprev->GetBlockHash());
-            delete del->phashBlock;
-            delete del;
-        }
     }
 
     CTxMemPool& tx_mempool{MakeMempool()};
@@ -447,7 +459,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     prevheights.resize(1);
     tx.vin[0].prevout.hash = txFirst[0]->GetHash(); // only 1 transaction
     tx.vin[0].prevout.n = 0;
-    tx.vin[0].scriptSig = CScript() << OP_1;
+    tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
     tx.vin[0].nSequence = m_node.chainman->ActiveChain().Tip()->nHeight + 1; // txFirst[0] is the 2nd block
     prevheights[0] = baseheight + 1;
     tx.vout.resize(1);
@@ -553,7 +565,7 @@ void MinerTestingSetup::TestPrioritisedMining(const CScript& scriptPubKey, const
     tx.vin.resize(1);
     tx.vin[0].prevout.hash = txFirst[0]->GetHash();
     tx.vin[0].prevout.n = 0;
-    tx.vin[0].scriptSig = CScript() << OP_1;
+    tx.vin[0].scriptSig = CScript() << RIGOR_PUSH_1;
     tx.vout.resize(1);
     SetMthOutput(tx.vout[0], scriptPubKey, 5000000000LL); // 0 fee
     uint256 hashFreePrioritisedTx = tx.GetHash();
@@ -654,8 +666,8 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
                 m_node.chainman->ActiveChain().Tip(),
                 m_node.chainman->ActiveChainstate().CoinsTip(),
                 m_node.chainman->GetConsensus());
-            txCoinbase.vin[0].scriptSig = CScript{} << (m_node.chainman->ActiveChain().Height() + 1)
-                << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+            txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+                m_node.chainman->ActiveChain().Height() + 1, convergence_root, uint256{});
             pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
             RefreshCoinbaseWitnessAndconvergence(*pblock, m_node.chainman->ActiveChain().Tip(), *Assert(m_node.chainman));
             if (txFirst.size() == 0)

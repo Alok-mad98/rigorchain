@@ -285,6 +285,18 @@ def check_vector(vec: dict) -> tuple[bool, str]:
                 ok = ok and got.get(key) == exp.get(key)
         return ok, f"{vid} smw {got.get('reject')}"
 
+    if mod == "ScriptAsset":
+        try:
+            got = spec.eval_script_asset(inp)
+        except (KeyError, ValueError, TypeError) as exc:
+            return False, f"{vid} eval error: {exc}"
+        ok = (
+            got.get("asset") == exp.get("asset")
+            and got.get("is_allowed") == exp.get("is_allowed")
+            and got.get("is_res") == exp.get("is_res")
+        )
+        return ok, f"{vid} sass {got.get('asset')}"
+
     if mod == "EdgeCross":
         if exp.get("accepted") is not False:
             return False, f"{vid} expected.accepted must be false"

@@ -7,11 +7,11 @@ noinst_PROGRAMS += test/fuzz/fuzz
 endif
 
 if ENABLE_TESTS
-bin_PROGRAMS += test/test_bitcoin
+bin_PROGRAMS += test/test_rigor
 endif
 
 TEST_SRCDIR = test
-TEST_BINARY=test/test_bitcoin$(EXEEXT)
+TEST_BINARY=test/test_rigor$(EXEEXT)
 FUZZ_BINARY=test/fuzz/fuzz$(EXEEXT)
 
 JSON_TEST_FILES = \
@@ -21,6 +21,12 @@ JSON_TEST_FILES = \
   test/data/key_io_valid.json \
   test/data/key_io_invalid.json \
   test/data/sighash.json \
+  test/data/script_tests.json \
+  test/data/rigor_sighash_p0_018.json \
+  test/data/rigor_script_asset_classifier.json \
+  test/data/rigor_classification_vectors.json \
+  test/data/rigor_sighash_vectors.json \
+  test/data/issuance_height_boundary_p0_040.json \
   test/data/tx_invalid.json \
   test/data/tx_valid.json
 
@@ -59,9 +65,7 @@ if USE_NATPMP
 FUZZ_SUITE_LD_COMMON += $(NATPMP_LIBS)
 endif
 
-# test_bitcoin binary #
-# Rigor: script_tests.cpp / script_p2sh_tests.cpp / multisig_tests.cpp are omitted — they assume legacy
-# Bitcoin secp256k1 ECDSA in bare/P2SH/non-witness scriptSig paths, which consensus rejects (SCRIPT_ERR_SECP256K1_DISABLED).
+# test_rigor binary #
 BITCOIN_TESTS =\
   test/addrman_tests.cpp \
   test/alpha1_genesis_tests.cpp \
@@ -110,16 +114,18 @@ BITCOIN_TESTS =\
   test/merkle_tests.cpp \
   test/merkleblock_tests.cpp \
   test/miner_tests.cpp \
-  test/miniscript_tests.cpp \
   test/minisketch_tests.cpp \
   test/net_peer_eviction_tests.cpp \
   test/net_tests.cpp \
   test/netbase_tests.cpp \
+  test/rigor_capability_tests.cpp \
   test/orphanage_tests.cpp \
   test/pmt_tests.cpp \
+  test/paid_winner_index_tests.cpp \
   test/policy_fee_tests.cpp \
   test/policyestimator_tests.cpp \
   test/pow_tests.cpp \
+  test/rigor_pow_digest_tests.cpp \
   test/prevector_tests.cpp \
   test/raii_event_tests.cpp \
   test/random_tests.cpp \
@@ -135,6 +141,7 @@ BITCOIN_TESTS =\
   test/ed25519_consensus_determinism_tests.cpp \
   test/ed25519_slip10_tests.cpp \
   test/ed25519_boundary_tests.cpp \
+  test/script_asset_ownership_freeze_tests.cpp \
   test/selection_golden_tests.cpp \
   test/state_diff_tests.cpp \
   test/state_snapshot_tests.cpp \
@@ -150,12 +157,35 @@ BITCOIN_TESTS =\
   test/runtime_supply_phase5_summary_tests.cpp \
   test/runtime_vector_harness_tests.cpp \
   test/convergence_consensus_tests.cpp \
+  test/w32_reorg_stability_tests.cpp \
+  test/window_parameterization_tests.cpp \
+  test/mint_supply_reorg_p0_036_tests.cpp \
+  test/genesis_zero_issuance_p0_037_tests.cpp \
+  test/issuance_height_boundary_p0_041_tests.cpp \
+  test/rigor_consensus_kernel_tests.cpp \
+  test/rigor_consensus_kernel_bridge_tests.cpp \
+  test/test_consensus_kernel_single_authority.cpp \
+  test/test_consensus_kernel_adversarial.cpp \
+  test/test_consensus_kernel_freeze.cpp \
+  test/test_consensus_kernel_testnet_canary.cpp \
+  test/test_consensus_kernel_production_canary.cpp \
+  test/test_consensus_kernel_mainnet_canary.cpp \
+  test/test_consensus_kernel_mainnet_canary_longrun.cpp \
+  test/test_genesis_consensus_authority.cpp \
+  node/kernel_runtime_canary.cpp \
   test/convergence_window_ui_tests.cpp \
   test/convergence_root_tests.cpp \
   test/rpc_tests.cpp \
   test/sanity_tests.cpp \
   test/scheduler_tests.cpp \
+  test/seed_manifest_tests.cpp \
   test/script_parse_tests.cpp \
+  test/rigor_opcode_namespace_tests.cpp \
+  test/rigor_classification_vector_tests.cpp \
+  test/rigor_sighash_vector_tests.cpp \
+  test/rigor_predicate_registry_tests.cpp \
+  test/rigor_wallet_ownership_tests.cpp \
+  test/script_tests.cpp \
   test/script_segwit_tests.cpp \
   test/script_standard_tests.cpp \
   test/scriptnum10.h \
@@ -207,12 +237,38 @@ BITCOIN_TESTS =\
   test/xoroshiro128plusplus_tests.cpp
 
 if ENABLE_WALLET
-# Wallet unit tests in test_bitcoin are disabled until they are updated for Rigor
-# (witness-only addresses, regtest subsidy / coinbase layout, no Taproot/legacy paths).
-# Fuzz targets below still exercise wallet code where applicable.
+BITCOIN_TESTS += \
+  wallet/test/db_tests.cpp \
+  wallet/test/group_outputs_tests.cpp \
+  wallet/test/init_tests.cpp \
+  wallet/test/rpc_util_tests.cpp \
+  wallet/test/scriptpubkeyman_tests.cpp \
+  wallet/test/wallet_crypto_tests.cpp \
+  wallet/test/wallet_transaction_tests.cpp \
+  wallet/test/walletdb_tests.cpp \
+  wallet/test/walletload_tests.cpp
+
+# Still excluded, each for a specific reason rather than a blanket "not updated for Rigor":
+#   coinselector_tests  - check_max_weight builds a tx that exceeds MAX_STANDARD_TX_WEIGHT because
+#                         Rigor inputs (Ed25519, 32-byte keys) are heavier than the ECDSA sizes the
+#                         fixture was tuned for.
+#   feebumper_tests     - external_max_weight_test fixtures are P2PKH/P2SH-P2WPKH/P2WPKH/P2WSH with
+#                         ECDSA signatures, which the Rigor interpreter rejects outright.
+#   ismine_tests        - exercises LegacyScriptPubKeyMan and Bitcoin script/descriptor forms; also
+#                         dereferences a null descriptor when parsing fails.
+#   psbt_wallet_tests   - SIGABRT in psbt_updater_test and parse_hd_keypath (not yet diagnosed).
+#   spend_tests         - SubtractFee hardcodes Bitcoin fee/vsize expectations, and
+#                         wallet_duplicated_preset_inputs_test no longer rejects duplicate inputs.
+#   wallet_tests        - ListCoinsTest aborts on the m_buffering assertion in Logger::StartLogging
+#                         and the suite then hangs.
+BITCOIN_TEST_SUITE += \
+  wallet/test/init_test_fixture.cpp \
+  wallet/test/init_test_fixture.h \
+  wallet/test/wallet_test_fixture.cpp \
+  wallet/test/wallet_test_fixture.h
+
 FUZZ_SUITE_LD_COMMON +=\
- $(SQLITE_LIBS) \
- $(BDB_LIBS)
+ $(SQLITE_LIBS)
 
 FUZZ_WALLET_SRC = \
  wallet/test/fuzz/coinselection.cpp \
@@ -225,22 +281,21 @@ endif # USE_SQLITE
 
 endif # ENABLE_WALLET
 
-test_test_bitcoin_SOURCES = $(BITCOIN_TEST_SUITE) $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
-test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
+test_test_rigor_SOURCES = $(BITCOIN_TEST_SUITE) $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
+test_test_rigor_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(TESTDEFS) $(BOOST_CPPFLAGS) $(EVENT_CFLAGS)
 # miner_tests: opt-in default to skip CreateNewBlock(TestBlockValidity) for legacy script fixtures (see miner_tests.cpp).
-test_test_bitcoin_CPPFLAGS += -DRIGORCHAIN_MINER_TESTS_SKIP_TEMPLATE_VALIDITY
-test_test_bitcoin_LDADD = $(LIBTEST_UTIL)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_WALLET)
-test_test_bitcoin_CPPFLAGS += $(BDB_CPPFLAGS)
+test_test_rigor_CPPFLAGS += -DRIGORCHAIN_MINER_TESTS_SKIP_TEMPLATE_VALIDITY
+test_test_rigor_LDADD = $(LIBTEST_UTIL)
+test_test_rigor_LDADD += $(LIBBITCOIN_WALLET)
 
-test_test_bitcoin_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
+test_test_rigor_LDADD += $(LIBBITCOIN_NODE) $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) \
   $(LIBLEVELDB) $(LIBMEMENV) $(EVENT_LIBS) $(EVENT_PTHREADS_LIBS) $(MINISKETCH_LIBS) $(SODIUM_LIBS)
-test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+test_test_rigor_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 
-test_test_bitcoin_LDADD += $(BDB_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS)
-test_test_bitcoin_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
+test_test_rigor_LDADD += $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(SQLITE_LIBS)
+test_test_rigor_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
 
-# RFC-001 golden vector generator (standalone main; not part of test_bitcoin).
+# RFC-001 golden vector generator (standalone main; not part of test_rigor).
 noinst_PROGRAMS += compute_rfc001_vectors
 compute_rfc001_vectors_SOURCES = test/compute_rfc001_vectors.cpp
 compute_rfc001_vectors_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -252,7 +307,7 @@ compute_rfc001_vectors_LDADD = \
 compute_rfc001_vectors_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) $(PTHREAD_FLAGS) -static
 
 if ENABLE_ZMQ
-test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+test_test_rigor_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 FUZZ_SUITE_LD_COMMON += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
@@ -275,7 +330,6 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/block.cpp \
  test/fuzz/block_header.cpp \
  test/fuzz/blockfilter.cpp \
- test/fuzz/bloom_filter.cpp \
  test/fuzz/buffered_file.cpp \
  test/fuzz/chain.cpp \
  test/fuzz/checkqueue.cpp \
@@ -313,7 +367,6 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/locale.cpp \
  test/fuzz/merkleblock.cpp \
  test/fuzz/message.cpp \
- test/fuzz/miniscript.cpp \
  test/fuzz/minisketch.cpp \
  test/fuzz/muhash.cpp \
  test/fuzz/multiplication_overflow.cpp \
@@ -331,6 +384,9 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/policy_estimator.cpp \
  test/fuzz/policy_estimator_io.cpp \
  test/fuzz/pow.cpp \
+ test/fuzz/rigor_asert.cpp \
+ test/fuzz/rigor_opuhash_header.cpp \
+ test/fuzz/rigor_pow_target.cpp \
  test/fuzz/prevector.cpp \
  test/fuzz/primitives_transaction.cpp \
  test/fuzz/process_message.cpp \
@@ -341,11 +397,14 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/rbf.cpp \
  test/fuzz/res_checktxinputs.cpp \
  test/fuzz/res_mint_eval.cpp \
+ test/fuzz/rigor_mint.cpp \
+ test/fuzz/rigor_reorg.cpp \
+ test/fuzz/rigor_scriptpubkey.cpp \
+ test/fuzz/rigor_supply.cpp \
  test/fuzz/rolling_bloom_filter.cpp \
  test/fuzz/rpc.cpp \
  test/fuzz/script.cpp \
  test/fuzz/script_assets_test_minimizer.cpp \
- test/fuzz/script_bitcoin_consensus.cpp \
  test/fuzz/script_descriptor_cache.cpp \
  test/fuzz/script_flags.cpp \
  test/fuzz/script_format.cpp \
@@ -355,7 +414,6 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/script_sign.cpp \
  test/fuzz/scriptnum_ops.cpp \
  test/fuzz/signature_checker.cpp \
- test/fuzz/signet.cpp \
  test/fuzz/socks5.cpp \
  test/fuzz/span.cpp \
  test/fuzz/spanparsing.cpp \
@@ -375,7 +433,7 @@ test_fuzz_fuzz_SOURCES = \
  test/fuzz/versionbits.cpp
 endif # ENABLE_FUZZ_BINARY
 
-nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
+nodist_test_test_rigor_SOURCES = $(GENERATED_TEST_FILES)
 
 $(BITCOIN_TESTS): $(GENERATED_TEST_FILES)
 
@@ -384,22 +442,22 @@ CLEAN_BITCOIN_TEST = test/*.gcda test/*.gcno test/fuzz/*.gcda test/fuzz/*.gcno t
 CLEANFILES += $(CLEAN_BITCOIN_TEST)
 
 if TARGET_WINDOWS
-bitcoin_test: $(TEST_BINARY)
+rigor_test: $(TEST_BINARY)
 else
 if ENABLE_BENCH
-bitcoin_test: $(TEST_BINARY) $(BENCH_BINARY)
+rigor_test: $(TEST_BINARY) $(BENCH_BINARY)
 else
-bitcoin_test: $(TEST_BINARY)
+rigor_test: $(TEST_BINARY)
 endif
 endif
 
-bitcoin_test_check: $(TEST_BINARY) FORCE
+rigor_test_check: $(TEST_BINARY) FORCE
 	$(MAKE) check-TESTS TESTS=$^
 
-bitcoin_test_clean : FORCE
-	rm -f $(CLEAN_BITCOIN_TEST) $(test_test_bitcoin_OBJECTS) $(TEST_BINARY)
+rigor_test_clean : FORCE
+	rm -f $(CLEAN_BITCOIN_TEST) $(test_test_rigor_OBJECTS) $(TEST_BINARY)
 
-check-local: $(BITCOIN_TESTS:.cpp=.cpp.test)
+check-local: $(TEST_BINARY) $(BITCOIN_TESTS:.cpp=.cpp.test)
 	@echo "Running test/util/rpcauth-test.py..."
 	$(PYTHON) $(top_builddir)/test/util/rpcauth-test.py
 if TARGET_WINDOWS
@@ -425,22 +483,30 @@ univalue_test_object_CPPFLAGS = -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
 univalue_test_object_LDFLAGS = -static $(LIBTOOL_APP_LDFLAGS)
 endif
 
-%.cpp.test: %.cpp
+%.cpp.test: %.cpp $(TEST_BINARY)
 	@echo Running tests: $$(\
 	  cat $< | \
 	  grep -E "(BOOST_FIXTURE_TEST_SUITE\\(|BOOST_AUTO_TEST_SUITE\\()" | \
 	  cut -d '(' -f 2 | cut -d ',' -f 1 | cut -d ')' -f 1 | \
 	  paste -s -d, - \
 	) from $<
+	$(AM_V_at)chmod +x "$(abs_builddir)/$(TEST_BINARY)"
 	$(AM_V_at)export TEST_LOGFILE=$(abs_builddir)/$$(\
 	  echo $< | grep -E -o "(wallet/test/.*\.cpp|test/.*\.cpp)" | $(SED) -e s/\.cpp/.log/ \
 	) && \
-	$(TEST_BINARY) --catch_system_errors=no -l test_suite -t "$$(\
+	i=0; \
+	until "$(abs_builddir)/$(TEST_BINARY)" --catch_system_errors=no -l test_suite -t "$$(\
 	  cat $< | \
 	  grep -E "(BOOST_FIXTURE_TEST_SUITE\\(|BOOST_AUTO_TEST_SUITE\\()" | \
 	  cut -d '(' -f 2 | cut -d ',' -f 1 | cut -d ')' -f 1 | \
 	  paste -s -d, - \
-	)" -- DEBUG_LOG_OUT > "$$TEST_LOGFILE" 2>&1 || (cat "$$TEST_LOGFILE" && false)
+	)" -- DEBUG_LOG_OUT > "$$TEST_LOGFILE" 2>&1; do \
+	  st=$$?; \
+	  i=$$((i+1)); \
+	  if [ $$st -ne 126 ] || [ $$i -ge 8 ]; then cat "$$TEST_LOGFILE" 2>/dev/null; exit $$st; fi; \
+	  chmod +x "$(abs_builddir)/$(TEST_BINARY)"; \
+	  sleep 1; \
+	done
 
 %.json.h: %.json
 	@$(MKDIR_P) $(@D)

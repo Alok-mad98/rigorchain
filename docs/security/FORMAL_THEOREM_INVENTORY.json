@@ -1,5 +1,5 @@
 {
- "count": 2585,
+ "count": 2873,
  "theorems": [
   {
    "file": "RigorBytes.v",
@@ -296,61 +296,61 @@
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "res_probability_target_not_vacuous",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "pre_a6_target_was_vacuous",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "pre_a6_every_digest_was_eligible",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "res_probability_target_rejects_max_digest",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "mint_cost_is_1024_oru",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "saturation_weight_is_32768_oru",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "window_is_a_power_of_two",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "window_widens_the_candidate_set",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "target_is_unwindowed_divided_by_window",
    "slice": "protocol_core"
   },
   {
-   "file": "Selection.v",
+   "file": "legacy_account_model/Selection.v",
    "kind": "Lemma",
    "name": "windowing_preserves_non_vacuity",
    "slice": "protocol_core"
@@ -496,13 +496,25 @@
   {
    "file": "DrawCandidateRoot.v",
    "kind": "Theorem",
-   "name": "singleton_roots_differ_in_shape",
+   "name": "singleton_roots_agree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawCandidateRoot.v",
+   "kind": "Theorem",
+   "name": "draw_candidate_root_agrees_with_C_when_nonempty",
    "slice": "protocol_core"
   },
   {
    "file": "DrawCandidateRoot.v",
    "kind": "Theorem",
    "name": "draw_candidate_root_agrees_with_C_when_large",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawCandidateRoot.v",
+   "kind": "Theorem",
+   "name": "DrawCandidateRoot_agrees_with_ConvergeRoot_nonempty",
    "slice": "protocol_core"
   },
   {
@@ -622,7 +634,19 @@
   {
    "file": "DrawCandidateRoot.v",
    "kind": "Theorem",
+   "name": "all_eligible_agrees_with_C_when_nonempty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawCandidateRoot.v",
+   "kind": "Theorem",
    "name": "all_eligible_agrees_with_C_when_large",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawCandidateRoot.v",
+   "kind": "Theorem",
+   "name": "draw_candidate_root_is_C_of_eligible_when_nonempty",
    "slice": "protocol_core"
   },
   {
@@ -634,7 +658,7 @@
   {
    "file": "DrawCandidateRoot.v",
    "kind": "Theorem",
-   "name": "eligible_small_C_is_zero",
+   "name": "eligible_empty_C_is_zero",
    "slice": "protocol_core"
   },
   {
@@ -682,19 +706,73 @@
   {
    "file": "ScriptMintWitness.v",
    "kind": "Lemma",
+   "name": "is_res_mint_script_iff_parse_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_allowed_script_iff_admitted_asset",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_res_script_iff_smw_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_op_return",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "parse_witness_op_return",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_res_mint_op_return",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_converge_op_return",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "is_op_return_classifies_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
    "name": "canonical_p2wpkh_allowed_not_res",
    "slice": "protocol_core"
   },
   {
    "file": "ScriptMintWitness.v",
    "kind": "Lemma",
-   "name": "canonical_res2_is_res",
+   "name": "canonical_native_res_is_res",
    "slice": "protocol_core"
   },
   {
    "file": "ScriptMintWitness.v",
    "kind": "Lemma",
-   "name": "canonical_cvg2_is_not_res",
+   "name": "canonical_res2_not_allowed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "canonical_cvg2_not_allowed_invalid",
    "slice": "protocol_core"
   },
   {
@@ -706,7 +784,67 @@
   {
    "file": "ScriptMintWitness.v",
    "kind": "Lemma",
+   "name": "unknown_scripts_are_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "op_return_is_none_not_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "op_return_direct_push_is_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "op_return_non_push_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "canonical_converge_allowed_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
    "name": "canonical_pcorb_parses",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "canonical_res_mint_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "canonical_res_mint_allowed_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "canonical_cvg_claim_is_cvg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "claimed_invalid_accepts_p2pkh",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ScriptMintWitness.v",
+   "kind": "Lemma",
+   "name": "claimed_invalid_rejects_p2wpkh",
    "slice": "protocol_core"
   },
   {
@@ -1240,7 +1378,19 @@
   {
    "file": "Kernel/KernelRoot.v",
    "kind": "Theorem",
+   "name": "converge_root_empty",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/KernelRoot.v",
+   "kind": "Theorem",
    "name": "converge_root_small",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/KernelRoot.v",
+   "kind": "Theorem",
+   "name": "converge_root_singleton",
    "slice": "kernel_harness"
   },
   {
@@ -2810,6 +2960,162 @@
    "slice": "replay"
   },
   {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "cvg_creates_value_ok_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "cvg_creates_value_ok_forall",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "cvg_creates_value_ok_rejects_below_floor",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "mk_cvg_is_cvg_output",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "mk_cvg_below_floor_rejected",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "mk_cvg_at_floor_accepted",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_iff_parse",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_false_iff_parse_none",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "parse_cvg_claim_script_inv",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "parse_cvg_claim_script_hash_len",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "parse_cvg_claim_script_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "parse_cvg_claim_script_sound",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_sound",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "canonical_cvg_owner_hash_len",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "canonical_cvg_claim_script_parses",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "canonical_cvg_claim_script_ok",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_covenant_output_script",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_covenant_output_canonical",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "count_cvg_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "count_cvg_canonical_cons",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "parse_cvg_claim_script_rejects_wrong_opcode",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_rejects_empty_hash",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "cvg_spend_ok_no_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "count_cvg_eq_filter_length",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/CvgCovenant.v",
+   "kind": "Lemma",
+   "name": "cvg_unique_owner_hash_of_count_1",
+   "slice": "replay"
+  },
+  {
    "file": "ReplayReorgCore/ScriptShape.v",
    "kind": "Lemma",
    "name": "smw_is_cvg2_script_nil",
@@ -2836,7 +3142,7 @@
   {
    "file": "ReplayReorgCore/ScriptShape.v",
    "kind": "Lemma",
-   "name": "forallb_nil_scripts_created",
+   "name": "forallb_nil_creates_ok",
    "slice": "replay"
   },
   {
@@ -3064,6 +3370,126 @@
   {
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Lemma",
+   "name": "output_asset_is_script",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "apply_tx_derived_assets_obligation_true",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "txout_asset_value_from_script",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "output_asset_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "txout_cvg_not_oru",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "txout_cvg_not_res",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "natlist_eqb_refl",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "natlist_eqb_true",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_covenant_spend_no_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_covenant_spend_implies_cvg_spend_ok",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_covenant_spend_no_recreate",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "valid_cvg_covenant_spend_owner_eq",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "valid_cvg_covenant_spend_has_matching_hashes",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_covenant_spend_canonical_owner",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_no_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_rejects_many",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_oru_funded",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_no_res",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_value_floor",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_vacuous_on_covenant_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
    "name": "res_mint_shape_rejects_wrong_amount",
    "slice": "replay"
   },
@@ -3076,6 +3502,66 @@
   {
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Lemma",
+   "name": "cvg_mint_shape_rejects_zero_reward",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_zero_res_in",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_reward_positive",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_one_res_out",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_oru_unchanged",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_count_cvg_1",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_shape_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "cvg_mint_increases_res_by_exactly_W",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "is_scheduled_mint_shape_true_left",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "is_scheduled_mint_shape_true_right",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
    "name": "valid_script_shape_tx_of_on_ins",
    "slice": "replay"
   },
@@ -3083,6 +3569,30 @@
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Lemma",
    "name": "valid_script_shape_tx_placeholder",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_spend_tx_no_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_tx_no_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "valid_cvg_create_tx_of_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "valid_cvg_create_tx_rejects_creation",
    "slice": "replay"
   },
   {
@@ -3113,6 +3623,66 @@
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Theorem",
    "name": "apply_tx_succeeds_implies_script_shape",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_succeeds_implies_derived_assets",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_succeeds_implies_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_succeeds_implies_cvg_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_rejects_without_cvg_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_rejects_cvg_creation",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_succeeds_implies_no_ticket_birth",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_ticket_birth_is_funded",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_rejects_two_tickets",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_succeeds_implies_cvg_spend_ok",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_rejects_without_cvg_spend",
    "slice": "replay"
   },
   {
@@ -3155,6 +3725,96 @@
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Lemma",
    "name": "apply_txs_preserves_chain",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "count_cvg_zero_forallb",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "forallb_filter",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_cvg_free_remove",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_cvg_free_fold_remove",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_cvg_free_app",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_cvg_free_insert",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_cvg_free_fold_create",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "apply_tx_utxo_preserves_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_tx_preserves_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "apply_txs_preserves_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "utxo_lookup_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Lemma",
+   "name": "gather_inputs_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "cvg_mint_shape_unreachable_from_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "scheduled_mint_shape_is_oru_funded_from_cvg_free",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/StateTransition.v",
+   "kind": "Theorem",
+   "name": "replay_from_cvg_free_admits_no_covenant_mint",
    "slice": "replay"
   },
   {
@@ -3239,6 +3899,162 @@
    "file": "ReplayReorgCore/StateTransition.v",
    "kind": "Theorem",
    "name": "valid_block_sequence_fold_some",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "asset_kind_of_script_smw",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "asset_eqb_true",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "mk_derived_txout_well_formed",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Theorem",
+   "name": "txout_asset_derived_always",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Theorem",
+   "name": "valid_output_satisfies_derivation",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Theorem",
+   "name": "well_formed_output_asset_is_script_function",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Theorem",
+   "name": "derived_txout_pools_as_script",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Theorem",
+   "name": "apply_tx_enforces_derived_assets",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "utxo_assets_derived_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "utxo_assets_derived_cons",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "utxo_assets_derived_always",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "p2wpkh_kind_oru",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "native_res_kind_res",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "cvg2_kind_invalid",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "mint_kind_res",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "opret_kind_none",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "converge_kind_oru",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "empty_script_kind_invalid",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "p2wsh_kind_invalid",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "res2_kind_invalid",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "p2pkh_kind_invalid",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "invalid_is_not_none",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "mint_script_is_res_bytes",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "cvg_claim_kind_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "is_cvg_claim_script_kind",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/AssetFromScript.v",
+   "kind": "Lemma",
+   "name": "cvg_claim_script_is_cvg_bytes",
    "slice": "replay"
   },
   {
@@ -3802,6 +4618,48 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "count_cvg_zero_of_negb",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "sum_asset_res_of_cvg_list",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "count_asset_res_of_cvg_list",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "convergence_cannot_create_res",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "covenant_spend_cannot_recreate_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "cvg_ticket_not_recirculated_as_oru",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "sum_asset_oru_skips_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "sum_asset_app",
    "slice": "replay"
   },
@@ -3850,6 +4708,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Theorem",
+   "name": "scheduled_mint_increases_res_by_exactly_W",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
    "name": "mixed_inputs_cannot_mint_extra_res",
    "slice": "replay"
   },
@@ -3857,6 +4721,12 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "count_asset_zero_sum",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "cvg_mint_oru_balance_unchanged",
    "slice": "replay"
   },
   {
@@ -4007,6 +4877,18 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "apply_tx_gathers",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "apply_tx_covenant_spend_cannot_recreate_cvg",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "apply_tx_cvg_mint_oru_conserved",
    "slice": "replay"
   },
   {
@@ -4216,6 +5098,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "dp_mint_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "dp_mint_apply_tx_utxo",
    "slice": "replay"
   },
@@ -4223,6 +5111,60 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "apply_tx_accepts_scheduled_mint",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_genesis_mint_reward",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_dual_pool",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_shape_true",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_not_oru_funded",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_script_shape",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_cvg_mint_apply_tx_utxo",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "apply_tx_accepts_cvg_funded_mint",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "apply_tx_cvg_funded_mint_oru_conserved",
    "slice": "replay"
   },
   {
@@ -4276,6 +5218,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "dp_oru_pay_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "apply_tx_accepts_zero_res_oru_payment",
    "slice": "replay"
   },
@@ -4295,6 +5243,12 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "dp_multi_script_shape",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_multi_cvg_spend",
    "slice": "replay"
   },
   {
@@ -4348,6 +5302,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "dp_xfer_cvg_spend_mix",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "dp_xfer_apply_tx_utxo_mix",
    "slice": "replay"
   },
@@ -4391,6 +5351,12 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "dp_mint_tx2_script_shape_after_xfer",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_mint_tx2_cvg_spend_after_xfer",
    "slice": "replay"
   },
   {
@@ -4450,6 +5416,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "dp_e2e_xfer1_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "dp_e2e_remove_op",
    "slice": "replay"
   },
@@ -4475,6 +5447,12 @@
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
    "name": "dp_e2e_xfer2_script_shape",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "dp_e2e_xfer2_cvg_spend",
    "slice": "replay"
   },
   {
@@ -4510,6 +5488,12 @@
   {
    "file": "ReplayReorgCore/DualPoolConservation.v",
    "kind": "Lemma",
+   "name": "dp_e2e_mint_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
    "name": "apply_tx_e2e_mint_some",
    "slice": "replay"
   },
@@ -4526,15 +5510,735 @@
    "slice": "replay"
   },
   {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "apply_block_authorized_inv",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "apply_block_authorized_implies_apply_block",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "apply_block_body_has_txs",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "apply_block_authorized_body_count",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "body_has_scheduled_mint_count_pos",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Lemma",
+   "name": "body_mint_count_zero_no_scheduled_mint",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "no_winner_forbids_scheduled_mint",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "schedule_exhausted_forbids_scheduled_mint",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "body_mint_requires_winner",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "cvg_mint_requires_winner",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "authorized_body_res_net_bounded_by_one_reward",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "cvg_ticket_birth_value_leaves_oru_pool",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/DualPoolConservation.v",
+   "kind": "Theorem",
+   "name": "cvg_ticket_birth_creates_no_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_share_params_ok",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "fee_conservation",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "fee_conservation_classified",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_share_nonneg",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_share_le_fee",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "calculate_fee_burn_nonneg",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "calculate_fee_burn_le_fee",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "miner_fee_nonneg",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "non_res_transfer_burns_nothing",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_is_unspendable",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "miner_utxo_is_claimable_share",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "split_fee_conserves",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_not_claimable",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_not_claimable_classified",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "coinbase_cap_excludes_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "overclaim_includes_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "fee_burn_deterministic",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "fee_burn_function_of_fee_and_class",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "same_tx_same_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_zero",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_one",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_two",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_three",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_seven",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_thousand",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_one_oru",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_tail_subsidy",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_max_money",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "burn_pin_max_money_odd",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "conservation_pins",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "oru_only_pin_no_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Accounting.v",
+   "kind": "Lemma",
+   "name": "res_transfer_pin_half",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "res_supply_after_tx",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "oru_supply_after_tx",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "res_transfer_does_not_modify_res_supply",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "oru_only_does_not_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "res_transfer_oru_decreases_by_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "apply_fee_tx_rejects_negative",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "apply_fee_tx_accepts_nonneg",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "valid_res_transfer_preserves_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "valid_res_transfer_oru_net_is_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "fee_path_never_moves_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "fee_path_does_not_mint_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "fee_path_does_not_burn_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "fee_path_does_not_alter_res_cap",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "fee_path_preserves_res_cap_bound",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/AssetDomain.v",
+   "kind": "Lemma",
+   "name": "res_transfer_fee_burn_cannot_touch_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "apply_one_res_unchanged",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "apply_one_burn_delta",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "apply_txs_nil",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "fee_burn_replay_deterministic",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "apply_txs_res_unchanged",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "apply_txs_burn_acc",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "same_tx_replayed_same_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "snapshot_restore",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "rollback_restores_fee_burn_state",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "rollback_restores_oru_res_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "reorg_does_not_create_or_destroy_extra_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "reorg_burn_equals_new_branch",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "connect_rollback_identity",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/ReplaySafety.v",
+   "kind": "Lemma",
+   "name": "replay_block_same_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_coin_is_1e6",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_atomic_unit_is_one",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_display_decimals_is_six",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "one_res_is_one_million_atoms",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_coin_is_not_100",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "one_res_is_not_100_atoms",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_max_supply_uses_six_decimal_coin",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "res_max_supply_is_not_two_decimal_lock",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_zero_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_one_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_tenth_res",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_one_atom",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "tenth_res_atoms",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_parts_nonneg",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Precision.v",
+   "kind": "Lemma",
+   "name": "display_reconstructs",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "circulating_delta_is_subsidy_minus_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "circulating_le_ledger",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "coinbase_cap_is_fees_minus_burn_plus_subsidy",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "apply_block_circulating_res_unchanged",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "apply_block_circulating_supply",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Theorem",
+   "name": "oru_circulating_change_is_subsidy_minus_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Theorem",
+   "name": "oru_circulating_change_with_converge",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "apply_block_circulating_deterministic",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "apply_block_circulating_replay",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/BlockSupply.v",
+   "kind": "Lemma",
+   "name": "circulating_rollback_restores_pre_fee_state",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Lemma",
+   "name": "circulating_eq_ledger_minus_fee_sinks",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Theorem",
+   "name": "fee_burn_cannot_enter_circulating_supply",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Theorem",
+   "name": "cvg2_locked_outputs_excluded_from_circulating",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Theorem",
+   "name": "fee_burn_never_created_excluded_from_circulating",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Lemma",
+   "name": "unspendable_coin_not_spendable",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Theorem",
+   "name": "wallet_balance_matches_spendable_utxo_model",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/CirculatingSemantics.v",
+   "kind": "Theorem",
+   "name": "wallet_trusted_mature_owned_spendable_is_value",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "fee_burn_determinism",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "same_transaction_same_block_same_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "burn_share_is_a_function_of_fee",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "supply_conservation",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "fee_splits_into_burn_and_miner",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "res_isolation",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "res_isolation_block",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "reorg_safety",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "reorg_safety_new_branch_burn",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "replay_safety",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "replay_safety_circulating",
+   "slice": "replay"
+  },
+  {
+   "file": "fee-burn/Properties.v",
+   "kind": "Theorem",
+   "name": "precision_consistency",
+   "slice": "replay"
+  },
+  {
    "file": "ReplayReorgCore/OpaqueBoundary.v",
    "kind": "Lemma",
-   "name": "txout_asset_value_ignores_script",
+   "name": "txout_asset_value_determined_by_script",
    "slice": "replay"
   },
   {
    "file": "ReplayReorgCore/OpaqueBoundary.v",
    "kind": "Theorem",
-   "name": "we_do_not_claim_script_derives_asset",
+   "name": "script_derives_pooling_class",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/OpaqueBoundary.v",
+   "kind": "Theorem",
+   "name": "different_scripts_can_pool_differently",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/OpaqueBoundary.v",
+   "kind": "Theorem",
+   "name": "well_formed_outputs_script_determines_asset",
    "slice": "replay"
   },
   {
@@ -4576,13 +6280,13 @@
   {
    "file": "ReplayReorgCore/OpaqueBoundary.v",
    "kind": "Theorem",
-   "name": "we_do_not_claim_apply_tx_consults_is_res_script",
+   "name": "p2wpkh_is_not_res_script_but_shape_ok",
    "slice": "replay"
   },
   {
    "file": "ReplayReorgCore/OpaqueBoundary.v",
    "kind": "Theorem",
-   "name": "we_do_not_claim_cvg2_script_is_pooling_class",
+   "name": "cvg2_script_is_invalid",
    "slice": "replay"
   },
   {
@@ -4601,6 +6305,12 @@
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Lemma",
    "name": "sl_create_shape_false",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/ScriptShapeLift.v",
+   "kind": "Lemma",
+   "name": "sl_empty_created_false",
    "slice": "replay"
   },
   {
@@ -4625,6 +6335,12 @@
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Lemma",
    "name": "sl_v1_len20_created_false",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/ScriptShapeLift.v",
+   "kind": "Theorem",
+   "name": "apply_tx_rejects_created_empty_script",
    "slice": "replay"
   },
   {
@@ -4708,19 +6424,31 @@
   {
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Lemma",
+   "name": "sl_mint_cvg_spend",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/ScriptShapeLift.v",
+   "kind": "Lemma",
    "name": "sl_mint_apply_tx_utxo",
    "slice": "replay"
   },
   {
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Theorem",
-   "name": "apply_tx_accepts_empty_script_none_pcorb",
+   "name": "apply_tx_accepts_canonical_mint_scripts",
    "slice": "replay"
   },
   {
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Theorem",
-   "name": "allowed_v0_tagged_res_shape_ok",
+   "name": "allowed_v0_shape_ok",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/ScriptShapeLift.v",
+   "kind": "Theorem",
+   "name": "created_script_shape_ok_not_invalid",
    "slice": "replay"
   },
   {

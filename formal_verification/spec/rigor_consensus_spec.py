@@ -271,25 +271,25 @@ def compute_convergence_root_from_txids(txids: List[bytes]) -> bytes:
 
 CVG2_TAG = b"CVG2"
 RES2_TAG = b"RES2"
-OP_0 = 0x00
-OP_1 = 0x51
+RIGOR_PUSH_0 = 0x00
+RIGOR_PUSH_1 = 0x51
 OP_PUSH20 = 0x14
 OP_PUSH32 = 0x20
 
 
 def canonical_cvg2_script(tail: bytes = bytes(28)) -> bytes:
-    """Witness v1 CVG2 container: OP_1 <32-byte program with CVG2 prefix>."""
+    """Witness v1 CVG2 container: RIGOR_PUSH_1 <32-byte program with CVG2 prefix>."""
     if len(tail) != 28:
         raise ValueError("CVG2 program tail must be 28 bytes")
     prog = CVG2_TAG + tail
-    return bytes([OP_1, OP_PUSH32]) + prog
+    return bytes([RIGOR_PUSH_1, OP_PUSH32]) + prog
 
 
 def is_cvg2_script(spk: bytes) -> bool:
     """Abstract form matching C++ MatchCvg2WitnessScript (v1 / 32 / CVG2 prefix)."""
     if len(spk) < 2:
         return False
-    if spk[0] != OP_1 or spk[1] != OP_PUSH32:
+    if spk[0] != RIGOR_PUSH_1 or spk[1] != OP_PUSH32:
         return False
     prog = spk[2:]
     return len(prog) == 32 and prog[:4] == CVG2_TAG
@@ -300,22 +300,87 @@ def is_cvg2_script(spk: bytes) -> bool:
 # TASK-FV-VECTOR-SCRIPT-AND-MINT-WITNESS-NEG-001
 # =============================================================================
 
-OP_2 = 0x52
-OP_16 = 0x60
-OP_DUP = 0x76
-OP_EQUAL = 0x87
-OP_EQUALVERIFY = 0x88
-OP_HASH160 = 0xA9
-OP_CHECKSIG = 0xAC
-OP_RETURN = 0x6A
+RIGOR_PUSH_2 = 0x52
+RIGOR_PUSH_16 = 0x60
+RIGOR_RESERVED_LEGACY_DUP = 0x76
+RIGOR_RESERVED_LEGACY_EQUAL = 0x87
+RIGOR_RESERVED_LEGACY_EQUALVERIFY = 0x88
+RIGOR_RESERVED_LEGACY_HASH160 = 0xA9
+RIGOR_RESERVED_LEGACY_CHECKSIG = 0xAC
+RIGOR_MARKER_RETURN = 0x6A
+RIGOR_MARKER_RES_MINT = 0xBB
+RIGOR_MARKER_CONVERGE = 0xBD
+OP_PUSH20 = 0x14
 
 PCORB_REQUIRED_SIZES = (32, 8, 32, 8, 4, 32)
 
 
+def _cscriptnum_serialize(n: int) -> bytes:
+    """C++ CScriptNum::serialize."""
+    if n == 0:
+        return b""
+    neg = n < 0
+    absvalue = -n if neg else n
+    result = bytearray()
+    while absvalue:
+        result.append(absvalue & 0xFF)
+        absvalue >>= 8
+    if result[-1] & 0x80:
+        result.append(0x80 if neg else 0)
+    elif neg:
+        result[-1] |= 0x80
+    return bytes(result)
+
+
+def _push_data(data: bytes) -> bytes:
+    n = len(data)
+    if n < 76:
+        return bytes([n]) + data
+    raise ValueError("push too large for mint/converge templates")
+
+
+def get_res_mint_script(maturity_height: int, pubkey_hash: bytes) -> bytes:
+    """C++ GetResMintScript: CScriptNum push || 20-byte hash || RIGOR_MARKER_RES_MINT."""
+    if len(pubkey_hash) != 20:
+        raise ValueError("pubkey_hash must be 20 bytes")
+    return _push_data(_cscriptnum_serialize(maturity_height)) + _push_data(pubkey_hash) + bytes([RIGOR_MARKER_RES_MINT])
+
+
+def is_res_mint_script(spk: bytes) -> bool:
+    """C++ IsResMintScript / ParseResMintScript (exact GetResMintScript encoding)."""
+    if not spk or spk[-1] != RIGOR_MARKER_RES_MINT or len(spk) < 22:
+        return False
+    if spk[-22] != OP_PUSH20:
+        return False
+    pkh = spk[-21:-1]
+    prefix = spk[:-22]
+    # Reconstruct maturity from the prefix as a single CScriptNum push and round-trip.
+    if prefix == b"\x00":
+        maturity = 0
+    elif len(prefix) >= 1 and 1 <= prefix[0] <= 75 and len(prefix) == 1 + prefix[0]:
+        data = prefix[1:]
+        if not data:
+            maturity = 0
+        else:
+            maturity = 0
+            for i, b in enumerate(data):
+                maturity |= b << (8 * i)
+            if data[-1] & 0x80:
+                return False  # negative rejected by ParseResMintScript
+    else:
+        return False
+    return spk == get_res_mint_script(maturity, pkh)
+
+
+def is_converge_script(spk: bytes) -> bool:
+    """C++ ParseConvergeScript: OP_PUSHBYTES_20 || 20-byte hash || RIGOR_MARKER_CONVERGE."""
+    return len(spk) == 22 and spk[0] == OP_PUSH20 and spk[21] == RIGOR_MARKER_CONVERGE
+
+
 def witness_version_of(b: int) -> Optional[int]:
-    if b == OP_0:
+    if b == RIGOR_PUSH_0:
         return 0
-    if OP_1 <= b <= OP_16:
+    if RIGOR_PUSH_1 <= b <= RIGOR_PUSH_16:
         return b - 0x50
     return None
 
@@ -334,47 +399,124 @@ def parse_witness_program(spk: bytes) -> Optional[Tuple[int, bytes]]:
     return ver, spk[2:]
 
 
+def is_native_res_program(prog: bytes) -> bool:
+    """C++ IsRigorResNativeWitnessProgram: 32 bytes, neither CVG2 nor RES2.
+
+    Option B: the 32-byte program *is* the Ed25519 public key. This helper
+    only classifies wire shape; it does not hash the key.
+    """
+    return len(prog) == 32 and prog[:4] != CVG2_TAG and prog[:4] != RES2_TAG
+
+
 def is_allowed_script(spk: bytes) -> bool:
-    """C++ IsAllowedScript: witness v0, or v1 with a 32-byte program."""
+    """C++ IsAllowedScript / ClassifyRigorTxout admit-set.
+
+    Witness v0/20, native v1/32 (not CVG2/RES2), RIGOR_MARKER_RES_MINT, RIGOR_MARKER_CONVERGE.
+    RIGOR_MARKER_RETURN, legacy P2PKH, P2WSH, CVG2, RES2, and unknown programs are rejected.
+    """
+    if is_res_mint_script(spk) or is_converge_script(spk):
+        return True
     wp = parse_witness_program(spk)
     if wp is None:
         return False
     ver, prog = wp
     if ver == 0:
-        return True
-    return ver == 1 and len(prog) == 32
+        return len(prog) == 20
+    if ver == 1:
+        return is_native_res_program(prog)
+    return False
 
 
 def is_res_script(spk: bytes) -> bool:
-    """C++ IsResScript: v1 / 32 / not CVG2."""
+    """C++ IsResScript: native v1 / 32, or RIGOR_MARKER_RES_MINT. CVG2/RES2 are not RES."""
+    if is_res_mint_script(spk):
+        return True
     wp = parse_witness_program(spk)
     if wp is None:
         return False
     ver, prog = wp
-    return ver == 1 and len(prog) == 32 and not is_cvg2_script(spk)
+    return ver == 1 and is_native_res_program(prog)
+
+
+def is_push_only(rest: bytes) -> bool:
+    """C++ CScript::IsPushOnly: GetOp succeeds and every opcode <= RIGOR_PUSH_16.
+
+    Includes RIGOR_RESERVED_INERT_50 (0x50). Does not include opcodes > 0x60.
+    """
+    i = 0
+    n = len(rest)
+    while i < n:
+        op = rest[i]
+        i += 1
+        if op <= 75:
+            if i + op > n:
+                return False
+            i += op
+        elif op == 0x4C:
+            if i >= n:
+                return False
+            ln = rest[i]
+            i += 1
+            if i + ln > n:
+                return False
+            i += ln
+        elif op == 0x4D:
+            if i + 2 > n:
+                return False
+            ln = int.from_bytes(rest[i : i + 2], "little")
+            i += 2
+            if i + ln > n:
+                return False
+            i += ln
+        elif op == 0x4E:
+            if i + 4 > n:
+                return False
+            ln = int.from_bytes(rest[i : i + 4], "little")
+            i += 4
+            if i + ln > n:
+                return False
+            i += ln
+        elif op <= 0x60:
+            continue
+        else:
+            return False
+    return True
 
 
 def is_op_return(spk: bytes) -> bool:
-    return bool(spk) and spk[0] == OP_RETURN
+    """C++ NULL_DATA: leading RIGOR_MARKER_RETURN and the remainder is push-only."""
+    if not spk or spk[0] != RIGOR_MARKER_RETURN:
+        return False
+    return is_push_only(spk[1:])
 
 
 def asset_from_script(spk: bytes) -> str:
-    """C++ AssetTypeFromScriptPubKey abstract form. Legacy default is ORU."""
+    """C++ AssetTypeFromScriptPubKey. Unrecognized → INVALID, not ORU/NONE."""
     wp = parse_witness_program(spk)
     if wp is not None:
         ver, prog = wp
-        if ver == 0:
+        if ver == 0 and len(prog) == 20:
             return "ORU"
-        if ver == 1 and len(prog) == 32:
-            return "ORU" if is_cvg2_script(spk) else "RES"
+        if ver == 1 and is_native_res_program(prog):
+            return "RES"
+        return "INVALID"
+    if is_res_mint_script(spk):
+        return "RES"
+    if is_converge_script(spk):
         return "ORU"
     if is_op_return(spk):
         return "NONE"
-    return "ORU"
+    return "INVALID"
 
 
 def classify_script_reject(spk: bytes, claimed: Optional[str] = None) -> Optional[str]:
-    """None means the abstract script form is admitted. claimed is ORU/RES/NONE."""
+    """None means the abstract script form is admitted.
+
+    claimed INVALID means "this script is not an admitted class" and is
+    checked before the allowed-script gate so the branch is reachable.
+    """
+    if claimed == "INVALID":
+        return None if asset_from_script(spk) == "INVALID" else "asset_tag_mismatch"
     if not is_allowed_script(spk):
         return "bad_rigor_script_type"
     if claimed is None:
@@ -412,31 +554,56 @@ def classify_pcorb_reject(stack: List[bytes]) -> Optional[str]:
 
 
 def canonical_p2wpkh_script() -> bytes:
-    return bytes([OP_0, OP_PUSH20]) + bytes(20)
+    return bytes([RIGOR_PUSH_0, OP_PUSH20]) + bytes(20)
 
 
 def canonical_p2wsh_script() -> bytes:
-    return bytes([OP_0, OP_PUSH32]) + bytes(32)
+    return bytes([RIGOR_PUSH_0, OP_PUSH32]) + bytes(32)
 
 
 def canonical_res2_script() -> bytes:
-    return bytes([OP_1, OP_PUSH32]) + RES2_TAG + bytes(28)
+    return bytes([RIGOR_PUSH_1, OP_PUSH32]) + RES2_TAG + bytes(28)
 
 
 def canonical_p2pkh_script() -> bytes:
-    return bytes([OP_DUP, OP_HASH160, OP_PUSH20]) + bytes(20) + bytes([OP_EQUALVERIFY, OP_CHECKSIG])
+    return bytes([RIGOR_RESERVED_LEGACY_DUP, RIGOR_RESERVED_LEGACY_HASH160, OP_PUSH20]) + bytes(20) + bytes([RIGOR_RESERVED_LEGACY_EQUALVERIFY, RIGOR_RESERVED_LEGACY_CHECKSIG])
 
 
 def canonical_p2sh_script() -> bytes:
-    return bytes([OP_HASH160, OP_PUSH20]) + bytes(20) + bytes([OP_EQUAL])
+    return bytes([RIGOR_RESERVED_LEGACY_HASH160, OP_PUSH20]) + bytes(20) + bytes([RIGOR_RESERVED_LEGACY_EQUAL])
 
 
 def canonical_v1_len20_script() -> bytes:
-    return bytes([OP_1, OP_PUSH20]) + bytes(20)
+    return bytes([RIGOR_PUSH_1, OP_PUSH20]) + bytes(20)
 
 
 def canonical_v2_32_script() -> bytes:
-    return bytes([OP_2, OP_PUSH32]) + bytes(32)
+    return bytes([RIGOR_PUSH_2, OP_PUSH32]) + bytes(32)
+
+
+# RFC 8032 Ed25519 test vector 1 public key (C++ TestEd25519PubKey).
+RFC8032_PK1 = bytes.fromhex(
+    "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+)
+
+
+def canonical_native_res_script() -> bytes:
+    """Witness v1 / 32 / RFC8032 pk1. All-zero v1 is not C++ native RES (curve)."""
+    return bytes([RIGOR_PUSH_1, OP_PUSH32]) + RFC8032_PK1
+
+
+def canonical_converge_script() -> bytes:
+    return bytes([OP_PUSH20]) + bytes(20) + bytes([RIGOR_MARKER_CONVERGE])
+
+
+def eval_script_asset(inp: Dict[str, Any]) -> Dict[str, Any]:
+    """Positive classifier table: asset / allowed / is_res. Script is the asset."""
+    spk = bytes.fromhex(inp["script_hex"])
+    return {
+        "asset": asset_from_script(spk),
+        "is_allowed": is_allowed_script(spk),
+        "is_res": is_res_script(spk),
+    }
 
 
 def canonical_pcorb_stack() -> List[bytes]:
@@ -1179,6 +1346,8 @@ def valid_chainwork_extend(cm_chainwork: int, hdr_chainwork: int) -> bool:
 
 
 def cb_expected_oru_subsidy(height: int) -> int:
+    if height == 0:
+        return 0
     shift = min(height // 210_000, 3)
     return 100_000_000_000 >> shift
 
@@ -1229,10 +1398,8 @@ def _spk_bytes(o: Dict[str, Any]) -> bytes:
 
 
 def created_script_shape_ok(o: Dict[str, Any]) -> bool:
-    """L1 mirror of Coq [created_script_shape_ok]. Empty script is the fixture placeholder."""
+    """L1 mirror of Coq [created_script_shape_ok]. Empty script is INVALID."""
     spk = _spk_bytes(o)
-    if len(spk) == 0:
-        return True
     if is_allowed_script(spk):
         return True
     return bool(is_op_return(spk) and int(o.get("value", 0)) == 0)

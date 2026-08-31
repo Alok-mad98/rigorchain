@@ -16,7 +16,6 @@ from test_framework.blocktools import (
     get_regtest_block_subsidy_sats,
     get_witness_script,
     NORMAL_GBT_REQUEST_PARAMS,
-    TIME_GENESIS_BLOCK,
 )
 from test_framework.messages import (
     CBlock,
@@ -25,6 +24,7 @@ from test_framework.messages import (
     ser_uint256,
 )
 from test_framework.p2p import P2PDataStore
+from test_framework.script import CScript
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
@@ -34,7 +34,6 @@ from test_framework.wallet import MiniWallet
 
 
 VERSIONBITS_TOP_BITS = 0x20000000
-VERSIONBITS_DEPLOYMENT_TESTDUMMY_BIT = 28
 
 
 def assert_template(node, block, expect, rehash=True):
@@ -56,7 +55,10 @@ class MiningTest(BitcoinTestFramework):
 
     def mine_chain(self):
         self.log.info('Create some old blocks')
-        for t in range(TIME_GENESIS_BLOCK, TIME_GENESIS_BLOCK + 200 * 600, 600):
+        # RIGOR regtest genesis is ~1778224715, not Bitcoin's TIME_GENESIS_BLOCK.
+        # Mocking 2011 makes CreateNewBlock pick MTP (genesis) and fail time-too-new.
+        genesis_time = self.nodes[0].getblock(self.nodes[0].getblockhash(0))['time']
+        for t in range(genesis_time + 600, genesis_time + 201 * 600, 600):
             self.nodes[0].setmocktime(t)
             self.generate(self.wallet, 1, sync_fun=self.no_op)
         mining_info = self.nodes[0].getmininginfo()
@@ -70,7 +72,8 @@ class MiningTest(BitcoinTestFramework):
         assert_equal(1337, self.nodes[0].getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)['version'])
         self.restart_node(0, extra_args=[f'-mocktime={t}'])
         self.connect_nodes(0, 1)
-        assert_equal(VERSIONBITS_TOP_BITS + (1 << VERSIONBITS_DEPLOYMENT_TESTDUMMY_BIT), self.nodes[0].getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)['version'])
+        # RIGOR GBT version is VERSIONBITS_TOP_BITS; testdummy is not a consensus deployment to signal.
+        assert_equal(VERSIONBITS_TOP_BITS, self.nodes[0].getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)['version'])
         self.restart_node(0)
         self.connect_nodes(0, 1)
 
@@ -110,14 +113,22 @@ class MiningTest(BitcoinTestFramework):
         assert_equal(witness_commitment, script.hex())
 
         # Mine a block to leave initial block download and clear the mempool
-        self.generatetoaddress(node, 1, node.get_deterministic_priv_key().address)
+        self.generatetoaddress(node, 1, node.get_deterministic_witness_mining_address())
         tmpl = node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS)
         self.log.info("getblocktemplate: Test capability advertised")
         assert 'proposal' in tmpl['capabilities']
         assert 'coinbasetxn' not in tmpl
+        assert 'default_coinbase_scriptsig' in tmpl
+        assert 'paid_winner_txid' in tmpl
+        assert tmpl['mutable'] == ['time']
+        assert tmpl['rigor_coinbase_immutable'] is True
+        # Three pushes: height + 32-byte C + 32-byte paid-winner.
+        ss = bytes.fromhex(tmpl['default_coinbase_scriptsig'])
+        assert len(ss) >= 1 + 33 + 33
 
         next_height = int(tmpl["height"])
-        coinbase_tx = create_coinbase(height=next_height)
+        coinbase_tx = create_coinbase(height=next_height, script_pubkey=CScript(self.wallet.get_scriptPubKey()))
+        coinbase_tx.vin[0].scriptSig = bytes.fromhex(tmpl["default_coinbase_scriptsig"])
         assert_equal(coinbase_tx.vout[0].nValue, get_regtest_block_subsidy_sats(next_height))
         # sequence numbers must not be max for nLockTime to have effect
         coinbase_tx.vin[0].nSequence = 2**32 - 2
@@ -273,7 +284,7 @@ class MiningTest(BitcoinTestFramework):
         assert chain_tip(block.hash, status='active', branchlen=0) in node.getchaintips()
 
         # Building a few blocks should give the same results
-        self.generatetoaddress(node, 10, node.get_deterministic_priv_key().address)
+        self.generatetoaddress(node, 10, node.get_deterministic_witness_mining_address())
         assert_raises_rpc_error(-25, 'time-too-old', lambda: node.submitheader(hexdata=CBlockHeader(bad_block_time).serialize().hex()))
         assert_raises_rpc_error(-25, 'bad-prevblk', lambda: node.submitheader(hexdata=CBlockHeader(bad_block2).serialize().hex()))
         node.submitheader(hexdata=CBlockHeader(block).serialize().hex())

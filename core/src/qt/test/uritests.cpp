@@ -17,7 +17,6 @@
 #include <script/standard.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
-#include <util/strencodings.h>
 
 #include <QUrl>
 
@@ -32,8 +31,12 @@ QString RegtestOruAddr()
 
 QString RegtestResAddr()
 {
-    const std::vector<unsigned char> prog = ParseHex("4b8d20316baaf061adbfe72c9d914d678cd5004d49356ec9949ba752777171ac");
-    return QString::fromStdString(EncodeDestination(WitnessV1Res(XOnlyPubKey(prog))));
+    // IsValidDestination(WitnessV1Res) requires a canonical on-curve Ed25519
+    // program (TASK-010 R-2). A hardcoded 32-byte hex is not a spendable RES key.
+    CKey key;
+    key.MakeNewKey(true);
+    const std::vector<unsigned char> pk32 = key.GetPubKey().GetEd25519Payload();
+    return QString::fromStdString(EncodeDestination(WitnessV1Res(XOnlyPubKey(pk32))));
 }
 
 } // namespace

@@ -1,0 +1,31 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-EXTRACTION-EXECUTABLE-P0-050",
+  "note": "Pins for the extracted kernel. Does not modify phase3_golden_vectors.json.",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "heights": [0, 1, 2, 99, 100, 101, 209999, 210000, 210001, 419999, 420000, 630000],
+  "epoch": {
+    "0": 0,
+    "1": 0,
+    "209999": 0,
+    "210000": 1,
+    "210001": 1
+  },
+  "genesis": {
+    "oru_actual": 0,
+    "res_actual": 0,
+    "res_schedule": 40000000,
+    "draw": "NONE",
+    "circulating_delta": 0
+  },
+  "cumulative_oru_atoms": {
+    "1_to_209999": "20999900000000000",
+    "1_to_210000": "20999950000000000",
+    "0_to_0": "0"
+  },
+  "maturity": {
+    "blocks": 100,
+    "height_1_at_100": false,
+    "height_1_at_101": true
+  }
+}

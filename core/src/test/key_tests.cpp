@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(pubkey_unserialize)
 BOOST_AUTO_TEST_CASE(bip340_test_vectors)
 {
     // Rigor does not compile Taproot/BIP340 Schnorr on CKey / XOnlyPubKey (SignSchnorr / VerifySchnorr).
-    // Bitcoin Core's vector suite is omitted here so test_bitcoin can link; RES/Ed25519 paths are covered elsewhere.
+    // Bitcoin Core's vector suite is omitted here so test_rigor can link; RES/Ed25519 paths are covered elsewhere.
     BOOST_CHECK(true);
 }
 

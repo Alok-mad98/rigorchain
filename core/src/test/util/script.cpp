@@ -2,12 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <test/util/script.h>
 
 bool IsValidFlagCombination(unsigned flags)
 {
-    if (flags & SCRIPT_VERIFY_CLEANSTACK && ~flags & (SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS)) return false;
-    if (flags & SCRIPT_VERIFY_WITNESS && ~flags & SCRIPT_VERIFY_P2SH) return false;
+    // P2SH is not a RIGOR consensus rule. CLEANSTACK still requires WITNESS so
+    // native outputs cannot be evaluated as anyone-can-spend.
+    if (flags & SCRIPT_VERIFY_CLEANSTACK && ~flags & SCRIPT_VERIFY_WITNESS) return false;
     return true;
 }

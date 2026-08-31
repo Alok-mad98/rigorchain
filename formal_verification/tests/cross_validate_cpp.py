@@ -31,12 +31,17 @@ import rigor_consensus_spec
 # C++ Test Harness Execution
 # =============================================================================
 
-def run_cpp_test_harness() -> List[Dict[str, Any]]:
+def run_cpp_test_harness(allow_mock: bool = False) -> Tuple[List[Dict[str, Any]], bool]:
     """
     Run the C++ test harness and parse its JSON output.
-    
+
+    The mock harness is another Python implementation, so falling back to it
+    silently would make this script validate Python against Python and report
+    success. Absence of the real harness is therefore a hard failure unless
+    --allow-mock is passed explicitly.
+
     Returns:
-        List of test vectors with C++ results
+        (test vectors, whether the mock harness produced them)
     """
     cpp_harness_path = os.path.join(
         os.path.dirname(__file__), '..', 'cpp', 'bin', 'test_harness'
@@ -44,16 +49,27 @@ def run_cpp_test_harness() -> List[Dict[str, Any]]:
     mock_harness_path = os.path.join(
         os.path.dirname(__file__), '..', 'cpp', 'mock_cpp_harness.py'
     )
-    
-    # Try real C++ harness first, fall back to mock
+
     harness_path = cpp_harness_path
     use_python = False
-    
+
     if not os.path.exists(cpp_harness_path):
-        print("WARNING: C++ test harness not found, using mock Python harness")
+        if not allow_mock:
+            print(f"ERROR: C++ test harness not found at {cpp_harness_path}")
+            print("Refusing to fall back to the Python mock: that would compare")
+            print("the Python spec against itself and always report SUCCESS.")
+            print("Build the harness first:")
+            print("  cd formal_verification/cpp && ./build_harness.sh")
+            print("Or re-run with --allow-mock to exercise the plumbing only.")
+            sys.exit(1)
+        print(f"WARNING: C++ test harness not found at {cpp_harness_path}")
+        print("WARNING: --allow-mock given; comparing the Python spec against the")
+        print("WARNING: Python mock. This proves NOTHING about the C++ code.")
         harness_path = mock_harness_path
         use_python = True
-    
+
+    print(f"Harness: {harness_path} ({'python mock' if use_python else 'C++ binary'})")
+
     try:
         # Run test harness
         if use_python:
@@ -75,7 +91,7 @@ def run_cpp_test_harness() -> List[Dict[str, Any]]:
         output = result.stdout.strip()
         if output.startswith('[') and output.endswith(']'):
             vectors = json.loads(output)
-            return vectors
+            return vectors, use_python
         else:
             print(f"ERROR: Harness output is not valid JSON array")
             print(f"Output: {output[:200]}")
@@ -156,22 +172,22 @@ def generate_python_pcobr_hash_vectors() -> List[Dict[str, Any]]:
     """Generate PCORB hash test vectors using Python spec."""
     vectors = []
     
+    # SECURITY-001-A8: target_prev is not a sigma input. B_{h-1} hashes the
+    # parent header, which already commits nBits.
     txid = create_test_txid(0)
-    bind_hash = create_test_txid(1)
+    prev_block_hash = create_test_txid(1)
     convergence_root = create_test_txid(2)
     height = 100
-    target_prev = 0x1d00ffff
     
     # Vector 1: Basic case
     h = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height, target_prev, convergence_root
+        txid, prev_block_hash, height, convergence_root
     )
     vectors.append({
         'test_name': 'PCORBHash_basic',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height,
-        'target_prev': target_prev,
         'convergence_root': convergence_root.hex(),
         'pcorb_hash': h.hex()
     })
@@ -179,30 +195,28 @@ def generate_python_pcobr_hash_vectors() -> List[Dict[str, Any]]:
     # Vector 2: Different height
     height2 = 999999
     h2 = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height2, target_prev, convergence_root
+        txid, prev_block_hash, height2, convergence_root
     )
     vectors.append({
         'test_name': 'PCORBHash_different_height',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height2,
-        'target_prev': target_prev,
         'convergence_root': convergence_root.hex(),
         'pcorb_hash': h2.hex()
     })
     
-    # Vector 3: Different target
-    target_prev2 = 0x1e012345
+    # Vector 3: Different convergence root
+    convergence_root2 = create_test_txid(3)
     h3 = rigor_consensus_spec.compute_pcobr_hash(
-        txid, bind_hash, height, target_prev2, convergence_root
+        txid, prev_block_hash, height, convergence_root2
     )
     vectors.append({
-        'test_name': 'PCORBHash_different_target',
+        'test_name': 'PCORBHash_different_convergence_root',
         'txid': txid.hex(),
-        'bind_hash': bind_hash.hex(),
+        'prev_block_hash': prev_block_hash.hex(),
         'height': height,
-        'target_prev': target_prev2,
-        'convergence_root': convergence_root.hex(),
+        'convergence_root': convergence_root2.hex(),
         'pcorb_hash': h3.hex()
     })
     
@@ -307,7 +321,7 @@ def validate_vector(cpp_vector: Dict[str, Any], python_vector: Dict[str, Any]) -
     return True, ""
 
 
-def run_cross_validation():
+def run_cross_validation(allow_mock: bool = False):
     """Run full cross-validation between Python and C++."""
     print("=" * 70)
     print("RIGOR CONSENSUS PYTHON-C++ CROSS-VALIDATION")
@@ -316,7 +330,7 @@ def run_cross_validation():
     
     # Get C++ vectors
     print("Running C++ test harness...")
-    cpp_vectors = run_cpp_test_harness()
+    cpp_vectors, used_mock = run_cpp_test_harness(allow_mock)
     print(f"C++ generated {len(cpp_vectors)} test vectors")
     print()
     
@@ -370,6 +384,11 @@ def run_cross_validation():
         sys.exit(1)
     
     print()
+    if used_mock:
+        print("INCONCLUSIVE: the Python spec matched the Python mock harness.")
+        print("No C++ code was executed, so no C++ agreement is established.")
+        return False
+
     print("SUCCESS: Python and C++ implementations are byte-identical!")
     return True
 
@@ -379,4 +398,5 @@ def run_cross_validation():
 # =============================================================================
 
 if __name__ == "__main__":
-    run_cross_validation()
+    allow_mock = "--allow-mock" in sys.argv[1:]
+    sys.exit(0 if run_cross_validation(allow_mock) else 1)

@@ -11,10 +11,10 @@
     "vout": [
         {
             "value": 0.00000000,
+            "asset": "INVALID",
             "n": 0,
             "scriptPubKey": {
                 "asm": "",
-                "desc": "raw()#58lrscpx",
                 "hex": "",
                 "type": "nonstandard"
             }

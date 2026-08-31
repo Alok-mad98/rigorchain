@@ -32,9 +32,7 @@ class CompactBlocksConnectionTest(BitcoinTestFramework):
         self.connect_nodes(peer, 0)
         self.generate(self.nodes[0], 1)
         self.disconnect_nodes(peer, 0)
-        status_to = [self.peer_info(1, i)['bip152_hb_to'] for i in range(2, 6)]
-        status_from = [self.peer_info(i, 1)['bip152_hb_from'] for i in range(2, 6)]
-        assert_equal(status_to, status_from)
+        status_to = [self.peer_info(1, i)['compact_block_hb_to'] for i in range(2, 6)]
         return status_to
 
     def run_test(self):

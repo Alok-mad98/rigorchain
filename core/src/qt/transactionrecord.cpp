@@ -66,7 +66,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     // Own createconvergence spends ORU and usually returns change → credit_oru > 0.
     // That must not take the generic "credit" path (which would list change as the
     // Convergence amount). Route funded convergences through the debit path so the
-    // UI amount is the OP_CONVERGE locked value (GetConvergenceAmount / vout nValue).
+    // UI amount is the RIGOR_MARKER_CONVERGE locked value (GetConvergenceAmount / vout nValue).
     const bool own_oru_convergence =
         tx_semantic == wallet::TxSemanticKind::OruConvergence && wtx.debit_oru > 0;
 
@@ -78,8 +78,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
     // Dual-pool RES send (POOL-T RES + POOL-F ORU fee) usually returns ORU change →
     // credit_oru > 0. Do not list that change as a receive; show the RES payment instead.
     const bool own_res_transfer =
-        (tx_semantic == wallet::TxSemanticKind::ResTransfer ||
-         tx_semantic == wallet::TxSemanticKind::ResClaim) &&
+        tx_semantic == wallet::TxSemanticKind::ResTransfer &&
         wtx.debit_res > 0;
 
     if (!own_oru_convergence && !own_oru_transfer && !own_res_transfer &&
@@ -151,7 +150,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
             // TxGetChange (ORU+RES) from a single asset.
             const AssetType self_asset =
                 (tx_semantic == wallet::TxSemanticKind::ResTransfer ||
-                 tx_semantic == wallet::TxSemanticKind::ResClaim ||
                  wtx.debit_res > 0)
                     ? ASSET_RES
                     : ASSET_ORU;
@@ -199,7 +197,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
                 }
 
                 const bool is_cvg = Consensus::IsConvergenceOutputScript(txout.scriptPubKey);
-                // Zero-value OP_RETURN leftovers are not a second amount row.
+                // Zero-value RIGOR_MARKER_RETURN leftovers are not a second amount row.
                 if (!is_cvg && txout.nValue == 0) {
                     continue;
                 }
@@ -237,7 +235,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const interface
 
                 parts.append(sub);
             }
-            // Convergence-only sends: leave fee out of the OP_CONVERGE row so Amount = locked ORU.
+            // Convergence-only sends: leave fee out of the RIGOR_MARKER_CONVERGE row so Amount = locked ORU.
             // (Wallet balances already account for fee via debit/credit; UI prioritizes locked amount.)
             (void)nTxFee;
         }

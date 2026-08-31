@@ -13,7 +13,7 @@
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/fuzz/FuzzedDataProvider.h>
@@ -35,12 +35,12 @@ const TestingSetup* g_setup;
 
 CScript OruSpk()
 {
-    return CScript() << OP_0 << std::vector<unsigned char>(20, 0x11);
+    return CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
 }
 
 CScript ResSpk(uint8_t fill)
 {
-    return CScript() << OP_1 << std::vector<unsigned char>(WITNESS_V1_RES_SIZE, fill);
+    return CScript() << RIGOR_PUSH_1 << std::vector<unsigned char>(WITNESS_V1_RES_SIZE, fill);
 }
 
 CScript Cvg2Spk()
@@ -65,11 +65,11 @@ CScript ConsumeOutputSpk(FuzzedDataProvider& p, int spend_height)
         [&] { out = ResSpk(0xcd); },
         [&] { out = Cvg2Spk(); },
         [&] {
-            out = GetResMintScriptForProgram(
+            out = GetResMintScriptForPubKey(
                 static_cast<int64_t>(spend_height) + Params().GetConsensus().nCoinbaseMaturity,
                 std::vector<unsigned char>(32, 0x11));
         },
-        [&] { out = CScript() << OP_RETURN << std::vector<unsigned char>{0xaa}; });
+        [&] { out = CScript() << RIGOR_MARKER_RETURN << std::vector<unsigned char>{0xaa}; });
     return out;
 }
 

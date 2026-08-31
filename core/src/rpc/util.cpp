@@ -212,37 +212,6 @@ CPubKey AddrToPubKey(const FillableSigningProvider& keystore, const std::string&
     return vchPubKey;
 }
 
-// Creates a multisig address from a given list of public keys, number of signatures required, and the address type
-CTxDestination AddAndGetMultisigDestination(const int required, const std::vector<CPubKey>& pubkeys, OutputType type, FillableSigningProvider& keystore, CScript& script_out)
-{
-    // Gather public keys
-    if (required < 1) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "a multisignature address must require at least one key to redeem");
-    }
-    if ((int)pubkeys.size() < required) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("not enough keys supplied (got %u keys, but need at least %d to redeem)", pubkeys.size(), required));
-    }
-    if (pubkeys.size() > MAX_PUBKEYS_PER_MULTISIG) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Number of keys involved in the multisignature address creation > %d\nReduce the number", MAX_PUBKEYS_PER_MULTISIG));
-    }
-
-    script_out = GetScriptForMultisig(required, pubkeys);
-
-    // Alpha1: only Ed25519 ORU wrapper keys (0x00||pk32). secp256k1 0x02/0x03 and
-    // uncompressed 0x04 keys would produce a CHECKMULTISIG script that consensus rejects.
-    for (const CPubKey& pk : pubkeys) {
-        if (pk.size() != CPubKey::COMPRESSED_SIZE || pk[0] != 0x00) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                "RIGOR Alpha1 multisig requires Ed25519 ORU pubkeys (33-byte 0x00||pk32); secp256k1/ECDSA keys are not accepted.");
-        }
-    }
-
-    // Make the address
-    CTxDestination dest = AddAndGetDestinationForScript(keystore, script_out, type);
-
-    return dest;
-}
-
 class DescribeAddressVisitor
 {
 public:

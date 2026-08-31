@@ -8,6 +8,7 @@
 #include <consensus/convergence_commitment.h>
 #include <consensus/convergence_logic.h>
 #include <consensus/convergenceres.h>
+#include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <crypto/ed25519_provider.h>
@@ -17,11 +18,13 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
-#include <script/interpreter.h>
+#include <script/descriptor.h>
+#include <script/predicate_verify.h>
 #include <script/rigor_tags.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/standard.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
 #include <uint256.h>
@@ -29,22 +32,23 @@
 #include <boost/test/unit_test.hpp>
 #include <cassert>
 #include <cstring>
+#include <utility>
 
 namespace {
-/** OP_1 + 32-byte witness v1 program: ASCII ORB2 + pubkey[4..31] (matches interpreter spend binding). */
+/** RIGOR_PUSH_1 + 32-byte witness v1 program: ASCII ORB2 + pubkey[4..31] (matches interpreter spend binding). */
 CScript MakeOrb2ScriptPubKeyForPubkey(const std::vector<unsigned char>& pubkey)
 {
     assert(pubkey.size() == ed25519::PUBKEY_SIZE);
     std::vector<unsigned char> wp(32);
     std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
     std::memcpy(wp.data() + 4, pubkey.data() + 4, 28);
-    return CScript() << OP_1 << wp;
+    return CScript() << RIGOR_PUSH_1 << wp;
 }
 
 /** Native witness v1 RES (32-byte program, not CVG2 / RES2). */
 CScript MakeNativeResScriptPubKeyMinimal()
 {
-    return CScript() << OP_1 << std::vector<unsigned char>(32, 0xab);
+    return TestNativeResScript();
 }
 } // namespace
 
@@ -64,14 +68,13 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_ed25519_verify_script_ok)
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
     CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(keyhash) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
 
     CScriptWitness witness;
     witness.stack.push_back(witSig);
@@ -80,15 +83,103 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_ed25519_verify_script_ok)
 
     const unsigned int flags{STANDARD_SCRIPT_VERIFY_FLAGS};
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         flags,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
+}
+
+BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_65byte_hashtype_suffix_rejected)
+{
+    const std::vector<unsigned char> seed = ParseHex("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
+    std::vector<unsigned char> pubkey(ed25519::PUBKEY_SIZE);
+    std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
+
+    const uint160 keyhash = Hash160(pubkey);
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+
+    CScript scriptCode;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(keyhash) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    PrecomputedTransactionData txdata(txSpend);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
+
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
+    BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
+    witSig.push_back(static_cast<unsigned char>(SIGHASH_ALL));
+    BOOST_REQUIRE_EQUAL(witSig.size(), ed25519::SIGNATURE_SIZE + 1);
+
+    CScriptWitness witness;
+    witness.stack.push_back(witSig);
+    witness.stack.push_back(pubkey);
+    txSpend.vin[0].scriptWitness = witness;
+
+    ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+    const bool ok = VerifyRigorPredicate(
+        txSpend.vin[0].scriptSig,
+        txCredit.vout[0].scriptPubKey,
+        &txSpend.vin[0].scriptWitness,
+        STANDARD_SCRIPT_VERIFY_FLAGS,
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
+        &err);
+    BOOST_CHECK(!ok);
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_SIG_DER);
+}
+
+BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_sig_length_only_64_accepted)
+{
+    const std::vector<unsigned char> seed = ParseHex("00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff");
+    std::vector<unsigned char> pubkey(ed25519::PUBKEY_SIZE);
+    std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
+    BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
+
+    const uint160 keyhash = Hash160(pubkey);
+    const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(keyhash));
+    const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
+    CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
+    PrecomputedTransactionData txdata(txSpend);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
+    BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
+
+    auto check_len = [&](size_t n) {
+        std::vector<unsigned char> sig = witSig;
+        sig.resize(n, 0x01);
+        CScriptWitness witness;
+        witness.stack.push_back(sig);
+        witness.stack.push_back(pubkey);
+        txSpend.vin[0].scriptWitness = witness;
+        ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+        const bool ok = VerifyRigorPredicate(
+            txSpend.vin[0].scriptSig,
+            txCredit.vout[0].scriptPubKey,
+            &txSpend.vin[0].scriptWitness,
+            STANDARD_SCRIPT_VERIFY_FLAGS,
+            MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
+            &err);
+        return std::pair<bool, ScriptError>{ok, err};
+    };
+
+    BOOST_CHECK(!check_len(63).first);
+    BOOST_CHECK(!check_len(65).first);
+    BOOST_CHECK(!check_len(66).first);
+    const auto ok64 = check_len(64);
+    BOOST_CHECK_MESSAGE(ok64.first, ScriptErrorString(ok64.second));
+}
+
+BOOST_AUTO_TEST_CASE(checkmultisig_is_not_a_consensus_lock)
+{
+    ScriptError err{SCRIPT_ERR_OK};
+    const CScript script = CScript() << RIGOR_PUSH_0 << RIGOR_PUSH_0 << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    BOOST_CHECK(!VerifyRigorPredicate(CScript(), script, nullptr, STANDARD_SCRIPT_VERIFY_FLAGS, BaseSignatureChecker(), &err));
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
 }
 
 BOOST_AUTO_TEST_CASE(witness_v1_res_ed25519_verify_ok)
@@ -100,20 +191,19 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ed25519_verify_ok)
 
     std::vector<unsigned char> program(32);
     BOOST_REQUIRE(ed25519::ResWitnessProgram(pubkey, program));
-    const CScript scriptPubKey = CScript() << OP_1 << program;
+    const CScript scriptPubKey = CScript() << RIGOR_PUSH_1 << program;
 
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
     CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(pubkey))) << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(uint160(Hash160(pubkey))) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V1_RES, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V1_RES, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
 
     CScriptWitness witness;
     witness.stack.push_back(witSig);
@@ -121,12 +211,12 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ed25519_verify_ok)
     txSpend.vin[0].scriptWitness = witness;
 
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
@@ -141,7 +231,7 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ecdsa_sig_fails)
 
     std::vector<unsigned char> program(32);
     BOOST_REQUIRE(ed25519::ResWitnessProgram(pubkey, program));
-    const CScript scriptPubKey = CScript() << OP_1 << program;
+    const CScript scriptPubKey = CScript() << RIGOR_PUSH_1 << program;
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
@@ -156,18 +246,18 @@ BOOST_AUTO_TEST_CASE(witness_v1_res_ecdsa_sig_fails)
 
     PrecomputedTransactionData txdata(txSpend);
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK(!ok);
     BOOST_CHECK(err == SCRIPT_ERR_SIG_DER);
 }
 
-/** OP_0 + 32-byte program is P2WSH only (RIG-07): native Ed25519 fallback is consensus-invalid. */
+/** RIGOR_PUSH_0 + 32-byte program is P2WSH only (RIG-07): native Ed25519 fallback is consensus-invalid. */
 BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_rejected)
 {
     // Same 32-byte seed as witness_v0_p2wpkh_ed25519_verify_script_ok (known-good ParseHex + libsodium).
@@ -177,20 +267,19 @@ BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_rejected)
     std::vector<unsigned char> seckey(ed25519::SECRETKEY_SIZE);
     BOOST_REQUIRE(ed25519::SeedToKeypair(seed, pubkey, seckey));
 
-    const CScript scriptPubKey = CScript() << OP_0 << pubkey;
+    const CScript scriptPubKey = CScript() << RIGOR_PUSH_0 << pubkey;
 
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
     CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(pubkey))) << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(uint160(Hash160(pubkey))) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
 
     CScriptWitness witness;
     witness.stack.push_back(witSig);
@@ -198,25 +287,25 @@ BOOST_AUTO_TEST_CASE(witness_v0_32byte_program_native_ed25519_rejected)
     txSpend.vin[0].scriptWitness = witness;
 
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK(!ok);
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH);
 }
 
-/** 32-byte v0 program with SHA256(witness_script)==program must still run as P2WSH (not native pubkey). */
+/** 32-byte v0 program is rejected: P2WSH is not a consensus spend path. */
 BOOST_AUTO_TEST_CASE(witness_v0_32byte_p2wsh_takes_priority)
 {
     CScript wit_script;
-    wit_script << OP_1;
+    wit_script << RIGOR_PUSH_1;
     uint256 program;
     CSHA256().Write(wit_script.data(), wit_script.size()).Finalize(program.begin());
-    const CScript scriptPubKey = CScript() << OP_0 << ToByteVector(program);
+    const CScript scriptPubKey = CScript() << RIGOR_PUSH_0 << ToByteVector(program);
 
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
@@ -227,20 +316,20 @@ BOOST_AUTO_TEST_CASE(witness_v0_32byte_p2wsh_takes_priority)
 
     PrecomputedTransactionData txdata(txSpend);
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
-    BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
+    BOOST_CHECK(!ok);
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH);
 }
 
 BOOST_AUTO_TEST_CASE(oru_convergence_tx_passes_checktxinputs)
 {
-    const CScript oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x44);
+    const CScript oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x44);
     const CAmount burn = COIN;
 
     CCoinsView base;
@@ -266,7 +355,7 @@ BOOST_AUTO_TEST_CASE(oru_convergence_tx_passes_checktxinputs)
 
 BOOST_AUTO_TEST_CASE(res_input_tx_with_convergence_output_rejected)
 {
-    const CScript oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x55);
+    const CScript oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x55);
     const CScript res_spk = MakeNativeResScriptPubKeyMinimal();
 
     CCoinsView base;
@@ -306,13 +395,12 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_oru_wrapper_ed25519_ok)
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
     CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(keyhash) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
 
     CScriptWitness witness;
     witness.stack.push_back(witSig);
@@ -320,12 +408,12 @@ BOOST_AUTO_TEST_CASE(witness_v0_p2wpkh_oru_wrapper_ed25519_ok)
     txSpend.vin[0].scriptWitness = witness;
 
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK_MESSAGE(ok, ScriptErrorString(err));
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_OK);
@@ -344,13 +432,12 @@ BOOST_AUTO_TEST_CASE(witness_v0_invalid_ed25519_signature_fails)
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
 
     CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(keyhash) << OP_EQUALVERIFY << OP_CHECKSIG;
+    scriptCode << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ToByteVector(keyhash) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
 
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
     witSig[0] ^= 0x01;
 
     CScriptWitness witness;
@@ -359,12 +446,12 @@ BOOST_AUTO_TEST_CASE(witness_v0_invalid_ed25519_signature_fails)
     txSpend.vin[0].scriptWitness = witness;
 
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK(!ok);
     BOOST_CHECK(err == SCRIPT_ERR_EVAL_FALSE || err == SCRIPT_ERR_SIG_NULLFAIL);
@@ -389,18 +476,18 @@ BOOST_AUTO_TEST_CASE(witness_v0_secp256k1_compressed_pubkey_fails)
 
     PrecomputedTransactionData txdata(txSpend);
     ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
-    const bool ok = VerifyScript(
+    const bool ok = VerifyRigorPredicate(
         txSpend.vin[0].scriptSig,
         txCredit.vout[0].scriptPubKey,
         &txSpend.vin[0].scriptWitness,
         STANDARD_SCRIPT_VERIFY_FLAGS,
-        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL),
+        MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()),
         &err);
     BOOST_CHECK(!ok);
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_SECP256K1_DISABLED);
+    BOOST_CHECK(err == SCRIPT_ERR_PUBKEYTYPE || err == SCRIPT_ERR_SECP256K1_DISABLED);
 }
 
-BOOST_AUTO_TEST_CASE(check_ecdsa_signature_sealed_false)
+BOOST_AUTO_TEST_CASE(check_ed25519_signature_roundtrip)
 {
     const std::vector<unsigned char> seed = ParseHex("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
     std::vector<unsigned char> pk32(ed25519::PUBKEY_SIZE);
@@ -413,22 +500,18 @@ BOOST_AUTO_TEST_CASE(check_ecdsa_signature_sealed_false)
     const CScript scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(Hash160(wrapped)));
     const CTransaction txCredit = CTransaction(BuildCreditingTransaction(scriptPubKey, COIN));
     CMutableTransaction txSpend = BuildSpendingTransaction(CScript(), CScriptWitness(), txCredit);
-    CScript scriptCode;
-    scriptCode << OP_DUP << OP_HASH160 << ToByteVector(uint160(Hash160(wrapped))) << OP_EQUALVERIFY << OP_CHECKSIG;
     PrecomputedTransactionData txdata(txSpend);
-    const uint256 sighash = SignatureHash(scriptCode, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, &txdata);
-    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1);
+    const uint256 sighash = SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, TestSighashChainId(), &txdata);
+    std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE);
     BOOST_REQUIRE(ed25519::SignDetached(Span{sighash.begin(), 32}, seckey, Span{witSig.data(), ed25519::SIGNATURE_SIZE}));
-    witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
 
-    MutableTransactionSignatureChecker checker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
-    BOOST_CHECK(!checker.CheckECDSASignature(witSig, wrapped, scriptCode, SigVersion::WITNESS_V0));
-    BOOST_CHECK(checker.CheckEd25519Signature(witSig, pk32, scriptCode, SigVersion::WITNESS_V0));
+    MutableTransactionSignatureChecker checker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId());
+    BOOST_CHECK(checker.CheckEd25519Signature(witSig, pk32, scriptPubKey, SigVersion::WITNESS_V0));
 }
 
 BOOST_AUTO_TEST_CASE(oru_convergence_two_convergence_outputs_rejected)
 {
-    const CScript oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x66);
+    const CScript oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x66);
 
     CCoinsView base;
     CCoinsViewCache coins(&base);
@@ -451,6 +534,102 @@ BOOST_AUTO_TEST_CASE(oru_convergence_two_convergence_outputs_rejected)
     CAmount fee{};
     BOOST_CHECK(!Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "invalid-convergence-structure");
+}
+
+BOOST_AUTO_TEST_CASE(p2sh_and_p2pkh_rejected_as_rigor_script_type)
+{
+    BaseSignatureChecker checker;
+    ScriptError err{SCRIPT_ERR_OK};
+    CScript p2sh;
+    p2sh << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(20, 0x11) << RIGOR_RESERVED_LEGACY_EQUAL;
+    BOOST_CHECK(!VerifyRigorPredicate(CScript() << RIGOR_PUSH_1, p2sh, nullptr, STANDARD_SCRIPT_VERIFY_FLAGS, checker, &err));
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
+
+    CScript p2pkh;
+    p2pkh << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(20, 0x11) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    err = SCRIPT_ERR_OK;
+    BOOST_CHECK(!VerifyRigorPredicate(CScript(), p2pkh, nullptr, STANDARD_SCRIPT_VERIFY_FLAGS, checker, &err));
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
+}
+
+BOOST_AUTO_TEST_CASE(pk_pkh_sh_combo_descriptors_rejected)
+{
+    FlatSigningProvider keys;
+    std::string error;
+    BOOST_CHECK(!Parse("pk(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)", keys, error));
+    BOOST_CHECK(error.find("pk()") != std::string::npos);
+    BOOST_CHECK(!Parse("pkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)", keys, error));
+    BOOST_CHECK(error.find("pkh()") != std::string::npos);
+    BOOST_CHECK(!Parse("sh(wpkh(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798))", keys, error));
+    BOOST_CHECK(error.find("sh()") != std::string::npos);
+    BOOST_CHECK(!Parse("combo(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)", keys, error));
+    BOOST_CHECK(error.find("combo() is not supported") != std::string::npos);
+    BOOST_CHECK(!Parse("sh(combo(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798))", keys, error));
+    BOOST_CHECK(error.find("sh()") != std::string::npos);
+}
+
+static void AssertCheckTransactionRejects(const CScript& spk, const char* reason)
+{
+    CMutableTransaction mtx;
+    mtx.vin.resize(1);
+    mtx.vin[0].prevout = COutPoint(uint256::ONE, 0);
+    mtx.vout.resize(1);
+    mtx.vout[0].nValue = COIN;
+    mtx.vout[0].scriptPubKey = spk;
+    TxValidationState state;
+    BOOST_CHECK(!CheckTransaction(CTransaction(mtx), state));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), reason);
+}
+
+BOOST_AUTO_TEST_CASE(classifier_predicates_are_one_function)
+{
+    const CScript oru = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
+    const CScript res = TestNativeResScript();
+    const CScript p2wsh = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(32, 0x55);
+    const CScript opret = CScript() << RIGOR_MARKER_RETURN << std::vector<unsigned char>{0xaa};
+    std::vector<unsigned char> cvg2(32, 0x00);
+    std::memcpy(cvg2.data(), RigorTags::CVG2.data(), 4);
+    const CScript cvg2_v1 = CScript() << RIGOR_PUSH_1 << cvg2;
+
+    auto check_triple = [](const CScript& spk, bool allowed, AssetType asset) {
+        std::vector<std::vector<unsigned char>> sols;
+        const TxoutType t = ClassifyRigorTxout(spk, sols);
+        BOOST_CHECK_EQUAL(Consensus::IsAllowedScript(spk), allowed);
+        BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(spk), asset);
+        if (allowed) {
+            BOOST_CHECK(t == TxoutType::WITNESS_V0_KEYHASH || t == TxoutType::WITNESS_V1_RES ||
+                        t == TxoutType::RES_MINT || t == TxoutType::CONVERGE);
+        } else if (asset == ASSET_NONE) {
+            BOOST_CHECK_EQUAL(t, TxoutType::NULL_DATA);
+        } else {
+            BOOST_CHECK_EQUAL(t, TxoutType::NONSTANDARD);
+        }
+    };
+    check_triple(oru, true, ASSET_ORU);
+    check_triple(res, true, ASSET_RES);
+    check_triple(p2wsh, false, ASSET_INVALID);
+    check_triple(opret, false, ASSET_NONE);
+    check_triple(cvg2_v1, false, ASSET_INVALID);
+
+    AssertCheckTransactionRejects(p2wsh, "bad-rigor-script-type");
+    AssertCheckTransactionRejects(CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(20, 0x11) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG, "bad-rigor-script-type");
+    AssertCheckTransactionRejects(CScript() << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(20, 0x11) << RIGOR_RESERVED_LEGACY_EQUAL, "bad-rigor-script-type");
+    CScript unknown_ver;
+    unknown_ver << RIGOR_PUSH_3 << std::vector<unsigned char>(32, 0x11);
+    AssertCheckTransactionRejects(unknown_ver, "bad-rigor-script-type");
+    for (const size_t n : {size_t{0}, size_t{19}, size_t{21}, size_t{31}, size_t{33}}) {
+        AssertCheckTransactionRejects(CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(n, 0x11), "bad-rigor-script-type");
+    }
+    AssertCheckTransactionRejects(CScript() << RIGOR_PUSH_1 << std::vector<unsigned char>(20, 0x11), "bad-rigor-script-type");
+    AssertCheckTransactionRejects(CScript() << std::vector<unsigned char>(32, 0x11) << RIGOR_RESERVED_LEGACY_CHECKSIG, "bad-rigor-script-type");
+
+    CMutableTransaction mix_mtx;
+    mix_mtx.vin.resize(1);
+    mix_mtx.vout.emplace_back(COIN, oru);
+    mix_mtx.vout.emplace_back(2 * COIN, res);
+    mix_mtx.vout.emplace_back(0, opret);
+    const CTransaction mix(mix_mtx);
+    BOOST_CHECK_EQUAL(mix.GetValueOut(ASSET_ORU) + mix.GetValueOut(ASSET_RES) + mix.GetValueOut(ASSET_NONE) + mix.GetValueOut(ASSET_INVALID), mix.GetValueOut());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

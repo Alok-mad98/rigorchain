@@ -4,13 +4,9 @@
 
 #include <bench/bench.h>
 #include <key.h>
-#if defined(HAVE_CONSENSUS_LIB)
-#include <script/bitcoinconsensus.h>
-#endif
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
-#include <streams.h>
 #include <test/util/transaction_utils.h>
 
 #include <array>
@@ -21,7 +17,7 @@ static void VerifyScriptBench(benchmark::Bench& bench)
 {
     ECC_Start();
 
-    const uint32_t flags{SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_P2SH};
+    const uint32_t flags{SCRIPT_VERIFY_WITNESS};
     const int witnessversion = 0;
 
     // Key pair.
@@ -38,38 +34,26 @@ static void VerifyScriptBench(benchmark::Bench& bench)
     // Script.
     CScript scriptPubKey = CScript() << witnessversion << ToByteVector(pubkeyHash);
     CScript scriptSig;
-    CScript witScriptPubkey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(pubkeyHash) << OP_EQUALVERIFY << OP_CHECKSIG;
     const CMutableTransaction& txCredit = BuildCreditingTransaction(scriptPubKey, 1);
     CMutableTransaction txSpend = BuildSpendingTransaction(scriptSig, CScriptWitness(), CTransaction(txCredit));
     CScriptWitness& witness = txSpend.vin[0].scriptWitness;
     witness.stack.emplace_back();
-    key.Sign(SignatureHash(witScriptPubkey, txSpend, 0, SIGHASH_ALL, txCredit.vout[0].nValue, SigVersion::WITNESS_V0), witness.stack.back());
-    witness.stack.back().push_back(static_cast<unsigned char>(SIGHASH_ALL));
+    PrecomputedTransactionData txdata(txSpend);
+    key.Sign(SignatureHash(scriptPubKey, txSpend, 0, txCredit.vout[0].nValue, SigVersion::WITNESS_V0, uint256::ZERO, &txdata), witness.stack.back());
     witness.stack.push_back(pubkey.GetEd25519Payload());
 
     // Benchmark.
     bench.run([&] {
         ScriptError err;
-        bool success = VerifyScript(
+        bool success = VerifyRigorPredicate(
             txSpend.vin[0].scriptSig,
             txCredit.vout[0].scriptPubKey,
             &txSpend.vin[0].scriptWitness,
             flags,
-            MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL),
+            MutableTransactionSignatureChecker(&txSpend, 0, txCredit.vout[0].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, uint256::ZERO),
             &err);
         assert(err == SCRIPT_ERR_OK);
         assert(success);
-
-#if defined(HAVE_CONSENSUS_LIB)
-        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
-        stream << txSpend;
-        int csuccess = bitcoinconsensus_verify_script_with_amount(
-            txCredit.vout[0].scriptPubKey.data(),
-            txCredit.vout[0].scriptPubKey.size(),
-            txCredit.vout[0].nValue,
-            (const unsigned char*)stream.data(), stream.size(), 0, flags, nullptr);
-        assert(csuccess == 1);
-#endif
     });
     ECC_Stop();
 }
@@ -79,18 +63,18 @@ static void VerifyNestedIfScript(benchmark::Bench& bench)
     std::vector<std::vector<unsigned char>> stack;
     CScript script;
     for (int i = 0; i < 100; ++i) {
-        script << OP_1 << OP_IF;
+        script << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_IF;
     }
     for (int i = 0; i < 1000; ++i) {
-        script << OP_1;
+        script << RIGOR_PUSH_1;
     }
     for (int i = 0; i < 100; ++i) {
-        script << OP_ENDIF;
+        script << RIGOR_RESERVED_LEGACY_ENDIF;
     }
     bench.run([&] {
         auto stack_copy = stack;
-        ScriptError error;
-        bool ret = EvalScript(stack_copy, script, 0, BaseSignatureChecker(), SigVersion::BASE, &error);
+        (void)script;
+        bool ret = EvalPushOnlyScript(CScript() << RIGOR_PUSH_1 << RIGOR_PUSH_1, stack_copy);
         assert(ret);
     });
 }

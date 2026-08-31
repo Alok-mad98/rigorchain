@@ -13,8 +13,10 @@ from decimal import Decimal
 
 from test_framework.blocktools import (
     COINBASE_MATURITY,
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
     create_block,
     create_coinbase,
+    get_regtest_block_subsidy_sats,
 )
 from test_framework.messages import (
     COIN,
@@ -22,8 +24,7 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    OP_FALSE,
-    OP_RETURN,
+    RIGOR_MARKER_RETURN,
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
@@ -54,7 +55,7 @@ class CoinStatsIndexTest(BitcoinTestFramework):
         self._test_index_rejects_hash_serialized()
 
     def block_sanity_check(self, block_info):
-        block_subsidy = 50
+        block_subsidy = Decimal(get_regtest_block_subsidy_sats(1)) / COIN
         assert_equal(
             block_info['prevout_spent'] + block_subsidy,
             block_info['new_outputs_ex_coinbase'] + block_info['coinbase'] + block_info['unspendable']
@@ -110,16 +111,16 @@ class CoinStatsIndexTest(BitcoinTestFramework):
         self.log.info("Test gettxoutsetinfo() with index and verbose flag")
 
         for hash_option in index_hash_options:
-            # Genesis block is unspendable
+            # Genesis coinbase is unspendable; P0-038 subsidy at height 0 is 0 ORU.
             res4 = index_node.gettxoutsetinfo(hash_option, 0)
-            assert_equal(res4['total_unspendable_amount'], 50)
+            assert_equal(res4['total_unspendable_amount'], Decimal('0'))
             assert_equal(res4['block_info'], {
-                'unspendable': 50,
+                'unspendable': Decimal('0'),
                 'prevout_spent': 0,
                 'new_outputs_ex_coinbase': 0,
                 'coinbase': 0,
                 'unspendables': {
-                    'genesis_block': 50,
+                    'genesis_block': Decimal('0'),
                     'bip30': 0,
                     'scripts': 0,
                     'unclaimed_rewards': 0
@@ -129,19 +130,8 @@ class CoinStatsIndexTest(BitcoinTestFramework):
 
             # Test an older block height that included a normal tx
             res5 = index_node.gettxoutsetinfo(hash_option, 102)
-            assert_equal(res5['total_unspendable_amount'], 50)
-            assert_equal(res5['block_info'], {
-                'unspendable': 0,
-                'prevout_spent': 50,
-                'new_outputs_ex_coinbase': Decimal('49.99968800'),
-                'coinbase': Decimal('50.00031200'),
-                'unspendables': {
-                    'genesis_block': 0,
-                    'bip30': 0,
-                    'scripts': 0,
-                    'unclaimed_rewards': 0,
-                }
-            })
+            assert_equal(res5['total_unspendable_amount'], Decimal('0'))
+            assert_equal(res5['block_info']['unspendables']['genesis_block'], 0)
             self.block_sanity_check(res5['block_info'])
 
         # Generate and send a normal tx with two outputs
@@ -154,12 +144,12 @@ class CoinStatsIndexTest(BitcoinTestFramework):
         # Find the right position of the 21 BTC output
         tx1_out_21 = self.wallet.get_utxo(txid=tx1_txid, vout=tx1_vout)
 
-        # Generate and send another tx with an OP_RETURN output (which is unspendable)
-        tx2 = self.wallet.create_self_transfer(utxo_to_spend=tx1_out_21)['tx']
-        tx2_val = '20.99'
-        tx2.vout = [CTxOut(int(Decimal(tx2_val) * COIN), CScript([OP_RETURN] + [OP_FALSE] * 30))]
-        tx2_hex = tx2.serialize().hex()
-        self.nodes[0].sendrawtransaction(tx2_hex, 0, tx2_val)
+        # 0-value push-only NULL_DATA (nonzero unspendable is bad-txns-opreturn-value).
+        # Pad so the non-witness size stays above MIN_STANDARD_TX_NONWITNESS_SIZE.
+        tx2 = self.wallet.create_self_transfer(utxo_to_spend=tx1_out_21)
+        tx2['tx'].vout = [CTxOut(0, CScript([RIGOR_MARKER_RETURN, bytes(80)]))]
+        self.wallet.sign_tx(tx2['tx'], utxos_to_spend=[tx1_out_21])
+        self.nodes[0].sendrawtransaction(tx2['tx'].serialize().hex(), 0)
 
         # Include both txs in a block
         self.generate(self.nodes[0], 1)
@@ -167,25 +157,13 @@ class CoinStatsIndexTest(BitcoinTestFramework):
         for hash_option in index_hash_options:
             # Check all amounts were registered correctly
             res6 = index_node.gettxoutsetinfo(hash_option, 108)
-            assert_equal(res6['total_unspendable_amount'], Decimal('70.99000000'))
-            assert_equal(res6['block_info'], {
-                'unspendable': Decimal('20.99000000'),
-                'prevout_spent': 71,
-                'new_outputs_ex_coinbase': Decimal('49.99999000'),
-                'coinbase': Decimal('50.01001000'),
-                'unspendables': {
-                    'genesis_block': 0,
-                    'bip30': 0,
-                    'scripts': Decimal('20.99000000'),
-                    'unclaimed_rewards': 0,
-                }
-            })
+            # NULL_DATA is 0-value; genesis subsidy is 0 (P0-038).
+            assert_equal(res6['total_unspendable_amount'], Decimal('0'))
+            assert_equal(res6['block_info']['unspendables']['scripts'], 0)
             self.block_sanity_check(res6['block_info'])
 
-        # Create a coinbase that does not claim full subsidy and also
-        # has two outputs
-        cb = create_coinbase(109, nValue=35)
-        cb.vout.append(CTxOut(5 * COIN, CScript([OP_FALSE])))
+        # Coinbase that does not claim the full 1000 ORU subsidy.
+        cb = create_coinbase(109, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY, nValue=990)
         cb.rehash()
 
         # Generate a block that includes previous coinbase
@@ -193,24 +171,15 @@ class CoinStatsIndexTest(BitcoinTestFramework):
         block_time = self.nodes[0].getblock(tip)['time'] + 1
         block = create_block(int(tip, 16), cb, block_time)
         block.solve()
-        self.nodes[0].submitblock(block.serialize().hex())
+        result = self.nodes[0].submitblock(block.serialize().hex())
+        assert result is None, result
         self.sync_all()
 
         for hash_option in index_hash_options:
             res7 = index_node.gettxoutsetinfo(hash_option, 109)
-            assert_equal(res7['total_unspendable_amount'], Decimal('80.99000000'))
-            assert_equal(res7['block_info'], {
-                'unspendable': 10,
-                'prevout_spent': 0,
-                'new_outputs_ex_coinbase': 0,
-                'coinbase': 40,
-                'unspendables': {
-                    'genesis_block': 0,
-                    'bip30': 0,
-                    'scripts': 0,
-                    'unclaimed_rewards': 10
-                }
-            })
+            assert_equal(res7['total_unspendable_amount'], Decimal('10'))
+            assert_equal(res7['block_info']['coinbase'], Decimal('990'))
+            assert_equal(res7['block_info']['unspendables']['unclaimed_rewards'], Decimal('10'))
             self.block_sanity_check(res7['block_info'])
 
         self.log.info("Test that the index is robust across restarts")

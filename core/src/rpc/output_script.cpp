@@ -86,92 +86,6 @@ static RPCHelpMan validateaddress()
     };
 }
 
-static RPCHelpMan createmultisig()
-{
-    return RPCHelpMan{"createmultisig",
-        "\nCreates a multi-signature address with n signature of m keys required.\n"
-        "It returns a json object with the address and redeemScript.\n",
-        {
-            {"nrequired", RPCArg::Type::NUM, RPCArg::Optional::NO, "The number of required signatures out of the n keys."},
-            {"keys", RPCArg::Type::ARR, RPCArg::Optional::NO, "The hex-encoded public keys.",
-                {
-                    {"key", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The hex-encoded public key"},
-                }},
-            {"address_type", RPCArg::Type::STR, RPCArg::Default{"bech32"}, "The address type to use. Options are \"bech32\" and \"bech32m\" (RES v1, not Taproot)."},
-        },
-        RPCResult{
-            RPCResult::Type::OBJ, "", "",
-            {
-                {RPCResult::Type::STR, "address", "The value of the new multisig address."},
-                {RPCResult::Type::STR_HEX, "redeemScript", "The string value of the hex-encoded redemption script."},
-                {RPCResult::Type::STR, "descriptor", "The descriptor for this multisig"},
-                {RPCResult::Type::ARR, "warnings", /*optional=*/true, "Any warnings resulting from the creation of this multisig",
-                {
-                    {RPCResult::Type::STR, "", ""},
-                }},
-            }
-        },
-        RPCExamples{
-            "\nCreate a multisig address from 2 public keys\n"
-            + HelpExampleCli("createmultisig", "2 \"[\\\"03789ed0bb717d88f7d321a368d905e7430207ebbd82bd342cf11ae157a7ace5fd\\\",\\\"03dbc6764b8884a92e871274b87583e6d5c2a58819473e17e107ef3f6aa5a61626\\\"]\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("createmultisig", "2, [\"03789ed0bb717d88f7d321a368d905e7430207ebbd82bd342cf11ae157a7ace5fd\",\"03dbc6764b8884a92e871274b87583e6d5c2a58819473e17e107ef3f6aa5a61626\"]")
-                },
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-        {
-            int required = request.params[0].getInt<int>();
-
-            // Get the public keys
-            const UniValue& keys = request.params[1].get_array();
-            std::vector<CPubKey> pubkeys;
-            for (unsigned int i = 0; i < keys.size(); ++i) {
-                if (IsHex(keys[i].get_str()) && (keys[i].get_str().length() == 66 || keys[i].get_str().length() == 130)) {
-                    pubkeys.push_back(HexToPubKey(keys[i].get_str()));
-                } else {
-                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Invalid public key: %s\n.", keys[i].get_str()));
-                }
-            }
-
-            // Get the output type
-            OutputType output_type = OutputType::BECH32;
-            if (!request.params[2].isNull()) {
-                std::optional<OutputType> parsed = ParseOutputType(request.params[2].get_str());
-                if (!parsed) {
-                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[2].get_str()));
-                }
-                if (parsed.value() == OutputType::BECH32M) {
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, "createmultisig currently supports only \"bech32\" addresses");
-                }
-                output_type = parsed.value();
-            }
-
-            EnsureAllowedAddressType(output_type);
-
-            // Construct using pay-to-script-hash:
-            FillableSigningProvider keystore;
-            CScript inner;
-            const CTxDestination dest = AddAndGetMultisigDestination(required, pubkeys, output_type, keystore, inner);
-
-            // Make the descriptor
-            std::unique_ptr<Descriptor> descriptor = InferDescriptor(GetScriptForDestination(dest), keystore);
-
-            UniValue result(UniValue::VOBJ);
-            result.pushKV("address", EncodeDestination(dest));
-            result.pushKV("redeemScript", HexStr(inner));
-            result.pushKV("descriptor", descriptor->ToString());
-
-            UniValue warnings(UniValue::VARR);
-            if (descriptor->GetOutputType() != output_type) {
-                // Only warns if the user has explicitly chosen an address type we cannot generate
-                warnings.push_back("Unable to make chosen address type, please ensure no uncompressed public keys are present.");
-            }
-            PushWarnings(warnings, result);
-
-            return result;
-        },
-    };
-}
-
 static RPCHelpMan getdescriptorinfo()
 {
     const std::string EXAMPLE_DESCRIPTOR = "wpkh([d34db33f/84h/0h/0h]0279be667ef9dcbbac55a06295Ce870b07029Bfcdb2dce28d959f2815b16f81798)";
@@ -223,11 +137,9 @@ static RPCHelpMan deriveaddresses()
     return RPCHelpMan{"deriveaddresses",
         {"\nDerives one or more addresses corresponding to an output descriptor.\n"
          "RigorChain user-facing addresses are witness v0 (Bech32) or v1 (Bech32m) only; examples:\n"
-         "    wpkh(<pubkey>)                                    Native witness v0 single-key outputs\n"
-         "    wsh(<script>)                                     Native witness v0 script-hash outputs\n"
-         "    multi(<n>,<pubkey>,...) inside wsh()              Threshold multisig inside witness v0\n"
-         "    raw(<hex script>)                                 Outputs whose scriptPubKey equals the specified hex script\n"
+         "    wpkh(<pubkey>)                                    Native witness v0 single-key outputs (ORU)\n"
          "    res(<ed25519_key>)                                Witness v1 native RES (Bech32m; 32-byte pubkey, 64-byte secret hex, or hardened BIP32)\n"
+         "    raw(<hex script>)                                 CONVERGE, RES_MINT, or RIGOR_MARKER_RETURN whose scriptPubKey equals the hex\n"
          "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xprv optionally followed by one\n"
          "or more hardened path elements separated by \"/\", where \"h\" or \"'\" represents a hardened child key.\n"
          "Ed25519 BIP32 is hardened-only (SLIP-0010); unhardened /* is rejected.\n"
@@ -306,7 +218,6 @@ void RegisterOutputScriptRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
         {"util", &validateaddress},
-        {"util", &createmultisig},
         {"util", &deriveaddresses},
         {"util", &getdescriptorinfo},
     };

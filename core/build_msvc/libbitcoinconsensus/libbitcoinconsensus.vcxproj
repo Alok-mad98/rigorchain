@@ -24,8 +24,10 @@
     <ClCompile Include="..\..\src\primitives\block.cpp" />
     <ClCompile Include="..\..\src\primitives\transaction.cpp" />
     <ClCompile Include="..\..\src\pubkey.cpp" />
-    <ClCompile Include="..\..\src\script\bitcoinconsensus.cpp" />
-    <ClCompile Include="..\..\src\script\interpreter.cpp" />
+    <ClCompile Include="..\..\src\script\predicate_verify.cpp" />
+    <ClCompile Include="..\..\src\script\rigor_bytes.cpp" />
+    <ClCompile Include="..\..\src\script\rigor_opcode_namespace.cpp" />
+    <ClCompile Include="..\..\src\script\rigor_classify.cpp" />
     <ClCompile Include="..\..\src\script\script.cpp" />
     <ClCompile Include="..\..\src\script\script_error.cpp" />
     <ClCompile Include="..\..\src\uint256.cpp" />

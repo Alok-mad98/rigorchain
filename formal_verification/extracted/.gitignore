@@ -2,10 +2,14 @@
 *.cmo
 *.cmx
 *.o
-cpp_hash_cli
-cpp_sigma_root_cli
-hash256_cli
+*_cli
+test_*
 hash256_kernel.mli
+classify_kernel.mli
+supply_kernel.mli
+sighash_kernel.mli
+consensus_kernel.mli
+consensus_kernel_c.mli
 *.vo
 *.glob
 *.aux

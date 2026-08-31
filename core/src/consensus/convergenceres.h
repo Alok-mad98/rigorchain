@@ -1,12 +1,15 @@
-// Convergence / Res consensus (see consensus/convergence_logic.h): witness v1 **CVG2** convergence outputs.
-// `IsConvergenceV1ScriptPubKey` is the CVG2 detector (alias of `IsConvergenceScript`). Not Bitcoin Taproot spending rules.
+// Convergence / Res consensus (see consensus/convergence_logic.h): **RIGOR_MARKER_CONVERGE** burn outputs.
+// A convergence output is `<20-byte HASH160(pk32)> RIGOR_MARKER_CONVERGE` (22 bytes, script/predicate_verify.cpp
+// ParseConvergeScript). Under Option B, HASH160(pk32) equals HASH160(v1 program).
+// `IsConvergenceScript` detects that lock. The retired witness v1 CVG2 program is NOT a convergence
+// output and is rejected outright by `IsAllowedScript` (consensus/tx_check.cpp).
 
 #ifndef BITCOIN_CONSENSUS_CONVERGENCERES_H
 #define BITCOIN_CONSENSUS_CONVERGENCERES_H
 
 /**
  * RFC-000 §13: V1 CONTAINER LAW
- * ScriptPubKey = OP_1 <32 bytes>
+ * ScriptPubKey = RIGOR_PUSH_1 <32 bytes>
  * semantic = f(input_asset_domain)
  * 
  * CONSENSUS_LOCK_CONVERGENCE_V3 — Convergence v3.0 Consensus Lock (Res mint hardening layer)
@@ -27,16 +30,21 @@
  *   - Draw inequality: H < T · f (RFC-000 §3) where f is the integer convergence amount, untransformed (RFC-000 §7).
  *   - Convergence spends ORU to convergence outputs only: no consensus ORU fee floor on convergence txs (standard relay/min-fee policy only).
  *   - Minimum ORU convergenced per convergence tx is fixed MIN_CONVERGENCE_AMOUNT (1 ORU unit at COIN scale); no height/halving ladder.
- *   - Coinbase CVGE v2: `m_draw_candidates.root` must equal `ComputeConvergenceDrawCandidateRoot` for the same block body
- *     (ConnectBlock / ContextualCheckBlock: `bad-convergence-draw-candidate-root`); cumulative convergence must match sum of convergence amounts.
- *   - New Res issuance is validated only on **non-coinbase** transactions via `rigor_res.cpp` + `res_proof.cpp`
- *     (convergence txid, bind hash, height, parent compact target, witness proof). Coinbase is never an Res mint program source.
+ *   - The block's ONLY convergence commitment is the coinbase scriptSig: `<BIP34 height> <OP_PUSHBYTES_32 C> <OP_PUSHBYTES_32 paid-winner-txid>`,
+ *     byte-exact with no trailing data (`consensus/convergence_root.cpp`; `bad-cb-convergence-root`).
+ *     There is no coinbase CVGE `RIGOR_MARKER_RETURN` check: `bad-convergence-draw-candidate-root` and
+ *     `bad-convergence-cumulative` no longer exist. `CBlockIndex::m_draw_candidate_root` is a local
+ *     recomputation for RPC / state_snapshot, never compared against producer-supplied data.
+ *   - New Res issuance exists ONLY in the **coinbase**, as a single `RIGOR_MARKER_RES_MINT` output evaluated by
+ *     `rigor::ConnectEvaluateCoinbaseResMint` (consensus/rigor_res.cpp). `Consensus::CheckTxInputs`
+ *     rejects every body transaction that creates RES (`mixed-asset-output`), so the coinbase is the
+ *     single issuance gate. There is no body self-proof mint, no PCORB carrier, and no covenant mint.
  *   - Draw eligibility for convergence txs is fully recomputable from block txs + prior headers (bind/target);
  *     not from mempool ordering, coinbase txid, or `hashMerkleRoot`.
  *   - Draw eligibility RHS is the immutable RFC-014 constant
  *     `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU); see
- *     `ConvergenceDrawInequalityHolds`. Parent compact `nBits` is retained on
- *     the σ side ONLY for Sigma-CR-01 replay-domain separation.
+ *     `ConvergenceDrawInequalityHolds`. Parent compact `nBits` is not a σ input
+ *     (SECURITY-001-A8 / Sigma-PoW-01). Historical Sigma-CR-01 `bind_commit` is superseded.
  */
 #define CONSENSUS_LOCK_CONVERGENCE_V3 1
 
@@ -72,7 +80,7 @@ arith_uint256 PowConvergenceAmount(CAmount amount);
 uint64_t ConvergenceDrawEffectiveWeightU64(CAmount convergence_amount);
 
 /**
- * Default OP_CONVERGE burn used by tests: HASH160 of 32 0xa1 bytes.
+ * Default RIGOR_MARKER_CONVERGE burn used by tests: HASH160 of 32 0xa1 bytes.
  * Wallet construction always supplies a live RES program hash via GetConvergeScript.
  * `IsConvergenceOutputScript` is an alias of `IsConvergenceScript`.
  */
@@ -89,19 +97,19 @@ int CountConvergenceOutputs(const CTransaction& tx);
 /**
  * Value committed to the convergence draw by this transaction. Feeds
  * `ConvergenceDrawCandidate::weight`, **F** membership, the `MIN_CONVERGENCE_AMOUNT` floor,
- * and — because OP_CONVERGE is the only convergence form — RFC-002 C(t) as well.
+ * and — because RIGOR_MARKER_CONVERGE is the only convergence form — RFC-002 C(t) as well.
  *
- * LOAD-BEARING that those two readings coincide: an OP_CONVERGE output never enters the UTXO set
+ * LOAD-BEARING that those two readings coincide: an RIGOR_MARKER_CONVERGE output never enters the UTXO set
  * (`AddCoins` skips it), so its value is destroyed the moment the block connects, which is
- * what makes it legitimate to subtract from S_ORU and to commit through the coinbase CVGE
- * payload (`bad-convergence-cumulative`, via `CBlockIndex::GetChainConvergeSum`) and
- * `state_hash`.
+ * what makes it legitimate to subtract from S_ORU and to report through the NON-CONSENSUS
+ * `CBlockIndex::m_block_converge_sum` / `GetChainConvergeSum()` ledgers and `state_hash`.
+ * Those ledgers are observational: no ConnectBlock predicate reads them.
  *
  * A convergence form that stayed in the UTXO set would break that identity and would have to
  * be split back into two functions: counting a live UTXO as destroyed ORU subtracts value the
  * chainstate still holds and that `other_balance` still reports, and then commits the
  * discrepancy — a chain split. The retired OP_CVG_CLAIM ticket and the retired CVG2+RESO
- * sibling declaration were such forms; see script.h on 0xbc and OP_CONVERGE.
+ * sibling declaration were such forms; see script.h on 0xbc and RIGOR_MARKER_CONVERGE.
  */
 CAmount GetConvergenceAmount(const CTransaction& tx);
 

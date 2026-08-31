@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/rigor-config.h>
 #endif
 
 #include <net.h>
@@ -26,6 +26,7 @@
 #include <protocol.h>
 #include <random.h>
 #include <scheduler.h>
+#include <seed_manifest.h>
 #include <util/fs.h>
 #include <util/sock.h>
 #include <util/strencodings.h>
@@ -53,8 +54,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <optional>
+#include <system_error>
 #include <unordered_map>
 
 #include <math.h>
@@ -645,8 +649,8 @@ void CNode::CopyStats(CNodeStats& stats)
         X(cleanSubVer);
     }
     stats.fInbound = IsInboundConn();
-    X(m_bip152_highbandwidth_to);
-    X(m_bip152_highbandwidth_from);
+    X(m_compact_block_hb_to);
+    X(m_compact_block_hb_from);
     {
         LOCK(cs_vSend);
         X(mapSendBytesPerMsgType);
@@ -914,7 +918,6 @@ bool CConnman::AttemptToEvictConnection()
                 .m_last_tx_time = node->m_last_tx_time,
                 .fRelevantServices = node->m_has_all_wanted_services,
                 .m_relay_txs = node->m_relays_txs.load(),
-                .fBloomFilter = node->m_bloom_filter_loaded.load(),
                 .nKeyedNetGroup = node->nKeyedNetGroup,
                 .prefer_evict = node->m_prefer_evict,
                 .m_is_local = node->addr.IsLocal(),
@@ -1039,9 +1042,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     uint64_t nonce = GetDeterministicRandomizer(RANDOMIZER_ID_LOCALHOSTNONCE).Write(id).Finalize();
 
     ServiceFlags nodeServices = nLocalServices;
-    if (NetPermissions::HasFlag(permission_flags, NetPermissionFlags::BloomFilter)) {
-        nodeServices = static_cast<ServiceFlags>(nodeServices | NODE_BLOOM);
-    }
 
     const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
@@ -2349,6 +2349,52 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
             m_anchors.resize(MAX_BLOCK_RELAY_ONLY_ANCHORS);
         }
         LogPrintf("%i block-relay-only anchors will be tried for connections.\n", m_anchors.size());
+    }
+
+    {
+        const fs::path manifest_path = gArgs.GetDataDirNet() / "rigor_seed_v1.json";
+        if (fs::exists(manifest_path)) {
+            std::error_code ec;
+            const auto sz = fs::file_size(manifest_path, ec);
+            if (ec) {
+                LogPrintf("Ignoring signed seed manifest: cannot stat file\n");
+            } else if (sz > MAX_SEED_MANIFEST_JSON_BYTES) {
+                LogPrintf("Ignoring signed seed manifest: file exceeds %u bytes\n", MAX_SEED_MANIFEST_JSON_BYTES);
+            } else {
+                std::ifstream in(manifest_path, std::ios::binary);
+                if (!in.good()) {
+                    LogPrintf("Ignoring signed seed manifest: cannot open file\n");
+                } else {
+                    std::string body(sz, '\0');
+                    in.read(body.data(), static_cast<std::streamsize>(sz));
+                    if (!in) {
+                        LogPrintf("Ignoring signed seed manifest: short read\n");
+                    } else {
+                        SeedManifest manifest;
+                        std::string err;
+                        if (!ParseSeedManifestJson(body, manifest, err)) {
+                            LogPrintf("Ignoring signed seed manifest: %s\n", err);
+                        } else if (!SeedEpochAccepted(manifest.epoch, Params().SeedEpochs())) {
+                            LogPrintf("Ignoring signed seed manifest: epoch %s not in rotation window\n", manifest.epoch);
+                        } else if (GetTime() >= manifest.expiry) {
+                            LogPrintf("Ignoring signed seed manifest: expired at %d\n", manifest.expiry);
+                        } else if (!VerifySeedManifestSignature(manifest, Params().SeedManifestPubkey(), Params().NetworkIDString())) {
+                            LogPrintf("Ignoring signed seed manifest: Ed25519 signature failed\n");
+                        } else {
+                            std::vector<CAddress> signed_seeds =
+                                AddressesFromSeedManifest(manifest, Params().GetDefaultPort());
+                            if (!signed_seeds.empty()) {
+                                CNetAddr local;
+                                local.SetInternal("signedseeds");
+                                addrman.Add(signed_seeds, local);
+                                LogPrintf("Added %d addresses from signed seed manifest epoch %s\n",
+                                          signed_seeds.size(), manifest.epoch);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (m_client_interface) {

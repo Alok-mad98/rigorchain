@@ -16,15 +16,15 @@ std::string ScriptErrorString(const ScriptError serror)
         case SCRIPT_ERR_EVAL_FALSE:
             return "Script evaluated without error but finished with a false/empty top stack element";
         case SCRIPT_ERR_VERIFY:
-            return "Script failed an OP_VERIFY operation";
+            return "Script failed an RIGOR_RESERVED_LEGACY_VERIFY operation";
         case SCRIPT_ERR_EQUALVERIFY:
-            return "Script failed an OP_EQUALVERIFY operation";
+            return "Script failed an RIGOR_RESERVED_LEGACY_EQUALVERIFY operation";
         case SCRIPT_ERR_CHECKMULTISIGVERIFY:
-            return "Script failed an OP_CHECKMULTISIGVERIFY operation";
+            return "Script failed an RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY operation";
         case SCRIPT_ERR_CHECKSIGVERIFY:
-            return "Script failed an OP_CHECKSIGVERIFY operation";
+            return "Script failed an RIGOR_RESERVED_LEGACY_CHECKSIGVERIFY operation";
         case SCRIPT_ERR_NUMEQUALVERIFY:
-            return "Script failed an OP_NUMEQUALVERIFY operation";
+            return "Script failed an RIGOR_RESERVED_LEGACY_NUMEQUALVERIFY operation";
         case SCRIPT_ERR_SCRIPT_SIZE:
             return "Script is too big";
         case SCRIPT_ERR_PUSH_SIZE:
@@ -46,9 +46,9 @@ std::string ScriptErrorString(const ScriptError serror)
         case SCRIPT_ERR_INVALID_ALTSTACK_OPERATION:
             return "Operation not valid with the current altstack size";
         case SCRIPT_ERR_OP_RETURN:
-            return "OP_RETURN was encountered";
+            return "RIGOR_MARKER_RETURN was encountered";
         case SCRIPT_ERR_UNBALANCED_CONDITIONAL:
-            return "Invalid OP_IF construction";
+            return "Invalid RIGOR_RESERVED_LEGACY_IF construction";
         case SCRIPT_ERR_NEGATIVE_LOCKTIME:
             return "Negative locktime";
         case SCRIPT_ERR_UNSATISFIED_LOCKTIME:
@@ -66,7 +66,7 @@ std::string ScriptErrorString(const ScriptError serror)
         case SCRIPT_ERR_SIG_NULLDUMMY:
             return "Dummy CHECKMULTISIG argument must be zero";
         case SCRIPT_ERR_MINIMALIF:
-            return "OP_IF/NOTIF argument must be minimal";
+            return "RIGOR_RESERVED_LEGACY_IF/NOTIF argument must be minimal";
         case SCRIPT_ERR_SIG_NULLFAIL:
             return "Signature must be zero for failed CHECK(MULTI)SIG operation";
         case SCRIPT_ERR_DISCOURAGE_UPGRADABLE_NOPS:
@@ -104,17 +104,19 @@ std::string ScriptErrorString(const ScriptError serror)
         case SCRIPT_ERR_WITNESS_SCRIPT_PATH_VALIDATION_WEIGHT:
             return "Too much signature validation relative to witness weight";
         case SCRIPT_ERR_WITNESS_SCRIPT_PATH_CHECKMULTISIG:
-            return "OP_CHECKMULTISIG(VERIFY) is not available in this script version";
+            return "RIGOR_RESERVED_LEGACY_CHECKMULTISIG(VERIFY) is not available in this script version";
         case SCRIPT_ERR_WITNESS_SCRIPT_PATH_MINIMALIF:
-            return "OP_IF/NOTIF argument must be minimal";
+            return "RIGOR_RESERVED_LEGACY_IF/NOTIF argument must be minimal";
         case SCRIPT_ERR_OP_CODESEPARATOR:
-            return "Using OP_CODESEPARATOR in non-witness script";
+            return "Using RIGOR_RESERVED_LEGACY_CODESEPARATOR in non-witness script";
         case SCRIPT_ERR_SIG_FINDANDDELETE:
             return "Signature is found in scriptCode";
         case SCRIPT_ERR_SECP256K1_DISABLED:
             return "secp256k1/ECDSA is disabled; RIGOR spend signatures are Ed25519 only";
         case SCRIPT_ERR_CONVERGE_UNSPENDABLE:
-            return "OP_CONVERGE output is unspendable";
+            return "RIGOR_MARKER_CONVERGE output is unspendable";
+        case SCRIPT_ERR_RIGOR_SCRIPT_TYPE:
+            return "Script type is not a RIGOR consensus lock";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

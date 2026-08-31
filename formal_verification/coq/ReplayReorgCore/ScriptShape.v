@@ -2,16 +2,15 @@
     TASK-FV-MODEL-SCRIPT-SHAPE-LIFT-001.
 
     Finite byte-shape gates used by [apply_tx]:
-      - created [out_script] must be empty (model fixture placeholder),
-        [IsAllowedScript], or zero-value [OP_RETURN]
+      - created [out_script] must be [IsAllowedScript] or zero-value [OP_RETURN]
       - spent prevouts must not be CVG2
       - if [tx_pcorb = Some stack], the stack must parse as PCORB sizes
 
     This is **not** a script interpreter, **not** P2WSH execution, and
     **not** [ParseConvergeProof] field semantics. Empty [out_script] is
-    still admitted as a *shape* placeholder (classifies as ORU). DualPool
-    / NegativeCore fixtures now carry canonical ORU/RES scripts so pooling
-    matches [asset_kind_of_script].
+    [AssetInvalid] and is rejected as a created script (C++
+    [bad-rigor-script-type]). DualPool / NegativeCore fixtures carry
+    canonical ORU/RES scripts so pooling matches [asset_kind_of_script].
 
     [Require] of [ScriptMintWitness] is without [Import] so [Types.Tx.tx_id]
     does not clash with [TxAbs.tx_id]. *)
@@ -40,16 +39,12 @@ Definition smw_is_cvg2_script : list nat -> bool :=
 Lemma smw_is_cvg2_script_nil : smw_is_cvg2_script nil = false.
 Proof. reflexivity. Qed.
 
-(** Empty script is a DualPool shape placeholder (pools as ORU). Non-empty
-    scripts must be [IsAllowedScript] or zero-value [OP_RETURN]. Pooling
+(** Created scripts must be [IsAllowedScript] or zero-value [OP_RETURN].
+    Empty scripts classify as [AssetInvalid] and are rejected. Pooling
     class is [StateTransition.output_asset] = [f(script)]. *)
 Definition created_script_shape_ok (o : TxOut) : bool :=
-  match out_script o with
-  | nil => true
-  | spk =>
-      orb (smw_is_allowed_script spk)
-          (andb (smw_is_op_return spk) (Z.eqb (out_value o) 0))
-  end.
+  orb (smw_is_allowed_script (out_script o))
+      (andb (smw_is_op_return (out_script o)) (Z.eqb (out_value o) 0)).
 
 Definition pcorb_shape_ok (tx : TxAbs) : bool :=
   match tx_pcorb tx with
@@ -67,14 +62,15 @@ Definition valid_script_shape_on_ins (ins : list TxOut) (tx : TxAbs) : bool :=
 Lemma created_script_shape_ok_nil :
   forall v : Z,
     created_script_shape_ok
-      {| out_value := v; out_script := nil |} = true.
-Proof. intros. reflexivity. Qed.
+      {| out_value := v; out_script := nil |} = false.
+Proof. intros. vm_compute. reflexivity. Qed.
 
 Lemma created_script_shape_ok_nil_script :
   forall o : TxOut,
-    out_script o = nil -> created_script_shape_ok o = true.
+    out_script o = nil -> created_script_shape_ok o = false.
 Proof.
-  intros o H. destruct o as [v s]. simpl in H. subst s. reflexivity.
+  intros o H. destruct o as [v s]. simpl in H. subst s.
+  apply created_script_shape_ok_nil.
 Qed.
 
 Lemma pcorb_shape_ok_none :
@@ -83,19 +79,9 @@ Proof.
   intros tx H. unfold pcorb_shape_ok. rewrite H. reflexivity.
 Qed.
 
-Lemma forallb_nil_scripts_created :
-  forall creates : list TxOut,
-    forallb (fun o => match out_script o with nil => true | _ => false end)
-            creates = true ->
-    forallb created_script_shape_ok creates = true.
-Proof.
-  induction creates as [|o rest IH]; intros H; simpl in *; [reflexivity|].
-  apply andb_true_iff in H as [Ho Hrest].
-  apply andb_true_iff. split.
-  - destruct (out_script o) eqn:Es; [|discriminate Ho].
-    apply created_script_shape_ok_nil_script. exact Es.
-  - apply IH. exact Hrest.
-Qed.
+Lemma forallb_nil_creates_ok :
+  forallb created_script_shape_ok nil = true.
+Proof. reflexivity. Qed.
 
 Lemma no_spend_cvg2_ins_nil_scripts :
   forall ins : list TxOut,
@@ -115,32 +101,27 @@ Qed.
 Lemma valid_script_shape_on_ins_placeholder :
   forall (ins : list TxOut) (tx : TxAbs),
     tx_pcorb tx = None ->
-    forallb (fun o => match out_script o with nil => true | _ => false end)
-            (tx_creates tx) = true ->
+    tx_creates tx = nil ->
     forallb (fun o => match out_script o with nil => true | _ => false end)
             ins = true ->
     valid_script_shape_on_ins ins tx = true.
 Proof.
   intros ins tx Hp Hc Hi.
-  unfold valid_script_shape_on_ins.
+  unfold valid_script_shape_on_ins. rewrite Hc. simpl.
   apply andb_true_iff. split.
-  - apply forallb_nil_scripts_created. exact Hc.
-  - apply andb_true_iff. split.
-    + apply no_spend_cvg2_ins_nil_scripts. exact Hi.
-    + apply pcorb_shape_ok_none. exact Hp.
+  - apply no_spend_cvg2_ins_nil_scripts. exact Hi.
+  - apply pcorb_shape_ok_none. exact Hp.
 Qed.
 
 Lemma created_script_shape_ok_disallowed :
   forall (v : Z) (spk : list nat),
-    spk <> nil ->
     smw_is_allowed_script spk = false ->
     smw_is_op_return spk = false ->
     created_script_shape_ok
       {| out_value := v; out_script := spk |} = false.
 Proof.
-  intros v spk Hne Hal Hor.
-  unfold created_script_shape_ok; cbn [out_script].
-  destruct spk as [|b rest]; [contradiction Hne; reflexivity|].
+  intros v spk Hal Hor.
+  unfold created_script_shape_ok; cbn [out_script out_value].
   rewrite Hal, Hor. reflexivity.
 Qed.
 

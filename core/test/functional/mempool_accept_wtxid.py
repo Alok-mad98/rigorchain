@@ -20,13 +20,13 @@ from test_framework.messages import (
 from test_framework.p2p import P2PTxInvStore
 from test_framework.script import (
     CScript,
-    OP_0,
-    OP_ELSE,
-    OP_ENDIF,
-    OP_EQUAL,
-    OP_HASH160,
-    OP_IF,
-    OP_TRUE,
+    RIGOR_PUSH_0,
+    RIGOR_RESERVED_LEGACY_ELSE,
+    RIGOR_RESERVED_LEGACY_ENDIF,
+    RIGOR_RESERVED_LEGACY_EQUAL,
+    RIGOR_RESERVED_LEGACY_HASH160,
+    RIGOR_RESERVED_LEGACY_IF,
+    RIGOR_PUSH_1,
     hash160,
 )
 from test_framework.test_framework import BitcoinTestFramework
@@ -50,9 +50,9 @@ class MempoolWtxidTest(BitcoinTestFramework):
 
         self.log.info("Submit parent with multiple script branches to mempool")
         hashlock = hash160(b'Preimage')
-        witness_script = CScript([OP_IF, OP_HASH160, hashlock, OP_EQUAL, OP_ELSE, OP_TRUE, OP_ENDIF])
+        witness_script = CScript([RIGOR_RESERVED_LEGACY_IF, RIGOR_RESERVED_LEGACY_HASH160, hashlock, RIGOR_RESERVED_LEGACY_EQUAL, RIGOR_RESERVED_LEGACY_ELSE, RIGOR_PUSH_1, RIGOR_RESERVED_LEGACY_ENDIF])
         witness_program = sha256(witness_script)
-        script_pubkey = CScript([OP_0, witness_program])
+        script_pubkey = CScript([RIGOR_PUSH_0, witness_program])
 
         parent = CTransaction()
         parent.vin.append(CTxIn(COutPoint(int(txid, 16), 0), b""))
@@ -67,9 +67,9 @@ class MempoolWtxidTest(BitcoinTestFramework):
         peer_wtxid_relay = node.add_p2p_connection(P2PTxInvStore())
 
         # Create a new transaction with witness solving first branch
-        child_witness_script = CScript([OP_TRUE])
+        child_witness_script = CScript([RIGOR_PUSH_1])
         child_witness_program = sha256(child_witness_script)
-        child_script_pubkey = CScript([OP_0, child_witness_program])
+        child_script_pubkey = CScript([RIGOR_PUSH_0, child_witness_program])
 
         child_one = CTransaction()
         child_one.vin.append(CTxIn(COutPoint(int(parent_txid, 16), 0), b""))

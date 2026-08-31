@@ -21,7 +21,7 @@ Validates protocol-level behavior aligned with ``convergence_logic.cpp`` /
   non-null draw, ``draw_winner_txid`` equals the **argmin** Sigma digest among
   eligible txs, breaking ties by **memcmp on 32-byte txid** (LE byte order).
 * SECURITY-001-A8: the draw a block AWARDS is PAID by the block after it. The payout
-  coinbase carries **OP_RES_MINT** of **W(h)** (epoch 0: 40.000000 RES = 40,000,000 atoms)
+  coinbase carries **RIGOR_MARKER_RES_MINT** of **W(h)** (epoch 0: 40.000000 RES = 40,000,000 atoms)
   when a winner exists; ``mint_count`` / ``res_balance`` / ``getchainstatesummary`` /
   ``rigor_res_minted`` stay consistent.
 
@@ -350,7 +350,7 @@ class ResCoreConvergenceDrawTest(BitcoinTestFramework):
             rb = Decimal(str(snap["res_balance"]))
             assert_greater_than_or_equal(mints, 1)
             assert rb > Decimal(0)
-            assert len(res_mint_rows) == 1, f"[{label}] exactly one coinbase OP_RES_MINT in the payout block"
+            assert len(res_mint_rows) == 1, f"[{label}] exactly one coinbase RIGOR_MARKER_RES_MINT in the payout block"
             mint_txid, mint_atoms = res_mint_rows[0]
             assert mint_atoms == RES_REWARD_ATOMS, f"[{label}] RES mint atoms must match consensus lock"
             assert (
@@ -362,7 +362,7 @@ class ResCoreConvergenceDrawTest(BitcoinTestFramework):
                 csm.get("selection_winner_txid", "").lower() == rpc_w
             ), f"[{label}] CSM1 winner txid"
         else:
-            assert res_mint_rows == [], f"[{label}] no winner ⇒ no coinbase OP_RES_MINT"
+            assert res_mint_rows == [], f"[{label}] no winner ⇒ no coinbase RIGOR_MARKER_RES_MINT"
             assert hdr.get("rigor_res_minted") == 0, f"[{label}] header: no RES mint without winner"
 
         return fr, snap

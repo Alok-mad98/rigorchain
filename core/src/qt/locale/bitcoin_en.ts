@@ -3114,7 +3114,7 @@ If you are receiving this error you should request the merchant provide a BIP21 
     </message>
     <message>
         <location line="+52"/>
-        <source>High bandwidth BIP152 compact block relay: %1</source>
+        <source>High bandwidth compact block relay: %1</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

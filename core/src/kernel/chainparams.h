@@ -10,9 +10,11 @@
 #include <netaddress.h>
 #include <primitives/block.h>
 #include <protocol.h>
+#include <span.h>
 #include <uint256.h>
 #include <util/hash_type.h>
 
+#include <array>
 #include <cstdint>
 #include <iterator>
 #include <map>
@@ -71,7 +73,7 @@ struct ChainTxData {
 
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
- * Bitcoin system.
+ * RIGOR network.
  */
 class CChainParams
 {
@@ -124,6 +126,11 @@ public:
     const std::vector<uint8_t>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
 
+    /** Ed25519 pubkey that must verify rigor_seed_v1.json. Not consensus. */
+    Span<const unsigned char> SeedManifestPubkey() const { return m_seed_manifest_pubkey; }
+    /** Accepted seed epochs (current + next rotation window). */
+    const std::vector<std::string>& SeedEpochs() const { return m_seed_epochs; }
+
     //! Get allowed assumeutxo configuration.
     //! @see ChainstateManager
     const MapAssumeutxo& Assumeutxo() const { return m_assumeutxo_data; }
@@ -131,29 +138,9 @@ public:
     const ChainTxData& TxData() const { return chainTxData; }
 
     /**
-     * SigNetOptions holds configurations for creating a signet CChainParams.
-     */
-    struct SigNetOptions {
-        std::optional<std::vector<uint8_t>> challenge{};
-        std::optional<std::vector<std::string>> seeds{};
-    };
-
-    /**
-     * VersionBitsParameters holds activation parameters
-     */
-    struct VersionBitsParameters {
-        int64_t start_time;
-        int64_t timeout;
-        int min_activation_height;
-    };
-
-    /**
      * RegTestOptions holds configurations for creating a regtest CChainParams.
      */
     struct RegTestOptions {
-        std::unordered_map<Consensus::DeploymentPos, VersionBitsParameters> version_bits_parameters{};
-        /** Unused on RIGOR: buried softfork heights are fixed; -testactivationheight is rejected. */
-        std::unordered_map<Consensus::BuriedDeployment, int> activation_heights{};
         bool fastprune{false};
         /** FENCE-W11: injected at chain construction. Mockable chains only. */
         CAmount res_wallet_bootstrap_coinbase{0};
@@ -165,7 +152,6 @@ public:
     };
 
     static std::unique_ptr<const CChainParams> RegTest(const RegTestOptions& options);
-    static std::unique_ptr<const CChainParams> SigNet(const SigNetOptions& options);
     static std::unique_ptr<const CChainParams> Main();
     static std::unique_ptr<const CChainParams> TestNet();
     static std::unique_ptr<const CChainParams> DevTest(const MockableChainOptions& options);
@@ -186,6 +172,8 @@ protected:
     std::string strNetworkID;
     CBlock genesis;
     std::vector<uint8_t> vFixedSeeds;
+    std::array<unsigned char, 32> m_seed_manifest_pubkey{};
+    std::vector<std::string> m_seed_epochs;
     bool fDefaultConsistencyChecks;
     bool fRequireStandard;
     bool m_is_test_chain;

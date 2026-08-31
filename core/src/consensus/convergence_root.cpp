@@ -16,8 +16,11 @@
 //     in `convergence_root_eligibility.cpp`; this file keeps the coin-view wrapper).
 //   - No Merkle tree, no per-leaf Hash256(txid), no block order / fee / amount sort keys.
 //
-// **F** (block-entry UTXO, never mempool / never post-block view):
-//   IsConvergenceTx, convergence_amount >= MIN_CONVERGENCE_AMOUNT, CheckTxInputs, fee(tx) > 0.
+// **F** (block-entry UTXO plus in-block overlay, never mempool / never post-block view):
+//   IsConvergenceTx, convergence_amount >= MIN_CONVERGENCE_AMOUNT, HasResOwnerDeclaration, CheckTxInputs
+//   against an overlay that applies prior txs in the block so same-block chains enter F (RIG-02).
+//   Fee is RELAY POLICY, not a membership condition: a zero-fee burn that otherwise verifies is in **F**
+//   (see ListConvergenceRootCommitmentTxids below, and ComputeConvergenceFee, which must agree).
 //
 // **N = |F|:** N == 0 → ConvergenceRoot = 0 (before hashing); N ≥ 1 → sort txids (`uint256` / memcmp),
 // then Hash256(concat raw 32-byte txids). Coinbase: BIP34 height + OP_PUSHBYTES_32 window root.
@@ -40,7 +43,7 @@ namespace Consensus {
 
 namespace {
 
-/** Direct push of exactly 32 bytes (0x20 prefix in raw script). Not OP_PUSHDATA1/2/4. */
+/** Direct push of exactly 32 bytes (0x20 prefix in raw script). Not RIGOR_PUSHDATA1/2/4. */
 static constexpr opcodetype CONVERGENCE_ROOT_PUSH_OPCODE = static_cast<opcodetype>(32);
 
 static bool ParseBIP34HeightFirstOp(const opcodetype opcode,
@@ -49,15 +52,15 @@ static bool ParseBIP34HeightFirstOp(const opcodetype opcode,
     std::string& err_reason) noexcept
 {
     try {
-        if (opcode == OP_0) {
+        if (opcode == RIGOR_PUSH_0) {
             height_out = 0;
             return true;
         }
-        if (opcode >= OP_1 && opcode <= OP_16) {
+        if (opcode >= RIGOR_PUSH_1 && opcode <= RIGOR_PUSH_16) {
             height_out = CScript::DecodeOP_N(opcode);
             return true;
         }
-        if (opcode == OP_1NEGATE) {
+        if (opcode == RIGOR_RESERVED_LEGACY_1NEGATE) {
             height_out = -1;
             return true;
         }
@@ -78,13 +81,21 @@ static bool ParseBIP34HeightFirstOp(const opcodetype opcode,
 
 } // namespace
 
+CScript BuildCoinbaseCommitmentScriptSig(int height, const uint256& convergence_root,
+                                         const uint256& paid_winner_txid)
+{
+    return CScript() << height
+                     << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end())
+                     << std::vector<unsigned char>(paid_winner_txid.begin(), paid_winner_txid.end());
+}
+
 bool ParseCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
     CoinbaseConvergenceRootScriptSig& out,
     std::string& err_reason) noexcept
 {
     try {
         CScript::const_iterator pc = scriptSig.begin();
-        opcodetype opcode{OP_INVALIDOPCODE};
+        opcodetype opcode{RIGOR_BYTE_INVALID};
         std::vector<unsigned char> vch;
 
         if (!scriptSig.GetOp(pc, opcode, vch)) {
@@ -109,6 +120,17 @@ bool ParseCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
         }
         out.convergence_root = uint256{Span{vch}};
 
+        vch.clear();
+        if (!scriptSig.GetOp(pc, opcode, vch)) {
+            err_reason = "convergence-root-cb-missing-paid-winner-push";
+            return false;
+        }
+        if (opcode != CONVERGENCE_ROOT_PUSH_OPCODE || vch.size() != 32) {
+            err_reason = "convergence-root-cb-paid-winner-not-op-pushbytes-32";
+            return false;
+        }
+        out.paid_winner_txid = uint256{Span{vch}};
+
         if (scriptSig.GetOp(pc, opcode, vch)) {
             err_reason = "convergence-root-cb-trailing-script-data";
             return false;
@@ -124,30 +146,39 @@ bool ParseCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
     }
 }
 
+bool IsConvergenceDrawMember(const CTransaction& tx,
+    const CCoinsViewCache& view,
+    int block_height,
+    const Params& consensus_params)
+{
+    if (tx.IsCoinBase()) return false;
+    if (!IsConvergenceTx(tx)) return false;
+    if (GetConvergenceAmount(tx) < MIN_CONVERGENCE_AMOUNT) return false;
+    if (!HasResOwnerDeclaration(tx)) return false;
+    TxValidationState tx_state;
+    CAmount txfee = 0;
+    return CheckTxInputs(tx, tx_state, view, block_height, consensus_params, txfee);
+}
+
 std::vector<uint256> ListConvergenceRootCommitmentTxids(const std::vector<CTransactionRef>& vtx,
     const CCoinsViewCache& view_at_block_entry,
     int block_height,
     const Consensus::Params& consensus_params)
 {
+    // Overlay prior txs in this block so same-block chains enter F (RIG-02).
+    // Mutations stay in `overlay`; the caller's block-entry view is unchanged.
+    CCoinsViewCache overlay(const_cast<CCoinsViewCache*>(&view_at_block_entry));
     std::vector<uint256> convergence_txids;
     convergence_txids.reserve(vtx.size());
     for (size_t i = 1; i < vtx.size(); ++i) {
         const CTransaction& tx = *vtx[i];
-        if (!IsConvergenceTx(tx)) continue;
-        if (GetConvergenceAmount(tx) < MIN_CONVERGENCE_AMOUNT) continue;
-        // SECURITY-001-A / A-5 R1: only a convergence that names its RES payout owner may
-        // enter F. Without it the reward has no consensus-bound recipient and the block
-        // producer picks one. Undeclared burns stay valid; they just do not play.
-        // Must stay bit-identical to ComputeConvergenceFee / the undo builder (same predicate,
-        // minus fee: zero-fee is policy, not F membership).
-        if (!HasResOwnerDeclaration(tx)) continue;
-        TxValidationState tx_state;
-        CAmount txfee = 0;
-        if (!CheckTxInputs(tx, tx_state, view_at_block_entry, block_height, consensus_params, txfee)) {
-            continue;
+        if (IsConvergenceDrawMember(tx, overlay, block_height, consensus_params)) {
+            convergence_txids.push_back(tx.GetHash());
         }
-        // Fee is relay policy. A zero-fee burn that otherwise verifies still enters F.
-        convergence_txids.push_back(tx.GetHash());
+        for (const auto& txin : tx.vin) {
+            overlay.SpendCoin(txin.prevout);
+        }
+        AddCoins(overlay, tx, block_height, /*check=*/true);
     }
     return convergence_txids;
 }
@@ -189,6 +220,26 @@ bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
         err_reason = "convergence-root-validation-unknown-exception";
         return false;
     }
+}
+
+bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
+    int nHeight,
+    const uint256& expected_convergence_root,
+    const uint256& expected_paid_winner,
+    std::string& err_reason) noexcept
+{
+    if (!ValidateCoinbaseConvergenceRootScriptSig(scriptSig, nHeight, expected_convergence_root, err_reason)) {
+        return false;
+    }
+    CoinbaseConvergenceRootScriptSig parsed;
+    if (!ParseCoinbaseConvergenceRootScriptSig(scriptSig, parsed, err_reason)) {
+        return false;
+    }
+    if (parsed.paid_winner_txid != expected_paid_winner) {
+        err_reason = "convergence-root-cb-paid-winner-mismatch";
+        return false;
+    }
+    return true;
 }
 
 bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,

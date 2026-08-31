@@ -35,6 +35,7 @@
 #include <rpc/server.h>
 #include <scheduler.h>
 #include <script/sigcache.h>
+#include <script/sign.h>
 #include <script/standard.h>
 #include <shutdown.h>
 #include <streams.h>
@@ -376,10 +377,9 @@ CMutableTransaction TestChain100Setup::CreateValidMempoolTransaction(CTransactio
     // - Then add it to a map to pass in to SignTransaction
     std::map<COutPoint, Coin> input_coins;
     input_coins.insert({outpoint_to_spend, utxo_to_spend});
-    // - Default signature hashing type
-    int nHashType = SIGHASH_ALL;
+    // P0-018: signatures bind the test chain genesis hash.
     std::map<int, bilingual_str> input_errors;
-    assert(SignTransaction(mempool_txn, &keystore, input_coins, nHashType, input_errors));
+    assert(SignTransaction(mempool_txn, &keystore, input_coins, TestSighashChainId(), input_errors));
 
     // If submit=true, add transaction to the mempool.
     if (submit) {

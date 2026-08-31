@@ -340,6 +340,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->last_res_mint_block_hash = diskindex.last_res_mint_block_hash;
                 pindexNew->m_block_res_mint_sum = diskindex.m_block_res_mint_sum;
                 pindexNew->m_block_converge_sum = diskindex.m_block_converge_sum;
+                pindexNew->m_paid_winner_txid = diskindex.m_paid_winner_txid;
+                pindexNew->m_draw_set = diskindex.m_draw_set;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 

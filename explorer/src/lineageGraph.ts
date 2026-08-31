@@ -105,8 +105,8 @@ export const LINEAGE_LEGEND: LineageGraph["legend"] = [
   { kind: "Winner", description: "rigor_winner for the block (rigord authority)" },
   { kind: "Root", description: "C (convergence_root) from getconvergenceresult / indexed c_root" },
   { kind: "Sigma", description: "selection_digest_h (sigma digest) on winner row" },
-  { kind: "PCORB", description: "6-field RES mint proof witness (protocol-native)" },
-  { kind: "Mint", description: "RES issuance transaction linked to winner" },
+  { kind: "PCORB", description: "Retired body-witness mint proof (not live issuance)" },
+  { kind: "Mint", description: "Coinbase OP_RES_MINT output paying the parent-draw winner" },
 ];
 
 function txHref(txid: string): string {
@@ -119,19 +119,6 @@ function blockHref(hash: string): string {
 
 function addressHref(address: string): string {
   return `/address/${encodeURIComponent(address)}`;
-}
-
-function hexByteLength(hex: string | null | undefined): number {
-  if (!hex) return 0;
-  const h = hex.replace(/^0x/i, "");
-  return h.length > 0 ? Math.floor(h.length / 2) : 0;
-}
-
-function withPcorbByteLengths(
-  items: PcorbStackItem[] | null,
-): Array<PcorbStackItem & { hex_byte_length: number }> | null {
-  if (!items) return null;
-  return items.map((item) => ({ ...item, hex_byte_length: hexByteLength(item.hex) }));
 }
 
 export function emptyLineageGraph(anchor: string | null = null): LineageGraph {
@@ -211,8 +198,6 @@ export function buildLineageGraph(args: {
     (args.winnerConvergenceRow?.selection_digest_h
       ? String(args.winnerConvergenceRow.selection_digest_h)
       : null);
-
-  const pcorbItems = withPcorbByteLengths(args.convergeProof.pcorb_witness);
 
   const mintTxid = args.convergeProof.res_mint_linkage.mint_txid;
   const mintHeight = args.convergeProof.res_mint_linkage.block_height;
@@ -321,38 +306,12 @@ export function buildLineageGraph(args: {
     });
     edges.push({ from: rootId, to: sigmaId });
 
-    if (pcorbItems && pcorbItems.length > 0) {
-      const pcorbId = "pcorb";
-      nodes.push({
-        id: pcorbId,
-        kind: "pcorb",
-        label: "PCORB Witness",
-        state: mintTxid ? "Minted" : "Winner",
-        href: mintTxid ? txHref(mintTxid) : txHref(winnerTxid),
-        value: `${pcorbItems.length} stack items`,
-        meta: { item_count: pcorbItems.length },
-      });
-      edges.push({ from: sigmaId, to: pcorbId });
-
-      if (mintTxid) {
-        const mintId = `mint:${mintTxid}`;
-        nodes.push({
-          id: mintId,
-          kind: "res_mint",
-          label: "RES Mint",
-          state: mintState,
-          href: txHref(mintTxid),
-          value: mintTxid,
-          meta: { mint_height: mintHeight, mint_amount_display: mintAmount },
-        });
-        edges.push({ from: pcorbId, to: mintId });
-      }
-    } else if (mintTxid) {
+    if (mintTxid) {
       const mintId = `mint:${mintTxid}`;
       nodes.push({
         id: mintId,
         kind: "res_mint",
-        label: "RES Mint",
+        label: "Coinbase OP_RES_MINT",
         state: mintState,
         href: txHref(mintTxid),
         value: mintTxid,
@@ -387,9 +346,9 @@ export function buildLineageGraph(args: {
     convergence_root: root,
     sigma: { selection_digest_h: sigmaHex },
     pcorb: {
-      present: Boolean(pcorbItems && pcorbItems.length > 0),
-      item_count: pcorbItems?.length ?? 0,
-      items: pcorbItems,
+      present: false,
+      item_count: 0,
+      items: null,
     },
     mint: {
       mint_txid: mintTxid,

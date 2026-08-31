@@ -1,0 +1,85 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-COQ-CPP-ALIGNMENT-P0-049",
+  "note": "New alignment vectors. Does not modify phase3_golden_vectors.json or any existing golden value.",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "vectors": [
+    {
+      "id": "P049-G0-ORU",
+      "height": 0,
+      "fact": "Genesis ORU actual issuance = 0",
+      "get_block_subsidy": 0,
+      "oru_schedule_equals_actual": true
+    },
+    {
+      "id": "P049-G0-RES-ACTUAL",
+      "height": 0,
+      "fact": "Genesis RES actual issuance = 0",
+      "res_issued": 0
+    },
+    {
+      "id": "P049-G0-RES-SCHEDULE",
+      "height": 0,
+      "fact": "Genesis RES schedule value is W(0), not actual issuance",
+      "get_res_mint_reward": 40000000,
+      "res_issued": 0,
+      "schedule_is_not_actual": true
+    },
+    {
+      "id": "P049-G0-DRAW",
+      "height": 0,
+      "fact": "Genesis draw = none (empty F)",
+      "candidates": 0,
+      "winner": null
+    },
+    {
+      "id": "P049-G0-DELTA",
+      "height": 0,
+      "fact": "Genesis circulating issuance delta = 0",
+      "oru_circulating_delta": 0,
+      "res_delta": 0
+    },
+    {
+      "id": "P049-H1-ORU",
+      "height": 1,
+      "fact": "height 1 ORU issuance > 0",
+      "get_block_subsidy_oru": 1000
+    },
+    {
+      "id": "P049-H1-DRAW-MATURITY",
+      "height": 1,
+      "fact": "height 1 draw eligibility follows maturity: genesis issued 0 ORU; height-1 coinbase is immature until 101",
+      "mature_at_100": false,
+      "mature_at_101": true
+    },
+    {
+      "id": "P049-H100-MATURITY",
+      "spend_height": 100,
+      "coin_height": 1,
+      "fact": "height 100 is before the maturity boundary for height-1 coinbase",
+      "mature": false
+    },
+    {
+      "id": "P049-H101-MATURITY",
+      "spend_height": 101,
+      "coin_height": 1,
+      "fact": "height 101 is the first mature spend of a height-1 coinbase",
+      "mature": true
+    },
+    {
+      "id": "P049-H209999-EPOCH",
+      "height": 209999,
+      "epoch": 0
+    },
+    {
+      "id": "P049-H210000-EPOCH",
+      "height": 210000,
+      "epoch": 1
+    },
+    {
+      "id": "P049-ORU-RES-EPOCH",
+      "heights": [0, 1, 209999, 210000, 210001],
+      "fact": "ORU and RES use the same epoch(h)=floor(h/210000)"
+    }
+  ]
+}

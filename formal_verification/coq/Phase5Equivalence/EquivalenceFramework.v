@@ -12,7 +12,12 @@
     - No consensus / runtime / RFC / SHA-256 / ConvergeRoot / ConnectBlock code
       is modified.
 
-    This module is SPECIFICATION / SCAFFOLDING ONLY. *)
+    This module is SPECIFICATION / SCAFFOLDING ONLY.
+
+    NON_AUTHORITATIVE (P0-054).
+    Phase5Equivalence VACUOUS-PLACEHOLDER / exact I / catalog bookkeeping
+    is not consensus evidence. Not a refinement. Not an equivalence.
+    Historical modules are retained; do not cite as Kernel authority. *)
 
 From Coq Require Import List Bool.
 Import ListNotations.

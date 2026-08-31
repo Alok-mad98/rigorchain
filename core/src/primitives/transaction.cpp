@@ -7,9 +7,6 @@
 
 #include <consensus/amount.h>
 #include <hash.h>
-#include <script/interpreter.h>
-#include <script/rigor_tags.h>
-#include <script/script.h>
 #include <serialize.h>
 #include <tinyformat.h>
 #include <uint256.h>
@@ -19,17 +16,6 @@
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
-
-namespace {
-/** Witness v1, 32-byte program that is not a retired CVG2 prefix → RES. Not Bitcoin Taproot. */
-bool IsRigorResWitnessProgram(const std::vector<unsigned char>& witnessprogram)
-{
-    if (witnessprogram.size() != WITNESS_V1_RES_SIZE) return false;
-    if (std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), witnessprogram.begin())) return false;
-    if (std::equal(RigorTags::Res2WirePrefix.begin(), RigorTags::Res2WirePrefix.end(), witnessprogram.begin())) return false;
-    return true;
-}
-} // namespace
 
 std::string COutPoint::ToString() const
 {
@@ -104,7 +90,9 @@ CAmount CTransaction::GetValueOut() const
 {
     CAmount nValueOut = 0;
     for (const auto& tx_out : vout) {
-        if (!MoneyRange(tx_out.nValue) || !MoneyRange(nValueOut + tx_out.nValue))
+        // `MoneyRange(nValueOut + tx_out.nValue)` would evaluate the overflowing
+        // addition before the check could reject it. See AddMoneyOverflows.
+        if (AddMoneyOverflows(nValueOut, tx_out.nValue))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
         nValueOut += tx_out.nValue;
     }
@@ -112,45 +100,12 @@ CAmount CTransaction::GetValueOut() const
     return nValueOut;
 }
 
-AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey)
-{
-    // RFC-ADDRESS-001: Address = Asset Lock Boundary
-    // IF witness_version == 0 → asset MUST be ORU
-    // IF witness_version == 1 → asset MUST be RES
-    // OP_RES_MINT is the RES mint lock. OP_CONVERGE is the ORU-domain burn lock.
-    if (IsResMintScript(scriptPubKey)) {
-        return ASSET_RES;
-    }
-    if (IsConvergeScript(scriptPubKey)) {
-        return ASSET_ORU;
-    }
-    int witnessversion;
-    std::vector<unsigned char> witnessprogram;
-    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
-        if (witnessversion == 0 && (witnessprogram.size() == WITNESS_V0_KEYHASH_SIZE ||
-                                    witnessprogram.size() == WITNESS_V0_SCRIPTHASH_SIZE)) {
-            return ASSET_ORU;
-        }
-        if (witnessversion == 1 && witnessprogram.size() == WITNESS_V1_RES_SIZE) {
-            if (IsRigorResWitnessProgram(witnessprogram)) {
-                return ASSET_RES;
-            }
-        }
-    }
-    if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN &&
-        scriptPubKey.IsPushOnly(scriptPubKey.begin() + 1)) {
-        return ASSET_NONE;
-    }
-    // Default fail-closed (RIG-06): unrecognized scripts are not an asset.
-    return ASSET_NONE;
-}
-
 CAmount CTransaction::GetValueOut(AssetType asset) const
 {
     CAmount sum{0};
     for (const auto& tx_out : vout) {
         if (AssetTypeFromScriptPubKey(tx_out.scriptPubKey) != asset) continue;
-        if (!MoneyRange(tx_out.nValue) || !MoneyRange(sum + tx_out.nValue))
+        if (AddMoneyOverflows(sum, tx_out.nValue))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
         sum += tx_out.nValue;
     }

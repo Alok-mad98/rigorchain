@@ -43,10 +43,23 @@ Specification  →  Formal Model  →  Proof  →  Runtime Alignment Evidence
 
 ---
 
+## Proposed Documents (Not Ratified)
+
+A **PROPOSED** entry is not normative. It does not supersede implementation,
+freeze declarations, or any ESTABLISHED SPEC entry until ratified.
+
+| ID | Title | Status | Governance | Description |
+|----|-------|--------|------------|-------------|
+| **SPEC-008** | [Proof-of-Work (SHA3-256)](./SPEC-008-PROOF-OF-WORK.md) | **PROPOSED** | Level-5 · `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` | Replaces OpuHash with a single-permutation SHA3-256 PoW digest over an 88-byte tagged preimage. Scoped to the grinding path only; SHA256d retained for block id, merkle, txid, and σ. Requires freeze-declaration amendment and genesis difficulty re-derivation |
+
+---
+
 ## Planned Documents (Placeholders)
 
-All planned specification-layer documents through SPEC-007 are now **ESTABLISHED**.
-Future SPEC entries require a new formal-program governance task.
+All planned specification-layer documents through SPEC-007 are **ESTABLISHED**.
+Future SPEC entries require a new formal-program governance task; SPEC-008 is
+raised under `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` and is **PROPOSED**, not
+established.
 
 | ID | Title | Status | Scope (planned) |
 |----|-------|--------|-----------------|
@@ -83,7 +96,8 @@ ESTABLISHED SPEC entry:
 | Consensus Invariants Specification | **ESTABLISHED** (`SPEC-005`) |
 | Runtime / Formal Mapping Specification | **ESTABLISHED** (`SPEC-006`) |
 | Equivalence Boundaries Specification | **ESTABLISHED** (`SPEC-007`) |
-| Consensus Impact | **NONE** |
+| Proof-of-Work Specification | **PROPOSED** (`SPEC-008`) — Level-5, pre-mainnet only |
+| Consensus Impact | **NONE** (SPEC-008 carries consensus impact **only on ratification**) |
 | Equivalence Claimed | **false** |
 | Coq ≡ Runtime | **NOT ESTABLISHED** |
 
@@ -101,3 +115,4 @@ ESTABLISHED SPEC entry:
 | 0.6 | 2026-06-05 | `TASK-SPEC-006` — SPEC-005 consensus invariants established |
 | 0.7 | 2026-06-05 | `TASK-SPEC-007` — SPEC-006 runtime/formal mapping established |
 | 0.8 | 2026-06-05 | `TASK-SPEC-008` — SPEC-007 equivalence boundaries established; specification layer complete |
+| 0.9 | 2026-08-30 | `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` — SPEC-008 proof-of-work **proposed** (SHA3-256 replaces OpuHash); Proposed Documents section added |

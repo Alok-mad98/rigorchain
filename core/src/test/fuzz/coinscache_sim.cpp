@@ -56,35 +56,35 @@ struct PrecomputedData
             switch (i % 5U) {
             case 0: /* P2PKH */
                 coins[i].out.scriptPubKey.resize(25);
-                coins[i].out.scriptPubKey[0] = OP_DUP;
-                coins[i].out.scriptPubKey[1] = OP_HASH160;
+                coins[i].out.scriptPubKey[0] = RIGOR_RESERVED_LEGACY_DUP;
+                coins[i].out.scriptPubKey[1] = RIGOR_RESERVED_LEGACY_HASH160;
                 coins[i].out.scriptPubKey[2] = 20;
                 std::copy(hash.begin(), hash.begin() + 20, coins[i].out.scriptPubKey.begin() + 3);
-                coins[i].out.scriptPubKey[23] = OP_EQUALVERIFY;
-                coins[i].out.scriptPubKey[24] = OP_CHECKSIG;
+                coins[i].out.scriptPubKey[23] = RIGOR_RESERVED_LEGACY_EQUALVERIFY;
+                coins[i].out.scriptPubKey[24] = RIGOR_RESERVED_LEGACY_CHECKSIG;
                 break;
             case 1: /* P2SH */
                 coins[i].out.scriptPubKey.resize(23);
-                coins[i].out.scriptPubKey[0] = OP_HASH160;
+                coins[i].out.scriptPubKey[0] = RIGOR_RESERVED_LEGACY_HASH160;
                 coins[i].out.scriptPubKey[1] = 20;
                 std::copy(hash.begin(), hash.begin() + 20, coins[i].out.scriptPubKey.begin() + 2);
-                coins[i].out.scriptPubKey[12] = OP_EQUAL;
+                coins[i].out.scriptPubKey[12] = RIGOR_RESERVED_LEGACY_EQUAL;
                 break;
             case 2: /* P2WPKH */
                 coins[i].out.scriptPubKey.resize(22);
-                coins[i].out.scriptPubKey[0] = OP_0;
+                coins[i].out.scriptPubKey[0] = RIGOR_PUSH_0;
                 coins[i].out.scriptPubKey[1] = 20;
                 std::copy(hash.begin(), hash.begin() + 20, coins[i].out.scriptPubKey.begin() + 2);
                 break;
             case 3: /* P2WSH */
                 coins[i].out.scriptPubKey.resize(34);
-                coins[i].out.scriptPubKey[0] = OP_0;
+                coins[i].out.scriptPubKey[0] = RIGOR_PUSH_0;
                 coins[i].out.scriptPubKey[1] = 32;
                 std::copy(hash.begin(), hash.begin() + 32, coins[i].out.scriptPubKey.begin() + 2);
                 break;
             case 4: /* P2TR */
                 coins[i].out.scriptPubKey.resize(34);
-                coins[i].out.scriptPubKey[0] = OP_1;
+                coins[i].out.scriptPubKey[0] = RIGOR_PUSH_1;
                 coins[i].out.scriptPubKey[1] = 32;
                 std::copy(hash.begin(), hash.begin() + 32, coins[i].out.scriptPubKey.begin() + 2);
                 break;

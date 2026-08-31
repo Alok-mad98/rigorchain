@@ -10,7 +10,7 @@
 #include <consensus/res_owner.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <logging.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 #include <util/moneystr.h>
 

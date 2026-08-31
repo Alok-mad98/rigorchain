@@ -5,8 +5,8 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/params.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <net.h>
-#include <signet.h>
 #include <uint256.h>
 #include <validation.h>
 
@@ -15,6 +15,37 @@
 #include <boost/test/unit_test.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(validation_tests, TestingSetup)
+
+BOOST_AUTO_TEST_CASE(subsidy_zero_base_is_zero_not_bitcoin_fifty)
+{
+    Consensus::Params p;
+    p.nSubsidyHalvingInterval = 210000;
+    p.nBlockSubsidyBase = 0;
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, p), 0);
+}
+
+BOOST_AUTO_TEST_CASE(subsidy_zero_interval_is_zero_not_division)
+{
+    Consensus::Params p;
+    p.nBlockSubsidyBase = 1000 * COIN;
+    p.nSubsidyHalvingInterval = 0;
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
+    p.nSubsidyHalvingInterval = -1;
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
+}
+
+BOOST_AUTO_TEST_CASE(rigor_genesis_subsidy_zero_height_one_unchanged)
+{
+    const Consensus::Params& p = Params().GetConsensus();
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(2, p), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
+    BOOST_CHECK_NE(GetBlockSubsidy(1, p), 2000 * COIN);
+}
 
 /** Bitcoin-style subsidy (50 * COIN, 210k halving, no Rigor floor cap) — not Rigor mainnet Params. */
 [[maybe_unused]] static Consensus::Params BitcoinMainlikeSubsidySchedule()
@@ -64,7 +95,8 @@ BOOST_AUTO_TEST_CASE(rigor_block_subsidy_three_halvings_then_const)
     rigor.nSubsidyHalvingInterval = 210000;
     rigor.nBlockSubsidyBase = 1000 * COIN;
     rigor.nBlockSubsidyMaxHalvingShifts = 3;
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, rigor), 1000 * COIN);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, rigor), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, rigor), 1000 * COIN);
     BOOST_CHECK_EQUAL(GetBlockSubsidy(210000 - 1, rigor), 1000 * COIN);
     BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, rigor), 500 * COIN);
     BOOST_CHECK_EQUAL(GetBlockSubsidy(420000, rigor), 250 * COIN);
@@ -92,11 +124,11 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 BOOST_AUTO_TEST_CASE(signet_parse_tests)
 {
     ArgsManager signet_argsman;
-    signet_argsman.ForceSetArg("-signetchallenge", "51"); // set challenge to OP_TRUE
+    signet_argsman.ForceSetArg("-signetchallenge", "51"); // set challenge to RIGOR_PUSH_1
     const auto signet_params = CreateChainParams(signet_argsman, CBaseChainParams::SIGNET);
     CBlock block;
-    BOOST_CHECK(signet_params->GetConsensus().signet_challenge == std::vector<uint8_t>{OP_TRUE});
-    CScript challenge{OP_TRUE};
+    BOOST_CHECK(signet_params->GetConsensus().signet_challenge == std::vector<uint8_t>{RIGOR_PUSH_1});
+    CScript challenge{RIGOR_PUSH_1};
 
     // empty block is invalid
     BOOST_CHECK(!SignetTxs::Create(block, challenge));
@@ -115,14 +147,14 @@ BOOST_AUTO_TEST_CASE(signet_parse_tests)
     for (int i = 0; i < 32; ++i) {
         witness_commitment_section_141.push_back(0xff);
     }
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141;
+    cb.vout.at(0).scriptPubKey = CScript{} << RIGOR_MARKER_RETURN << witness_commitment_section_141;
     block.vtx.at(0) = MakeTransactionRef(cb);
     BOOST_CHECK(SignetTxs::Create(block, challenge));
     BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
 
     // no data after header, valid
     std::vector<uint8_t> witness_commitment_section_325{0xec, 0xc7, 0xda, 0xa2};
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
+    cb.vout.at(0).scriptPubKey = CScript{} << RIGOR_MARKER_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
     block.vtx.at(0) = MakeTransactionRef(cb);
     BOOST_CHECK(SignetTxs::Create(block, challenge));
     BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
@@ -130,21 +162,21 @@ BOOST_AUTO_TEST_CASE(signet_parse_tests)
     // Premature end of data, invalid
     witness_commitment_section_325.push_back(0x01);
     witness_commitment_section_325.push_back(0x51);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
+    cb.vout.at(0).scriptPubKey = CScript{} << RIGOR_MARKER_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
     block.vtx.at(0) = MakeTransactionRef(cb);
     BOOST_CHECK(!SignetTxs::Create(block, challenge));
     BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));
 
     // has data, valid
     witness_commitment_section_325.push_back(0x00);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
+    cb.vout.at(0).scriptPubKey = CScript{} << RIGOR_MARKER_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
     block.vtx.at(0) = MakeTransactionRef(cb);
     BOOST_CHECK(SignetTxs::Create(block, challenge));
     BOOST_CHECK(CheckSignetBlockSolution(block, signet_params->GetConsensus()));
 
     // Extraneous data, invalid
     witness_commitment_section_325.push_back(0x00);
-    cb.vout.at(0).scriptPubKey = CScript{} << OP_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
+    cb.vout.at(0).scriptPubKey = CScript{} << RIGOR_MARKER_RETURN << witness_commitment_section_141 << witness_commitment_section_325;
     block.vtx.at(0) = MakeTransactionRef(cb);
     BOOST_CHECK(!SignetTxs::Create(block, challenge));
     BOOST_CHECK(!CheckSignetBlockSolution(block, signet_params->GetConsensus()));

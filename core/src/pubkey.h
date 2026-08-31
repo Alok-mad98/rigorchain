@@ -213,18 +213,7 @@ public:
      */
     bool Verify(const uint256& hash, const std::vector<unsigned char>& vchSig) const;
 
-    /**
-     * Check whether a signature is normalized (lower-S).
-     */
-    static bool CheckLowS(const std::vector<unsigned char>& vchSig);
-
-    /**
-     * Re-encode a DER ECDSA signature to use a low-S value (BIP62 / SCRIPT_VERIFY_LOW_S).
-     * The vector must contain DER signature bytes only (no sighash type byte).
-     */
-    static bool NormalizeSignatureDER_LowS(std::vector<unsigned char>& vchSigDer);
-
-    //! Recover a public key from a compact signature.
+    //! Recover a public key from a compact signature. Always false (Ed25519 only).
     bool RecoverCompact(const uint256& hash, const std::vector<unsigned char>& vchSig);
 
     //! Turn this public key into an uncompressed public key.
@@ -234,7 +223,7 @@ public:
     std::vector<unsigned char> GetEd25519Payload() const;
     /** HASH160 of the 32-byte payload — P2WPKH program. */
     uint160 GetEd25519KeyHash() const;
-    /** SHA256 of the 32-byte payload — witness v1 RES program. */
+    /** 32-byte Ed25519 payload — witness v1 RES program (Option B). */
     uint256 GetResWitnessProgram() const;
 
     //! Public BIP32 derivation is not defined for Ed25519 (SLIP-0010). Always returns false.
@@ -253,12 +242,10 @@ public:
     XOnlyPubKey(const XOnlyPubKey&) = default;
     XOnlyPubKey& operator=(const XOnlyPubKey&) = default;
 
-    /** Determine if this pubkey is fully valid. This is true for approximately 50% of all
-     *  possible 32-byte arrays. If false, CheckTapTweak and CreateTapTweak will always fail. */
+    /** Determine if this pubkey is fully valid. */
     bool IsFullyValid() const;
 
-    /** Test whether this is the 0 key (the result of default construction). This implies
-     *  !IsFullyValid(). */
+    /** Test whether this is the 0 key (the result of default construction). */
     bool IsNull() const { return m_keydata.IsNull(); }
 
     /** Construct an x-only pubkey from exactly 32 bytes. */
@@ -266,23 +253,6 @@ public:
 
     /** Construct an x-only pubkey from a normal pubkey. */
     explicit XOnlyPubKey(const CPubKey& pubkey) : XOnlyPubKey(Span{pubkey}.subspan(1, 32)) {}
-
-    /** Compute the Taproot tweak as specified in BIP341, with *this as internal
-     * key:
-     *  - if merkle_root == nullptr: H_TapTweak(xonly_pubkey)
-     *  - otherwise:                 H_TapTweak(xonly_pubkey || *merkle_root)
-     *
-     * Note that the behavior of this function with merkle_root != nullptr is
-     * consensus critical.
-     */
-    uint256 ComputeTapTweakHash(const uint256* merkle_root) const;
-
-    /** Verify that this is a Taproot tweaked output point, against a specified internal key,
-     *  Merkle root, and parity. */
-    bool CheckTapTweak(const XOnlyPubKey& internal, const uint256& merkle_root, bool parity) const;
-
-    /** Construct a Taproot tweaked output point with this point as internal key. */
-    std::optional<std::pair<XOnlyPubKey, bool>> CreateTapTweak(const uint256* merkle_root) const;
 
     /** Returns a list of CKeyIDs for the CPubKeys that could have been used to create this XOnlyPubKey.
      * This is needed for key lookups since keys are indexed by CKeyID.

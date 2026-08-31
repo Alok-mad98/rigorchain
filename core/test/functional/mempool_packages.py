@@ -6,6 +6,7 @@
 
 from decimal import Decimal
 
+from test_framework.descriptors import descsum_create
 from test_framework.messages import (
     COIN,
     DEFAULT_ANCESTOR_LIMIT,
@@ -49,7 +50,8 @@ class MempoolPackagesTest(BitcoinTestFramework):
 
         if self.is_specified_wallet_compiled():
             self.nodes[0].createwallet("watch_wallet", disable_private_keys=True)
-            self.nodes[0].importaddress(self.wallet.get_address())
+            addr = self.wallet.get_address()
+            self.nodes[0].importdescriptors([{"desc": descsum_create(f"addr({addr})"), "timestamp": "now"}])
 
         peer_inv_store = self.nodes[0].add_p2p_connection(P2PTxInvStore()) # keep track of invs
 

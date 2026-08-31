@@ -1,7 +1,5 @@
 #include <crypto/ed25519_provider.h>
 
-#include <crypto/sha256.h>
-
 #include <sodium.h>
 
 #include <cstring>
@@ -48,8 +46,15 @@ bool SeedToKeypair(Span<const unsigned char> seed, Span<unsigned char> pubkey_ou
 bool ResWitnessProgram(Span<const unsigned char> pk32, Span<unsigned char> out32)
 {
     if (pk32.size() != PUBKEY_SIZE || out32.size() != 32) return false;
-    CSHA256().Write(pk32.data(), pk32.size()).Finalize(out32.data());
+    std::memcpy(out32.data(), pk32.data(), PUBKEY_SIZE);
     return true;
+}
+
+bool IsCanonicalOnCurvePubkey(Span<const unsigned char> pk32)
+{
+    if (!EnsureSodiumInit()) return false;
+    if (pk32.size() != PUBKEY_SIZE) return false;
+    return crypto_core_ed25519_is_valid_point(pk32.data()) == 1;
 }
 
 bool EnsureRuntime()

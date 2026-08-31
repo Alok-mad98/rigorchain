@@ -2,6 +2,7 @@
 
 import type { TxConvergencePanel, TxConvergenceRole } from "./convergencePanel";
 import { atomsToResDisplay } from "./amount";
+import { isCoinbaseMintProofItems } from "./resMint";
 
 export const READONLY_RPC_NOTICE = "Read-only view; authority from rigord RPC only.";
 
@@ -76,10 +77,8 @@ function hexByteLength(hex: string): number {
 }
 
 /**
- * A PCORB proof is the six fields at the bottom of the stack. Stack depth is not a reliable
- * discriminator: the mint's funding input carries its P2WSH redeem script above the proof pushes,
- * so the observed depth is 7 for the devtest bootstrap and could differ for other funding scripts.
- * `Consensus::ParseConvergeProof` likewise reads the six fields and ignores what follows.
+ * Historical 6-field PCORB stack shape. Live issuance is coinbase OP_RES_MINT;
+ * this matcher is display-only and is not a mint detector.
  */
 export function hasPcorbProofFields(stack: string[] | null): boolean {
   if (!stack || stack.length < PCORB_FIELD_BYTE_LENGTHS.length) return false;
@@ -89,7 +88,7 @@ export function hasPcorbProofFields(stack: string[] | null): boolean {
 export function classifyWitnessPath(coinbase: boolean, stack: string[] | null): WitnessPathKind {
   if (coinbase) return "coinbase";
   if (!stack || stack.length === 0) return "none";
-  if (hasPcorbProofFields(stack)) return "res_mint_pcorb";
+  if (hasPcorbProofFields(stack)) return "other";
   if (stack.length === 2) return "res_key_path";
   return "oru_input";
 }
@@ -101,11 +100,11 @@ export function pathLabel(kind: WitnessPathKind): string {
     case "oru_input":
       return "ORU input witness";
     case "res_mint_pcorb":
-      return "RES mint (PCORB proof witness)";
+      return "Retired PCORB stack (not issuance)";
     case "res_key_path":
       return "RES key-path spend";
     case "other":
-      return "Witness";
+      return "Witness (not a mint proof)";
     default:
       return "No witness";
   }
@@ -170,9 +169,12 @@ export function buildResMintProofView(
     const winnerTxid = String(row.winner_convergence_txid ?? "");
     const blockHash = String(row.block_hash ?? "");
     const blockHeight = Number(row.block_height ?? 0);
-    const proofRaw = row.proof_items as { witness_stack?: string[] } | null;
-    const stack = Array.isArray(proofRaw?.witness_stack) ? proofRaw!.witness_stack! : null;
-    const proof_items = stack ? buildPcorbItems(stack) : pcorbFromWitness;
+    const proofRaw = row.proof_items as { witness_stack?: string[]; source?: string } | null;
+    const stack =
+      !isCoinbaseMintProofItems(proofRaw) && Array.isArray(proofRaw?.witness_stack)
+        ? proofRaw!.witness_stack!
+        : null;
+    const proof_items = stack ? buildPcorbItems(stack) : null;
 
     return {
       present: true,
@@ -187,24 +189,6 @@ export function buildResMintProofView(
       matches_winner_block: Boolean(block?.rigor_res_minted === 1),
       proof_items,
       convergence_root: String(row.convergence_root ?? ""),
-    };
-  }
-
-  if (pcorbFromWitness) {
-    const onMintBlock = Number(block?.rigor_res_minted ?? 0) === 1;
-    return {
-      present: true,
-      mint_txid: txid,
-      mint_vout_index: null,
-      mint_amount_atoms: null,
-      mint_amount_display: null,
-      winner_convergence_txid: pcorbFromWitness[0]?.hex ?? null,
-      block_hash: block?.block_hash ?? null,
-      block_height: block ? Number(block.height) : null,
-      confirmation_status: onMintBlock ? "Confirmed in block" : "Pending candidate state",
-      matches_winner_block: onMintBlock,
-      proof_items: pcorbFromWitness,
-      convergence_root: pcorbFromWitness[5]?.hex ?? null,
     };
   }
 
@@ -247,8 +231,7 @@ export function buildTxWitnessPanel(
   convergenceRows: Array<{ block_height: bigint | number; convergence_root?: string }>,
 ): TxWitnessPanel {
   const inputs = vins.map(buildVinWitnessView);
-  const pcorbFromWitness = inputs.find((i) => i.pcorb_items)?.pcorb_items ?? null;
-  const res_mint_proof = buildResMintProofView(txid, resMintRows, block, convergencePanel, pcorbFromWitness);
+  const res_mint_proof = buildResMintProofView(txid, resMintRows, block, convergencePanel, null);
   const proof_status = buildTxProofStatus(convergencePanel, convergenceRows, res_mint_proof);
 
   return {

@@ -1,11 +1,11 @@
 {
-  "comment": "Pinned correspondence counts for the differential gate. Bump only with a new vector / harness / discrepancy task. TASK-FV-GATE-AND-HARNESS-HARDENING-001. EdgeCross: TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001. Selective densify: TASK-FV-VECTOR-SELECTIVE-DENSIFY-001 (422/215). Surface splits: TASK-FV-DISCREPANCY-AND-LOCK-MAINTENANCE-001. RC0 freeze lock was 414/207.",
-  "shared_vectors": 422,
-  "coq_enforced_lemmas": 215,
-  "golden_harness_lemmas": 187,
+  "comment": "Pinned correspondence counts for the differential gate. Bump only with a new vector / harness / discrepancy task. TASK-FV-GATE-AND-HARNESS-HARDENING-001. EdgeCross: TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001. Selective densify: TASK-FV-VECTOR-SELECTIVE-DENSIFY-001 (422/215). ScriptAsset classifier: 433/226. Surface splits: TASK-FV-DISCREPANCY-AND-LOCK-MAINTENANCE-001. RC0 freeze lock was 414/207.",
+  "shared_vectors": 433,
+  "coq_enforced_lemmas": 226,
+  "golden_harness_lemmas": 198,
   "negative_core_harness_lemmas": 28,
-  "json_coq_enforce_true": 190,
-  "tag": "tightening-replay-txid-2026-08-18",
+  "json_coq_enforce_true": 201,
+  "tag": "script-asset-classifier-2026-08-25",
   "must_enforce_families": {
     "NegativeCore": {
       "vectors": 16,
@@ -44,6 +44,13 @@
       "id_prefix": "XFAM-",
       "id_first": 0,
       "id_last": 19
+    },
+    "ScriptAsset": {
+      "vectors": 11,
+      "coq_enforced": 11,
+      "id_prefix": "SASS-",
+      "id_first": 0,
+      "id_last": 10
     }
   },
   "families": {
@@ -54,6 +61,7 @@
     "NegativeCore": {"vectors": 16, "coq_enforced": 16},
     "InvalidCvg": {"vectors": 14, "coq_enforced": 14},
     "ScriptMintNeg": {"vectors": 12, "coq_enforced": 12},
+    "ScriptAsset": {"vectors": 11, "coq_enforced": 11},
     "EdgeCross": {"vectors": 20, "coq_enforced": 20},
     "ReorgBind": {"vectors": 12, "coq_enforced": 0},
     "BlockTrace": {"vectors": 12, "coq_enforced": 0},

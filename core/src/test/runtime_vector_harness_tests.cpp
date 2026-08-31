@@ -8,9 +8,9 @@
 
 #include <chain.h>
 #include <chainparams.h>
-#include <consensus/runtime_supply_witness_chain.h>
+#include <node/supply_monitor/runtime_supply_witness_chain.h>
 #include <uint256.h>
-#include <consensus/coq_supply_field_hook.h>
+#include <node/supply_monitor/coq_supply_field_hook.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <test/util/setup_common.h>
 #include <univalue.h>

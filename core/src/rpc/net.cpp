@@ -15,6 +15,7 @@
 #include <netbase.h>
 #include <node/context.h>
 #include <policy/settings.h>
+#include <rigor_capability.h>
 #include <rpc/blockchain.h>
 #include <rpc/protocol.h>
 #include <rpc/server_util.h>
@@ -126,11 +127,16 @@ static RPCHelpMan getpeerinfo()
                     {RPCResult::Type::NUM, "pingtime", /*optional=*/true, "The last ping time in milliseconds (ms), if any"},
                     {RPCResult::Type::NUM, "minping", /*optional=*/true, "The minimum observed ping time in milliseconds (ms), if any"},
                     {RPCResult::Type::NUM, "pingwait", /*optional=*/true, "The duration in milliseconds (ms) of an outstanding ping (if non-zero)"},
-                    {RPCResult::Type::NUM, "version", "The peer version, such as 70001"},
+                    {RPCResult::Type::NUM, "version", "The peer RIGOR protocol version"},
                     {RPCResult::Type::STR, "subver", "The string version"},
                     {RPCResult::Type::BOOL, "inbound", "Inbound (true) or Outbound (false)"},
-                    {RPCResult::Type::BOOL, "bip152_hb_to", "Whether we selected peer as (compact blocks) high-bandwidth peer"},
-                    {RPCResult::Type::BOOL, "bip152_hb_from", "Whether peer selected us as (compact blocks) high-bandwidth peer"},
+                    {RPCResult::Type::BOOL, "compact_block_hb_to", "Whether we selected peer as compact-block high-bandwidth peer"},
+                    {RPCResult::Type::BOOL, "compact_block_hb_from", "Whether peer selected us as compact-block high-bandwidth peer"},
+                    {RPCResult::Type::ARR, "capabilities", "Enabled RIGOR capabilities for this peer",
+                    {
+                        {RPCResult::Type::STR, "capability", "Capability name"}
+                    }},
+                    {RPCResult::Type::BOOL, "capabilities_advertised", "Whether the peer sent a RIGORCAP message"},
                     {RPCResult::Type::NUM, "startingheight", "The starting height (block) of the peer"},
                     {RPCResult::Type::NUM, "presynced_headers", "The current height of header pre-synchronization with this peer, or -1 if no low-work sync is in progress"},
                     {RPCResult::Type::NUM, "synced_headers", "The last header we have in common with this peer"},
@@ -232,8 +238,14 @@ static RPCHelpMan getpeerinfo()
         // their ver message.
         obj.pushKV("subver", stats.cleanSubVer);
         obj.pushKV("inbound", stats.fInbound);
-        obj.pushKV("bip152_hb_to", stats.m_bip152_highbandwidth_to);
-        obj.pushKV("bip152_hb_from", stats.m_bip152_highbandwidth_from);
+        obj.pushKV("compact_block_hb_to", stats.m_compact_block_hb_to);
+        obj.pushKV("compact_block_hb_from", stats.m_compact_block_hb_from);
+        UniValue caps(UniValue::VARR);
+        for (const std::string& name : RigorCapabilityNames(statestats.m_enabled_capabilities)) {
+            caps.push_back(name);
+        }
+        obj.pushKV("capabilities", caps);
+        obj.pushKV("capabilities_advertised", statestats.m_capabilities_advertised);
         obj.pushKV("startingheight", statestats.m_starting_height);
         obj.pushKV("presynced_headers", statestats.presync_height);
         obj.pushKV("synced_headers", statestats.nSyncHeight);
@@ -588,7 +600,11 @@ static RPCHelpMan getnetworkinfo()
                     {
                         {RPCResult::Type::NUM, "version", "the server version"},
                         {RPCResult::Type::STR, "subversion", "the server subversion string"},
-                        {RPCResult::Type::NUM, "protocolversion", "the protocol version"},
+                        {RPCResult::Type::NUM, "protocolversion", "the RIGOR P2P protocol version"},
+                        {RPCResult::Type::ARR, "capabilities", "locally advertised RIGOR capabilities",
+                        {
+                            {RPCResult::Type::STR, "capability", "Capability name"},
+                        }},
                         {RPCResult::Type::STR_HEX, "localservices", "the services we offer to the network"},
                         {RPCResult::Type::ARR, "localservicesnames", "the services we offer to the network, in human-readable form",
                         {
@@ -635,7 +651,14 @@ static RPCHelpMan getnetworkinfo()
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version",       CLIENT_VERSION);
     obj.pushKV("subversion",    strSubVersion);
-    obj.pushKV("protocolversion",PROTOCOL_VERSION);
+    obj.pushKV("protocolversion", RIGOR_PROTOCOL_CURRENT_VERSION);
+    {
+        UniValue caps(UniValue::VARR);
+        for (const std::string& name : RigorCapabilityNames(RIGOR_LOCAL_ACTIVE_CAPABILITIES)) {
+            caps.push_back(name);
+        }
+        obj.pushKV("capabilities", caps);
+    }
     NodeContext& node = EnsureAnyNodeContext(request.context);
     if (node.connman) {
         ServiceFlags services = node.connman->GetLocalServices();

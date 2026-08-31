@@ -20,6 +20,42 @@ BOOST_AUTO_TEST_CASE(MoneyRangeTest)
     BOOST_CHECK_EQUAL(MoneyRange(MAX_MONEY + CAmount(1)), false);
 }
 
+/**
+ * TASK-010 R-1: the bound must leave room to add in-range amounts. Two amounts
+ * that each pass MoneyRange must be summable without signed overflow, because
+ * that is what every `total += v; if (!MoneyRange(total))` in Bitcoin-derived
+ * code silently assumes.
+ */
+BOOST_AUTO_TEST_CASE(MaxMoneyLeavesAdditionHeadroom)
+{
+    BOOST_CHECK(MAX_MONEY <= std::numeric_limits<int64_t>::max() / 4);
+    // A four-term sum of maximal amounts is still representable.
+    const CAmount quadruple = MAX_MONEY + MAX_MONEY + MAX_MONEY + MAX_MONEY;
+    BOOST_CHECK_GT(quadruple, MAX_MONEY);
+    BOOST_CHECK(!MoneyRange(quadruple));
+}
+
+BOOST_AUTO_TEST_CASE(AddMoneyOverflowsTest)
+{
+    BOOST_CHECK(!AddMoneyOverflows(0, 0));
+    BOOST_CHECK(!AddMoneyOverflows(0, MAX_MONEY));
+    BOOST_CHECK(!AddMoneyOverflows(MAX_MONEY, 0));
+    BOOST_CHECK(!AddMoneyOverflows(MAX_MONEY - 1, 1));
+
+    // Exactly at the bound is fine; one past it is not.
+    BOOST_CHECK(AddMoneyOverflows(MAX_MONEY, 1));
+    BOOST_CHECK(AddMoneyOverflows(MAX_MONEY, MAX_MONEY));
+
+    // Out-of-range operands are overflows in their own right, so callers need no
+    // separate MoneyRange guard.
+    BOOST_CHECK(AddMoneyOverflows(-1, 0));
+    BOOST_CHECK(AddMoneyOverflows(0, -1));
+    BOOST_CHECK(AddMoneyOverflows(MAX_MONEY + 1, 0));
+    BOOST_CHECK(AddMoneyOverflows(0, MAX_MONEY + 1));
+    BOOST_CHECK(AddMoneyOverflows(std::numeric_limits<CAmount>::max(),
+                                  std::numeric_limits<CAmount>::max()));
+}
+
 BOOST_AUTO_TEST_CASE(GetFeeTest)
 {
     CFeeRate feeRate, altFeeRate;
@@ -85,6 +121,10 @@ BOOST_AUTO_TEST_CASE(GetFeeTest)
     BOOST_CHECK(CFeeRate(CAmount(27), 789) == CFeeRate(34));
     // Maximum size in bytes, should not crash
     CFeeRate(MAX_MONEY, std::numeric_limits<uint32_t>::max()).GetFeePerK();
+    // TASK-010 R-1: MAX_MONEY * 1000 exceeds int64. The widened product must
+    // saturate rather than wrap; a one-byte divisor is the worst case.
+    BOOST_CHECK_EQUAL(CFeeRate(MAX_MONEY, 1).GetFeePerK(), std::numeric_limits<int64_t>::max());
+    BOOST_CHECK_EQUAL(CFeeRate(-MAX_MONEY, 1).GetFeePerK(), std::numeric_limits<int64_t>::min());
 }
 
 BOOST_AUTO_TEST_CASE(BinaryOperatorTest)

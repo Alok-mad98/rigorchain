@@ -21,6 +21,8 @@ It does not add protocol work. Detailed results live in the linked reports.
 
 Honesty flags stay **false** (`equivalence_claimed`, `hash_kernel_shared_binary_with_cpp`, `refinement_proved`). This is **not** a refinement proof. Do not expand FV scope here.
 
+PoW / ASERT / `CheckProofOfWork`, Ed25519 sighash, and production mint authorization are **NOT VERIFIED** in Coq. A green differential gate does **not** replace §D unit suites.
+
 From repo root:
 
 ```bash
@@ -62,19 +64,34 @@ Do **not** add pool tests to this runner.
 
 ---
 
-## D. Unit / build
+## D. Unit / build (security gates — not the FV gate)
 
-From `core/` (after `make`):
+From `core/` (after `make`). The suite list is `SECURITY_UNIT_SUITES` in
+`core/test/functional/res_security/run_pre_mainnet.sh` — do not maintain a
+second copy here.
 
 ```bash
-./src/test/test_bitcoin --run_test=res_orum_tests
+./test/functional/res_security/run_pre_mainnet.sh
+# or, units only:
+./src/test/test_rigor --run_test=res_orum_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests,res_proof_math_tests,convergence_root_tests
 ```
+
+| Suite | Why it is a security gate |
+|-------|---------------------------|
+| `pow_tests` | ASERT / `CheckProofOfWork`. **NOT VERIFIED** in Coq (no PoW module). |
+| `sighash_tests` | P0-018 Ed25519 domain + `rigor_sighash_p0_018.json`. Not a Coq theorem. |
+| `script_asset_ownership_freeze_tests` | Script-as-asset classifier. Shared JSON `rigor_script_asset_classifier.json` ≡ Coq `ScriptAsset` harness. |
+| `res_proof_math_tests` | Mint evaluator: owner / extra mint / omit (evaluator allows omit) / no winner / W=0. Coq `winner_must_mint` is **not** CI-033. ConnectBlock `bad-rigor-res-winner-mismatch` is `feature_rigor_convergence_rng_consensus.py`. |
+| `convergence_root_tests` | Coin-view wrapper ≡ eligibility-list root (including N=0). |
+| `res_orum_tests` | Dual-pool + mint maturity. |
 
 Related (maturity undo flag): `--run_test=coins_tests/txundo_formatter_res_mint_flag_roundtrip`.
 
-`run_pre_mainnet.sh` runs `res_orum_tests` when `src/test/test_bitcoin` exists; `SKIP_UNIT=1` skips it. Missing binary is a skip, not a functional-suite failure.
+`run_pre_mainnet.sh` runs `SECURITY_UNIT_SUITES` when `src/test/test_rigor` exists; `SKIP_UNIT=1` skips it. Missing binary is a skip, not a functional-suite failure.
 
-Project-standard unit suite (`make check` / default `test_bitcoin` without a filter) as applicable for the release cut → **PASS**.
+The FV checklist defaults to `SKIP_TEST_BITCOIN=1`. Do **not** treat a green FV gate as a substitute for the suites above.
+
+Project-standard unit suite (`make check` / default `test_rigor` without a filter) as applicable for the release cut → **PASS**.
 
 ---
 
@@ -110,7 +127,7 @@ Not automated. Record notes before a mainnet declaration:
 - [ ] A — scope is solo; pool not shipped.
 - [ ] B — differential gate PASS; honesty flags false.
 - [ ] C — `run_pre_mainnet.sh` PASS (window + solo + maturity).
-- [ ] D — `res_orum_tests` PASS; project-standard units as applicable.
+- [ ] D — `run_pre_mainnet.sh` unit step PASS (`SECURITY_UNIT_SUITES`), or the same Boost filter run by hand.
 - [ ] E — residuals acknowledged, not treated as closed.
 - [ ] F — testnet notes attached.
 
@@ -131,5 +148,5 @@ Not automated. Record notes before a mainnet declaration:
 | `core/test/functional/feature_res_window_reorg_res_attacks.py` | Window / reorg / monopoly |
 | `core/test/functional/feature_res_solo_security.py` | Solo security |
 | `core/test/functional/feature_res_maturity.py` | Maturity |
-| `./src/test/test_bitcoin --run_test=res_orum_tests` | Dual-pool + mint maturity units |
+| `./src/test/test_rigor --run_test=res_orum_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests,res_proof_math_tests,convergence_root_tests` | Security unit gates (PoW / sighash / mint-auth / classifier / root wrapper). Not the FV gate. |
 | `formal_verification/scripts/run_differential_gate.sh` | FV maintenance gate (not in the functional runner) |

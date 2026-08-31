@@ -17,7 +17,7 @@ Canonical statement:
 
 | # | Item | Verdict | Why |
 |---|------|---------|-----|
-| 1 | P2WSH attack surface | **KEEP** (document residual risk) | Live ORU spend path; AutoResMint bootstrap; `wsh()` / miniscript wallets. Restricting or deprecating it would break RC0. |
+| 1 | P2WSH attack surface | **REMOVED** | Consensus no longer accepts v0/32 outputs or inner-script execution. `wsh()` / `multi()` descriptors and `createmultisig` / `addmultisigaddress` are refused. |
 | 2 | Missing `cvg2()` descriptor | **DO NOT ADD** | CVG2 is a protocol-controlled unspendable ORU-domain burn, built by `createconvergence`. A spendable-looking descriptor would confuse Bech32m/RES with Convergence. |
 | 3 | `ParseScriptContext::P2TR` + Qt `Bech32m (Taproot)` | **FIX** | Dead parse context; live Qt already says RES. Cleaning does not change `res()` / `wpkh()` / `wsh()` or consensus. |
 | 4 | Python `ORB2 = b"ORB2"` | **FIX** | Test-model vocabulary only. Align with consensus `RES2` and 32-byte `IsResScript`. Do not change C++ wire tags. |
@@ -28,27 +28,13 @@ Canonical statement:
 
 ## Item 1 — P2WSH as inherited opcode surface
 
-### What it is
+### What it was
 
-Witness v0 P2WSH (`WITNESS_V0_SCRIPTHASH`, 32-byte SHA256 of the witness script) is an allowed ORU chain output. Inner scripts run at `SigVersion::WITNESS_V0`. CHECKSIG is Ed25519-only (`SCRIPT_ERR_SECP256K1_DISABLED`). Policy already caps P2WSH stack/script size (`MAX_STANDARD_P2WSH_*` in `policy.h`).
+Witness v0 P2WSH (`WITNESS_V0_SCRIPTHASH`, 32-byte SHA256 of the witness script) was an inherited Bitcoin output type. Inner scripts ran at `SigVersion::WITNESS_V0` and were the last multi-key / multi-opcode spend path.
 
-### Production dependents
+### Decision (superseded)
 
-- **AutoResMint bootstrap:** `core/src/node/auto_res_mint.cpp` funds automatic body RES mints via a P2WSH scriptPubKey (`GetScriptForDestination(WitnessV0ScriptHash(redeem))`). Disabling P2WSH would break mockable-chain automint funding and `getautomintfundaddress`.
-- **Descriptor wallets:** `wsh()` and miniscript-in-`wsh()` are the supported ORU script-hash surface (`descriptor.cpp` gates miniscript to `ParseScriptContext::P2WSH` only).
-- **Consensus classification:** `IsAllowedScript` allows all witness v0 programs; `ClassifyRigorTxout` accepts `WITNESS_V0_SCRIPTHASH`.
-
-### Wallet / test compatibility if restricted
-
-Deprecating or further restricting P2WSH in `IsAllowedScript` / the interpreter would:
-
-- invalidate existing `wsh()` descriptors and functional tests (`wallet_importdescriptors.py`, `wallet_miniscript.py`, `descriptor_tests.cpp`);
-- break AutoResMint coinbase bootstrap on mockable chains;
-- change consensus, which this cleanup explicitly must not do.
-
-### Decision
-
-**Keep P2WSH for RC0.** Residual risk is real (largest inherited opcode surface) but is already bounded by Ed25519-only CHECKSIG, closed output types, and standardness limits. Further opcode narrowing would be a separate RFC, not this debt pass.
+**P2WSH has been removed from consensus.** `IsAllowedScript` / `ClassifyRigorTxout` / `VerifyWitnessProgram` reject v0/32. `OP_CHECKMULTISIG` is `SCRIPT_ERR_BAD_OPCODE`. `wsh()` / `multi()` descriptors and `createmultisig` / `addmultisigaddress` are refused. Residual EvalScript remains in the binary for tests and `bitcoinconsensus` JSON vectors; it is not on any consensus spend path (P2WPKH, native RES, and OP_RES_MINT are structured signature checks).
 
 ---
 

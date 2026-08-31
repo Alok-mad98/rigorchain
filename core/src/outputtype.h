@@ -15,7 +15,9 @@
 #include <vector>
 
 enum class OutputType {
+    /** Rejected by ParseOutputType / wallet load; kept so existing test sources compile. */
     LEGACY,
+    /** Rejected by ParseOutputType / wallet load; kept so existing test sources compile. */
     P2SH_SEGWIT,
     BECH32,
     BECH32M,
@@ -23,8 +25,6 @@ enum class OutputType {
 };
 
 static constexpr auto OUTPUT_TYPES = std::array{
-    OutputType::LEGACY,
-    OutputType::P2SH_SEGWIT,
     OutputType::BECH32,
     OutputType::BECH32M,
 };

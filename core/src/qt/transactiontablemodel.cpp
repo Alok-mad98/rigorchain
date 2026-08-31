@@ -418,7 +418,6 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *rec) const
         }
         break;
     case wallet::TxSemanticKind::ResTransfer:
-    case wallet::TxSemanticKind::ResClaim:
         // Keep asset-specific wording for RES rows that used a generic send/recv type.
         if (rec->type == TransactionRecord::SendToAddress ||
             rec->type == TransactionRecord::SendToOther ||

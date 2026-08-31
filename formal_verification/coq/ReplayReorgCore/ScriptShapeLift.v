@@ -76,6 +76,10 @@ Proof.
   rewrite Hf. reflexivity.
 Qed.
 
+Lemma sl_empty_created_false :
+  created_script_shape_ok (sl_out_script nil) = false.
+Proof. vm_compute. reflexivity. Qed.
+
 Lemma sl_p2pkh_created_false :
   created_script_shape_ok (sl_out_script ScriptMintWitness.canonical_p2pkh) = false.
 Proof. vm_compute. reflexivity. Qed.
@@ -91,6 +95,13 @@ Proof. vm_compute. reflexivity. Qed.
 Lemma sl_v1_len20_created_false :
   created_script_shape_ok (sl_out_script ScriptMintWitness.canonical_v1_len20) = false.
 Proof. vm_compute. reflexivity. Qed.
+
+Theorem apply_tx_rejects_created_empty_script :
+  apply_tx (sl_state [(sl_op, sl_oru 1)]) (sl_create_tx nil) 0 = None.
+Proof.
+  apply apply_tx_rejects_without_script_shape.
+  apply sl_create_shape_false. exact sl_empty_created_false.
+Qed.
 
 Theorem apply_tx_rejects_created_p2pkh :
   apply_tx (sl_state [(sl_op, sl_oru 1)])
@@ -283,3 +294,24 @@ Theorem allowed_v0_shape_ok :
     {| out_value := 1%Z;
        out_script := ScriptMintWitness.canonical_p2wpkh |} = true.
 Proof. vm_compute. reflexivity. Qed.
+
+Theorem created_script_shape_ok_not_invalid :
+  forall o : TxOut,
+    created_script_shape_ok o = true ->
+    output_asset o <> AssetInvalid.
+Proof.
+  intros o Hok.
+  unfold created_script_shape_ok in Hok.
+  apply orb_true_iff in Hok.
+  destruct Hok as [Hal | Hor].
+  - unfold output_asset, asset_kind_of_script.
+    unfold smw_is_allowed_script, ScriptMintWitness.is_allowed_script,
+           ScriptMintWitness.smw_asset_is_admitted in Hal.
+    destruct (ScriptMintWitness.asset_from_script (out_script o));
+      simpl in Hal; try discriminate Hal; discriminate.
+  - apply andb_true_iff in Hor as [Hop _].
+    unfold smw_is_op_return in Hop.
+    unfold output_asset, asset_kind_of_script.
+    rewrite (ScriptMintWitness.is_op_return_classifies_none (out_script o) Hop).
+    discriminate.
+Qed.

@@ -6,7 +6,7 @@
 
 #include <chain.h>
 #include <consensus/params.h>
-#include <consensus/runtime_supply_witness_coq_adapter.h>
+#include <node/supply_monitor/runtime_supply_witness_coq_adapter.h>
 #include <univalue.h>
 #include <util/moneystr.h>
 

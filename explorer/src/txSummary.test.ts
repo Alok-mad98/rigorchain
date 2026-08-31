@@ -68,6 +68,26 @@ describe("txSummary", () => {
       "res_mint",
     );
     assert.equal(txKindLabel("res_mint"), "RES mint");
+    assert.equal(
+      classifyTxKind({
+        isCoinbase: true,
+        primaryRole: "output",
+        hasOru: true,
+        hasRes: true,
+        isResMint: true,
+      }),
+      "res_mint",
+    );
+    assert.equal(
+      classifyTxKind({
+        isCoinbase: false,
+        primaryRole: null,
+        hasOru: false,
+        hasRes: true,
+        isResMint: false,
+      }),
+      "other",
+    );
     assert.equal(destinationLabel("convergence_lock"), CONVERGENCE_LOCK_DESTINATION_LABEL);
     assert.equal(destinationLabel("payment"), "Receiver");
   });

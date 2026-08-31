@@ -3,7 +3,11 @@
 **Task:** `TASK-RIGOR-FORMAL-VERIFICATION-COVERAGE-AUDIT-P0-001`  
 **Date:** 2026-08-20  
 
-This is the human-readable cone for PART 2. The full 2585-name list is `FORMAL_THEOREM_INVENTORY.json`.  
+This is the human-readable cone for PART 2. The full 2873-name list is `FORMAL_THEOREM_INVENTORY.json`.
+**Citable theorems are the protocol-core cone only** (`formal_verification/coq/_CoqProject.protocol-core`).
+Phase-4F/4G/5 catalog modules are paperwork; do not add them to a “proved” count.
+Identifiers still named `p5_mainnet_freeze_*` in Phase5 catalogs are snapshot
+field labels, not freeze authority (`p5_phase5_paperwork_recorded`).
 Unless noted, protocol-core theorems are expected **Closed under the global context** after a consistent rebuild (no `Axiom` / `Admitted` in sources).
 
 Legend — **Method:** `vm` = `vm_compute`, `arith` = integer reasoning, `perm` = permutation/order, `struct` = state-transition structure, `neg` = explicit non-claim.
@@ -26,7 +30,8 @@ Legend — **Method:** `vm` = `vm_compute`, `arith` = integer reasoning, `perm` 
 | `draw_pipeline_e2e` (family) | DrawCandidateRoot.v | Eligible list = DCR = winner path | — | struct | Selection/Window |
 | `dual_pool_conservation` | DualPoolConservation.v | Ordinary RES in≥out | — | arith | sum_asset |
 | `apply_block_res_net_bounded_by_scheduled_mints` | DualPoolConservation.v | Block RES net ≤ scheduled mint | apply_block success | struct | mint shape |
-| `winner_must_mint` | ResMintObligation.v | H-1 under `cm_draw_won` | **Abstract flag** | struct | ConnectBlockMint |
+| `winner_must_mint` | ResMintObligation.v | Abstract `cm_draw_won` ⇒ mint count 1. **Not CI-033.** | **Abstract flag** | struct | ConnectBlockMint |
+| `we_do_not_claim_ci033_mint_authorization` | OpaqueBoundary.v | Explicit non-claim of production mint auth | — | neg | — |
 | `cap_overshoot_rejects_apply_block` | ResMintObligation.v | Cap fail-closed | — | struct | valid_res_cap |
 | `oru_supply_bounded_by_block_count` | SupplyConservation.v | ORU ≤ f(#blocks) | Model subsidy | arith | ConnectBlockMint |
 | `supply_deterministic` | SupplyConservation.v | Replay path unique supply | — | struct | apply_block |

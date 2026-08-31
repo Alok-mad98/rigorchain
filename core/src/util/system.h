@@ -11,7 +11,7 @@
 #define BITCOIN_UTIL_SYSTEM_H
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/rigor-config.h>
 #endif
 
 #include <compat/assumptions.h>
@@ -43,7 +43,6 @@ void SetApplicationInvocationBaseName(const char* argv0);
 std::string GetApplicationInvocationBaseName();
 
 extern const char * const RIGOR_CONF_FILENAME;
-extern const char * const BITCOIN_CONF_FILENAME; // legacy fallback filename
 extern const char * const BITCOIN_SETTINGS_FILENAME;
 
 void SetupEnvironment();

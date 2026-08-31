@@ -33,6 +33,7 @@
 #include "miner.h"
 #include "opus_hash.h"
 #include "arith_uint256.h"
+#include "gbt_solo.h"
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -115,8 +116,8 @@ bool opt_redirect = true;
 bool want_longpoll = true;
 bool have_longpoll = false;
 bool have_gbt = true;
-bool allow_getwork = true;
-bool want_stratum = true;
+bool allow_getwork = false; /* P041: GBT→submitblock is the only SOLO path */
+bool want_stratum = false;  /* Stratum is P042-quarantined; not SOLO */
 bool have_stratum = false;
 bool use_syslog = false;
 static bool opt_background = false;
@@ -127,7 +128,7 @@ static int opt_fail_pause = 30;
 static int opt_submit_delay = 0;
 int opt_timeout = 0;
 static int opt_scantime = 5;
-static enum algos opt_algo = ALGO_SCRYPT;
+static enum algos opt_algo = ALGO_SHA256D; /* CLI name sha256d = header SHA256d + OpuHash */
 static int opt_scrypt_n = 1024;
 static int opt_n_threads;
 static int num_processors;
@@ -217,9 +218,8 @@ static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -a, --algo=ALGO       specify the algorithm to use\n\
-                          scrypt    scrypt(1024, 1, 1) (default)\n\
-                          scrypt:N  scrypt(N, 1, 1)\n\
-                          sha256d   RIGOR path: header SHA256d then OpuHash (use this)\n\
+                          sha256d   RIGOR OpuHash (header SHA256d + mix; default / required)\n\
+                          scrypt    disabled for RIGOR SOLO\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
@@ -233,12 +233,12 @@ Options:\n\
   -T, --timeout=N       timeout for long polling, in seconds (default: none)\n\
   -s, --scantime=N      upper bound on time spent scanning current work when\n\
                           long polling is unavailable, in seconds (default: 5)\n\
-      --coinbase-addr=ADDR  payout address for solo mining\n\
-      --coinbase-sig=TEXT  data to insert in the coinbase when possible\n\
+      --coinbase-addr=ADDR  sent as GBT coinbase_address; node builds canonical coinbase\n\
+      --coinbase-sig=TEXT  ignored (coinbase scriptSig is node-immutable)\n\
       --no-longpoll     disable long polling support\n\
-      --no-getwork      disable getwork support\n\
-      --no-gbt          disable getblocktemplate support\n\
-      --no-stratum      disable X-Stratum support\n\
+      --no-getwork      (default) getwork is not a RIGOR SOLO path\n\
+      --no-gbt          refused: GBT is required\n\
+      --no-stratum      (default) Stratum is not the SOLO path\n\
       --no-redirect     ignore requests to change the URL of the mining server\n\
   -q, --quiet           disable per-thread hashmeter output\n\
       --submit-delay=N  sleep N seconds after each accepted block (eases wallet UI under easy PoW)\n\
@@ -342,6 +342,23 @@ struct work {
 static struct work g_work;
 static time_t g_work_time;
 static pthread_mutex_t g_work_lock;
+static void restart_threads(void);
+static void solo_invalidate_gbt(void);
+
+static int hex_is_even(const char *s)
+{
+	size_t n;
+
+	if (!s)
+		return 0;
+	for (n = 0; s[n]; n++) {
+		char c = s[n];
+		if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+		      (c >= 'A' && c <= 'F')))
+			return 0;
+	}
+	return n > 0 && (n % 2) == 0;
+}
 static bool submit_old = false;
 static char *lp_id;
 
@@ -558,17 +575,25 @@ static void ux_note_work(const struct work *work)
 
 static inline void work_free(struct work *w)
 {
+	if (!w)
+		return;
 	free(w->txs);
+	w->txs = NULL;
 	free(w->workid);
+	w->workid = NULL;
 	free(w->job_id);
+	w->job_id = NULL;
 	free(w->xnonce2);
+	w->xnonce2 = NULL;
 	if (w->convergence_txids) {
-		for (int i = 0; i < w->convergence_txid_count; i++) {
+		for (int i = 0; i < w->convergence_txid_count; i++)
 			free(w->convergence_txids[i]);
-		}
 		free(w->convergence_txids);
+		w->convergence_txids = NULL;
+		w->convergence_txid_count = 0;
 	}
 	free(w->prevblockhash);
+	w->prevblockhash = NULL;
 }
 
 static inline void work_copy(struct work *dest, const struct work *src)
@@ -618,7 +643,7 @@ static bool jobj_binary(const json_t *obj, const char *key,
 	return true;
 }
 
-static bool work_decode(const json_t *val, struct work *work)
+static bool __attribute__((unused)) work_decode(const json_t *val, struct work *work)
 {
 	int i;
 
@@ -642,862 +667,61 @@ err_out:
 	return false;
 }
 
-/* Bitcoin compact-size reader (raw transaction encoding). */
-static bool gbt_read_compact_size(const unsigned char *tx, int txlen, int *off, uint64_t *out)
-{
-	if (*off >= txlen)
-		return false;
-	const unsigned int ch = tx[(*off)++];
-	if (ch < 253) {
-		*out = ch;
-		return true;
-	}
-	if (ch == 253) {
-		if (*off + 2 > txlen)
-			return false;
-		*out = (uint64_t)tx[*off] | ((uint64_t)tx[*off + 1] << 8);
-		*off += 2;
-		return true;
-	}
-	if (ch == 254) {
-		if (*off + 4 > txlen)
-			return false;
-		*out = (uint64_t)tx[*off]
-		     | ((uint64_t)tx[*off + 1] << 8)
-		     | ((uint64_t)tx[*off + 2] << 16)
-		     | ((uint64_t)tx[*off + 3] << 24);
-		*off += 4;
-		return true;
-	}
-	if (*off + 8 > txlen)
-		return false;
-	*out = (uint64_t)tx[*off]
-	     | ((uint64_t)tx[*off + 1] << 8)
-	     | ((uint64_t)tx[*off + 2] << 16)
-	     | ((uint64_t)tx[*off + 3] << 24)
-	     | ((uint64_t)tx[*off + 4] << 32)
-	     | ((uint64_t)tx[*off + 5] << 40)
-	     | ((uint64_t)tx[*off + 6] << 48)
-	     | ((uint64_t)tx[*off + 7] << 56);
-	*off += 8;
-	return true;
-}
-
-/**
- * Return length of vin[0].scriptSig copied into out, or -1 on parse error.
- * Used to mirror the node's template coinbase scriptSig (height + convergence_root).
- */
-static int gbt_extract_coinbase_vin0_scriptsig(const unsigned char *tx, int txlen,
-						unsigned char *out, int out_max)
-{
-	int off = 0;
-	uint64_t vins, ss_len;
-
-	if (txlen < 10)
-		return -1;
-	off += 4; /* nVersion */
-	/* SegWit extended serialization: 0x00 0x01 marker after version (BIP141). */
-	if (off + 2 <= txlen && tx[off] == 0 && tx[off + 1] == 1)
-		off += 2;
-	if (!gbt_read_compact_size(tx, txlen, &off, &vins))
-		return -1;
-	if (vins != 1)
-		return -1;
-	if (off + 32 + 4 > txlen)
-		return -1;
-	off += 32 + 4; /* prevout */
-	if (!gbt_read_compact_size(tx, txlen, &off, &ss_len))
-		return -1;
-	if (ss_len > (uint64_t)out_max || off > txlen || (uint64_t)(txlen - off) < ss_len)
-		return -1;
-	memcpy(out, tx + off, (size_t)ss_len);
-	return (int)ss_len;
-}
-
-/*
- * GBT / RPC hash hex uses Bitcoin Core uint256::GetHex (display order = reversed
- * internal m_data). Coinbase ConvergenceRoot and Hash256(F) use wire/internal bytes.
- * Convert display hex → native with hex2bin + memrev (same as previousblockhash).
- */
-static bool gbt_hash_hex_to_native(unsigned char *out, const char *hex)
-{
-	if (!hex || strlen(hex) != 64 || !hex2bin(out, hex, 32))
-		return false;
-	memrev(out, 32);
-	return true;
-}
-
-/* Rigor: Compare two GBT txid hex strings for uint256 memcmp order (internal bytes). */
-static int txid_compare(const void *a, const void *b)
-{
-	const char *txid_a = *(const char **)a;
-	const char *txid_b = *(const char **)b;
-	unsigned char bin_a[32], bin_b[32];
-	if (!gbt_hash_hex_to_native(bin_a, txid_a))
-		memset(bin_a, 0, 32);
-	if (!gbt_hash_hex_to_native(bin_b, txid_b))
-		memset(bin_b, 0, 32);
-	return memcmp(bin_a, bin_b, 32);
-}
-
-/* Rigor: Compute convergence_root from GBT txid hex (display order) → native root bytes.
- *
- * Algorithm (from consensus/convergence_root.cpp):
- * 1. If fewer than 2 txids, convergence_root is all-zero (32 bytes)
- * 2. Sort txids by raw uint256 memcmp (internal / wire order)
- * 3. Concatenate raw 32-byte txids and Hash256
- */
-static void compute_convergence_root(char **txids, int count, unsigned char *root_out)
-{
-	memset(root_out, 0, 32); /* Default to all-zero if < 2 txids */
-
-	if (count < 2)
-		return;
-
-	qsort(txids, count, sizeof(char*), txid_compare);
-
-	/* Concatenate native txids and compute Hash256 */
-	unsigned char *concat = malloc(count * 32);
-	if (!concat) {
-		memset(root_out, 0, 32);
-		return;
-	}
-	for (int i = 0; i < count; i++) {
-		if (!gbt_hash_hex_to_native(concat + i * 32, txids[i]))
-			memset(concat + i * 32, 0, 32);
-	}
-
-	sha256d(root_out, concat, count * 32);
-	free(concat);
-}
-
-/* Prefer GBT-provided root; else recompute from convergence_txids (N<2 → zeros). */
-static void resolve_convergence_root(const struct work *work, unsigned char *root_out)
-{
-	if (work->has_convergence_root) {
-		memcpy(root_out, work->convergence_root, 32);
-		return;
-	}
-	compute_convergence_root(work->convergence_txids, work->convergence_txid_count, root_out);
-}
-
-/**
- * Append BIP34 height push matching CScript() << height (no padding).
- * Returns bytes written into out, or -1 if out_max too small.
- */
-static int gbt_push_bip34_height(unsigned char *out, int out_max, int height)
-{
-	int n;
-	int len = 0;
-
-	if (out_max < 1)
-		return -1;
-	if (height == 0) {
-		out[0] = 0x00; /* OP_0 */
-		return 1;
-	}
-	if (height >= 1 && height <= 16) {
-		out[0] = (unsigned char)(height + 0x50); /* OP_1 .. OP_16 */
-		return 1;
-	}
-	/* Minimal CScriptNum push (same shape as Bitcoin Core for positive heights). */
-	{
-		unsigned char payload[9];
-		int plen = 0;
-		for (n = height; n; n >>= 8) {
-			payload[plen++] = n & 0xff;
-			if (plen >= (int)sizeof(payload))
-				return -1;
-		}
-		if (payload[plen - 1] & 0x80)
-			payload[plen++] = 0;
-		if (out_max < 1 + plen)
-			return -1;
-		out[0] = (unsigned char)plen;
-		memcpy(out + 1, payload, (size_t)plen);
-		return 1 + plen;
-	}
-}
-
-/**
- * Build Rigor coinbase scriptSig: BIP34 height + OP_PUSHBYTES_32 + convergence_root.
- * Writes length-prefixed script into cbtx starting at offset 41 (compact size length byte).
- * Returns total tx offset after scriptSig (42 + script_len), or -1 on error.
- */
-static int gbt_write_coinbase_scriptsig(unsigned char *cbtx, int cbtx_cap,
-					const struct work *work)
-{
-	unsigned char script[1 + 9 + 1 + 32];
-	int script_len = 0;
-	int hlen;
-	unsigned char root[32];
-
-	hlen = gbt_push_bip34_height(script, (int)sizeof(script), work->height);
-	if (hlen < 0)
-		return -1;
-	script_len = hlen;
-	if (script_len + 1 + 32 > (int)sizeof(script))
-		return -1;
-	resolve_convergence_root(work, root);
-	script[script_len++] = 0x20; /* OP_PUSHBYTES_32 */
-	memcpy(script + script_len, root, 32);
-	script_len += 32;
-
-	/* scriptSig length is a single-byte compact size for these sizes (< 253). */
-	if (script_len >= 253 || 42 + script_len > cbtx_cap)
-		return -1;
-	cbtx[41] = (unsigned char)script_len;
-	memcpy(cbtx + 42, script, (size_t)script_len);
-	return 42 + script_len;
-}
-
 static bool gbt_work_decode(const json_t *val, struct work *work)
 {
-	int i, n;
-	uint32_t version, curtime, bits;
-	uint8_t prevhash[32];
-	uint32_t target[8];
-	int cbtx_size;
-	unsigned char *cbtx = NULL;
-	unsigned char *tx = NULL;
-	int tx_count, tx_size;
-	unsigned char txc_vi[9];
-	unsigned char (*merkle_tree)[32] = NULL;
-	bool coinbase_append = false;
-	bool submit_coinbase = false;
-	bool segwit = false;
-	json_t *tmp, *txa;
-	bool rc = false;
-	unsigned char conv_script[512];
-	int conv_script_len = 0;
+	struct gbt_solo_out assembled;
+	char err[256];
+	int has_mint;
 
-	tmp = json_object_get(val, "rules");
-	if (tmp && json_is_array(tmp)) {
-		n = json_array_size(tmp);
-		for (i = 0; i < n; i++) {
-			const char *s = json_string_value(json_array_get(tmp, i));
-			if (!s)
-				continue;
-			if (!strcmp(s, "segwit") || !strcmp(s, "!segwit"))
-				segwit = true;
-		}
+	if (!pk_script_size || !gbt_solo_payout_is_oru_v0(pk_script, pk_script_size)) {
+		applog(LOG_ERR, "SOLO requires --coinbase-addr as ORU witness v0 (rg1q... / rgrt1q...)");
+		return false;
+	}
+	if (!gbt_solo_assemble(val, pk_script, pk_script_size, &assembled, err, sizeof(err))) {
+		applog(LOG_ERR, "GBT refuse: %s", err);
+		gbt_solo_out_free(&assembled);
+		return false;
 	}
 
-	tmp = json_object_get(val, "mutable");
-	if (tmp && json_is_array(tmp)) {
-		n = json_array_size(tmp);
-		for (i = 0; i < n; i++) {
-			const char *s = json_string_value(json_array_get(tmp, i));
-			if (!s)
-				continue;
-			if (!strcmp(s, "coinbase/append"))
-				coinbase_append = true;
-			else if (!strcmp(s, "submit/coinbase"))
-				submit_coinbase = true;
-		}
-	}
-
-	tmp = json_object_get(val, "height");
-	if (!tmp || !json_is_integer(tmp)) {
-		applog(LOG_ERR, "JSON invalid height");
-		goto out;
-	}
-	work->height = json_integer_value(tmp);
-
-	/* Rigor GBT: CVGE commitment (RPC field name matches getblocktemplate). */
-	tmp = json_object_get(val, "default_convergence_commitment");
-	if (!tmp || !json_is_string(tmp))
-		tmp = json_object_get(val, "default_forge_commitment"); /* legacy alias */
-	if (tmp && json_is_string(tmp)) {
-		const char *fs = json_string_value(tmp);
-		int flen = fs ? (int)strlen(fs) / 2 : 0;
-		if (flen > 0 && flen <= (int)sizeof(conv_script) && hex2bin(conv_script, fs, flen))
-			conv_script_len = flen;
-	}
-
-	/* Rigor GBT: exact ConvergenceRoot the coinbase must commit (preferred).
-	 * Field is uint256::GetHex (display); coinbase needs native/wire bytes. */
-	work->has_convergence_root = false;
-	memset(work->convergence_root, 0, sizeof(work->convergence_root));
-	tmp = json_object_get(val, "convergence_root");
-	if (tmp && json_is_string(tmp)) {
-		const char *root_hex = json_string_value(tmp);
-		if (gbt_hash_hex_to_native(work->convergence_root, root_hex)) {
-			work->has_convergence_root = true;
-			if (opt_debug)
-				applog(LOG_DEBUG, "GBT convergence_root=%s (native for coinbase)", root_hex);
-		}
-	}
-
-	/* Rigor GBT: Parse convergence_txids (fallback if convergence_root missing). */
-	tmp = json_object_get(val, "convergence_txids");
-	if (tmp && json_is_array(tmp)) {
-		int n = json_array_size(tmp);
-		work->convergence_txid_count = n;
-		if (opt_debug)
-			applog(LOG_DEBUG, "GBT convergence_txids count=%d", n);
-		if (n > 0) {
-			work->convergence_txids = calloc(n, sizeof(char*));
-			for (int i = 0; i < n; i++) {
-				json_t *txid_obj = json_array_get(tmp, i);
-				if (txid_obj && json_is_string(txid_obj)) {
-					const char *txid_hex = json_string_value(txid_obj);
-					if (txid_hex && strlen(txid_hex) == 64) {
-						work->convergence_txids[i] = strdup(txid_hex);
-					}
-				}
-			}
-		} else {
-			work->convergence_txids = NULL;
-		}
-	}
-
-	/* Rigor GBT: Get previous block hash to query its nBits for RIGOR commitment */
-	tmp = json_object_get(val, "previousblockhash");
-	if (tmp && json_is_string(tmp)) {
-		const char *prevhash_hex = json_string_value(tmp);
-		if (prevhash_hex && strlen(prevhash_hex) == 64) {
-			work->prevblockhash = strdup(prevhash_hex);
-		}
-	}
-
-	/* Rigor GBT: parse prev_nbits (compact nBits of pindexPrev). Consensus requires the
-	 * RIGOR commitment payload tail equal pindex->pprev->nBits; using the template's
-	 * `bits` (next-block target) breaks at retarget boundaries (bad-rigor-target-mismatch). */
-	tmp = json_object_get(val, "prev_nbits");
-	if (tmp && json_is_string(tmp)) {
-		const char *pnb_hex = json_string_value(tmp);
-		if (pnb_hex && strlen(pnb_hex) == 8) {
-			unsigned int pnb_val = 0;
-			sscanf(pnb_hex, "%x", &pnb_val);
-			work->prev_nbits = pnb_val;
-		} else {
-			applog(LOG_ERR, "JSON invalid prev_nbits length");
-			goto out;
-		}
-	} else {
-		applog(LOG_ERR, "JSON missing prev_nbits (node must expose pindexPrev->nBits via getblocktemplate)");
-		goto out;
-	}
-
-
-	tmp = json_object_get(val, "version");
-	if (!tmp || !json_is_integer(tmp)) {
-		applog(LOG_ERR, "JSON invalid version");
-		goto out;
-	}
-	version = json_integer_value(tmp);
-
-	if (unlikely(!jobj_binary(val, "previousblockhash", prevhash, sizeof(prevhash)))) {
-		applog(LOG_ERR, "JSON invalid previousblockhash");
-		goto out;
-	}
-
-	/* Debug: print prevhash before reversal */
-	if (opt_debug_pow) {
-		char prevhash_hex[65];
-		bin2hex(prevhash_hex, (unsigned char*)prevhash, 32);
-		applog(LOG_INFO, "DEBUG: prevhash from GBT (before reversal): %s", prevhash_hex);
-	}
-
-	/* Reverse prevhash bytes for little-endian wire format */
-	uint8_t prevhash_reversed[32];
-	for (i = 0; i < 32; i++) {
-		prevhash_reversed[i] = prevhash[31 - i];
-	}
-	memcpy(prevhash, prevhash_reversed, 32);
-
-	/* Debug: print prevhash after reversal */
-	if (opt_debug_pow) {
-		char prevhash_hex[65];
-		bin2hex(prevhash_hex, (unsigned char*)prevhash, 32);
-		applog(LOG_INFO, "DEBUG: prevhash after reversal: %s", prevhash_hex);
-	}
-
-	tmp = json_object_get(val, "curtime");
-	if (!tmp || !json_is_integer(tmp)) {
-		applog(LOG_ERR, "JSON invalid curtime");
-		goto out;
-	}
-	curtime = json_integer_value(tmp);
-
-	/* Debug: print curtime */
-	if (opt_debug_pow) {
-		applog(LOG_INFO, "DEBUG: curtime from GBT: %u", curtime);
-	}
-
-	/* Rigor: Parse bits as hex string to uint32_t (no byte swap) */
-	tmp = json_object_get(val, "bits");
-	if (!tmp || !json_is_string(tmp)) {
-		applog(LOG_ERR, "JSON invalid bits");
-		goto out;
-	}
-	{
-		const char *bits_hex = json_string_value(tmp);
-		if (strlen(bits_hex) == 8) {
-			unsigned int bits_val;
-			sscanf(bits_hex, "%x", &bits_val);
-			bits = bits_val;
-			work->nbits = bits_val; /* Store nBits for SetCompact */
-			/* Log when height/bits change (LONGPOLL can refresh the same template often). */
-			{
-				static unsigned int s_last_bits;
-				static int s_last_height = -1;
-				if (bits_val != s_last_bits || work->height != s_last_height) {
-					s_last_bits = bits_val;
-					s_last_height = work->height;
-					/* ASCII only: Windows consoles often use CP936 and mangle UTF-8 punctuation. */
-					if (opt_verbose)
-						applog(LOG_INFO, "GBT nBits=0x%08x height=%d (OK if ~0x1e01xxxx; BAD if 0x207fffff)",
-						       bits_val, work->height);
-				}
-			}
-			if (bits_val == 0x207fffffu) {
-				applog(LOG_ERR, "EASY DIFFICULTY (powLimit): wipe THIS install blocks+chainstate and upgrade rigor-wallet/rigord");
-			}
-		} else {
-			applog(LOG_ERR, "JSON invalid bits length");
-			goto out;
-		}
-	}
-
-	/* find count and size of transactions */
-	txa = json_object_get(val, "transactions");
-	if (!txa || !json_is_array(txa)) {
-		applog(LOG_ERR, "JSON invalid transactions");
-		goto out;
-	}
-	tx_count = json_array_size(txa);
-	tx_size = 0;
-	for (i = 0; i < tx_count; i++) {
-		const json_t *tx = json_array_get(txa, i);
-		const char *tx_hex = json_string_value(json_object_get(tx, "data"));
-		if (!tx_hex) {
-			applog(LOG_ERR, "JSON invalid transactions");
-			goto out;
-		}
-		tx_size += strlen(tx_hex) / 2;
-	}
-
-	/*
-	 * build coinbase transaction
-	 *
-	 * Rigor note:
-	 * Prefer local coinbase assembly when a payout address is configured.
-	 * This path appends default_convergence_commitment (CVGE) when provided by GBT.
-	 * Some templates may include coinbasetxn that does not carry Rigor CVGE
-	 * commitment, which would be rejected as bad-convergence-missing.
-	 */
-	const bool prefer_local_coinbase = (pk_script_size > 0);
-	tmp = json_object_get(val, "coinbasevalue");
-	if (tmp && json_is_number(tmp))
-		work->coinbasevalue = json_is_integer(tmp) ? json_integer_value(tmp)
-							   : (int64_t)json_number_value(tmp);
-	tmp = json_object_get(val, "coinbasetxn");
-	if (tmp && !prefer_local_coinbase) {
-		const char *cbtx_hex = json_string_value(json_object_get(tmp, "data"));
-		cbtx_size = cbtx_hex ? strlen(cbtx_hex) / 2 : 0;
-		cbtx = malloc(cbtx_size + 100);
-		if (cbtx_size < 60 || !hex2bin(cbtx, cbtx_hex, cbtx_size)) {
-			applog(LOG_ERR, "JSON invalid coinbasetxn");
-			goto out;
-		}
-	} else {
-		int64_t cbvalue;
-		if (!pk_script_size) {
-			if (allow_getwork) {
-				applog(LOG_INFO, "No payout address provided, switching to getwork");
-				have_gbt = false;
-			} else
-				applog(LOG_ERR, "No payout address provided");
-			goto out;
-		}
-		tmp = json_object_get(val, "coinbasevalue");
-		if (!tmp || !json_is_number(tmp)) {
-			/*
-			 * Fallback: if coinbasevalue is unavailable but a template coinbasetxn exists,
-			 * use the template coinbase rather than failing hard.
-			 */
-			tmp = json_object_get(val, "coinbasetxn");
-			if (tmp) {
-				const char *cbtx_hex = json_string_value(json_object_get(tmp, "data"));
-				cbtx_size = cbtx_hex ? strlen(cbtx_hex) / 2 : 0;
-				cbtx = malloc(cbtx_size + 100);
-				if (cbtx_size < 60 || !hex2bin(cbtx, cbtx_hex, cbtx_size)) {
-					applog(LOG_ERR, "JSON invalid coinbasetxn");
-					goto out;
-				}
-				goto coinbase_built;
-			}
-			applog(LOG_ERR, "JSON invalid coinbasevalue");
-			goto out;
-		}
-		cbvalue = json_is_integer(tmp) ? json_integer_value(tmp) : json_number_value(tmp);
-		work->coinbasevalue = cbvalue;
-		cbtx = malloc(8192);
-		le32enc((uint32_t *)cbtx, 1); /* version */
-		cbtx[4] = 1; /* in-counter */
-		memset(cbtx+5, 0x00, 32); /* prev txout hash */
-		le32enc((uint32_t *)(cbtx+37), 0xffffffff); /* prev txout index */
-		{
-			unsigned char scriptsig_tpl[512];
-			int scriptsig_tpl_len = -1;
-			json_t *txnc = json_object_get(val, "coinbasetxn");
-			if (txnc && json_is_object(txnc)) {
-				const char *tpl_hex = json_string_value(json_object_get(txnc, "data"));
-				const int tpl_len = tpl_hex ? (int)(strlen(tpl_hex) / 2) : 0;
-				if (tpl_hex && tpl_len > 60 && tpl_len < 8000) {
-					unsigned char *tpl = malloc((size_t)tpl_len);
-					if (tpl && hex2bin(tpl, tpl_hex, tpl_len))
-						scriptsig_tpl_len = gbt_extract_coinbase_vin0_scriptsig(
-							tpl, tpl_len, scriptsig_tpl, (int)sizeof(scriptsig_tpl));
-					free(tpl);
-				}
-			}
-			if (scriptsig_tpl_len > 0) {
-				/* Node template already has BIP34 height + ConvergenceRoot; do not append. */
-				cbtx[41] = (unsigned char)scriptsig_tpl_len;
-				memcpy(cbtx + 42, scriptsig_tpl, (size_t)scriptsig_tpl_len);
-				cbtx_size = 42 + scriptsig_tpl_len;
-				if (opt_debug)
-					applog(LOG_DEBUG, "Using GBT coinbasetxn scriptSig (%d bytes)", scriptsig_tpl_len);
-			} else {
-				/* Local build: height + OP_PUSHBYTES_32(root) only (no OP_0 pad). */
-				cbtx_size = gbt_write_coinbase_scriptsig(cbtx, 8192, work);
-				if (cbtx_size < 0) {
-					applog(LOG_ERR, "Failed to build coinbase scriptSig (height=%d)", work->height);
-					goto out;
-				}
-				if (opt_debug) {
-					unsigned char root[32];
-					char conv_root_hex[65];
-					resolve_convergence_root(work, root);
-					bin2hex(conv_root_hex, root, 32);
-					applog(LOG_DEBUG, "Built coinbase scriptSig height=%d root=%s",
-					       work->height, conv_root_hex);
-				}
-			}
-		}
-		le32enc((uint32_t *)(cbtx+cbtx_size), 0xffffffff); /* sequence */
-		cbtx_size += 4;
-		{
-			int out_n = 1 + (segwit ? 1 : 0) + (conv_script_len ? 1 : 0) + 1; /* +1 for RIGOR commitment */
-			cbtx[cbtx_size++] = (unsigned char)out_n; /* out-counter */
-		}
-		le32enc((uint32_t *)(cbtx+cbtx_size), (uint32_t)cbvalue); /* value */
-		le32enc((uint32_t *)(cbtx+cbtx_size+4), cbvalue >> 32);
-		cbtx_size += 8;
-		cbtx[cbtx_size++] = pk_script_size; /* txout-script length */
-		memcpy(cbtx+cbtx_size, pk_script, pk_script_size);
-		cbtx_size += pk_script_size;
-		if (segwit) {
-			unsigned char (*wtree)[32] = calloc(tx_count + 2, 32);
-			memset(cbtx+cbtx_size, 0, 8); /* value */
-			cbtx_size += 8;
-			cbtx[cbtx_size++] = 38; /* txout-script length */
-			cbtx[cbtx_size++] = 0x6a; /* txout-script */
-			cbtx[cbtx_size++] = 0x24;
-			cbtx[cbtx_size++] = 0xaa;
-			cbtx[cbtx_size++] = 0x21;
-			cbtx[cbtx_size++] = 0xa9;
-			cbtx[cbtx_size++] = 0xed;
-			for (i = 0; i < tx_count; i++) {
-				const json_t *tx = json_array_get(txa, i);
-				const json_t *hash = json_object_get(tx, "hash");
-				if (!hash || !hex2bin(wtree[1+i], json_string_value(hash), 32)) {
-					applog(LOG_ERR, "JSON invalid transaction hash");
-					free(wtree);
-					goto out;
-				}
-				memrev(wtree[1+i], 32);
-			}
-			n = tx_count + 1;
-			while (n > 1) {
-				if (n % 2)
-					memcpy(wtree[n], wtree[n-1], 32);
-				n = (n + 1) / 2;
-				for (i = 0; i < n; i++)
-					sha256d(wtree[i], wtree[2*i], 64);
-			}
-			memset(wtree[1], 0, 32);  /* witness reserved value = 0 */
-			sha256d(cbtx+cbtx_size, wtree[0], 64);
-			cbtx_size += 32;
-			free(wtree);
-		}
-		if (conv_script_len > 0) {
-			memset(cbtx + cbtx_size, 0, 8); /* value */
-			cbtx_size += 8;
-			cbtx[cbtx_size++] = (unsigned char)conv_script_len;
-			memcpy(cbtx + cbtx_size, conv_script, conv_script_len);
-			cbtx_size += conv_script_len;
-		}
-			/* Rigor: Add RIGOR draw-target commitment (OP_RETURN + RIGR tag + prev_nbits LE32).
-			 * Consensus: core/src/script/standard.cpp IsRigorCommitment requires payload[0..4] == "RIGR"
-			 *            (RigorTags::RIGOR) and payload[4..8] == LE32(pindex->pprev->nBits)
-			 *            (validation.cpp CheckRigorDrawTargetCommitment). */
-		{
-			const uint32_t prev_nbits = work->prev_nbits;
-			memset(cbtx + cbtx_size, 0, 8); /* value */
-			cbtx_size += 8;
-			cbtx[cbtx_size++] = 10; /* script length: OP_RETURN (1) + push opcode (1) + payload (8) */
-			cbtx[cbtx_size++] = 0x6a; /* OP_RETURN */
-			cbtx[cbtx_size++] = 0x08; /* OP_PUSHBYTES_8 */
-			/* RIGOR tag: must match RigorTags::RIGOR = {'R','I','G','R'} byte-for-byte. */
-			cbtx[cbtx_size++] = 'R';
-			cbtx[cbtx_size++] = 'I';
-			cbtx[cbtx_size++] = 'G';
-			cbtx[cbtx_size++] = 'R';
-			/* prev_nbits in little-endian (pindexPrev->nBits, NOT the template's next-block bits). */
-			cbtx[cbtx_size++] = prev_nbits & 0xff;
-			cbtx[cbtx_size++] = (prev_nbits >> 8) & 0xff;
-			cbtx[cbtx_size++] = (prev_nbits >> 16) & 0xff;
-			cbtx[cbtx_size++] = (prev_nbits >> 24) & 0xff;
-			if (opt_debug)
-				applog(LOG_DEBUG, "Rigor commitment: tag=RIGR prev_nbits=0x%08x (template bits=0x%08x)",
-				       prev_nbits, bits);
-		}
-		le32enc((uint32_t *)(cbtx+cbtx_size), 0); /* lock time */
-		cbtx_size += 4;
-		/* Rigor coinbase scriptSig is frozen (height + root only); never append aux/sig. */
-		coinbase_append = false;
-	}
-coinbase_built:
-	if (coinbase_append) {
-		unsigned char xsig[100];
-		int xsig_len = 0;
-		if (*coinbase_sig) {
-			n = strlen(coinbase_sig);
-			if (cbtx[41] + xsig_len + n <= 100) {
-				memcpy(xsig+xsig_len, coinbase_sig, n);
-				xsig_len += n;
-			} else {
-				applog(LOG_WARNING, "Signature does not fit in coinbase, skipping");
-			}
-		}
-		tmp = json_object_get(val, "coinbaseaux");
-		if (tmp && json_is_object(tmp)) {
-			void *iter = json_object_iter(tmp);
-			while (iter) {
-				unsigned char buf[100];
-				const char *s = json_string_value(json_object_iter_value(iter));
-				n = s ? strlen(s) / 2 : 0;
-				if (!s || n > 100 || !hex2bin(buf, s, n)) {
-					applog(LOG_ERR, "JSON invalid coinbaseaux");
-					break;
-				}
-				if (cbtx[41] + xsig_len + n <= 100) {
-					memcpy(xsig+xsig_len, buf, n);
-					xsig_len += n;
-				}
-				iter = json_object_iter_next(tmp, iter);
-			}
-		}
-		if (xsig_len) {
-			unsigned char *ssig_end = cbtx + 42 + cbtx[41];
-			int push_len = cbtx[41] + xsig_len < 76 ? 1 :
-			               cbtx[41] + 2 + xsig_len > 100 ? 0 : 2;
-			n = xsig_len + push_len;
-			memmove(ssig_end + n, ssig_end, cbtx_size - 42 - cbtx[41]);
-			cbtx[41] += n;
-			if (push_len == 2)
-				*(ssig_end++) = 0x4c; /* OP_PUSHDATA1 */
-			if (push_len)
-				*(ssig_end++) = xsig_len;
-			memcpy(ssig_end, xsig, xsig_len);
-			cbtx_size += n;
-		}
-	}
-
-	n = varint_encode(txc_vi, 1 + tx_count);
-	work->txs = malloc(2 * (n + cbtx_size + tx_size) + 1);
-	bin2hex(work->txs, txc_vi, n);
-	bin2hex(work->txs + 2*n, cbtx, cbtx_size);
-	char *txs_end = work->txs + strlen(work->txs);
-
-	/* generate merkle root */
-	merkle_tree = malloc(32 * ((1 + tx_count + 1) & ~1));
-	size_t tx_buf_size = 32 * 1024;
-	tx = malloc(tx_buf_size);
-	sha256d(merkle_tree[0], cbtx, cbtx_size);
-	for (i = 0; i < tx_count; i++) {
-		tmp = json_array_get(txa, i);
-		const char *tx_hex = json_string_value(json_object_get(tmp, "data"));
-		const size_t tx_hex_len = tx_hex ? strlen(tx_hex) : 0;
-		const int tx_size = tx_hex_len / 2;
-		if (segwit) {
-			const char *txid = json_string_value(json_object_get(tmp, "txid"));
-			if (!txid || !hex2bin(merkle_tree[1 + i], txid, 32)) {
-				applog(LOG_ERR, "JSON invalid transaction txid");
-				goto out;
-			}
-			memrev(merkle_tree[1 + i], 32);
-		} else {
-			if (tx_size > tx_buf_size) {
-				free(tx);
-				tx_buf_size = tx_size * 2;
-				tx = malloc(tx_buf_size);
-			}
-			if (!tx_hex || !hex2bin(tx, tx_hex, tx_size)) {
-				applog(LOG_ERR, "JSON invalid transactions");
-				goto out;
-			}
-			sha256d(merkle_tree[1 + i], tx, tx_size);
-		}
-		if (!submit_coinbase) {
-			strcpy(txs_end, tx_hex);
-			txs_end += tx_hex_len;
-		}
-	}
-	free(tx); tx = NULL;
-	n = 1 + tx_count;
-	while (n > 1) {
-		if (n % 2) {
-			memcpy(merkle_tree[n], merkle_tree[n-1], 32);
-			++n;
-		}
-		n /= 2;
-		for (i = 0; i < n; i++)
-			sha256d(merkle_tree[i], merkle_tree[2*i], 64);
-	}
-
-	/* assemble block header */
-	/* Native LE word; le32enc in scan/submit yields Bitcoin header serialization. */
-	work->data[0] = version;
-	/* prevhash is already in little-endian wire format after reversal - copy directly */
-	memcpy(work->data + 1, prevhash, 32);
-
-	/* Debug: print prevhash in work->data */
-	if (opt_debug_pow) {
-		char hexbuf[65];
-		bin2hex(hexbuf, (unsigned char*)(work->data + 1), 32);
-		applog(LOG_INFO, "DEBUG: prevhash in work->data: %s", hexbuf);
-	}
-
-	for (i = 0; i < 8; i++)
-		work->data[9 + i] = le32dec((uint32_t *)merkle_tree[0] + i);
-	work->data[17] = curtime;  /* curtime from GBT is already correct, no byte swap needed */
-	work->data[18] = bits;     /* host uint32; le32enc on submit/scan → wire LE */
-	memset(work->data + 19, 0x00, 52);
+	has_mint = assembled.has_mint;
+	free(work->txs);
+	free(work->workid);
+	work->txs = NULL;
+	work->workid = NULL;
+	memcpy(work->data, assembled.header_words, sizeof(assembled.header_words));
 	work->data[20] = 0x80000000;
 	work->data[31] = 0x00000280;
+	memcpy(work->target, assembled.target, sizeof(assembled.target));
+	work->height = assembled.height;
+	work->coinbasevalue = assembled.coinbasevalue;
+	work->nbits = assembled.nbits;
+	work->txs = assembled.txs_hex;
+	assembled.txs_hex = NULL;
+	work->workid = assembled.workid;
+	assembled.workid = NULL;
+	gbt_solo_out_free(&assembled);
 
-	/* Verbose header dump only with -D / --debug-pow */
+	{
+		json_t *lp = json_object_get(val, "longpollid");
+		const char *s = json_string_value(lp);
+		if (want_longpoll && s && longpoll_thr_id >= 0 &&
+		    (!lp_id || strcmp(lp_id, s))) {
+			free(lp_id);
+			lp_id = strdup(s);
+			if (!have_longpoll) {
+				have_longpoll = true;
+				tq_push(thr_info[longpoll_thr_id].q, strdup(rpc_url));
+			}
+		}
+	}
+
 	if (opt_debug || opt_debug_pow) {
 		char hexbuf[65];
-		unsigned char wire[80];
-		char header_hex[161];
-		int di;
-		applog(LOG_DEBUG, "Header.nBits=0x%08x GBT bits=0x%08x", work->data[18], bits);
-		bin2hex(hexbuf, (unsigned char*)merkle_tree[0], 32);
-		applog(LOG_DEBUG, "MerkleRoot=%s", hexbuf);
-		for (di = 0; di < 20; di++)
-			le32enc(wire + 4 * di, work->data[di]);
-		bin2hex(header_hex, wire, 80);
-		applog(LOG_DEBUG, "Header80=%s", header_hex);
+		bin2hex(hexbuf, (unsigned char *)(work->data + 9), 32);
+		applog(LOG_DEBUG, "SOLO copy-bytes height=%d nBits=0x%08x merkle=%s mint=%s",
+		       work->height, work->nbits, hexbuf, has_mint ? "copied" : "none");
 	}
-
-	/* === RIGOR MINER DEBUG === */
-	if (opt_debug_pow) {
-		unsigned char wire[80];
-		char header_hex[161];
-		char hash_hex[65];
-		char target_hex[65];
-		char merkle_hex[65];
-		unsigned char hash[32];
-		int i;
-
-		/* Serialize header to wire format */
-		for (i = 0; i < 20; i++)
-			le32enc(wire + 4 * i, work->data[i]);
-		bin2hex(header_hex, wire, 80);
-
-		/* Compute hash */
-		opus_hash(wire, hash);
-		bin2hex(hash_hex, hash, 32);
-
-		/* Target from SetCompact */
-		bin2hex(target_hex, (unsigned char*)work->target, 32);
-
-		/* Merkle root */
-		bin2hex(merkle_hex, (unsigned char*)merkle_tree[0], 32);
-
-		/* Coinbase TXID */
-		unsigned char coinbase_txid[32];
-		sha256d(coinbase_txid, cbtx, cbtx_size);
-		char coinbase_hex[65];
-		bin2hex(coinbase_hex, coinbase_txid, 32);
-
-		/* Convergence root */
-		unsigned char conv_root[32];
-		resolve_convergence_root(work, conv_root);
-		char conv_root_hex[65];
-		bin2hex(conv_root_hex, conv_root, 32);
-
-		applog(LOG_INFO, "\n==== RIGOR MINER DEBUG ====");
-		applog(LOG_INFO, "HEADER: %s", header_hex);
-		applog(LOG_INFO, "HASH:   %s", hash_hex);
-		applog(LOG_INFO, "NBITS:  %08x", work->nbits);
-		applog(LOG_INFO, "TARGET: %s", target_hex);
-		applog(LOG_INFO, "COINBASE TXID: %s", coinbase_hex);
-		applog(LOG_INFO, "MERKLE ROOT: %s", merkle_hex);
-		applog(LOG_INFO, "CONVERGENCE ROOT: %s", conv_root_hex);
-		applog(LOG_INFO, "==== END RIGOR MINER DEBUG ====\n");
-	}
-	/* === END RIGOR MINER DEBUG === */
-
-	/* PoW: Construct target from nBits using SetCompact (Bitcoin-compatible) */
-	{
-		bool fNegative, fOverflow;
-		arith_uint256 arith_target;
-		arith_uint256_set_compact(&arith_target, work->nbits, &fNegative, &fOverflow);
-		if (fNegative || fOverflow) {
-			applog(LOG_ERR, "Invalid nBits: 0x%08x (negative=%d, overflow=%d)",
-			       work->nbits, fNegative, fOverflow);
-			goto out;
-		}
-		/* Copy arith_uint256 to work->target (uint32_t[8]) */
-		for (i = 0; i < 8; i++)
-			work->target[i] = arith_target.data[i];
-		if (opt_debug) {
-			char target_hex[65];
-			arith_uint256_to_hex(&arith_target, target_hex);
-			applog(LOG_DEBUG, "Target (from SetCompact): %s", target_hex);
-			applog(LOG_DEBUG, "Target raw array: [%08x %08x %08x %08x %08x %08x %08x %08x]",
-			       work->target[0], work->target[1], work->target[2], work->target[3],
-			       work->target[4], work->target[5], work->target[6], work->target[7]);
-		}
-	}
-
-	tmp = json_object_get(val, "workid");
-	if (tmp) {
-		if (!json_is_string(tmp)) {
-			applog(LOG_ERR, "JSON invalid workid");
-			goto out;
-		}
-		work->workid = strdup(json_string_value(tmp));
-	}
-
-	/* Long polling */
-	tmp = json_object_get(val, "longpollid");
-	if (want_longpoll && json_is_string(tmp)) {
-		free(lp_id);
-		lp_id = strdup(json_string_value(tmp));
-		if (!have_longpoll) {
-			char *lp_uri;
-			tmp = json_object_get(val, "longpolluri");
-			lp_uri = strdup(json_is_string(tmp) ? json_string_value(tmp) : rpc_url);
-			have_longpoll = true;
-			tq_push(thr_info[longpoll_thr_id].q, lp_uri);
-		}
-	}
-
-	rc = true;
-
-out:
-	free(tx);
-	free(cbtx);
-	free(merkle_tree);
-	return rc;
+	return true;
 }
 
 static void share_result(int result, const char *reason, int height, int64_t reward)
@@ -1602,12 +826,22 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 		}
 	} else if (work->txs) {
 		char *req;
+		char *blockhex;
+		json_t *rpc, *params;
 		uint32_t data_wire[20];
+		size_t txs_len;
 
 		/* Encode 80-byte header only (do not walk work->data[32] into a 20-word buffer). */
 		for (i = 0; i < 20; i++)
 			le32enc(data_wire + i, work->data[i]);
 		bin2hex(data_str, (unsigned char *)data_wire, 80);
+		if (!hex_is_even(work->txs)) {
+			applog(LOG_ERR, "submitblock: txs is not even hex (len=%zu)",
+			       work->txs ? strlen(work->txs) : 0);
+			solo_invalidate_gbt();
+			rc = true;
+			goto out;
+		}
 		if (opt_debug) {
 			applog(LOG_DEBUG, "submit nTime=%u nBits=0x%08x nonce=0x%08x",
 			       work->data[17], work->data[18], work->data[19]);
@@ -1617,27 +851,34 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 		bin2hex(target_str, (unsigned char *)target_be, 32);
 		if (opt_debug)
 			applog(LOG_DEBUG, "submitblock header=%s target=%s", data_str, target_str);
+		txs_len = strlen(work->txs);
+		blockhex = malloc(160 + txs_len + 1);
+		if (!blockhex)
+			goto out;
+		memcpy(blockhex, data_str, 160);
+		memcpy(blockhex + 160, work->txs, txs_len + 1);
+		rpc = json_object();
+		params = json_array();
+		json_array_append_new(params, json_string(blockhex));
+		free(blockhex);
 		if (work->workid) {
-			char *params;
-			val = json_object();
-			json_object_set_new(val, "workid", json_string(work->workid));
-			params = json_dumps(val, 0);
-			json_decref(val);
-			req = malloc(128 + 2*80 + strlen(work->txs) + strlen(params));
-			sprintf(req,
-				"{\"method\": \"submitblock\", \"params\": [\"%s%s\", %s], \"id\":1}\r\n",
-				data_str, work->txs, params);
-			free(params);
-		} else {
-			req = malloc(128 + 2*80 + strlen(work->txs));
-			sprintf(req,
-				"{\"method\": \"submitblock\", \"params\": [\"%s%s\"], \"id\":1}\r\n",
-				data_str, work->txs);
+			json_t *extra = json_object();
+			json_object_set_new(extra, "workid", json_string(work->workid));
+			json_array_append_new(params, extra);
 		}
+		json_object_set_new(rpc, "method", json_string("submitblock"));
+		json_object_set_new(rpc, "params", params);
+		json_object_set_new(rpc, "id", json_integer(1));
+		req = json_dumps(rpc, JSON_COMPACT);
+		json_decref(rpc);
+		if (!req)
+			goto out;
 		val = json_rpc_call(curl, rpc_url, rpc_userpass, req, NULL, 0);
 		free(req);
 		if (unlikely(!val)) {
 			applog(LOG_ERR, "submit_upstream_work json_rpc_call failed");
+			solo_invalidate_gbt();
+			rc = true;
 			goto out;
 		}
 
@@ -1667,31 +908,11 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 				     work->height, work->coinbasevalue);
 
 		json_decref(val);
+
+		solo_invalidate_gbt();
 	} else {
-		/* build hex string */
-		uint32_t data_wire[20];
-		for (i = 0; i < 20; i++)
-			le32enc(data_wire + i, work->data[i]);
-		bin2hex(data_str, (unsigned char *)data_wire, sizeof(data_wire));
-
-		/* build JSON-RPC request */
-		sprintf(s,
-			"{\"method\": \"getwork\", \"params\": [ \"%s\" ], \"id\":1}\r\n",
-			data_str);
-
-		/* issue JSON-RPC request */
-		val = json_rpc_call(curl, rpc_url, rpc_userpass, s, NULL, 0);
-		if (unlikely(!val)) {
-			applog(LOG_ERR, "submit_upstream_work json_rpc_call failed");
-			goto out;
-		}
-
-		res = json_object_get(val, "result");
-		reason = json_object_get(val, "reject-reason");
-		share_result(json_is_true(res), reason ? json_string_value(reason) : NULL,
-			     work->height, work->coinbasevalue);
-
-		json_decref(val);
+		applog(LOG_ERR, "submitblock requires GBT copy-bytes work; getwork is disabled");
+		goto out;
 	}
 
 	rc = true;
@@ -1700,18 +921,44 @@ out:
 	return rc;
 }
 
-static const char *getwork_req =
-	"{\"method\": \"getwork\", \"params\": [], \"id\":0}\r\n";
+/* Address selection goes to the node. Miner copies default_coinbase_tx. */
+static char *gbt_request_json(const char *longpollid)
+{
+	json_t *root, *params, *req, *caps, *rules;
+	char *body, *out;
 
-#define GBT_CAPABILITIES "[\"coinbasetxn\", \"coinbasevalue\", \"longpoll\", \"workid\"]"
-#define GBT_RULES "[\"segwit\"]"
-
-static const char *gbt_req =
-	"{\"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": "
-	GBT_CAPABILITIES ", \"rules\": " GBT_RULES "}], \"id\":0}\r\n";
-static const char *gbt_lp_req =
-	"{\"method\": \"getblocktemplate\", \"params\": [{\"capabilities\": "
-	GBT_CAPABILITIES ", \"rules\": " GBT_RULES ", \"longpollid\": \"%s\"}], \"id\":0}\r\n";
+	caps = json_array();
+	json_array_append_new(caps, json_string("coinbasevalue"));
+	json_array_append_new(caps, json_string("longpoll"));
+	json_array_append_new(caps, json_string("workid"));
+	rules = json_array();
+	json_array_append_new(rules, json_string("segwit"));
+	req = json_object();
+	json_object_set_new(req, "capabilities", caps);
+	json_object_set_new(req, "rules", rules);
+	if (coinbase_addr && coinbase_addr[0])
+		json_object_set_new(req, "coinbase_address", json_string(coinbase_addr));
+	if (longpollid && longpollid[0])
+		json_object_set_new(req, "longpollid", json_string(longpollid));
+	params = json_array();
+	json_array_append_new(params, req);
+	root = json_object();
+	json_object_set_new(root, "method", json_string("getblocktemplate"));
+	json_object_set_new(root, "params", params);
+	json_object_set_new(root, "id", json_integer(0));
+	body = json_dumps(root, JSON_COMPACT);
+	json_decref(root);
+	if (!body)
+		return NULL;
+	out = malloc(strlen(body) + 3);
+	if (!out) {
+		free(body);
+		return NULL;
+	}
+	sprintf(out, "%s\r\n", body);
+	free(body);
+	return out;
+}
 
 static bool get_upstream_work(CURL *curl, struct work *work)
 {
@@ -1719,12 +966,14 @@ static bool get_upstream_work(CURL *curl, struct work *work)
 	int err;
 	bool rc;
 	struct timeval tv_start, tv_end, diff;
+	char *req;
 
-start:
 	gettimeofday(&tv_start, NULL);
-	val = json_rpc_call(curl, rpc_url, rpc_userpass,
-			    have_gbt ? gbt_req : getwork_req,
-			    &err, have_gbt ? JSON_RPC_QUIET_404 : 0);
+	req = gbt_request_json(NULL);
+	if (!req)
+		return false;
+	val = json_rpc_call(curl, rpc_url, rpc_userpass, req, &err, 0);
+	free(req);
 	gettimeofday(&tv_end, NULL);
 
 	if (have_stratum) {
@@ -1733,31 +982,10 @@ start:
 		return true;
 	}
 
-	if (!have_gbt && !allow_getwork) {
-		applog(LOG_ERR, "No usable protocol");
-		if (val)
-			json_decref(val);
-		return false;
-	}
-
-	if (have_gbt && allow_getwork && !val && err == CURLE_OK) {
-		if (opt_verbose)
-			applog(LOG_INFO, "getblocktemplate failed, falling back to getwork");
-		have_gbt = false;
-		goto start;
-	}
-
 	if (!val)
 		return false;
 
-	if (have_gbt) {
-		rc = gbt_work_decode(json_object_get(val, "result"), work);
-		if (!have_gbt) {
-			json_decref(val);
-			goto start;
-		}
-	} else
-		rc = work_decode(json_object_get(val, "result"), work);
+	rc = gbt_work_decode(json_object_get(val, "result"), work);
 
 	if (rc) {
 		bool first = !ux_node_connected;
@@ -2080,13 +1308,19 @@ static void *miner_thread(void *userdata)
 			if (!have_stratum &&
 			    (time(NULL) - g_work_time >= min_scantime ||
 			     work.data[19] >= end_nonce)) {
-				work_free(&g_work);
-				if (unlikely(!get_work(mythr, &g_work))) {
+				struct work fresh;
+				memset(&fresh, 0, sizeof(fresh));
+				/* Do not hold g_work_lock across get_work: workio submit
+				 * may take the same lock to invalidate the stale template. */
+				pthread_mutex_unlock(&g_work_lock);
+				if (unlikely(!get_work(mythr, &fresh))) {
 					applog(LOG_ERR, "work retrieval failed, exiting "
 						"mining thread %d", mythr->id);
-					pthread_mutex_unlock(&g_work_lock);
 					goto out;
 				}
+				pthread_mutex_lock(&g_work_lock);
+				work_free(&g_work);
+				memcpy(&g_work, &fresh, sizeof(fresh));
 				g_work_time = have_stratum ? 0 : time(NULL);
 			}
 			if (have_stratum) {
@@ -2179,6 +1413,13 @@ static void *miner_thread(void *userdata)
 			/* Pace solo mining so the GUI node is not flooded (easy Alpha PoW). */
 			if (opt_submit_delay > 0)
 				sleep(opt_submit_delay);
+			/* Stop grinding this header. workio may also invalidate, but
+			 * this thread would otherwise clear work_restart and scan ~2M
+			 * leftover OpuHashes before the next GBT. */
+			if (!have_stratum) {
+				g_work_time = 0;
+				memset(work.data, 0, 76);
+			}
 		}
 	}
 
@@ -2194,6 +1435,12 @@ static void restart_threads(void)
 
 	for (i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
+}
+
+static void solo_invalidate_gbt(void)
+{
+	g_work_time = 0;
+	restart_threads();
 }
 
 static void *longpoll_thread(void *userdata)
@@ -2241,12 +1488,14 @@ start:
 		char *req = NULL;
 		int err;
 
-		if (have_gbt) {
-			req = malloc(strlen(gbt_lp_req) + strlen(lp_id) + 1);
-			sprintf(req, gbt_lp_req, lp_id);
+		if (!lp_id) {
+			applog(LOG_ERR, "GBT longpoll missing longpollid");
+			goto out;
 		}
-		val = json_rpc_call(curl, lp_url, rpc_userpass,
-				    req ? req : getwork_req, &err,
+		req = gbt_request_json(lp_id);
+		if (!req)
+			goto out;
+		val = json_rpc_call(curl, lp_url, rpc_userpass, req, &err,
 				    JSON_RPC_LONGPOLL);
 		free(req);
 		if (have_stratum) {
@@ -2264,10 +1513,7 @@ start:
 			submit_old = soval ? json_is_true(soval) : false;
 			pthread_mutex_lock(&g_work_lock);
 			work_free(&g_work);
-			if (have_gbt)
-				rc = gbt_work_decode(res, &g_work);
-			else
-				rc = work_decode(res, &g_work);
+			rc = gbt_work_decode(res, &g_work);
 			if (rc) {
 				int same = (s_lp_height == g_work.height &&
 					    !memcmp(s_lp_prev, g_work.data, 32));
@@ -2518,17 +1764,18 @@ static void parse_arg(int key, char *arg, char *pname)
 			v = strlen(algo_names[i]);
 			if (!strncmp(arg, algo_names[i], v)) {
 				if (arg[v] == '\0') {
+					if (i == ALGO_SCRYPT) {
+						stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a sha256d (OpuHash)\n",
+							pname);
+						show_usage_and_exit(1);
+					}
 					opt_algo = i;
 					break;
 				}
 				if (arg[v] == ':' && i == ALGO_SCRYPT) {
-					char *ep;
-					v = strtol(arg+v+1, &ep, 10);
-					if (*ep || v & (v-1) || v < 2)
-						continue;
-					opt_algo = i;
-					opt_scrypt_n = v;
-					break;
+					stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a sha256d (OpuHash)\n",
+						pname);
+					show_usage_and_exit(1);
 				}
 			}
 		}
@@ -2668,6 +1915,11 @@ static void parse_arg(int key, char *arg, char *pname)
 			sprintf(rpc_url, "http://%s", hp);
 		}
 		have_stratum = !opt_benchmark && !strncasecmp(rpc_url, "stratum", 7);
+		if (have_stratum) {
+			stderr_msg("%s: Stratum is not the RIGOR SOLO path (see P042). Use HTTP getblocktemplate.\n",
+				pname);
+			show_usage_and_exit(1);
+		}
 		break;
 	}
 	case 'O':			/* --userpass */
@@ -2725,12 +1977,13 @@ static void parse_arg(int key, char *arg, char *pname)
 		allow_getwork = false;
 		break;
 	case 1011:
-		have_gbt = false;
+		stderr_msg("%s: --no-gbt is refused; GBT is the only RIGOR SOLO path\n", pname);
+		show_usage_and_exit(1);
 		break;
 	case 1013:			/* --coinbase-addr */
 		pk_script_size = address_to_script(pk_script, sizeof(pk_script), arg);
-		if (!pk_script_size) {
-			stderr_msg("%s: invalid address -- '%s'\n",
+		if (!pk_script_size || !gbt_solo_payout_is_oru_v0(pk_script, pk_script_size)) {
+			stderr_msg("%s: invalid ORU witness-v0 address -- '%s'\n",
 				pname, arg);
 			show_usage_and_exit(1);
 		}
@@ -2738,11 +1991,7 @@ static void parse_arg(int key, char *arg, char *pname)
 		coinbase_addr = strdup(arg);
 		break;
 	case 1015:			/* --coinbase-sig */
-		if (strlen(arg) + 1 > sizeof(coinbase_sig)) {
-			stderr_msg("%s: coinbase signature too long\n", pname);
-			show_usage_and_exit(1);
-		}
-		strcpy(coinbase_sig, arg);
+		applog(LOG_WARNING, "ignoring --coinbase-sig: coinbase scriptSig is node-immutable");
 		break;
 	case 'S':
 		use_syslog = true;
@@ -2846,6 +2095,12 @@ int main(int argc, char *argv[])
 
 	if (!opt_benchmark && !rpc_url) {
 		stderr_msg("%s: no URL supplied\n", argv[0]);
+		show_usage_and_exit(1);
+	}
+	if (!opt_benchmark &&
+	    (!pk_script_size || !gbt_solo_payout_is_oru_v0(pk_script, pk_script_size))) {
+		stderr_msg("%s: SOLO requires --coinbase-addr=<ORU witness v0 (rg1q... / rgrt1q...)>\n",
+			argv[0]);
 		show_usage_and_exit(1);
 	}
 

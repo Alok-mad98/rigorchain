@@ -20,16 +20,16 @@
 #include <consensus/convergenceres.h>
 #include <consensus/params.h>
 #include <consensus/replay_snapshot.h>
-#include <consensus/runtime_supply_export.h>
-#include <consensus/runtime_supply_invariant_checker.h>
-#include <consensus/runtime_supply_witness_chain.h>
-#include <consensus/runtime_supply_witness_coq_adapter.h>
-#include <consensus/runtime_supply_coq_chas_adapter.h>
-#include <consensus/runtime_supply_witness_equivalence_candidate.h>
-#include <consensus/runtime_supply_global_candidate_equivalence.h>
-#include <consensus/runtime_supply_equivalence_closure.h>
-#include <consensus/runtime_supply_draw_closure.h>
-#include <consensus/runtime_supply_phase5_summary.h>
+#include <node/supply_monitor/runtime_supply_export.h>
+#include <node/supply_monitor/runtime_supply_invariant_checker.h>
+#include <node/supply_monitor/runtime_supply_witness_chain.h>
+#include <node/supply_monitor/runtime_supply_witness_coq_adapter.h>
+#include <node/supply_monitor/runtime_supply_coq_chas_adapter.h>
+#include <node/supply_monitor/runtime_supply_witness_equivalence_candidate.h>
+#include <node/supply_monitor/runtime_supply_global_candidate_equivalence.h>
+#include <node/supply_monitor/runtime_supply_equivalence_closure.h>
+#include <node/supply_monitor/runtime_supply_draw_closure.h>
+#include <node/supply_monitor/runtime_supply_phase5_summary.h>
 #include <proof/runtime_vector_harness.h>
 #include <consensus/state_diff.h>
 #include <consensus/validation.h>
@@ -48,7 +48,7 @@
 #include <node/context.h>
 #include <node/transaction.h>
 #include <node/utxo_snapshot.h>
-#include <pow_opus.h>
+#include <rigor_kernel/pow_digest.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
@@ -192,7 +192,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("hash", blockindex->GetBlockHash().GetHex());
-    result.pushKV("opus_hash", GetOpusHashFromBaseHash(blockindex->GetBlockHash()).GetHex());
+    result.pushKV("pow_hash", rigor_kernel::GetRigorPowHash(blockindex->GetBlockHeader()).GetHex());
     const CBlockIndex* pnext;
     int confirmations = ComputeNextBlockAndDepth(tip, blockindex, pnext);
     result.pushKV("confirmations", confirmations);
@@ -507,7 +507,7 @@ static RPCHelpMan getblockfrompeer()
         "getblockfrompeer",
         "Attempt to fetch block from a given peer.\n\n"
         "We must have the header for this block, e.g. using submitheader.\n"
-        "Subsequent calls for the same block and a new peer will cause the response from the previous peer to be ignored.\n"
+        "Subsequent calls for the same block may cause the response from the previous peer to be ignored.\n"
         "Peers generally ignore requests for a stale block that they never fully verified, or one that is more than a month old.\n"
         "When a peer does not respond with a block, we will disconnect.\n"
         "Note: The block could be re-pruned as soon as it is received.\n\n"
@@ -598,7 +598,7 @@ static RPCHelpMan getblockheader()
                         RPCResult::Type::OBJ, "", "",
                         {
                             {RPCResult::Type::STR_HEX, "hash", "the block hash (same as provided)"},
-                            {RPCResult::Type::STR_HEX, "opus_hash", "OpuHash PoW digest derived from the block id (double-SHA256 of header) for target comparison"},
+                            {RPCResult::Type::STR_HEX, "pow_hash", "SHA3-256 proof-of-work digest of the 80-byte header (SPEC-008), compared against the target"},
                             {RPCResult::Type::NUM, "confirmations", "The number of confirmations, or -1 if the block is not on the main chain"},
                             {RPCResult::Type::NUM, "height", "The block height or index"},
                             {RPCResult::Type::NUM, "version", "The block version"},
@@ -743,7 +743,7 @@ static RPCHelpMan getblock()
                 RPCResult::Type::OBJ, "", "",
                 {
                     {RPCResult::Type::STR_HEX, "hash", "the block hash (same as provided)"},
-                    {RPCResult::Type::STR_HEX, "opus_hash", "OpuHash PoW digest derived from the block id (double-SHA256 of header) for target comparison"},
+                    {RPCResult::Type::STR_HEX, "pow_hash", "SHA3-256 proof-of-work digest of the 80-byte header (SPEC-008), compared against the target"},
                     {RPCResult::Type::NUM, "confirmations", "The number of confirmations, or -1 if the block is not on the main chain"},
                     {RPCResult::Type::NUM, "size", "The block size"},
                     {RPCResult::Type::NUM, "strippedsize", "The block size excluding witness data"},
@@ -989,7 +989,7 @@ static RPCHelpMan gettxoutsetinfo()
                             {
                                 {RPCResult::Type::STR_AMOUNT, "genesis_block", "The unspendable amount of the Genesis block subsidy"},
                                 {RPCResult::Type::STR_AMOUNT, "bip30", "Transactions overridden by duplicates (no longer possible with BIP30)"},
-                                {RPCResult::Type::STR_AMOUNT, "scripts", "Amounts sent to scripts that are unspendable (for example OP_RETURN outputs)"},
+                                {RPCResult::Type::STR_AMOUNT, "scripts", "Amounts sent to scripts that are unspendable (for example RIGOR_MARKER_RETURN outputs)"},
                                 {RPCResult::Type::STR_AMOUNT, "unclaimed_rewards", "Fee rewards that miners did not claim in their coinbase transaction"},
                             }}
                         }},
@@ -2500,7 +2500,7 @@ RPCHelpMan getblockchaininfo()
         RPCResult{
             RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::STR, "chain", "current network name (main, test, signet, regtest)"},
+                {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
                 {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
                 {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
                 {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},
@@ -3378,19 +3378,19 @@ static const auto scan_result_status_some = RPCResult{
 
 static RPCHelpMan scantxoutset()
 {
-    // scriptPubKey corresponding to mainnet address 12cbQLTFMXRnSzktFkuoG3eHoMeFtpTu3S
-    const std::string EXAMPLE_DESCRIPTOR_RAW = "raw(76a91411b366edfc0a8b66feebae5c2e25a7b6a5d1cf3188ac)#fm24fxxy";
+    // RFC 8032 Ed25519 test vector 1, ORUM-wrapped. Hits the UTXO set (unlike RIGOR_MARKER_RETURN).
+    const std::string wpkh_example = "wpkh(00d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a)";
+    const std::string wpkh_cs = GetDescriptorChecksum(wpkh_example);
+    const std::string EXAMPLE_DESCRIPTOR = wpkh_cs.empty() ? wpkh_example : wpkh_example + "#" + wpkh_cs;
 
     return RPCHelpMan{"scantxoutset",
         "\nScans the unspent transaction output set for entries that match certain output descriptors.\n"
         "Examples of output descriptors are:\n"
-        "    addr(<address>)                      Outputs whose scriptPubKey corresponds to the specified address (does not include P2PK)\n"
-        "    raw(<hex script>)                    Outputs whose scriptPubKey equals the specified hex scripts\n"
-        "    combo(<pubkey>)                      P2PK, P2PKH, P2WPKH, and P2SH-P2WPKH outputs for the given pubkey\n"
-        "    pkh(<pubkey>)                        P2PKH outputs for the given pubkey\n"
-        "    sh(multi(<n>,<pubkey>,<pubkey>,...)) P2SH-multisig outputs for the given threshold and pubkeys\n"
+        "    addr(<address>)                      Outputs whose scriptPubKey corresponds to the specified address\n"
+        "    wpkh(<pubkey>)                       P2WPKH (ORU) outputs for the given pubkey\n"
         "    res(<ed25519_key>)                   Witness v1 native RES (RigorChain; 32-byte pubkey or 64-byte secret hex)\n"
-        "    wsh(and_v(v:pk(<pubkey>),after(2)))  P2WSH miniscript with mandatory pubkey and a timelock\n"
+        "    raw(<hex script>)                    CONVERGE, RES_MINT, or RIGOR_MARKER_RETURN whose scriptPubKey equals the hex\n"
+        "                                         (wpkh/res locks must use addr(), wpkh(), or res(); RIGOR_MARKER_RETURN is not in the UTXO set)\n"
         "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one\n"
         "or more path elements separated by \"/\". Ed25519 BIP32 is hardened-only (SLIP-0010);\n"
         "paths must use hardened steps and ranged descriptors must end in \"/*'\" or \"/*h\". Unhardened \"/*\" is rejected.\n"
@@ -3416,6 +3416,7 @@ static RPCHelpMan scantxoutset()
                         {RPCResult::Type::STR, "desc", "A specialized descriptor for the matched scriptPubKey"},
                         {RPCResult::Type::STR_AMOUNT, "amount", "The total amount in " + CURRENCY_UNIT + " of the unspent output"},
                         {RPCResult::Type::BOOL, "coinbase", "Whether this is a coinbase output"},
+                        {RPCResult::Type::BOOL, "res_mint", "True if this UTXO is a body RES mint output (immature until nCoinbaseMaturity)"},
                         {RPCResult::Type::NUM, "height", "Height of the unspent transaction output"},
                     }},
                 }},
@@ -3426,10 +3427,10 @@ static RPCHelpMan scantxoutset()
             scan_result_status_none,
         },
         RPCExamples{
-            HelpExampleCli("scantxoutset", "start \'[\"" + EXAMPLE_DESCRIPTOR_RAW + "\"]\'") +
+            HelpExampleCli("scantxoutset", "start \'[\"" + EXAMPLE_DESCRIPTOR + "\"]\'") +
             HelpExampleCli("scantxoutset", "status") +
             HelpExampleCli("scantxoutset", "abort") +
-            HelpExampleRpc("scantxoutset", "\"start\", [\"" + EXAMPLE_DESCRIPTOR_RAW + "\"]") +
+            HelpExampleRpc("scantxoutset", "\"start\", [\"" + EXAMPLE_DESCRIPTOR + "\"]") +
             HelpExampleRpc("scantxoutset", "\"status\"") +
             HelpExampleRpc("scantxoutset", "\"abort\"")
         },
@@ -3472,7 +3473,10 @@ static RPCHelpMan scantxoutset()
             FlatSigningProvider provider;
             auto scripts = EvalDescriptorStringOrObject(scanobject, provider);
             for (CScript& script : scripts) {
-                std::string inferred = InferDescriptor(script, provider)->ToString();
+                std::string inferred;
+                if (auto desc = InferDescriptor(script, provider)) {
+                    inferred = desc->ToString();
+                }
                 needles.emplace(script);
                 descriptors.emplace(std::move(script), std::move(inferred));
             }
@@ -4110,7 +4114,7 @@ static RPCHelpMan getconvergenceresult()
                 one.pushKV("source_height", candidate.source_height);
                 one.pushKV("h", i < outcome.sigmas.size() ? outcome.sigmas[i].GetHex() : uint256().GetHex());
                 one.pushKV("draw_eligible", i < outcome.eligible.size() && outcome.eligible[i]);
-                // Membership in F already required IsConvergenceTx (one OP_CONVERGE output).
+                // Membership in F already required IsConvergenceTx (one RIGOR_MARKER_CONVERGE output).
                 // "v1_cvg2" is a wire-stable historical spelling, not a live CVG2 program.
                 one.pushKV("convergence_type", "v1_cvg2");
                 candidates.push_back(one);
@@ -4431,6 +4435,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
         {"blockchain", &getblockchaininfo},
+        {"blockchain", &getdeploymentinfo},
         {"blockchain", &getchaintxstats},
         {"blockchain", &getblockstats},
         {"blockchain", &getbestblockhash},

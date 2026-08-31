@@ -4,6 +4,7 @@
 
 #include <clientversion.h>
 #include <coins.h>
+#include <script/script.h>
 #include <script/standard.h>
 #include <streams.h>
 #include <test/util/random.h>
@@ -29,7 +30,6 @@ bool operator==(const Coin &a, const Coin &b) {
     if (a.IsSpent() && b.IsSpent()) return true;
     return a.fCoinBase == b.fCoinBase &&
            a.nHeight == b.nHeight &&
-           a.nFlags == b.nFlags &&
            a.out == b.out;
 }
 
@@ -179,7 +179,7 @@ void SimulationTest(CCoinsView* base, bool fake_best_block)
 
                 // Infrequently test adding unspendable coins.
                 if (InsecureRandRange(16) == 0 && coin.IsSpent()) {
-                    newcoin.out.scriptPubKey.assign(1 + InsecureRandBits(6), OP_RETURN);
+                    newcoin.out.scriptPubKey.assign(1 + InsecureRandBits(6), RIGOR_MARKER_RETURN);
                     BOOST_CHECK(newcoin.out.scriptPubKey.IsUnspendable());
                     added_an_unspendable_entry = true;
                 } else {
@@ -509,7 +509,7 @@ BOOST_AUTO_TEST_CASE(ccoins_serialization)
     BOOST_CHECK_EQUAL(cc1.fCoinBase, false);
     BOOST_CHECK_EQUAL(cc1.nHeight, 203998U);
     BOOST_CHECK_EQUAL(cc1.out.nValue, CAmount{60000000000});
-    BOOST_CHECK_EQUAL(HexStr(cc1.out.scriptPubKey), HexStr(GetScriptForDestination(PKHash(uint160(ParseHex("816115944e077fe7c803cfa57f29b36bf87c1d35"))))));
+    BOOST_CHECK_EQUAL(HexStr(cc1.out.scriptPubKey), HexStr(CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ParseHex("816115944e077fe7c803cfa57f29b36bf87c1d35") << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG));
 
     // Good example
     DataStream ss2{ParseHex("8ddf77bbd123008c988f1a4a4de2161e0f50aac7f17e7f9555caa4")};
@@ -518,7 +518,7 @@ BOOST_AUTO_TEST_CASE(ccoins_serialization)
     BOOST_CHECK_EQUAL(cc2.fCoinBase, true);
     BOOST_CHECK_EQUAL(cc2.nHeight, 120891U);
     BOOST_CHECK_EQUAL(cc2.out.nValue, 110397);
-    BOOST_CHECK_EQUAL(HexStr(cc2.out.scriptPubKey), HexStr(GetScriptForDestination(PKHash(uint160(ParseHex("8c988f1a4a4de2161e0f50aac7f17e7f9555caa4"))))));
+    BOOST_CHECK_EQUAL(HexStr(cc2.out.scriptPubKey), HexStr(CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ParseHex("8c988f1a4a4de2161e0f50aac7f17e7f9555caa4") << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG));
 
     // Smallest possible example
     DataStream ss3{ParseHex("000006")};
@@ -1063,56 +1063,36 @@ void TestFlushBehavior(
     BOOST_CHECK(!base.HaveCoin(outp));
 }
 
-BOOST_AUTO_TEST_CASE(coin_nflags_serialization_roundtrip)
+BOOST_AUTO_TEST_CASE(coin_serialization_roundtrip_no_trailing_flags)
 {
-    {
-        Coin coin;
-        coin.out.nValue = 50 * COIN;
-        coin.out.scriptPubKey << OP_TRUE;
-        coin.nHeight = 100;
-        coin.fCoinBase = false;
-        coin.nFlags = 0xdeadbeef;
+    Coin coin;
+    coin.out.nValue = 50 * COIN;
+    coin.out.scriptPubKey << RIGOR_PUSH_1;
+    coin.nHeight = 100;
+    coin.fCoinBase = false;
 
-        CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-        ss << coin;
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << coin;
 
-        Coin decoded;
-        ss >> decoded;
-        BOOST_CHECK(coin == decoded);
-    }
-    {
-        Coin coin;
-        coin.out.nValue = 1;
-        coin.out.scriptPubKey << OP_1;
-        coin.nHeight = 2;
-        coin.fCoinBase = true;
-        coin.nFlags = 0;
-
-        CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-        ss << coin;
-
-        Coin decoded;
-        ss >> decoded;
-        BOOST_CHECK(coin == decoded);
-    }
+    Coin decoded;
+    ss >> decoded;
+    BOOST_CHECK(coin == decoded);
 }
 
 BOOST_AUTO_TEST_CASE(txundo_formatter_dummy_byte_roundtrip)
 {
-    // Dummy version byte is always 0; nFlags is not restored from undo.
+    // Dummy version byte is always 0.
     Coin coin;
     coin.out.nValue = 10 * COIN;
-    coin.out.scriptPubKey << OP_2;
+    coin.out.scriptPubKey << RIGOR_PUSH_2;
     coin.nHeight = 50;
     coin.fCoinBase = false;
-    coin.nFlags = 0x00c0ffee;
 
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     TxInUndoFormatter{}.Ser(ss, coin);
 
     Coin out;
     TxInUndoFormatter{}.Unser(ss, out);
-    BOOST_CHECK_EQUAL(out.nFlags, 0U);
     BOOST_CHECK(coin.out == out.out);
     BOOST_CHECK_EQUAL(out.nHeight, coin.nHeight);
     BOOST_CHECK_EQUAL(out.fCoinBase, coin.fCoinBase);
@@ -1121,7 +1101,7 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_dummy_byte_roundtrip)
     undo.vprevout.push_back(coin);
     Coin coin2;
     coin2.out.nValue = 3 * COIN;
-    coin2.out.scriptPubKey << OP_3;
+    coin2.out.scriptPubKey << RIGOR_PUSH_3;
     coin2.nHeight = 51;
     coin2.fCoinBase = false;
     undo.vprevout.push_back(coin2);
@@ -1133,8 +1113,6 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_dummy_byte_roundtrip)
     BOOST_CHECK_EQUAL(undo2.vprevout.size(), 2U);
     BOOST_CHECK(undo2.vprevout[0].out == coin.out);
     BOOST_CHECK(undo2.vprevout[1].out == coin2.out);
-    BOOST_CHECK_EQUAL(undo2.vprevout[0].nFlags, 0U);
-    BOOST_CHECK_EQUAL(undo2.vprevout[1].nFlags, 0U);
 }
 
 BOOST_AUTO_TEST_CASE(ccoins_flush_behavior)

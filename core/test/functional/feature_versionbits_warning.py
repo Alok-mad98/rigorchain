@@ -10,13 +10,13 @@ soft-forks, and test that warning alerts are generated.
 import os
 import re
 
-from test_framework.blocktools import create_block, create_coinbase
+from test_framework.blocktools import DEFAULT_COINBASE_SCRIPT_PUBKEY, create_block, create_coinbase
 from test_framework.messages import msg_block
 from test_framework.p2p import P2PInterface
 from test_framework.test_framework import BitcoinTestFramework
 
-VB_PERIOD = 144           # versionbits period length for regtest
-VB_THRESHOLD = 108        # versionbits activation threshold for regtest
+VB_PERIOD = 288           # CRegTestParams nMinerConfirmationWindow
+VB_THRESHOLD = 216        # CRegTestParams nRuleChangeActivationThreshold
 VB_TOP_BITS = 0x20000000
 VB_UNKNOWN_BIT = 27       # Choose a bit unassigned to any deployment
 VB_UNKNOWN_VERSION = VB_TOP_BITS | (1 << VB_UNKNOWN_BIT)
@@ -48,7 +48,7 @@ class VersionBitsWarningTest(BitcoinTestFramework):
         tip = int(tip, 16)
 
         for _ in range(numblocks):
-            block = create_block(tip, create_coinbase(height + 1), block_time, version=version)
+            block = create_block(tip, create_coinbase(height + 1, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), block_time, version=version)
             block.solve()
             peer.send_message(msg_block(block))
             block_time += 1
@@ -66,7 +66,7 @@ class VersionBitsWarningTest(BitcoinTestFramework):
         node = self.nodes[0]
         peer = node.add_p2p_connection(P2PInterface())
 
-        node_deterministic_address = node.get_deterministic_priv_key().address
+        node_deterministic_address = node.get_deterministic_witness_mining_address()
         # Mine one period worth of blocks
         self.generatetoaddress(node, VB_PERIOD, node_deterministic_address)
 

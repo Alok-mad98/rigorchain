@@ -18,13 +18,16 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
 
 /**
- * Verify nBits and (unless genesis) OpuHash PoW against the header id.
+ * Verify nBits and (unless genesis) the proof of work for a header.
  * Genesis (header id == params.hashGenesisBlock): compact target is checked; work is skipped.
+ *
+ * The header is taken by reference and never by header id. Under SPEC-008 the
+ * PoW digest is SHA3-256("RGRPOW01" || header_80), a function of the 80 raw
+ * header bytes, so a uint256 is not enough to compute it. The former
+ * CheckProofOfWork(uint256, ...) overload was removed for that reason: keeping
+ * it would have left an API that cannot be implemented after the switch.
  */
 bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Consensus::Params& params);
-
-/** Same with a precomputed header id (tests / fuzzing). */
-bool CheckProofOfWork(uint256 header_hash, unsigned int nBits, const Consensus::Params& params);
 
 /**
  * Return false if the proof-of-work requirement specified by new_nbits at a

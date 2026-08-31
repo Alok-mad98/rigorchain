@@ -27,19 +27,20 @@ public:
     OpCodeParser()
     {
         for (unsigned int op = 0; op <= MAX_OPCODE; ++op) {
-            // Allow OP_RESERVED to get into mapOpNames
-            if (op < OP_NOP && op != OP_RESERVED) {
+            // Allow RIGOR_RESERVED_INERT_50 to get into mapOpNames
+            if (op < RIGOR_RESERVED_LEGACY_NOP && op != RIGOR_RESERVED_INERT_50) {
                 continue;
             }
 
             std::string strName = GetOpName(static_cast<opcodetype>(op));
-            if (strName == "OP_UNKNOWN") {
+            if (strName == "INVALID") {
                 continue;
             }
             mapOpNames[strName] = static_cast<opcodetype>(op);
-            // Convenience: OP_ADD and just ADD are both recognized:
-            if (strName.compare(0, 3, "OP_") == 0) { // strName starts with "OP_"
-                mapOpNames[strName.substr(3)] = static_cast<opcodetype>(op);
+            // Convenience: RIGOR_RESERVED_LEGACY_ELSE / ELSE, RIGOR_MARKER_RES_MINT / RES_MINT.
+            const std::string alias = GetOpNameAlias(static_cast<opcodetype>(op));
+            if (!alias.empty() && alias != strName) {
+                mapOpNames[alias] = static_cast<opcodetype>(op);
             }
         }
     }
@@ -92,7 +93,7 @@ CScript ParseScript(const std::string& s)
             std::vector<unsigned char> value(w.begin() + 1, w.end() - 1);
             result << value;
         } else {
-            // opcode, e.g. OP_ADD or ADD:
+            // opcode, e.g. RIGOR_RESERVED_LEGACY_ADD or ADD:
             result << ParseOpCode(w);
         }
     }
@@ -256,21 +257,11 @@ int ParseSighashString(const UniValue& sighash)
 {
     int hash_type = SIGHASH_DEFAULT;
     if (!sighash.isNull()) {
-        static std::map<std::string, int> map_sighash_values = {
-            {std::string("DEFAULT"), int(SIGHASH_DEFAULT)},
-            {std::string("ALL"), int(SIGHASH_ALL)},
-            {std::string("ALL|ANYONECANPAY"), int(SIGHASH_ALL|SIGHASH_ANYONECANPAY)},
-            {std::string("NONE"), int(SIGHASH_NONE)},
-            {std::string("NONE|ANYONECANPAY"), int(SIGHASH_NONE|SIGHASH_ANYONECANPAY)},
-            {std::string("SINGLE"), int(SIGHASH_SINGLE)},
-            {std::string("SINGLE|ANYONECANPAY"), int(SIGHASH_SINGLE|SIGHASH_ANYONECANPAY)},
-        };
         const std::string& strHashType = sighash.get_str();
-        const auto& it = map_sighash_values.find(strHashType);
-        if (it != map_sighash_values.end()) {
-            hash_type = it->second;
+        if (strHashType == "DEFAULT" || strHashType == "ALL") {
+            hash_type = SIGHASH_ALL;
         } else {
-            throw std::runtime_error(strHashType + " is not a valid sighash parameter.");
+            throw std::runtime_error(strHashType + " is not a valid sighash parameter. RIGOR has one signing rule; only ALL/DEFAULT are accepted.");
         }
     }
     return hash_type;

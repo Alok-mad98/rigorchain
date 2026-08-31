@@ -458,7 +458,7 @@ class ListSinceBlockTest(BitcoinTestFramework):
         assert all(self.nodes[2].getaddressinfo(c["address"])["ischange"] for c in coins)
 
     def test_op_return(self):
-        """Test if OP_RETURN outputs will be displayed correctly."""
+        """Test if RIGOR_MARKER_RETURN outputs will be displayed correctly."""
         block_hash = self.nodes[2].getbestblockhash()
 
         raw_tx = self.nodes[2].createrawtransaction([], [{'data': 'aa'}])

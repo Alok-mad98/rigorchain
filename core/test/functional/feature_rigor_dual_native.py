@@ -42,7 +42,7 @@ class RigorDualNativeTest(BitcoinTestFramework):
     def run_convergence_helper(self, node_idx):
         """Invoke contrib/devtools/devtest-create-convergence-tx.py against a test node."""
         srcdir = self.config["environment"]["SRCDIR"]
-        # Same path as TestNode (BUILDDIR/src/bitcoin-cli); honors $BITCOINCLI if set.
+        # Same path as TestNode (BUILDDIR/src/rigor-cli); honors $BITCOINCLI if set.
         cli = self.options.bitcoincli
         helper = os.path.join(srcdir, "contrib", "devtools", "devtest-create-convergence-tx.py")
         datadir = self.nodes[node_idx].datadir
@@ -52,7 +52,7 @@ class RigorDualNativeTest(BitcoinTestFramework):
             helper,
             "--cli",
             cli,
-            # bitcoin.conf already has devtest=1; do not also pass -chain=devtest (AppInitRPC rejects both).
+            # rigor.conf already has devtest=1; do not also pass -chain=devtest (AppInitRPC rejects both).
             "--no-chain-arg",
             f"--cli-extra=-datadir={datadir}",
             "--convergence-orum",
@@ -111,10 +111,11 @@ class RigorDualNativeTest(BitcoinTestFramework):
         assert txid_a in block_txids and txid_b in block_txids
 
         # Confirmed txs: pass block hash (no -txindex in default test node).
+        # The helper pays an RIGOR_MARKER_CONVERGE lock plus ORU change; RES is not created here.
         for txid in (txid_a, txid_b):
             tx = self.nodes[0].getrawtransaction(txid, True, block_hash)
             assert any(
-                o.get("scriptPubKey", {}).get("type") == "witness_v1_res"
+                o.get("scriptPubKey", {}).get("type") == "converge"
                 for o in tx.get("vout", [])
             )
 

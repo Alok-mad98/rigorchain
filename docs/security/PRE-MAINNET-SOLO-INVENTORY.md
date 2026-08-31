@@ -49,7 +49,7 @@ Rejects of interest: `bad-rigor-res-without-winner`, `bad-rigor-res-owner-mismat
 | `generatetoaddress` | Devtest mine (safe with pending automint) |
 | `generateblock` | Coinbase-only template + explicit tx list; **unsafe** if automint already inserted |
 | `getautomintfundaddress` | P2WSH bootstrap for body mint |
-| `-miningresfeeaddr` | Arms automint assembly (payout is still the winner’s RESO owner) |
+| `-miningresfeeaddr` | Mockable-chain bootstrap sink only. **Rejected on mainnet-shaped params.** Prize still pays the winner. |
 | `-solomining` | GBT with 0 peers on mainnet (RPC only) |
 
 Existing functional hooks: `rigor_attack_blocks.py`, `mining_basic.py`, `feature_fault_injection_consensus.py`, `feature_rigor_reorg_winner_lock.py`, `feature_res_window_reorg_res_attacks.py`.

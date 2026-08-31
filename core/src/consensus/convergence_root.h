@@ -36,37 +36,50 @@ namespace Consensus {
  *
  *   1. `IsConvergenceTx(tx) == true`
  *   2. `GetConvergenceAmount(tx) >= MIN_CONVERGENCE_AMOUNT`
- *   3. `CheckTxInputs(tx, tx_state, view_at_block_entry, block_height, consensus_params, txfee)`
- *      succeeds (same inputs / fee path as consensus; **block-entry** UTXO view only).
+ *   3. `CheckTxInputs` succeeds against the **in-block overlay view**: each prior
+ *      non-coinbase tx in the block is applied (SpendCoin + AddCoins) before the
+ *      candidate is tested, so same-block chains are in **F** (RIG-02). This is
+ *      the same set `BuildBlockConvergenceCandidatesFromUndo` reconstructs.
  *   4. Inputs verify (`CheckTxInputs`). Fee amount is not a membership condition
  *      (zero-fee is a relay/DoS policy, not a draw-correctness rule).
  *
- * **F MUST** be enumerated by `ListConvergenceRootCommitmentTxids` semantics only (no alternate
- * predicate in consensus code paths).
+ * **F MUST** be enumerated by `IsConvergenceDrawMember` on the in-block overlay only
+ * (`ListConvergenceRootCommitmentTxids` live; `BuildBlockConvergenceCandidatesFromUndo` seeds
+ * the same overlay from undo). A second membership predicate is a fork.
  *
  * **F MUST** be constructed **exactly once** per `ConnectBlock` for a given `(vtx, view_at_entry)`
- * pair: `Chainstate::ConnectBlock` lists **F** at block-entry, then passes the same vector through
- * coinbase validation and RES checks. **MUST NOT** be recomputed from mempool, post-`UpdateCoins`
- * state, or any ordering side effect inside the block body.
- *
- * **F MUST NOT** depend on: mempool, post-UpdateCoins UTXO view, or intra-block transaction order
- * (only membership / sorted root uses **F**; enumeration order from `ListConvergenceRootCommitmentTxids`
- * is arbitrary and non-normative).
+ * pair: `Chainstate::ConnectBlock` lists **F** at block-entry with the overlay, then passes the
+ * same vector through coinbase validation and RES checks.
  */
 
-/** Parsed coinbase scriptSig: BIP34 height + 32-byte convergence root (OP_PUSHBYTES_32 only). */
+/** Parsed coinbase scriptSig: BIP34 height + 32-byte C + 32-byte paid-winner txid. */
 struct CoinbaseConvergenceRootScriptSig {
     int height{};
     uint256 convergence_root{};
+    uint256 paid_winner_txid{};
 };
 
+/** Canonical coinbase scriptSig: height || OP_PUSHBYTES_32(C) || OP_PUSHBYTES_32(paid_winner). */
+CScript BuildCoinbaseCommitmentScriptSig(int height, const uint256& convergence_root,
+                                         const uint256& paid_winner_txid);
+
 /**
- * Parse coinbase scriptSig as exactly two pushes (height, then OP_PUSHBYTES_32 + 32 bytes).
- * Does not compare against a block body; use with ValidateCoinbaseConvergenceRootScriptSig for that.
+ * Parse coinbase scriptSig as exactly three pushes (height, C, paid-winner txid).
+ * paid_winner_txid is the all-zero uint256 when the coinbase does not mint RES (RIG-05).
  */
 bool ParseCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
     CoinbaseConvergenceRootScriptSig& out,
     std::string& err_reason) noexcept;
+
+/**
+ * Single F-membership predicate (TASK-010 C-2). True iff `tx` is a non-coinbase
+ * convergence ticket with a unique owner declaration, amount ≥ MIN, and
+ * `CheckTxInputs` succeeds against `view` (fee is not a membership condition).
+ */
+bool IsConvergenceDrawMember(const CTransaction& tx,
+    const CCoinsViewCache& view,
+    int block_height,
+    const Params& consensus_params);
 
 /**
  * Enumerate **F** (see normative definition at top of this header). Non-coinbase txs in `vtx`,
@@ -100,12 +113,10 @@ uint256 ComputeConvergenceRootFromConvergenceSet(const std::vector<CTransactionR
 
 /**
  * Consensus coinbase scriptSig (post-BIP34 / height-in-coinbase deployment):
- * MUST be parsed as exactly two pushes via CScript::GetOp (no trailing ops):
+ * MUST be parsed as exactly three pushes via CScript::GetOp (no trailing ops):
  *   (1) minimal BIP34 height (same encoding family as CScript() << nHeight),
- *   (2) convergence_root as OP_PUSHBYTES_32 (opcode 0x20) followed by 32 raw bytes
- *       — not OP_PUSHDATA1/2/4 — matching ComputeConvergenceRootFromConvergenceSet(...).
- *
- * Requires CCoinsViewCache at block entry (same view ConnectBlock uses before applying txs).
+ *   (2) convergence_root as OP_PUSHBYTES_32,
+ *   (3) paid_winner_txid as OP_PUSHBYTES_32 (all-zero iff the coinbase does not mint).
  */
 bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
     int nHeight,
@@ -116,12 +127,21 @@ bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
 
 /**
  * Same checks as the full-block overload, but `expected_convergence_root` is supplied by the caller
- * (e.g. after a single `ListConvergenceRootCommitmentTxids` + `ComputeConvergenceRootFromEligibilityTxids` in
- * `ConnectBlock`) so consensus does not enumerate **F** twice.
+ * so consensus does not enumerate **F** twice. Does not check the paid-winner push against a value.
  */
 bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
     int nHeight,
     const uint256& expected_convergence_root,
+    std::string& err_reason) noexcept;
+
+/**
+ * Like the three-argument form, and also requires the paid-winner push to equal
+ * `expected_paid_winner` (all-zero when this block does not mint).
+ */
+bool ValidateCoinbaseConvergenceRootScriptSig(const CScript& scriptSig,
+    int nHeight,
+    const uint256& expected_convergence_root,
+    const uint256& expected_paid_winner,
     std::string& err_reason) noexcept;
 
 } // namespace Consensus

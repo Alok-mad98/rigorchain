@@ -91,7 +91,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
         const std::optional<CTxOut> tx_out = ConsumeDeserializable<CTxOut>(fuzzed_data_provider);
         const unsigned int n_in = fuzzed_data_provider.ConsumeIntegral<unsigned int>();
         if (mutable_transaction && tx_out && mutable_transaction->vin.size() > n_in) {
-            SignatureData signature_data_1 = DataFromTransaction(*mutable_transaction, n_in, *tx_out);
+            SignatureData signature_data_1 = DataFromTransaction(*mutable_transaction, n_in, *tx_out, uint256::ZERO);
             CTxIn input;
             UpdateInput(input, signature_data_1);
             const CScript script = ConsumeScript(fuzzed_data_provider);
@@ -109,12 +109,12 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
             CMutableTransaction sign_transaction_tx_to = tx_to;
             if (n_in < tx_to.vin.size() && tx_to.vin[n_in].prevout.n < tx_from.vout.size()) {
                 SignatureData empty;
-                (void)SignSignature(provider, tx_from, tx_to, n_in, fuzzed_data_provider.ConsumeIntegral<int>(), empty);
+                (void)SignSignature(provider, tx_from, tx_to, n_in, uint256::ZERO, empty);
             }
             if (n_in < script_tx_to.vin.size()) {
                 SignatureData empty;
-                (void)SignSignature(provider, ConsumeScript(fuzzed_data_provider), script_tx_to, n_in, ConsumeMoney(fuzzed_data_provider), fuzzed_data_provider.ConsumeIntegral<int>(), empty);
-                MutableTransactionSignatureCreator signature_creator{tx_to, n_in, ConsumeMoney(fuzzed_data_provider), fuzzed_data_provider.ConsumeIntegral<int>()};
+                (void)SignSignature(provider, ConsumeScript(fuzzed_data_provider), script_tx_to, n_in, ConsumeMoney(fuzzed_data_provider), uint256::ZERO, empty);
+                MutableTransactionSignatureCreator signature_creator{tx_to, n_in, ConsumeMoney(fuzzed_data_provider), uint256::ZERO};
                 std::vector<unsigned char> vch_sig;
                 CKeyID address;
                 if (fuzzed_data_provider.ConsumeBool()) {
@@ -124,7 +124,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
                 } else {
                     address = CKeyID{ConsumeUInt160(fuzzed_data_provider)};
                 }
-                (void)signature_creator.CreateSig(provider, vch_sig, address, ConsumeScript(fuzzed_data_provider), fuzzed_data_provider.PickValueInArray({SigVersion::BASE, SigVersion::WITNESS_V0}));
+                (void)signature_creator.CreateSig(provider, vch_sig, address, ConsumeScript(fuzzed_data_provider), fuzzed_data_provider.PickValueInArray({SigVersion::WITNESS_V0, SigVersion::WITNESS_V1_RES, SigVersion::RES_MINT}));
             }
             std::map<COutPoint, Coin> coins;
             LIMITED_WHILE(fuzzed_data_provider.ConsumeBool(), 10000) {
@@ -139,7 +139,7 @@ FUZZ_TARGET_INIT(script_sign, initialize_script_sign)
                 coins[*outpoint] = *coin;
             }
             std::map<int, bilingual_str> input_errors;
-            (void)SignTransaction(sign_transaction_tx_to, &provider, coins, fuzzed_data_provider.ConsumeIntegral<int>(), input_errors);
+            (void)SignTransaction(sign_transaction_tx_to, &provider, coins, uint256::ZERO, input_errors);
         }
     }
 

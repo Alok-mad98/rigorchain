@@ -53,11 +53,6 @@ function hexByteLength(hex: string | null | undefined): number | null {
   return h.length > 0 ? Math.floor(h.length / 2) : 0;
 }
 
-function withByteLengths(items: PcorbStackItem[] | null): PcorbStackItemView[] | null {
-  if (!items) return null;
-  return items.map((item) => ({ ...item, hex_byte_length: hexByteLength(item.hex) ?? 0 }));
-}
-
 function resOutputsFromVout(
   vouts: Array<{ vout_index: number; asset_kind: string; value_atoms: string | number; address: string | null }>,
 ): ConvergeProofPanel["res_mint_outputs"] {
@@ -111,8 +106,6 @@ export function buildConvergeProofPanel(args: {
   const sigmaHex = convRow?.selection_digest_h ? String(convRow.selection_digest_h) : null;
 
   const proof: ResMintProofView = args.witnessPanel.res_mint_proof;
-  const pcorbRaw = proof.proof_items ?? args.witnessPanel.inputs.find((i) => i.pcorb_items)?.pcorb_items ?? null;
-  const pcorb = withByteLengths(pcorbRaw);
 
   const convergenceRoot =
     proof.convergence_root ??
@@ -123,7 +116,6 @@ export function buildConvergeProofPanel(args: {
   const winnerTxid =
     (resMintRow?.winner_convergence_txid ? String(resMintRow.winner_convergence_txid) : null) ??
     proof.winner_convergence_txid ??
-    pcorb?.[0]?.hex ??
     (isWinner ? args.txid : null);
 
   const mintTxid = args.resMintRows.length > 0 ? args.txid : resMintRow ? String(resMintRow.mint_txid) : null;
@@ -166,7 +158,7 @@ export function buildConvergeProofPanel(args: {
       hex: sigmaHex,
       hex_byte_length: hexByteLength(sigmaHex),
     },
-    pcorb_witness: pcorb,
+    pcorb_witness: null,
     res_mint_linkage: {
       mint_txid: mintTxid,
       winner_txid: winnerTxid,

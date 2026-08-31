@@ -37,31 +37,6 @@ bool XOnlyPubKey::IsFullyValid() const
     return !IsNull();
 }
 
-static const HashWriter HASHER_TAPTWEAK{TaggedHash("TapTweak")};
-
-uint256 XOnlyPubKey::ComputeTapTweakHash(const uint256* merkle_root) const
-{
-    if (merkle_root == nullptr) {
-        return (HashWriter{HASHER_TAPTWEAK} << m_keydata).GetSHA256();
-    } else {
-        return (HashWriter{HASHER_TAPTWEAK} << m_keydata << *merkle_root).GetSHA256();
-    }
-}
-
-bool XOnlyPubKey::CheckTapTweak(const XOnlyPubKey& internal, const uint256& merkle_root, bool parity) const
-{
-    auto tweaked = internal.CreateTapTweak(&merkle_root);
-    return tweaked.has_value() && tweaked->first == *this && tweaked->second == parity;
-}
-
-std::optional<std::pair<XOnlyPubKey, bool>> XOnlyPubKey::CreateTapTweak(const uint256* merkle_root) const
-{
-    // BIP341 Taproot tweaks are not defined on RIGOR. Returning a plausible XOR
-    // previously produced addresses with no corresponding private key.
-    (void)merkle_root;
-    return std::nullopt;
-}
-
 bool CPubKey::Verify(const uint256& hash, const std::vector<unsigned char>& vchSig) const
 {
     if (!IsValid()) return false;
@@ -162,15 +137,4 @@ bool CExtPubKey::Derive(CExtPubKey& out, unsigned int _nChild) const
     std::memcpy(out.vchFingerprint, &id, 4);
     out.nChild = _nChild;
     return pubkey.Derive(out.pubkey, out.chaincode, _nChild, chaincode);
-}
-
-/* static */ bool CPubKey::CheckLowS(const std::vector<unsigned char>& vchSig)
-{
-    // Ed25519 signatures are fixed 64 bytes. Canonical-S is enforced by libsodium.
-    return vchSig.size() == ed25519::SIGNATURE_SIZE;
-}
-
-bool CPubKey::NormalizeSignatureDER_LowS(std::vector<unsigned char>& vchSigDer)
-{
-    return vchSigDer.size() == ed25519::SIGNATURE_SIZE;
 }

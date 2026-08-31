@@ -21,7 +21,7 @@ if it was received after spy's version handshake completed.
 6. We check that only tx2 is announced on the spy interface
 """
 from test_framework.messages import (
-    msg_wtxidrelay,
+    msg_rigorcap,
     msg_verack,
     msg_tx,
     CInv,
@@ -39,7 +39,7 @@ class P2PTxSpy(P2PInterface):
         self.all_invs = []
 
     def on_version(self, message):
-        self.send_message(msg_wtxidrelay())
+        self.send_message(msg_rigorcap())
 
     def on_inv(self, message):
         self.all_invs += message.inv

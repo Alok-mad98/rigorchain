@@ -100,22 +100,28 @@ difficulty context.
 **Failure condition:**
 
 ```
-Hash256(header) ≥ ExpandCompact(nBits)
+OpuHash(SHA256d(header)) ≥ ExpandCompact(nBits)
 ```
 
-where `nBits` is the compact target encoded in the block header and PoW evaluation
-uses the frozen integer comparison rules.
+where `nBits` is the compact target encoded in the block header, `OpuHash` is the
+frozen mix described in `core/doc/opushash_v3.md`, and PoW evaluation uses the
+frozen integer comparison rules. Genesis is exempt from the mix-loop check after
+a valid compact-target encoding.
 
 ---
 
 ### CR-004: Difficulty Adjustment Valid
 
 **Purpose:** Ensure the header's compact target is the correct ASERT output given
-the parent's difficulty state and header times.
+the parent header (not the candidate's own timestamp).
 
-**Failure condition:** The header's `nBits` value differs from the ASERT update
-computed from the frozen anchor parameters, parent compact target, and timestamp
-constraints.
+**Failure condition:** The header's `nBits` value differs from aserti3-2d computed
+from:
+
+- anchor = parent if parent height is 0, otherwise the height-1 block
+- `eval_time` / `eval_height` = parent `nTime` / parent height
+- per-block target clamp of `[0.875, 1.125]` versus the parent compact target
+- `powLimit` as an absolute ceiling
 
 ---
 
@@ -166,9 +172,10 @@ including but not limited to:
 
 Frozen parameters include at minimum: `RES_PROBABILITY_TARGET` at RFC-017
 shipping `E = 246` (windowed; mint cost `C = 1024` ORU; Historical RFC-014
-parameter `2^240`), `k = 10`,
-RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`, bootstrap bind hash
-for `h < k`, and genesis-only activation.
+parameter `2^240`), `CONVERGENCE_DRAW_WINDOW = 32`,
+RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`,
+Sigma-PoW-01 σ seed `B_{h-1}` (SECURITY-001-A8; `bind_commit` / bind depth `k`
+are superseded), and genesis-only activation.
 
 ---
 
@@ -275,21 +282,32 @@ less than `MIN_CONVERGENCE_AMOUNT` (1 ORU).
 
 ### CR-032: ORU Supply Recurrence Preserved
 
-**Purpose:** Cumulative ORU supply MUST satisfy the authoritative recurrence.
+**Purpose:** Observational issued-minus-converge accounting must not be confused
+with spendable UTXO ORU.
 
-**Failure condition:** After applying block `h+1`:
-
-```
-S_ORU(h+1) ≠ S_ORU(h) + R(h+1) − C(h+1)
-```
+**Failure condition:** Using an extra-UTXO ORU scalar as a ConnectBlock reject.
+Circulating ORU is the UTXO projection. RFC-018 burns and unclaimed coinbase
+are destruction channels that the issued-minus-converge identity does not list.
 
 ---
 
-### CR-033: ORU Supply Non-Negative
+### CR-033: Amount Overflow Bound
 
-**Purpose:** ORU supply MUST never become negative.
+**Purpose:** No output, input-sum, or fee/converge accumulator may be negative
+or exceed `MAX_MONEY`. This is an overflow sanity bound (`10_000_000_000 * COIN`),
+**not** an ORU issuance cap.
 
-**Failure condition:** `S_ORU(h+1) < 0`.
+The value is bounded on both sides. Upward, cumulative issuance must stay under
+it for the life of the chain (~1500 years at the 125 ORU/block tail). Downward,
+it must leave room to *add* two in-range amounts without leaving `int64`:
+`MAX_MONEY ≤ INT64_MAX / 4` is asserted at compile time. A bound near `INT64_MAX`
+would make two individually valid amounts unsummable, and every accumulator that
+range-checks after adding would then overflow before its own check could reject.
+Accumulators MUST therefore check with `AddMoneyOverflows(running, addend)`
+*before* adding, never `running += addend; if (!MoneyRange(running))`.
+
+**Failure condition:** `nValue < 0` or `nValue > MAX_MONEY` (and the same for
+input sums / accumulators). Observational `S_ORU < 0` is not a consensus reason.
 
 ---
 
@@ -303,14 +321,19 @@ within RFC-014 probability law).
 **Purpose:** Define which convergence candidates participate in the draw and which
 may be selected.
 
-Let `F` be the finite set of mint-classified candidate transaction identities in
-the block. For each candidate `i` with weight `f_i ≥ 1`:
+Let `F` be the finite set of convergence-ticket transaction identities in the
+sliding window of `CONVERGENCE_DRAW_WINDOW` blocks ending at the parent
+(SECURITY-001-A9-C). Height `h` pays the set committed by block `h-1`
+(SECURITY-001-A8 / Sigma-PoW-01). For each candidate `i` with weight `f_i ≥ 1`:
 
 ```
-bind_commit = Hash256(B_{h-k} ‖ LE32(target_prev))
-σ_i       = Hash256(txid_i ‖ C ‖ bind_commit ‖ LE32(h+1))    // 100 bytes exact
-H_i       = uint256 interpretation of σ_i
+σ_i = Hash256(txid_i ‖ C ‖ B_{h-1} ‖ LE32(h))    // 100 bytes exact
+H_i = uint256 interpretation of σ_i
 ```
+
+Slot `[64..95]` is the **parent block hash** verbatim. Historical Sigma-CR-01
+`bind_commit = Hash256(B_{h-k} ‖ LE32(target_prev))` with `k = 10` is
+**superseded** and MUST NOT be used.
 
 **Eligibility predicate:**
 
@@ -324,7 +347,8 @@ where `RES_PROBABILITY_TARGET` is the RFC-017 shipping windowed constant
 (cross-multiplication permitted; floating-point forbidden).
 
 **Failure condition:** Eligibility evaluated with `|F| < 1` as sufficient; `f_i < 1`;
-σ preimage length ≠ 100 bytes; incorrect `bind_commit` or height slot; or
+σ preimage length ≠ 100 bytes; σ uses `bind_commit` / `target_prev` / wrong height
+slot; reconstructed `C` differs from the parent coinbase commitment; or
 inequality uses any source other than `RES_PROBABILITY_TARGET` for the RHS.
 
 ---
@@ -376,13 +400,15 @@ used a constant 100 RES.
 
 **Purpose:** RES supply MUST not exceed the constitutional maximum.
 
-**Failure condition:**
+Authority is the compile-time identity
+`RES_REWARD_EPOCH * ResScheduleSum() ≤ RES_MAX_SUPPLY` together with at most
+one mint per block of size `GetResMintReward(h)`. ConnectBlock does **not**
+maintain a running `S_RES` reject (`bad-rigor-res-max-supply` was removed).
+Observational mint totals are not consensus predicates.
 
-```
-S_RES(h+1) > RES_MAX_SUPPLY
-```
-
-or mint attempted when `S_RES(h) = RES_MAX_SUPPLY`.
+**Failure condition:** A block mints more than one `OP_RES_MINT`, mints an
+amount other than `GetResMintReward(h)`, or mints when `GetResMintReward(h) = 0`.
+A reachable chain cannot approach `RES_MAX_SUPPLY` under those local rules.
 
 ---
 
@@ -392,8 +418,8 @@ or mint attempted when `S_RES(h) = RES_MAX_SUPPLY`.
 
 **Failure condition:** Any draw eligibility or winner predicate uses `nBits`, ASERT
 output, tip target, time, or any header-derived quantity as the inequality RHS
-in place of `RES_PROBABILITY_TARGET`. PoW-derived `target_prev` is permitted
-**only** inside `bind_commit` for replay-domain separation.
+in place of `RES_PROBABILITY_TARGET`. Parent `nBits` is **not** a σ input
+(Sigma-PoW-01). Historical `target_prev` inside `bind_commit` is superseded.
 
 ---
 

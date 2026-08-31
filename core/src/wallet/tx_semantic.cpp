@@ -8,24 +8,12 @@
 #include <consensus/convergenceres.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/statetag.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 
 namespace wallet {
 
 namespace {
-
-bool TxHasResClaimOutput(const CTransaction& tx)
-{
-    for (const CTxOut& out : tx.vout) {
-        std::vector<unsigned char> program;
-        int witness_version = 1;
-        if (!out.scriptPubKey.IsWitnessProgram(witness_version, program)) continue;
-        if (program.size() != WITNESS_V1_RES2_CLAIM_PROGRAM_SIZE) continue;
-        return true;
-    }
-    return false;
-}
 
 bool BuildWalletInputView(const CWallet& wallet, const CWalletTx& wtx, CCoinsViewCache& inputs)
 {
@@ -88,7 +76,7 @@ TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache&
         return TxSemanticKind::ResMint;
     }
     if (Consensus::IsRESSpendTx(tx, inputs)) {
-        return TxHasResClaimOutput(tx) ? TxSemanticKind::ResClaim : TxSemanticKind::ResTransfer;
+        return TxSemanticKind::ResTransfer;
     }
     if (Consensus::IsORUTransferTx(tx, inputs)) {
         return TxSemanticKind::OruTransfer;
@@ -140,7 +128,6 @@ std::string TxSemanticCanonicalLabel(TxSemanticKind kind)
     case TxSemanticKind::OruConvergence: return "ORU Convergence";
     case TxSemanticKind::ResTransfer: return "RES Transfer";
     case TxSemanticKind::ResMint: return "RES Mint";
-    case TxSemanticKind::ResClaim: return "RES Claim";
     case TxSemanticKind::MixedInputDomain: return "Unexpected Mixed ORU/RES";
     case TxSemanticKind::Unknown: return "Unknown";
     }
@@ -155,7 +142,6 @@ std::string TxSemanticRpcId(TxSemanticKind kind)
     case TxSemanticKind::OruConvergence: return "oru_convergence";
     case TxSemanticKind::ResTransfer: return "res_transfer";
     case TxSemanticKind::ResMint: return "res_mint";
-    case TxSemanticKind::ResClaim: return "res_claim";
     case TxSemanticKind::MixedInputDomain: return "mixed_input_domain";
     case TxSemanticKind::Unknown: return "unknown";
     }

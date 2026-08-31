@@ -6,6 +6,9 @@
 
 #include <base58.h>
 #include <bech32.h>
+#include <crypto/ed25519_provider.h>
+#include <primitives/transaction.h>
+#include <script/predicate_verify.h>
 #include <util/strencodings.h>
 
 #include <algorithm>
@@ -13,6 +16,19 @@
 #include <string.h>
 
 namespace {
+/**
+ * TASK-010 R-2: an address is the one place a v1 RES program is chosen by a human,
+ * so it is where the Ed25519 curve check belongs. Consensus classification stays a
+ * pure byte predicate (see IsRigorResNativeWitnessProgram); refusing to encode or
+ * decode a program that is not a public key means nobody can be handed an address
+ * whose coins would be unspendable, without making the curve a classification rule.
+ */
+bool IsSpendableResProgram(Span<const unsigned char> program)
+{
+    const std::vector<unsigned char> bytes(program.begin(), program.end());
+    return IsRigorResNativeWitnessProgram(bytes) && ed25519::IsCanonicalOnCurvePubkey(program);
+}
+
 class DestinationEncoder
 {
 private:
@@ -39,16 +55,16 @@ public:
         return bech32::Encode(bech32::Encoding::BECH32, m_params.Bech32HRP(), data);
     }
 
-    std::string operator()(const WitnessV0ScriptHash& id) const
+    std::string operator()(const WitnessV0ScriptHash&) const
     {
-        std::vector<unsigned char> data = {0};
-        data.reserve(53);
-        ConvertBits<8, 5, true>([&](unsigned char c) { data.push_back(c); }, id.begin(), id.end());
-        return bech32::Encode(bech32::Encoding::BECH32, m_params.Bech32HRP(), data);
+        return {};
     }
 
     std::string operator()(const WitnessV1Res& tap) const
     {
+        if (!IsSpendableResProgram(Span{tap.data(), tap.size()})) {
+            return {};
+        }
         std::vector<unsigned char> data = {1};
         data.reserve(53);
         ConvertBits<8, 5, true>([&](unsigned char c) { data.push_back(c); }, tap.begin(), tap.end());
@@ -109,31 +125,23 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
                         return keyid;
                     }
                 }
-                {
-                    WitnessV0ScriptHash scriptid;
-                    if (data.size() == scriptid.size()) {
-                        std::copy(data.begin(), data.end(), scriptid.begin());
-                        return scriptid;
-                    }
-                }
-
-                error_str = "Invalid Bech32 v0 address data size";
+                error_str = "Invalid Bech32 v0 address: RIGOR only permits P2WPKH (20-byte program)";
                 return CNoDestination();
             }
 
             if (version == 1 && data.size() == WITNESS_V1_RES_SIZE) {
+                if (!IsRigorResNativeWitnessProgram(data)) {
+                    error_str = "Invalid Bech32m v1 address: not a native RES program";
+                    return CNoDestination();
+                }
+                if (!ed25519::IsCanonicalOnCurvePubkey(data)) {
+                    error_str = "Invalid Bech32m v1 address: program is not a canonical Ed25519 public key, so its coins would be unspendable";
+                    return CNoDestination();
+                }
                 static_assert(WITNESS_V1_RES_SIZE == WitnessV1Res::size());
                 WitnessV1Res tap;
                 std::copy(data.begin(), data.end(), tap.begin());
                 return tap;
-            }
-
-            if (version == 1 && data.size() == WITNESS_V1_RES2_CLAIM_PROGRAM_SIZE) {
-                WitnessUnknown unk;
-                unk.version = 1;
-                unk.length = static_cast<unsigned int>(data.size());
-                std::copy(data.begin(), data.end(), unk.program);
-                return unk;
             }
 
             if (version != 1) {
@@ -259,18 +267,18 @@ bool IsValidDestinationString(const std::string& str)
 }
 
 /**
- * RFC-WALLET-002: RG1P/RG1Q address distinction for asset type detection.
- * RG1P (Witness V0) → ORU asset
- * RG1Q (Witness V1) → RES asset
+ * Address strings encode a scriptPubKey. Asset class is
+ * AssetTypeFromScriptPubKey of that script — never witness version or HRP.
  */
 
 std::optional<AssetType> GetAssetTypeFromDestination(const CTxDestination& dest)
 {
-    if (std::holds_alternative<WitnessV0KeyHash>(dest)) {
-        return ASSET_ORU;
+    if (!IsValidDestination(dest)) {
+        return std::nullopt;
     }
-    if (std::holds_alternative<WitnessV1Res>(dest)) {
-        return ASSET_RES;
+    const AssetType asset = AssetTypeFromScriptPubKey(GetScriptForDestination(dest));
+    if (asset == ASSET_ORU || asset == ASSET_RES) {
+        return asset;
     }
     return std::nullopt;
 }
@@ -278,9 +286,5 @@ std::optional<AssetType> GetAssetTypeFromDestination(const CTxDestination& dest)
 std::optional<AssetType> GetAssetTypeFromAddress(const std::string& str, const CChainParams& params)
 {
     std::string error_msg;
-    CTxDestination dest = DecodeDestination(str, params, error_msg, nullptr);
-    if (!IsValidDestination(dest)) {
-        return std::nullopt;
-    }
-    return GetAssetTypeFromDestination(dest);
+    return GetAssetTypeFromDestination(DecodeDestination(str, params, error_msg, nullptr));
 }

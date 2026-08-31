@@ -81,8 +81,8 @@ RIGOR uses **Proof-of-Work (PoW)** for block production and fork choice.
 
 The specification requires:
 
-- Valid blocks MUST satisfy `Hash256(header) < ExpandCompact(nBits)` on the active parent context
-- Difficulty adjustment MUST follow the frozen **ASERT** rule set
+- Valid blocks MUST satisfy `OpuHash(SHA256d(header)) < ExpandCompact(nBits)` on the active parent context
+- Difficulty adjustment MUST follow the frozen **ASERT** rule set (parent timestamp, height-1 anchor, ±12.5% per-block clamp)
 - Cumulative **chainwork** MUST increase strictly along the active chain
 - PoW difficulty MUST NOT define the RES convergence inequality right-hand side (RFC-014)
 
@@ -164,14 +164,22 @@ permitted as a consensus truth source.
 ### 2.5 ORU (asset domain)
 
 Within the asset domain, **ORU** denotes outputs and flows classified by script
-as the operational base asset. ORU supply at height `h` evolves as:
+as the operational base asset. **Spendable ORU is the UTXO projection** classified
+as `ASSET_ORU`. An observational issued-minus-converge scalar is not a consensus
+predicate.
 
-```
-S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
-```
+Per-block circulation changes:
 
-where `R(h)` is block subsidy and `C(h)` is ORU destroyed by valid Converge
-transactions in block `h`.
+- `+ R(h+1)` coinbase subsidy (claimable)
+- `+` claimable body ORU fees (all ORU fees minus the RFC-018 burn share)
+- `− C(h+1)` ORU destroyed by valid Converge outputs (not written to the UTXO set)
+- `−` RFC-018 burn share of RES-transfer ORU fees (unclaimable by coinbase)
+- `−` any unclaimed remainder of the coinbase ORU limit
+
+The historical recurrence `S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)` is an
+**observational issued-minus-converge identity**. It does **not** equal circulating
+UTXO ORU once RFC-018 burns or unclaimed coinbase occur. ConnectBlock MUST NOT
+reject a block by comparing those two figures.
 
 ### 2.6 RES (asset domain)
 

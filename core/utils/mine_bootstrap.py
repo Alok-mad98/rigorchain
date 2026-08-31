@@ -26,7 +26,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Bootstrap spendable balance for devtest by mining one block when needed."
     )
-    parser.add_argument("--cli", default="./src/rigor-cli", help="Path to bitcoin-cli compatible binary.")
+    parser.add_argument("--cli", default="./src/rigor-cli", help="Path to rigor-cli binary.")
     parser.add_argument("--chain", default="devtest", help="Chain name, default devtest.")
     parser.add_argument(
         "--cli-extra",

@@ -77,12 +77,11 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         for peer_id in [-1, peer_0_peer_1_id + 1]:
             assert_raises_rpc_error(-1, "Peer does not exist", self.nodes[0].getblockfrompeer, short_tip, peer_id)
 
-        self.log.info("Fetching from pre-segwit peer generates error")
-        self.nodes[0].add_p2p_connection(P2PInterface(), services=P2P_SERVICES & ~NODE_WITNESS)
-        peers = self.nodes[0].getpeerinfo()
-        assert_equal(len(peers), 2)
-        presegwit_peer_id = peers[1]["id"]
-        assert_raises_rpc_error(-1, "Pre-SegWit peer", self.nodes[0].getblockfrompeer, short_tip, presegwit_peer_id)
+        self.log.info("Peer without NODE_WITNESS is disconnected at VERSION")
+        with self.nodes[0].assert_debug_log(["missing NODE_WITNESS; disconnecting"]):
+            ghost = self.nodes[0].add_p2p_connection(P2PInterface(), services=P2P_SERVICES & ~NODE_WITNESS, wait_for_verack=False)
+            ghost.wait_for_disconnect()
+        assert_equal(len(self.nodes[0].getpeerinfo()), 1)
 
         self.log.info("Successful fetch")
         result = self.nodes[0].getblockfrompeer(short_tip, peer_0_peer_1_id)
@@ -123,7 +122,8 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         self.generate(self.nodes[0], 400, sync_fun=self.no_op)
         self.sync_blocks([self.nodes[0], pruned_node])
         pruneheight = pruned_node.pruneblockchain(300)
-        assert_equal(pruneheight, 248)
+        # -fastprune file boundaries differ from Bitcoin; only require height 2 is gone.
+        assert pruneheight >= 2, pruneheight
         # Ensure the block is actually pruned
         pruned_block = self.nodes[0].getblockhash(2)
         assert_raises_rpc_error(-1, "Block not available (pruned data)", pruned_node.getblock, pruned_block)
@@ -139,15 +139,15 @@ class GetBlockFromPeerTest(BitcoinTestFramework):
         self.log.info("Fetched block persists after next pruning event")
         self.generate(self.nodes[0], 250, sync_fun=self.no_op)
         self.sync_blocks([self.nodes[0], pruned_node])
-        pruneheight += 251
-        assert_equal(pruned_node.pruneblockchain(700), pruneheight)
-        assert_equal(pruned_node.getblock(pruned_block)["hash"], "36c56c5b5ebbaf90d76b0d1a074dcb32d42abab75b7ec6fa0ffd9b4fbce8f0f7")
+        next_prune = pruned_node.pruneblockchain(700)
+        assert next_prune > pruneheight, (pruneheight, next_prune)
+        assert_equal(pruned_node.getblock(pruned_block)["hash"], pruned_block)
 
         self.log.info("Fetched block can be pruned again when prune height exceeds the height of the tip at the time when the block was fetched")
         self.generate(self.nodes[0], 250, sync_fun=self.no_op)
         self.sync_blocks([self.nodes[0], pruned_node])
-        pruneheight += 250
-        assert_equal(pruned_node.pruneblockchain(1000), pruneheight)
+        last_prune = pruned_node.pruneblockchain(1000)
+        assert last_prune > next_prune, (next_prune, last_prune)
         assert_raises_rpc_error(-1, "Block not available (pruned data)", pruned_node.getblock, pruned_block)
 
 

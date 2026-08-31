@@ -1,0 +1,17 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-GOVERNANCE-CLOSURE-P0-060",
+  "issuance_authority": "GetBlockSubsidy",
+  "res_authority": "GetResMintReward",
+  "supply_authority": "RigorSupplyDelta",
+  "draw_authority": "ResolveConvergenceDraw",
+  "classify_authority": "ClassifyRigorTxout",
+  "spend_authority": "VerifyRigorPredicate",
+  "pack_authority": "ComputeRigorIssuance",
+  "asset_classify_authority": "ClassifyRigorAsset",
+  "refinement": true,
+  "equivalence": false,
+  "full_node_proven": false,
+  "bitcoin_correctness_proven": false,
+  "production_kernel_switched": false,
+  "note": "Kernel-boundary refinement (P056–P059). Not full-node equivalence. P053 finite-vector JSON stays refinement_proved=false."
+}

@@ -70,7 +70,7 @@ BOOST_FIXTURE_TEST_SUITE(state_snapshot_tests, BasicTestingSetup)
 namespace {
 
 //! Pre-genesis pre-image (STEP-0101 v2):
-//!   ASCII "RIGOR/STATE_HASH/v2" (19 bytes)
+//!   ASCII "RIGOR/STATE_HASH/v3" (19 bytes)
 //! || 4 zero bytes (height LE32 == 0)
 //! || 32 zero bytes (tip hash)
 //! || 32 zero bytes (UTXO MuHash slot — zero sentinel at pre-genesis)
@@ -84,10 +84,10 @@ namespace {
 //! vector above).
 //!
 constexpr unsigned char kExpectedRawSHA256d[32] = {
-    0xe1, 0x73, 0x14, 0x1c, 0x1e, 0xae, 0xb0, 0xb3,
-    0x8a, 0x69, 0xef, 0x8d, 0x82, 0x4f, 0x1a, 0x94,
-    0x40, 0xad, 0x4a, 0xa9, 0x80, 0x50, 0xb8, 0x99,
-    0x45, 0xc0, 0xd1, 0xa7, 0x40, 0xab, 0x3e, 0x10,
+    0xc8, 0x7b, 0xcb, 0x5d, 0xe5, 0xb1, 0x08, 0xba,
+    0x58, 0xa3, 0x92, 0x1e, 0xff, 0xd3, 0x82, 0x36,
+    0xc0, 0xc1, 0xbc, 0x07, 0x51, 0x59, 0x52, 0xf5,
+    0x19, 0xbd, 0x47, 0xfe, 0xcf, 0xfb, 0xd7, 0x36,
 };
 
 //! Independent reference SHA256d implementation that does NOT share
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(state_hash_pre_genesis_byte_vector)
     // state_snapshot.h. We construct it from raw byte primitives, NOT from
     // any helper that the production code also uses, so any divergence in
     // the production code's encoding will surface here.
-    static constexpr char kTag[] = "RIGOR/STATE_HASH/v2";
+    static constexpr char kTag[] = "RIGOR/STATE_HASH/v3";
     constexpr size_t kTagLen = sizeof(kTag) - 1; // exclude trailing NUL
     BOOST_REQUIRE_EQUAL(kTagLen, 19u);
 
@@ -173,20 +173,20 @@ std::vector<InMemEntry> MakeDeterministicEntries()
     std::vector<InMemEntry> entries;
 
     // Coin #1: not a coinbase, height 7, value 1000, simplest possible
-    // standard-shape scriptPubKey (single OP_TRUE).
+    // standard-shape scriptPubKey (single RIGOR_PUSH_1).
     {
         uint256 txid;
         std::memcpy(txid.begin(), "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", 32);
         COutPoint op{txid, 0};
         CScript spk;
-        spk << OP_TRUE;
+        spk << RIGOR_PUSH_1;
         CTxOut out{/*nValueIn=*/1000, std::move(spk)};
         Coin coin{std::move(out), /*nHeightIn=*/7, /*fCoinBaseIn=*/false};
         entries.push_back({op, std::move(coin)});
     }
 
     // Coin #2: coinbase, height 11, value 5000, slightly different script.
-    // NOTE: must NOT be OP_RETURN-prefixed: CCoinsViewCache::AddCoin
+    // NOTE: must NOT be RIGOR_MARKER_RETURN-prefixed: CCoinsViewCache::AddCoin
     // silently drops `coin.out.scriptPubKey.IsUnspendable()` outputs
     // (see coins.cpp), which would desync the production view from the
     // reference vector.
@@ -195,7 +195,7 @@ std::vector<InMemEntry> MakeDeterministicEntries()
         std::memcpy(txid.begin(), "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", 32);
         COutPoint op{txid, 3};
         CScript spk;
-        spk << OP_1 << std::vector<unsigned char>{0xAB, 0xCD};
+        spk << RIGOR_PUSH_1 << std::vector<unsigned char>{0xAB, 0xCD};
         CTxOut out{/*nValueIn=*/5000, std::move(spk)};
         Coin coin{std::move(out), /*nHeightIn=*/11, /*fCoinBaseIn=*/true};
         entries.push_back({op, std::move(coin)});
@@ -262,7 +262,7 @@ uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
     uint256 utxo_hash;
     muhash.Finalize(utxo_hash);
 
-    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v2"};
+    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v3"};
     HashWriter hw;
     hw.write(Span<const std::byte>{
         reinterpret_cast<const std::byte*>(kTag.data()),

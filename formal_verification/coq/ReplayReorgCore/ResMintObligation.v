@@ -2,8 +2,12 @@
     Coq P1: winner-must-mint obligation on [valid_block_connect], including H-1.
 
     Not modelled: PCORB parse, σ inequality, owner encoding, domain,
-    [ConnectEvaluateResMintTx]. [cm_draw_won] remains abstract — not the
+    [ConnectEvaluateCoinbaseResMint]. [cm_draw_won] remains abstract — not the
     Selection winner and not owner/PCORB ([OpaqueBoundary.v]).
+
+    F-2: [winner_must_mint] is NOT CI-033. It constrains the abstract flag
+    [cm_draw_won], not production mint authorization. Do not cite it as
+    "valid mint requires valid draw."
 
     Cap overshoot is an explicit reject ([valid_res_cap] on [valid_block_connect],
     [bad-rigor-res-max-supply]), fail-closed with winner-must-mint when [W(h) > 0]:
@@ -111,8 +115,9 @@ Proof.
   - apply valid_res_cap_no_mint; [exact Hn | exact Hcap].
 Qed.
 
-(** If [W(h) > 0] and a winner exists, a connected block must record exactly
-    one scored mint. *)
+(** If [W(h) > 0] and the *abstract* [cm_draw_won] flag is set, a connected
+    block must record exactly one scored mint. F-2: this is not CI-033 and
+    not [ConnectEvaluateCoinbaseResMint]. *)
 Theorem winner_must_mint :
   forall (s : ReplayState) (b : BlockAbs),
     valid_block_connect s b = true ->

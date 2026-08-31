@@ -43,11 +43,12 @@ Proof. intros k. destruct k; reflexivity. Qed.
 Lemma asset_eqb_eq : forall a b, asset_eqb a b = true -> a = b.
 Proof. intros a b H. destruct a, b; simpl in H; try discriminate; reflexivity. Qed.
 
-(** * AssetCVG pooling (W3)
+(** * Retired OP_CVG_CLAIM scripts (W3 design study)
 
-    CVG outputs are not RES and not ORU. Convergence therefore cannot create
-    RES. A covenant spend that passes [valid_cvg_covenant_spend] creates no
-    CVG. Ticket value is absent from [sum_asset AssetORU]. *)
+    C++ has no such template. The classifier maps them to [AssetInvalid],
+    not a live pooling class. [count_cvg] still recognizes the byte shape
+    for design-study lemmas. There is no [AssetCVG] constructor (TASK-010 R-9).
+    Convergence therefore cannot create RES. *)
 
 Lemma count_cvg_zero_of_negb :
   forall os : list TxOut,

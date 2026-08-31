@@ -10,7 +10,7 @@
 #include <consensus/rigor_math.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
-#include <consensus/res_mint_carrier.h>
+#include <test/util/pcorb_carrier.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
 #include <consensus/rigor_res.h>
@@ -21,7 +21,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <span.h>
 #include <test/util/setup_common.h>
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_body_tx)
     mtx.vin[0].prevout.hash = uint256::ONE;
     mtx.vout.resize(1);
     mtx.vout[0].nValue = 50 * COIN;
-    mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
 
     Consensus::ConvergeProof p;
     FillProofContext(p, uint256::ONE, COIN, uint256::ONE, 1u, 0x1f00ffff);
@@ -265,7 +265,7 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_leftover_witness)
     mtx.vin[0].prevout.n = 0;
     mtx.vout.resize(1);
     mtx.vout[0].nValue = 1;
-    mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
 
     mtx.vin[0].scriptWitness.stack.emplace_back(32, 0);
     mtx.vin[0].scriptWitness.stack.emplace_back(8, 0);
@@ -283,7 +283,7 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_accepts_coinbase_carrier)
     mtx.vin.resize(1);
     mtx.vin[0].prevout.SetNull();
     mtx.vin[0].scriptSig = CScript() << 1;
-    mtx.vout.emplace_back(50 * COIN, CScript() << OP_0 << std::vector<unsigned char>(20, 0x11));
+    mtx.vout.emplace_back(50 * COIN, CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11));
 
     const uint256 bind = uint256S("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
     const uint32_t height = 3;
@@ -319,19 +319,19 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_rejects_bad_payload)
     std::vector<unsigned char> payload(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
     std::copy(RigorTags::PCOR.begin(), RigorTags::PCOR.end(), payload.begin());
     payload.resize(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES - 1);
-    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_MARKER_RETURN << payload;
     Consensus::ConvergeProof p1;
     BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
 
     payload.assign(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
     payload[0] = 'X';
-    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_MARKER_RETURN << payload;
     BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
 
     mtx.vout[0].nValue = 1;
     payload.assign(RigorTags::PCORB_OPRETURN_PAYLOAD_BYTES, 0);
     std::copy(RigorTags::PCOR.begin(), RigorTags::PCOR.end(), payload.begin());
-    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << payload;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_MARKER_RETURN << payload;
     BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
 }
 
@@ -358,7 +358,7 @@ BOOST_AUTO_TEST_CASE(res_proof_parse_empty_coinbase)
     mtx.vin[0].scriptSig = CScript() << 1;
     mtx.vout.resize(1);
     mtx.vout[0].nValue = 1;
-    mtx.vout[0].scriptPubKey = CScript() << OP_TRUE;
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
 
     Consensus::ConvergeProof p1;
     BOOST_CHECK(!Consensus::ParseConvergeProof(CTransaction(mtx), p1));
@@ -472,13 +472,13 @@ BOOST_AUTO_TEST_CASE(security001a_eligibility_filter_is_not_vacuous)
 // =============================================================================
 namespace {
 
-const CScript g_sec001a_oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
+const CScript g_sec001a_oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
 /** The declared RES owner's 32-byte program. */
 const std::vector<unsigned char> g_sec001a_owner_program(32, 0x77);
 
 CScript HonestMintPayoutScript(int block_height)
 {
-    return GetResMintScriptForProgram(
+    return GetResMintScriptForPubKey(
         static_cast<int64_t>(block_height) + Params().GetConsensus().nCoinbaseMaturity,
         g_sec001a_owner_program);
 }
@@ -522,7 +522,7 @@ struct Security001AFixture {
         conv.vin[0].prevout = prev_conv;
         conv.vout.resize(2);
         conv.vout[0].nValue = convergence_amount;
-        conv.vout[0].scriptPubKey = GetConvergeScriptForProgram(g_sec001a_owner_program);
+        conv.vout[0].scriptPubKey = GetConvergeScriptForPubKey(g_sec001a_owner_program);
         conv.vout[1].nValue = COIN;
         conv.vout[1].scriptPubKey = g_sec001a_oru_spk;
         convergence_tx = MakeTransactionRef(conv);
@@ -539,7 +539,7 @@ struct Security001AFixture {
 
     uint256 ConvergenceRoot() const { return parent_draw_set.convergence_root; }
 
-    /** Build a coinbase whose OP_RES_MINT output pays `res_payout_spk`. */
+    /** Build a coinbase whose RIGOR_MARKER_RES_MINT output pays `res_payout_spk`. */
     CTransactionRef MakeMintTx(CAmount res_amount = Consensus::RES_REWARD_GENESIS)
     {
         CMutableTransaction mint;
@@ -644,7 +644,7 @@ BOOST_AUTO_TEST_CASE(security001a_res_reward_must_pay_declared_owner)
     // itself. This is that block, end to end through the evaluator.
     Security001AFixture f;
 
-    f.res_payout_spk = GetResMintScriptForProgram(
+    f.res_payout_spk = GetResMintScriptForPubKey(
         static_cast<int64_t>(f.block_height) + Params().GetConsensus().nCoinbaseMaturity,
         std::vector<unsigned char>(32, 0xbb));
     BOOST_CHECK_EQUAL(f.Evaluate(), "bad-rigor-res-owner-mismatch");
@@ -689,8 +689,22 @@ BOOST_AUTO_TEST_CASE(coinbase_two_mint_payouts_rejected)
 {
     Security001AFixture f;
     CMutableTransaction mint(*f.MakeMintTx());
-    mint.vout.push_back(mint.vout[1]); // second OP_RES_MINT
+    mint.vout.push_back(mint.vout[1]); // second RIGOR_MARKER_RES_MINT
     BOOST_CHECK_EQUAL(f.EvaluateTx(CTransaction(mint)), "bad-rigor-res-amount");
+}
+
+/** Evaluator non-claim: omitting RIGOR_MARKER_RES_MINT is allowed here.
+ *  ConnectBlock winner-must-mint is `bad-rigor-res-winner-mismatch`
+ *  (`feature_rigor_convergence_rng_consensus.py`). Coq `winner_must_mint`
+ *  is not CI-033. */
+BOOST_AUTO_TEST_CASE(mint_auth_omit_is_not_evaluator_gate)
+{
+    Security001AFixture f;
+    CMutableTransaction mint(*f.MakeMintTx());
+    mint.vout.erase(mint.vout.begin() + 1);
+    bool ok{false};
+    BOOST_CHECK_EQUAL(f.EvaluateTx(CTransaction(mint), &ok), "");
+    BOOST_CHECK(ok);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

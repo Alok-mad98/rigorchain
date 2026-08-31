@@ -57,7 +57,7 @@
 const int64_t nStartupTime = GetTime();
 
 const char * const RIGOR_CONF_FILENAME = "rigor.conf";
-const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf"; // legacy fallback only
+static const char * const BITCOIN_CONF_FILENAME = "bitcoin.conf";
 const char * const BITCOIN_SETTINGS_FILENAME = "settings.json";
 
 ArgsManager gArgs;
@@ -250,7 +250,7 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
         if (key.substr(0, 5) == "-psn_") continue;
 #endif
 
-        if (key == "-") break; //bitcoin-tx using stdin
+        if (key == "-") break; // rigor-tx using stdin
         std::optional<std::string> val;
         size_t is_index = key.find('=');
         if (is_index != std::string::npos) {
@@ -896,15 +896,7 @@ fs::path ArgsManager::GetConfigFilePath() const
     if (IsArgSet("-conf")) {
         return GetConfigFile(*this, GetPathArg("-conf"));
     }
-    const fs::path rigor_conf = GetConfigFile(*this, fs::PathFromString(RIGOR_CONF_FILENAME));
-    if (fs::exists(rigor_conf)) {
-        return rigor_conf;
-    }
-    const fs::path bitcoin_conf = GetConfigFile(*this, fs::PathFromString(BITCOIN_CONF_FILENAME));
-    if (fs::exists(bitcoin_conf)) {
-        return bitcoin_conf;
-    }
-    return rigor_conf;
+    return GetConfigFile(*this, fs::PathFromString(RIGOR_CONF_FILENAME));
 }
 
 bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
@@ -913,6 +905,15 @@ bool ArgsManager::ReadConfigFiles(std::string& error, bool ignore_invalid_keys)
         LOCK(cs_args);
         m_settings.ro_config.clear();
         m_config_sections.clear();
+    }
+
+    if (!IsArgSet("-conf")) {
+        const fs::path bitcoin_conf = GetConfigFile(*this, fs::PathFromString(BITCOIN_CONF_FILENAME));
+        if (fs::exists(bitcoin_conf)) {
+            error = strprintf("Found %s at %s. RIGOR reads %s only and will not fall back to bitcoin.conf. Rename the file or pass -conf=<file>.",
+                              BITCOIN_CONF_FILENAME, fs::PathToString(bitcoin_conf), RIGOR_CONF_FILENAME);
+            return false;
+        }
     }
 
     const auto conf_path{GetConfigFilePath()};
@@ -1011,29 +1012,25 @@ std::string ArgsManager::GetChainName() const
     };
 
     const bool fRegTest = get_net("-regtest");
-    const bool fSigNet  = get_net("-signet");
     const bool fTestNet = get_net("-testnet");
     const bool fDevTest = get_net("-devtest");
     const bool is_chain_arg_set = IsArgSet("-chain");
 
-    if ((int)is_chain_arg_set + (int)fRegTest + (int)fSigNet + (int)fTestNet + (int)fDevTest > 1) {
-        throw std::runtime_error("Invalid combination of -regtest, -signet, -testnet, -devtest and -chain. Can use at most one.");
+    if ((int)is_chain_arg_set + (int)fRegTest + (int)fTestNet + (int)fDevTest > 1) {
+        throw std::runtime_error("Invalid combination of -regtest, -testnet, -devtest and -chain. Can use at most one.");
     }
 #ifdef RIGOR_PRODUCTION_MAINNET
-    if (fRegTest || fSigNet || fTestNet || fDevTest) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+    if (fRegTest || fTestNet || fDevTest) {
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
     const std::string chain = GetArg("-chain", CBaseChainParams::MAIN);
     if (chain != CBaseChainParams::MAIN) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/signet/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
     return CBaseChainParams::MAIN;
 #else
     if (fRegTest)
         return CBaseChainParams::REGTEST;
-    if (fSigNet) {
-        return CBaseChainParams::SIGNET;
-    }
     if (fTestNet)
         return CBaseChainParams::TESTNET;
     if (fDevTest)

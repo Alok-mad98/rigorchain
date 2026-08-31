@@ -8,8 +8,8 @@
 #include <arith_uint256.h>
 #include <chain.h>
 #include <consensus/rigor_consensus_lock.h>
-#include <pow_opus.h>
 #include <primitives/block.h>
+#include <rigor_kernel/pow_digest.h>
 #include <sync.h>
 #include <uint256.h>
 #include <util/hasher.h>
@@ -30,10 +30,10 @@ using Consensus::ASERT_RATIO_UNIT_PPM;
 using Consensus::MAX_ADJUSTMENT_FACTOR_PPM;
 using Consensus::MIN_ADJUSTMENT_FACTOR_PPM;
 
-Mutex g_opus_pow_ok_mutex;
-std::unordered_map<uint256, uint32_t, BlockHasher> g_opus_pow_ok GUARDED_BY(g_opus_pow_ok_mutex);
-std::deque<uint256> g_opus_pow_ok_fifo GUARDED_BY(g_opus_pow_ok_mutex);
-constexpr size_t OPUS_POW_OK_CACHE_MAX = 8192;
+Mutex g_pow_ok_mutex;
+std::unordered_map<uint256, uint32_t, BlockHasher> g_pow_ok GUARDED_BY(g_pow_ok_mutex);
+std::deque<uint256> g_pow_ok_fifo GUARDED_BY(g_pow_ok_mutex);
+constexpr size_t POW_OK_CACHE_MAX = 8192;
 
 /** Q16.16 radix for aserti3-2d exponent (65536). */
 constexpr int64_t ASERT_RADIX = 65536;
@@ -401,7 +401,7 @@ bool PermittedDifficultyTransition(const Consensus::Params& params, int64_t heig
     return true;
 }
 
-bool CheckProofOfWork(uint256 header_hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Consensus::Params& params)
 {
     bool fNegative;
     bool fOverflow;
@@ -413,45 +413,44 @@ bool CheckProofOfWork(uint256 header_hash, unsigned int nBits, const Consensus::
         return false;
     }
 
+    const uint256 header_hash = block.GetHash();
+
     if (header_hash == params.hashGenesisBlock) {
         return true;
     }
 
     // Success cache: the same header is hashed in CheckHeadersPoW and again in
     // ContextualCheckBlockHeader. Failures are not cached (random junk must not
-    // evict honest entries).
+    // evict honest entries). Keying on the block id stays sound after SPEC-008:
+    // the id determines the 80 header bytes, and the digest is a function of
+    // exactly those bytes.
     {
-        LOCK(g_opus_pow_ok_mutex);
-        const auto it = g_opus_pow_ok.find(header_hash);
-        if (it != g_opus_pow_ok.end() && it->second == nBits) {
+        LOCK(g_pow_ok_mutex);
+        const auto it = g_pow_ok.find(header_hash);
+        if (it != g_pow_ok.end() && it->second == nBits) {
             return true;
         }
     }
 
-    const uint256 pow_hash = GetOpusHashFromBaseHash(header_hash);
+    const uint256 pow_hash = rigor_kernel::GetRigorPowHash(block);
 
     if (UintToArith256(pow_hash) > bnTarget) {
         return false;
     }
 
     {
-        LOCK(g_opus_pow_ok_mutex);
-        if (g_opus_pow_ok.size() >= OPUS_POW_OK_CACHE_MAX) {
-            g_opus_pow_ok.erase(g_opus_pow_ok_fifo.front());
-            g_opus_pow_ok_fifo.pop_front();
+        LOCK(g_pow_ok_mutex);
+        if (g_pow_ok.size() >= POW_OK_CACHE_MAX) {
+            g_pow_ok.erase(g_pow_ok_fifo.front());
+            g_pow_ok_fifo.pop_front();
         }
-        auto [it, inserted] = g_opus_pow_ok.emplace(header_hash, nBits);
+        auto [it, inserted] = g_pow_ok.emplace(header_hash, nBits);
         if (inserted) {
-            g_opus_pow_ok_fifo.push_back(header_hash);
+            g_pow_ok_fifo.push_back(header_hash);
         } else {
             it->second = nBits;
         }
     }
 
     return true;
-}
-
-bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Consensus::Params& params)
-{
-    return CheckProofOfWork(block.GetHash(), nBits, params);
 }

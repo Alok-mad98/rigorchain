@@ -1,0 +1,458 @@
+[
+  {
+    "exec": "./rigor-util",
+    "args": [
+      "foo"
+    ],
+    "return_code": 1,
+    "error_txt": "Error parsing command line arguments: Invalid command 'foo'",
+    "description": ""
+  },
+  {
+    "exec": "./rigor-util",
+    "args": [
+      "help"
+    ],
+    "return_code": 1,
+    "error_txt": "Error parsing command line arguments: Invalid command 'help'",
+    "description": "`help` raises an error. Use `-help`"
+  },
+  {
+    "exec": "./rigor-util",
+    "args": [
+      "grind"
+    ],
+    "return_code": 1,
+    "error_txt": "Must specify block header to grind",
+    "description": ""
+  },
+  {
+    "exec": "./rigor-util",
+    "args": [
+      "grind",
+      "1",
+      "2"
+    ],
+    "return_code": 1,
+    "error_txt": "Must specify block header to grind",
+    "description": ""
+  },
+  {
+    "exec": "./rigor-util",
+    "args": [
+      "grind",
+      "aa"
+    ],
+    "return_code": 1,
+    "error_txt": "Could not decode block header",
+    "description": ""
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "nversion=1"
+    ],
+    "output_cmp": "blanktxv1.hex",
+    "description": "Creates a blank v1 transaction"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-create",
+      "nversion=1"
+    ],
+    "output_cmp": "blanktxv1.json",
+    "description": "Creates a blank v1 transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-"
+    ],
+    "input": "blanktxv2.hex",
+    "output_cmp": "blanktxv2.hex",
+    "description": "Creates a blank transaction when nothing is piped into rigor-tx"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-create"
+    ],
+    "output_cmp": "blanktxv2.json",
+    "description": "Creates a blank transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-"
+    ],
+    "input": "blanktxv2.hex",
+    "output_cmp": "blanktxv2.json",
+    "description": "Creates a blank transaction when nothing is piped into rigor-tx (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "nversion=1foo"
+    ],
+    "return_code": 1,
+    "error_txt": "error: Invalid TX version requested",
+    "description": "Tests the check for invalid nversion value"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delin=1"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-delin1-out.hex",
+    "description": "Deletes a single input from a transaction"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-",
+      "delin=1"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-delin1-out.json",
+    "description": "Deletes a single input from a transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delin=31"
+    ],
+    "input": "tx394b54bb.hex",
+    "return_code": 1,
+    "error_txt": "error: Invalid TX input index '31'",
+    "description": "Attempts to delete an input with a bad index from a transaction. Expected to fail."
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delin=1foo"
+    ],
+    "input": "tx394b54bb.hex",
+    "return_code": 1,
+    "error_txt": "error: Invalid TX input index",
+    "description": "Tests the check for an invalid input index with delin"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delout=1"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-delout1-out.hex",
+    "description": "Deletes a single output from a transaction"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-",
+      "delout=1"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-delout1-out.json",
+    "description": "Deletes a single output from a transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delout=2"
+    ],
+    "input": "tx394b54bb.hex",
+    "return_code": 1,
+    "error_txt": "error: Invalid TX output index '2'",
+    "description": "Attempts to delete an output with a bad index from a transaction. Expected to fail."
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "delout=1foo"
+    ],
+    "input": "tx394b54bb.hex",
+    "return_code": 1,
+    "error_txt": "error: Invalid TX output index",
+    "description": "Tests the check for an invalid output index with delout"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-",
+      "locktime=317000"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-locktime317000-out.hex",
+    "description": "Adds an nlocktime to a transaction"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "-",
+      "locktime=317000"
+    ],
+    "input": "tx394b54bb.hex",
+    "output_cmp": "tt-locktime317000-out.json",
+    "description": "Adds an nlocktime to a transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "locktime=317000foo"
+    ],
+    "return_code": 1,
+    "error_txt": "error: Invalid TX locktime requested",
+    "description": "Tests the check for invalid locktime value"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=Z897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX input txid",
+    "description": "Tests the check for an invalid txid invalid hex"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6:0"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX input txid",
+    "description": "Tests the check for an invalid txid valid hex but too short"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f12:0"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX input txid",
+    "description": "Tests the check for an invalid txid valid hex but too long"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0",
+      "replaceable=0foo"
+    ],
+    "return_code": 1,
+    "error_txt": "error: Invalid TX input index",
+    "description": "Tests the check for an invalid input index with replaceable"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0x"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX input vout",
+    "description": "Tests the check for an invalid vout value when adding an input"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "02000000000100000000000000000000000000"
+    ],
+    "output_cmp": "txcreate2.hex",
+    "description": "Parses a transaction with no inputs and a single output script"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "02000000000100000000000000000000000000"
+    ],
+    "output_cmp": "txcreate2.json",
+    "description": "Parses a transaction with no inputs and a single output script (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:123badscript"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: unknown opcode",
+    "description": "Create a new transaction with an invalid output script"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:999999999999999999999999999999"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: decimal numeric value only allowed in the range -0xFFFFFFFF...0xFFFFFFFF",
+    "description": "Try to parse an output script with a decimal number above the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:9999999999"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: decimal numeric value only allowed in the range -0xFFFFFFFF...0xFFFFFFFF",
+    "description": "Try to parse an output script with a decimal number above the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:4294967296"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: decimal numeric value only allowed in the range -0xFFFFFFFF...0xFFFFFFFF",
+    "description": "Try to parse an output script with a decimal number just above the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:-9999999999"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: decimal numeric value only allowed in the range -0xFFFFFFFF...0xFFFFFFFF",
+    "description": "Try to parse an output script with a decimal number below the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "outscript=0:-4294967296"
+    ],
+    "return_code": 1,
+    "error_txt": "error: script parse error: decimal numeric value only allowed in the range -0xFFFFFFFF...0xFFFFFFFF",
+    "description": "Try to parse an output script with a decimal number just below the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0",
+      "outdata=4:badhexdata"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX output data",
+    "description": "Attempts to create a new transaction with one input and an output with malformed hex data. Expected to fail"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0",
+      "outdata=badhexdata"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX output data",
+    "description": "Attempts to create a new transaction with one input and an output with no value and malformed hex data. Expected to fail"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0:11aa"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX sequence id '11aa'",
+    "description": "Try to parse a sequence number outside the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0:-1"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX sequence id '-1'",
+    "description": "Try to parse a sequence number outside the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-create",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0:4294967296"
+    ],
+    "return_code": 1,
+    "error_txt": "error: invalid TX sequence id '4294967296'",
+    "description": "Try to parse a sequence number outside the allowed range"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "01000000011f5c38dfcf6f1a5f5a87c416076d392c87e6d41970d5ad5e477a02d66bde97580000000000fdffffff0180a81201000000001976a9141fc11f39be1729bf973a7ab6a615ca4729d6457488ac00000000",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0:1"
+    ],
+    "output_cmp": "txcreatedata_seq1.hex",
+    "description": "Adds a new input with sequence number to a transaction"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": [
+      "-json",
+      "01000000011f5c38dfcf6f1a5f5a87c416076d392c87e6d41970d5ad5e477a02d66bde97580000000000fdffffff0180a81201000000001976a9141fc11f39be1729bf973a7ab6a615ca4729d6457488ac00000000",
+      "in=5897de6bd6027a475eadd57019d4e6872c396d0716c4875a5f1a6fcfdf385c1f:0:1"
+    ],
+    "output_cmp": "txcreatedata_seq1.json",
+    "description": "Adds a new input with sequence number to a transaction (output in json)"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": ["-create", "outaddr=1:1P8yWvZW8jVihP1bzHeqfE4aoXNX8AVa46"],
+    "return_code": 1,
+    "error_txt": "invalid TX output address",
+    "description": "P2PKH / Bitcoin-base58 outaddr is rejected"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": ["-create", "outpubkey=1:0378d430274f8c5ec1323388151fb6d894730dbc8d938d92bfb73ef6932881da37"],
+    "return_code": 1,
+    "error_txt": "outpubkey requires the W flag (P2WPKH); bare P2PK is not supported",
+    "description": "Bare P2PK outpubkey is rejected"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": ["-create", "outmultisig=1:2:2:0378d430274f8c5ec1323388151fb6d894730dbc8d938d92bfb73ef6932881da37:02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"],
+    "return_code": 1,
+    "error_txt": "unknown command",
+    "description": "outmultisig is not a rigor-tx command"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": ["-create", "outscript=0:"],
+    "return_code": 1,
+    "error_txt": "outscript is not a RIGOR lock or RIGOR_MARKER_RETURN",
+    "description": "Empty outscript is rejected"
+  },
+  {
+    "exec": "./rigor-tx",
+    "args": ["-create", "outscript=0:RIGOR_RESERVED_LEGACY_DROP"],
+    "return_code": 1,
+    "error_txt": "outscript is not a RIGOR lock or RIGOR_MARKER_RETURN",
+    "description": "Non-RIGOR outscript is rejected"
+  }
+]

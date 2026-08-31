@@ -82,7 +82,7 @@ static RPCHelpMan sendrawtransaction()
              "Reject transactions whose fee rate is higher than the specified value, expressed in " + CURRENCY_UNIT +
                  "/kvB.\nSet to 0 to accept any fee rate."},
             {"maxunspendable", RPCArg::Type::AMOUNT, RPCArg::Default{FormatMoney(0)},
-             "Reject transactions with provably unspendable outputs (e.g. 'datacarrier' outputs that use the OP_RETURN opcode) greater than the specified value, expressed in " + CURRENCY_UNIT + ".\n"
+             "Reject transactions with provably unspendable outputs (e.g. 'datacarrier' outputs that use the RIGOR_MARKER_RETURN opcode) greater than the specified value, expressed in " + CURRENCY_UNIT + ".\n"
              "If converging through unspendable outputs is desired, increase this value.\n"
              "This check is based on heuristics and does not guarantee spendability of outputs.\n"},
         },

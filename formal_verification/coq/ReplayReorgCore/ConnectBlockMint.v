@@ -1,7 +1,8 @@
 (** ReplayReorgCore/ConnectBlockMint.v
     ConnectBlock-aligned ORU/RES mint on [apply_supply_delta] (PHASE-4E).
 
-    Constants match [ConnectBlock.v] scaffold; replay path applies mint only here. *)
+    Constants match [ConnectBlock.v] schedule aliases; replay path applies mint only here.
+    F-1: not [legacy_account_model/ConnectBlockScaffold]. *)
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
 From Coq Require Import Arith.
@@ -105,7 +106,8 @@ Definition cb_oru_shift (height : nat) : Z :=
     merely unproven — it is false by design. What is provable, and what is proved in
     SupplyConservation.v, is the linear bound: n blocks add at most n subsidies. *)
 Definition cb_expected_oru_subsidy (height : nat) : Z :=
-  Z.shiftr cb_ORU_INITIAL_SUBSIDY (cb_oru_shift height).
+  if Nat.eqb height 0 then 0%Z
+  else Z.shiftr cb_ORU_INITIAL_SUBSIDY (cb_oru_shift height).
 
 (** Non-negative ORU subsidy clamp. *)
 Definition cb_oru_subsidy (spec : ConnectMintSpec) : Z :=
@@ -134,25 +136,33 @@ Proof.
   - replace 8%Z with (2 ^ 3)%Z by reflexivity. apply Z.pow_le_mono_r; lia.
 Qed.
 
+Lemma cb_expected_oru_subsidy_genesis_zero :
+  cb_expected_oru_subsidy 0%nat = 0%Z.
+Proof. reflexivity. Qed.
+
 Lemma cb_expected_oru_subsidy_pos :
-  forall h : nat, (0 < cb_expected_oru_subsidy h)%Z.
+  forall h : nat, h <> 0%nat -> (0 < cb_expected_oru_subsidy h)%Z.
 Proof.
-  intros h. unfold cb_expected_oru_subsidy, cb_ORU_INITIAL_SUBSIDY.
-  destruct (cb_oru_shift_bounds h) as [Hlo _].
-  destruct (cb_oru_divisor_bounds h) as [H1 H8].
-  rewrite Z.shiftr_div_pow2 by exact Hlo.
-  apply Z.div_str_pos. lia.
+  intros h Hnz. unfold cb_expected_oru_subsidy, cb_ORU_INITIAL_SUBSIDY.
+  destruct (Nat.eqb h 0) eqn:E.
+  - apply Nat.eqb_eq in E. contradiction.
+  - destruct (cb_oru_shift_bounds h) as [Hlo _].
+    destruct (cb_oru_divisor_bounds h) as [H1 H8].
+    rewrite Z.shiftr_div_pow2 by exact Hlo.
+    apply Z.div_str_pos. lia.
 Qed.
 
-(** No height ever pays more than the genesis-era subsidy. *)
+(** No height ever pays more than the h>=1 initial subsidy. *)
 Lemma cb_expected_oru_subsidy_le_initial :
   forall h : nat, (cb_expected_oru_subsidy h <= cb_ORU_INITIAL_SUBSIDY)%Z.
 Proof.
   intros h. unfold cb_expected_oru_subsidy, cb_ORU_INITIAL_SUBSIDY.
-  destruct (cb_oru_shift_bounds h) as [Hlo _].
-  destruct (cb_oru_divisor_bounds h) as [H1 _].
-  rewrite Z.shiftr_div_pow2 by exact Hlo.
-  apply Z.div_le_upper_bound; nia.
+  destruct (Nat.eqb h 0) eqn:E.
+  - lia.
+  - destruct (cb_oru_shift_bounds h) as [Hlo _].
+    destruct (cb_oru_divisor_bounds h) as [H1 _].
+    rewrite Z.shiftr_div_pow2 by exact Hlo.
+    apply Z.div_le_upper_bound; nia.
 Qed.
 
 (** Attempted RES mint for the ConnectBlock cap check.

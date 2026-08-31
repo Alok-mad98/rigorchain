@@ -5,7 +5,7 @@
 """Utilities for manipulating blocks and transactions.
 
 CTxOut serialization is Bitcoin-native (nValue + scriptPubKey). Asset domain
-(ORU vs RES) is implied by scriptPubKey (witness v1, 32-byte program = RES; OP_CONVERGE = ORU burn).
+(ORU vs RES) is implied by scriptPubKey via AssetTypeFromScriptPubKey (v0/20 = ORU; native v1/32 = RES; RIGOR_MARKER_CONVERGE = ORU burn).
 """
 
 import struct
@@ -19,6 +19,7 @@ from .address import (
     key_to_p2wpkh,
     script_to_p2sh_p2wsh,
     script_to_p2wsh,
+    test_coinbase_script_pubkey,
 )
 from .messages import (
     CBlock,
@@ -38,15 +39,13 @@ from .script import (
     CScript,
     CScriptNum,
     CScriptOp,
-    OP_0,
-    OP_1,
-    OP_16,
-    OP_CONVERGE,
-    OP_RETURN,
-    OP_TRUE,
+    RIGOR_PUSH_0,
+    RIGOR_PUSH_1,
+    RIGOR_PUSH_16,
+    RIGOR_MARKER_CONVERGE,
+    RIGOR_MARKER_RETURN,
 )
 from .script_util import (
-    key_to_p2pk_script,
     key_to_p2wpkh_script,
     keys_to_multisig_script,
     script_to_p2wsh_script,
@@ -74,6 +73,8 @@ REGTEST_SUBSIDY_MAX_HALVING_SHIFTS = 3
 
 def get_regtest_block_subsidy_sats(height):
     """Regtest block subsidy in satoshis (no fees), matching consensus GetBlockSubsidy."""
+    if height == 0:
+        return 0
     halvings = height // REGTEST_SUBSIDY_HALVING_INTERVAL
     halvings = min(halvings, REGTEST_SUBSIDY_MAX_HALVING_SHIFTS)
     return REGTEST_SUBSIDY_BASE_SATS >> halvings
@@ -88,11 +89,21 @@ WITNESS_COMMITMENT_HEADER = b"\xaa\x21\xa9\xed"
 
 NORMAL_GBT_REQUEST_PARAMS = {"rules": ["segwit"]}
 VERSIONBITS_LAST_OLD_BLOCK_VERSION = 4
-MIN_BLOCKS_TO_KEEP = 288
+# validation.h: MAX_SUPPORTED_REORG_DEPTH (288) + CONVERGENCE_DRAW_WINDOW (32).
+MAX_SUPPORTED_REORG_DEPTH = 288
+CONVERGENCE_DRAW_WINDOW = 32
+MIN_BLOCKS_TO_KEEP = MAX_SUPPORTED_REORG_DEPTH + CONVERGENCE_DRAW_WINDOW
+
+# Default destination for homemade coinbases. Anyone-can-spend is ASSET_INVALID on RIGOR,
+# so there is no implicit fallback: every coinbase has to name a real output script.
+DEFAULT_COINBASE_SCRIPT_PUBKEY = test_coinbase_script_pubkey()
 
 
-def create_block(hashprev=None, coinbase=None, ntime=None, *, version=None, tmpl=None, txlist=None, rpc_for_convergence_root=None):
-    """Create a block (with regtest difficulty)."""
+def create_block(hashprev=None, coinbase=None, ntime=None, *, version=None, tmpl=None, txlist=None, rpc_for_convergence_root=None, coinbase_script_pubkey=None):
+    """Create a block (with regtest difficulty).
+
+    Either pass a ready ``coinbase``, or pass ``coinbase_script_pubkey`` to have one built.
+    """
     block = CBlock()
     if tmpl is None:
         tmpl = {}
@@ -104,7 +115,10 @@ def create_block(hashprev=None, coinbase=None, ntime=None, *, version=None, tmpl
     else:
         block.nBits = 0x207fffff  # difficulty retargeting is disabled in REGTEST chainparams
     if coinbase is None:
-        coinbase = create_coinbase(height=tmpl['height'])
+        assert coinbase_script_pubkey is not None, (
+            "create_block needs either coinbase= or coinbase_script_pubkey="
+        )
+        coinbase = create_coinbase(height=tmpl['height'], script_pubkey=coinbase_script_pubkey)
     block.vtx.append(coinbase)
     if txlist:
         for tx in txlist:
@@ -122,7 +136,7 @@ def create_block(hashprev=None, coinbase=None, ntime=None, *, version=None, tmpl
 def get_witness_script(witness_root, witness_nonce):
     witness_commitment = uint256_from_str(hash256(ser_uint256(witness_root) + ser_uint256(witness_nonce)))
     output_data = WITNESS_COMMITMENT_HEADER + ser_uint256(witness_commitment)
-    return CScript([OP_RETURN, output_data])
+    return CScript([RIGOR_MARKER_RETURN, output_data])
 
 def add_witness_commitment(block, nonce=0):
     """Add a witness commitment to the block's coinbase transaction.
@@ -137,7 +151,7 @@ def add_witness_commitment(block, nonce=0):
     block.vtx[0].wit.vtxinwit = [CTxInWitness()]
     block.vtx[0].wit.vtxinwit[0].scriptWitness.stack = [ser_uint256(witness_nonce)]
 
-    # witness commitment is the last OP_RETURN output in coinbase
+    # witness commitment is the last RIGOR_MARKER_RETURN output in coinbase
     block.vtx[0].vout.append(CTxOut(0, get_witness_script(witness_root, witness_nonce)))
     block.vtx[0].rehash()
     block.hashMerkleRoot = block.calc_merkle_root()
@@ -145,13 +159,13 @@ def add_witness_commitment(block, nonce=0):
 
 
 def _is_converge_scriptpubkey(spk) -> bool:
-    """Canonical OP_CONVERGE: OP_PUSHBYTES_20 || 20-byte hash || OP_CONVERGE."""
+    """Canonical RIGOR_MARKER_CONVERGE: OP_PUSHBYTES_20 || 20-byte hash || RIGOR_MARKER_CONVERGE."""
     raw = bytes(spk)
-    return len(raw) == 22 and raw[0] == 0x14 and raw[21] == OP_CONVERGE
+    return len(raw) == 22 and raw[0] == 0x14 and raw[21] == RIGOR_MARKER_CONVERGE
 
 
 def _count_cvg2_positive_convergence_outputs(tx: CTransaction) -> int:
-    """Count positive-value OP_CONVERGE outputs."""
+    """Count positive-value RIGOR_MARKER_CONVERGE outputs."""
     count = 0
     for o in tx.vout:
         if o.nValue > 0 and _is_converge_scriptpubkey(o.scriptPubKey):
@@ -160,7 +174,7 @@ def _count_cvg2_positive_convergence_outputs(tx: CTransaction) -> int:
 
 
 def _get_cvg2_convergence_amount_sats(tx: CTransaction) -> int:
-    """Sum positive-value OP_CONVERGE output amounts."""
+    """Sum positive-value RIGOR_MARKER_CONVERGE output amounts."""
     total = 0
     for o in tx.vout:
         if not _is_converge_scriptpubkey(o.scriptPubKey):
@@ -197,7 +211,10 @@ def calc_convergence_root_bytes(vtx, *, rpc_node=None):
     structural = []
     for tx in vtx[1:]:
         tx.calc_sha256()
-        if _count_cvg2_positive_convergence_outputs(tx) != 1:
+        n_cvg = _count_cvg2_positive_convergence_outputs(tx)
+        if n_cvg == 0:
+            continue
+        if n_cvg != 1:
             raise ValueError("Block must have exactly one positive convergence output per convergence tx")
         if _get_cvg2_convergence_amount_sats(tx) < COIN:
             continue
@@ -208,7 +225,7 @@ def calc_convergence_root_bytes(vtx, *, rpc_node=None):
 
     if rpc_node is None:
         raise ValueError(
-            "calc_convergence_root_bytes: block has ≥2 structural convergence transactions (OP_CONVERGE); pass rpc_node=... "
+            "calc_convergence_root_bytes: block has ≥2 structural convergence transactions (RIGOR_MARKER_CONVERGE); pass rpc_node=... "
             "so fees can be checked against UTXO (matches consensus)."
         )
 
@@ -227,11 +244,14 @@ def calc_convergence_root_bytes(vtx, *, rpc_node=None):
     return hash256(payload)
 
 
-def coinbase_height_convergence_script(height, convergence_root_bytes):
+def coinbase_height_convergence_script(height, convergence_root_bytes, paid_winner_txid=None):
+    """Canonical coinbase scriptSig: BIP34 height ‖ 32-byte C ‖ 32-byte paid-winner txid (zeros if none)."""
     assert len(convergence_root_bytes) == 32
+    paid = b"\x00" * 32 if paid_winner_txid is None else paid_winner_txid
+    assert len(paid) == 32
     if height <= 16:
-        return CScript([CScriptOp.encode_op_n(height), convergence_root_bytes])
-    return CScript([CScriptNum(height), convergence_root_bytes])
+        return CScript([CScriptOp.encode_op_n(height), convergence_root_bytes, paid])
+    return CScript([CScriptNum(height), convergence_root_bytes, paid])
 
 
 def _scriptnum_pushdata_to_int(vch: bytes) -> int:
@@ -249,12 +269,12 @@ def _scriptnum_pushdata_to_int(vch: bytes) -> int:
 
 
 def infer_bip34_height_from_coinbase(cb):
-    """Recover BIP34 height from the first push of the coinbase scriptSig (Rigor: second push is convergence root)."""
+    """Recover BIP34 height from the first push of the coinbase scriptSig (Rigor: C then paid-winner txid follow)."""
     sig = CScript(cb.vin[0].scriptSig)
     opcode, data, _ = next(sig.raw_iter())
-    if opcode == OP_0:
+    if opcode == RIGOR_PUSH_0:
         return 0
-    if OP_1 <= opcode <= OP_16:
+    if RIGOR_PUSH_1 <= opcode <= RIGOR_PUSH_16:
         return CScriptOp(opcode).decode_op_n()
     if data is not None:
         # `CScript([CScriptNum(h), ...])` joins CScriptNum.encode(h) without an extra push wrapper, so
@@ -263,17 +283,19 @@ def infer_bip34_height_from_coinbase(cb):
     raise ValueError("cannot infer BIP34 height from coinbase scriptSig")
 
 
-def apply_coinbase_convergence_root(block, bip34_height, *, rpc_node=None, convergence_root=None):
-    """Set coinbase scriptSig to canonical height + 32-byte convergence-root commitment.
+def apply_coinbase_convergence_root(block, bip34_height, *, rpc_node=None, convergence_root=None, paid_winner_txid=None):
+    """Set coinbase scriptSig to canonical height + C + paid-winner txid (zeros if not supplied).
 
     Pass ``convergence_root`` (32 raw bytes, consensus memory order) to commit a root the node
     computed. Since SECURITY-001-A9-C, C spans the whole draw window, so a block whose window
     holds candidates buried in earlier blocks cannot have its root derived from ``block.vtx``:
     take ``getblocktemplate``'s ``convergence_root`` instead, reversed from its RPC hex.
+    ``paid_winner_txid`` is 32 raw bytes (memory order); GBT ``paid_winner_txid`` RPC hex must
+    be reversed the same way. Prefer copying ``default_coinbase_scriptsig`` when present.
     """
     fr = calc_convergence_root_bytes(block.vtx, rpc_node=rpc_node) if convergence_root is None else convergence_root
     assert len(fr) == 32
-    block.vtx[0].vin[0].scriptSig = coinbase_height_convergence_script(bip34_height, fr)
+    block.vtx[0].vin[0].scriptSig = coinbase_height_convergence_script(bip34_height, fr, paid_winner_txid)
     block.vtx[0].rehash()
 
 
@@ -281,11 +303,13 @@ def script_BIP34_coinbase_height(height):
     return coinbase_height_convergence_script(height, b"\x00" * 32)
 
 
-def create_coinbase(height, pubkey=None, *, script_pubkey=None, extra_output_script=None, fees=0, nValue=50):
+def create_coinbase(height, *, script_pubkey, extra_output_script=None, fees=0, nValue=50):
     """Create a coinbase transaction.
 
-    If pubkey is passed in, the coinbase output will be a P2PK output;
-    otherwise an anyone-can-spend output.
+    ``script_pubkey`` is mandatory: RIGOR has no anyone-can-spend output (that shape is
+    ASSET_INVALID) and no secp P2PK, so a default would only ever build a consensus-invalid
+    coinbase and surface far from the caller as ``bad-rigor-script-type``. Pass
+    ``DEFAULT_COINBASE_SCRIPT_PUBKEY`` when the destination does not matter.
 
     If extra_output_script is given, make a 0-value output to that
     script. This is useful to pad block weight/sigops as needed. """
@@ -296,12 +320,7 @@ def create_coinbase(height, pubkey=None, *, script_pubkey=None, extra_output_scr
     if nValue == 50:
         coinbaseoutput.nValue = get_regtest_block_subsidy_sats(height)
         coinbaseoutput.nValue += fees
-    if pubkey is not None:
-        coinbaseoutput.scriptPubKey = key_to_p2pk_script(pubkey)
-    elif script_pubkey is not None:
-        coinbaseoutput.scriptPubKey = script_pubkey
-    else:
-        coinbaseoutput.scriptPubKey = CScript([OP_TRUE])
+    coinbaseoutput.scriptPubKey = script_pubkey
     coinbase.vout = [coinbaseoutput]
     if extra_output_script is not None:
         coinbaseoutput2 = CTxOut()
@@ -390,6 +409,6 @@ def send_to_witness(use_p2wsh, node, utxo, pubkey, encode_p2sh, amount, sign=Tru
 class TestFrameworkBlockTools(unittest.TestCase):
     def test_create_coinbase(self):
         height = 20
-        coinbase_tx = create_coinbase(height=height)
-        # Rigor coinbase scriptSig is height + 32-byte convergence root, not BIP34 height alone.
+        coinbase_tx = create_coinbase(height=height, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY)
+        # Rigor coinbase scriptSig is height + C + paid-winner txid, not BIP34 height alone.
         assert_equal(infer_bip34_height_from_coinbase(coinbase_tx), height)

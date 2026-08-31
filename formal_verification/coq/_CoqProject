@@ -1,9 +1,15 @@
+# Protocol-core cone plus Phase-4F/4G/5 catalogs (full tree).
+# Citable theorems: formal_verification/coq/_CoqProject.protocol-core only (F-4).
+# Do not cite catalog module counts as load-bearing proofs.
 -R . Rigor
 -R fee-burn Rigor.FeeBurn
+-R ../rigor_v01 RigorV01
 
 RigorBytes.v
 RigorBytesOrder.v
 RigorSha256.v
+RigorKeccak.v
+PowDigest.v
 RigorHash.v
 legacy_account_model/Types.v
 ResSchedule.v
@@ -28,6 +34,7 @@ Kernel/KernelClosure.v
 Kernel/GoldenHarness.v
 Kernel/NegativeCoreHarness.v
 legacy_account_model/State.v
+legacy_account_model/ConnectBlockScaffold.v
 legacy_account_model/Transition.v
 Serialization.v
 Properties.v
@@ -63,6 +70,53 @@ ReplayReorgCore/ScriptShapeLift.v
 ReplayReorgCore/SupplyConservation.v
 ConnectBlock/ConnectBlockSupply.v
 ReplayReorgCore/SupplyReplayBridge.v
+../rigor_v01/AssetClassification.v
+../rigor_v01/ScriptAssetBoundary.v
+../rigor_v01/Ed25519Ownership.v
+../rigor_v01/SignatureDomainSeparation.v
+../rigor_v01/VectorAgreement.v
+../rigor_v01/ResMintCorrectness.v
+../rigor_v01/NoInterpreterConsensus.v
+../rigor_v01/AssetStateTransition.v
+../rigor_v01/RigorUpgradeNamespace.v
+../rigor_v01/RigorByteNamespace.v
+../rigor_v01/RigorOpcodeNamespace.v
+../rigor_v01/RigorPredicateRegistry.v
+../rigor_v01/RigorWalletOwnership.v
+../rigor_v01/RigorUpgradeBoundary.v
+../rigor_v01/NetworkCapabilityBoundary.v
+../rigor_v01/NetworkSecurityBoundary.v
+../rigor_v01/WindowGeneric.v
+../rigor_v01/WindowTarget.v
+../rigor_v01/WindowSpecialization.v
+../rigor_v01/W32ReorgStability.v
+../rigor_v01/MintSupplyConservation.v
+../rigor_v01/ConnectBlockSupply.v
+../rigor_v01/CanonicalMintEncoding.v
+../rigor_v01/ClassifierRefinementBoundary.v
+../rigor_v01/ClassifierGate.v
+../rigor_v01/ReorgIssuanceBound.v
+../rigor_v01/GenesisZeroIssuance.v
+../rigor_v01/IssuanceHeightBoundary.v
+../rigor_v01/CanonicalIssuance.v
+ConsensusKernelAlignment.v
+ConsensusKernelBridge.v
+SupplyDeltaBridge.v
+DrawResolverBridge.v
+ClassificationBridge.v
+CoinbaseLayoutBridge.v
+ConsensusKernelRefinement.v
+ConnectBlockInputPreparation.v
+KernelResultApplication.v
+ConnectBlockKernelBoundary.v
+SignatureBoundary.v
+TransactionKernelRefinement.v
+ConsensusSurfaceClosure.v
+LedgerTransitionRefinement.v
+UTXOStateTransitionRefinement.v
+../rigor_v01/AmountBoundary.v
+../rigor_v01/SighashByteCorrespondence.v
+../rigor_v01/SighashPreimage.v
 Phase4FConsensus/ConsensusMachine.v
 Phase4FConsensus/ConsensusTrace.v
 Phase4FConsensus/ConsensusDeterminism.v

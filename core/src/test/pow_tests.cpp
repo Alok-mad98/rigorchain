@@ -4,17 +4,26 @@
 
 #include <chain.h>
 #include <chainparams.h>
+#include <consensus/consensus.h>
 #include <consensus/convergenceres.h>
 #include <consensus/rigor_consensus_lock.h>
+#include <hash.h>
 #include <primitives/block.h>
 #include <pow.h>
-#include <pow_opus.h>
+#include <rigor_kernel/pow_digest.h>
 #include <arith_uint256.h>
+#include <streams.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
+#include <uint256.h>
+#include <version.h>
+#include <versionbits.h>
 
 #include <boost/test/unit_test.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <limits>
 #include <vector>
 
@@ -130,6 +139,192 @@ BOOST_AUTO_TEST_CASE(asert_late_launch_does_not_collapse_at_height1)
     child.nTime = genesis.nTime + 90 * 24 * 3600; // 90 days late
     const unsigned n1 = GetNextWorkRequired(&genesis, &child, consensus);
     BOOST_CHECK_EQUAL(n1, genesis.nBits);
+}
+
+// TASK-RIGOR-GENESIS-DIFFICULTY-STARTUP-TIME-AUDIT
+// Honest Genesis→height-1 delay is absorbed by the height-1 ASERT anchor.
+// Production consensus is not modified here; these cases freeze that behavior.
+namespace {
+constexpr int64_t kStartupGapsSec[] = {
+    10 * 60,
+    60 * 60,
+    24 * 60 * 60,
+    7 * 24 * 60 * 60,
+    30 * 24 * 60 * 60,
+    60 * 24 * 60 * 60,
+    180 * 24 * 60 * 60,
+};
+
+void FillGenesisIndex(CBlockIndex& genesis, const CBlock& genesis_block)
+{
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+}
+
+// Unclamped 2^(time_error/τ) if ASERT still used genesis as the permanent
+// time anchor when scoring height 2. Not production.
+double CounterfactualGenesisAnchorEase(int64_t gap_sec, int64_t spacing, int64_t half_life)
+{
+    const double time_error = static_cast<double>(gap_sec - spacing);
+    return std::exp2(time_error / static_cast<double>(half_life));
+}
+} // namespace
+
+BOOST_AUTO_TEST_CASE(startup_gap_honest_delay_does_not_change_nbits)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+    const auto spacing = static_cast<uint32_t>(consensus.nPowTargetSpacing);
+
+    BOOST_CHECK_EQUAL(Consensus::ASERT_ANCHOR_HEIGHT, 1);
+    BOOST_CHECK(!consensus.fPowAllowMinDifficultyBlocks);
+    BOOST_CHECK(!consensus.fPowNoRetargeting);
+
+    for (const int64_t gap : kStartupGapsSec) {
+        CBlockIndex genesis{};
+        FillGenesisIndex(genesis, genesis_block);
+
+        CBlockHeader h1;
+        h1.nTime = genesis.nTime + static_cast<uint32_t>(gap);
+        BOOST_CHECK_GT(h1.GetBlockTime(), genesis.GetMedianTimePast());
+
+        CBlockIndex b1{};
+        b1.nHeight = 1;
+        b1.pprev = &genesis;
+        b1.nTime = h1.nTime;
+        b1.nBits = GetNextWorkRequired(&genesis, &h1, consensus);
+
+        CBlockHeader h2;
+        h2.nTime = b1.nTime + spacing;
+        CBlockIndex b2{};
+        b2.nHeight = 2;
+        b2.pprev = &b1;
+        b2.nTime = h2.nTime;
+        b2.nBits = GetNextWorkRequired(&b1, &h2, consensus);
+
+        CBlockHeader h3;
+        h3.nTime = b2.nTime + spacing;
+        const unsigned n3 = GetNextWorkRequired(&b2, &h3, consensus);
+
+        BOOST_CHECK_EQUAL(b1.nBits, genesis.nBits);
+        BOOST_CHECK_EQUAL(b2.nBits, genesis.nBits);
+        BOOST_CHECK_EQUAL(n3, genesis.nBits);
+        BOOST_CHECK(PermittedDifficultyTransition(consensus, 1, genesis.nBits, b1.nBits));
+        BOOST_CHECK(PermittedDifficultyTransition(consensus, 2, b1.nBits, b2.nBits));
+        BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, n3));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_counterfactual_genesis_anchor_would_ease_after_one_day)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const int64_t spacing = consensus.nPowTargetSpacing;
+    const int64_t tau = consensus.nPowASERTHalfLife;
+    constexpr double clamp = 1.125;
+
+    BOOST_CHECK_LT(CounterfactualGenesisAnchorEase(10 * 60, spacing, tau), clamp);
+    BOOST_CHECK_LT(CounterfactualGenesisAnchorEase(60 * 60, spacing, tau), clamp);
+    BOOST_CHECK_GT(CounterfactualGenesisAnchorEase(24 * 60 * 60, spacing, tau), clamp);
+    BOOST_CHECK_GT(CounterfactualGenesisAnchorEase(180 * 24 * 60 * 60, spacing, tau), 1e10);
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_stale_height1_timestamp_is_ordinary_asert_clamp)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+
+    CBlockIndex genesis{};
+    FillGenesisIndex(genesis, genesis_block);
+
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nTime = genesis.nTime + 1;
+    b1.nBits = GetNextWorkRequired(&genesis, nullptr, consensus);
+    BOOST_CHECK_EQUAL(b1.nBits, genesis.nBits);
+
+    CBlockIndex b2{};
+    b2.nHeight = 2;
+    b2.pprev = &b1;
+    b2.nTime = genesis.nTime + static_cast<uint32_t>(180 * 24 * 60 * 60);
+    b2.nBits = GetNextWorkRequired(&b1, nullptr, consensus);
+    BOOST_CHECK_EQUAL(b2.nBits, genesis.nBits);
+
+    const unsigned n3 = GetNextWorkRequired(&b2, nullptr, consensus);
+    arith_uint256 t_gen, t3, pow_limit;
+    t_gen.SetCompact(genesis.nBits);
+    t3.SetCompact(n3);
+    pow_limit = UintToArith256(consensus.powLimit);
+    BOOST_CHECK(t3 > t_gen);
+    BOOST_CHECK(t3 < pow_limit);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, n3));
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_testnet_min_difficulty_is_not_mainnet)
+{
+    const auto main = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto test = CreateChainParams(*m_node.args, CBaseChainParams::TESTNET);
+    const CBlock& main_genesis = main->GenesisBlock();
+    const CBlock& test_genesis = test->GenesisBlock();
+
+    CBlockIndex m0{};
+    FillGenesisIndex(m0, main_genesis);
+    CBlockIndex t0{};
+    FillGenesisIndex(t0, test_genesis);
+
+    CBlockHeader late;
+    late.nTime = test_genesis.nTime + 10 * 60;
+    BOOST_REQUIRE(test->GetConsensus().fPowAllowMinDifficultyBlocks);
+    BOOST_REQUIRE(!main->GetConsensus().fPowAllowMinDifficultyBlocks);
+    const unsigned test_limit = UintToArith256(test->GetConsensus().powLimit).GetCompact();
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&t0, &late, test->GetConsensus()), test_limit);
+
+    late.nTime = main_genesis.nTime + static_cast<uint32_t>(180 * 24 * 60 * 60);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&m0, &late, main->GetConsensus()), m0.nBits);
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_regtest_does_not_retarget)
+{
+    const auto reg = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
+    const auto& consensus = reg->GetConsensus();
+    BOOST_REQUIRE(consensus.fPowNoRetargeting);
+    CBlockIndex genesis{};
+    FillGenesisIndex(genesis, reg->GenesisBlock());
+    CBlockHeader late;
+    late.nTime = genesis.nTime + static_cast<uint32_t>(180 * 24 * 60 * 60);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&genesis, &late, consensus), genesis.nBits);
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_future_genesis_gates_height1_via_mtp_not_asert)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+    CBlockIndex genesis{};
+    FillGenesisIndex(genesis, genesis_block);
+
+    const int64_t now_before_genesis = static_cast<int64_t>(genesis.nTime) - 24 * 60 * 60;
+    const int64_t min_legal_ntime = genesis.GetMedianTimePast() + 1;
+    BOOST_CHECK_GT(min_legal_ntime, now_before_genesis + MAX_FUTURE_BLOCK_TIME);
+
+    const int64_t now_at_gap = static_cast<int64_t>(genesis.nTime) + 180 * 24 * 60 * 60;
+    BOOST_CHECK_LE(now_at_gap, now_at_gap + MAX_FUTURE_BLOCK_TIME);
+    BOOST_CHECK_GT(now_at_gap, genesis.GetMedianTimePast());
+}
+
+BOOST_AUTO_TEST_CASE(startup_gap_audit_does_not_touch_frozen_params)
+{
+    BOOST_CHECK_EQUAL(Consensus::CONVERGENCE_DRAW_WINDOW, 32);
+    BOOST_CHECK_EQUAL(COINBASE_MATURITY, 100);
+    BOOST_CHECK_EQUAL(Consensus::ORU_INITIAL_BLOCK_SUBSIDY, 1000 * COIN);
+    BOOST_CHECK_EQUAL(Consensus::ORU_GENESIS_BLOCK_SUBSIDY, 0);
+    BOOST_CHECK_EQUAL(Consensus::GetResMintReward(0), Consensus::RES_REWARD_GENESIS);
+    BOOST_CHECK_EQUAL(Consensus::ASERT_ANCHOR_HEIGHT, 1);
+    BOOST_CHECK_EQUAL(Consensus::MAINNET_POW_ASERT_HALF_LIFE, 43200);
 }
 
 BOOST_AUTO_TEST_CASE(asert_output_always_passes_permitted_transition)
@@ -294,96 +489,91 @@ BOOST_AUTO_TEST_CASE(calculate_next_work_required_legacy_span_unchanged)
     BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, consensus), expected_nbits);
 }
 
+//! A deterministic, non-genesis header for the target-decoding tests below.
+//! Those tests all fail inside the compact-target checks, before any hashing,
+//! so the field values only need to be fixed, not meaningful.
+static CBlockHeader SampleHeader()
+{
+    CBlockHeader h;
+    h.nVersion = 1;
+    h.hashPrevBlock = uint256S("0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+    h.hashMerkleRoot = uint256S("0x2222222222222222222222222222222222222222222222222222222222222222");
+    h.nTime = 1700000000;
+    h.nBits = 0x207fffff;
+    h.nNonce = 0x89abcdef;
+    return h;
+}
+
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_negative_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
-    nBits = UintToArith256(consensus.powLimit).GetCompact(true);
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const unsigned int nBits = UintToArith256(consensus.powLimit).GetCompact(true);
+    BOOST_CHECK(!CheckProofOfWork(SampleHeader(), nBits, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_overflow_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits{~0x00800000U};
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const unsigned int nBits{~0x00800000U};
+    BOOST_CHECK(!CheckProofOfWork(SampleHeader(), nBits, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_too_easy_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
     arith_uint256 nBits_arith = UintToArith256(consensus.powLimit);
     nBits_arith *= 2;
-    nBits = nBits_arith.GetCompact();
-    hash.SetHex("0x1");
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const unsigned int nBits = nBits_arith.GetCompact();
+    BOOST_CHECK(!CheckProofOfWork(SampleHeader(), nBits, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_biger_hash_than_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    const uint256 header_hash = uint256S("0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20");
+    const CBlockHeader header = SampleHeader();
 
-    const uint256 pow_hash = GetOpusHashFromBaseHash(header_hash);
-    arith_uint256 target = UintToArith256(pow_hash);
+    // The PoW hash is derived from the header, so the target is built from the
+    // header's own work rather than from a hash chosen up front.
+    arith_uint256 target = UintToArith256(rigor_kernel::GetRigorPowHash(header));
 
-    // Build a strictly harder target than the computed PoW hash.
+    // Strictly harder than the header's own PoW hash.
     target >>= 1;
     const unsigned int nBits = target.GetCompact();
-    BOOST_CHECK(!CheckProofOfWork(header_hash, nBits, consensus));
+    BOOST_CHECK(!CheckProofOfWork(header, nBits, consensus));
 }
 
 BOOST_AUTO_TEST_CASE(CheckProofOfWork_test_zero_target)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    uint256 hash;
-    unsigned int nBits;
-    arith_uint256 hash_arith{0};
-    nBits = hash_arith.GetCompact();
-    hash = ArithToUint256(hash_arith);
-    BOOST_CHECK(!CheckProofOfWork(hash, nBits, consensus));
+    const arith_uint256 zero{0};
+    BOOST_CHECK(!CheckProofOfWork(SampleHeader(), zero.GetCompact(), consensus));
 }
 
-BOOST_AUTO_TEST_CASE(CheckProofOfWork_genesis_exempt_from_opus_pow)
+BOOST_AUTO_TEST_CASE(CheckProofOfWork_genesis_exempt_from_pow)
 {
     const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
     const auto& consensus = chainParams->GetConsensus();
-    const uint256& genesis_id = consensus.hashGenesisBlock;
+    const CBlockHeader genesis = chainParams->GenesisBlock().GetBlockHeader();
+    BOOST_CHECK(genesis.GetHash() == consensus.hashGenesisBlock);
     const unsigned int nBits = UintToArith256(consensus.powLimit).GetCompact();
-    BOOST_CHECK(CheckProofOfWork(genesis_id, nBits, consensus));
+    BOOST_CHECK(CheckProofOfWork(genesis, nBits, consensus));
 }
 
-BOOST_AUTO_TEST_CASE(OpuHash_v3plus_deterministic)
+BOOST_AUTO_TEST_CASE(rigor_pow_digest_deterministic)
 {
-    const uint256 base = uint256S("0x1111111111111111111111111111111111111111111111111111111111111111");
-    const uint256 a = GetOpusHashFromBaseHash(base);
-    const uint256 b = GetOpusHashFromBaseHash(base);
+    const CBlockHeader header = SampleHeader();
+    const uint256 a = rigor_kernel::GetRigorPowHash(header);
+    const uint256 b = rigor_kernel::GetRigorPowHash(header);
     BOOST_CHECK_EQUAL(a, b);
     BOOST_CHECK(a != uint256{});
 }
 
-BOOST_AUTO_TEST_CASE(OpuHash_v3plus_different_base_different_pow)
+BOOST_AUTO_TEST_CASE(rigor_pow_digest_nonce_sensitive)
 {
-    const uint256 base1 = uint256S("0x0000000000000000000000000000000000000000000000000000000000000001");
-    const uint256 base2 = uint256S("0x0000000000000000000000000000000000000000000000000000000000000002");
-    BOOST_CHECK(GetOpusHashFromBaseHash(base1) != GetOpusHashFromBaseHash(base2));
-}
-
-BOOST_AUTO_TEST_CASE(OpuHash_v3plus_reference_vectors)
-{
-    // Frozen vectors for OpuHash; must match consensus/pow_opus.cpp (see also test_framework/opus_pow.py).
-    const uint256 base0 = uint256S("0x0000000000000000000000000000000000000000000000000000000000000001");
-    const uint256 expect0 = uint256S("0x0cc4ff55b1598a19689b97bd06cdb7c6abe8799bfd5e1554fbe44b606c265780");
-    const uint256 base1 = uint256S("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    const uint256 expect1 = uint256S("0x4e96acde7248b3483051a3233a261b7e25cbfc41851093d71a2fde437124d4f7");
-    BOOST_CHECK_EQUAL(GetOpusHashFromBaseHash(base0), expect0);
-    BOOST_CHECK_EQUAL(GetOpusHashFromBaseHash(base1), expect1);
+    CBlockHeader a = SampleHeader();
+    CBlockHeader b = a;
+    b.nNonce = a.nNonce + 1;
+    BOOST_CHECK(rigor_kernel::GetRigorPowHash(a) != rigor_kernel::GetRigorPowHash(b));
 }
 
 BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test)
@@ -418,7 +608,7 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
         BOOST_CHECK_EQUAL(chainParams->GenesisBlock().nTime, 1786125600U); // RFC-016 / GenesisLockMainnet::TIMESTAMP
         BOOST_CHECK_EQUAL(
             consensus.hashGenesisBlock,
-            uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758"));
+            uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"));
     }
 
     // hash genesis is correct
@@ -442,7 +632,7 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     }
     if (chainName == CBaseChainParams::MAIN) {
         BOOST_CHECK_EQUAL(consensus.nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
-        BOOST_CHECK_EQUAL(UintToArith256(consensus.powLimit).bits(), 240);
+        BOOST_CHECK_EQUAL(UintToArith256(consensus.powLimit).bits(), 231);
     }
 
     // Bitcoin used a very small powLimit so bnNew * (4*timespan) stayed within uint256 in *= (uint32_t).
@@ -473,11 +663,6 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
     sanity_check_chainparams(*m_node.args, CBaseChainParams::TESTNET);
 }
 
-BOOST_AUTO_TEST_CASE(ChainParams_SIGNET_sanity)
-{
-    sanity_check_chainparams(*m_node.args, CBaseChainParams::SIGNET);
-}
-
 BOOST_AUTO_TEST_CASE(res_initial_target_matches_params_bits)
 {
     const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
@@ -502,6 +687,172 @@ BOOST_AUTO_TEST_CASE(res_mint_target_arith_min_shift)
     max.SetHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     arith_uint256 expect = max >> 1;
     BOOST_CHECK(t == expect);
+}
+
+BOOST_AUTO_TEST_CASE(header_80_byte_serialization_is_pow_preimage)
+{
+    CBlockHeader h;
+    h.nVersion = VERSIONBITS_TOP_BITS;
+    h.hashPrevBlock = uint256S("1111111111111111111111111111111111111111111111111111111111111111");
+    h.hashMerkleRoot = uint256S("2222222222222222222222222222222222222222222222222222222222222222");
+    h.nTime = 1700000000;
+    h.nBits = 0x207fffff;
+    h.nNonce = 0x89abcdef;
+
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << h;
+    BOOST_CHECK_EQUAL(ss.size(), 80U);
+    BOOST_CHECK(h.GetHash() == Hash(Span<const unsigned char>{UCharCast(ss.data()), ss.size()}));
+
+    unsigned char preimage[rigor_kernel::POW_PREIMAGE_LEN];
+    rigor_kernel::BuildPowPreimage(h, preimage);
+    BOOST_CHECK(std::equal(ss.begin(), ss.end(), preimage + rigor_kernel::POW_DOMAIN_TAG_LEN,
+                           [](std::byte a, unsigned char b) {
+                               return static_cast<unsigned char>(a) == b;
+                           }));
+
+    CBlockHeader h2 = h;
+    h2.nNonce = h.nNonce + 1;
+    BOOST_CHECK(rigor_kernel::GetRigorPowHash(h) != rigor_kernel::GetRigorPowHash(h2));
+}
+
+BOOST_AUTO_TEST_CASE(checkproofofwork_matches_pow_hash_vs_compact_target)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlockHeader header = SampleHeader();
+    const arith_uint256 pow_arith = UintToArith256(rigor_kernel::GetRigorPowHash(header));
+
+    const uint32_t nbits = pow_arith.GetCompact();
+    arith_uint256 decoded;
+    bool neg = false, ovf = false;
+    decoded.SetCompact(nbits, &neg, &ovf);
+    BOOST_CHECK(!neg && !ovf);
+    const bool expect = !(pow_arith > decoded);
+    BOOST_CHECK_EQUAL(CheckProofOfWork(header, nbits, consensus), expect);
+
+    arith_uint256 tiny;
+    tiny = 1;
+    BOOST_CHECK(!CheckProofOfWork(header, tiny.GetCompact(), consensus));
+
+    BOOST_CHECK(CheckProofOfWork(chainParams->GenesisBlock().GetBlockHeader(),
+                                 UintToArith256(consensus.powLimit).GetCompact(), consensus));
+}
+
+BOOST_AUTO_TEST_CASE(compact_target_encode_decode_used_by_validation)
+{
+    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
+    const uint32_t samples[] = {
+        UintToArith256(consensus.powLimit).GetCompact(),
+        0x1d00ffff,
+        0x207fffff,
+        0x17033ec0,
+    };
+    for (uint32_t nbits : samples) {
+        arith_uint256 a;
+        bool neg = false, ovf = false;
+        a.SetCompact(nbits, &neg, &ovf);
+        if (neg || ovf || a == 0) continue;
+        const uint32_t round = a.GetCompact();
+        arith_uint256 b;
+        b.SetCompact(round, &neg, &ovf);
+        BOOST_CHECK(!neg && !ovf);
+        BOOST_CHECK(a == b);
+        if (a > UintToArith256(consensus.powLimit)) continue;
+        BOOST_CHECK(PermittedDifficultyTransition(consensus, 2, round, round));
+    }
+}
+
+BOOST_AUTO_TEST_CASE(asert_time_error_matrix_from_height1_anchor)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+    const int64_t spacing = consensus.nPowTargetSpacing;
+    const int64_t tau = consensus.nPowASERTHalfLife;
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nBits = genesis_block.nBits;
+    b1.nTime = genesis.nTime + static_cast<uint32_t>(spacing);
+
+    const int64_t deltas[] = {
+        0, 1, -1, spacing, -spacing, tau, -tau, 2 * tau, spacing / 2,
+    };
+    unsigned seen = 0;
+    for (int64_t dt : deltas) {
+        CBlockIndex b2{};
+        b2.nHeight = 2;
+        b2.pprev = &b1;
+        b2.nBits = b1.nBits;
+        const int64_t t = static_cast<int64_t>(b1.nTime) + dt;
+        if (t <= 0 || t > static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) continue;
+        b2.nTime = static_cast<uint32_t>(t);
+        const unsigned nbits = GetNextWorkRequired(&b2, nullptr, consensus);
+        arith_uint256 tgt;
+        tgt.SetCompact(nbits);
+        BOOST_CHECK(tgt > 0);
+        BOOST_CHECK(tgt <= UintToArith256(consensus.powLimit));
+        BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, nbits));
+        CBlockHeader child_early;
+        child_early.nTime = b2.nTime + 1;
+        CBlockHeader child_late;
+        child_late.nTime = b2.nTime + 7200;
+        BOOST_CHECK_EQUAL(GetNextWorkRequired(&b2, &child_early, consensus), nbits);
+        BOOST_CHECK_EQUAL(GetNextWorkRequired(&b2, &child_late, consensus), nbits);
+        seen++;
+    }
+    BOOST_CHECK_GE(seen, 6);
+}
+
+BOOST_AUTO_TEST_CASE(asert_reorg_to_different_parent_recomputation)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+    const uint32_t spacing = static_cast<uint32_t>(consensus.nPowTargetSpacing);
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    CBlockIndex b1{};
+    b1.nHeight = 1;
+    b1.pprev = &genesis;
+    b1.nBits = genesis_block.nBits;
+    b1.nTime = genesis.nTime + spacing;
+
+    CBlockIndex fast{};
+    fast.nHeight = 2;
+    fast.pprev = &b1;
+    fast.nBits = b1.nBits;
+    fast.nTime = b1.nTime + 60;
+
+    CBlockIndex slow{};
+    slow.nHeight = 2;
+    slow.pprev = &b1;
+    slow.nBits = b1.nBits;
+    slow.nTime = b1.nTime + 2 * spacing;
+
+    const unsigned n_fast = GetNextWorkRequired(&fast, nullptr, consensus);
+    const unsigned n_slow = GetNextWorkRequired(&slow, nullptr, consensus);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&fast, nullptr, consensus), n_fast);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&slow, nullptr, consensus), n_slow);
+    CBlockHeader child;
+    child.nTime = fast.nTime + 1;
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&fast, &child, consensus), n_fast);
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, fast.nBits, n_fast));
+    BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, slow.nBits, n_slow));
+    (void)n_slow;
 }
 
 BOOST_AUTO_TEST_SUITE_END()

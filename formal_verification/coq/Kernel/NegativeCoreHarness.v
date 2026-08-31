@@ -11,7 +11,6 @@ Require Import Rigor.ReplayReorgCore.ReplayState.
 Require Import Rigor.ReplayReorgCore.ConnectBlockMint.
 Require Import Rigor.ReplayReorgCore.StateTransition.
 Require Import Rigor.ReplayReorgCore.ScriptShape.
-Require Import Rigor.ReplayReorgCore.CvgCovenant.
 From Rigor Require Import ResSchedule.
 Require ScriptMintWitness.
 
@@ -21,9 +20,9 @@ Definition neg_h32 (n : nat) : Hash32 := n :: repeat_byte 31%nat 0%nat.
 Definition neg_spk (k : AssetKind) : list nat :=
   match k with
   | AssetORU => ScriptMintWitness.canonical_p2wpkh
-  | AssetRES => ScriptMintWitness.canonical_res2_script
-  | AssetNone => [ScriptMintWitness.OP_RETURN]
-  | AssetCVG => CvgCovenant.canonical_cvg_claim_script
+  | AssetRES => ScriptMintWitness.canonical_native_res
+  | AssetNone => [ScriptMintWitness.RIGOR_MARKER_RETURN]
+  | AssetInvalid => ScriptMintWitness.canonical_p2pkh
   end.
 Definition neg_out (v : Z) (k : AssetKind) : TxOut :=
   {| out_value := v; out_script := neg_spk k |}.

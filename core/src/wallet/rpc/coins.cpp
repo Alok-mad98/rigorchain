@@ -799,7 +799,7 @@ RPCHelpMan listunspent()
                     std::unique_ptr<SigningProvider> provider = pwallet->GetSolvingProvider(scriptPubKey);
                     if (provider) {
                         auto descriptor = InferDescriptor(scriptPubKey, *provider);
-                        desc_snip = descriptor->ToString();
+                        if (descriptor) desc_snip = descriptor->ToString();
                     }
                 }
                 LogPrint(BCLog::CONVERGESIGN,
@@ -836,7 +836,7 @@ RPCHelpMan listunspent()
             std::unique_ptr<SigningProvider> provider = pwallet->GetSolvingProvider(scriptPubKey);
             if (provider) {
                 auto descriptor = InferDescriptor(scriptPubKey, *provider);
-                entry.pushKV("desc", descriptor->ToString());
+                if (descriptor) entry.pushKV("desc", descriptor->ToString());
             }
         }
         PushParentDescriptors(*pwallet, scriptPubKey, entry);

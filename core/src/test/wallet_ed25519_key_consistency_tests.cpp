@@ -9,6 +9,8 @@
 #include <key_io.h>
 #include <outputtype.h>
 #include <pubkey.h>
+#include <script/script.h>
+#include <script/sign.h>
 #include <script/standard.h>
 #include <span.h>
 #include <test/util/setup_common.h>
@@ -17,6 +19,7 @@
 #include <validation.h>
 #include <wallet/exportprivkey.h>
 #include <wallet/test/util.h>
+#include <wallet/types.h>
 #include <wallet/wallet.h>
 
 #include <algorithm>
@@ -30,6 +33,8 @@ using wallet::AddressPrivKeyExport;
 using wallet::CWallet;
 using wallet::CreateMockWalletDatabase;
 using wallet::ExportAddressPrivateKey;
+using wallet::ISMINE_NO;
+using wallet::ISMINE_SPENDABLE;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 
 namespace {
@@ -141,6 +146,31 @@ BOOST_AUTO_TEST_CASE(oru_wif_roundtrip_recreates_same_address)
     BOOST_REQUIRE(imported.IsValid());
     BOOST_CHECK_EQUAL(EncodeSecret(imported), exported.private_key);
     BOOST_CHECK_EQUAL(EncodeDestination(WitnessV0KeyHash(imported.GetPubKey().GetID())), exported.address);
+}
+
+BOOST_AUTO_TEST_CASE(legacy_res_ismine_is_fixed_predicate)
+{
+    CWallet w(m_node.chain.get(), "", CreateMockWalletDatabase());
+    w.SetupLegacyScriptPubKeyMan();
+    auto* spk_man = w.GetLegacyScriptPubKeyMan();
+    BOOST_REQUIRE(spk_man);
+    LOCK(spk_man->cs_KeyStore);
+
+    CKey key;
+    key.MakeNewKey(true);
+    const std::vector<unsigned char> pk32 = key.GetPubKey().GetEd25519Payload();
+    BOOST_REQUIRE_EQUAL(pk32.size(), ed25519::PUBKEY_SIZE);
+    const CScript spk = CScript() << RIGOR_PUSH_1 << pk32;
+    SignatureData sigdata;
+
+    BOOST_CHECK_EQUAL(spk_man->IsMine(spk), ISMINE_NO);
+
+    BOOST_REQUIRE(spk_man->AddKey(key));
+    BOOST_CHECK_EQUAL(spk_man->IsMine(spk), ISMINE_NO);
+
+    BOOST_REQUIRE(spk_man->AddCScript(spk));
+    BOOST_CHECK_EQUAL(spk_man->IsMine(spk), ISMINE_SPENDABLE);
+    BOOST_CHECK(spk_man->CanProvide(spk, sigdata));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

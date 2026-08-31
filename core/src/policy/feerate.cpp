@@ -7,14 +7,22 @@
 #include <policy/feerate.h>
 #include <tinyformat.h>
 
-#include <cmath>
+#include <algorithm>
+#include <limits>
 
 CFeeRate::CFeeRate(const CAmount& nFeePaid, uint32_t num_bytes)
 {
     const int64_t nSize{num_bytes};
 
     if (nSize > 0) {
-        nSatoshisPerK = nFeePaid * 1000 / nSize;
+        // `nFeePaid * 1000` overflows int64 above ~9.2e15, which is well inside
+        // RIGOR's MAX_MONEY. Widen the product, then saturate: a feerate is a
+        // policy/display quantity, so a clamp is the correct answer where the
+        // exact value is unrepresentable. Nothing in consensus reads CFeeRate.
+        const __int128 per_k{static_cast<__int128>(nFeePaid) * 1000 / nSize};
+        constexpr __int128 kMax{std::numeric_limits<int64_t>::max()};
+        constexpr __int128 kMin{std::numeric_limits<int64_t>::min()};
+        nSatoshisPerK = static_cast<CAmount>(std::clamp(per_k, kMin, kMax));
     } else {
         nSatoshisPerK = 0;
     }
@@ -24,9 +32,17 @@ CAmount CFeeRate::GetFee(uint32_t num_bytes) const
 {
     const int64_t nSize{num_bytes};
 
-    // Be explicit that we're converting from a double to int64_t (CAmount) here.
-    // We've previously had issues with the silent double->int64_t conversion.
-    CAmount nFee{static_cast<CAmount>(std::ceil(nSatoshisPerK * nSize / 1000.0))};
+    // `nSatoshisPerK * nSize` overflows int64 for large feerates, which RIGOR's
+    // MAX_MONEY makes reachable. Widen the product and take an exact integer
+    // ceiling: truncating division already rounds a negative quotient up, so only
+    // a positive remainder needs the extra unit. This also drops the double that
+    // the rest of the codebase forbids.
+    const __int128 product{static_cast<__int128>(nSatoshisPerK) * nSize};
+    __int128 quotient{product / 1000};
+    if (product % 1000 > 0) ++quotient;
+    constexpr __int128 kMax{std::numeric_limits<int64_t>::max()};
+    constexpr __int128 kMin{std::numeric_limits<int64_t>::min()};
+    CAmount nFee{static_cast<CAmount>(std::clamp(quotient, kMin, kMax))};
 
     if (nFee == 0 && nSize != 0) {
         if (nSatoshisPerK > 0) nFee = CAmount(1);

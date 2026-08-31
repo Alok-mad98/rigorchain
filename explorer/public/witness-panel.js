@@ -100,7 +100,9 @@
     }
 
     if (proof.proof_items && proof.proof_items.length > 0) {
-      html += `<h4>PCORB proof stack (indexed)</h4>${renderPcorbTable(proof.proof_items, routes)}`;
+      html += `<h4>Historical witness stack (not issuance)</h4>${renderPcorbTable(proof.proof_items, routes)}`;
+    } else if (proof.present) {
+      html += `<p class="muted">Issuance is the coinbase <code>OP_RES_MINT</code> output. No body PCORB witness.</p>`;
     }
 
     return html;

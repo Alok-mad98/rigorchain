@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS outputs (
   vout_index INTEGER NOT NULL,
 
   value_atoms BIGINT NOT NULL,
-  asset_kind TEXT NOT NULL CHECK (asset_kind IN ('ORU','RES','NONE')),
+  asset_kind TEXT NOT NULL CHECK (asset_kind IN ('ORU','RES','NONE','INVALID')),
 
   script_pubkey TEXT NOT NULL,
   address TEXT,

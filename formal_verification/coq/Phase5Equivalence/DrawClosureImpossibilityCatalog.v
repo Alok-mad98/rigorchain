@@ -190,11 +190,14 @@ Lemma draw_closure_status_well_defined :
   forall s : DrawClosureStatus, True.
 Proof. intros. exact I. Qed.
 
-Lemma draw_encoder_missing_on_current_architecture :
+(** F-4: flags on the *018GG freeze snapshot* [current_draw_condition],
+    not the living tree. Encoder and SHA-256d now exist
+    ([DrawBridgeProgress.v]). Full refinement remains unproved. *)
+Lemma draw_encoder_missing_on_018GG_freeze :
   current_draw_condition.(dcc_has_draw_canonical_encoder) = false.
 Proof. vm_compute. reflexivity. Qed.
 
-Lemma draw_hash_kernel_missing_on_current_architecture :
+Lemma draw_hash_kernel_missing_on_018GG_freeze :
   current_draw_condition.(dcc_has_runtime_hash_kernel) = false.
 Proof. vm_compute. reflexivity. Qed.
 
@@ -203,7 +206,7 @@ Lemma draw_closure_implies_missing_encoder :
   negb current_draw_condition.(dcc_has_draw_canonical_encoder) = true.
 Proof.
   intros _.
-  rewrite draw_encoder_missing_on_current_architecture.
+  rewrite draw_encoder_missing_on_018GG_freeze.
   reflexivity.
 Qed.
 
@@ -212,7 +215,7 @@ Lemma draw_closure_implies_missing_hash_kernel :
   negb current_draw_condition.(dcc_has_runtime_hash_kernel) = true.
 Proof.
   intros _.
-  rewrite draw_hash_kernel_missing_on_current_architecture.
+  rewrite draw_hash_kernel_missing_on_018GG_freeze.
   reflexivity.
 Qed.
 

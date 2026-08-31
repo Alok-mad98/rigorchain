@@ -11,8 +11,9 @@ import time
 
 from test_framework.messages import (
     CAddress,
-    msg_addr,
+    msg_addrv2,
     msg_getaddr,
+    msg_rigorcap,
     msg_verack,
 )
 from test_framework.p2p import (
@@ -46,7 +47,7 @@ class AddrReceiver(P2PInterface):
         self.test_addr_contents = test_addr_contents
         self.send_getaddr = send_getaddr
 
-    def on_addr(self, message):
+    def on_addrv2(self, message):
         for addr in message.addrs:
             self.num_ipv4_received += 1
             if self.test_addr_contents:
@@ -75,6 +76,7 @@ class AddrReceiver(P2PInterface):
         return self.num_ipv4_received != 0
 
     def on_version(self, message):
+        self.send_message(msg_rigorcap())
         self.send_message(msg_verack())
         if (self.send_getaddr):
             self.send_message(msg_getaddr())
@@ -120,7 +122,7 @@ class AddrTest(BitcoinTestFramework):
             addr.port = 8333 + i
             addrs.append(addr)
 
-        msg = msg_addr()
+        msg = msg_addrv2()
         msg.addrs = addrs
         return msg
 
@@ -140,7 +142,7 @@ class AddrTest(BitcoinTestFramework):
         addr_source = self.nodes[0].add_p2p_connection(P2PInterface())
 
         msg = self.setup_addr_msg(1010)
-        with self.nodes[0].assert_debug_log(['addr message size = 1010']):
+        with self.nodes[0].assert_debug_log(['addrv2 message size = 1010']):
             addr_source.send_and_ping(msg)
 
         self.nodes[0].disconnect_p2ps()
@@ -160,7 +162,7 @@ class AddrTest(BitcoinTestFramework):
         msg = self.setup_addr_msg(num_ipv4_addrs)
         with self.nodes[0].assert_debug_log(
             [
-                'received: addr (301 bytes) peer=1',
+                'received: addrv2 (131 bytes) peer=1',
             ]
         ):
             self.send_addr_msg(addr_source, msg, receivers)
@@ -187,7 +189,7 @@ class AddrTest(BitcoinTestFramework):
         assert_equal(inbound_peer.num_ipv4_received, 0)
 
         # Send an empty ADDR message to initialize address relay on this connection.
-        inbound_peer.send_and_ping(msg_addr())
+        inbound_peer.send_and_ping(msg_addrv2())
 
         self.log.info('Check that subsequent addr messages sent from an outbound peer are relayed')
         msg2 = self.setup_addr_msg(2)
@@ -243,7 +245,7 @@ class AddrTest(BitcoinTestFramework):
         assert_equal(blackhole_peer.num_ipv4_received, 0)
 
         self.log.info("After blackhole peer sends addr message, it becomes eligible for addr gossip")
-        blackhole_peer.send_and_ping(msg_addr())
+        blackhole_peer.send_and_ping(msg_addrv2())
 
         # Confirm node has now received addr-related messages from blackhole peer
         assert_greater_than(self.sum_addr_messages(peerinfo[1]['bytesrecv_per_msg']), 0)
@@ -388,7 +390,7 @@ class AddrTest(BitcoinTestFramework):
             self.mocktime += time_interval_1
             self.msg.addrs[0].time = self.mocktime + TEN_MINUTES
             self.nodes[0].setmocktime(self.mocktime)
-            with self.nodes[0].assert_debug_log(['received: addr (31 bytes) peer=0']):
+            with self.nodes[0].assert_debug_log(['received: addrv2']):
                 peer.send_and_ping(self.msg)
                 self.mocktime += time_interval_2
                 self.nodes[0].setmocktime(self.mocktime)

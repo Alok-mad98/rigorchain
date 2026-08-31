@@ -15,7 +15,8 @@ import sys
 from dataclasses import dataclass
 from typing import NamedTuple
 
-# ConnectBlock.v / ConnectBlockMint.v constants (centi-RES cap units)
+# ConnectBlock.v schedule aliases / ConnectBlockMint.v (centi-RES cap units)
+# F-1: ConnectBlock.v is not the skip-on-overshoot scaffold.
 CB_RES_MINT_AMOUNT = 10_000
 CB_MAX_RES_SUPPLY = 21_000_000 * 100
 
@@ -158,7 +159,7 @@ def run_case(case: Case) -> list[str]:
 
 def check_constants_align() -> list[str]:
     errors: list[str] = []
-    # ConnectBlock.v scaffold (RES_MINT_AMOUNT / MAX_RES_SUPPLY)
+    # ConnectBlock.v schedule aliases (RES_MINT_AMOUNT / MAX_RES_SUPPLY)
     res_mint_amount = 10_000
     max_res_supply = 21_000_000 * 100
     if CB_RES_MINT_AMOUNT != res_mint_amount:
@@ -182,6 +183,7 @@ def check_coq_module_present() -> list[str]:
         "Theorem reorg_preserves_supply",
         "Lemma scaffold_res_delta_eq_cb",
         "Lemma cb_res_mint_amount_eq",
+        "Theorem apply_block_rejects_where_legacy_scaffold_would_skip",
     )
     return [f"ConnectBlockSupply.v missing `{name}`" for name in required if name not in text]
 

@@ -65,8 +65,7 @@ void generateFakeBlock(const CChainParams& params,
                 h,
                 params.GetConsensus());
         }
-        cb2.vin[0].scriptSig =
-            CScript() << h << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(h, convergence_root, uint256{});
         block.vtx[0] = MakeTransactionRef(std::move(cb2));
     }
 

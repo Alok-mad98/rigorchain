@@ -1,0 +1,80 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-GENESIS-AUTHORITY-FINALIZATION-P0-073",
+  "date": "2026-08-31",
+  "CONSENSUS_KERNEL_GENESIS_AUTHORITY": "FINALIZED",
+  "SINGLE_PRODUCTION_AUTHORITY": true,
+  "PRODUCTION_KERNEL_SWITCHED": true,
+  "REFINEMENT_PROVED": true,
+  "EQUIVALENCE_PROVED": false,
+  "MAINNET_READY": true,
+  "mainnet_launched": false,
+  "historical_chain": false,
+  "legacy_compatibility_required": false,
+  "kernel_entry_point": "RigorConsensusKernel (core/src/consensus/kernel/genesis_authority.cpp)",
+  "connect_block": {
+    "role": "prepare input, call Kernel, consume result, apply state",
+    "calls": [
+      "GetConvergenceDrawSetForBlock (state assembly)",
+      "RigorConsensusKernel::ResolveDraw",
+      "RigorConsensusKernel::EvaluateConnect"
+    ],
+    "must_not": [
+      "calculate subsidy",
+      "calculate maturity",
+      "resolve draw directly",
+      "classify asset",
+      "compute ledger delta",
+      "shadow compare",
+      "canary compare"
+    ]
+  },
+  "authority_table": {
+    "ORU issuance": "GetBlockSubsidy / ComputeRigorIssuance",
+    "RES schedule": "GetResMintReward",
+    "draw": "ResolveConvergenceDraw (via RigorConsensusKernel::ResolveDraw)",
+    "RES mint gate": "ConnectEvaluateCoinbaseResMint (via EvaluateConnect)",
+    "supply": "RigorSupplyDelta (via EvaluateConnect)",
+    "classify": "ClassifyRigorTxout / ClassifyRigorAsset",
+    "spend": "VerifyRigorPredicate",
+    "PoW": "GetRigorPowHash",
+    "ASERT": "GetNextWorkRequired / CalculateNextWorkRequired"
+  },
+  "extracted_kernel_role": {
+    "choice": "Option B",
+    "rationale": "Coq extraction in this tree is OCaml. Production forbids an OCaml runtime. There is no generated C kernel from Coq. Production authority is the handwritten C++ Consensus Kernel invoked through RigorConsensusKernel. The C ABI remains a verify-only portable surface of those same functions. Option A (extracted spec to generated C) is not genesis-ready.",
+    "ocaml_in_production": false,
+    "c_abi_in_bitcoind": false
+  },
+  "refinement_status": {
+    "COQ_ADMITTED": 0,
+    "COQ_AXIOMS": 0,
+    "COQ_PARAMETERS": 0,
+    "REFINEMENT_PROVED": true,
+    "EQUIVALENCE_PROVED": false
+  },
+  "genesis_parameters": {
+    "height_0_oru_subsidy": 0,
+    "height_0_res_actual": 0,
+    "height_0_res_schedule": 40000000,
+    "nCoinbaseMaturity": 100,
+    "halving_interval": 210000
+  },
+  "forbidden_duplicate_paths": [
+    "second issuance formula",
+    "second RES formula",
+    "second draw body",
+    "second classifier body",
+    "second supply equation",
+    "OCaml runtime in bitcoind",
+    "ConnectBlock formula fragments",
+    "production canary dual-path",
+    "production shadow execution"
+  ],
+  "test_tooling_only": [
+    "core/src/consensus/kernel_canary/",
+    "core/src/consensus/kernel_migration/",
+    "core/src/consensus/shadow/",
+    "core/src/node/kernel_runtime_canary.cpp",
+    "core/src/consensus/bridge/"
+  ]
+}

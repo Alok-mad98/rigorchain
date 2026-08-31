@@ -15,6 +15,7 @@
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <pow.h>
+#include <primitives/block.h>
 #include <protocol.h>
 #include <pubkey.h>
 #include <script/standard.h>
@@ -66,7 +67,17 @@ FUZZ_TARGET_INIT(integer, initialize_integer)
     const bool b = fuzzed_data_provider.ConsumeBool();
 
     const Consensus::Params& consensus_params = Params().GetConsensus();
-    (void)CheckProofOfWork(u256, u32, consensus_params);
+    {
+        // CheckProofOfWork takes a header, not a header id. Seed one from the
+        // fuzzed integers so this target keeps exercising compact-target decoding.
+        CBlockHeader pow_header;
+        pow_header.nVersion = i32;
+        pow_header.hashPrevBlock = u256;
+        pow_header.nTime = u32;
+        pow_header.nBits = u32;
+        pow_header.nNonce = u32;
+        (void)CheckProofOfWork(pow_header, u32, consensus_params);
+    }
     if (u64 <= MAX_MONEY) {
         const uint64_t compressed_money_amount = CompressAmount(u64);
         assert(u64 == DecompressAmount(compressed_money_amount));

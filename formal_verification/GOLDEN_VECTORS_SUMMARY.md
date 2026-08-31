@@ -262,7 +262,7 @@ IF F = ∅:
 To verify the implementation:
 ```bash
 cd core
-./src/test/test_bitcoin --run_test=selection_golden_tests
+./src/test/test_rigor --run_test=selection_golden_tests
 ```
 
 All tests must pass with byte-for-byte exact matching.

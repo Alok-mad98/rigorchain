@@ -6,11 +6,11 @@
 
 ``build_block`` assembles a block header + vtx list compatible with
 ``test_framework.messages`` / ``msg_block``, with coinbase carrying segwit
-commitment, optional CVGE v2 (ConvergenceDrawCandidates root + cumulative convergence) ``OP_RETURN``,
-and optional RIGOR ``OP_RETURN`` (draw-target compact only; see ``RigorTags::RIGOR``).
+commitment, optional CVGE v2 (ConvergenceDrawCandidates root + cumulative convergence) ``RIGOR_MARKER_RETURN``,
+and optional RIGOR ``RIGOR_MARKER_RETURN`` (draw-target compact only; see ``RigorTags::RIGOR``).
 
 Callers supply already-signed ``convergence_txs`` / ``res_claim_tx`` (RES body tx) when exercising
-real acceptance; this module only handles layout and OP_RETURN payloads.
+real acceptance; this module only handles layout and RIGOR_MARKER_RETURN payloads.
 """
 
 from __future__ import annotations
@@ -28,9 +28,9 @@ from .blocktools import (
     create_coinbase,
 )
 from .messages import CBlock, CTransaction, CTxOut, tx_from_hex
-from .script import CScript, OP_0, OP_1, OP_RETURN, OP_CONVERGE, hash160
+from .script import CScript, RIGOR_PUSH_0, RIGOR_PUSH_1, RIGOR_MARKER_RETURN, RIGOR_MARKER_CONVERGE, hash160
 
-# --- OP_CONVERGE burn lock: HASH160(RES program) inside the scriptPubKey ---------
+# --- RIGOR_MARKER_CONVERGE burn lock: HASH160(RES program) inside the scriptPubKey ---------
 
 DEFAULT_RES_OWNER_PROGRAM = bytes.fromhex("22" * 32)
 # Consensus-locked wire spelling (``RigorTags::Res2WirePrefix``).
@@ -61,15 +61,15 @@ CVGE_PAYLOAD_SIZE = 45
 
 
 def make_converge_scriptpubkey(program_32: Optional[bytes] = None) -> CScript:
-    """Canonical OP_CONVERGE lock: OP_PUSHBYTES_20 || HASH160(program) || OP_CONVERGE."""
+    """Canonical RIGOR_MARKER_CONVERGE lock: OP_PUSHBYTES_20 || HASH160(program) || RIGOR_MARKER_CONVERGE."""
     p = DEFAULT_RES_OWNER_PROGRAM if program_32 is None else program_32
     if len(p) != 32:
         raise ValueError("RES owner program must be 32 bytes")
-    return CScript([hash160(p), OP_CONVERGE])
+    return CScript([hash160(p), RIGOR_MARKER_CONVERGE])
 
 
 def make_convergence_script(_amount_sats: int) -> CScript:
-    """OP_CONVERGE burn lock. Amount is nValue, not encoded in the script."""
+    """RIGOR_MARKER_CONVERGE burn lock. Amount is nValue, not encoded in the script."""
     return make_converge_scriptpubkey()
 
 
@@ -202,7 +202,7 @@ def create_convergence_tx(
     """
     Build and sign a consensus-shaped single-convergence ORUM-domain transaction using the wallet.
 
-    Picks a spendable ORUM-domain (ORU on wire) UTXO, pays ``convergence_orum`` to an OP_CONVERGE
+    Picks a spendable ORUM-domain (ORU on wire) UTXO, pays ``convergence_orum`` to an RIGOR_MARKER_CONVERGE
     output (owner HASH160 of ``res_owner_program``), and returns change in ORU. Fee is relay policy only.
     Does not broadcast; caller may ``sendrawtransaction`` / ``testmempoolaccept``.
 
@@ -238,20 +238,20 @@ def make_res2_claim_program_bytes(convergence_txid: Optional[bytes] = None) -> b
 
 
 def make_res2_claim_scriptpubkey(program_36: Optional[bytes] = None) -> CScript:
-    """Witness v1 output script for RES draw-claim (``OP_1`` + 36-byte program)."""
+    """Witness v1 output script for RES draw-claim (``RIGOR_PUSH_1`` + 36-byte program)."""
     p = make_res2_claim_program_bytes() if program_36 is None else program_36
     if len(p) != 36:
         raise ValueError("RES2 claim program must be 36 bytes")
-    return CScript([OP_1, p])
+    return CScript([RIGOR_PUSH_1, p])
 
 
 def make_rigor_commitment_script(res_draw_target_nbits: int) -> CScript:
-    """Coinbase OP_RETURN: ``RIGR`` magic + uint32 LE ``res_draw_target_nbits`` (8 bytes; ``IsRigorCommitment``)."""
+    """Coinbase RIGOR_MARKER_RETURN: ``RIGR`` magic + uint32 LE ``res_draw_target_nbits`` (8 bytes; ``IsRigorCommitment``)."""
     nb = int(res_draw_target_nbits) & 0xFFFFFFFF
     payload = bytearray(8)
     payload[0:4] = b"RIGR"  # RigorTags::RIGOR — 4 ASCII bytes, not the 5-byte word "RIGOR"
     struct.pack_into("<I", payload, 4, nb)
-    return CScript([OP_RETURN, bytes(payload)])
+    return CScript([RIGOR_MARKER_RETURN, bytes(payload)])
 
 
 def make_cvge_commitment_script(
@@ -260,7 +260,7 @@ def make_cvge_commitment_script(
     *,
     version: int = CONVERGENCE_COMMITMENT_VERSION,
 ) -> CScript:
-    """Coinbase OP_RETURN CVGE v2 payload (must match ``ParseconvergenceCommitmentPayload`` / ConnectBlock)."""
+    """Coinbase RIGOR_MARKER_RETURN CVGE v2 payload (must match ``ParseconvergenceCommitmentPayload`` / ConnectBlock)."""
     if len(draw_candidate_root) != 32:
         raise ValueError("draw_candidate_root must be 32 bytes")
     if version != CONVERGENCE_COMMITMENT_VERSION:
@@ -270,7 +270,7 @@ def make_cvge_commitment_script(
     payload[4] = version & 0xFF
     struct.pack_into("<Q", payload, 5, int(cumulative_convergence) & 0xFFFFFFFFFFFFFFFF)
     payload[13:45] = draw_candidate_root
-    return CScript([OP_RETURN, bytes(payload)])
+    return CScript([RIGOR_MARKER_RETURN, bytes(payload)])
 
 
 @dataclass
@@ -340,7 +340,6 @@ def build_block(
     cvge: Optional[CvgeCommitmentSpec] = None,
     cvge_script_pubkey: Optional[bytes] = None,
     fees: int = 0,
-    coinbase_pubkey: Optional[bytes] = None,
     coinbase_script_pubkey: Optional[CScript] = None,
     coinbase_value_sats: Optional[int] = None,
     ntime: Optional[int] = None,
@@ -355,8 +354,8 @@ def build_block(
     :param convergence_txs: Signed transactions (each typically spends ORUM-domain (ORU) to a CVG2 output).
     :param res_claim_tx: Optional extra body tx (or ``None``). Consensus no longer issues RES
         on a body transaction; a claim here is for negative tests only.
-    :param res_mint_out: Optional coinbase OP_RES_MINT ``CTxOut`` copied from GBT ``default_res_mint``.
-    :param pcorb_carrier_script: Optional tagged PCORB OP_RETURN script bytes from GBT
+    :param res_mint_out: Optional coinbase RIGOR_MARKER_RES_MINT ``CTxOut`` copied from GBT ``default_res_mint``.
+    :param pcorb_carrier_script: Optional tagged PCORB RIGOR_MARKER_RETURN script bytes from GBT
         ``default_pcorb_carrier``.
     :param commitment: compact ``res_draw_target_nbits`` (``int``), legacy ``(ignored, nbits)`` tuple,
         object with ``res_draw_target_nbits``, or ``None`` to omit RIGOR output (invalid on non-genesis chains).
@@ -379,15 +378,14 @@ def build_block(
     if res_claim_tx is not None:
         txlist.append(res_claim_tx)
 
-    # Rigor ``CheckTxOutAssetWitnessBinding`` rejects bare OP_TRUE / P2PKH on any vout; match the
-    # node's GBT dummy (``WitnessV0KeyHash{}`` → ``OP_0`` + 20-byte keyhash).
+    # Rigor ``CheckTxOutAssetWitnessBinding`` rejects bare RIGOR_PUSH_1 / P2PKH on any vout; match the
+    # node's GBT dummy (``WitnessV0KeyHash{}`` → ``RIGOR_PUSH_0`` + 20-byte keyhash).
     cb_spk = coinbase_script_pubkey
-    if coinbase_pubkey is None and cb_spk is None:
-        cb_spk = CScript([OP_0, bytes(20)])
+    if cb_spk is None:
+        cb_spk = CScript([RIGOR_PUSH_0, bytes(20)])
 
     cb = create_coinbase(
         height=block_height,
-        pubkey=coinbase_pubkey,
         script_pubkey=cb_spk,
         fees=fees,
         nValue=50,

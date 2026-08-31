@@ -22,6 +22,22 @@
 namespace wallet {
 BOOST_FIXTURE_TEST_SUITE(ismine_tests, BasicTestingSetup)
 
+static CScript ScriptP2PK(const CPubKey& pk)
+{
+    return CScript() << ToByteVector(pk) << RIGOR_RESERVED_LEGACY_CHECKSIG;
+}
+
+static CScript ScriptMultisig(int nRequired, const std::vector<CPubKey>& keys)
+{
+    CScript script;
+    script << nRequired;
+    for (const CPubKey& key : keys) {
+        script << ToByteVector(key);
+    }
+    script << keys.size() << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    return script;
+}
+
 wallet::ScriptPubKeyMan* CreateDescriptor(CWallet& keystore, const std::string& desc_str, const bool success)
 {
     keystore.SetWalletFlag(WALLET_FLAG_DESCRIPTORS);
@@ -63,7 +79,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
-        scriptPubKey = GetScriptForRawPubKey(pubkeys[0]);
+        scriptPubKey = ScriptP2PK(pubkeys[0]);
 
         // Keystore does not have key
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
@@ -74,7 +90,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
-        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
+        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
     }
 
     // P2PK compressed - Descriptor
@@ -84,7 +100,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        scriptPubKey = GetScriptForRawPubKey(pubkeys[0]);
+        scriptPubKey = ScriptP2PK(pubkeys[0]);
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
     }
@@ -94,7 +110,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
-        scriptPubKey = GetScriptForRawPubKey(uncompressedPubkey);
+        scriptPubKey = ScriptP2PK(uncompressedPubkey);
 
         // Keystore does not have key
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
@@ -105,7 +121,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(uncompressedKey));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
-        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
+        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
     }
 
     // P2PK uncompressed - Descriptor
@@ -115,7 +131,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        scriptPubKey = GetScriptForRawPubKey(uncompressedPubkey);
+        scriptPubKey = ScriptP2PK(uncompressedPubkey);
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
     }
@@ -132,11 +148,11 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
 
-        // Keystore has key
+        // Keystore has key. Bare P2PKH is not a RIGOR consensus type.
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
-        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
+        BOOST_CHECK_EQUAL(result, ISMINE_NO);
+        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
     }
 
     // P2PKH compressed - Descriptor
@@ -144,11 +160,8 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         std::string desc_str = "pkh(" + EncodeSecret(keys[0]) + ")";
 
-        auto spk_manager = CreateDescriptor(keystore, desc_str, true);
-
-        scriptPubKey = GetScriptForDestination(PKHash(pubkeys[0]));
-        result = spk_manager->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        auto spk_manager = CreateDescriptor(keystore, desc_str, false);
+        BOOST_CHECK_EQUAL(spk_manager, nullptr);
     }
 
     // P2PKH uncompressed - Legacy
@@ -163,11 +176,11 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
 
-        // Keystore has key
+        // Keystore has key. Bare P2PKH is not a RIGOR consensus type.
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(uncompressedKey));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
-        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
+        BOOST_CHECK_EQUAL(result, ISMINE_NO);
+        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 0);
     }
 
     // P2PKH uncompressed - Descriptor
@@ -175,11 +188,8 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         std::string desc_str = "pkh(" + EncodeSecret(uncompressedKey) + ")";
 
-        auto spk_manager = CreateDescriptor(keystore, desc_str, true);
-
-        scriptPubKey = GetScriptForDestination(PKHash(uncompressedPubkey));
-        result = spk_manager->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        auto spk_manager = CreateDescriptor(keystore, desc_str, false);
+        BOOST_CHECK_EQUAL(spk_manager, nullptr);
     }
 
     // P2SH - Legacy
@@ -396,7 +406,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
 
-        scriptPubKey = GetScriptForMultisig(2, {uncompressedPubkey, pubkeys[1]});
+        scriptPubKey = ScriptMultisig(2, {uncompressedPubkey, pubkeys[1]});
 
         // Keystore does not have any keys
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
@@ -432,7 +442,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        scriptPubKey = GetScriptForMultisig(2, {uncompressedPubkey, pubkeys[1]});
+        scriptPubKey = ScriptMultisig(2, {uncompressedPubkey, pubkeys[1]});
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
     }
@@ -445,7 +455,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(uncompressedKey));
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[1]));
 
-        CScript redeemScript = GetScriptForMultisig(2, {uncompressedPubkey, pubkeys[1]});
+        CScript redeemScript = ScriptMultisig(2, {uncompressedPubkey, pubkeys[1]});
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
 
         // Keystore has no redeemScript
@@ -468,7 +478,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        CScript redeemScript = GetScriptForMultisig(2, {uncompressedPubkey, pubkeys[1]});
+        CScript redeemScript = ScriptMultisig(2, {uncompressedPubkey, pubkeys[1]});
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
@@ -482,7 +492,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[1]));
 
-        CScript witnessScript = GetScriptForMultisig(2, {pubkeys[0], pubkeys[1]});
+        CScript witnessScript = ScriptMultisig(2, {pubkeys[0], pubkeys[1]});
         scriptPubKey = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
 
         // Keystore has keys, but no witnessScript or P2SH redeemScript
@@ -503,28 +513,24 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
     }
 
-    // Witness v1 RES (x-only program + <pubkey> OP_CHECKSIG witness script) — Legacy
+    // Witness v1 RES: HaveKey(pk32) plus the live v1 scriptPubKey. No CHECKSIG subscript.
     {
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
 
-        const CPubKey& pk = pubkeys[0];
-        const XOnlyPubKey xpk(pk);
-        CScript scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(xpk.begin(), xpk.end());
-        CScript witnessScript = CScript() << ToByteVector(pk) << OP_CHECKSIG;
+        const std::vector<unsigned char> pk32 = pubkeys[0].GetEd25519Payload();
+        BOOST_REQUIRE_EQUAL(pk32.size(), 32U);
+        CScript scriptPubKey = CScript() << RIGOR_PUSH_1 << pk32;
 
-        result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_NO);
-
-        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddCScript(witnessScript));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
 
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddCScript(scriptPubKey));
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->GetScriptPubKeys().count(scriptPubKey) == 1);
     }
 
     // P2WSH multisig with compressed keys - Descriptor
@@ -535,7 +541,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        CScript redeemScript = GetScriptForMultisig(2, {pubkeys[0], pubkeys[1]});
+        CScript redeemScript = ScriptMultisig(2, {pubkeys[0], pubkeys[1]});
         scriptPubKey = GetScriptForDestination(WitnessV0ScriptHash(redeemScript));
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
@@ -549,7 +555,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(uncompressedKey));
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[1]));
 
-        CScript witnessScript = GetScriptForMultisig(2, {uncompressedPubkey, pubkeys[1]});
+        CScript witnessScript = ScriptMultisig(2, {uncompressedPubkey, pubkeys[1]});
         scriptPubKey = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
 
         // Keystore has keys, but no witnessScript or P2SH redeemScript
@@ -586,7 +592,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         keystore.SetupLegacyScriptPubKeyMan();
         LOCK(keystore.GetLegacyScriptPubKeyMan()->cs_KeyStore);
 
-        CScript witnessScript = GetScriptForMultisig(2, {pubkeys[0], pubkeys[1]});
+        CScript witnessScript = ScriptMultisig(2, {pubkeys[0], pubkeys[1]});
         CScript redeemScript = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
 
@@ -618,47 +624,46 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        CScript witnessScript = GetScriptForMultisig(2, {pubkeys[0], pubkeys[1]});
+        CScript witnessScript = ScriptMultisig(2, {pubkeys[0], pubkeys[1]});
         CScript redeemScript = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
     }
 
-    // Combo - Descriptor
+    // combo() is rejected; wpkh() only matches native P2WPKH.
+    {
+        CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
+        std::string combo_str = "combo(" + EncodeSecret(keys[0]) + ")";
+        BOOST_CHECK_EQUAL(CreateDescriptor(keystore, combo_str, false), nullptr);
+    }
     {
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
 
-        std::string desc_str = "combo(" + EncodeSecret(keys[0]) + ")";
+        std::string desc_str = "wpkh(" + EncodeSecret(keys[0]) + ")";
 
         auto spk_manager = CreateDescriptor(keystore, desc_str, true);
 
-        // Test P2PK
-        result = spk_manager->IsMine(GetScriptForRawPubKey(pubkeys[0]));
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        result = spk_manager->IsMine(ScriptP2PK(pubkeys[0]));
+        BOOST_CHECK_EQUAL(result, ISMINE_NO);
 
-        // Test P2PKH
         result = spk_manager->IsMine(GetScriptForDestination(PKHash(pubkeys[0])));
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        BOOST_CHECK_EQUAL(result, ISMINE_NO);
 
-        // Test P2SH (combo descriptor does not describe P2SH)
         CScript redeemScript = GetScriptForDestination(PKHash(pubkeys[0]));
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
 
-        // Test P2WPKH
         scriptPubKey = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0]));
         result = spk_manager->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
 
-        // P2SH-P2WPKH output
         redeemScript = GetScriptForDestination(WitnessV0KeyHash(pubkeys[0]));
         scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
         result = spk_manager->IsMine(scriptPubKey);
-        BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
+        BOOST_CHECK_EQUAL(result, ISMINE_NO);
 
-        // Witness v1 RES (combo descriptor does not describe v1 programs)
         XOnlyPubKey xpk(pubkeys[0]);
         Assert(xpk.IsFullyValid());
         WitnessV1Res output{xpk};
@@ -685,7 +690,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK_EQUAL(result, ISMINE_SPENDABLE);
     }
 
-    // OP_RETURN
+    // RIGOR_MARKER_RETURN
     {
         CWallet keystore(chain.get(), "", CreateDummyWalletDatabase());
         keystore.SetupLegacyScriptPubKeyMan();
@@ -693,7 +698,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
 
         scriptPubKey.clear();
-        scriptPubKey << OP_RETURN << ToByteVector(pubkeys[0]);
+        scriptPubKey << RIGOR_MARKER_RETURN << ToByteVector(pubkeys[0]);
 
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
@@ -708,7 +713,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
 
         scriptPubKey.clear();
-        scriptPubKey << OP_0 << ToByteVector(ParseHex("aabb"));
+        scriptPubKey << RIGOR_PUSH_0 << ToByteVector(ParseHex("aabb"));
 
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
@@ -723,7 +728,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
 
         scriptPubKey.clear();
-        scriptPubKey << OP_16 << ToByteVector(ParseHex("aabb"));
+        scriptPubKey << RIGOR_PUSH_16 << ToByteVector(ParseHex("aabb"));
 
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);
@@ -738,7 +743,7 @@ BOOST_AUTO_TEST_CASE(ismine_standard)
         BOOST_CHECK(keystore.GetLegacyScriptPubKeyMan()->AddKey(keys[0]));
 
         scriptPubKey.clear();
-        scriptPubKey << OP_9 << OP_ADD << OP_11 << OP_EQUAL;
+        scriptPubKey << RIGOR_PUSH_9 << RIGOR_RESERVED_LEGACY_ADD << RIGOR_PUSH_11 << RIGOR_RESERVED_LEGACY_EQUAL;
 
         result = keystore.GetLegacyScriptPubKeyMan()->IsMine(scriptPubKey);
         BOOST_CHECK_EQUAL(result, ISMINE_NO);

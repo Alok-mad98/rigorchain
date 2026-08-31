@@ -16,6 +16,11 @@ The Coq **model** is strongly verified; **correspondence** is a finite different
 `hash_kernel_shared_binary_with_cpp` remains **false**.  
 `refinement_proved` remains **false**.
 
+Canonical product tree: [`https://github.com/rigorchain/rigorchain`](https://github.com/rigorchain/rigorchain).
+Wallet is SQLite (`rigor-wallet.sqlite`), not Berkeley DB. The C ABI
+`libbitcoinconsensus` is **deleted**, not renamed — do not document
+`librigorconsensus`. Identity sync: [`../security/RIGOR_FORMAL_VERIFICATION_IDENTITY_SYNC_P0_029.md`](../security/RIGOR_FORMAL_VERIFICATION_IDENTITY_SYNC_P0_029.md).
+
 Coq lock: `formal_verification/coq/DrawBridgeProgress.v` (re-export of
 `formal_verification/coq/Phase5Equivalence/DrawBridgeProgress.v`).
 

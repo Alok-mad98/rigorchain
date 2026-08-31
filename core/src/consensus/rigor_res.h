@@ -20,7 +20,7 @@ namespace rigor {
  * that creates RES, so this function is the single issuance gate and a block has at most one
  * mint by construction.
  *
- * A mint is present iff the coinbase carries a single `OP_RES_MINT` output. `mint_amount_out`
+ * A mint is present iff the coinbase carries a single `RIGOR_MARKER_RES_MINT` output. `mint_amount_out`
  * receives the RES paid by that output (0 when there is no mint) so ConnectBlock can add it to
  * the coinbase RES budget alongside `nFeesRes` and the mockable-chain bootstrap.
  *

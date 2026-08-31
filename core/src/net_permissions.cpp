@@ -9,7 +9,6 @@
 #include <util/translation.h>
 
 const std::vector<std::string> NET_PERMISSIONS_DOC{
-    "bloomfilter (allow requesting BIP37 filtered blocks and transactions)",
     "noban (do not ban for misbehavior; implies download)",
     "forcerelay (relay transactions that are already in the mempool; implies relay)",
     "relay (relay even in -blocksonly mode, and unlimited transaction announcements)",
@@ -44,7 +43,10 @@ bool TryParsePermissionFlags(const std::string& str, NetPermissionFlags& output,
             readen += len; // We read "perm1"
             if (commaSeparator != std::string::npos) readen++; // We read ","
 
-            if (permission == "bloomfilter" || permission == "bloom") NetPermissions::AddFlag(flags, NetPermissionFlags::BloomFilter);
+            if (permission == "bloomfilter" || permission == "bloom") {
+                error = _("Bloom permissions are not supported on RIGOR");
+                return false;
+            }
             else if (permission == "noban") NetPermissions::AddFlag(flags, NetPermissionFlags::NoBan);
             else if (permission == "forcerelay") NetPermissions::AddFlag(flags, NetPermissionFlags::ForceRelay);
             else if (permission == "mempool") NetPermissions::AddFlag(flags, NetPermissionFlags::Mempool);
@@ -71,7 +73,6 @@ bool TryParsePermissionFlags(const std::string& str, NetPermissionFlags& output,
 std::vector<std::string> NetPermissions::ToStrings(NetPermissionFlags flags)
 {
     std::vector<std::string> strings;
-    if (NetPermissions::HasFlag(flags, NetPermissionFlags::BloomFilter)) strings.push_back("bloomfilter");
     if (NetPermissions::HasFlag(flags, NetPermissionFlags::NoBan)) strings.push_back("noban");
     if (NetPermissions::HasFlag(flags, NetPermissionFlags::ForceRelay)) strings.push_back("forcerelay");
     if (NetPermissions::HasFlag(flags, NetPermissionFlags::Relay)) strings.push_back("relay");

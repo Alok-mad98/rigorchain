@@ -2,9 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/runtime_supply_coq_chas_adapter.h>
-#include <consensus/runtime_supply_witness_equivalence_candidate.h>
-#include <consensus/runtime_supply_witness_chain.h>
+#include <node/supply_monitor/runtime_supply_coq_chas_adapter.h>
+#include <node/supply_monitor/runtime_supply_witness_equivalence_candidate.h>
+#include <node/supply_monitor/runtime_supply_witness_chain.h>
 
 #include <boost/test/unit_test.hpp>
 

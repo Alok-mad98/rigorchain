@@ -8,7 +8,8 @@
     program prefixed ``CVG2``, value > 0, asset ORU, amount >= 1 ORU, exactly
     one such output. It is **not** a script interpreter, **not** [IsResScript],
     and **not** a refinement of ConnectBlock. Dual-pool pooling is
-    [asset_kind_of_script] of [out_script] (CVG2 scripts pool as ORU).
+    [asset_kind_of_script] of [out_script] (CVG2 scripts classify as
+    [AssetInvalid], not ORU).
     Spend-CVG2 *shape* is a conjunct of [apply_tx] ([ScriptShape.v]);
     this module's container predicate is what that conjunct consults.
 

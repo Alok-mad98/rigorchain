@@ -369,20 +369,19 @@ expected wins  =  n / 1024`}</pre>
             Mining does not mint RES. The public path is visible Windows miner participation, not
             hidden SOAP / soak mining. Product guide: <Link to="/mining">Mining</Link>.
           </p>
-          <pre className="pipeline-diagram">{`Windows miner
+          <pre className="pipeline-diagram">{`Wallet rg1q
       |
-Wallet
+local rigord  +  rigor-miner (SOLO GBT)
       |
-ORU convergence
+submitblock → ProcessNewBlock
       |
-RES generation
-      |
-Pool participation`}</pre>
+ORU to miner; RES mint in next coinbase if parent draw named a winner`}</pre>
           <p>
-            The miner or pool assembler binds <code>Convergence_Root</code> and{" "}
-            <code>draw_candidate_root</code> in the coinbase. On acceptance, coinbase pays ORU to
-            the miner. If the deferred draw has a winner, the block body must mint RES to the
-            winner, not to the miner.
+            The node template binds <code>Convergence_Root</code> and the paid-winner push in the
+            coinbase. The SOLO miner copies those bytes and grinds nonce. On acceptance, coinbase
+            pays ORU to the miner. If the parent draw named a winner, the same coinbase carries{" "}
+            <code>OP_RES_MINT</code> to the winner, not to the miner. A quarantined pool is not
+            the test-phase path.
           </p>
         </section>
 

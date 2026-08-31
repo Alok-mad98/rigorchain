@@ -44,11 +44,11 @@ BOOST_AUTO_TEST_CASE(p2wpkh_script_classifies_as_oru)
 
 BOOST_AUTO_TEST_CASE(witness_v1_native_res_classifies_as_res)
 {
-    // Native RES: OP_1 followed by a 32-byte program with no recognised prefix tag
+    // Native RES: RIGOR_PUSH_1 followed by a 32-byte program with no recognised prefix tag
     // (CVG2 / ORB2). Use a fixed, deterministic non-tag program.
     std::vector<unsigned char> program32(32, 0xAA);
     CScript res_spk;
-    res_spk << OP_1 << program32;
+    res_spk << RIGOR_PUSH_1 << program32;
     BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(res_spk), ASSET_RES);
     BOOST_CHECK_EQUAL(AssetTagForListUnspent(AssetTypeFromScriptPubKey(res_spk)), std::string("RES"));
 }

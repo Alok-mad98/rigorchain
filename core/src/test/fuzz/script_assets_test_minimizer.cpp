@@ -6,7 +6,7 @@
 
 #include <primitives/transaction.h>
 #include <pubkey.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <serialize.h>
 #include <streams.h>
 #include <univalue.h>
@@ -89,33 +89,31 @@ CScriptWitness ScriptWitnessFromJSON(const UniValue& univalue)
 }
 
 const std::map<std::string, unsigned int> FLAG_NAMES = {
-    {std::string("P2SH"), (unsigned int)SCRIPT_VERIFY_P2SH},
-    {std::string("DERSIG"), (unsigned int)SCRIPT_VERIFY_DERSIG},
-    {std::string("NULLDUMMY"), (unsigned int)SCRIPT_VERIFY_NULLDUMMY},
-    {std::string("CHECKLOCKTIMEVERIFY"), (unsigned int)SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY},
-    {std::string("CHECKSEQUENCEVERIFY"), (unsigned int)SCRIPT_VERIFY_CHECKSEQUENCEVERIFY},
+    {std::string("P2SH"), (unsigned int)0},
+    {std::string("DERSIG"), (unsigned int)0},
+    {std::string("NULLDUMMY"), (unsigned int)0},
+    {std::string("CHECKLOCKTIMEVERIFY"), (unsigned int)0},
+    {std::string("CHECKSEQUENCEVERIFY"), (unsigned int)0},
     {std::string("WITNESS"), (unsigned int)SCRIPT_VERIFY_WITNESS},
 };
 
 std::vector<unsigned int> AllFlags()
 {
     std::vector<unsigned int> ret;
-
-    for (unsigned int i = 0; i < 128; ++i) {
+    const unsigned int bits[] = {
+        SCRIPT_VERIFY_SIGPUSHONLY,
+        SCRIPT_VERIFY_CLEANSTACK,
+        SCRIPT_VERIFY_WITNESS,
+        SCRIPT_VERIFY_NULLFAIL,
+    };
+    for (unsigned int i = 0; i < 16; ++i) {
         unsigned int flag = 0;
-        if (i & 1) flag |= SCRIPT_VERIFY_P2SH;
-        if (i & 2) flag |= SCRIPT_VERIFY_DERSIG;
-        if (i & 4) flag |= SCRIPT_VERIFY_NULLDUMMY;
-        if (i & 8) flag |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
-        if (i & 16) flag |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
-        if (i & 32) flag |= SCRIPT_VERIFY_WITNESS;
-
-        // SCRIPT_VERIFY_WITNESS requires SCRIPT_VERIFY_P2SH
-        if (flag & SCRIPT_VERIFY_WITNESS && !(flag & SCRIPT_VERIFY_P2SH)) continue;
-
+        for (int b = 0; b < 4; ++b) {
+            if (i & (1u << b)) flag |= bits[b];
+        }
+        if ((flag & SCRIPT_VERIFY_CLEANSTACK) && !(flag & SCRIPT_VERIFY_WITNESS)) continue;
         ret.push_back(flag);
     }
-
     return ret;
 }
 
@@ -155,12 +153,12 @@ void Test(const std::string& str)
         tx.vin[idx].scriptWitness = ScriptWitnessFromJSON(test["success"]["witness"]);
         PrecomputedTransactionData txdata;
         txdata.Init(tx, std::vector<CTxOut>(prevouts));
-        MutableTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
+        MutableTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, uint256::ZERO);
         for (const auto flags : ALL_FLAGS) {
             // "final": true tests are valid for all flags. Others are only valid with flags that are
             // a subset of test_flags.
             if (final || ((flags & test_flags) == flags)) {
-                (void)VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
+                (void)VerifyRigorPredicate(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
             }
         }
     }
@@ -170,11 +168,11 @@ void Test(const std::string& str)
         tx.vin[idx].scriptWitness = ScriptWitnessFromJSON(test["failure"]["witness"]);
         PrecomputedTransactionData txdata;
         txdata.Init(tx, std::vector<CTxOut>(prevouts));
-        MutableTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, MissingDataBehavior::ASSERT_FAIL);
+        MutableTransactionSignatureChecker txcheck(&tx, idx, prevouts[idx].nValue, txdata, MissingDataBehavior::ASSERT_FAIL, uint256::ZERO);
         for (const auto flags : ALL_FLAGS) {
             // If a test is supposed to fail with test_flags, it should also fail with any superset thereof.
             if ((flags & test_flags) == test_flags) {
-                (void)VerifyScript(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
+                (void)VerifyRigorPredicate(tx.vin[idx].scriptSig, prevouts[idx].scriptPubKey, &tx.vin[idx].scriptWitness, flags, txcheck, nullptr);
             }
         }
     }

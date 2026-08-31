@@ -12,7 +12,7 @@
 #include <hash.h>
 #include <map>
 #include <pubkey.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/keyorigin.h>
 #include <script/standard.h>
 #include <uint256.h>
@@ -41,29 +41,39 @@ class MutableTransactionSignatureCreator : public BaseSignatureCreator
 {
     const CMutableTransaction& m_txto;
     unsigned int nIn;
-    int nHashType;
     CAmount amount;
+    const uint256 m_chain_id;
     const MutableTransactionSignatureChecker checker;
     const PrecomputedTransactionData* m_txdata;
 
 public:
-    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amount, int hash_type);
-    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amount, const PrecomputedTransactionData* txdata, int hash_type);
+    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amount, const uint256& chain_id);
+    MutableTransactionSignatureCreator(const CMutableTransaction& tx LIFETIMEBOUND, unsigned int input_idx, const CAmount& amount, const PrecomputedTransactionData* txdata, const uint256& chain_id);
     const CMutableTransaction& GetTransaction() const { return m_txto; }
     CAmount GetAmount() const { return amount; }
+    const uint256& GetChainId() const { return m_chain_id; }
     const PrecomputedTransactionData* GetTxData() const { return m_txdata; }
     /** Input index this creator signs (for diagnostics). */
     unsigned int GetInputIndex() const { return nIn; }
-    int GetSighashType() const { return nHashType; }
     const BaseSignatureChecker& Checker() const override { return checker; }
     bool CreateSig(const SigningProvider& provider, std::vector<unsigned char>& vchSig, const CKeyID& keyid, const CScript& scriptCode, SigVersion sigversion) const override;
 };
 
+/** Creator for filling in script and key metadata without signing.
+ *
+ * ProduceSignature() records redeem scripts, witness scripts and key origins before it ever asks
+ * the creator for a signature, so a creator that cannot sign is enough to populate metadata. Use
+ * this wherever no transaction is actually being signed — e.g. the synthetic spend used to
+ * describe a PSBT output. Having no sighash, it needs no chain_id, and unlike a transaction
+ * signature creator holding a placeholder chain_id it cannot be coaxed into emitting a signature
+ * bound to the wrong chain. */
+extern const BaseSignatureCreator& METADATA_ONLY_SIGNATURE_CREATOR;
+
 /** A signature checker that accepts all signatures */
 extern const BaseSignatureChecker& DUMMY_CHECKER;
-/** Dummy creator for fee estimation: 65-byte Ed25519 (64 + hashtype), not Bitcoin DER. */
+/** Dummy creator for fee estimation: 64-byte Ed25519, no hashtype. */
 extern const BaseSignatureCreator& DUMMY_SIGNATURE_CREATOR;
-/** Same 65-byte Ed25519 dummy (Alpha1 has no DER size grind). */
+/** Same 64-byte Ed25519 dummy. */
 extern const BaseSignatureCreator& DUMMY_MAXIMUM_SIGNATURE_CREATOR;
 
 typedef std::pair<CPubKey, std::vector<unsigned char>> SigPair;
@@ -109,19 +119,19 @@ bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreato
  * @param txTo       The spending transaction.
  * @param nIn        The index of the input in `txTo` referring the output being spent.
  * @param amount     The value of the output being spent.
- * @param nHashType  Signature hash type.
+ * @param chain_id   Genesis hash of the network this signature is bound to.
  * @param sig_data   Additional data provided to solve a script. Filled with the resulting satisfying
  *                   script and whether the satisfaction is complete.
  *
  * @return           True if the produced script is entirely satisfying `fromPubKey`.
  **/
 bool SignSignature(const SigningProvider &provider, const CScript& fromPubKey, CMutableTransaction& txTo,
-                   unsigned int nIn, const CAmount& amount, int nHashType, SignatureData& sig_data);
+                   unsigned int nIn, const CAmount& amount, const uint256& chain_id, SignatureData& sig_data);
 bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, CMutableTransaction& txTo,
-                   unsigned int nIn, int nHashType, SignatureData& sig_data);
+                   unsigned int nIn, const uint256& chain_id, SignatureData& sig_data);
 
 /** Extract signature data from a transaction input, and insert it. */
-SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nIn, const CTxOut& txout);
+SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nIn, const CTxOut& txout, const uint256& chain_id);
 void UpdateInput(CTxIn& input, const SignatureData& data);
 
 /** Check whether a scriptPubKey is known to be segwit. */
@@ -129,8 +139,8 @@ bool IsSegWitOutput(const SigningProvider& provider, const CScript& script);
 
 /** Sign the CMutableTransaction.
  *  FENCE-W5: no block-level rigor eval context argument. Signing uses UTXO coins
- *  plus the spending transaction only. */
-bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* provider, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors,
+ *  plus the spending transaction and the explicit chain_id (genesis hash). */
+bool SignTransaction(CMutableTransaction& mtx, const SigningProvider* provider, const std::map<COutPoint, Coin>& coins, const uint256& chain_id, std::map<int, bilingual_str>& input_errors,
                      const std::map<int, SignatureData>* extra_input_sigs = nullptr);
 
 #endif // BITCOIN_SCRIPT_SIGN_H

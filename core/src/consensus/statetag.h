@@ -58,13 +58,13 @@ static_assert(static_cast<uint8_t>(StateTagType::CLAIM) == 0x05, "CLAIM locked t
 // RFC-003 §5: Lock Program
 // ---------------------------------------------------------------------------
 
-/** Lock program format: OP_1 <32-byte program> = 0x51 0x20 <32 bytes> */
-inline constexpr size_t LOCK_PROGRAM_SIZE = 34; // 1 (OP_1) + 1 (push) + 32 (program)
-inline constexpr uint8_t LOCK_PROGRAM_PREFIX = 0x51; // OP_1
+/** Lock program format: RIGOR_PUSH_1 <32-byte program> = 0x51 0x20 <32 bytes> */
+inline constexpr size_t LOCK_PROGRAM_SIZE = 34; // 1 (RIGOR_PUSH_1) + 1 (push) + 32 (program)
+inline constexpr uint8_t LOCK_PROGRAM_PREFIX = 0x51; // RIGOR_PUSH_1
 inline constexpr uint8_t LOCK_PROGRAM_PUSH = 0x20; // Push 32 bytes
 
 static_assert(LOCK_PROGRAM_SIZE == 34, "Lock program size locked to 34 bytes per RFC-003");
-static_assert(LOCK_PROGRAM_PREFIX == 0x51, "Lock program prefix locked to OP_1 per RFC-003");
+static_assert(LOCK_PROGRAM_PREFIX == 0x51, "Lock program prefix locked to RIGOR_PUSH_1 per RFC-003");
 static_assert(LOCK_PROGRAM_PUSH == 0x20, "Lock program push locked to 0x20 per RFC-003");
 
 // ---------------------------------------------------------------------------

@@ -17,7 +17,6 @@
 #include <optional>
 
 using wallet::CWallet;
-using wallet::DatabaseFormat;
 using wallet::DatabaseOptions;
 using wallet::TxStateInactive;
 using wallet::WALLET_FLAG_DESCRIPTORS;
@@ -52,7 +51,7 @@ static void AddTx(CWallet& wallet)
     wallet.AddToWallet(MakeTransactionRef(mtx), TxStateInactive{});
 }
 
-static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
+static void WalletLoading(benchmark::Bench& bench)
 {
     const auto test_setup = MakeNoLogFileContext<TestingSetup>();
     test_setup->m_args.ForceSetArg("-unsafesqlitesync", "1");
@@ -64,12 +63,7 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
     // Setup the wallet
     // Loading the wallet will also create it
     DatabaseOptions options;
-    if (legacy_wallet) {
-        options.require_format = DatabaseFormat::BERKELEY;
-    } else {
-        options.create_flags = WALLET_FLAG_DESCRIPTORS;
-        options.require_format = DatabaseFormat::SQLITE;
-    }
+    options.create_flags = WALLET_FLAG_DESCRIPTORS;
     auto database = CreateMockWalletDatabase(options);
     auto wallet = BenchLoadWallet(std::move(database), context, options);
 
@@ -92,12 +86,7 @@ static void WalletLoading(benchmark::Bench& bench, bool legacy_wallet)
     });
 }
 
-#ifdef USE_BDB
-static void WalletLoadingLegacy(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/true); }
-BENCHMARK(WalletLoadingLegacy, benchmark::PriorityLevel::HIGH);
-#endif
-
 #ifdef USE_SQLITE
-static void WalletLoadingDescriptors(benchmark::Bench& bench) { WalletLoading(bench, /*legacy_wallet=*/false); }
+static void WalletLoadingDescriptors(benchmark::Bench& bench) { WalletLoading(bench); }
 BENCHMARK(WalletLoadingDescriptors, benchmark::PriorityLevel::HIGH);
 #endif

@@ -34,6 +34,8 @@ const char* AssetTypeToString(const AssetType asset)
         return "RES";
     case ASSET_NONE:
         return "NONE";
+    case ASSET_INVALID:
+        return "INVALID";
     }
     return "unknown";
 }
@@ -71,16 +73,16 @@ std::string FormatScript(const CScript& script)
         CScript::const_iterator it2 = it;
         std::vector<unsigned char> vch;
         if (script.GetOp(it, op, vch)) {
-            if (op == OP_0) {
+            if (op == RIGOR_PUSH_0) {
                 ret += "0 ";
                 continue;
-            } else if ((op >= OP_1 && op <= OP_16) || op == OP_1NEGATE) {
-                ret += strprintf("%i ", op - OP_1NEGATE - 1);
+            } else if ((op >= RIGOR_PUSH_1 && op <= RIGOR_PUSH_16) || op == RIGOR_RESERVED_LEGACY_1NEGATE) {
+                ret += strprintf("%i ", op - RIGOR_RESERVED_LEGACY_1NEGATE - 1);
                 continue;
-            } else if (op >= OP_NOP && op <= OP_NOP10) {
-                std::string str(GetOpName(op));
-                if (str.substr(0, 3) == std::string("OP_")) {
-                    ret += str.substr(3, std::string::npos) + " ";
+            } else if (op >= RIGOR_RESERVED_LEGACY_NOP && op <= RIGOR_RESERVED_LEGACY_NOP10) {
+                const std::string alias = GetOpNameAlias(op);
+                if (!alias.empty()) {
+                    ret += alias + " ";
                     continue;
                 }
             }
@@ -100,11 +102,7 @@ std::string FormatScript(const CScript& script)
 
 const std::map<unsigned char, std::string> mapSigHashTypes = {
     {static_cast<unsigned char>(SIGHASH_ALL), std::string("ALL")},
-    {static_cast<unsigned char>(SIGHASH_ALL|SIGHASH_ANYONECANPAY), std::string("ALL|ANYONECANPAY")},
-    {static_cast<unsigned char>(SIGHASH_NONE), std::string("NONE")},
-    {static_cast<unsigned char>(SIGHASH_NONE|SIGHASH_ANYONECANPAY), std::string("NONE|ANYONECANPAY")},
-    {static_cast<unsigned char>(SIGHASH_SINGLE), std::string("SINGLE")},
-    {static_cast<unsigned char>(SIGHASH_SINGLE|SIGHASH_ANYONECANPAY), std::string("SINGLE|ANYONECANPAY")},
+    {static_cast<unsigned char>(SIGHASH_DEFAULT), std::string("DEFAULT")},
 };
 
 std::string SighashToStr(unsigned char sighash_type)
@@ -135,18 +133,18 @@ std::string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDeco
             str += "[error]";
             return str;
         }
-        if (0 <= opcode && opcode <= OP_PUSHDATA4) {
+        if (0 <= opcode && opcode <= RIGOR_PUSHDATA4) {
             if (vch.size() <= static_cast<std::vector<unsigned char>::size_type>(4)) {
                 str += strprintf("%d", CScriptNum(vch, false).getint());
             } else {
-                // the IsUnspendable check makes sure not to try to decode OP_RETURN data that may match the format of a signature
+                // the IsUnspendable check makes sure not to try to decode RIGOR_MARKER_RETURN data that may match the format of a signature
                 if (fAttemptSighashDecode && !script.IsUnspendable()) {
                     std::string strSigHashDecode;
                     // goal: only attempt to decode a defined sighash type from data that looks like a signature within a scriptSig.
                     // this won't decode correctly formatted public keys in Pubkey or Multisig scripts due to
                     // the restrictions on the pubkey formats (see IsCompressedOrUncompressedPubKey) being incongruous with the
                     // checks in CheckSignatureEncoding.
-                    if (CheckSignatureEncoding(vch, SCRIPT_VERIFY_STRICTENC, nullptr)) {
+                    if (CheckSignatureEncoding(vch, nullptr)) {
                         const unsigned char chSigHashType = vch.back();
                         const auto it = mapSigHashTypes.find(chSigHashType);
                         if (it != mapSigHashTypes.end()) {
@@ -179,7 +177,9 @@ void ScriptToUniv(const CScript& script, UniValue& out, bool include_hex, bool i
 
     out.pushKV("asm", ScriptToAsmStr(script));
     if (include_address) {
-        out.pushKV("desc", InferDescriptor(script, provider ? *provider : DUMMY_SIGNING_PROVIDER)->ToString());
+        if (auto inferred = InferDescriptor(script, provider ? *provider : DUMMY_SIGNING_PROVIDER)) {
+            out.pushKV("desc", inferred->ToString());
+        }
     }
     if (include_hex) {
         out.pushKV("hex", HexStr(script));
@@ -188,7 +188,7 @@ void ScriptToUniv(const CScript& script, UniValue& out, bool include_hex, bool i
     std::vector<std::vector<unsigned char>> solns;
     const TxoutType type{Solver(script, solns)};
 
-    if (include_address && ExtractDestination(script, address) && type != TxoutType::PUBKEY) {
+    if (include_address && ExtractDestination(script, address)) {
         out.pushKV("address", EncodeDestination(address));
     }
     out.pushKV("type", GetTxnOutputType(type));

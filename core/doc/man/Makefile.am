@@ -1,6 +1,6 @@
 dist_man1_MANS=
 
-if BUILD_BITCOIND
+if BUILD_RIGORD
   dist_man1_MANS+=rigord.1
 endif
 
@@ -8,20 +8,20 @@ if ENABLE_QT
   dist_man1_MANS+=rigor-qt.1
 endif
 
-if BUILD_BITCOIN_CLI
+if BUILD_RIGOR_CLI
   dist_man1_MANS+=rigor-cli.1
 endif
 
-if BUILD_BITCOIN_TX
+if BUILD_RIGOR_TX
   dist_man1_MANS+=rigor-tx.1
 endif
 
-if BUILD_BITCOIN_UTIL
+if BUILD_RIGOR_UTIL
   dist_man1_MANS+=rigor-util.1
 endif
 
 if ENABLE_WALLET
-if BUILD_BITCOIN_WALLET
+if BUILD_RIGOR_WALLET
   dist_man1_MANS+=rigor-wallet.1
 endif
 endif

@@ -8,7 +8,7 @@
 #include <chain.h>
 #include <consensus/amount.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
@@ -36,8 +36,7 @@ CAmount GetConvergenceAmount(const CTransaction& tx)
     CAmount total{0};
     for (const auto& out : tx.vout) {
         if (!IsConvergenceScript(out.scriptPubKey)) continue;
-        if (!MoneyRange(out.nValue)) return 0;
-        if (!MoneyRange(total) || out.nValue > MAX_MONEY - total) return 0;
+        if (AddMoneyOverflows(total, out.nValue)) return 0;
         total += out.nValue;
     }
     return total;

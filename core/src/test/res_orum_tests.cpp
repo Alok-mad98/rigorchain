@@ -11,7 +11,7 @@
 #include <consensus/convergenceres.h>
 #include <consensus/convergence_logic.h>
 #include <consensus/convergence_root.h>
-#include <consensus/res_mint_carrier.h>
+#include <test/util/pcorb_carrier.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_res.h>
 #include <consensus/tx_check.h>
@@ -20,13 +20,14 @@
 #include <node/devtest_res_bootstrap.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/rigor_tags.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <crypto/ed25519_provider.h>
 #include <hash.h>
 #include <uint256.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <util/system.h>
 
@@ -41,15 +42,15 @@
 namespace {
 
 /** ORU: witness v0-style 20-byte program (not v1 RES). */
-const CScript g_origo_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x11);
+const CScript g_origo_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
 
-/** RES: witness v1 + 32-byte native Ed25519 program (full pubkey). */
-const CScript g_res_spk = CScript() << OP_1 << std::vector<unsigned char>(32, 0xab);
+/** RES: witness v1 + 32-byte canonical Ed25519 pubkey. */
+const CScript g_res_spk = TestNativeResScript();
 
 CScript HonestMintSpk(int spend_height)
 {
     const std::vector<unsigned char> pk(32, 0x11);
-    return GetResMintScriptForProgram(
+    return GetResMintScriptForPubKey(
         static_cast<int64_t>(spend_height) + Params().GetConsensus().nCoinbaseMaturity, pk);
 }
 
@@ -132,7 +133,7 @@ BOOST_AUTO_TEST_CASE(oru_convergence_fee_matches_inputs_minus_outputs)
     CMutableTransaction cb;
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     const auto ids = Consensus::ListConvergenceRootCommitmentTxids(
         {MakeTransactionRef(cb), MakeTransactionRef(tx)}, coins, 200, Params().GetConsensus());
     BOOST_REQUIRE_EQUAL(ids.size(), 1U);
@@ -230,7 +231,7 @@ BOOST_AUTO_TEST_CASE(cvg2_is_oru_not_res_and_does_not_increase_res_value_out)
 
 BOOST_AUTO_TEST_CASE(is_res_script_matches_getvalueout_classification)
 {
-    const CScript opret = CScript() << OP_RETURN << std::vector<unsigned char>{0xaa};
+    const CScript opret = CScript() << RIGOR_MARKER_RETURN << std::vector<unsigned char>{0xaa};
     BOOST_CHECK(IsResScript(g_res_spk));
     BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(g_res_spk), ASSET_RES);
     BOOST_CHECK(!IsResScript(g_origo_spk));
@@ -256,7 +257,7 @@ BOOST_AUTO_TEST_CASE(ordinary_oru_payment_cannot_create_res)
     BOOST_CHECK_EQUAL(state.GetRejectReason(), "mixed-asset-output");
 }
 
-BOOST_AUTO_TEST_CASE(body_tx_with_pcorb_carrier_is_ordinary_op_return)
+BOOST_AUTO_TEST_CASE(body_tx_with_pcorb_carrier_is_rejected)
 {
     CCoinsView base;
     CCoinsViewCache coins(&base);
@@ -268,9 +269,17 @@ BOOST_AUTO_TEST_CASE(body_tx_with_pcorb_carrier_is_ordinary_op_return)
     mtx.vout.emplace_back(19 * COIN, g_origo_spk);
     mtx.vout.push_back(SaturatingCarrier());
 
+    TxValidationState tx_state;
+    BOOST_CHECK(!CheckTransaction(CTransaction(mtx), tx_state));
+    BOOST_CHECK_EQUAL(tx_state.GetRejectReason(), "bad-pcorb-carrier");
+
     TxValidationState state;
     CAmount fee{};
-    BOOST_CHECK(Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
+    BOOST_CHECK(!CheckTransaction(CTransaction(mtx), state));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-pcorb-carrier");
+    state = TxValidationState{};
+    BOOST_CHECK(!Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-pcorb-carrier");
 }
 
 BOOST_AUTO_TEST_CASE(leftover_witness_cannot_create_res_at_checktxinputs)
@@ -301,7 +310,6 @@ BOOST_AUTO_TEST_CASE(legal_body_mint_shape_rejected_at_checktxinputs)
     CMutableTransaction mtx;
     mtx.vin.emplace_back(prev);
     mtx.vout.emplace_back(Consensus::RES_REWARD_GENESIS, HonestMintSpk(200));
-    mtx.vout.push_back(SaturatingCarrier());
 
     TxValidationState state;
     CAmount fee{};
@@ -371,15 +379,14 @@ BOOST_AUTO_TEST_CASE(res_mint_op_res_mint_encodes_maturity_and_owner)
     BOOST_CHECK(parsed_pkh.size() == 20);
     BOOST_CHECK(uint160(parsed_pkh) == pkh);
 
-    // Dummy detached Ed25519 sig (64 bytes + hashtype). VerifyScript admits the
-    // OP_RES_MINT template (witness v0/v1 are not required). BaseSignatureChecker
+    // Dummy detached Ed25519 sig (64 bytes). VerifyRigorPredicate admits the
+    // RIGOR_MARKER_RES_MINT template (witness v0/v1 are not required). BaseSignatureChecker
     // reports spend height 0, so maturity fails before the dummy signature is checked.
-    std::vector<unsigned char> sig(ed25519::SIGNATURE_SIZE + 1, 0x22);
-    sig.back() = SIGHASH_ALL;
+    std::vector<unsigned char> sig(ed25519::SIGNATURE_SIZE, 0x22);
     const CScript scriptSig = CScript() << sig << pk;
 
     ScriptError verr{SCRIPT_ERR_OK};
-    BOOST_CHECK(!VerifyScript(scriptSig, spk, nullptr, SCRIPT_VERIFY_NONE,
+    BOOST_CHECK(!VerifyRigorPredicate(scriptSig, spk, nullptr, SCRIPT_VERIFY_NONE,
                               BaseSignatureChecker(), &verr));
     BOOST_CHECK_EQUAL(verr, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
 
@@ -398,19 +405,8 @@ BOOST_AUTO_TEST_CASE(res_mint_op_res_mint_encodes_maturity_and_owner)
     };
 
     auto eval_mint = [&](const CScript& mint_spk, const BaseSignatureChecker& checker, ScriptError& err) {
-        std::vector<std::vector<unsigned char>> stack;
         err = SCRIPT_ERR_OK;
-        if (!EvalScript(stack, scriptSig, SCRIPT_VERIFY_NONE, checker, SigVersion::BASE, &err)) {
-            return false;
-        }
-        if (!EvalScript(stack, mint_spk, SCRIPT_VERIFY_NONE, checker, SigVersion::BASE, &err)) {
-            return false;
-        }
-        if (stack.empty() || stack.back().empty() || stack.back()[0] == 0) {
-            err = SCRIPT_ERR_EVAL_FALSE;
-            return false;
-        }
-        return true;
+        return VerifyRigorPredicate(scriptSig, mint_spk, nullptr, SCRIPT_VERIFY_NONE, checker, &err);
     };
 
     ScriptError err{SCRIPT_ERR_OK};
@@ -519,8 +515,8 @@ BOOST_AUTO_TEST_CASE(op_cvg_claim_is_retired)
     const CScript retired = CScript() << std::vector<unsigned char>(20, 0x11)
                                       << static_cast<opcodetype>(0xbc);
 
-    // 0xbc is burned (see script.h): HasValidOps rejects it even though MAX_OPCODE is now OP_CONVERGE.
-    BOOST_CHECK_EQUAL(GetOpName(static_cast<opcodetype>(0xbc)), std::string("OP_UNKNOWN"));
+    // 0xbc is burned (see script.h): HasValidOps rejects it even though MAX_OPCODE is now RIGOR_MARKER_CONVERGE.
+    BOOST_CHECK_EQUAL(GetOpName(static_cast<opcodetype>(0xbc)), std::string("RESERVED_0xBC"));
     BOOST_CHECK(!retired.HasValidOps());
 
     // No covenant branch in the classifier, so the shape falls through to the legacy
@@ -540,14 +536,12 @@ BOOST_AUTO_TEST_CASE(op_cvg_claim_is_retired)
     TxoutType which{TxoutType::NONSTANDARD};
     BOOST_CHECK(!::IsStandard(retired, std::nullopt, which));
 
-    // Executing it is a bad opcode, not a covenant check.
-    std::vector<std::vector<unsigned char>> stack{{0x01}, {0x01}, {0x01}};
+    // Retired locks are not a consensus script type.
     ScriptError err{SCRIPT_ERR_OK};
-    BOOST_CHECK(!EvalScript(stack, retired, SCRIPT_VERIFY_NONE, BaseSignatureChecker(),
-                            SigVersion::BASE, &err));
-    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_BAD_OPCODE);
+    BOOST_CHECK(!VerifyRigorPredicate(CScript(), retired, nullptr, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), &err));
+    BOOST_CHECK_EQUAL(err, SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
 
-    // OP_CONVERGE is the only convergence form, which is what makes draw weight and RFC-002 C(t)
+    // RIGOR_MARKER_CONVERGE is the only convergence form, which is what makes draw weight and RFC-002 C(t)
     // the same number: the output never enters the UTXO set, so committing it as destroyed
     // ORU is sound. The retired 0xbc shape carries no draw weight at all.
     CMutableTransaction cvg2;
@@ -576,10 +570,10 @@ BOOST_AUTO_TEST_CASE(parse_res_mint_rejects_noncanonical_encoding)
     BOOST_CHECK_EQUAL(mat, 5);
 
     CScript pushdata1;
-    pushdata1.push_back(OP_PUSHDATA1);
+    pushdata1.push_back(RIGOR_PUSHDATA1);
     pushdata1.push_back(1);
     pushdata1.push_back(5);
-    pushdata1 << ToByteVector(pkh) << OP_RES_MINT;
+    pushdata1 << ToByteVector(pkh) << RIGOR_MARKER_RES_MINT;
     BOOST_CHECK(pushdata1 != canonical);
     BOOST_CHECK(!ParseResMintScript(pushdata1, mat, parsed_pkh));
 }
@@ -588,10 +582,10 @@ BOOST_AUTO_TEST_CASE(res2_prefix_is_not_an_allowed_script)
 {
     std::vector<unsigned char> wp(32, 0xab);
     std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
-    const CScript res2 = CScript() << OP_1 << wp;
+    const CScript res2 = CScript() << RIGOR_PUSH_1 << wp;
     BOOST_CHECK(!Consensus::IsAllowedScript(res2));
     BOOST_CHECK(!IsResScript(res2));
-    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(res2), ASSET_NONE);
+    BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(res2), ASSET_INVALID);
 
     CMutableTransaction mtx;
     mtx.vin.resize(1);
@@ -606,13 +600,12 @@ BOOST_AUTO_TEST_CASE(res_mint_scriptsig_must_be_push_only)
 {
     const uint160 pkh;
     const CScript spk = GetResMintScript(/*maturity_height=*/0, pkh);
-    std::vector<unsigned char> sig(ed25519::SIGNATURE_SIZE + 1, 0x22);
-    sig.back() = SIGHASH_ALL;
+    std::vector<unsigned char> sig(ed25519::SIGNATURE_SIZE, 0x22);
     const std::vector<unsigned char> pk(32, 0x11);
     CScript malleated;
-    malleated << OP_DROP << sig << pk;
+    malleated << RIGOR_RESERVED_LEGACY_DROP << sig << pk;
     ScriptError err{SCRIPT_ERR_OK};
-    BOOST_CHECK(!VerifyScript(malleated, spk, nullptr, SCRIPT_VERIFY_NONE,
+    BOOST_CHECK(!VerifyRigorPredicate(malleated, spk, nullptr, SCRIPT_VERIFY_NONE,
                               BaseSignatureChecker(), &err));
     BOOST_CHECK_EQUAL(err, SCRIPT_ERR_SIG_PUSHONLY);
 }

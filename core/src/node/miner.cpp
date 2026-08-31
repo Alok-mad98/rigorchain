@@ -19,7 +19,6 @@
 #include <consensus/merkle.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
-#include <script/rigor_tags.h>
 #include <script/script.h>
 #include <deploymentstatus.h>
 #include <key_io.h>
@@ -37,33 +36,26 @@
 #include <validation.h>
 
 #include <algorithm>
-#include <cinttypes>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <variant>
 
 namespace node {
 
-/** Resolve the witness-v1 RES script that arms automatic Convergence mint assembly.
- *  Network fees are ORU-only (POOL-F); nFeesRes is expected to stay 0 on production paths.
- *  Since A-5 the Convergence prize pays the winner's program — this script is an arming
- *  signal (and legacy bootstrap sink on mockable chains), not a fee-receive address.
+/** Resolve the mockable-chain bootstrap sink. Never reads gArgs; the flag is
+ *  parsed into Options at construction. Non-mockable chains always return empty.
  */
-static CScript ResolveMiningResFeeScript(const CScript& explicit_script, const CChainParams& chainparams)
+static CScript ResolveMiningResFeeScript(const CScript& explicit_script, const CScript& from_options, const CChainParams& chainparams)
 {
+    if (!chainparams.IsMockableChain()) {
+        return {};
+    }
     if (!explicit_script.empty()) {
         return explicit_script;
     }
-    if (!gArgs.IsArgSet("-miningresfeeaddr")) {
-        return {};
-    }
-    std::string err;
-    const CTxDestination dest = DecodeDestination(gArgs.GetArg("-miningresfeeaddr", ""), chainparams, err, nullptr);
-    if (!IsValidDestination(dest) || !std::holds_alternative<WitnessV1Res>(dest)) {
-        return {};
-    }
-    return GetScriptForDestination(dest);
+    return from_options;
 }
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev)
 {
@@ -74,12 +66,10 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
         pblock->nTime = nNewTime;
     }
 
-    // Updating time can change work required:
-    // - testnet min-difficulty (legacy Bitcoin)
-    // - ASERT (Rigor): next nBits is a function of the child header's nTime, so GBT's
-    //   UpdateTime() on a cached template must refresh nBits or miners get bad-diffbits
-    //   (fresh curtime paired with stale bits).
-    if (consensusParams.fPowAllowMinDifficultyBlocks || consensusParams.nPowASERTHalfLife > 0) {
+    // Testnet min-difficulty: a sufficiently future nTime switches the next
+    // compact target to powLimit. ASERT uses only the parent timestamp, so
+    // mainnet nBits does not change when GBT rolls nTime.
+    if (consensusParams.fPowAllowMinDifficultyBlocks) {
         pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
     }
 
@@ -88,9 +78,12 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
 void RegenerateCommitments(CBlock& block, ChainstateManager& chainman)
 {
-    CMutableTransaction tx{*block.vtx.at(0)};
-    tx.vout.erase(tx.vout.begin() + GetWitnessCommitmentIndex(block));
-    block.vtx.at(0) = MakeTransactionRef(tx);
+    const int commitpos = GetWitnessCommitmentIndex(block);
+    if (commitpos != NO_WITNESS_COMMITMENT) {
+        CMutableTransaction tx{*block.vtx.at(0)};
+        tx.vout.erase(tx.vout.begin() + commitpos);
+        block.vtx.at(0) = MakeTransactionRef(tx);
+    }
 
     const CBlockIndex* prev_block = WITH_LOCK(::cs_main, return chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock));
     chainman.GenerateCoinbaseCommitment(block, prev_block);
@@ -98,50 +91,49 @@ void RegenerateCommitments(CBlock& block, ChainstateManager& chainman)
     block.hashMerkleRoot = BlockMerkleRoot(block);
 }
 
-static bool VoutLooksLikeConvergenceCommitment(const CTxOut& out)
+bool RebuildTemplateCommitments(CBlock& block, ChainstateManager& chainman, std::string& err)
 {
-    const CScript& s = out.scriptPubKey;
-    CScript::const_iterator pc = s.begin();
-    opcodetype opcode;
-    std::vector<unsigned char> vch;
-    if (!s.GetOp(pc, opcode) || opcode != OP_RETURN) return false;
-    if (!s.GetOp(pc, opcode, vch)) return false;
-    return vch.size() >= 4 && vch[0] == 0x46 && vch[1] == 0x52 && vch[2] == 0x47 && vch[3] == 0x45;
-}
+    AssertLockHeld(::cs_main);
+    if (block.vtx.empty() || !block.vtx[0]->IsCoinBase()) {
+        err = "RebuildTemplateCommitments: missing coinbase";
+        return false;
+    }
+    const CBlockIndex* prev = chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock);
+    if (prev == nullptr) {
+        err = "RebuildTemplateCommitments: prev block not found";
+        return false;
+    }
+    // C comes from the active chainstate's UTXO view, which is only the view at this
+    // block's entry while `prev` is still the tip. cs_main cannot express that, so the
+    // caller must hold it across template creation and this call.
+    if (prev != chainman.ActiveChain().Tip()) {
+        err = "RebuildTemplateCommitments: block does not build on the active tip";
+        return false;
+    }
+    const Consensus::Params& consensus = chainman.GetParams().GetConsensus();
+    const int height = prev->nHeight + 1;
 
-static bool VoutLooksLikeRigorDrawTargetCommitment(const CTxOut& out)
-{
-    const CScript& s = out.scriptPubKey;
-    CScript::const_iterator pc = s.begin();
-    opcodetype opcode;
-    std::vector<unsigned char> vch;
-    if (!s.GetOp(pc, opcode) || opcode != OP_RETURN) return false;
-    if (!s.GetOp(pc, opcode, vch)) return false;
-    if (vch.size() != RigorTags::RIGOR_COMMITMENT_PAYLOAD_SIZE) return false;
-    return vch.size() >= RigorTags::RIGOR.size() &&
-           std::equal(RigorTags::RIGOR.begin(), RigorTags::RIGOR.end(), vch.begin());
-}
+    std::optional<uint256> paid_winner;
+    if (!GetTemplatePaidWinner(block, prev, consensus, paid_winner)) {
+        err = "RebuildTemplateCommitments: cannot read parent draw set";
+        return false;
+    }
 
-void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pindexPrev, ChainstateManager& chainman)
-{
-    assert(pindexPrev != nullptr);
+    CCoinsViewCache view(&chainman.ActiveChainstate().CoinsTip());
+    const ConvergenceDrawSet committed = GetTemplateConvergenceDrawSet(block, prev, view, consensus);
+    if (!committed.IsSet()) {
+        err = strprintf("RebuildTemplateCommitments: cannot reconstruct convergence window at height=%d hash=%s",
+                        prev->nHeight, prev->GetBlockHash().ToString());
+        return false;
+    }
 
     CMutableTransaction mtx(*block.vtx[0]);
-    for (int i = int(mtx.vout.size()) - 1; i >= 0; --i) {
-        if (VoutLooksLikeConvergenceCommitment(mtx.vout[i]) || VoutLooksLikeRigorDrawTargetCommitment(mtx.vout[i])) {
-            mtx.vout.erase(mtx.vout.begin() + i);
-        }
-    }
+    mtx.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+        height, committed.convergence_root, paid_winner.value_or(uint256{}));
     block.vtx[0] = MakeTransactionRef(std::move(mtx));
 
-    const int wpos = GetWitnessCommitmentIndex(block);
-    if (wpos != NO_WITNESS_COMMITMENT) {
-        mtx = CMutableTransaction(*block.vtx[0]);
-        mtx.vout.erase(mtx.vout.begin() + wpos);
-        block.vtx[0] = MakeTransactionRef(std::move(mtx));
-    }
-
-    chainman.GenerateCoinbaseCommitment(block, pindexPrev);
+    RegenerateCommitments(block, chainman);
+    return true;
 }
 
 static BlockAssembler::Options ClampOptions(BlockAssembler::Options options)
@@ -159,23 +151,33 @@ BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool
 {
 }
 
-void ApplyArgsManOptions(const ArgsManager& args, BlockAssembler::Options& options)
+void ApplyArgsManOptions(const ArgsManager& args, const CChainParams& chainparams, BlockAssembler::Options& options)
 {
     // Block resource limits
     options.nBlockMaxWeight = args.GetIntArg("-blockmaxweight", options.nBlockMaxWeight);
     if (const auto blockmintxfee{args.GetArg("-blockmintxfee")}) {
         if (const auto parsed{ParseMoney(*blockmintxfee)}) options.blockMinFeeRate = CFeeRate{*parsed};
     }
+    if (args.IsArgSet("-blockversion")) {
+        options.block_version_override = static_cast<int32_t>(args.GetIntArg("-blockversion", 0));
+    }
+    if (chainparams.IsMockableChain() && args.IsArgSet("-miningresfeeaddr")) {
+        std::string dest_err;
+        const CTxDestination dest = DecodeDestination(args.GetArg("-miningresfeeaddr", ""), chainparams, dest_err, nullptr);
+        if (IsValidDestination(dest) && std::holds_alternative<WitnessV1Res>(dest)) {
+            options.res_bootstrap_script = GetScriptForDestination(dest);
+        }
+    }
 }
-static BlockAssembler::Options ConfiguredOptions()
+static BlockAssembler::Options ConfiguredOptions(const CChainParams& chainparams)
 {
     BlockAssembler::Options options;
-    ApplyArgsManOptions(gArgs, options);
+    ApplyArgsManOptions(gArgs, chainparams, options);
     return options;
 }
 
 BlockAssembler::BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool)
-    : BlockAssembler(chainstate, mempool, ConfiguredOptions()) {}
+    : BlockAssembler(chainstate, mempool, ConfiguredOptions(chainstate.m_chainman.GetParams())) {}
 
 void BlockAssembler::resetBlock()
 {
@@ -189,7 +191,6 @@ void BlockAssembler::resetBlock()
     // These counters do not include coinbase tx
     nBlockTx = 0;
     nFeesOru = 0;
-    nFeesRes = 0;
     nFeesOruResTransferBurn = 0;
 }
 
@@ -218,10 +219,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     nHeight = pindexPrev->nHeight + 1;
 
     pblock->nVersion = m_chainstate.m_chainman.m_versionbitscache.ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (chainparams.MineBlocksOnDemand()) {
-        pblock->nVersion = gArgs.GetIntArg("-blockversion", pblock->nVersion);
+    // -regtest only: allow overriding block.nVersion with -blockversion=N
+    if (chainparams.MineBlocksOnDemand() && m_options.block_version_override) {
+        pblock->nVersion = *m_options.block_version_override;
     }
 
     pblock->nTime = TicksSinceEpoch<std::chrono::seconds>(GetAdjustedTime());
@@ -233,8 +233,8 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         LOCK(m_mempool->cs);
         addPackageTxs(*m_mempool, nPackagesSelected, nDescendantsUpdated);
     }
-    // POOL-F (P8): template assembly sums only ORU `CTxMemPoolEntry::GetFee()`; RES transfer amounts never become res_fees.
-    Assert(nFeesRes == 0);
+    // POOL-F (P8): template assembly sums only ORU `CTxMemPoolEntry::GetFee()`. RES transfer
+    // amounts never become fees, so there is no RES fee accumulator to reconcile here.
     Assert(nFeesOruResTransferBurn >= 0);
     Assert(nFeesOruResTransferBurn <= nFeesOru);
 
@@ -257,18 +257,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // (BlockPaidWinner), so C computed before the carrier is appended disagrees with ConnectBlock
     // and fails TestBlockValidity with bad-cb-convergence-root on payout blocks.
     coinbaseTx.vin[0].scriptSig = CScript() << nHeight << std::vector<unsigned char>(32, 0);
-    const CScript res_fee_script = ResolveMiningResFeeScript(scriptPubKeyResFeeIn, chainparams);
-    if (nFeesRes > 0) {
-        if (res_fee_script.empty()) {
-            throw std::runtime_error(
-                strprintf("%s: unexpected non-zero nFeesRes=%" PRId64 " without Convergence mint arming script; set -miningresfeeaddr=<witness-v1-RES> (network fees remain ORU-only)",
-                          __func__, nFeesRes));
-        }
-        CTxOut res_fee_out;
-        res_fee_out.nValue = nFeesRes;
-        res_fee_out.scriptPubKey = res_fee_script;
-        coinbaseTx.vout.push_back(res_fee_out);
-    }
+    const CScript res_fee_script = ResolveMiningResFeeScript(scriptPubKeyResFeeIn, m_options.res_bootstrap_script, chainparams);
     const CAmount res_wallet_bootstrap = DevTestResWalletBootstrap(chainparams);
     if (res_wallet_bootstrap > 0) {
         if (res_fee_script.empty()) {
@@ -291,6 +280,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // — otherwise TestBlockValidity fails with bad-rigor-res-winner-mismatch. After
     // RES_REWARD_LAST_EPOCH, W(h) = 0: a winner does not authorize a mint (H-1). Omit without
     // throwing so mining continues. Assembly is not gated on -miningresfeeaddr.
+    std::optional<uint256> template_paid_txid;
     {
         ConvergenceDrawSet parent_draw_set;
         const bool have_parent_draw = GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set);
@@ -318,29 +308,37 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                         __func__));
                 }
                 pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
+                template_paid_txid = parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid;
             }
         }
     }
 
-    // Coinbase scriptSig (ConvergenceRoot v1): canonical CScript() << height << 32-byte root.
-    // Must match ConnectBlock's BuildConvergenceDrawSet over the FINAL vtx[] (coinbase mint
-    // included — paid-set exclusion uses the parent winner when OP_RES_MINT is present).
-    // ConvergenceRoot is defined against UTXO at *block entry*, not mid-assembly m_assemble_coins.
+    // Coinbase scriptSig: height || C || paid-winner txid (zeros if this block does not mint).
     {
         CCoinsViewCache view_convergence_root_at_entry(&m_chainstate.CoinsTip());
-        const uint256 convergence_root =
-            GetTemplateConvergenceRoot(*pblock, pindexPrev, view_convergence_root_at_entry, consensus);
-        CMutableTransaction mtx_cb(*pblock->vtx[0]);
-        mtx_cb.vin[0].scriptSig =
-            CScript() << nHeight << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
-        pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
+        const ConvergenceDrawSet committed = GetTemplateConvergenceDrawSet(
+            *pblock, pindexPrev, view_convergence_root_at_entry, consensus);
+        if (!committed.IsSet()) {
+            if (m_options.test_block_validity) {
+                throw std::runtime_error(strprintf(
+                    "%s: cannot reconstruct convergence window at height=%d hash=%s",
+                    __func__, pindexPrev->nHeight, pindexPrev->GetBlockHash().ToString()));
+            }
+            // Header-only test chains have no window records on disk. Leave the
+            // placeholder scriptSig; do not write an all-zero C as if it were a root.
+        } else {
+            CMutableTransaction mtx_cb(*pblock->vtx[0]);
+            mtx_cb.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+                nHeight, committed.convergence_root, template_paid_txid.value_or(uint256{}));
+            pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
+        }
     }
 
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
     pblocktemplate->vTxFees[0] = -nFeesOru;
 
-    LogPrintf("CreateNewBlock(): block weight: %u txs: %u oru_fees: %ld oru_fee_burn: %ld res_fees: %ld sigops %d\n",
-              GetBlockWeight(*pblock), nBlockTx, nFeesOru, nFeesOruResTransferBurn, nFeesRes, nBlockSigOpsCost);
+    LogPrintf("CreateNewBlock(): block weight: %u txs: %u oru_fees: %ld oru_fee_burn: %ld sigops %d\n",
+              GetBlockWeight(*pblock), nBlockTx, nFeesOru, nFeesOruResTransferBurn, nBlockSigOpsCost);
 
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();

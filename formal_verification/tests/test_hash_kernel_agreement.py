@@ -4,7 +4,7 @@
 This is NOT a proof that C++ SHA-256 equals Coq RigorSha256. It checks that the
 Python spec (hashlib) agrees with the pinned layout and with the golden HashKernel
 / SigmaEncoder / Sha256Fips vectors. C++ agreement is `test_hash_kernel_tripartite.py`
-(portable CSHA256 CLI) plus selection_golden_tests when test_bitcoin is rebuilt.
+(portable CSHA256 CLI) plus selection_golden_tests when test_rigor is rebuilt.
 Coq agreement is GoldenHarness.v + CanonicalHashKernel.v.
 """
 from __future__ import annotations

@@ -112,7 +112,7 @@ public:
     // Send coins to a list of recipients
     void sendCoins(WalletModelTransaction& transaction);
 
-    /** Build and broadcast a convergence transaction (ORU to OP_CONVERGE). */
+    /** Build and broadcast a convergence transaction (ORU to RIGOR_MARKER_CONVERGE). */
     SendCoinsReturn sendConvergenceOru(CAmount amount_oru);
 
     //! Convergence draw / convergence-root summary for a block (uses this wallet's convergence txids for is_mine).

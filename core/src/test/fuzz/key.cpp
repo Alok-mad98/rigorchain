@@ -121,7 +121,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
     }
 
     {
-        const CScript tx_pubkey_script = GetScriptForRawPubKey(pubkey);
+        const CScript tx_pubkey_script = CScript() << ToByteVector(pubkey) << RIGOR_RESERVED_LEGACY_CHECKSIG;
         assert(!tx_pubkey_script.IsPayToScriptHash());
         assert(!tx_pubkey_script.IsPayToWitnessScriptHash());
         assert(!tx_pubkey_script.IsPushOnly());
@@ -129,7 +129,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
         assert(tx_pubkey_script.HasValidOps());
         assert(tx_pubkey_script.size() == 35);
 
-        const CScript tx_multisig_script = GetScriptForMultisig(1, {pubkey});
+        const CScript tx_multisig_script = CScript() << RIGOR_PUSH_1 << ToByteVector(pubkey) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
         assert(!tx_multisig_script.IsPayToScriptHash());
         assert(!tx_multisig_script.IsPayToWitnessScriptHash());
         assert(!tx_multisig_script.IsPushOnly());
@@ -176,7 +176,7 @@ FUZZ_TARGET_INIT(key, initialize_key)
         assert(v_solutions_ret_tx_multisig[1].size() == 33);
         assert(v_solutions_ret_tx_multisig[2].size() == 1);
 
-        const CTxDestination tx_destination = GetDestinationForKey(pubkey, OutputType::LEGACY);
+        const CTxDestination tx_destination = GetDestinationForKey(pubkey, OutputType::BECH32);
         assert(IsValidDestination(tx_destination));
         assert(std::holds_alternative<WitnessV0KeyHash>(tx_destination));
 
@@ -258,11 +258,9 @@ FUZZ_TARGET_INIT(key, initialize_key)
         const bool ok = key.Sign(random_uint256, vch_sig, false);
         assert(ok);
         assert(pubkey.Verify(random_uint256, vch_sig));
-        assert(CPubKey::CheckLowS(vch_sig));
 
         const std::vector<unsigned char> vch_invalid_sig{vch_sig.begin(), vch_sig.begin() + vch_sig.size() - 1};
         assert(!pubkey.Verify(random_uint256, vch_invalid_sig));
-        assert(!CPubKey::CheckLowS(vch_invalid_sig));
     }
 
     {

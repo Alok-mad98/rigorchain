@@ -15,6 +15,7 @@
 #include <pow.h>
 #include <random.h>
 #include <script/standard.h>
+#include <test/util/mining.h>
 #include <test/util/random.h>
 #include <test/util/script.h>
 #include <test/util/setup_common.h>
@@ -25,11 +26,10 @@
 #include <thread>
 
 using node::BlockAssembler;
-using node::RefreshCoinbaseWitnessAndconvergence;
 
 namespace validation_block_tests {
 
-/** P2WPKH coinbase script for CreateNewBlock (Rigor rejects bare OP_TRUE / non-witness outputs). */
+/** P2WPKH coinbase script for CreateNewBlock (Rigor rejects bare RIGOR_PUSH_1 / non-witness outputs). */
 static CScript RegtestWitnessCoinbaseScript()
 {
     static const CScript script = [] {
@@ -91,7 +91,7 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
 
     // Make the coinbase transaction with two outputs:
     // One zero-value one that has a unique pubkey to make sure that blocks at the same height can have a different hash
-    // Another one that has the coinbase reward in a P2WSH with OP_TRUE as witness program to make it easy to spend
+    // Another one that has the coinbase reward in a dummy P2WPKH (P2WSH is not a consensus output)
     CMutableTransaction txCoinbase(*pblock->vtx[0]);
     while (txCoinbase.vout.size() > 1) {
         txCoinbase.vout.pop_back();
@@ -110,8 +110,8 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
         prev_index,
         m_node.chainman->ActiveChainstate().CoinsTip(),
         m_node.chainman->GetConsensus());
-    txCoinbase.vin[0].scriptSig = CScript{} << (prev_height + 1)
-        << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+    txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+        prev_height + 1, convergence_root, uint256{});
     txCoinbase.nLockTime = static_cast<uint32_t>(prev_height);
     pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
 
@@ -261,7 +261,7 @@ BOOST_AUTO_TEST_CASE(witness_commitment_index)
 
     CTxOut witness;
     witness.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT);
-    witness.scriptPubKey[0] = OP_RETURN;
+    witness.scriptPubKey[0] = RIGOR_MARKER_RETURN;
     witness.scriptPubKey[1] = 0x24;
     witness.scriptPubKey[2] = 0xaa;
     witness.scriptPubKey[3] = 0x21;
@@ -273,7 +273,7 @@ BOOST_AUTO_TEST_CASE(witness_commitment_index)
     min_plus_one.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT + 1);
 
     CTxOut invalid = witness;
-    invalid.scriptPubKey[0] = OP_VERIFY;
+    invalid.scriptPubKey[0] = RIGOR_RESERVED_LEGACY_VERIFY;
 
     CMutableTransaction txCoinbase(*pblock.vtx[0]);
     txCoinbase.vout.resize(4);

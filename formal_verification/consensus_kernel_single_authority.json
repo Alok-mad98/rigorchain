@@ -1,0 +1,89 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-SINGLE-AUTHORITY-CLOSURE-P0-054",
+  "date": "2026-08-30",
+  "consensus_kernel_single_authority": "CLOSED",
+  "production_kernel_path": "SINGLE",
+  "extracted_kernel_role": "VERIFICATION_ORACLE",
+  "c_abi_boundary": "STABLE",
+  "production_consensus_modified": false,
+  "production_kernel_switched": true,
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "phase5_authority": "NON_AUTHORITATIVE",
+  "connect_block": {
+    "file": "core/src/validation.cpp",
+    "role": "orchestration",
+    "dispatches": [
+      "GetConvergenceDrawSetForBlock",
+      "RigorConsensusKernel::ResolveDraw",
+      "RigorConsensusKernel::EvaluateConnect"
+    ],
+    "does_not_contain": [
+      "issuance formula",
+      "epoch calculation",
+      "draw resolver body",
+      "asset classification rule",
+      "supply equation body"
+    ],
+    "call_graph": [
+      "CheckBlock / UTXO context",
+      "GetConvergenceDrawSetForBlock (state assembly → F)",
+      "RigorConsensusKernel::ResolveDraw(F, T) → winner",
+      "tx loop / ClassifyRigorTxout",
+      "RigorConsensusKernel::EvaluateConnect (mint + supply)",
+      "UTXO / index mutation"
+    ]
+  },
+  "unique_bodies": {
+    "RigorIssuanceEpoch": "core/src/consensus/rigor_issuance.h",
+    "GetBlockSubsidy": "core/src/consensus/rigor_issuance.cpp",
+    "GetResMintReward": "core/src/consensus/rigor_consensus_lock.h",
+    "ComputeRigorIssuance": "core/src/consensus/rigor_issuance.cpp",
+    "RigorSupplyDelta": "core/src/consensus/rigor_supply.cpp",
+    "ResolveConvergenceDraw": "core/src/consensus/convergence_logic.cpp",
+    "ClassifyRigorTxout": "core/src/script/rigor_classify.cpp",
+    "ClassifyRigorAsset": "wrapper of ClassifyRigorTxout",
+    "AssetTypeFromScriptPubKey": "wrapper of ClassifyRigorTxout",
+    "Solver": "alias of ClassifyRigorTxout"
+  },
+  "state_assembly": {
+    "GetConvergenceDrawSetForBlock": "validation.cpp; no winner resolution",
+    "BuildConvergenceDrawSet": "convergence_logic.cpp; builds F",
+    "winner": "ResolveConvergenceDraw only"
+  },
+  "c_abi": {
+    "dir": "core/src/consensus/bridge",
+    "role": "verify-only POD boundary",
+    "compile_flag": "RIGOR_KERNEL_ABI_VERIFY_ONLY",
+    "in_makefile_am": false,
+    "calls": {
+      "rigor_compute_issuance": "ComputeRigorIssuance",
+      "rigor_classify_script": "ClassifyRigorAsset",
+      "rigor_resolve_draw": "ResolveConvergenceDraw",
+      "rigor_supply_delta": "RigorSupplyDelta"
+    },
+    "pod_only": true
+  },
+  "extracted_kernel": {
+    "role": "verification_oracle",
+    "called_from_connect_block": false,
+    "linked_into_production": false
+  },
+  "phase5": {
+    "stamp": "formal_verification/coq/Phase5Equivalence/EquivalenceFramework.v",
+    "authority": "NON_AUTHORITATIVE",
+    "vacuous_placeholder": "bookkeeping; not consensus evidence",
+    "deleted": false
+  },
+  "legacy_account_model": {
+    "build_tier_today": "DEFAULT_BUILD",
+    "in_protocol_core": true,
+    "target_tier": "DEAD_BUILD",
+    "action_this_task": "registered_not_deleted",
+    "migration": "move Kernel/Proofs Requires off Selection.v/Types.v; then drop from _CoqProject.protocol-core"
+  },
+  "observational_not_kernel": [
+    "GetChainOruTotal (validation.cpp; calls GetBlockSubsidy; RFC-002 path fold)",
+    "node/supply_monitor (observer)"
+  ]
+}

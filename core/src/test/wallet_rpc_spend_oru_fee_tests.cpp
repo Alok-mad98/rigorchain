@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(reject_subtract_fee_from_res_output)
 BOOST_AUTO_TEST_CASE(res_transfer_rejects_subtract_fee_recipient)
 {
     const std::vector<wallet::CRecipient> vec{
-        {CScript() << OP_RETURN, 1 * RES_COIN, /*subtract=*/true, ASSET_RES}};
+        {CScript() << RIGOR_MARKER_RETURN, 1 * RES_COIN, /*subtract=*/true, ASSET_RES}};
     const auto err = wallet::CheckResTransferFeeSemantics(vec);
     BOOST_REQUIRE(err.has_value());
 }

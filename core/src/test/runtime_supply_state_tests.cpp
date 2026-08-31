@@ -2,9 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/coq_supply_field_hook.h>
-#include <consensus/runtime_supply_export.h>
-#include <consensus/runtime_supply_state.h>
+#include <node/supply_monitor/coq_supply_field_hook.h>
+#include <node/supply_monitor/runtime_supply_export.h>
+#include <node/supply_monitor/runtime_supply_state.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -261,11 +261,14 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_fresh_capture_when_mirror_absent)
 BOOST_AUTO_TEST_CASE(derived_oru_subsidy_cumulative_matches_manual_sum)
 {
     const Consensus::Params& consensus = Params().GetConsensus();
-    CAmount manual = 0;
-    for (int h = 0; h <= 5; ++h) {
-        manual += GetBlockSubsidy(h, consensus);
+    const int heights[] = {0, 1, 5, 149, 150, 151, 449, 450, 1000};
+    for (int h : heights) {
+        CAmount manual = 0;
+        for (int i = 0; i <= h; ++i) {
+            manual += GetBlockSubsidy(i, consensus);
+        }
+        BOOST_CHECK_EQUAL(Consensus::ComputeDerivedOruSubsidyCumulative(h, consensus), manual);
     }
-    BOOST_CHECK_EQUAL(Consensus::ComputeDerivedOruSubsidyCumulative(5, consensus), manual);
 }
 
 BOOST_AUTO_TEST_CASE(observational_metrics_update_after_connect_shape)

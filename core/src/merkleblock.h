@@ -6,11 +6,11 @@
 #ifndef BITCOIN_MERKLEBLOCK_H
 #define BITCOIN_MERKLEBLOCK_H
 
-#include <common/bloom.h>
 #include <primitives/block.h>
 #include <serialize.h>
 #include <uint256.h>
 
+#include <set>
 #include <vector>
 
 // Helper functions for serialization.
@@ -129,30 +129,16 @@ public:
     CPartialMerkleTree txn;
 
     /**
-     * Public only for unit testing and relay testing (not relayed).
-     *
-     * Used only when a bloom filter is specified to allow
-     * testing the transactions which matched the bloom filter.
+     * Public only for unit testing (not relayed).
      */
     std::vector<std::pair<unsigned int, uint256> > vMatchedTxn;
 
-    /**
-     * Create from a CBlock, filtering transactions according to filter
-     * Note that this will call IsRelevantAndUpdate on the filter for each transaction,
-     * thus the filter will likely be modified.
-     */
-    CMerkleBlock(const CBlock& block, CBloomFilter& filter) : CMerkleBlock(block, &filter, nullptr) { }
-
     // Create from a CBlock, matching the txids in the set
-    CMerkleBlock(const CBlock& block, const std::set<uint256>& txids) : CMerkleBlock(block, nullptr, &txids) { }
+    CMerkleBlock(const CBlock& block, const std::set<uint256>& txids);
 
     CMerkleBlock() {}
 
     SERIALIZE_METHODS(CMerkleBlock, obj) { READWRITE(obj.header, obj.txn); }
-
-private:
-    // Combined constructor to consolidate code
-    CMerkleBlock(const CBlock& block, CBloomFilter* filter, const std::set<uint256>* txids);
 };
 
 #endif // BITCOIN_MERKLEBLOCK_H

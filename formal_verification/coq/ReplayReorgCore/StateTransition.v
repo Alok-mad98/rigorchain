@@ -218,14 +218,14 @@ Definition asset_kind_of_script (spk : list nat) : AssetKind :=
   | ScriptMintWitness.SmwORU => AssetORU
   | ScriptMintWitness.SmwRES => AssetRES
   | ScriptMintWitness.SmwNone => AssetNone
-  | ScriptMintWitness.SmwCVG => AssetCVG
+  | ScriptMintWitness.SmwInvalid => AssetInvalid
   end.
 
 Definition output_asset (o : TxOut) : AssetKind :=
   asset_kind_of_script (out_script o).
 
 Definition spk_oru : list nat := ScriptMintWitness.canonical_p2wpkh.
-Definition spk_res : list nat := ScriptMintWitness.canonical_res2_script.
+Definition spk_res : list nat := ScriptMintWitness.canonical_native_res.
 Definition spk_mint : list nat := ScriptMintWitness.canonical_res_mint_script.
 
 Definition mk_oru (v : Z) : TxOut := {| out_value := v; out_script := spk_oru |}.
@@ -273,7 +273,7 @@ Qed.
 Lemma output_asset_cvg :
   forall o : TxOut,
     is_cvg_covenant_output o = true ->
-    output_asset o = AssetCVG.
+    output_asset o = AssetInvalid.
 Proof.
   intros o H.
   unfold output_asset, asset_kind_of_script, ScriptMintWitness.asset_from_script.
@@ -423,11 +423,10 @@ Proof. vm_compute. reflexivity. Qed.
 
 (** * Ticket birth
 
-    [valid_cvg_covenant_spend] governs *spending* a ticket. Creating one was unconstrained:
-    [ScriptMintWitness.is_allowed_script] admits the [OP_CVG_CLAIM] template, so the model
-    permitted a zero-value ticket, a ticket created alongside a RES mint, several tickets in one
-    transaction, and a ticket with no ORU behind it. [convergence_creates_one_cvg] existed but
-    was a free-standing predicate wired to nothing.
+    [valid_cvg_covenant_spend] governs *spending* a ticket. Creating one is
+    additionally rejected by [cvg_create_gate] and by [is_allowed_script]
+    (TASK-010 C-4: [OP_CVG_CLAIM] classifies as [SmwInvalid]). The predicates
+    below remain as the design-study birth rule if the opcode is ever revived.
 
     A ticket is a receipt for ORU committed to a convergence draw, so birth requires ORU input
     value, forbids creating RES in the same transaction (birth is not a mint), admits at most one
@@ -763,8 +762,7 @@ Lemma valid_script_shape_tx_placeholder :
   forall (u : UTXOSet) (tx : TxAbs) (ins : list TxOut),
     gather_inputs u (tx_spends tx) = Some ins ->
     tx_pcorb tx = None ->
-    forallb (fun o => match out_script o with nil => true | _ => false end)
-            (tx_creates tx) = true ->
+    tx_creates tx = nil ->
     forallb (fun o => match out_script o with nil => true | _ => false end)
             ins = true ->
     valid_script_shape_tx u tx = true.
@@ -1607,8 +1605,9 @@ Proof.
 Qed.
 
 (** Accepted block ⇒ every body tx passed the finite shape conjunct
-    (created [IsAllowedScript] / zero-value [OP_RETURN] / empty fixture,
-    no spend-CVG2, optional PCORB sizes). Not [IsResScript] vs tag. *)
+    (created [IsAllowedScript] / zero-value [OP_RETURN], no spend-CVG2,
+    optional PCORB sizes). Empty scripts are [AssetInvalid] and fail.
+    Not [IsResScript] vs tag. *)
 Theorem apply_block_succeeds_implies_script_shape :
   forall (s : ReplayState) (b : BlockAbs) (s' : ReplayState),
     apply_block s b = Some s' ->

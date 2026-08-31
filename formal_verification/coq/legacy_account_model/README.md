@@ -1,6 +1,7 @@
 # Legacy account-model Coq kernel (W9)
 
-**Status:** deprecated. Not the C++ consensus model.
+**Status:** deprecated. **NON_AUTHORITATIVE.** Not the C++ consensus model.
+Not refinement evidence. Not an equivalence.
 
 ```
 equivalence_claimed = false
@@ -27,6 +28,17 @@ The structural Coq model that tracks the C++ *shape* (still **not** a refinement
 - [`../ReplayReorgCore/ConnectBlockMint.v`](../ReplayReorgCore/ConnectBlockMint.v)
 
 Honesty flags for ReplayReorgCore remain `false`. That kernel is a replay/reorg *structure*, not a claim that Coq and C++ share a binary hash or that refinement is proved.
+
+## P0-054 disposition
+
+```
+BUILD_TIER_TODAY = DEFAULT_BUILD   (still in _CoqProject.protocol-core)
+TARGET_TIER      = DEAD_BUILD
+```
+
+This TASK registers the migration. It does not delete the directory.
+Selection lemmas still `Require Import` these files; move those imports,
+then drop the directory from the default cone.
 
 ## Why these files still compile
 

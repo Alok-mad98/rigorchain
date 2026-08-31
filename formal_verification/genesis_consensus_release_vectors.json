@@ -1,0 +1,71 @@
+{
+  "task": "TASK-RIGOR-GENESIS-CONSENSUS-RELEASE-AUDIT-P0-075",
+  "note": "Frozen genesis pins. Schedule is not actual issuance. Draw empty_F is none. Does not prove C++ = Coq = Python.",
+  "nCoinbaseMaturity": 100,
+  "height_0": {
+    "oru_actual_issuance": 0,
+    "res_actual_issuance": 0,
+    "res_schedule": 40000000,
+    "draw": "none"
+  },
+  "heights": [
+    {
+      "height": 0,
+      "epoch": 0,
+      "oru_subsidy": 0,
+      "oru_actual_issuance": 0,
+      "res_schedule": 40000000,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none"
+    },
+    {
+      "height": 1,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none"
+    },
+    {
+      "height": 99,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none",
+      "maturity_spend_of_height_1": "immature"
+    },
+    {
+      "height": 100,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none",
+      "maturity_spend_of_height_1": "immature"
+    },
+    {
+      "height": 101,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none",
+      "maturity_spend_of_height_1": "mature"
+    },
+    {
+      "height": 210000,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196,
+      "res_actual_without_mint": 0,
+      "empty_F_draw": "none"
+    }
+  ],
+  "maturity": {
+    "nCoinbaseMaturity": 100,
+    "coin_height": 1,
+    "immature_spend_height": [1, 99, 100],
+    "mature_spend_height": [101]
+  }
+}

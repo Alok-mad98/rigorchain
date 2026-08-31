@@ -6,9 +6,9 @@
 #define BITCOIN_PROOF_RUNTIME_VECTOR_HARNESS_H
 
 #include <consensus/amount.h>
-#include <consensus/runtime_supply_export.h>
-#include <consensus/runtime_supply_invariant_checker.h>
-#include <consensus/runtime_supply_witness_chain.h>
+#include <node/supply_monitor/runtime_supply_export.h>
+#include <node/supply_monitor/runtime_supply_invariant_checker.h>
+#include <node/supply_monitor/runtime_supply_witness_chain.h>
 
 
 #include <cstddef>

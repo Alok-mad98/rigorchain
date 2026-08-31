@@ -15,7 +15,7 @@
  * After changing regtest genesis, subsidy, or anything that alters the UTXO set at
  * heights 110 / 200, regenerate and update the literals below:
  *
- *   RIGOR_GEN_ASSUMEUTXO=1 ./test/test_bitcoin --run_test=validation_chainstate_tests/rigor_assumeutxo_param_gen
+ *   RIGOR_GEN_ASSUMEUTXO=1 ./test/test_rigor --run_test=validation_chainstate_tests/rigor_assumeutxo_param_gen
  *
  * (see test/validation_chainstate_tests.cpp). Consensus behavior is unchanged when only
  * these constants are refreshed to match the generator output.

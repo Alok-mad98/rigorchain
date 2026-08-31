@@ -74,6 +74,9 @@ namespace RejectCodes {
 }
 
 static_assert(COIN == 100000000, "ORU base unit must match Bitcoin-style COIN (1e8)");
+/** Per-output / per-tx-sum sanity bound (amount.h MAX_MONEY). Not an ORU supply cap. */
+static_assert(MAX_MONEY == static_cast<CAmount>(10000000000LL) * COIN,
+    "MAX_MONEY must stay the 10-billion-ORU overflow bound, not Bitcoin 21e6");
 
 // ---------------------------------------------------------------------------
 // RES amount scale + supply ceiling (single name: RES_MAX_SUPPLY)
@@ -120,12 +123,35 @@ inline constexpr int CONVERGENCE_DRAW_MIN_TXS_FOR_RES = 1;
  * [h-W, h-2] are already buried and unremovable. He must therefore outbid candidates he cannot
  * censor, which re-couples RES acquisition to burn rather than to hashrate.
  *
- * DERIVATION. The binding constraint is that no single producer can supply the entire window.
- * For hashrate share α that probability is α^W. Design maximum α = 0.5 with a target below
- * 1e-9 gives W ≥ 30; 32 is the next power of two, so RES_PROBABILITY_TARGET is a single shift
- * of the pre-windowing target and log2(W) is an integer.
+ * DERIVATION (exclusivity by hashrate). The binding constraint is that no single producer can
+ * supply the entire window. For hashrate share α that probability is α^W. The acceptance
+ * criterion is not a bare epsilon: multiply by the number of draws the chain will ever pay,
+ * which is bounded by the issuance horizon RES_REWARD_EPOCH * (RES_REWARD_LAST_EPOCH + 1) =
+ * 52,710,000 blocks, and require the expected number of fully-captured windows over the whole
+ * life of the chain to stay below 0.05. At the design maximum α = 0.5 that is W >= 30:
  *
- *   α = 0.25 → 5.4e-20      α = 0.33 → 3.9e-16      α = 0.50 → 2.3e-10
+ *   W:              16        24        30        32        36
+ *   α=0.50 → α^W:   1.5e-05   6.0e-08   9.3e-10   2.3e-10   1.5e-11
+ *   expected/chain: 804       3.14      0.049     0.012     0.0008
+ *   α=0.33 → α^W:   2.3e-08   3.5e-12   4.9e-15   5.4e-16   6.7e-18
+ *   α=0.25 → α^W:   2.3e-10   3.6e-15   8.7e-19   5.4e-20   2.1e-22
+ *
+ * 32 is the smallest power of two satisfying W >= 30, so RES_PROBABILITY_TARGET is a single
+ * shift of the pre-windowing target and log2(W) is an integer. W = 16 fails by four orders of
+ * magnitude: a 50% miner would capture the whole window ~800 times over the issuance horizon.
+ *
+ * SECOND, INDEPENDENT LOWER BOUND (exclusivity by sparsity). Because
+ * CONVERGENCE_DRAW_MIN_TXS_FOR_RES == 1, an attacker does not have to mine the window at all —
+ * it is enough that no one else's convergence tx lands in it. At a third-party arrival rate of
+ * λ convergence txs per block that probability is exp(-λW), independent of hashrate:
+ *
+ *   λ = 0.05/block:  W=16 → 0.449     W=32 → 0.202
+ *   λ = 0.10/block:  W=16 → 0.202     W=32 → 0.041
+ *   λ = 0.25/block:  W=16 → 0.018     W=32 → 0.00034
+ *
+ * This bound dominates early in the chain's life, decays in W just as fast, and rejects small
+ * windows on its own. Nothing on the cost side pushes W down: the ticket participation period
+ * (W blocks), the LRU caps (4*W) and the prune floor (288+W) are all operational.
  *
  * A-8 IS NOT WEAKENED. Every σ input is still fixed the instant block h-1 is found: txid_i was
  * mined earlier, C spans blocks all of which are then fixed, and B_{h-1} is the PoW solution.
@@ -258,8 +284,14 @@ static_assert(ResScheduleSum() == 99450437,
 // ORU block subsidy (Rigor networks; GetBlockSubsidy + chainparams)
 // ---------------------------------------------------------------------------
 
-/** Initial subsidy base before halving shifts (1000 ORU). */
+/** Initial subsidy base before halving shifts (1000 ORU). Height >= 1 only. */
 inline constexpr CAmount ORU_INITIAL_BLOCK_SUBSIDY = 1000 * COIN;
+
+/** Height-0 coinbase / GetBlockSubsidy(0). Not a premine; ConnectBlock still skips genesis UTXO. */
+inline constexpr CAmount ORU_GENESIS_BLOCK_SUBSIDY = 0;
+
+static_assert(ORU_GENESIS_BLOCK_SUBSIDY == 0, "genesis must issue 0 ORU");
+static_assert(ORU_INITIAL_BLOCK_SUBSIDY == 1000 * COIN, "h>=1 ORU base must stay 1000");
 
 /** Standard halving interval on Rigor public networks using ORU_SUBSIDY_HALVING_INTERVAL. */
 inline constexpr int ORU_SUBSIDY_HALVING_INTERVAL = 210000;
@@ -283,7 +315,7 @@ static_assert(RES_REWARD_EPOCH == ORU_SUBSIDY_HALVING_INTERVAL,
 // Pure ORU txs, Convergence, and ORU-funded RES mints are unaffected.
 //
 // Burn is implemented by lowering the ConnectBlock / CreateNewBlock claimable
-// ORU cap; the unclaimed fee never enters the UTXO set (no OP_RETURN parking).
+// ORU cap; the unclaimed fee never enters the UTXO set (no RIGOR_MARKER_RETURN parking).
 // ---------------------------------------------------------------------------
 
 /** Numerator of the RES-transfer fee burn share (floor(fee * NUM / DEN)). */

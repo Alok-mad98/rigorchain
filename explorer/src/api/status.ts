@@ -25,7 +25,7 @@ export type StatusDashboard = {
   system_integrity: Record<string, unknown>;
 };
 
-/** getblockchaininfo amounts are ValueFromAmount decimals; getconvergencestats ORU is sat atoms. */
+/** getblockchaininfo amounts are ValueFromAmount decimals; getconvergencestats ORU is integer atoms. */
 function formatOruAmount(value: unknown, asAtoms = false): string | null {
   if (value == null || value === "") return null;
   if (asAtoms) {

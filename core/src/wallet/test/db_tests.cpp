@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(getwalletenv_file)
 
 BOOST_AUTO_TEST_CASE(getwalletenv_directory)
 {
-    fs::path expected_name = "wallet.dat";
+    fs::path expected_name = WALLET_DATABASE_FILENAME;
     const fs::path datadir = m_args.GetDataDirNet();
 
     fs::path filename;

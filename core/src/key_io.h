@@ -29,15 +29,14 @@ bool IsValidDestinationString(const std::string& str);
 bool IsValidDestinationString(const std::string& str, const CChainParams& params);
 
 /**
- * RFC-WALLET-002: RG1P/RG1Q address distinction for asset type detection.
- * RG1P (Witness V0) → ORU asset
- * RG1Q (Witness V1) → RES asset
+ * Address strings encode a scriptPubKey. Asset class comes from
+ * AssetTypeFromScriptPubKey of that script, not from HRP or witness version.
  */
 
-/** Detect asset type from CTxDestination. Returns std::nullopt if destination does not encode asset type. */
+/** Detect asset type from CTxDestination. Returns std::nullopt if the encoded script is not ORU or RES. */
 std::optional<AssetType> GetAssetTypeFromDestination(const CTxDestination& dest);
 
-/** Detect asset type from address string. Returns std::nullopt if address is invalid or does not encode asset type. */
+/** Detect asset type from address string. Returns std::nullopt if the address is invalid or its script is not ORU or RES. */
 std::optional<AssetType> GetAssetTypeFromAddress(const std::string& str, const CChainParams& params);
 
 #endif // BITCOIN_KEY_IO_H

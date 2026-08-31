@@ -20,7 +20,7 @@ using wallet::DBErrors;
 using wallet::GetBalance;
 using wallet::WALLET_FLAG_DESCRIPTORS;
 
-const std::string ADDRESS_BCRT1_UNSPENDABLE = "rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq36z3mv";
+const std::string ADDRESS_BCRT1_UNSPENDABLE = "rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfa5c2t";
 
 static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const bool add_mine)
 {

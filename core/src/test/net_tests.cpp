@@ -11,6 +11,7 @@
 #include <netaddress.h>
 #include <netbase.h>
 #include <netmessagemaker.h>
+#include <rigor_capability.h>
 #include <serialize.h>
 #include <span.h>
 #include <streams.h>
@@ -854,11 +855,18 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     std::chrono::microseconds time_received_dummy{0};
 
     const auto msg_version =
-        msg_maker.Make(NetMsgType::VERSION, PROTOCOL_VERSION, services, time, services, peer_us);
+        msg_maker.Make(NetMsgType::VERSION, RIGOR_PROTOCOL_CURRENT_VERSION, services, time, services, peer_us);
     CDataStream msg_version_stream{msg_version.data, SER_NETWORK, PROTOCOL_VERSION};
 
     m_node.peerman->ProcessMessage(
         peer, NetMsgType::VERSION, msg_version_stream, time_received_dummy, interrupt_dummy);
+
+    const auto msg_rigorcap = msg_maker.Make(NetMsgType::RIGORCAP,
+                                             static_cast<uint32_t>(RIGOR_PROTOCOL_CURRENT_VERSION),
+                                             RIGOR_LOCAL_ACTIVE_CAPABILITIES);
+    CDataStream msg_rigorcap_stream{msg_rigorcap.data, SER_NETWORK, PROTOCOL_VERSION};
+    m_node.peerman->ProcessMessage(
+        peer, NetMsgType::RIGORCAP, msg_rigorcap_stream, time_received_dummy, interrupt_dummy);
 
     const auto msg_verack = msg_maker.Make(NetMsgType::VERACK);
     CDataStream msg_verack_stream{msg_verack.data, SER_NETWORK, PROTOCOL_VERSION};
@@ -876,8 +884,8 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
                                         const std::string& msg_type,
                                         Span<const unsigned char> data,
                                         bool is_incoming) -> void {
-        if (!is_incoming && msg_type == "addr") {
-            CDataStream s(data, SER_NETWORK, PROTOCOL_VERSION);
+        if (!is_incoming && msg_type == "addrv2") {
+            CDataStream s(data, SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
             std::vector<CAddress> addresses;
 
             s >> addresses;

@@ -1,0 +1,149 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-PURITY-AUDIT-P0-048",
+  "date": "2026-08-30",
+  "kernel_purity_status": "PASS",
+  "final_verdict": "CONSENSUS_KERNEL_PURITY_CLOSED",
+  "production_consensus_modified": false,
+  "coq_modified": false,
+  "equivalence_claimed": false,
+  "refinement_proved": false,
+  "formalization_ready": true,
+  "side_effects": "FOUND",
+  "side_effects_note": "LogPrintf on RigorSupplyDelta coinbase reject is I/O only; not consensus-relevant.",
+  "hidden_state": "NONE",
+  "global_mutable_state": "NONE",
+  "tests": {
+    "static_lint": "PASS",
+    "lint_self_test": "PASS",
+    "differential_gate": "PASS",
+    "core_test": "PASS",
+    "functional_gbt_copy_bytes": "PASS",
+    "functional_res_maturity": "PASS"
+  },
+  "notes": [
+    "GetResMintReward(0) is the schedule value W(0)=RES_REWARD_GENESIS. Genesis ConnectBlock does not apply that mint as circulating issuance. These are different facts.",
+    "RigorSupplyDelta's BlockValidationState argument is a reject-reason sink, not hidden chain state.",
+    "LogPrintf in RigorSupplyDelta is I/O and does not change accept/reject or numeric outputs.",
+    "ResolveConvergenceDraw lives in convergence_logic.cpp, a mixed TU that also contains window builders. The function body is pure; the TU is not isolated.",
+    "ClassifyRigorAsset is a façade over AssetTypeFromScriptPubKey / ClassifyRigorTxout. One matcher."
+  ],
+  "kernel_functions": [
+    {
+      "name": "RigorIssuanceEpoch",
+      "file": "core/src/consensus/rigor_issuance.h",
+      "inputs": ["height:int"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "epoch = height/RES_REWARD_EPOCH; height<0 returns 0. Same division as GetResMintReward."
+    },
+    {
+      "name": "GetBlockSubsidy",
+      "file": "core/src/consensus/rigor_issuance.cpp",
+      "inputs": ["nHeight:int", "Consensus::Params.{nBlockSubsidyBase,nSubsidyHalvingInterval,nBlockSubsidyMaxHalvingShifts}"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "Production ORU schedule. height==0 -> ORU_GENESIS_BLOCK_SUBSIDY (0). Negative height is not a production input; it follows the h>=1 formula (representational risk)."
+    },
+    {
+      "name": "ComputeRigorIssuance",
+      "file": "core/src/consensus/rigor_issuance.cpp",
+      "inputs": ["height:int", "Consensus::Params (ORU fields only)"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "Wrapper: epoch + GetBlockSubsidy + GetResMintReward. Does not copy a second schedule."
+    },
+    {
+      "name": "GetResMintReward",
+      "file": "core/src/consensus/rigor_consensus_lock.h",
+      "inputs": ["height:int"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "Canonical RES schedule. Not redefined by P047. height 0 = W(0)."
+    },
+    {
+      "name": "RigorSupplyDelta",
+      "file": "core/src/consensus/rigor_supply.cpp",
+      "inputs": [
+        "RigorSupplyDeltaInput.{height,fees_oru,fee_burn,fees_res,oru_coinbase,res_coinbase,res_mint,res_bootstrap,converge_sum,has_winner,draw_cardinality}",
+        "Consensus::Params (via GetBlockSubsidy only)",
+        "BlockValidationState (output reject sink, not a consensus input)"
+      ],
+      "state_dependencies": [],
+      "side_effects": ["LogPrintf on ORU/RES coinbase reject (non-semantic)"],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "Does not read chain/UTXO/DB. Does not mutate UTXO."
+    },
+    {
+      "name": "RigorResCoinbaseExpected",
+      "file": "core/src/consensus/rigor_supply.h",
+      "inputs": ["fees_res", "bootstrap", "mint"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "fees_res + bootstrap + mint. Predicate, not an assembler."
+    },
+    {
+      "name": "ResolveConvergenceDraw",
+      "file": "core/src/consensus/convergence_logic.cpp",
+      "inputs": [
+        "ConvergenceDrawSet.{source_block_hash,source_height,convergence_root,candidates}",
+        "res_probability_target (T)"
+      ],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "F = set.candidates. σ computed from set fields. T is the second argument. Winner is 512-bit argmin with txid tie-break; independent of scan order. GetConvergenceDrawSetForBlock is not this function."
+    },
+    {
+      "name": "ClassifyRigorAsset",
+      "file": "core/src/script/rigor_classify.cpp",
+      "inputs": ["scriptPubKey"],
+      "state_dependencies": [],
+      "side_effects": [],
+      "deterministic": true,
+      "fail_closed": true,
+      "single_authority": true,
+      "formalization_ready": true,
+      "notes": "Façade: returns AssetTypeFromScriptPubKey. Matcher is ClassifyRigorTxout. ClassifyRigorSpendPredicate does not exist."
+    }
+  ],
+  "direct_dependencies": {
+    "rigor_issuance.*": ["consensus/amount.h", "consensus/params.h", "consensus/rigor_consensus_lock.h", "algorithm"],
+    "rigor_supply.*": ["consensus/amount.h", "consensus/params.h", "consensus/rigor_consensus_lock.h", "consensus/rigor_issuance.h", "consensus/validation.h", "logging.h"],
+    "rigor_coinbase_layout.h": ["consensus/convergence_logic.h", "consensus/convergence_root.h", "consensus/rigor_supply.h"],
+    "convergence_logic.h": ["consensus/amount.h", "consensus/state_diff.h", "primitives/block.h", "primitives/transaction.h", "serialize.h", "uint256.h"],
+    "rigor_classify.cpp": ["script/standard.h", "primitives/transaction.h", "script/predicate_verify.h", "script/rigor_tags.h", "script/script.h", "uint256.h"]
+  },
+  "forbidden_dependencies": [],
+  "boundary": {
+    "mixed_translation_unit": "convergence_logic.cpp also contains window builders and includes chain.h/coins.h. Not a Kernel file for the lint.",
+    "classify_header_layering": "rigor_classify.cpp includes predicate_verify.h (Transaction Kernel header). Function body does not call sighash/Ed25519.",
+    "coinbase_header_names_builder": "rigor_coinbase_layout.h documents BuildCoinbaseCommitmentScriptSig. That function is construction (miner/GBT). Kernel does not call it.",
+    "draw_header_pulls_coins": "convergence_logic.h -> state_diff.h -> coins.h (types only)."
+  }
+}

@@ -18,9 +18,9 @@
 
 static bool IsToKeyID(const CScript& script, CKeyID &hash)
 {
-    if (script.size() == 25 && script[0] == OP_DUP && script[1] == OP_HASH160
-                            && script[2] == 20 && script[23] == OP_EQUALVERIFY
-                            && script[24] == OP_CHECKSIG) {
+    if (script.size() == 25 && script[0] == RIGOR_RESERVED_LEGACY_DUP && script[1] == RIGOR_RESERVED_LEGACY_HASH160
+                            && script[2] == 20 && script[23] == RIGOR_RESERVED_LEGACY_EQUALVERIFY
+                            && script[24] == RIGOR_RESERVED_LEGACY_CHECKSIG) {
         memcpy(&hash, &script[3], 20);
         return true;
     }
@@ -29,8 +29,8 @@ static bool IsToKeyID(const CScript& script, CKeyID &hash)
 
 static bool IsToScriptID(const CScript& script, CScriptID &hash)
 {
-    if (script.size() == 23 && script[0] == OP_HASH160 && script[1] == 20
-                            && script[22] == OP_EQUAL) {
+    if (script.size() == 23 && script[0] == RIGOR_RESERVED_LEGACY_HASH160 && script[1] == 20
+                            && script[22] == RIGOR_RESERVED_LEGACY_EQUAL) {
         memcpy(&hash, &script[2], 20);
         return true;
     }
@@ -39,12 +39,12 @@ static bool IsToScriptID(const CScript& script, CScriptID &hash)
 
 static bool IsToPubKey(const CScript& script, CPubKey &pubkey)
 {
-    if (script.size() == 35 && script[0] == 33 && script[34] == OP_CHECKSIG
+    if (script.size() == 35 && script[0] == 33 && script[34] == RIGOR_RESERVED_LEGACY_CHECKSIG
                             && (script[1] == 0x02 || script[1] == 0x03)) {
         pubkey.Set(&script[1], &script[34]);
         return true;
     }
-    if (script.size() == 67 && script[0] == 65 && script[66] == OP_CHECKSIG
+    if (script.size() == 67 && script[0] == 65 && script[66] == RIGOR_RESERVED_LEGACY_CHECKSIG
                             && script[1] == 0x04) {
         pubkey.Set(&script[1], &script[66]);
         return pubkey.IsFullyValid(); // if not fully valid, a case that would not be compressible
@@ -97,19 +97,19 @@ bool DecompressScript(CScript& script, unsigned int nSize, const CompressedScrip
     switch(nSize) {
     case 0x00:
         script.resize(25);
-        script[0] = OP_DUP;
-        script[1] = OP_HASH160;
+        script[0] = RIGOR_RESERVED_LEGACY_DUP;
+        script[1] = RIGOR_RESERVED_LEGACY_HASH160;
         script[2] = 20;
         memcpy(&script[3], in.data(), 20);
-        script[23] = OP_EQUALVERIFY;
-        script[24] = OP_CHECKSIG;
+        script[23] = RIGOR_RESERVED_LEGACY_EQUALVERIFY;
+        script[24] = RIGOR_RESERVED_LEGACY_CHECKSIG;
         return true;
     case 0x01:
         script.resize(23);
-        script[0] = OP_HASH160;
+        script[0] = RIGOR_RESERVED_LEGACY_HASH160;
         script[1] = 20;
         memcpy(&script[2], in.data(), 20);
-        script[22] = OP_EQUAL;
+        script[22] = RIGOR_RESERVED_LEGACY_EQUAL;
         return true;
     case 0x02:
     case 0x03:
@@ -117,7 +117,7 @@ bool DecompressScript(CScript& script, unsigned int nSize, const CompressedScrip
         script[0] = 33;
         script[1] = nSize;
         memcpy(&script[2], in.data(), 32);
-        script[34] = OP_CHECKSIG;
+        script[34] = RIGOR_RESERVED_LEGACY_CHECKSIG;
         return true;
     case 0x04:
     case 0x05:
@@ -131,7 +131,7 @@ bool DecompressScript(CScript& script, unsigned int nSize, const CompressedScrip
         script.resize(67);
         script[0] = 65;
         memcpy(&script[1], pubkey.begin(), 65);
-        script[66] = OP_CHECKSIG;
+        script[66] = RIGOR_RESERVED_LEGACY_CHECKSIG;
         return true;
     }
     return false;

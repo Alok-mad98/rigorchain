@@ -4,8 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test message sending before handshake completion.
 
-Before receiving a VERACK, a node should not send anything but VERSION/VERACK
-and feature negotiation messages (WTXIDRELAY, SENDADDRV2).
+Before receiving a VERACK, a node should not send anything but VERSION, RIGORCAP, and VERACK.
 
 This test connects to a node and sends it a few messages, trying to entice it
 into sending us something it shouldn't."""
@@ -15,6 +14,8 @@ import time
 from test_framework.messages import (
     msg_getaddr,
     msg_ping,
+    msg_rigorcap,
+    msg_verack,
     msg_version,
 )
 from test_framework.p2p import (
@@ -37,8 +38,7 @@ class LazyPeer(P2PInterface):
         super().__init__()
         self.unexpected_msg = False
         self.ever_connected = False
-        self.got_wtxidrelay = False
-        self.got_sendaddrv2 = False
+        self.got_rigorcap = False
 
     def bad_message(self, message):
         self.unexpected_msg = True
@@ -68,8 +68,10 @@ class LazyPeer(P2PInterface):
     def on_cmpctblock(self, message): self.bad_message(message)
     def on_getblocktxn(self, message): self.bad_message(message)
     def on_blocktxn(self, message): self.bad_message(message)
-    def on_wtxidrelay(self, message): self.got_wtxidrelay = True
-    def on_sendaddrv2(self, message): self.got_sendaddrv2 = True
+    def on_wtxidrelay(self, message): self.bad_message(message)
+    def on_sendaddrv2(self, message): self.bad_message(message)
+    def on_sendtxrcncl(self, message): self.bad_message(message)
+    def on_rigorcap(self, message): self.got_rigorcap = True
 
 
 # Peer that sends a version but not a verack.
@@ -118,19 +120,15 @@ class P2PLeakTest(BitcoinTestFramework):
         # Peer that sends a version but not a verack.
         no_verack_idle_peer = self.nodes[0].add_p2p_connection(NoVerackIdlePeer(), wait_for_verack=False)
 
-        # Pre-wtxidRelay peer that sends a version but not a verack and does not support feature negotiation
-        # messages which start at nVersion == 70016
-        pre_wtxidrelay_peer = self.nodes[0].add_p2p_connection(NoVerackIdlePeer(), send_version=False, wait_for_verack=False)
-        pre_wtxidrelay_peer.send_message(self.create_old_version(70015))
+        # Peers below RIGOR_PROTOCOL_MIN_VERSION are disconnected; handshake
+        # leak checks only apply to current peers.
 
         # Wait until the peer gets the verack in response to the version. Though, don't wait for the node to receive the
         # verack, since the peer never sent one
         no_verack_idle_peer.wait_for_verack()
-        pre_wtxidrelay_peer.wait_for_verack()
 
         no_version_idle_peer.wait_until(lambda: no_version_idle_peer.ever_connected)
         no_verack_idle_peer.wait_until(lambda: no_verack_idle_peer.version_received)
-        pre_wtxidrelay_peer.wait_until(lambda: pre_wtxidrelay_peer.version_received)
 
         # Mine a block and make sure that it's not sent to the connected peers
         self.generate(self.nodes[0], nblocks=1)
@@ -143,21 +141,14 @@ class P2PLeakTest(BitcoinTestFramework):
 
         # Make sure only expected messages came in
         assert not no_version_idle_peer.unexpected_msg
-        assert not no_version_idle_peer.got_wtxidrelay
-        assert not no_version_idle_peer.got_sendaddrv2
+        assert not no_version_idle_peer.got_rigorcap
 
         assert not no_verack_idle_peer.unexpected_msg
-        assert no_verack_idle_peer.got_wtxidrelay
-        assert no_verack_idle_peer.got_sendaddrv2
-
-        assert not pre_wtxidrelay_peer.unexpected_msg
-        assert not pre_wtxidrelay_peer.got_wtxidrelay
-        assert not pre_wtxidrelay_peer.got_sendaddrv2
+        assert no_verack_idle_peer.got_rigorcap
 
         # Expect peers to be disconnected due to timeout
         assert not no_version_idle_peer.is_connected
         assert not no_verack_idle_peer.is_connected
-        assert not pre_wtxidrelay_peer.is_connected
 
         self.log.info('Check that the version message does not leak the local address of the node')
         p2p_version_store = self.nodes[0].add_p2p_connection(P2PVersionStore())
@@ -172,9 +163,58 @@ class P2PLeakTest(BitcoinTestFramework):
 
         self.log.info('Check that old peers are disconnected')
         p2p_old_peer = self.nodes[0].add_p2p_connection(P2PInterface(), send_version=False, wait_for_verack=False)
-        with self.nodes[0].assert_debug_log(["using obsolete version 31799; disconnecting"]):
-            p2p_old_peer.send_message(self.create_old_version(31799))
+        with self.nodes[0].assert_debug_log(["using obsolete version 0; disconnecting"]):
+            p2p_old_peer.send_message(self.create_old_version(0))
             p2p_old_peer.wait_for_disconnect()
+
+        self.log.info('VERACK without RIGORCAP disconnects')
+
+        class SilentOnVersion(P2PInterface):
+            def on_version(self, message):
+                pass
+
+        class RawRigorcap:
+            def __init__(self, payload):
+                self.msgtype = b"rigorcap"
+                self._payload = payload
+
+            def serialize(self):
+                return self._payload
+
+        peer = self.nodes[0].add_p2p_connection(SilentOnVersion(), wait_for_verack=False)
+        peer.wait_for_verack()
+        with self.nodes[0].assert_debug_log(["verack without rigorcap"]):
+            peer.send_message(msg_verack())
+            peer.wait_for_disconnect()
+
+        self.log.info('Duplicate RIGORCAP disconnects')
+        peer = self.nodes[0].add_p2p_connection(SilentOnVersion(), wait_for_verack=False)
+        peer.wait_for_verack()
+        with self.nodes[0].assert_debug_log(["duplicate rigorcap"]):
+            peer.send_message(msg_rigorcap())
+            peer.send_message(msg_rigorcap())
+            peer.wait_for_disconnect()
+
+        self.log.info('RIGORCAP trailing bytes disconnect')
+        peer = self.nodes[0].add_p2p_connection(SilentOnVersion(), wait_for_verack=False)
+        peer.wait_for_verack()
+        with self.nodes[0].assert_debug_log(["rigorcap with invalid size"]):
+            peer.send_message(RawRigorcap(msg_rigorcap().serialize() + b"\xff"))
+            peer.wait_for_disconnect()
+
+        self.log.info('Obsolete Bitcoin negotiation commands disconnect')
+        peer = self.nodes[0].add_p2p_connection(SilentOnVersion(), wait_for_verack=False)
+        peer.wait_for_verack()
+        peer.send_message(msg_rigorcap())
+        with self.nodes[0].assert_debug_log(["obsolete bitcoin negotiation command"]):
+            from test_framework.messages import msg_wtxidrelay
+            peer.send_message(msg_wtxidrelay())
+            peer.wait_for_disconnect()
+        peer = self.nodes[0].add_p2p_connection(SilentOnVersion(), wait_for_verack=False)
+        peer.wait_for_verack()
+        with self.nodes[0].assert_debug_log(["rigorcap with invalid size"]):
+            peer.send_message(RawRigorcap(b"\x01\x00\x00\x00"))
+            peer.wait_for_disconnect()
 
 
 if __name__ == '__main__':

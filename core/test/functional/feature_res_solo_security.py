@@ -18,7 +18,8 @@ from decimal import Decimal
 from typing import Optional
 
 from test_framework.authproxy import JSONRPCException
-from test_framework.messages import MAX_BIP125_RBF_SEQUENCE, CTxOut, tx_from_hex
+from test_framework.blocktools import add_witness_commitment
+from test_framework.messages import MAX_BIP125_RBF_SEQUENCE, CBlock, CTxOut, from_hex, ser_uint256, tx_from_hex
 from test_framework.opus_pow import solve_block_opus
 from test_framework.rigor_block_builder import (
     build_block,
@@ -132,7 +133,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
         if mint:
             res_mint_out = CTxOut(int(mint["value"]), CScript(bytes.fromhex(mint["scriptPubKey"])))
         carrier_hex = tpl.get("default_pcorb_carrier")
-        return build_block(
+        blk = build_block(
             extra_txs,
             res_claim,
             int(tpl["prev_nbits"], 16),
@@ -148,6 +149,13 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             res_mint_out=res_mint_out,
             pcorb_carrier_script=bytes.fromhex(carrier_hex) if carrier_hex else None,
         )
+        sig_hex = tpl.get("default_coinbase_scriptsig")
+        if sig_hex:
+            blk.vtx[0].vin[0].scriptSig = CScript(bytes.fromhex(sig_hex))
+            blk.vtx[0].rehash()
+            blk.hashMerkleRoot = blk.calc_merkle_root()
+            blk.rehash()
+        return blk
 
     def _record(self, case_id: str, status: str, detail: dict) -> None:
         self.results[case_id] = {"status": status, **detail}
@@ -378,7 +386,12 @@ class ResSoloSecurityTest(BitcoinTestFramework):
                     listed.append(t)
             assert txid in listed, self._dump("G-1", {"listed": listed, "want": txid})
             assert "convergence_root" in tpl and tpl["convergence_root"]
-            bh = self._mine_only([txid])
+            assert "default_coinbase_scriptsig" in tpl
+            assert "paid_winner_txid" in tpl
+            assert tpl.get("mutable") == ["time"]
+            assert tpl.get("rigor_coinbase_immutable") is True
+            gen = self.generateblock(node, self.mining_addr, [txid])
+            bh = gen["hash"] if isinstance(gen, dict) else gen
             fr = draw_of(node, bh)
             window_self_check(fr, "G-1")
             self._record("G-1", "PASS", {
@@ -389,6 +402,25 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             })
         except Exception:
             self.log.error(self._dump("G-1"))
+            raise
+
+    def case_l1_reserved_nonce(self) -> None:
+        node = self._n()
+        try:
+            ret = self.generateblock(node, self.mining_addr, [], submit=False, sync_fun=self.no_op)
+            mutated = from_hex(CBlock(), ret["hex"])
+            mutated.vtx[0].wit.vtxinwit[0].scriptWitness.stack = [ser_uint256(1)]
+            mismatch = submit_block(node, mutated)
+            assert mismatch == "bad-witness-merkle-match", self._dump("L-1", {"mismatch": mismatch})
+
+            rebuilt = from_hex(CBlock(), ret["hex"])
+            add_witness_commitment(rebuilt, nonce=1)
+            solve_block_opus(rebuilt)
+            reserved = submit_block(node, rebuilt)
+            assert reserved == "bad-witness-reserved-nonce", self._dump("L-1", {"reserved": reserved})
+            self._record("L-1", "PASS", {"mismatch": mismatch, "reserved": reserved})
+        except Exception:
+            self.log.error(self._dump("L-1"))
             raise
 
     def case_s4_s5_g2_g4_winner_path(self) -> None:
@@ -417,7 +449,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
                         break
             assert winner_h is not None, self._dump("S-4", {"ticket": ticket})
 
-            # S-5: generateblock must not abort. Automint is a coinbase OP_RES_MINT, so an
+            # S-5: generateblock must not abort. Automint is a coinbase RIGOR_MARKER_RES_MINT, so an
             # empty-tx generateblock stays coinbase-only and is a valid payout block.
             gen = self.generateblock(node, self.mining_addr, [])
             payout = gen["hash"] if isinstance(gen, dict) else gen
@@ -464,7 +496,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             self._record("S-4", "PASS", {"ticket": ticket, "payout": paid.get(ticket), "distinct": len(paid)})
             self._record("S-5", "PASS", {
                 "generateblock": payout,
-                "automint": "coinbase OP_RES_MINT",
+                "automint": "coinbase RIGOR_MARKER_RES_MINT",
                 "payout_mint_atoms": rows[0][1],
             })
             self._record("S-2", "PASS", {
@@ -559,6 +591,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
         self.case_v5_mempool_reorg()
         self.case_g3_stale_and_wrong_prev()
         self.case_g1_gbt_consistency()
+        self.case_l1_reserved_nonce()
         self.case_s4_s5_g2_g4_winner_path()
         self.case_s3_cap_pin()
         self.case_a1_abort_inventory()

@@ -124,7 +124,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
     for (size_t i = 0; i < tx.vout.size(); ++i) {
-        // Convergence (OP_CONVERGE) is validated in-block only; it must not occupy the UTXO set.
+        // Convergence (RIGOR_MARKER_CONVERGE) is validated in-block only; it must not occupy the UTXO set.
         // Skipping it here is what makes its value destroyed rather than merely locked, which
         // is the premise of counting it as RFC-002 C(t) (see Consensus::GetConvergenceAmount).
         if (IsConvergenceScript(tx.vout[i].scriptPubKey)) {
@@ -225,6 +225,10 @@ private:
 
 std::unique_ptr<CCoinsViewCursor> CCoinsViewCache::Cursor() const
 {
+    // O(UTXO) materialization of the overlay + backing DB. RPC / snapshot / replay
+    // tools only. ConnectBlock and other per-block validation MUST NOT call this
+    // (RIG-01): a cache wrapping CoinsTip() would copy the entire UTXO set into RAM
+    // on every block.
     std::map<COutPoint, Coin> merged;
     if (std::unique_ptr<CCoinsViewCursor> base_cursor = base->Cursor()) {
         while (base_cursor->Valid()) {

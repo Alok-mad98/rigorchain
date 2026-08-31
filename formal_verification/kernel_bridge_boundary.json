@@ -1,0 +1,74 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-CPP-REFINEMENT-BRIDGE-P0-052",
+  "date": "2026-08-30",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "kernel_api_pure": true,
+  "adapter_reimplements_formulas": false,
+  "functions": {
+    "RigorIssuanceEpoch": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    },
+    "GetBlockSubsidy": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    },
+    "GetResMintReward": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    },
+    "ComputeRigorIssuance": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    },
+    "ClassifyRigorTxout": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    },
+    "ResolveConvergenceDraw": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": [],
+      "note": "Body is pure. TU convergence_logic.cpp also has window builders."
+    },
+    "RigorSupplyDelta": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": [],
+      "note": "LogPrintf on reject is I/O; BlockValidationState is a reject sink."
+    },
+    "RigorResCoinbaseExpected": {
+      "explicit_input": true,
+      "pure": true,
+      "deterministic": true,
+      "forbidden_deps": []
+    }
+  },
+  "not_kernel": [
+    "GetConvergenceDrawSetForBlock",
+    "ConnectBlock",
+    "BuildCoinbase / GBT assembler"
+  ],
+  "forbidden_on_kernel_api": [
+    "chainstate",
+    "UTXO DB",
+    "wallet",
+    "RPC",
+    "network",
+    "time",
+    "filesystem"
+  ]
+}

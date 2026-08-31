@@ -208,13 +208,25 @@ fn check_pcorb_fields(
     Ok(())
 }
 
-/// Witness v1 RES (`IsResScript`): version 1, 32-byte program, not CVG2.
+/// C++ `IsResScript`: native v1 / 32 (not CVG2, not RES2), or canonical `OP_RES_MINT`.
 pub fn is_res_script(spk: &[u8]) -> bool {
-    is_witness_v1_32(spk) && &spk[2..6] != b"CVG2"
+    if is_res_mint_script(spk) {
+        return true;
+    }
+    is_witness_v1_32(spk) && &spk[2..6] != b"CVG2" && &spk[2..6] != b"RES2"
 }
 
 fn is_res_mint_script(spk: &[u8]) -> bool {
-    spk.last() == Some(&0xbb)
+    // Canonical lock: <CScriptNum maturity> <20-byte HASH160> OP_RES_MINT (0xbb).
+    const OP_RES_MINT: u8 = 0xbb;
+    const OP_PUSH20: u8 = 20;
+    if spk.len() < 22 || spk[spk.len() - 1] != OP_RES_MINT {
+        return false;
+    }
+    if spk[spk.len() - 22] != OP_PUSH20 {
+        return false;
+    }
+    true
 }
 
 fn is_pcorb_carrier(spk: &[u8]) -> bool {
@@ -582,5 +594,27 @@ mod tests {
         empty.extend_from_slice(&[0u8; 10]);
         let err = validate_block_res_mint(&job, &tpl, &hex::encode(&empty), true).unwrap_err();
         is_res_err(&err, "PCORB carrier");
+    }
+
+    #[test]
+    fn p0_018_res_script_matches_classify() {
+        let mut native = vec![0x51, 0x20];
+        native.extend_from_slice(&[0x11u8; 32]);
+        assert!(is_res_script(&native));
+
+        let mut res2 = vec![0x51, 0x20];
+        res2.extend_from_slice(b"RES2");
+        res2.extend_from_slice(&[0u8; 28]);
+        assert!(!is_res_script(&res2));
+
+        let mut cvg2 = vec![0x51, 0x20];
+        cvg2.extend_from_slice(b"CVG2");
+        cvg2.extend_from_slice(&[0u8; 28]);
+        assert!(!is_res_script(&cvg2));
+
+        let mut mint = vec![0x01, 100, 20];
+        mint.extend_from_slice(&[0x55u8; 20]);
+        mint.push(0xbb);
+        assert!(is_res_script(&mint));
     }
 }

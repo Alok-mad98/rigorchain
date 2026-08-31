@@ -1,0 +1,32 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-CANARY-MIGRATION-P0-068",
+  "note": "Canary vectors. Production switch remains OFF. Does not prove equivalence.",
+  "production_kernel_switched": false,
+  "canary_default": "OFF",
+  "enable_flag": "ENABLE_CONSENSUS_KERNEL_CANARY",
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "genesis": {
+    "height": 0,
+    "res_schedule": 40000000,
+    "actual_issuance_oru": 0,
+    "actual_issuance_res": 0,
+    "draw": "none"
+  },
+  "height": [0, 1, 99, 100, 101],
+  "epoch": [209999, 210000, 419999, 420000],
+  "transaction": ["valid_spend", "invalid_spend", "bad_signature", "malformed_witness"],
+  "draw": ["empty_F", "single_candidate", "equal_weight", "txid_tie_break", "zero_weight"],
+  "supply": ["mint", "burn", "fee", "invalid_delta"],
+  "compare": [
+    "accept",
+    "issuance",
+    "res_mint_expectation",
+    "draw_winner",
+    "classification",
+    "ledger_delta",
+    "coinbase_expectation"
+  ],
+  "mismatch_policy": "CONSENSUS_KERNEL_CANARY_DISCREPANCY; never auto-correct",
+  "deterministic_cases": 10000
+}

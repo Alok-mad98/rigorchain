@@ -18,10 +18,13 @@ class ChainstateManager;
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default number of orphan+recently-replaced txn to keep around for block reconstruction */
 static const unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;
-static const bool DEFAULT_PEERBLOOMFILTERS = false;
 static const bool DEFAULT_PEERBLOCKFILTERS = false;
 /** Threshold for marking a node to be discouraged, e.g. disconnected and added to the discouragement filter. */
 static const int DISCOURAGEMENT_THRESHOLD{100};
+/** Maximum number of outstanding CMPCTBLOCK requests for the same block (v25.1 stall mitigation). */
+static const unsigned int MAX_CMPCTBLOCKS_INFLIGHT_PER_BLOCK = 3;
+/** Maximum concurrent compact-block reconstructions requested from one peer. */
+static const unsigned int MAX_PARALLEL_COMPACT_REQUESTS_PER_PEER = 3;
 
 struct CNodeStateStats {
     int nSyncHeight = -1;
@@ -36,6 +39,9 @@ struct CNodeStateStats {
     bool m_addr_relay_enabled{false};
     ServiceFlags their_services;
     int64_t presync_height{-1};
+    uint64_t m_enabled_capabilities{0};
+    uint32_t m_rigor_protocol_version{0};
+    bool m_capabilities_advertised{false};
 };
 
 class PeerManager : public CValidationInterface, public NetEventsInterface

@@ -38,12 +38,17 @@ struct Params;
 namespace node {
 static constexpr bool DEFAULT_STOPAFTERBLOCKIMPORT{false};
 
+// Bitcoin sizes these for a ~1 MB block: 128 blocks per file, and a prune check on every 16th
+// block. A full RIGOR block is ~250 KB (BLOCK_WEIGHT_LIMIT / WITNESS_SCALE_FACTOR), so the same
+// byte constants would put ~537 blocks in a file and check for pruning only every 64th block.
+// Both are scaled by 4 to keep Bitcoin's granularity in blocks, which is what MIN_BLOCKS_TO_KEEP
+// and MIN_DISK_SPACE_FOR_BLOCK_FILES are expressed in.
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
-static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
+static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x400000; // 4 MiB
 /** The pre-allocation chunk size for rev?????.dat files (since 0.8) */
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** The maximum size of a blk?????.dat file (since 0.8) */
-static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
+static const unsigned int MAX_BLOCKFILE_SIZE = 0x2000000; // 32 MiB
 
 /** Size of header written by WriteBlockToDisk before a serialized CBlock */
 static constexpr size_t BLOCK_SERIALIZATION_HEADER_SIZE = CMessageHeader::MESSAGE_START_SIZE + sizeof(unsigned int);

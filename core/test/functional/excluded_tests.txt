@@ -5,5 +5,5 @@ example_test.py
 
 # --- Not in this file (C++ unit tests): upstream Bitcoin script tests removed from src/Makefile.test.include ---
 # script_tests.cpp + test/data/script_tests.json — assumes legacy secp256k1 ECDSA script vectors
-# script_p2sh_tests.cpp — P2PK/P2PKH/P2SH signing & verification
+# script_p2sh_tests.cpp — removed; P2PK/P2PKH/P2SH is not a consensus spend path
 # multisig_tests.cpp — bare CHECKMULTISIG with secp pubkeys

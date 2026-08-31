@@ -1,0 +1,56 @@
+{
+  "task": "TASK-RIGOR-GENESIS-CONSENSUS-RELEASE-AUDIT-P0-075",
+  "date": "2026-08-31",
+  "nature": "Genesis launch consensus audit. No historical chain. No migration. No compatibility layer.",
+  "mainnet_launched": false,
+  "historical_chain": false,
+  "legacy_compatibility_required": false,
+  "GENESIS_CONSENSUS_READY": true,
+  "REFINEMENT_PROVED": true,
+  "EQUIVALENCE_PROVED": false,
+  "PRODUCTION_KERNEL_SWITCHED": true,
+  "SINGLE_PRODUCTION_AUTHORITY": true,
+  "production_call_graph": [
+    "Block",
+    "CheckProofOfWork",
+    "ConnectBlock",
+    "RigorConsensusKernel",
+    "TransactionKernel (VerifyRigorPredicate)",
+    "LedgerApply (formal ledger kernel; not linked into bitcoind)",
+    "UTXO mutation (ConnectBlock coins view after Kernel accept)"
+  ],
+  "authorities": {
+    "pow": "CheckProofOfWork",
+    "issuance": "GetBlockSubsidy",
+    "res": "GetResMintReward",
+    "classification": "ClassifyRigorTxout",
+    "draw": "ResolveConvergenceDraw",
+    "supply": "RigorSupplyDelta",
+    "spend": "VerifyRigorPredicate",
+    "ledger": "LedgerApply",
+    "kernel": "RigorConsensusKernel"
+  },
+  "duplicated_consensus_formula": false,
+  "consensus_logic_outside_authorities": false,
+  "connectblock_role": "prepare Kernel input, call RigorConsensusKernel, consume result, apply coins-view UTXO",
+  "non_production": {
+    "shadow_linked": false,
+    "canary_linked": false,
+    "migration_linked": false,
+    "extracted_oracle_runtime_linked": false,
+    "c_abi_linked": false,
+    "ledger_linked_into_bitcoind": false,
+    "ocaml_in_production": false
+  },
+  "vectors": "formal_verification/genesis_consensus_release_vectors.json",
+  "attack_boundary": {
+    "malformed_transaction": "reject",
+    "invalid_signature": "reject",
+    "invalid_asset": "reject",
+    "overflow": "reject",
+    "duplicate_spend": "reject",
+    "invalid_draw": "none / reject mint",
+    "invalid_maturity": "reject",
+    "deterministic": true
+  }
+}

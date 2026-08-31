@@ -21,22 +21,14 @@ BOOST_AUTO_TEST_CASE(CanProvide)
     CWallet wallet(m_node.chain.get(), "", CreateDummyWalletDatabase());
     LegacyScriptPubKeyMan& keyman = *wallet.GetOrCreateLegacyScriptPubKeyMan();
 
-    // Make a 1 of 2 multisig script
-    std::vector<CKey> keys(2);
-    std::vector<CPubKey> pubkeys;
-    for (CKey& key : keys) {
-        key.MakeNewKey(true);
-        pubkeys.emplace_back(key.GetPubKey());
-    }
-    CScript multisig_script = GetScriptForMultisig(1, pubkeys);
-    CScript p2sh_script = GetScriptForDestination(ScriptHash(multisig_script));
+    CKey key;
+    key.MakeNewKey(true);
+    CScript wpkh = GetScriptForDestination(WitnessV0KeyHash(key.GetPubKey()));
     SignatureData data;
 
-    // Verify the p2sh(multisig) script is not recognized until the multisig
-    // script is added to the keystore to make it solvable
-    BOOST_CHECK(!keyman.CanProvide(p2sh_script, data));
-    keyman.AddCScript(multisig_script);
-    BOOST_CHECK(keyman.CanProvide(p2sh_script, data));
+    BOOST_CHECK(!keyman.CanProvide(wpkh, data));
+    BOOST_CHECK(keyman.AddKey(key));
+    BOOST_CHECK(keyman.CanProvide(wpkh, data));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -54,12 +54,12 @@ class TransactionTimeRescanTest(BitcoinTestFramework):
         # prepare miner wallet
         minernode.createwallet(wallet_name='default')
         miner_wallet = minernode.get_wallet_rpc('default')
-        m1 = miner_wallet.getnewaddress(address_type='bech32m')
+        m1 = miner_wallet.getnewaddress(address_type='bech32')
 
         # prepare the user wallet with 3 watch only addresses
-        wo1 = usernode.getnewaddress(address_type='bech32m')
-        wo2 = usernode.getnewaddress(address_type='bech32m')
-        wo3 = usernode.getnewaddress(address_type='bech32m')
+        wo1 = usernode.getnewaddress(address_type='bech32')
+        wo2 = usernode.getnewaddress(address_type='bech32')
+        wo3 = usernode.getnewaddress(address_type='bech32')
 
         usernode.createwallet(wallet_name='wo', disable_private_keys=True)
         wo_wallet = usernode.get_wallet_rpc('wo')
@@ -190,10 +190,10 @@ class TransactionTimeRescanTest(BitcoinTestFramework):
             temp_wallet.sethdseed(seed=hd_seed)
 
             for i in range(399):
-                temp_wallet.getnewaddress(address_type='bech32m')
+                temp_wallet.getnewaddress(address_type='bech32')
 
-            self.generatetoaddress(usernode, COINBASE_MATURITY + 1, temp_wallet.getnewaddress(address_type='bech32m'))
-            self.generatetoaddress(usernode, COINBASE_MATURITY + 1, temp_wallet.getnewaddress(address_type='bech32m'))
+            self.generatetoaddress(usernode, COINBASE_MATURITY + 1, temp_wallet.getnewaddress(address_type='bech32'))
+            self.generatetoaddress(usernode, COINBASE_MATURITY + 1, temp_wallet.getnewaddress(address_type='bech32'))
 
             minernode.createwallet("encrypted_wallet", blank=True, passphrase="passphrase", descriptors=False)
             encrypted_wallet = minernode.get_wallet_rpc("encrypted_wallet")
@@ -202,7 +202,7 @@ class TransactionTimeRescanTest(BitcoinTestFramework):
             encrypted_wallet.sethdseed(seed=hd_seed)
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as thread:
-                with minernode.assert_debug_log(expected_msgs=["Rescan started from block 0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206... (slow variant inspecting all blocks)"], timeout=5):
+                with minernode.assert_debug_log(expected_msgs=["Rescan started from block 3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63... (slow variant inspecting all blocks)"], timeout=5):
                     rescanning = thread.submit(encrypted_wallet.rescanblockchain)
 
                 # set the passphrase timeout to 1 to test that the wallet remains unlocked during the rescan

@@ -40,8 +40,6 @@ Sorted **unique** literals taken from `state.Invalid(..., "bad-…")` in the fil
 | `bad-cb-missing` |
 | `bad-cb-multiple` |
 | `bad-cb-res-amount` |
-| `bad-convergence-draw-candidate-root` |
-| `bad-convergence-cumulative` |
 | `bad-convergence-missing` |
 | `bad-converge-amount` |
 | `bad-converge-overflow` |
@@ -162,6 +160,7 @@ These keys are emitted by `core/src/rpc/blockchain.cpp` (and related RPC). Treat
 The following appear in **older docs**, **formal_verification fixtures**, or **tests** but are **not** produced by the current `state.Invalid(..., "bad-…")` set in §1:
 
 - Any **`bad-arda-*`** prefix (superseded by **`bad-rigor-*`** and related `bad-convergence-*` / `bad-txns-*` codes in this codebase).
+- **`bad-convergence-cumulative`**, **`bad-convergence-draw-candidate-root`** — retired with the CVGE coinbase `OP_RETURN`. Do not reintroduce. Window C lives in the coinbase `scriptSig` (`bad-cb-convergence-root`).
 - Strings such as **`mixed-asset-output`**, **`convergence-must-be-orum`**, **`invalid-convergence-structure`** — these occur in **unit tests** / other validation paths, not necessarily as the same `TxValidationState` / `BlockValidationState` reject token as §1.
 
 When updating docs or formal specs, **map** old names to §1 using a real node trace or the source lines referenced in §0.

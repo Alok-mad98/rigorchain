@@ -5,6 +5,7 @@
 #ifndef BITCOIN_TEST_UTIL_SETUP_COMMON_H
 #define BITCOIN_TEST_UTIL_SETUP_COMMON_H
 
+#include <chainparams.h>
 #include <chainparamsbase.h>
 #include <key.h>
 #include <node/caches.h>
@@ -85,6 +86,12 @@ struct BasicTestingSetup {
     const fs::path m_path_root;
     ArgsManager m_args;
 };
+
+/** Genesis hash of the test chainparams. Bound into Ed25519 sighashes (P0-018). */
+inline const uint256& TestSighashChainId()
+{
+    return Params().GetConsensus().hashGenesisBlock;
+}
 
 /** Testing setup that performs all steps up until right before
  * ChainstateManager gets initialized. Meant for testing ChainstateManager

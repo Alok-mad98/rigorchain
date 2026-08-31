@@ -43,7 +43,6 @@ struct TxInUndoFormatter
             unsigned int nVersionDummy;
             ::Unserialize(s, VARINT(nVersionDummy));
         }
-        txout.nFlags = 0;
         ::Unserialize(s, Using<TxOutCompression>(txout.out));
     }
 };

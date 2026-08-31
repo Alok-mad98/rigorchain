@@ -17,7 +17,6 @@ Supporting RPCs are:
   (`regtest` only, since v0.19).
 - `utxoupdatepsbt` takes as input descriptors to add information to the psbt
   (since v0.19).
-- `createmultisig` and `addmultisigaddress` return descriptors as well (since v0.20).
 - `importdescriptors` takes as input descriptors to import into a descriptor wallet
   (since v0.21).
 - `listdescriptors` outputs descriptors imported into a descriptor wallet (since v22).
@@ -27,6 +26,8 @@ Supporting RPCs are:
 This document describes the language. For the specifics on usage, see the RPC
 documentation for the functions mentioned above.
 
+**Rigor descriptors:** parse accepts `wpkh()` (ORU) and `res()` (RES), plus `addr()` / `raw()` for those scripts. `combo()`, `pk()`, `pkh()`, `sh()`, `wsh()`, `tr()`, `rawtr()`, `multi()`, `sortedmulti()`, `multi_a()`, and `sortedmulti_a()` do not parse.
+
 **Rigor / Ed25519:** BIP32 in descriptors is **hardened-only** (SLIP-0010).
 Unhardened `/*` and any unhardened path step are rejected. Watch-only wallets
 cannot expand a ranged xpub; import a concrete `addr()`, `wpkh(<32-byte hex>)`,
@@ -35,18 +36,12 @@ or `res(<32-byte hex>)` instead. Default wallet paths are `/0'/*'` and `/1'/*'`.
 ## Features
 
 Output descriptors currently support:
-- Pay-to-pubkey scripts (P2PK), through the `pk` function.
-- Pay-to-pubkey-hash scripts (P2PKH), through the `pkh` function.
-- Pay-to-witness-pubkey-hash scripts (P2WPKH), through the `wpkh` function.
-- Pay-to-script-hash scripts (P2SH), through the `sh` function.
-- Pay-to-witness-script-hash scripts (P2WSH), through the `wsh` function.
-- Pay-to-taproot outputs (P2TR), through the `tr` function.
-- Multisig scripts, through the `multi` function.
-- Multisig scripts where the public keys are sorted lexicographically, through the `sortedmulti` function.
-- Multisig scripts inside taproot script trees, through the `multi_a` (and `sortedmulti_a`) function.
-- Any type of supported address through the `addr` function.
-- Raw hex scripts through the `raw` function.
-- Public keys (compressed and uncompressed) in hex notation, or BIP32 extended pubkeys with derivation paths.
+- Witness v0 keyhash (ORU), through the `wpkh` function.
+- Witness v1 RES, through the `res` function.
+- Those same scripts via `addr` or `raw` when the bytes are already a RIGOR lock.
+- Ed25519 keys in hex, or BIP32 extended keys with hardened derivation only.
+
+`pk`, `pkh`, `sh`, `wsh`, `tr`, `combo`, `multi`, `sortedmulti`, `multi_a`, and `sortedmulti_a` are not RIGOR descriptor functions.
 
 ## Examples
 
@@ -54,7 +49,6 @@ Output descriptors currently support:
 - `pkh(02c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5)` describes a P2PKH output with the specified public key.
 - `wpkh(02f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9)` describes a P2WPKH output with the specified public key.
 - `sh(wpkh(03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556))` describes a P2SH-P2WPKH output with the specified public key.
-- `combo(0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798)` describes any P2PK, P2PKH, P2WPKH, or P2SH-P2WPKH output with the specified public key.
 - `sh(wsh(pkh(02e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13)))` describes an (overly complicated) P2SH-P2WSH-P2PKH output with the specified public key.
 - `multi(1,022f8bde4d1a07209355b4a7250a5c5128e88b84bddc619ab7cba8d569b240efe4,025cbdf0646e5db4eaa398f365f2ea7a0e3d419b7e0330e39ce92bddedcac4f9bc)` describes a bare *1-of-2* multisig output with keys in the specified order.
 - `sh(multi(2,022f01e5e15cca351daff3843fb70f3c2f0a1bdd05e5af888a67784ef3e10a2a01,03acd484e2f0c7f65309ad178a9f559abde09796974c57e714c35f110dfc27ccbe))` describes a P2SH *2-of-2* multisig output with keys in the specified order.
@@ -79,10 +73,9 @@ Descriptors consist of several types of expressions. The top level expression is
 - `pk(KEY)` (anywhere): P2PK output for the given public key.
 - `pkh(KEY)` (not inside `tr`): P2PKH output for the given public key (use `addr` if you only know the pubkey hash).
 - `wpkh(KEY)` (top level or inside `sh` only): P2WPKH output for the given compressed pubkey.
-- `combo(KEY)` (top level only): an alias for the collection of `pk(KEY)` and `pkh(KEY)`. If the key is compressed, it also includes `wpkh(KEY)` and `sh(wpkh(KEY))`.
-- `multi(k,KEY_1,KEY_2,...,KEY_n)` (not inside `tr`): k-of-n multisig script using OP_CHECKMULTISIG.
+- `multi(k,KEY_1,KEY_2,...,KEY_n)` (not inside `tr`): k-of-n multisig script using RIGOR_RESERVED_LEGACY_CHECKMULTISIG.
 - `sortedmulti(k,KEY_1,KEY_2,...,KEY_n)` (not inside `tr`): k-of-n multisig script with keys sorted lexicographically in the resulting script.
-- `multi_a(k,KEY_1,KEY_2,...,KEY_N)` (only inside `tr`): k-of-n multisig script using OP_CHECKSIG, OP_CHECKSIGADD, and OP_NUMEQUAL.
+- `multi_a(k,KEY_1,KEY_2,...,KEY_N)` (only inside `tr`): k-of-n multisig script using RIGOR_RESERVED_LEGACY_CHECKSIG, RIGOR_RESERVED_LEGACY_CHECKSIGADD, and RIGOR_RESERVED_LEGACY_NUMEQUAL.
 - `sortedmulti_a(k,KEY_1,KEY_2,...,KEY_N)` (only inside `tr`): similar to `multi_a`, but the (x-only) public keys in it will be sorted lexicographically.
 - `tr(KEY)` or `tr(KEY,TREE)` (top level only): P2TR output with the specified key as internal key, and optionally a tree of script paths.
 - `addr(ADDR)` (top level only): the script which ADDR expands to.
@@ -135,7 +128,7 @@ not contain "p2" for brevity.
 ### Multisig
 
 Several pieces of software use multi-signature (multisig) scripts based
-on Arda's OP_CHECKMULTISIG opcode. To support these, we introduce the
+on Arda's RIGOR_RESERVED_LEGACY_CHECKMULTISIG opcode. To support these, we introduce the
 `multi(k,key_1,key_2,...,key_n)` and `sortedmulti(k,key_1,key_2,...,key_n)`
 functions. They represent a *k-of-n*
 multisig policy, where any *k* out of the *n* provided `KEY` expressions must
@@ -252,11 +245,7 @@ steps, or for dumping wallet descriptors including private key material.
 
 ### Compatibility with old wallets
 
-In order to easily represent the sets of scripts currently supported by
-existing Rigor Core wallets, a convenience function `combo` is
-provided, which takes as input a public key, and describes a set of P2PK,
-P2PKH, P2WPKH, and P2SH-P2WPKH scripts for that key. In case the key is
-uncompressed, the set only includes P2PK and P2PKH scripts.
+`combo()` is not supported. Legacy BDB→descriptor migration emits `wpkh()` (ORU) only.
 
 ### Checksums
 

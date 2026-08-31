@@ -6,14 +6,14 @@
 #define BITCOIN_COMPAT_ENDIAN_H
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/rigor-config.h>
 #endif
 
 #include <compat/byteswap.h>
 
 #include <cstdint>
 
-// A checked-in bitcoin-config.h may leave HAVE_DECL_HTOBE16 etc. at 0 while libc headers
+// A checked-in rigor-config.h may leave HAVE_DECL_HTOBE16 etc. at 0 while libc headers
 // (included transitively before this file) already define htobe16/le64toh as inline
 // functions from <endian.h>, causing redefinition errors on recent glibc.
 // When system endian conversions are available, include them and force the decl macros on.

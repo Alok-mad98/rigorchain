@@ -38,18 +38,24 @@ class RigorAssetMixRejectTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0]
-        mining_addr = node.get_deterministic_witness_mining_address()
+        # Mine to a wallet address so listunspent can sign the mixed-asset spend.
+        # The imported deterministic key is not a descriptor-wallet receive script.
+        mining_addr = node.getnewaddress()
         self.generatetoaddress(node, 120, mining_addr)
 
         utxos = node.listunspent(minconf=1, query_options={"minimumAmount": Decimal("10.0")})
         assert len(utxos) >= 1
         u = utxos[0]
 
-        # Valid witness v1 RES (32-byte program); derive bech32m via node (checksum depends on HRP).
-        res_prog_hex = "ee" * 32
-        dec_res = node.decodescript("5120" + res_prog_hex)
-        assert_equal(dec_res["type"], "witness_v1_res")
-        res_addr = dec_res["address"]
+        # TASK-010 R-2 Scheme A: an off-curve 32-byte v1 program is still classified RES
+        # (pure byte predicate), but key_io will not emit a Bech32m address for it.
+        off_curve = node.decodescript("5120" + ("ee" * 32))
+        assert_equal(off_curve["type"], "witness_v1_res")
+        assert not off_curve.get("address")
+
+        res_addr = node.getnewaddress("", "bech32m")
+        info = node.getaddressinfo(res_addr)
+        assert_equal(info["witness_version"], 1)
 
         outputs = {
             res_addr: {"amount": "0.01", "asset": "RES"},

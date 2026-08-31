@@ -21,10 +21,10 @@ class P2PIgnoreInv(P2PInterface):
     def on_inv(self, message):
         # The node will send us invs for other blocks. Ignore them.
         pass
-    def on_addr(self, message):
+    def on_addrv2(self, message):
         self.firstAddrnServices = message.addrs[0].nServices
     def wait_for_addr(self, timeout=5):
-        test_function = lambda: self.last_message.get("addr")
+        test_function = lambda: self.last_message.get("addrv2")
         self.wait_until(test_function, timeout=timeout)
     def send_getdata_for_block(self, blockhash):
         getdata_request = msg_getdata()

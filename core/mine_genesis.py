@@ -14,7 +14,7 @@ NBITS = 0x207fffff  # Very low difficulty
 VERSION = 1
 
 # Coinbase transaction parameters
-GENESIS_REWARD = 1000 * 100_000_000  # 1000 ORU (1 ORU = 100,000,000 satoshis)
+GENESIS_REWARD = 0  # P0-038: genesis issues 0 ORU (1 ORU = 100,000,000 satoshis)
 # Genesis output script (P2WPKH with dummy key)
 GENESIS_OUTPUT_SCRIPT = bytes.fromhex("00141111111111111111111111111111111111111111")
 

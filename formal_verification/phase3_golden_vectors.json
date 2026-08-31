@@ -1,8 +1,8 @@
 {
   "version": "phase3-2.2-tightening",
   "baseline": "c05f1a94beece54df872dc89c08715bd555fd987",
-  "tag": "tightening-replay-txid-2026-08-18",
-  "count": 422,
+  "tag": "script-asset-classifier-2026-08-25",
+  "count": 433,
   "vectors": [
     {
       "id": "CR-000",
@@ -9534,12 +9534,12 @@
       },
       "expected": {
         "accepted": false,
-        "reject": "not_oru_script",
-        "is_allowed": true,
-        "is_res": true,
-        "asset": "RES"
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
+        "is_res": false,
+        "asset": "INVALID"
       },
-      "note": "L2: Witness v1 / 32 / RES2 is IsResScript (RES domain, not ORU). L3: C++ IsResScript.",
+      "note": "L2: Witness v1 RES2 prefix is not creatable (ASSET_INVALID). L3: ClassifyRigorTxout.",
       "coq_enforce": true
     },
     {
@@ -9556,7 +9556,7 @@
         "reject": "bad_rigor_script_type",
         "is_allowed": false,
         "is_res": false,
-        "asset": "ORU"
+        "asset": "INVALID"
       },
       "note": "L2: v1 program length 20 is not IsAllowedScript. L3: bad-rigor-script-type.",
       "coq_enforce": true
@@ -9574,7 +9574,7 @@
         "reject": "bad_rigor_script_type",
         "is_allowed": false,
         "is_res": false,
-        "asset": "ORU"
+        "asset": "INVALID"
       },
       "note": "L2: P2PKH byte template is not a witness program. L3: bad-rigor-script-type.",
       "coq_enforce": true
@@ -9592,7 +9592,7 @@
         "reject": "bad_rigor_script_type",
         "is_allowed": false,
         "is_res": false,
-        "asset": "ORU"
+        "asset": "INVALID"
       },
       "note": "L2: P2SH byte template is not a witness program. L3: bad-rigor-script-type.",
       "coq_enforce": true
@@ -9608,12 +9608,12 @@
       },
       "expected": {
         "accepted": false,
-        "reject": "not_res_script",
-        "is_allowed": true,
+        "reject": "bad_rigor_script_type",
+        "is_allowed": false,
         "is_res": false,
-        "asset": "ORU"
+        "asset": "INVALID"
       },
-      "note": "L2: Witness v0 32-byte (P2WSH) is ORU, not RES. L3: AssetTypeFromScriptPubKey.",
+      "note": "L2: Witness v0 32-byte (P2WSH) is not IsAllowedScript. L3: ASSET_INVALID / bad-rigor-script-type.",
       "coq_enforce": true
     },
     {
@@ -9672,7 +9672,7 @@
         "reject": "bad_rigor_script_type",
         "is_allowed": false,
         "is_res": false,
-        "asset": "ORU"
+        "asset": "INVALID"
       },
       "note": "L2: unknown witness version 2 is not IsAllowedScript. L3: bad-rigor-script-type.",
       "coq_enforce": true
@@ -9782,6 +9782,182 @@
         "mint_shape_would_pass": true
       },
       "note": "CROSS mint-shape: body is W(h) mint-shape (would pass dual-pool) but PCORB has 5 items. L2: pcorb_too_few. L1 extra: mint_shape_would_pass=true (NEG mint-shape complement).",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-000",
+      "name": "v0_p2wpkh",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "00140000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "asset": "ORU",
+        "is_allowed": true,
+        "is_res": false
+      },
+      "note": "Witness v0/20 \u2192 ORU",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-001",
+      "name": "native_res_rfc8032",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "5120d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"
+      },
+      "expected": {
+        "asset": "RES",
+        "is_allowed": true,
+        "is_res": true
+      },
+      "note": "Witness v1/32 RFC8032 pk1 \u2192 RES",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-002",
+      "name": "op_converge",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "140000000000000000000000000000000000000000bd"
+      },
+      "expected": {
+        "asset": "ORU",
+        "is_allowed": true,
+        "is_res": false
+      },
+      "note": "RIGOR_MARKER_CONVERGE \u2192 ORU",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-003",
+      "name": "op_res_mint",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "0164140000000000000000000000000000000000000000bb"
+      },
+      "expected": {
+        "asset": "RES",
+        "is_allowed": true,
+        "is_res": true
+      },
+      "note": "RIGOR_MARKER_RES_MINT \u2192 RES",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-004",
+      "name": "v0_p2wsh",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "00200000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "Witness v0/32 \u2192 INVALID",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-005",
+      "name": "p2pkh",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "76a914000000000000000000000000000000000000000088ac"
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "P2PKH \u2192 INVALID",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-006",
+      "name": "cvg2",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "51204356473200000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "CVG2 prefix \u2192 INVALID",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-007",
+      "name": "res2",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "51205245533200000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "RES2 prefix \u2192 INVALID",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-008",
+      "name": "empty",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": ""
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "Empty script \u2192 INVALID",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-009",
+      "name": "op_return",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "6a0178"
+      },
+      "expected": {
+        "asset": "NONE",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "RIGOR_MARKER_RETURN + push \u2192 NONE",
+      "coq_enforce": true
+    },
+    {
+      "id": "SASS-010",
+      "name": "v1_len20",
+      "module": "ScriptAsset",
+      "input": {
+        "kind": "classifier",
+        "script_hex": "51140000000000000000000000000000000000000000"
+      },
+      "expected": {
+        "asset": "INVALID",
+        "is_allowed": false,
+        "is_res": false
+      },
+      "note": "Witness v1/20 \u2192 INVALID",
       "coq_enforce": true
     },
     {

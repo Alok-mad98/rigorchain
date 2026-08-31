@@ -5,6 +5,7 @@
 
 #include <base58.h>
 #include <chain.h>
+#include <chainparams.h>
 #include <coins.h>
 #include <consensus/amount.h>
 #include <consensus/convergence_commitment.h>
@@ -492,7 +493,7 @@ static RPCHelpMan decodescript()
         for (CScript::const_iterator it{script.begin()}; it != script.end();) {
             opcodetype op;
             CHECK_NONFATAL(script.GetOp(it, op));
-            if (op == OP_CHECKSIGADD || IsOpSuccess(op)) {
+            if (op == RIGOR_RESERVED_LEGACY_CHECKSIGADD || IsOpSuccess(op)) {
                 return false;
             }
         }
@@ -617,6 +618,7 @@ static RPCHelpMan combinerawtransaction()
     // Use CTransaction for the constant parts of the
     // transaction to avoid rehashing.
     const CTransaction txConst(mergedTx);
+    const uint256& chain_id = Params().GetConsensus().hashGenesisBlock;
     // Sign what we can:
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
         CTxIn& txin = mergedTx.vin[i];
@@ -629,10 +631,10 @@ static RPCHelpMan combinerawtransaction()
         // ... and merge in other signatures:
         for (const CMutableTransaction& txv : txVariants) {
             if (txv.vin.size() > i) {
-                sigdata.MergeSignatureData(DataFromTransaction(txv, i, coin.out));
+                sigdata.MergeSignatureData(DataFromTransaction(txv, i, coin.out, chain_id));
             }
         }
-        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(mergedTx, i, coin.out.nValue, 1), coin.out.scriptPubKey, sigdata);
+        ProduceSignature(DUMMY_SIGNING_PROVIDER, MutableTransactionSignatureCreator(mergedTx, i, coin.out.nValue, chain_id), coin.out.scriptPubKey, sigdata);
 
         UpdateInput(txin, sigdata);
     }
@@ -1032,7 +1034,7 @@ static RPCHelpMan decodepsbt()
             have_a_utxo = true;
         }
         if (have_a_utxo) {
-            if (MoneyRange(txout.nValue) && MoneyRange(total_in + txout.nValue)) {
+            if (!AddMoneyOverflows(total_in, txout.nValue)) {
                 total_in += txout.nValue;
             } else {
                 // Hack to just not show fee later
@@ -1223,7 +1225,7 @@ static RPCHelpMan decodepsbt()
         outputs.push_back(out);
 
         // Fee calculation
-        if (MoneyRange(psbtx.tx->vout[i].nValue) && MoneyRange(output_value + psbtx.tx->vout[i].nValue)) {
+        if (!AddMoneyOverflows(output_value, psbtx.tx->vout[i].nValue)) {
             output_value += psbtx.tx->vout[i].nValue;
         } else {
             // Hack to just not show fee later
@@ -1323,7 +1325,7 @@ static RPCHelpMan finalizepsbt()
     bool extract = request.params[1].isNull() || (!request.params[1].isNull() && request.params[1].get_bool());
 
     CMutableTransaction mtx;
-    bool complete = FinalizeAndExtractPSBT(psbtx, mtx);
+    bool complete = FinalizeAndExtractPSBT(psbtx, mtx, Params().GetConsensus().hashGenesisBlock);
 
     UniValue result(UniValue::VOBJ);
     CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
@@ -1513,6 +1515,7 @@ static RPCHelpMan utxoupdatepsbt()
 
     // Fill the inputs
     const PrecomputedTransactionData txdata = PrecomputePSBTData(psbtx);
+    const uint256& chain_id = Params().GetConsensus().hashGenesisBlock;
     for (unsigned int i = 0; i < psbtx.tx->vin.size(); ++i) {
         PSBTInput& input = psbtx.inputs.at(i);
 
@@ -1529,7 +1532,7 @@ static RPCHelpMan utxoupdatepsbt()
         // Update script/keypath information using descriptor data.
         // Note that SignPSBTInput does a lot more than just constructing ECDSA signatures
         // we don't actually care about those here, in fact.
-        SignPSBTInput(public_provider, psbtx, i, &txdata, /*sighash=*/1);
+        SignPSBTInput(public_provider, psbtx, i, &txdata, chain_id, /*sighash=*/1);
     }
 
     // Update script/keypath information using descriptor data.
@@ -1696,7 +1699,7 @@ static RPCHelpMan analyzepsbt()
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, strprintf("TX decode failed %s", error));
     }
 
-    PSBTAnalysis psbta = AnalyzePSBT(psbtx);
+    PSBTAnalysis psbta = AnalyzePSBT(psbtx, Params().GetConsensus().hashGenesisBlock);
 
     UniValue result(UniValue::VOBJ);
     UniValue inputs_result(UniValue::VARR);

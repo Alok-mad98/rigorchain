@@ -94,6 +94,19 @@ impl ShareValidator {
         validate_node_supplied_automint(&template)?;
         self.check_parent_window(&template)?;
 
+        // TASK-012 H-5: nTime rolling would pair a new timestamp with a frozen
+        // job nBits. Until/unless the node scores nBits from parent time only
+        // *and* the pool recomputes bits, require an exact match with the job.
+        if u64::from(share.ntime) != job.ntime {
+            return Err(ValidatorError::validation(
+                ValidationErrorCode::ErrMalformedSubmission,
+                format!(
+                    "share ntime {:08x} does not match job ntime {:08x}",
+                    share.ntime, job.ntime
+                ),
+            ));
+        }
+
         validate_convergence_root_matches(&template, &job.coinbase.convergence_root_hex)?;
 
         let coinbase_raw = assemble_coinbase_raw(&job, &share.extranonce1, &share.extranonce2)?;

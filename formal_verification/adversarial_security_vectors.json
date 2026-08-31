@@ -1,0 +1,137 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-ADVERSARIAL-SECURITY-P0-063",
+  "note": "Adversarial security baseline. Does not modify golden vectors or production consensus.",
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "production_consensus_modified": false,
+  "protocol_parameters_modified": false,
+  "heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "issuance": [
+    {
+      "id": "P063-ISS-0",
+      "height": 0,
+      "epoch": 0,
+      "oru_subsidy": 0,
+      "res_schedule": 40000000,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
+    },
+    {
+      "id": "P063-ISS-1",
+      "height": 1,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "id": "P063-ISS-99",
+      "height": 99,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "id": "P063-ISS-100",
+      "height": 100,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "id": "P063-ISS-101",
+      "height": 101,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "id": "P063-ISS-209999",
+      "height": 209999,
+      "epoch": 0,
+      "oru_subsidy": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "id": "P063-ISS-210000",
+      "height": 210000,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196
+    },
+    {
+      "id": "P063-ISS-210001",
+      "height": 210001,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196
+    },
+    {
+      "id": "P063-ISS-419999",
+      "height": 419999,
+      "epoch": 1,
+      "oru_subsidy": 50000000000,
+      "res_schedule": 14142196
+    },
+    {
+      "id": "P063-ISS-420000",
+      "height": 420000,
+      "epoch": 2,
+      "oru_subsidy": 25000000000,
+      "res_schedule": 7698004
+    }
+  ],
+  "maturity": [
+    {"id": "P063-MAT-ORU-99", "asset": "ORU", "source_height": 0, "spend_height": 99, "mature": false},
+    {"id": "P063-MAT-ORU-100", "asset": "ORU", "source_height": 0, "spend_height": 100, "mature": true},
+    {"id": "P063-MAT-ORU-1-100", "asset": "ORU", "source_height": 1, "spend_height": 100, "mature": false},
+    {"id": "P063-MAT-ORU-1-101", "asset": "ORU", "source_height": 1, "spend_height": 101, "mature": true},
+    {"id": "P063-MAT-RES-99", "asset": "RES", "source_height": 0, "spend_height": 99, "mature": false},
+    {"id": "P063-MAT-RES-100", "asset": "RES", "source_height": 0, "spend_height": 100, "mature": true},
+    {"id": "P063-MAT-RES-1-100", "asset": "RES", "source_height": 1, "spend_height": 100, "mature": false},
+    {"id": "P063-MAT-RES-1-101", "asset": "RES", "source_height": 1, "spend_height": 101, "mature": true}
+  ],
+  "draw": [
+    {"id": "P063-DRAW-EMPTY", "candidates": 0, "expect": "none"},
+    {"id": "P063-DRAW-SINGLE", "candidates": 1, "expect": "candidate"},
+    {"id": "P063-DRAW-EQUAL-WEIGHT", "note": "permutation-invariant 512-bit argmin + txid tie-break"},
+    {"id": "P063-DRAW-T0", "T": 0, "expect": "none"},
+    {"id": "P063-DRAW-ZERO-WEIGHT", "weight": 0, "expect": "none"},
+    {"id": "P063-DRAW-WEIGHT-OVERFLOW", "weight": "uint64_max", "expect": "none"}
+  ],
+  "classify": [
+    {"id": "P063-CL-ORU", "kind": "valid_oru", "asset": "ORU"},
+    {"id": "P063-CL-RES", "kind": "valid_res", "asset": "RES"},
+    {"id": "P063-CL-EMPTY", "script": "", "asset": "INVALID"},
+    {"id": "P063-CL-UNKNOWN-VER", "kind": "unknown_version", "asset": "INVALID"},
+    {"id": "P063-CL-TRUNCATED", "kind": "truncated", "asset": "INVALID"},
+    {"id": "P063-CL-OVERSIZED", "kind": "oversized", "asset": "INVALID"},
+    {"id": "P063-CL-RANDOM", "kind": "random", "asset": "INVALID"}
+  ],
+  "supply": [
+    {"id": "P063-SUP-GENESIS", "height": 0, "oru_delta": 0, "res_delta": 0},
+    {"id": "P063-SUP-NO-WINNER-MINT", "expect": "bad-rigor-res-without-winner"},
+    {"id": "P063-SUP-WINNER-OMIT", "expect": "bad-rigor-res-winner-mismatch"},
+    {"id": "P063-SUP-OVERFLOW-CB", "expect": "bad-cb-amount"}
+  ],
+  "transaction": [
+    {"id": "P063-TX-EMPTY-SIG", "expect": "reject"},
+    {"id": "P063-TX-MALFORMED-SIG", "expect": "reject"},
+    {"id": "P063-TX-WRONG-PUBKEY", "expect": "reject"},
+    {"id": "P063-TX-MODIFIED-WITNESS", "expect": "reject"},
+    {"id": "P063-TX-MODIFIED-SIGHASH", "expect": "reject"},
+    {"id": "P063-TX-REPLAY-CHAIN", "expect": "reject"},
+    {"id": "P063-TX-WRONG-ASSET", "expect": "reject"}
+  ],
+  "fail_tokens": {
+    "issuance": "CONSENSUS_ISSUANCE_ATTACK_FOUND",
+    "maturity": "MATURITY_BYPASS_FOUND",
+    "draw_nondet": "DRAW_NON_DETERMINISTIC",
+    "draw_tie": "DRAW_TIE_BREAK_BYPASS",
+    "classify": "CLASSIFICATION_BYPASS_FOUND",
+    "supply": "SUPPLY_INFLATION_ATTACK_FOUND",
+    "transaction": "TRANSACTION_KERNEL_BYPASS_FOUND",
+    "connectblock": "CONNECTBLOCK_CONSENSUS_DUPLICATION_FOUND",
+    "crash": "CONSENSUS_KERNEL_CRASH_FOUND",
+    "oracle": "CONSENSUS_KERNEL_ORACLE_DISCREPANCY"
+  }
+}

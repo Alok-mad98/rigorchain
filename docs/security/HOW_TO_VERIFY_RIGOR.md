@@ -21,7 +21,7 @@ This guide reproduces RIGOR’s published verification artifacts. A green run me
 | Git checkout of this repository | Working tree at the commit under review |
 | **Python 3** | 3.9+ recommended |
 | **Coq** | 8.15.x (`coqc`, `coq_makefile`, optional `coqchk`) |
-| **C++ build** (for full differential gate) | Same toolchain used to build `core/` portable CLIs; gate can skip `test_bitcoin` with `SKIP_TEST_BITCOIN=1` |
+| **C++ build** (for full differential gate) | Same toolchain used to build `core/` portable CLIs; gate can skip `test_rigor` with `SKIP_TEST_RIGOR=1` |
 | Optional: OCaml | Only if re-extracting the hash kernel (`EXTRACT=1`) |
 
 ---
@@ -41,7 +41,7 @@ SKIP_TEST_BITCOIN=1 bash formal_verification/scripts/run_differential_gate.sh
 COQ=1 bash formal_verification/scripts/run_differential_gate.sh   # also compile golden harnesses
 ```
 
-**Expected result:** script exits **0** / reports **PASS** on the living lock (**422** shared vectors / **215** Coq-enforced lemmas pinned by `formal_verification/golden_lock.json`).
+**Expected result:** script exits **0** / reports **PASS** on the living lock (**433** shared vectors / **226** Coq-enforced lemmas pinned by `formal_verification/golden_lock.json`).
 
 What PASS means: Python oracle, golden lock, portable hash CLI, and σ/root CLI agree on the gated set.  
 What PASS does **not** mean: `equivalence_claimed = true`.
@@ -102,6 +102,17 @@ make -f Makefile.coq -j"$(nproc)"
 
 **Expected:** exit 0; all modules in `_CoqProject` compile.
 
+Protocol-core only (citable theorems; excludes Phase-4F/4G/5 catalogs):
+
+```bash
+bash formal_verification/scripts/run_protocol_core_coq.sh
+```
+
+This uses `_CoqProject.protocol-core` and then `Print Assumptions --strict` on
+`ResSchedule.v`, `OrderIndependence.v`, `ResMintObligation.v`,
+`DualPoolConservation.v`, `SupplyConservation.v`, and `OpaqueBoundary.v`.
+Requires **Coq 8.15.x**. Do not `apt-install` Ubuntu `coq`.
+
 Optional kernel check (protocol-core; harnesses are large):
 
 ```bash
@@ -124,6 +135,25 @@ See [`docs/verification/FV-RELEASE-CHECKLIST.md`](../verification/FV-RELEASE-CHE
 
 ---
 
+## 6. Security unit gates (not the FV gate)
+
+PoW / ASERT / `CheckProofOfWork` are **NOT VERIFIED** in Coq. There is no PoW
+module. The following BOOST suites are **security / unit** gates (see
+[`PRE-MAINNET-CHECKLIST.md`](./PRE-MAINNET-CHECKLIST.md) §D). They are skipped
+when `SKIP_TEST_BITCOIN=1` (the default FV checklist).
+
+From `core/` after `make`:
+
+```bash
+./src/test/test_rigor --run_test=pow_tests
+./src/test/test_rigor --run_test=sighash_tests
+./src/test/test_rigor --run_test=script_asset_ownership_freeze_tests
+./src/test/test_rigor --run_test=res_proof_math_tests
+./src/test/test_rigor --run_test=convergence_root_tests
+```
+
+---
+
 ## Interpreting results
 
 | Outcome | Interpretation |
@@ -131,6 +161,7 @@ See [`docs/verification/FV-RELEASE-CHECKLIST.md`](../verification/FV-RELEASE-CHE
 | Gate PASS + Coq build OK | Published verification artifacts reproduce |
 | Gate FAIL | Do not ignore — lock or oracle drift; open an issue / do not claim green FV |
 | Coq FAIL | Model or environment broken; not a production-node runtime test |
+| `pow_tests` / sighash / mint-auth FAIL | Security unit failure. **Not** covered by a green FV gate. |
 
 Public wording after a green run:
 

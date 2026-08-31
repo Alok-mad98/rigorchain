@@ -11,6 +11,7 @@
 #include <script/script.h>
 #include <streams.h>
 #include <util/check.h>
+#include <uint256.h>
 #include <version.h>
 
 #include <cstdint>
@@ -33,7 +34,7 @@ FUZZ_TARGET(psbt)
     }
     const PartiallySignedTransaction psbt = psbt_mut;
 
-    const PSBTAnalysis analysis = AnalyzePSBT(psbt);
+    const PSBTAnalysis analysis = AnalyzePSBT(psbt, uint256::ZERO);
     (void)PSBTRoleName(analysis.next);
     for (const PSBTInputAnalysis& input_analysis : analysis.inputs) {
         (void)PSBTRoleName(input_analysis.next);
@@ -66,11 +67,11 @@ FUZZ_TARGET(psbt)
     }
 
     psbt_mut = psbt;
-    (void)FinalizePSBT(psbt_mut);
+    (void)FinalizePSBT(psbt_mut, uint256::ZERO);
 
     psbt_mut = psbt;
     CMutableTransaction result;
-    if (FinalizeAndExtractPSBT(psbt_mut, result)) {
+    if (FinalizeAndExtractPSBT(psbt_mut, result, uint256::ZERO)) {
         const PartiallySignedTransaction psbt_from_tx{result};
     }
 

@@ -11,14 +11,14 @@
 #include <consensus/validation.h>
 #include <crypto/ed25519_provider.h>
 #include <hash.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <interfaces/chain.h>
 #include <numeric>
 #include <outputtype.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <pubkey.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 #include <script/signingprovider.h>
 #include <script/rigor_tags.h>
@@ -69,8 +69,7 @@ int CalculateMaximumSignedInputSize(const CTxOut& txout, const COutPoint outpoin
         if (txout.scriptPubKey.IsWitnessProgram(wver_fb, wprog_fb) && wver_fb == 0 &&
             wprog_fb.size() == WITNESS_V0_KEYHASH_SIZE) {
             CScriptWitness wit;
-            std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE + 1, 0x42);
-            witSig[ed25519::SIGNATURE_SIZE] = SIGHASH_ALL;
+            std::vector<unsigned char> witSig(ed25519::SIGNATURE_SIZE, 0x42);
             wit.stack.push_back(std::move(witSig));
             wit.stack.emplace_back(CPubKey::COMPRESSED_SIZE, 0x00);
             txn.vin[0].scriptWitness = std::move(wit);
@@ -182,18 +181,14 @@ void CoinsResult::Add(OutputType type, const COutput& out)
 
 static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
 {
+    (void)is_from_p2sh;
     switch (type) {
         case TxoutType::WITNESS_V1_RES:
         case TxoutType::RES_MINT:
         case TxoutType::CONVERGE:
             return OutputType::BECH32M;
         case TxoutType::WITNESS_V0_KEYHASH:
-        case TxoutType::WITNESS_V0_SCRIPTHASH:
-            if (is_from_p2sh) return OutputType::P2SH_SEGWIT;
-            else return OutputType::BECH32;
-        case TxoutType::SCRIPTHASH:
-        case TxoutType::PUBKEYHASH:
-            return OutputType::LEGACY;
+            return OutputType::BECH32;
         default:
             return OutputType::UNKNOWN;
     }
@@ -379,7 +374,12 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(output.scriptPubKey);
 
             int input_bytes = CalculateMaximumSignedInputSize(output, COutPoint(), provider.get(), can_grind_r, coinControl);
-            bool solvable = provider ? InferDescriptor(output.scriptPubKey, *provider)->IsSolvable() : false;
+            bool solvable = false;
+            if (provider) {
+                if (auto inferred = InferDescriptor(output.scriptPubKey, *provider)) {
+                    solvable = inferred->IsSolvable();
+                }
+            }
             if (solvable) {
                 const auto spk_mans = wallet.GetScriptPubKeyMans(output.scriptPubKey);
                 if (spk_mans.empty()) {
@@ -728,7 +728,7 @@ util::Result<SelectionResult> AutomaticCoinSelection(const CWallet& wallet, Coin
     wallet.chain().getPackageLimits(limit_ancestor_count, limit_descendant_count);
     const size_t max_ancestors = (size_t)std::max<int64_t>(1, limit_ancestor_count);
     const size_t max_descendants = (size_t)std::max<int64_t>(1, limit_descendant_count);
-    const bool fRejectLongChains = gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
+    const bool fRejectLongChains = wallet.m_reject_long_chains;
 
     // Cases where we have 101+ outputs all pointing to the same destination may result in
     // privacy leaks as they will potentially be deterministically sorted. We solve that by
@@ -1267,7 +1267,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPo
     if (current_fee > wallet.m_default_max_tx_fee) {
         return util::Error{TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED)};
     }
-    if (gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
+    if (wallet.m_reject_long_chains) {
         if (!wallet.chain().checkChainLimits(tx)) {
             return util::Error{_("Transaction has too long of a mempool chain")};
         }
@@ -1445,7 +1445,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     const CAmount not_input_fees = coin_selection_params.m_effective_feerate.GetFee(coin_selection_params.m_subtract_fee_outputs ? 0 : coin_selection_params.tx_noinputs_size);
     CAmount selection_target = recipients_sum + not_input_fees;
 
-    // This can only happen if feerate is 0, and requested destinations are value of 0 (e.g. OP_RETURN)
+    // This can only happen if feerate is 0, and requested destinations are value of 0 (e.g. RIGOR_MARKER_RETURN)
     // and no pre-selected inputs. This will result in 0-input transaction, which is consensus-invalid anyways
     if (selection_target == 0 && !coin_control.HasSelected()) {
         return util::Error{_("Transaction requires one destination of non-0 value, a non-0 feerate, or a pre-selected input")};
@@ -1608,7 +1608,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         return util::Error{TransactionErrorString(TransactionError::MAX_FEE_EXCEEDED)};
     }
 
-    if (gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
+    if (wallet.m_reject_long_chains) {
         // Lastly, ensure this tx will pass the mempool's chain limits
         if (!wallet.chain().checkChainLimits(tx)) {
             return util::Error{_("Transaction has too long of a mempool chain")};
@@ -1634,9 +1634,13 @@ util::Result<CreatedTransactionResult> CreateTransaction(
         CWallet& wallet,
         const std::vector<CRecipient>& vecSend,
         int change_pos,
-        const CCoinControl& coin_control,
+        const CCoinControl& coin_control_in,
         bool sign)
 {
+    CCoinControl coin_control = coin_control_in;
+    if (wallet.m_avoid_partial_spends) {
+        coin_control.m_avoid_partial_spends = true;
+    }
     if (vecSend.empty()) {
         return util::Error{_("Transaction must have at least one recipient")};
     }
@@ -1773,34 +1777,8 @@ util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amoun
     if (res_key == nullptr) {
         return util::Error{_("Generated payout address is not a RES address")};
     }
-    // OP_CONVERGE / OP_RES_MINT bind HASH160(ed25519_pk), not HASH160(SHA256(pk)).
-    // WitnessV1Res is the SHA256 program; recover the 32-byte pubkey from the wallet.
-    const CScript dest_spk = GetScriptForDestination(*res_dest);
-    const std::unique_ptr<SigningProvider> provider = wallet.GetSolvingProvider(dest_spk);
-    std::vector<unsigned char> pk32;
-    if (const auto* fp = dynamic_cast<const FlatSigningProvider*>(provider.get())) {
-        for (const auto& [_, pk] : fp->pubkeys) {
-            pk32 = pk.GetEd25519Payload();
-            if (pk32.size() == ed25519::PUBKEY_SIZE) break;
-        }
-        if (pk32.size() != ed25519::PUBKEY_SIZE) {
-            for (const auto& [_, origin] : fp->origins) {
-                pk32 = origin.first.GetEd25519Payload();
-                if (pk32.size() == ed25519::PUBKEY_SIZE) break;
-            }
-        }
-        if (pk32.size() != ed25519::PUBKEY_SIZE) {
-            for (const auto& [_, secret] : fp->res_v1_program_to_ed_secret) {
-                if (secret.size() < ed25519::SECRETKEY_SIZE) continue;
-                pk32.assign(secret.begin() + ed25519::SEED_SIZE, secret.begin() + ed25519::SEED_SIZE + ed25519::PUBKEY_SIZE);
-                break;
-            }
-        }
-    }
-    if (pk32.size() != ed25519::PUBKEY_SIZE) {
-        return util::Error{_("Cannot recover RES pubkey for the convergence owner lock")};
-    }
-    (void)res_key;
+    // Option B: v1 program is pk32, so HASH160(program) == HASH160(pk).
+    const std::vector<unsigned char> pk32(res_key->begin(), res_key->end());
     const CScript burn = GetConvergeScript(Hash160(pk32));
     return CRecipient{burn, amount_oru, subtract_fee_from_convergence, ASSET_ORU};
 }

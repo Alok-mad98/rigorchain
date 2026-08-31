@@ -9,7 +9,7 @@
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 
 #include <cstdint>
@@ -84,24 +84,10 @@ static constexpr unsigned int EXTRA_DESCENDANT_TX_SIZE_LIMIT{10000};
  * with. However scripts violating these flags may still be present in valid
  * blocks and we must accept those blocks.
  */
-static constexpr unsigned int STANDARD_SCRIPT_VERIFY_FLAGS{MANDATORY_SCRIPT_VERIFY_FLAGS |
-                                                             SCRIPT_VERIFY_DERSIG |
-                                                             SCRIPT_VERIFY_STRICTENC |
-                                                             SCRIPT_VERIFY_MINIMALDATA |
-                                                             SCRIPT_VERIFY_NULLDUMMY |
-                                                             SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS |
+static constexpr unsigned int STANDARD_SCRIPT_VERIFY_FLAGS{SCRIPT_VERIFY_WITNESS |
+                                                             SCRIPT_VERIFY_SIGPUSHONLY |
                                                              SCRIPT_VERIFY_CLEANSTACK |
-                                                             SCRIPT_VERIFY_MINIMALIF |
-                                                             SCRIPT_VERIFY_NULLFAIL |
-                                                             SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
-                                                             SCRIPT_VERIFY_CHECKSEQUENCEVERIFY |
-                                                             SCRIPT_VERIFY_LOW_S |
-                                                             SCRIPT_VERIFY_WITNESS |
-                                                             SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM |
-                                                             SCRIPT_VERIFY_WITNESS_PUBKEYTYPE |
-                                                             SCRIPT_VERIFY_CONST_SCRIPTCODE |
-                                                             SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS |
-                                                             SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_PUBKEYTYPE};
+                                                             SCRIPT_VERIFY_NULLFAIL};
 
 /** For convenience, standard but not mandatory verify flags. */
 static constexpr unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS{STANDARD_SCRIPT_VERIFY_FLAGS & ~MANDATORY_SCRIPT_VERIFY_FLAGS};
@@ -135,7 +121,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 /**
 * Check if the transaction is over standard P2WSH resources limit:
 * 3600bytes witnessScript size, 80bytes per witness stack element, 100 witness stack elements
-* These limits are adequate for multisignatures up to n-of-100 using OP_CHECKSIG, OP_ADD, and OP_EQUAL.
+* These limits are adequate for multisignatures up to n-of-100 using RIGOR_RESERVED_LEGACY_CHECKSIG, RIGOR_RESERVED_LEGACY_ADD, and RIGOR_RESERVED_LEGACY_EQUAL.
 *
 * For witness v1 RES, enforce stack shapes that match consensus (RES2-prefixed and native: 2-item Ed25519 key path).
 * The historical 11-item PCORB path is not consensus and is not standard.

@@ -170,7 +170,7 @@ class WalletSendTest(BitcoinTestFramework):
                 else:
                     assert_greater_than(from_balance_before - from_balance, amount)
             else:
-                assert next((out for out in tx["vout"] if out["scriptPubKey"]["asm"] == "OP_RETURN 35"), None)
+                assert next((out for out in tx["vout"] if out["scriptPubKey"]["asm"] == "RIGOR_MARKER_RETURN 35"), None)
         else:
             assert_equal(from_balance_before, from_balance)
 
@@ -313,7 +313,7 @@ class WalletSendTest(BitcoinTestFramework):
             res = w2.walletprocesspsbt(res["psbt"])
             assert res["complete"]
 
-        self.log.info("Create OP_RETURN...")
+        self.log.info("Create RIGOR_MARKER_RETURN...")
         self.test_send(from_wallet=w0, to_wallet=w1, amount=1)
         self.test_send(from_wallet=w0, data="Hello World", expect_error=(-8, "Data must be hexadecimal string (not 'Hello World')"))
         self.test_send(from_wallet=w0, data="23")

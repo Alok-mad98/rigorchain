@@ -139,7 +139,7 @@ CScript ConsumeScript(FuzzedDataProvider& fuzzed_data_provider, const bool maybe
         uint256 script_hash;
         CSHA256().Write(r_script.data(), r_script.size()).Finalize(script_hash.begin());
         r_script.clear();
-        r_script << OP_0 << ToByteVector(script_hash);
+        r_script << RIGOR_PUSH_0 << ToByteVector(script_hash);
     }
     return r_script;
 }

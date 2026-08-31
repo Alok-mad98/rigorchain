@@ -8,7 +8,7 @@
 #include <key.h>
 #include <key_io.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 #include <wallet/tx_semantic.h>
 
@@ -107,29 +107,6 @@ BOOST_AUTO_TEST_CASE(semantic_oru_convergence)
     tx.vout.emplace_back(COIN / 2, Consensus::ConvergenceOutputScript());
 
     BOOST_CHECK(ClassifyTxSemantic(*MakeTransactionRef(tx), view) == TxSemanticKind::OruConvergence);
-}
-
-BOOST_AUTO_TEST_CASE(semantic_res_claim_output)
-{
-    CCoinsView empty;
-    CCoinsViewCache view(&empty);
-    std::array<unsigned char, 32> res_prog{};
-    res_prog.fill(0x44);
-    const CScript res_spk = GetScriptForDestination(WitnessV1Res{XOnlyPubKey{res_prog}});
-
-    std::vector<unsigned char> claim_prog(WITNESS_V1_RES2_CLAIM_PROGRAM_SIZE, 0x00);
-    CScript claim_spk = CScript() << OP_1 << claim_prog;
-
-    CMutableTransaction prev;
-    prev.vout.emplace_back(RES_COIN, res_spk);
-    const CTransactionRef prev_tx = MakeTransactionRef(prev);
-    AddPrevout(view, prev_tx, 0);
-
-    CMutableTransaction tx;
-    tx.vin.emplace_back(COutPoint(prev_tx->GetHash(), 0), CScript{});
-    tx.vout.emplace_back(RES_COIN - 1, claim_spk);
-
-    BOOST_CHECK(ClassifyTxSemantic(*MakeTransactionRef(tx), view) == TxSemanticKind::ResClaim);
 }
 
 BOOST_AUTO_TEST_CASE(semantic_labels_forbid_bitcoin_type_strings)

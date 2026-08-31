@@ -10,7 +10,7 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <uint256.h>
@@ -43,7 +43,7 @@ const CScript& ConvergenceOutputScript()
 {
     static const CScript script = [] {
         std::vector<unsigned char> program(32, 0xa1);
-        return GetConvergeScriptForProgram(program);
+        return GetConvergeScriptForPubKey(program);
     }();
     return script;
 }
@@ -109,7 +109,8 @@ uint256 MaxResDrawTarget()
 
 CAmount ComputeResReward(const CBlock& block, const CBlockIndex* pindex_prev, int nHeight, const Params& consensusParams)
 {
-    // RES is minted only via self-proof transactions in the block body (see consensus/rigor_res.cpp).
+    // RES is minted only by the coinbase RIGOR_MARKER_RES_MINT output (see consensus/rigor_res.cpp);
+    // no reward is derived from the block here.
     (void)block;
     (void)pindex_prev;
     (void)nHeight;

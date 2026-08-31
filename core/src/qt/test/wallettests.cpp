@@ -234,7 +234,7 @@ std::shared_ptr<CWallet> SetupWatchOnlyWallet(interfaces::Node& node, TestChain1
 
     FlatSigningProvider provider;
     std::string error;
-    std::unique_ptr<Descriptor> desc = Parse("combo(" + HexStr(test.coinbaseKey.GetPubKey()) + ")", provider, error, /* require_checksum=*/ false);
+    std::unique_ptr<Descriptor> desc = Parse("wpkh(" + HexStr(test.coinbaseKey.GetPubKey()) + ")", provider, error, /* require_checksum=*/ false);
     assert(desc);
     // Watch-only: never persist secp secrets even if Parse populated provider.keys.
     provider.keys.clear();
@@ -259,7 +259,7 @@ std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChai
     // Add the coinbase key
     FlatSigningProvider provider;
     std::string error;
-    std::unique_ptr<Descriptor> desc = Parse("combo(" + EncodeSecret(test.coinbaseKey) + ")", provider, error, /* require_checksum=*/ false);
+    std::unique_ptr<Descriptor> desc = Parse("wpkh(" + EncodeSecret(test.coinbaseKey) + ")", provider, error, /* require_checksum=*/ false);
     assert(desc);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
     if (!wallet->AddWalletDescriptor(w_desc, provider, "", false)) assert(false);

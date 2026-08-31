@@ -79,6 +79,7 @@ freeze declaration:
 | `RES_MAX_SUPPLY` | Maximum total RES supply | `21,000,000 RES` (= `21,000,000,000,000` atoms) |
 | `CONVERGENCE_DRAW_MIN_TXS_FOR_RES` | Draw participation gate on candidate set `F` | `1` (i.e. `|F| ≥ 1`) |
 | `MIN_CONVERGENCE_AMOUNT` | Minimum ORU converged per candidate tx | `1 ORU` |
+| `MAX_MONEY` | Per-output / per-tx-input-sum / fee-accumulator overflow bound | `10_000_000_000 * COIN` (**not** an ORU supply cap; issuance is uncapped). Constrained by `MAX_MONEY ≤ INT64_MAX / 4` so two in-range amounts are summable |
 
 The ORU subsidy schedule is frozen by the ratified ORU RFC(s) (not restated here);
 its minimum tail-subscription constraint (e.g. `ORU_MIN_BLOCK_SUBSIDY`) is treated
@@ -93,10 +94,14 @@ as a frozen constant if defined by those RFCs.
 These quantities are **authoritative**: they are part of consensus state and may
 affect block validity:
 
-- `S_ORU(h)` and its recurrence via `R(h)` and `C(h)`
-- `S_RES(h)` and its recurrence via `M(h)` and `GetResMintReward(h)`
-- The cap constraint `S_RES(h) ≤ RES_MAX_SUPPLY`
-- The restriction `M(h) ∈ {0,1}` (at most one successful RES mint per block)
+- Spendable ORU and RES as classified UTXO (script → asset class)
+- At most one `OP_RES_MINT` of size `GetResMintReward(h)` (or none)
+- The compile-time identity `RES_REWARD_EPOCH * ResScheduleSum() ≤ RES_MAX_SUPPLY`
+- `MAX_MONEY` as a per-output / per-tx-sum overflow bound
+- RFC-018: half of ORU fees on RES-transfer txs is unclaimable by coinbase
+
+Observational issued-minus-converge `S_ORU` and a running `S_RES` mint total
+are **not** ConnectBlock predicates.
 
 ### 3.2 Observational / diagnostic (non-authoritative)
 
@@ -104,7 +109,9 @@ The following are explicitly **non-authoritative** (diagnostic only). They may
 be exported or checked for audits but MUST NOT affect block acceptance:
 
 - Derived cumulative subsidy sums `Σ_{i=1..h} R(i)`
-- Per-block or cumulative UTXO aggregates computed by scanning and classifying UTXO
+- Observational issued-minus-converge `S_ORU` and running mint-total `S_RES`
+- Extra-consensus UTXO scans used as diagnostics (the coins view during
+  ConnectBlock is consensus; a parallel aggregate is not)
 - Any runtime mirror / witness / catalog / “alignment” export produced by the
   Formal-Friendly Runtime Refactor track
 
@@ -117,29 +124,26 @@ observational field is wrong (or incomplete) and must not change consensus.
 
 ### 4.1 ORU supply recurrence (authoritative)
 
-**Normative law:**
+**Normative law:** spendable ORU is the UTXO set. The observational identity
 
 \[
-S_{\text{ORU}}(h+1) = S_{\text{ORU}}(h) + R(h+1) - C(h+1)
+S_{\text{ORU}}^{\text{issued}}(h+1) = S_{\text{ORU}}^{\text{issued}}(h) + R(h+1) - C(h+1)
 \]
 
-with:
-
-- `S_ORU(0)` defined by genesis (frozen)
-- `R(h) ≥ 0` for all `h ≥ 1`
-- `C(h) ≥ 0` for all `h ≥ 1`
+does **not** include RFC-018 RES-transfer fee burns or unclaimed coinbase.
+Circulating UTXO ORU additionally decreases by those amounts. ConnectBlock
+MUST NOT reject on a mismatch between the observational scalar and the UTXO
+sum (`bad-oru-supply-negative` is not a consensus reason).
 
 ### 4.2 ORU supply non-negativity (authoritative)
 
-**Invariant (ORU-I1):**
+**Invariant (ORU-I1):** every classified ORU output amount is non-negative and
+`≤ MAX_MONEY`. ConnectBlock does **not** reject on an extra-UTXO `S_ORU < 0`
+scalar.
 
-\[
-\forall h:\ S_{\text{ORU}}(h) \ge 0
-\]
-
-**Falsifiable failure condition:** A block is invalid if, after applying its
-subsidy and convergence accounting per the law above, it would require
-`S_ORU(h) < 0`.
+**Falsifiable failure condition:** A transaction or block is invalid if any
+output, input-sum, or fee/converge accumulator is negative or exceeds
+`MAX_MONEY`.
 
 ### 4.3 ORU convergence accounting (authoritative)
 

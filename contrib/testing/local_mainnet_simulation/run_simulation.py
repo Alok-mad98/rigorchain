@@ -1295,8 +1295,8 @@ Docs: `docs/release/local_simulation/`
 ```bash
 cd ~/ring/core && make -j$(nproc)
 # existing consensus tests (operator):
-./src/test/test_bitcoin --run_test=res_proof_math_tests
-./src/test/test_bitcoin --run_test=convergence_consensus_tests
+./src/test/test_rigor --run_test=res_proof_math_tests
+./src/test/test_rigor --run_test=convergence_consensus_tests
 ```
 """,
         encoding="utf-8",

@@ -33,8 +33,8 @@ namespace Consensus {
  * Dual-pool conservation: POOL-T (transfer) per asset; POOL-F network fee always ORU (`oru_in - oru_out`).
  * RES transfer requires ORU fee inputs; RES amounts never fund the network fee.
  * ORU→RES is never allowed here: new RES exists only in the coinbase (`mixed-asset-output`).
- * A PCORB carrier output is likewise never allowed here (`bad-pcorb-carrier`) — the tag is a
- * coinbase-only channel, see `consensus/res_proof.h`.
+ * A PCORB carrier output is never allowed (`bad-pcorb-carrier`) — mint authorization is
+ * coinbase `RIGOR_MARKER_RES_MINT` only.
  * @param[out] txfee ORU network fee (sat) on success.
  * Preconditions: tx.IsCoinBase() is false.
  */
@@ -43,21 +43,8 @@ namespace Consensus {
 
 /** Auxiliary functions for transaction validation (ideally should not be exposed) */
 
-/**
- * Count ECDSA signature operations the old-fashioned (pre-0.6) way
- * @return number of sigops this transaction's outputs will produce when spent
- * @see CTransaction::FetchInputs
- */
+/** Count live RIGOR spendable locks created by this transaction (v0 / v1 / mint). */
 unsigned int GetLegacySigOpCount(const CTransaction& tx);
-
-/**
- * Count ECDSA signature operations in pay-to-script-hash inputs.
- *
- * @param[in] mapInputs Map of previous transactions that have outputs we're spending
- * @return maximum number of sigops required to validate this transaction's inputs
- * @see CTransaction::FetchInputs
- */
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
 /**
  * Compute total signature operation cost of a transaction.

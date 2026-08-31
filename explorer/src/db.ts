@@ -240,7 +240,7 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
     const resAtoms = outs
       .filter((o) => o.asset_kind === "RES")
       .reduce((acc, o) => acc + BigInt(o.value_atoms), 0n);
-    const isResMint = mintTxids.has(t.txid) || (resMinted === 1 && hasRes && !t.is_coinbase);
+    const isResMint = mintTxids.has(t.txid);
     const kind = classifyTxKind({
       isCoinbase: Boolean(t.is_coinbase),
       primaryRole: primary?.role ?? null,

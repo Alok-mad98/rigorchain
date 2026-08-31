@@ -6,8 +6,11 @@
     TASK-MAINNET-FREEZE-001.
 
     HONESTY BOUNDARY (CRITICAL):
-    - Freeze record catalog only; no consensus / monetary / state_hash /
-      validation / runtime / FVR changes.
+    - Paperwork catalog only. Remaining identifiers named p5_mainnet_freeze_*
+      are historical field labels for the PROOF-031 snapshot. They are not
+      freeze authority, not a Coq=runtime theorem, and not CS_ReadyForRelease.
+    - [p5_phase5_paperwork_recorded] is the only boolean that records this
+      paperwork; it does not freeze consensus.
     - Snapshot MUST match PROOF-029 exactly.
     - [equivalence_claimed] remains false; CPP-01 NOT closed. *)
 
@@ -26,7 +29,9 @@ Require Import Rigor.Phase5Equivalence.CandidateEquivalenceRuntimeModel.
     Part A:  Mainnet freeze flags & authority
     ================================================================ *)
 
-Definition p5_mainnet_freeze_established : bool := true.
+Definition p5_phase5_paperwork_recorded : bool := true.
+(* F-4: renamed from p5_mainnet_freeze_established. Paperwork flag only.
+   Not a consensus freeze and not Coq=runtime. *)
 
 Definition p5_mainnet_freeze_task : string := "PROOF-031"%string.
 
@@ -185,7 +190,7 @@ Proof. exact I. Qed.
     ================================================================ *)
 
 Definition phase5_mainnet_freeze_verdict : Prop :=
-  p5_mainnet_freeze_established = true /\
+  p5_phase5_paperwork_recorded = true /\
   phase5_freeze_candidate_verdict /\
   phase5_global_consistency /\
   equivalence_claimed = false /\

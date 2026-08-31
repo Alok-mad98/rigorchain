@@ -1,0 +1,31 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-EXTRACTION-EXECUTABLE-P0-050",
+  "date": "2026-08-30",
+  "refinement_proved": false,
+  "equivalence_proved": false,
+  "TRUSTED": [
+    "Coq 8.15 kernel",
+    "Coq extraction mechanism",
+    "OCaml compiler (ocamlopt)",
+    "extracted Coq Z / positive (arbitrary precision)",
+    "ExtrOcamlNatInt (nat as OCaml int; used for script bytes 0..255 and list length)"
+  ],
+  "NOT_TRUSTED_AS_SEMANTIC_AUTHORITY": [
+    "Python oracle / test_consensus_kernel_extraction.py",
+    "golden vector generator",
+    "hand-written consensus_kernel_cli.ml (I/O adapter)",
+    "cpp_consensus_kernel_cli.cpp (C++ Kernel caller / type conversion)",
+    "documentation",
+    "Phase5Equivalence bookkeeping / VACUOUS-PLACEHOLDER"
+  ],
+  "Extract_Constant": [],
+  "Extract_Inductive": [],
+  "representation": {
+    "height_epoch_subsidy_amounts": "Coq Z → extracted inductive Z (not OCaml int)",
+    "T_and_sigma": "Coq Z, 256-bit class; never converted to OCaml int in the kernel",
+    "script_bytes": "Coq nat via ExtrOcamlNatInt → OCaml int (0..255)",
+    "txid_bytes": "list of nat/int",
+    "candidate_order": "Coq list order; winner independent of scan order (txid tie-break)"
+  },
+  "overflow_policy": "Kernel arithmetic stays on extracted Z. CLI decimal printer uses Z.div/modulo. ExtrOcamlNatInt is a trusted bound only for byte-sized nat."
+}

@@ -64,7 +64,7 @@ struct ReplaySnapshot {
     //!                    `IsResScript()` (i.e., RES asset outputs). Every
     //!                    RES UTXO traces back to a mint event by construction.
     //!   lock_count     = number of UTXOs whose scriptPubKey matches the
-    //!                    witness-V1 lock-program shape (`OP_1 <32-byte push>`
+    //!                    witness-V1 lock-program shape (`RIGOR_PUSH_1 <32-byte push>`
     //!                    of exactly 34 bytes). RFC-003 §5. Note that this
     //!                    matches ALL witness-V1 outputs by design, so the
     //!                    count is informational only.

@@ -33,13 +33,19 @@ parallel asset fields but overstated what script parsing alone settles.
 
 Asset *types* are classified by script parsing. Asset *acceptance* still requires the
 consensus rules for that class (conservation, convergence predicates, RES mint proofs, etc.).
+Unrecognized scripts are `ASSET_INVALID` (fail-closed), never defaulted to ORU.
 
 ```cpp
-// pseudocode — classification only
+// ClassifyRigorTxout is the single authority (rigor_classify.cpp)
 AssetType GetAssetType(const CScript& script) {
-    if (IsWitnessV1RES(script)) return ASSET_RES;
-    if (IsWitnessV0ORU(script)) return ASSET_ORU;
-    return ASSET_NONE;
+    switch (ClassifyRigorTxout(script, sols)) {
+    case WITNESS_V0_KEYHASH:
+    case CONVERGE:   return ASSET_ORU;
+    case WITNESS_V1_RES:
+    case RES_MINT:   return ASSET_RES;
+    case NULL_DATA:  return ASSET_NONE;
+    default:         return ASSET_INVALID;
+    }
 }
 ```
 
@@ -69,7 +75,7 @@ not a UTXO, not a wallet balance, and not a global consensus supply state.
 
 ### Witness Surface
 
-- Witness v0 (ORU / P2WPKH / P2WSH), Witness v1 (RES), and `OP_CONVERGE` only.
+- Witness v0 (ORU / P2WPKH only), Witness v1 (RES), and `OP_CONVERGE` only. P2WSH and P2SH are not consensus outputs. Addresses and descriptors are only `wpkh()` (v0/20 Bech32) and `res()` (v1/32 Bech32m).
 - No Taproot / BIP341 semantics on the consensus path.
 - No administrative keys, upgradeable proxies, or discretionary mint.
 
@@ -124,7 +130,7 @@ Script is the compliance/classification layer. Asset class is inferred from
 ## Fee domain and Convergence settlement
 
 - **Network fees are ORU-only** (POOL-F). There is no path where users pay transaction fees in RES.
-- Convergence RES prizes pay the **draw winner**. The next block's coinbase carries `OP_RES_MINT` plus the tagged PCORB carrier. GBT fields: `default_res_mint`, `default_pcorb_carrier` (`core/doc/mining-pool-gbt.md`).
+- Convergence RES prizes pay the **draw winner**. The next block's coinbase carries a single `OP_RES_MINT` output. GBT field: `default_res_mint` (`core/doc/mining-pool-gbt.md`). There is no `default_pcorb_carrier`.
 - `-miningresfeeaddr` is only required when the mempool has RES-domain fee outputs; it does not arm mint assembly.
 
 ## Terminology
@@ -140,4 +146,4 @@ identifiers to Deterministic Reserve Issuance and Deflationary Fee Burn.
 - `docs/rfcs/RFC-ARCH-000-engineering-constitution.md` — Engineering constitution.
 - `core/doc/convergence-consensus-v1.md` — Convergence rules.
 - `docs/FORMAL-VERIFICATION-VERDICT.md` — What is proved, and what is not.
-- `core/doc/mining-pool-gbt.md` — GBT coinbase mint and PCORB carrier fields.
+- `core/doc/mining-pool-gbt.md` — GBT coinbase copy-bytes (`default_coinbase_scriptsig`, `default_res_mint`).

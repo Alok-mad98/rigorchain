@@ -17,7 +17,7 @@ ZERO_TXID = "0" * 64
 
 # Locked with consensus/consensus.h and consensus/rigor_consensus_lock.h.
 # RES uses six decimal places (RES_COIN = 1e6). ORU uses eight (COIN = 1e8).
-COINBASE_MATURITY = 100  # ORU coinbase *and* coinbase OP_RES_MINT; consensus CheckTxInputs depth
+COINBASE_MATURITY = 100  # ORU coinbase *and* coinbase RIGOR_MARKER_RES_MINT; consensus CheckTxInputs depth
 RES_COIN = 1_000_000
 RES_REWARD_ATOMS = 40 * RES_COIN  # W(0) = 40.000000 RES; epoch-0 tests (devtest << 210_000)
 MIN_CONVERGENCE_ORU = Decimal("1.0")
@@ -56,7 +56,7 @@ def res_atoms_in_tx_vouts(tx: dict) -> int:
 
 
 def is_res_mint_vout(o: dict) -> bool:
-    """True for the canonical coinbase OP_RES_MINT lock (not witness-v1 bootstrap RES)."""
+    """True for the canonical coinbase RIGOR_MARKER_RES_MINT lock (not witness-v1 bootstrap RES)."""
     spk = o.get("scriptPubKey") or {}
     if str(spk.get("type", "")).lower() == "res_mint":
         return True
@@ -74,7 +74,7 @@ def res_mint_atoms_in_tx(tx: dict) -> int:
 
 
 def body_res_mint_rows(node, block_hash: str) -> list[tuple[str, int]]:
-    """(txid, res_atoms) for this block's coinbase OP_RES_MINT, if present.
+    """(txid, res_atoms) for this block's coinbase RIGOR_MARKER_RES_MINT, if present.
 
     Issuance is coinbase-only. Witness-v1 bootstrap RES on the same coinbase is ignored.
     The name is kept so existing callers keep working.

@@ -17,7 +17,7 @@
 #include <crypto/ed25519_provider.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <serialize.h>
@@ -84,9 +84,16 @@ bool IsStandard(const CScript& scriptPubKey, const std::optional<unsigned>& max_
     whichType = ClassifyRigorTxout(scriptPubKey, vSolutions);
 
     switch (whichType) {
-    case TxoutType::WITNESS_V0_KEYHASH:
-    case TxoutType::WITNESS_V0_SCRIPTHASH:
     case TxoutType::WITNESS_V1_RES:
+        // TASK-010 R-2: a v1 program that is not a canonical Ed25519 point can
+        // never be satisfied, so its coins are unspendable. Consensus accepts it
+        // (classification is a pure byte predicate — see
+        // IsRigorResNativeWitnessProgram), but the network declines to carry it,
+        // which is what keeps it from being created by accident. Relay policy is
+        // the right home for a check that costs a scalar multiplication and that
+        // must never retroactively reclassify a confirmed UTXO.
+        return !vSolutions.empty() && ed25519::IsCanonicalOnCurvePubkey(vSolutions[0]);
+    case TxoutType::WITNESS_V0_KEYHASH:
     case TxoutType::RES_MINT:
     case TxoutType::CONVERGE:
         return true;
@@ -155,7 +162,7 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
         }
     }
 
-    // only one OP_RETURN txout is permitted
+    // only one RIGOR_MARKER_RETURN txout is permitted
     if (nDataOut > 1) {
         reason = "multi-op-return";
         return false;
@@ -174,11 +181,11 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
  *    CHECKSIG/CHECKMULTISIG operations
  *
  * Why bother? To avoid denial-of-service attacks; an attacker
- * can submit a standard HASH... OP_EQUAL transaction,
+ * can submit a standard HASH... RIGOR_RESERVED_LEGACY_EQUAL transaction,
  * which will get accepted into blocks. The redemption
  * script can be anything; an attacker could use a very
  * expensive-to-check-upon-redemption script like:
- *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
+ *   DUP CHECKSIG DROP ... repeated 100 times... RIGOR_PUSH_1
  *
  * Note that only the non-witness portion of the transaction is checked here.
  */
@@ -193,7 +200,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
         std::vector<std::vector<unsigned char> > vSolutions;
         TxoutType whichType = ClassifyRigorTxout(prev.scriptPubKey, vSolutions);
-        if (whichType != TxoutType::WITNESS_V0_KEYHASH && whichType != TxoutType::WITNESS_V0_SCRIPTHASH &&
+        if (whichType != TxoutType::WITNESS_V0_KEYHASH &&
             whichType != TxoutType::WITNESS_V1_RES && whichType != TxoutType::RES_MINT) {
             return false;
         }
@@ -225,20 +232,12 @@ bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         if (!prevScript.IsWitnessProgram(witnessversion, witnessprogram))
             return false;
 
-        // Check P2WSH standard limits
-        if (witnessversion == 0 && witnessprogram.size() == WITNESS_V0_SCRIPTHASH_SIZE) {
-            if (tx.vin[i].scriptWitness.stack.back().size() > MAX_STANDARD_P2WSH_SCRIPT_SIZE)
-                return false;
-            size_t sizeWitnessStack = tx.vin[i].scriptWitness.stack.size() - 1;
-            if (sizeWitnessStack > MAX_STANDARD_P2WSH_STACK_ITEMS)
-                return false;
-            for (unsigned int j = 0; j < sizeWitnessStack; j++) {
-                if (tx.vin[i].scriptWitness.stack[j].size() > MAX_STANDARD_P2WSH_STACK_ITEM_SIZE)
-                    return false;
-            }
+        // P2WSH is not a consensus output. Reject leftover v0/32 spends at policy too.
+        if (witnessversion == 0 && witnessprogram.size() != WITNESS_V0_KEYHASH_SIZE) {
+            return false;
         }
 
-        // Witness v1 RES: RES2-prefixed and native RES spend over a 2-item Ed25519 key path (not BIP341).
+        // Witness v1 RES: 2-item Ed25519 key path only.
         // Align relay policy with VerifyWitnessProgram so non-matching stack depths are non-standard.
         // SECURITY-001-A / A-7 removed the 11-item PCORB script path; encoding checks stay deferred
         // to script verification.

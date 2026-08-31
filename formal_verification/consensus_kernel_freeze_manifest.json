@@ -1,0 +1,47 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-MIGRATION-FREEZE-P0-068",
+  "date": "2026-08-31",
+  "note": "Pre-switch freeze of unique authorities. Candidate path is not production.",
+  "production_kernel_switched": false,
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "candidate_equals_production": false,
+  "authorities": {
+    "issuance": "GetBlockSubsidy",
+    "res_schedule": "GetResMintReward",
+    "draw": "ResolveConvergenceDraw",
+    "classification": "ClassifyRigorTxout",
+    "supply": "RigorSupplyDelta",
+    "spend": "VerifyRigorPredicate",
+    "ledger": "LedgerApply",
+    "pow_boundary": "PowBoundary"
+  },
+  "authority_files": {
+    "GetBlockSubsidy": "core/src/consensus/rigor_issuance.cpp",
+    "GetResMintReward": "core/src/consensus/rigor_consensus_lock.h",
+    "ResolveConvergenceDraw": "core/src/consensus/convergence_logic.cpp",
+    "ClassifyRigorTxout": "core/src/script/rigor_classify.cpp",
+    "RigorSupplyDelta": "core/src/consensus/rigor_supply.cpp",
+    "VerifyRigorPredicate": "core/src/script/predicate_verify.cpp",
+    "LedgerApply": "core/src/consensus/ledger/ledger_transition.cpp",
+    "PowBoundary": "core/src/pow.cpp"
+  },
+  "production_path": [
+    "Block",
+    "ConnectBlock",
+    "C++ Consensus Authority",
+    "UTXO mutation"
+  ],
+  "candidate_path": [
+    "Block",
+    "ConsensusKernel Boundary",
+    "Existing Authority",
+    "UTXO mutation"
+  ],
+  "extracted_kernel": {
+    "role": "VERIFICATION_ORACLE_ONLY",
+    "linked_into_production": false,
+    "called_from_connect_block": false
+  },
+  "extra_authority_token": "CONSENSUS_AUTHORITY_FREEZE_VIOLATION"
+}

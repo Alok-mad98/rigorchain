@@ -185,7 +185,8 @@ static int do_dump(const json_t *json, unsigned long flags, int depth,
             char buffer[MAX_INTEGER_STR_LENGTH];
             int size;
 
-            size = snprintf(buffer, MAX_INTEGER_STR_LENGTH, "%d", json_integer_value(json));
+            size = snprintf(buffer, MAX_INTEGER_STR_LENGTH,
+                            "%" JSON_INTEGER_FORMAT, json_integer_value(json));
             if(size >= MAX_INTEGER_STR_LENGTH)
                 return -1;
 

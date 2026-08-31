@@ -33,20 +33,22 @@ Definition outpoint_index (op : OutPoint) : nat :=
 
 (** Model of C++ [AssetType] / [AssetTypeFromScriptPubKey] at the shape
     layer ([StateTransition.asset_kind_of_script]). [AssetNone] is
-    OP_RETURN-class (no pool contribution). [AssetCVG] is the W3
-    one-shot covenant ([OP_CVG_CLAIM]); not yet a conjunct of [apply_tx]. *)
+    OP_RETURN-class (no pool contribution). [AssetInvalid] is
+    unrecognized / fail-closed (C++ [ASSET_INVALID]), distinct from
+    [AssetNone]. There is no [AssetCVG]: [OP_CVG_CLAIM] classifies as
+    [AssetInvalid] (TASK-010 C-4 / R-9). C++ has no such type. *)
 Inductive AssetKind : Type :=
 | AssetORU
 | AssetRES
 | AssetNone
-| AssetCVG.
+| AssetInvalid.
 
 Definition asset_eqb (a b : AssetKind) : bool :=
   match a, b with
   | AssetORU, AssetORU => true
   | AssetRES, AssetRES => true
   | AssetNone, AssetNone => true
-  | AssetCVG, AssetCVG => true
+  | AssetInvalid, AssetInvalid => true
   | _, _ => false
   end.
 

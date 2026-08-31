@@ -18,7 +18,7 @@ static void DuplicateInputs(benchmark::Bench& bench)
 {
     const auto testing_setup = MakeNoLogFileContext<const TestingSetup>();
 
-    const CScript SCRIPT_PUB{CScript(OP_TRUE)};
+    const CScript SCRIPT_PUB{CScript(RIGOR_PUSH_1)};
 
     const CChainParams& chainparams = Params();
 
@@ -58,8 +58,8 @@ static void DuplicateInputs(benchmark::Bench& bench)
         CCoinsViewCache view_empty(&view_dummy);
         const uint256 convergence_root = Consensus::ComputeConvergenceRootFromConvergenceSet(
             block.vtx, view_empty, nHeight, chainparams.GetConsensus());
-        cb2.vin[0].scriptSig =
-            CScript() << nHeight << std::vector<unsigned char>(convergence_root.begin(), convergence_root.end());
+        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
+            nHeight, convergence_root, uint256{});
         block.vtx[0] = MakeTransactionRef(std::move(cb2));
     }
 
@@ -67,7 +67,7 @@ static void DuplicateInputs(benchmark::Bench& bench)
 
     bench.run([&] {
         BlockValidationState cvstate{};
-        // Rigor rejects bare OP_TRUE coinbase outputs before duplicate-input checks run.
+        // Rigor rejects bare RIGOR_PUSH_1 coinbase outputs before duplicate-input checks run.
         (void)CheckBlock(block, cvstate, chainparams.GetConsensus(), false, false);
     });
 }

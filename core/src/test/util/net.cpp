@@ -9,7 +9,10 @@
 #include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
+#include <protocol.h>
+#include <rigor_capability.h>
 #include <span.h>
+#include <version.h>
 
 #include <vector>
 
@@ -47,12 +50,19 @@ void ConnmanTestMsg::Handshake(CNode& node,
     peerman.SendMessages(&node);
     if (node.fDisconnect) return;
     assert(node.nVersion == version);
-    assert(node.GetCommonVersion() == std::min(version, PROTOCOL_VERSION));
+    assert(node.GetCommonVersion() == PROTOCOL_VERSION);
     CNodeStateStats statestats;
     assert(peerman.GetNodeStateStats(node.GetId(), statestats));
     assert(statestats.m_relay_txs == (relay_txs && !node.IsBlockOnlyConn()));
     assert(statestats.their_services == remote_services);
     if (successfully_connected) {
+        CSerializedNetMsg msg_rigorcap{mm.Make(NetMsgType::RIGORCAP,
+                                               static_cast<uint32_t>(RIGOR_PROTOCOL_CURRENT_VERSION),
+                                               RIGOR_LOCAL_ACTIVE_CAPABILITIES)};
+        (void)connman.ReceiveMsgFrom(node, msg_rigorcap);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        if (node.fDisconnect) return;
         CSerializedNetMsg msg_verack{mm.Make(NetMsgType::VERACK)};
         (void)connman.ReceiveMsgFrom(node, msg_verack);
         node.fPauseSend = false;
@@ -94,7 +104,6 @@ std::vector<NodeEvictionCandidate> GetRandomNodeEvictionCandidates(int n_candida
             /*m_last_tx_time=*/std::chrono::seconds{random_context.randrange(100)},
             /*fRelevantServices=*/random_context.randbool(),
             /*m_relay_txs=*/random_context.randbool(),
-            /*fBloomFilter=*/random_context.randbool(),
             /*nKeyedNetGroup=*/random_context.randrange(100),
             /*prefer_evict=*/random_context.randbool(),
             /*m_is_local=*/random_context.randbool(),

@@ -1211,7 +1211,7 @@
                <item row="7" column="0">
                 <widget class="QLabel" name="peerHighBandwidthLabel">
                  <property name="toolTip">
-                  <string>High bandwidth BIP152 compact block relay: %1</string>
+                  <string>High bandwidth compact block relay: %1</string>
                  </property>
                  <property name="text">
                   <string>High Bandwidth</string>

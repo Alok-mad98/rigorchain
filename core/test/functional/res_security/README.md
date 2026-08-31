@@ -20,7 +20,7 @@ Fail-fast, section headers. Order:
 2. `feature_res_solo_security.py --descriptors` — solo mempool/mint/GBT
 3. `feature_res_maturity.py --descriptors` — immature RES mint and ORU coinbase spends
 
-Optional: runs `./src/test/test_bitcoin --run_test=res_orum_tests` if that binary exists (`SKIP_UNIT=1` to skip). Formal verification is **not** in this script:
+Optional: runs `./src/test/test_rigor --run_test=res_orum_tests` if that binary exists (`SKIP_UNIT=1` to skip). Formal verification is **not** in this script:
 
 ```bash
 bash formal_verification/scripts/run_differential_gate.sh

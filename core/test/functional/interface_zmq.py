@@ -11,6 +11,7 @@ from test_framework.address import (
     ADDRESS_BCRT1_UNSPENDABLE,
 )
 from test_framework.blocktools import (
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
     add_witness_commitment,
     create_block,
     create_coinbase,
@@ -336,6 +337,7 @@ class ZMQTest (BitcoinTestFramework):
         self.log.info("Testing RBF notification")
         # Replace it to test eviction/addition notification
         payment_tx['tx'].vout[0].nValue -= 1000
+        self.wallet.sign_tx(payment_tx['tx'], utxos_to_spend=[payment_tx['utxo_spent']])
         rbf_txid = self.nodes[1].sendrawtransaction(payment_tx['tx'].serialize().hex())
         self.sync_all()
         assert_equal((payment_txid, "R", seq_num), seq.receive_sequence())
@@ -398,10 +400,11 @@ class ZMQTest (BitcoinTestFramework):
             more_tx.append(self.wallet.send_self_transfer(from_node=self.nodes[0]))
 
         orig_tx['tx'].vout[0].nValue -= 1000
+        self.wallet.sign_tx(orig_tx['tx'], utxos_to_spend=[orig_tx['utxo_spent']])
         bump_txid = self.nodes[0].sendrawtransaction(orig_tx['tx'].serialize().hex())
         # Mine the pre-bump tx
         txs_to_add = [orig_tx['hex']] + [tx['hex'] for tx in more_tx]
-        block = create_block(int(self.nodes[0].getbestblockhash(), 16), create_coinbase(self.nodes[0].getblockcount()+1), txlist=txs_to_add)
+        block = create_block(int(self.nodes[0].getbestblockhash(), 16), create_coinbase(self.nodes[0].getblockcount()+1, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), txlist=txs_to_add)
         add_witness_commitment(block)
         block.solve()
         assert_equal(self.nodes[0].submitblock(block.serialize().hex()), None)
@@ -482,6 +485,7 @@ class ZMQTest (BitcoinTestFramework):
         for _ in range(num_txs):
             txs.append(self.wallet.send_self_transfer(from_node=self.nodes[0]))
         txs[-1]['tx'].vout[0].nValue -= 1000
+        self.wallet.sign_tx(txs[-1]['tx'], utxos_to_spend=[txs[-1]['utxo_spent']])
         self.nodes[0].sendrawtransaction(txs[-1]['tx'].serialize().hex())
         self.sync_all()
         self.generatetoaddress(self.nodes[0], 1, ADDRESS_BCRT1_UNSPENDABLE)

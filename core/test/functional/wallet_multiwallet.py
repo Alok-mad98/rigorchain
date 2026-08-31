@@ -70,7 +70,7 @@ class MultiWalletTest(BitcoinTestFramework):
             if name == self.default_wallet_name:
                 return wallet_dir(self.default_wallet_name, self.wallet_data_filename)
             if os.path.isdir(wallet_dir(name)):
-                return wallet_dir(name, "wallet.dat")
+                return wallet_dir(name, self.wallet_data_filename)
             return wallet_dir(name)
 
         assert_equal(self.nodes[0].listwalletdir(), {'wallets': [{'name': self.default_wallet_name}]})
@@ -87,7 +87,7 @@ class MultiWalletTest(BitcoinTestFramework):
         os.symlink('..', wallet_dir('recursive_dir_symlink'))
 
         os.mkdir(wallet_dir('self_walletdat_symlink'))
-        os.symlink('wallet.dat', wallet_dir('self_walletdat_symlink/wallet.dat'))
+        os.symlink(self.wallet_data_filename, wallet_dir('self_walletdat_symlink', self.wallet_data_filename))
 
         # rename wallet.dat to make sure plain wallet file paths (as opposed to
         # directory paths) can be loaded

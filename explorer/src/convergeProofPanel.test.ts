@@ -17,24 +17,24 @@ function pcorbStack(): string[] {
 }
 
 describe("convergeProofPanel", () => {
-  it("is visible for RES mint with PCORB stack", () => {
-    const txid = "minttx";
+  it("is visible for coinbase OP_RES_MINT without a PCORB stack", () => {
+    const txid = "coinbase";
     const convPanel = buildTxConvergencePanel([]);
     const witness = buildTxWitnessPanel(
       txid,
-      [{ vin_index: 0, coinbase: false, txinwitness: pcorbStack() }],
+      [{ vin_index: 0, coinbase: true, txinwitness: [] }],
       [
         {
-          mint_vout_index: 0,
+          mint_vout_index: 1,
           mint_amount: "10000",
           winner_convergence_txid: "winner",
           block_hash: "bh",
           block_height: 100,
           convergence_root: "c".repeat(64),
-          proof_items: { witness_stack: pcorbStack() },
+          proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
-      { block_hash: "bh", height: 100, rigor_winner: "winner", rigor_res_minted: 1 },
+      { block_hash: "bh", height: 100, rigor_winner: "", rigor_res_minted: 1 },
       convPanel,
       [],
     );
@@ -45,27 +45,28 @@ describe("convergeProofPanel", () => {
       convergenceRows: [],
       resMintRows: [
         {
-          mint_vout_index: 0,
+          mint_vout_index: 1,
           mint_amount: "10000",
           winner_convergence_txid: "winner",
           block_hash: "bh",
           block_height: 100,
           convergence_root: "c".repeat(64),
-          proof_items: { witness_stack: pcorbStack() },
+          proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
       linkedMintRows: [],
       witnessPanel: witness,
-      vouts: [{ vout_index: 0, asset_kind: "RES", value_atoms: "10000", address: "trg1pabc" }],
+      vouts: [{ vout_index: 1, asset_kind: "RES", value_atoms: "10000", address: null }],
       block: { block_hash: "bh", height: 100 },
       indexerTipHeight: 105,
     });
 
     assert.equal(panel.visible, true);
     assert.equal(panel.kind, "res_mint");
-    assert.equal(panel.pcorb_witness?.length, 6);
+    assert.equal(panel.pcorb_witness, null);
     assert.equal(panel.res_mint_linkage.confirmations, 6);
     assert.equal(panel.res_mint_outputs.length, 1);
+    assert.equal(panel.winner_txid, "winner");
   });
 
   it("is visible for winner convergence tx with sigma digest", () => {

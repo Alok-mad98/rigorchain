@@ -9,6 +9,7 @@
 #include <consensus/state_diff.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
+#include <serialize.h>
 #include <uint256.h>
 
 #include <cstring>
@@ -29,11 +30,12 @@ struct Params;
 using SelectionDigestHash = uint256;
 
 /**
- * Per-tx contribution to the coinbase CVGE cumulative payload, which consensus checks against
- * the prefix sum of per-block C(t) (`CBlockIndex::GetChainConvergeSum`). That committed
- * cumulative and `m_block_converge_sum` are the same ledger, so this must count only ORU that
- * is actually destroyed — see `Consensus::GetConvergenceAmount` on why every convergence
- * output currently qualifies, and what would stop being true.
+ * Per-tx contribution to the NON-CONSENSUS per-block C(t) ledger (`m_block_converge_sum`, and
+ * its prefix sum `CBlockIndex::GetChainConvergeSum`). No ConnectBlock predicate reads either:
+ * the retired coinbase CVGE cumulative commitment and its `bad-convergence-cumulative` reject
+ * are gone. It must still count only ORU that is actually destroyed, because the supply
+ * accounting and `state_hash` subtract it — see `Consensus::GetConvergenceAmount` on why every
+ * convergence output currently qualifies, and what would stop being true.
  */
 uint64_t GetTransactionConvergenceAmount(const CTransaction& tx);
 
@@ -60,11 +62,11 @@ SelectionDigestHash SelectionDigest(const uint256& txid, const uint256& prev_blo
 /** One member of a block's convergence set. */
 struct ConvergenceDrawCandidate {
     uint256 txid;
-    /** Draw weight f_i — this candidate's CVG2 amount in sats (not cumulative burned ORU / W2). */
+    /** Draw weight f_i — this candidate's RIGOR_MARKER_CONVERGE output nValue in sats. */
     uint64_t weight{0};
     /**
      * The 20-byte HASH160 of the witness v1 RES program this convergence declared.
-     * A mint naming this candidate must pay OP_RES_MINT with this pubkey hash.
+     * A mint naming this candidate must pay RIGOR_MARKER_RES_MINT with this pubkey hash.
      */
     uint160 res_payout_hash160;
     /**
@@ -72,6 +74,14 @@ struct ConvergenceDrawCandidate {
      * committed anywhere; carried for window bookkeeping and RPC introspection only.
      */
     int source_height{-1};
+
+    SERIALIZE_METHODS(ConvergenceDrawCandidate, obj)
+    {
+        READWRITE(obj.txid);
+        READWRITE(obj.weight);
+        READWRITE(obj.res_payout_hash160);
+        READWRITE(VARINT_MODE(obj.source_height, VarIntMode::NONNEGATIVE_SIGNED));
+    }
 };
 
 /**
@@ -127,6 +137,15 @@ struct ConvergenceDrawSet {
     std::vector<ConvergenceDrawCandidate> candidates;
 
     bool IsSet() const { return source_height >= 0; }
+
+    SERIALIZE_METHODS(ConvergenceDrawSet, obj)
+    {
+        READWRITE(obj.source_block_hash);
+        READWRITE(VARINT_MODE(obj.source_height, VarIntMode::NONNEGATIVE_SIGNED));
+        READWRITE(obj.source_nbits);
+        READWRITE(obj.convergence_root);
+        READWRITE(obj.candidates);
+    }
 };
 
 /** Result of resolving a draw set at a payout height. */
@@ -142,8 +161,14 @@ struct ConvergenceDrawOutcome {
 };
 
 /**
- * Resolve a draw: σ per candidate, inequality filter, argmin by uint512
- * cross-multiplication with txid tie-break.
+ * Consensus Kernel draw resolver (pure).
+ *
+ *   F     = set.candidates
+ *   σ     = computed inside from (txid, C, B_{h-1}, h) — not a caller argument
+ *   T     = res_probability_target
+ *
+ * Does not read chain, UTXO, DB, or globals. Window assembly stays in
+ * GetConvergenceDrawSetForBlock (validation.cpp).
  *
  * The outcome is fully determined by `set`. The payout height is always
  * `source_height + 1` and the seed is always `source_block_hash`, so neither is a
@@ -153,13 +178,13 @@ struct ConvergenceDrawOutcome {
 ConvergenceDrawOutcome ResolveConvergenceDraw(const ConvergenceDrawSet& set,
     const uint256& res_probability_target);
 
-/** True iff `coinbase` has exactly one `OP_RES_MINT` output. */
+/** True iff `coinbase` has exactly one `RIGOR_MARKER_RES_MINT` output. */
 bool CoinbaseHasResMint(const CTransaction& coinbase);
 
 /**
  * Convergence txids paid by this block's coinbase mint.
  *
- * Issuance is `OP_RES_MINT` only; the paid ticket is the parent-draw winner and is not
+ * Issuance is `RIGOR_MARKER_RES_MINT` only; the paid ticket is the parent-draw winner and is not
  * restated on the coinbase. Callers supply `parent_winner_txid` when a mint is present.
  * A leftover PCORB tag or body witness is not a payment.
  */
@@ -187,8 +212,9 @@ ConvergenceDrawSet BuildConvergenceDrawSet(const CBlock& block,
 
 /**
  * Same set, reconstructed from an already-connected block plus its undo data —
- * the only way to recover F once the block's inputs have been spent. MUST agree
- * with `BuildConvergenceDrawSet` candidate-for-candidate; a divergence is a fork.
+ * the only way to recover F once the block's inputs have been spent. Uses the
+ * same `IsConvergenceDrawMember` overlay walk as `BuildConvergenceDrawSet`.
+ * ConnectBlock rejects the block if the two disagree (TASK-010 C-2).
  */
 bool BuildConvergenceDrawSetFromUndo(const CBlock& block,
     int block_height,
@@ -210,14 +236,26 @@ bool BuildBlockConvergenceCandidatesFromUndo(const CBlock& block,
     std::vector<ConvergenceDrawCandidate>& out);
 
 /**
+ * Buried half of the window at `connect_height`, taken from the parent's already-assembled F.
+ *
+ * F at height H-1 covers [H-W, H-1]; F at H covers [H-W+1, H]. Candidates whose
+ * `source_height` is H-W leave the window; the rest are exactly the tail ConnectBlock
+ * would have rebuilt from those ancestors' blk/rev. Used so a pruned node can connect
+ * a child without rereading a parent window it has already dropped.
+ *
+ * Incomplete when `parent_set` is unset — callers must not treat that as an empty tail.
+ */
+ConvergenceWindowTail TailFromParentDrawSet(const ConvergenceDrawSet& parent_set, int connect_height);
+
+/**
  * RFC-010 §1: Execution flow (unique order)
  * Step 6: Select winner - winner = argmin_i (H_i * f_j < H_j * f_i)
  *
  * RFC-010 §0: Principle - Every consensus decision MUST be reproducible step-by-step.
  *
  * RFC-014 Conv-Decouple-01: inequality RHS is `Consensus::Params::RES_PROBABILITY_TARGET`
- * (constitutional constant floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU). `target_prev` remains threaded through this
- * API for σ / `bind_commit` (Sigma-CR-01) ONLY.
+ * (constitutional constant floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU). Parent `nBits` / `target_prev` is not a σ input
+ * (SECURITY-001-A8 / Sigma-PoW-01). Historical `bind_commit` is superseded.
  *
  * RFC-008 §8: Winner selection (no division)
  * 8.1 Order definition: i ≺ j iff H_i * f_j < H_j * f_i
@@ -225,7 +263,7 @@ bool BuildBlockConvergenceCandidatesFromUndo(const CBlock& block,
  * FORBIDDEN: H_i / f_i, float comparison
  *
  * RFC-008 §5: Sigma (σ) definition (sole randomness source)
- * 5.1 Definition: H_i = Hash256(txid_i || C || B_{h-k} || LE32(h))
+ * 5.1 Definition: H_i = Hash256(txid_i || C || B_{h-1} || LE32(h))
  * 5.2 Semantics: H_i ∈ [0, 2^256 - 1]
  * FORBIDDEN: Interpreting H_i as float, Normalizing H_i, Dividing H_i
  *
@@ -252,7 +290,7 @@ inline int ConvergenceWinnerTieBreakCompare(const uint256& txid_a, const uint256
 
 uint256 ComputeConvergenceHash(const uint256& txid, const uint256& prev_block_hash, int block_height, const uint256& convergence_root);
 
-/** Structural convergence: CVG2 + convergence_amount >= 1 ORU at COIN scale (fee not checked). */
+/** Structural convergence: exactly one RIGOR_MARKER_CONVERGE output with nValue >= 1 ORU (fee not checked). */
 bool IsConvergenceCandidate(const CTransaction& tx);
 
 /** Unified convergence fee computation. Returns 0 when the tx is not an F member

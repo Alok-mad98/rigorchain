@@ -24,18 +24,19 @@ BOOST_FIXTURE_TEST_SUITE(alpha1_genesis_tests, BasicTestingSetup)
 
 namespace {
 
-// RFC-016 §2.2 — Alpha1 mainnet genesis identity (v0.1.1-alpha).
+// P0-038 — mainnet genesis identity (ORU reward 0). Pre-P0-038 1c2d6436…d758 is foreign.
 const uint256 ALPHA1_GENESIS_HASH =
-    uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758");
+    uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717");
 // v0.1.0-alpha / 055b866 historical genesis — foreign to Alpha1.
 const uint256 LEGACY_V010_GENESIS_HASH =
     uint256S("0x5dd90c30e88b90a1a6ce0b371d4abf8d7283d8a1275f70f9d51a8821048221de");
-// Coinbase-determined merkle root; identical to v0.1.0-alpha (pszTimestamp, subsidy, scriptPubKey unchanged).
+const uint256 PRE_P0038_GENESIS_HASH =
+    uint256S("0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758");
 const uint256 ALPHA1_GENESIS_MERKLE =
-    uint256S("0xccdba6059e3d93d9f9eddc83e17cf358d8181155d39ed4b0526d8cd4439528a8");
+    uint256S("0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd");
 
 constexpr uint32_t ALPHA1_NTIME = 1786125600; // 2026-08-07 18:00:00 UTC
-constexpr uint32_t ALPHA1_NBITS = 0x1e010000;
+constexpr uint32_t ALPHA1_NBITS = 0x1d008000;
 constexpr uint32_t ALPHA1_NNONCE = 0;
 constexpr int32_t ALPHA1_NVERSION = 1;
 
@@ -65,6 +66,7 @@ BOOST_AUTO_TEST_CASE(alpha1_genesis_hash_matches_rfc016)
     BOOST_CHECK_EQUAL(genesis.GetHash(), ALPHA1_GENESIS_HASH);
     BOOST_CHECK_EQUAL(consensus.hashGenesisBlock, ALPHA1_GENESIS_HASH);
     BOOST_CHECK(consensus.hashGenesisBlock != LEGACY_V010_GENESIS_HASH);
+    BOOST_CHECK(consensus.hashGenesisBlock != PRE_P0038_GENESIS_HASH);
 }
 
 BOOST_AUTO_TEST_CASE(alpha1_genesis_timestamp)
@@ -97,13 +99,11 @@ BOOST_AUTO_TEST_CASE(alpha1_chainparams_consistency)
     BOOST_CHECK_EQUAL(genesis.hashMerkleRoot, ALPHA1_GENESIS_MERKLE);
     BOOST_CHECK_EQUAL(genesis.GetHash(), consensus.hashGenesisBlock);
     BOOST_CHECK_EQUAL(consensus.defaultAssumeValid, consensus.hashGenesisBlock);
-    // Header-sync bootstrap floor: 2^26. Four genesis-difficulty (0x1e010000 ≈ 2^24)
-    // blocks pass the gate; a 2000-header powLimit flood does not. RFC-016 §2.4
-    // originally pinned 0x100000 (below one honest block); that floor is too low
-    // against powLimit headers and was raised in CMainParams.
+    // Header-sync bootstrap floor: 2^35. Four genesis-difficulty (0x1d008000 ≈ 2^33)
+    // blocks pass the gate. Header count is not a unit of this invariant (SPEC-008 §8.3).
     BOOST_CHECK_EQUAL(
         consensus.nMinimumChainWork,
-        uint256S("0x0000000000000000000000000000000000000000000000000000000004000000"));
+        uint256S("0x0000000000000000000000000000000000000000000000000000000800000000"));
 
     const auto& checkpoints = chainParams->Checkpoints().mapCheckpoints;
     BOOST_REQUIRE_EQUAL(checkpoints.size(), 1U);
@@ -113,8 +113,8 @@ BOOST_AUTO_TEST_CASE(alpha1_chainparams_consistency)
     const CTransaction& coinbase = *genesis.vtx[0];
     BOOST_REQUIRE_EQUAL(coinbase.vin.size(), 1U);
     BOOST_REQUIRE_EQUAL(coinbase.vout.size(), 1U);
-    BOOST_CHECK_EQUAL(coinbase.vout[0].nValue, Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-    BOOST_CHECK_EQUAL(coinbase.vout[0].nValue, 1000 * COIN);
+    BOOST_CHECK_EQUAL(coinbase.vout[0].nValue, Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(coinbase.vout[0].nValue, 0);
     BOOST_CHECK_EQUAL(LastScriptPush(coinbase.vin[0].scriptSig), ALPHA1_COINBASE_MSG);
     BOOST_CHECK_EQUAL(HexStr(coinbase.vout[0].scriptPubKey), "00141111111111111111111111111111111111111111");
 
@@ -129,29 +129,27 @@ BOOST_AUTO_TEST_CASE(alpha1_chainparams_consistency)
 
 BOOST_AUTO_TEST_CASE(alpha1_does_not_regenerate_other_network_genesis)
 {
-    // RFC-016 §8: testnet / signet / regtest / devtest / slowtest hashes stay as frozen
+    // RFC-016 §8: testnet / regtest / devtest / slowtest hashes stay as frozen
     // in genesis-lockdown.md. Alpha1 only replaces mainnet identity.
     const auto testnet = CreateChainParams(*m_node.args, CBaseChainParams::TESTNET);
     BOOST_CHECK_EQUAL(
         testnet->GetConsensus().hashGenesisBlock,
-        uint256S("0xdc14491196188457f5e2d9f5951e38b788a1c714dd606225b7490dafa9ef8bca"));
-
-    const auto signet = CreateChainParams(*m_node.args, CBaseChainParams::SIGNET);
-    BOOST_CHECK_EQUAL(
-        signet->GetConsensus().hashGenesisBlock,
-        uint256S("0x85b91b276d162f9fe04fec1f24ecf84c46bd027d75e4be1943412d221ff8f9a7"));
+        uint256S("0x0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce"));
 
     const auto regtest = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
     BOOST_CHECK_EQUAL(
         regtest->GetConsensus().hashGenesisBlock,
-        uint256S("0xcc31d596fd01d27134f1ad83e50dc93699c984683acc420477ad986ffa5f348e"));
+        uint256S("0x3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63"));
 
     const auto devtest = CreateChainParams(*m_node.args, CBaseChainParams::DEVTEST);
     BOOST_CHECK_EQUAL(
         devtest->GetConsensus().hashGenesisBlock,
-        uint256S("0x407381b8179c92027826909806920e3633d5487cac816e8fff419223d30641c7"));
+        uint256S("0x9762f59ecfe1050ca45e404dc95e32ae5a93b9a046e116f2f2f562e44f21dce0"));
 
     const auto slowtest = CreateChainParams(*m_node.args, CBaseChainParams::SLOWTEST);
+    BOOST_CHECK_EQUAL(
+        slowtest->GetConsensus().hashGenesisBlock,
+        uint256S("0x18ddf722cf24b35ad9e3b548ddba22a2e54535fd5932d4d699fa9602f6d3efb8"));
     BOOST_CHECK_EQUAL(slowtest->GenesisBlock().nTime, 1777177700U);
     BOOST_CHECK_EQUAL(slowtest->GenesisBlock().nBits, 0x1e0fffffU);
     BOOST_CHECK_EQUAL(slowtest->GenesisBlock().nNonce, 0U);

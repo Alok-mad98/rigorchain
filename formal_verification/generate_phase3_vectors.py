@@ -13,6 +13,18 @@ from typing import Any, Dict, List
 sys.path.insert(0, str(Path(__file__).parent / "spec"))
 import rigor_consensus_spec as spec  # noqa: E402
 
+# Fail closed if a rename in the spec leaves this generator on a stale symbol.
+for _name in (
+    "RIGOR_PUSH_0",
+    "RIGOR_PUSH_1",
+    "RIGOR_MARKER_RETURN",
+    "OP_PUSH20",
+    "OP_PUSH32",
+    "RES2_TAG",
+):
+    if not hasattr(spec, _name):
+        raise SystemExit(f"generate_phase3_vectors: spec missing {_name}")
+
 T_MAX_HEX = "f" * 64
 T_ONE_HEX = "0000000000000000000000000000000000000000000000000000000000000001"
 
@@ -1630,8 +1642,8 @@ def main() -> None:
     # DCR-024..035 (which lock DCR tamper/dup/empty/σ-perturb). Coq-enforced.
     # -------------------------------------------------------------------------
     cvg2 = spec.canonical_cvg2_script()
-    res2 = bytes([spec.OP_1, spec.OP_PUSH32]) + spec.RES2_TAG + bytes(28)
-    p2wpkh = bytes([spec.OP_0, spec.OP_PUSH20]) + bytes(20)
+    res2 = bytes([spec.RIGOR_PUSH_1, spec.OP_PUSH32]) + spec.RES2_TAG + bytes(28)
+    p2wpkh = bytes([spec.RIGOR_PUSH_0, spec.OP_PUSH20]) + bytes(20)
     amin = spec.MIN_CONVERGENCE_AMOUNT
 
     def cvg_out(value: int, asset: str, script: bytes) -> Dict[str, Any]:
@@ -1845,7 +1857,7 @@ def main() -> None:
             "script_hex": res2_spk.hex(),
             "claimed_asset": "ORU",
         },
-        "L2: Witness v1 / 32 / RES2 is IsResScript (RES domain, not ORU). L3: C++ IsResScript.",
+        "L2: Witness v1 RES2 prefix is not creatable (ASSET_INVALID). L3: ClassifyRigorTxout.",
     )
     add_smw(
         "SMW-002",
@@ -1883,7 +1895,7 @@ def main() -> None:
             "script_hex": p2wsh_spk.hex(),
             "claimed_asset": "RES",
         },
-        "L2: Witness v0 32-byte (P2WSH) is ORU, not RES. L3: AssetTypeFromScriptPubKey.",
+        "L2: Witness v0 32-byte (P2WSH) is not IsAllowedScript. L3: ASSET_INVALID / bad-rigor-script-type.",
     )
     add_smw(
         "SMW-006",
@@ -1948,6 +1960,23 @@ def main() -> None:
         "CROSS mint-shape: body is W(h) mint-shape (would pass dual-pool) but PCORB has 5 items. "
         "L2: pcorb_too_few. L1 extra: mint_shape_would_pass=true (NEG mint-shape complement).",
     )
+
+    def add_sass(vid: str, name: str, spk: bytes, note: str) -> None:
+        inp = {"kind": "classifier", "script_hex": spk.hex()}
+        exp = spec.eval_script_asset(inp)
+        add(v(vid, name, "ScriptAsset", inp, exp, note=note), coq_enforce=True)
+
+    add_sass("SASS-000", "v0_p2wpkh", spec.canonical_p2wpkh_script(), "Witness v0/20 → ORU")
+    add_sass("SASS-001", "native_res_rfc8032", spec.canonical_native_res_script(), "Witness v1/32 RFC8032 pk1 → RES")
+    add_sass("SASS-002", "op_converge", spec.canonical_converge_script(), "RIGOR_MARKER_CONVERGE → ORU")
+    add_sass("SASS-003", "op_res_mint", spec.get_res_mint_script(100, bytes(20)), "RIGOR_MARKER_RES_MINT → RES")
+    add_sass("SASS-004", "v0_p2wsh", spec.canonical_p2wsh_script(), "Witness v0/32 → INVALID")
+    add_sass("SASS-005", "p2pkh", spec.canonical_p2pkh_script(), "P2PKH → INVALID")
+    add_sass("SASS-006", "cvg2", spec.canonical_cvg2_script(), "CVG2 prefix → INVALID")
+    add_sass("SASS-007", "res2", spec.canonical_res2_script(), "RES2 prefix → INVALID")
+    add_sass("SASS-008", "empty", b"", "Empty script → INVALID")
+    add_sass("SASS-009", "op_return", bytes([spec.RIGOR_MARKER_RETURN, 0x01, 0x78]), "RIGOR_MARKER_RETURN + push → NONE")
+    add_sass("SASS-010", "v1_len20", spec.canonical_v1_len20_script(), "Witness v1/20 → INVALID")
 
     # -------------------------------------------------------------------------
     # TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001: cross-family combination
@@ -2205,7 +2234,7 @@ def main() -> None:
     # TASK-FV-VECTOR-SELECTIVE-DENSIFY-001: eight high-value residual crosses.
     # Not added: SHA-256 family extras, IsResScript vs tag, P1-2 wiring of
     # Selection into cm_draw_won, W=0×cap (attempted amount is 0), coinbase bind.
-    opreturn_spk = bytes([spec.OP_RETURN])
+    opreturn_spk = bytes([spec.RIGOR_MARKER_RETURN])
     add_xfam(
         "XFAM-012",
         "p2sh_plus_ordinary_inflation",
@@ -2409,6 +2438,24 @@ def main() -> None:
         + "\n"
     )
     print(f"Wrote {len(vectors)} vectors -> {out}")
+
+    if "GOLDEN_OUT" not in os.environ:
+        sass = [vec for vec in vectors if vec["module"] == "ScriptAsset"]
+        slice_path = Path(__file__).resolve().parents[1] / "core" / "src" / "test" / "data" / "rigor_script_asset_classifier.json"
+        # Array wrapper: C++ read_json() requires a JSON array (see rigor_sighash_p0_018.json).
+        slice_path.write_text(
+            json.dumps(
+                [
+                    {
+                        "comment": "ScriptAsset classifier rows from phase3_golden_vectors.json. SSOT is generate_phase3_vectors.py.",
+                        "vectors": sass,
+                    }
+                ],
+                indent=2,
+            )
+            + "\n"
+        )
+        print(f"Wrote {len(sass)} ScriptAsset rows -> {slice_path}")
 
 
 if __name__ == "__main__":

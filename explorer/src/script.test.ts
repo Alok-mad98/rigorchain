@@ -4,6 +4,7 @@ import {
   classifyScriptPubKey,
   CONVERGENCE_OUTPUT_STATE,
   isConvergenceScriptPubKey,
+  isResMintScriptPubKey,
   isOpConvergeScriptPubKey,
   isRetiredCvg2WitnessV1,
   OP_CONVERGE_SCRIPT_NAME,
@@ -63,10 +64,44 @@ describe("retired Witness v1 CVG2", () => {
     assert.equal(isRetiredCvg2WitnessV1(RETIRED_CVG2_V1), true);
     assert.equal(isConvergenceScriptPubKey(RETIRED_CVG2_V1), false);
     assert.equal(isOpConvergeScriptPubKey(RETIRED_CVG2_V1), false);
-    assert.equal(cls.assetKind, "NONE");
+    assert.equal(cls.assetKind, "INVALID");
     assert.equal(cls.isConvergence, false);
     assert.match(cls.scriptState ?? "", /Historical RFC-014/);
     assert.notEqual(cls.assetKind, "ORU");
     assert.notEqual(cls.assetKind, "RES");
+    assert.notEqual(cls.assetKind, "NONE");
+  });
+});
+
+describe("script-as-asset fail-closed classification", () => {
+  it("classifies canonical OP_RES_MINT as RES", () => {
+    const mint = "00" + "14" + "11".repeat(20) + "bb";
+    const cls = classifyScriptPubKey(mint, "rg");
+    assert.equal(cls.assetKind, "RES");
+    assert.equal(cls.scriptName, "OP_RES_MINT");
+    assert.equal(cls.address, null);
+    assert.equal(isResMintScriptPubKey(mint), true);
+  });
+
+  it("classifies v0/32 P2WSH as INVALID, not ORU", () => {
+    const p2wsh = "0020" + "22".repeat(32);
+    const cls = classifyScriptPubKey(p2wsh, "rg");
+    assert.equal(cls.assetKind, "INVALID");
+    assert.notEqual(cls.assetKind, "ORU");
+  });
+
+  it("classifies retired RES2 as INVALID, not RES", () => {
+    const res2 = "5120" + Buffer.from("RES2", "ascii").toString("hex") + "00".repeat(28);
+    const cls = classifyScriptPubKey(res2, "rg");
+    assert.equal(cls.assetKind, "INVALID");
+    assert.notEqual(cls.assetKind, "RES");
+  });
+
+  it("classifies unknown scripts as INVALID, never NONE or ORU", () => {
+    const p2pkh = "76a914" + "33".repeat(20) + "88ac";
+    const cls = classifyScriptPubKey(p2pkh, "rg");
+    assert.equal(cls.assetKind, "INVALID");
+    assert.notEqual(cls.assetKind, "NONE");
+    assert.notEqual(cls.assetKind, "ORU");
   });
 });

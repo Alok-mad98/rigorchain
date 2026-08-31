@@ -132,9 +132,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.test_invalid_input()
         self.test_fee_p2pkh()
         self.test_fee_p2pkh_multi_out()
-        self.test_fee_p2sh()
-        self.test_fee_4of5()
-        self.test_spend_2of2()
         self.test_locked_wallet()
         self.test_many_inputs_fee()
         self.test_many_inputs_send()
@@ -162,9 +159,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[3].createwallet(wallet_name="wwatch", disable_private_keys=True)
         wwatch = self.nodes[3].get_wallet_rpc('wwatch')
         watchonly_address = self.nodes[0].getnewaddress(address_type='bech32m')
-        watchonly_pubkey = self.nodes[0].getaddressinfo(watchonly_address)["pubkey"]
         self.watchonly_amount = Decimal(200)
-        wwatch.importpubkey(watchonly_pubkey, "", True)
+        wwatch.importdescriptors([{"desc": self.nodes[0].getaddressinfo(watchonly_address)["desc"], "timestamp": "now"}])
         self.watchonly_txid = self.nodes[0].sendtoaddress(watchonly_address, self.watchonly_amount)
 
         # Lock UTXO so nodes[0] doesn't accidentally spend it
@@ -467,119 +463,8 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         self.unlock_utxos(self.nodes[0])
 
-    def test_fee_p2sh(self):
-        """Compare fee of a 2-of-2 multisig p2sh transaction."""
-        self.lock_outputs_type(self.nodes[0], "p2pkh")
-        # Create 2-of-2 addr.
-        addr1 = self.nodes[1].getnewaddress(address_type='bech32m')
-        addr2 = self.nodes[1].getnewaddress(address_type='bech32m')
-
-        addr1Obj = self.nodes[1].getaddressinfo(addr1)
-        addr2Obj = self.nodes[1].getaddressinfo(addr2)
-
-        mSigObj = self.nodes[3].createmultisig(2, [addr1Obj['pubkey'], addr2Obj['pubkey']])['address']
-
-        inputs = []
-        outputs = {mSigObj:1.1}
-        rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
-        fundedTx = self.nodes[0].fundrawtransaction(rawtx, rigor_mixed_asset_fund_options())
-
-        # Create same transaction over sendtoaddress.
-        txId = self.nodes[0].sendtoaddress(mSigObj, 1.1)
-        signedFee = self.nodes[0].getmempoolentry(txId)['fees']['base']
-
-        # Compare fee.
-        feeDelta = Decimal(fundedTx['fee']) - Decimal(signedFee)
-        assert feeDelta >= 0 and feeDelta <= self.fee_tolerance
-
-        self.unlock_utxos(self.nodes[0])
-
-    def test_fee_4of5(self):
-        """Compare fee of a standard pubkeyhash transaction."""
-        self.log.info("Test fundrawtxn fee with 4-of-5 addresses")
-        self.lock_outputs_type(self.nodes[0], "p2pkh")
-
-        # Create 4-of-5 addr.
-        addr1 = self.nodes[1].getnewaddress(address_type='bech32m')
-        addr2 = self.nodes[1].getnewaddress(address_type='bech32m')
-        addr3 = self.nodes[1].getnewaddress(address_type='bech32m')
-        addr4 = self.nodes[1].getnewaddress(address_type='bech32m')
-        addr5 = self.nodes[1].getnewaddress(address_type='bech32m')
-
-        addr1Obj = self.nodes[1].getaddressinfo(addr1)
-        addr2Obj = self.nodes[1].getaddressinfo(addr2)
-        addr3Obj = self.nodes[1].getaddressinfo(addr3)
-        addr4Obj = self.nodes[1].getaddressinfo(addr4)
-        addr5Obj = self.nodes[1].getaddressinfo(addr5)
-
-        mSigObj = self.nodes[1].createmultisig(
-            4,
-            [
-                addr1Obj['pubkey'],
-                addr2Obj['pubkey'],
-                addr3Obj['pubkey'],
-                addr4Obj['pubkey'],
-                addr5Obj['pubkey'],
-            ]
-        )['address']
-
-        inputs = []
-        outputs = {mSigObj:1.1}
-        rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
-        fundedTx = self.nodes[0].fundrawtransaction(rawtx, rigor_mixed_asset_fund_options())
-
-        # Create same transaction over sendtoaddress.
-        txId = self.nodes[0].sendtoaddress(mSigObj, 1.1)
-        signedFee = self.nodes[0].getmempoolentry(txId)['fees']['base']
-
-        # Compare fee.
-        feeDelta = Decimal(fundedTx['fee']) - Decimal(signedFee)
-        assert feeDelta >= 0 and feeDelta <= self.fee_tolerance
-
-        self.unlock_utxos(self.nodes[0])
-
-    def test_spend_2of2(self):
-        """Spend a 2-of-2 multisig transaction over fundraw."""
-        self.log.info("Test fundpsbt spending 2-of-2 multisig")
-
-        # Create 2-of-2 addr.
-        addr1 = self.nodes[2].getnewaddress(address_type='bech32m')
-        addr2 = self.nodes[2].getnewaddress(address_type='bech32m')
-
-        addr1Obj = self.nodes[2].getaddressinfo(addr1)
-        addr2Obj = self.nodes[2].getaddressinfo(addr2)
-
-        self.nodes[2].createwallet(wallet_name='wmulti', disable_private_keys=True)
-        wmulti = self.nodes[2].get_wallet_rpc('wmulti')
-        w2 = self.nodes[2].get_wallet_rpc(self.default_wallet_name)
-        mSigObj = wmulti.addmultisigaddress(
-            2,
-            [
-                addr1Obj['pubkey'],
-                addr2Obj['pubkey'],
-            ]
-        )['address']
-        if not self.options.descriptors:
-            wmulti.importaddress(mSigObj)
-
-        # Send 1.2 BTC to msig addr.
-        self.nodes[0].sendtoaddress(mSigObj, 1.2)
-        self.generate(self.nodes[0], 1)
-
-        oldBalance = self.nodes[1].getbalance()
-        inputs = []
-        outputs = {self.nodes[1].getnewaddress(address_type='bech32m'):1.1}
-        funded_psbt = wmulti.walletcreatefundedpsbt(inputs=inputs, outputs=outputs, options={'changeAddress': w2.getrawchangeaddress()})['psbt']
-
-        signed_psbt = w2.walletprocesspsbt(funded_psbt)
-        final_psbt = w2.finalizepsbt(signed_psbt['psbt'])
-        self.nodes[2].sendrawtransaction(final_psbt['hex'])
-        self.generate(self.nodes[2], 1)
-
-        # Make sure funds are received at node1.
-        assert_equal(oldBalance+Decimal('1.10000000'), self.nodes[1].getbalance())
-
-        wmulti.unloadwallet()
+    # Bitcoin's test_fee_p2sh / test_fee_4of5 / test_spend_2of2 compared k-of-n fee paths.
+    # Those outputs are not RIGOR locks; see feature_single_key_outputs.py.
 
     def test_locked_wallet(self):
         self.log.info("Test fundrawtxn with locked wallet and hardened derivation")
@@ -693,7 +578,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(oldBalance+Decimal('50.19000000'), self.nodes[0].getbalance()) #0.19+block reward
 
     def test_op_return(self):
-        self.log.info("Test fundrawtxn with OP_RETURN and no vin")
+        self.log.info("Test fundrawtxn with RIGOR_MARKER_RETURN and no vin")
 
         rawtx   = "0100000000010000000000000000066a047465737400000000"
         dec_tx  = self.nodes[2].decoderawtransaction(rawtx)

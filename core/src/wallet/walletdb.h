@@ -39,8 +39,6 @@ struct WalletContext;
  * - BerkeleyBatch is a low-level database batch update.
  */
 
-static const bool DEFAULT_FLUSHWALLET = true;
-
 /** Error statuses for the wallet database */
 enum class DBErrors
 {
@@ -53,7 +51,8 @@ enum class DBErrors
     NEED_REWRITE,
     NEED_RESCAN,
     UNKNOWN_DESCRIPTOR,
-    UNEXPECTED_LEGACY_ENTRY
+    UNEXPECTED_LEGACY_ENTRY,
+    LEGACY_WALLET
 };
 
 namespace DBKeys {
@@ -297,8 +296,6 @@ private:
 };
 
 //! Compacts BDB state so that wallet.dat is self-contained (if there are changes)
-void MaybeCompactWalletDB(WalletContext& context);
-
 //! Callback for filtering key types to deserialize in ReadKeyValue
 using KeyFilterFn = std::function<bool(const std::string&)>;
 

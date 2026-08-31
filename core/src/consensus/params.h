@@ -11,7 +11,6 @@
 
 #include <chrono>
 #include <limits>
-#include <map>
 #include <vector>
 
 namespace Consensus {
@@ -167,31 +166,32 @@ struct BIP9Deployment {
  */
 struct Params {
     uint256 hashGenesisBlock;
+    /**
+     * Per-block ORU subsidy halving interval in blocks. MUST be positive on
+     * every shipped network. Zero or negative is fail-closed: `GetBlockSubsidy`
+     * returns 0 (TASK-010 R-6) rather than dividing by zero.
+     */
     int nSubsidyHalvingInterval;
     /**
-     * Per-block ORU subsidy base before right-shift halving (when non-zero). Zero selects legacy
-     * 50 * COIN base (Bitcoin-style halving to zero after 64 periods).
-     * Rigor main/testnet/signet/regtest/devtest: `Consensus::ORU_INITIAL_BLOCK_SUBSIDY` (see consensus/rigor_consensus_lock.h) with nBlockSubsidyMaxHalvingShifts caps further halving (see GetBlockSubsidy).
+     * Per-block ORU subsidy base before right-shift halving. MUST be positive on
+     * every shipped network (`Consensus::ORU_INITIAL_BLOCK_SUBSIDY`). Zero is
+     * fail-closed: `GetBlockSubsidy` returns 0 (TASK-010 D-7). There is no
+     * Bitcoin 50 COIN fallback.
+     * Rigor main/testnet/signet/regtest/devtest use `nBlockSubsidyMaxHalvingShifts`
+     * to cap further halving (see GetBlockSubsidy).
      */
     CAmount nBlockSubsidyBase{0};
     /**
      * When >= 0, subsidy = nBlockSubsidyBase >> min(nHeight / nSubsidyHalvingInterval, nBlockSubsidyMaxHalvingShifts)
      * (no further halving after that floor; ORU emission continues indefinitely at that per-block amount).
      * Example: base 1000 ORU, interval 210000 (~4y at 10min blocks): 1000 → 500 → 250 → 125 ORU then fixed at 125.
-     * -1 means uncapped Bitcoin-style halving until period 64 then subsidy 0 (only used when nBlockSubsidyBase == 0).
+     * -1 means uncapped Bitcoin-style halving until period 64 then subsidy 0.
      */
     int nBlockSubsidyMaxHalvingShifts{-1};
     /** Fixed draw target bits: T = ResMintTargetArith(this); see Consensus::ResDrawTargetForBlock. */
     uint8_t res_mint_target_bits{14};
     /** Confirmations required before spending an ORU coinbase or a body RES mint UTXO. */
     int nCoinbaseMaturity{100};
-    /**
-     * Hashes of blocks that
-     * - are known to be consensus valid, and
-     * - buried in the chain, and
-     * - fail if the default script verify flags are applied.
-     */
-    std::map<uint256, uint32_t> script_flag_exceptions;
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;
     uint256 BIP34Hash;
@@ -213,8 +213,9 @@ struct Params {
      * RES convergence eligibility constant. Identical across all networks
      * (RFC-014 §2.4). It is the RHS of `H_i < RES_PROBABILITY_TARGET * f_i`
      * (RFC-008 §6.1 / §14) and is NOT derived at runtime from `nBits`, ASERT
-     * state, or any header field. `target_prev` remains in `bind_commit` for
-     * Sigma-CR-01 replay-domain separation only (RFC-014 §3.2).
+     * state, or any header field. Parent `nBits` is not a σ input
+     * (SECURITY-001-A8 / Sigma-PoW-01). Historical Sigma-CR-01 `bind_commit` is
+     * superseded.
      *
      * Always assign `Consensus::RES_PROBABILITY_TARGET_CONST`; see the note
      * there for why the literal `2^240` printed in RFC-014 §2.1 is wrong, and for

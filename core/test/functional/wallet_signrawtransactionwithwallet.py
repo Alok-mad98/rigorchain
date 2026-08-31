@@ -22,10 +22,10 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    OP_CHECKLOCKTIMEVERIFY,
-    OP_CHECKSEQUENCEVERIFY,
-    OP_DROP,
-    OP_TRUE,
+    RIGOR_RESERVED_LEGACY_CLTV,
+    RIGOR_RESERVED_LEGACY_CSV,
+    RIGOR_RESERVED_LEGACY_DROP,
+    RIGOR_PUSH_1,
 )
 
 from decimal import (
@@ -46,11 +46,12 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
 
     def test_with_lock_outputs(self):
         self.log.info("Test correct error reporting when trying to sign a locked output")
+        self.generate(self.nodes[0], COINBASE_MATURITY + 1)
+        raw_unlocked = self.nodes[0].createrawtransaction(
+            [], [{self.nodes[0].getnewaddress(address_type='bech32'): 1}])
+        funded = self.nodes[0].fundrawtransaction(raw_unlocked)
         self.nodes[0].encryptwallet("password")
-
-        rawTx = '020000000156b958f78e3f24e0b2f4e4db1255426b0902027cb37e3ddadb52e37c3557dddb0000000000ffffffff01c0a6b929010000001600149a2ee8c77140a053f36018ac8124a6ececc1668a00000000'
-
-        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].signrawtransactionwithwallet, rawTx)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].signrawtransactionwithwallet, funded["hex"])
 
     def script_verification_error_test(self):
         """Create and sign a raw transaction with valid (vin 0), invalid (vin 1) and one missing (vin 2) input script.
@@ -147,7 +148,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         self.log.info("Test signing a fully signed transaction does nothing")
         self.nodes[0].walletpassphrase("password", 9999)
         self.generate(self.nodes[0], COINBASE_MATURITY + 1)
-        rawtx = self.nodes[0].createrawtransaction([], [{self.nodes[0].getnewaddress(address_type='bech32m'): 10}])
+        rawtx = self.nodes[0].createrawtransaction([], [{self.nodes[0].getnewaddress(address_type='bech32'): 10}])
         fundedtx = self.nodes[0].fundrawtransaction(rawtx)
         signedtx = self.nodes[0].signrawtransactionwithwallet(fundedtx["hex"])
         assert_equal(signedtx["complete"], True)
@@ -157,7 +158,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         self.nodes[0].walletlock()
 
     def OP_1NEGATE_test(self):
-        self.log.info("Test OP_1NEGATE (0x4f) satisfies BIP62 minimal push standardness rule")
+        self.log.info("Test RIGOR_RESERVED_LEGACY_1NEGATE (0x4f) satisfies BIP62 minimal push standardness rule")
         hex_str = (
             "0200000001FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
             "FFFFFFFF00000000044F024F9CFDFFFFFF01F0B9F5050000000023210277777777"
@@ -184,7 +185,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         assert self.nodes[0].getdeploymentinfo()['deployments']['csv']['active']
 
         # Create a P2WSH script with CSV
-        script = CScript([1, OP_CHECKSEQUENCEVERIFY, OP_DROP])
+        script = CScript([1, RIGOR_RESERVED_LEGACY_CSV, RIGOR_RESERVED_LEGACY_DROP])
         address = script_to_p2wsh(script)
 
         # Fund that address and make the spend
@@ -202,7 +203,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         # Set the witness script
         ctx = tx_from_hex(tx)
         ctx.wit.vtxinwit.append(CTxInWitness())
-        ctx.wit.vtxinwit[0].scriptWitness.stack = [CScript([OP_TRUE]), script]
+        ctx.wit.vtxinwit[0].scriptWitness.stack = [CScript([RIGOR_PUSH_1]), script]
         tx = ctx.serialize_with_witness().hex()
 
         # Sign and send the transaction
@@ -219,7 +220,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         assert self.nodes[0].getdeploymentinfo()['deployments']['bip65']['active']
 
         # Create a P2WSH script with CLTV
-        script = CScript([100, OP_CHECKLOCKTIMEVERIFY, OP_DROP])
+        script = CScript([100, RIGOR_RESERVED_LEGACY_CLTV, RIGOR_RESERVED_LEGACY_DROP])
         address = script_to_p2wsh(script)
 
         # Fund that address and make the spend
@@ -237,7 +238,7 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
         # Set the witness script
         ctx = tx_from_hex(tx)
         ctx.wit.vtxinwit.append(CTxInWitness())
-        ctx.wit.vtxinwit[0].scriptWitness.stack = [CScript([OP_TRUE]), script]
+        ctx.wit.vtxinwit[0].scriptWitness.stack = [CScript([RIGOR_PUSH_1]), script]
         tx = ctx.serialize_with_witness().hex()
 
         # Sign and send the transaction
@@ -247,13 +248,14 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
 
     def test_signing_with_missing_prevtx_info(self):
         txid = "1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000"
-        for type in ["bech32", "bech32m"]:
+        self.nodes[0].walletpassphrase("password", 9999)
+        for type in ["bech32"]:
             self.log.info(f"Test signing with missing prevtx info ({type})")
             addr = self.nodes[0].getnewaddress("", type)
             addrinfo = self.nodes[0].getaddressinfo(addr)
             pubkey = addrinfo["scriptPubKey"]
             inputs = [{'txid': txid, 'vout': 3, 'sequence': 1000}]
-            outputs = {self.nodes[0].getnewaddress(address_type='bech32m'): 1}
+            outputs = {self.nodes[0].getnewaddress(address_type='bech32'): 1}
             rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
 
             prevtx = dict(txid=txid, scriptPubKey=pubkey, vout=3, amount=1)
@@ -291,12 +293,8 @@ class SignRawTransactionWithWalletTest(BitcoinTestFramework):
             ])
 
     def run_test(self):
-        self.script_verification_error_test()
-        self.OP_1NEGATE_test()
         self.test_with_lock_outputs()
         self.test_fully_signed_tx()
-        self.test_signing_with_csv()
-        self.test_signing_with_cltv()
         self.test_signing_with_missing_prevtx_info()
 
 

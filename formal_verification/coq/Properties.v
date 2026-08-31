@@ -10,10 +10,12 @@ Require Import ResSchedule.
 (** RES cap.
 
     This was [21000000], a bare count of whole RES, while [State.RES_supply] is accumulated in
-    atoms by [ConnectBlock.v]. The two were never in the same unit, so [supply_bound_property]
+    atoms. The two were never in the same unit, so [supply_bound_property]
     asserted something 10^6 times stricter than the protocol rule and would have been violated by
     the 22nd mint. Both now name [RES_MAX_SUPPLY] from ResSchedule.v, which is the single
-    definition of the cap in atoms. *)
+    definition of the cap in atoms. Cap overshoot reject is
+    [ResMintObligation.cap_overshoot_rejects_apply_block], not the quarantined
+    [legacy_account_model/ConnectBlockScaffold] skip. *)
 Definition RES_CAP : Z := RES_MAX_SUPPLY.
 
 (** Runtime cap-fit, in the same units as [State.RES_supply] (atoms).

@@ -164,6 +164,35 @@ fn accepts_share_when_pow_and_bindings_pass() {
 }
 
 #[test]
+fn rejects_share_when_ntime_does_not_match_job() {
+    let templates = Arc::new(TemplateCache::new());
+    let jobs = Arc::new(block_assembler::JobCache::new());
+    let publisher = JobPublisher::with_defaults(jobs.clone());
+    let validator = ShareValidator::with_defaults(jobs, templates.clone());
+
+    let (t, raw) = fixture("ntime/mismatch/1");
+    let record = templates.ingest(t, raw, tip(5)).unwrap().unwrap();
+    let job = publisher.publish_from_template(&record).unwrap();
+
+    let share = ShareSubmission {
+        share_id: "ntime-mismatch-1".into(),
+        job_id: job.job_id.clone(),
+        record_id: Some(record.record_id),
+        extranonce1: vec![],
+        extranonce2: vec![0; job.coinbase.extranonce2_size as usize],
+        ntime: job.ntime as u32 + 1,
+        nonce: 0,
+        share_target: [0xff; 32],
+    };
+    let result = validator.validate_share(share);
+    assert!(!result.accepted);
+    assert_eq!(
+        result.error_code,
+        Some(ValidationErrorCode::ErrMalformedSubmission)
+    );
+}
+
+#[test]
 fn accepts_share_with_historical_window_txid_and_opaque_mint() {
     let templates = Arc::new(TemplateCache::new());
     let jobs = Arc::new(block_assembler::JobCache::new());

@@ -1,6 +1,6 @@
 import { bech32, bech32m } from "bech32";
 
-export type AssetKind = "ORU" | "RES" | "NONE";
+export type AssetKind = "ORU" | "RES" | "NONE" | "INVALID";
 
 export const OP_CONVERGE_OPCODE = 0xbd;
 export const OP_CONVERGE_SCRIPT_NAME = "OP_CONVERGE";
@@ -12,7 +12,9 @@ export const CONVERGENCE_OUTPUT_STATE = "Unspendable burn output / draw particip
  * Not a live consensus script. Consensus `IsAllowedScript` rejects it.
  */
 const RETIRED_CVG2_PREFIX_HEX = Buffer.from("CVG2", "ascii").toString("hex"); // 43564732
+const RETIRED_RES2_PREFIX_HEX = Buffer.from("RES2", "ascii").toString("hex"); // 52455332
 export const RETIRED_CVG2_V1_SCRIPT_PREFIX_HEX = "5120" + RETIRED_CVG2_PREFIX_HEX;
+const OP_RES_MINT = 0xbb;
 
 export type ScriptClassification = {
   assetKind: AssetKind;
@@ -74,17 +76,54 @@ export function convergenceOutputLabels(): {
   };
 }
 
+/** CScriptNum-shaped non-negative integer push used by GetResMintScript. */
+function isCanonicalNonNegIntPush(bytes: Buffer): boolean {
+  if (bytes.length === 0) return false;
+  if (bytes.length === 1) {
+    const op = bytes[0];
+    if (op === 0x00) return true;
+    if (op >= 0x51 && op <= 0x60) return true;
+    return false;
+  }
+  const plen = bytes[0];
+  if (plen < 1 || plen > 5 || bytes.length !== 1 + plen) return false;
+  const data = bytes.subarray(1);
+  if ((data[data.length - 1] & 0x80) !== 0) return false;
+  if (data.length > 1 && data[data.length - 1] === 0 && (data[data.length - 2] & 0x80) === 0) {
+    return false;
+  }
+  if (data.length === 1 && data[0] <= 16) return false;
+  return true;
+}
+
+/** Canonical OP_RES_MINT: `<height> <20-byte HASH160(pk)> OP_RES_MINT`. */
+function isResMintScriptBytes(bytes: Buffer): boolean {
+  if (bytes.length < 23 || bytes[bytes.length - 1] !== OP_RES_MINT) return false;
+  const pkhOp = bytes.length - 22;
+  if (bytes[pkhOp] !== 0x14) return false;
+  return isCanonicalNonNegIntPush(bytes.subarray(0, pkhOp));
+}
+
+/** True iff scriptPubKey is a live coinbase `OP_RES_MINT` lock. */
+export function isResMintScriptPubKey(scriptPubKeyHex: string): boolean {
+  const hex = normalizeScriptHex(scriptPubKeyHex);
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-f]*$/.test(hex)) return false;
+  return isResMintScriptBytes(Buffer.from(hex, "hex"));
+}
+
 /**
- * Minimal deterministic scriptPubKey classification (explorer only; not consensus):
- * - OP_CONVERGE (22-byte burn lock) => ORU, unspendable draw-entry
- * - v0 witness (P2WPKH/P2WSH) => ORU
- * - v1 witness: RES (not CVG2). Retired CVG2 prefix => NONE (not a third asset)
+ * Minimal deterministic scriptPubKey classification (must match C++ AssetTypeFromScriptPubKey):
+ * - OP_CONVERGE (22-byte burn lock) => ORU
+ * - v0/20 P2WPKH => ORU
+ * - v1/32 native RES (not CVG2, not RES2) => RES
+ * - canonical OP_RES_MINT => RES
  * - OP_RETURN => NONE
+ * - anything else, including v0/32, CVG2, RES2, unknown => INVALID
  */
 export function classifyScriptPubKey(scriptPubKeyHex: string, bech32Hrp: string): ScriptClassification {
   const hex = normalizeScriptHex(scriptPubKeyHex);
-  const unknown: ScriptClassification = {
-    assetKind: "NONE",
+  const invalid: ScriptClassification = {
+    assetKind: "INVALID",
     witnessVersion: null,
     programHex: null,
     address: null,
@@ -93,7 +132,7 @@ export function classifyScriptPubKey(scriptPubKeyHex: string, bech32Hrp: string)
     scriptState: null,
   };
   if (!hex || hex.length % 2 !== 0 || !/^[0-9a-f]*$/.test(hex)) {
-    return unknown;
+    return invalid;
   }
   const bytes = Buffer.from(hex, "hex");
 
@@ -122,7 +161,20 @@ export function classifyScriptPubKey(scriptPubKeyHex: string, bech32Hrp: string)
     };
   }
 
-  // Witness v0: OP_0 <20|32>
+  if (isResMintScriptBytes(bytes)) {
+    const pkh = bytes.subarray(bytes.length - 21, bytes.length - 1);
+    return {
+      assetKind: "RES",
+      witnessVersion: null,
+      programHex: Buffer.from(pkh).toString("hex"),
+      address: null,
+      isConvergence: false,
+      scriptName: "OP_RES_MINT",
+      scriptState: null,
+    };
+  }
+
+  // Witness v0: OP_0 <20> only. v0/32 P2WSH is ASSET_INVALID.
   if (bytes.length === 22 && bytes[0] === 0x00 && bytes[1] === 0x14) {
     const program = bytes.subarray(2, 22);
     const programHex = Buffer.from(program).toString("hex");
@@ -142,30 +194,41 @@ export function classifyScriptPubKey(scriptPubKeyHex: string, bech32Hrp: string)
     const programHex = Buffer.from(program).toString("hex");
     const address = tryEncodeSegwitAddress(bech32Hrp, 0, Buffer.from(program));
     return {
-      assetKind: "ORU",
+      assetKind: "INVALID",
       witnessVersion: 0,
       programHex,
       address,
       isConvergence: false,
-      scriptName: "Witness v0",
+      scriptName: "Witness v0/32 (not a consensus output)",
       scriptState: null,
     };
   }
 
-  // Witness v1: OP_1 <32> — RES only. Retired CVG2 prefix is not a live asset.
+  // Witness v1: OP_1 <32> — native RES only. Retired CVG2/RES2 prefixes are INVALID.
   if (bytes.length === 34 && bytes[0] === 0x51 && bytes[1] === 0x20) {
     const program = bytes.subarray(2, 34);
     const programHex = Buffer.from(program).toString("hex");
     const address = tryEncodeSegwitAddress(bech32Hrp, 1, Buffer.from(program));
     if (programHex.startsWith(RETIRED_CVG2_PREFIX_HEX)) {
       return {
-        assetKind: "NONE",
+        assetKind: "INVALID",
         witnessVersion: 1,
         programHex,
         address,
         isConvergence: false,
         scriptName: "retired Witness v1 CVG2",
         scriptState: "Historical RFC-014 / retired design",
+      };
+    }
+    if (programHex.startsWith(RETIRED_RES2_PREFIX_HEX)) {
+      return {
+        assetKind: "INVALID",
+        witnessVersion: 1,
+        programHex,
+        address,
+        isConvergence: false,
+        scriptName: "retired Witness v1 RES2",
+        scriptState: "Retired RES2 prefix; not creatable",
       };
     }
     return {
@@ -179,5 +242,5 @@ export function classifyScriptPubKey(scriptPubKeyHex: string, bech32Hrp: string)
     };
   }
 
-  return unknown;
+  return invalid;
 }

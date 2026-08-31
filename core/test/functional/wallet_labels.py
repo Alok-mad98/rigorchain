@@ -12,6 +12,7 @@ RPCs tested are:
 from collections import defaultdict
 
 from test_framework.blocktools import COINBASE_MATURITY
+from test_framework.descriptors import descsum_create
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.wallet_util import test_address
@@ -37,7 +38,6 @@ class WalletLabelsTest(BitcoinTestFramework):
             [node.setlabel, address],
             [node.getaddressesbylabel],
             [node.importpubkey, pubkey],
-            [node.addmultisigaddress, 1, [pubkey]],
             [node.getreceivedbylabel],
             [node.listsinceblock, node.getblockhash(0), 1, False, True, False],
         ]
@@ -166,18 +166,6 @@ class WalletLabelsTest(BitcoinTestFramework):
             label.verify(node)
             assert_raises_rpc_error(-11, "No addresses with label", node.getaddressesbylabel, "")
 
-        # Check that addmultisigaddress can assign labels.
-        if not self.options.descriptors:
-            for label in labels:
-                addresses = []
-                for _ in range(10):
-                    addresses.append(node.getnewaddress(address_type='bech32m'))
-                multisig_address = node.addmultisigaddress(5, addresses, label.name)['address']
-                label.add_address(multisig_address)
-                label.purpose[multisig_address] = "send"
-                label.verify(node)
-            self.generate(node, COINBASE_MATURITY + 1)
-
         # Check that setlabel can change the label of an address from a
         # different label.
         change_label(node, labels[0].addresses[0], labels[0], labels[1])
@@ -204,7 +192,8 @@ class WalletLabelsTest(BitcoinTestFramework):
             }
             for l in BECH32_VALID:
                 ad = BECH32_VALID[l]
-                wallet_watch_only.importaddress(label=l, rescan=False, address=ad)
+                res = wallet_watch_only.importdescriptors([{"desc": descsum_create(f"addr({ad})"), "timestamp": "now", "label": l}])
+                assert res[0]["success"]
                 self.generatetoaddress(node, 1, ad)
                 assert_equal(wallet_watch_only.getaddressesbylabel(label=l), {ad: {'purpose': 'receive'}})
                 assert_equal(wallet_watch_only.getreceivedbylabel(label=l), 0)
@@ -212,8 +201,8 @@ class WalletLabelsTest(BitcoinTestFramework):
                 ad = BECH32_INVALID[l]
                 assert_raises_rpc_error(
                     -5,
-                    "Address is not valid" if self.options.descriptors else "Invalid Bitcoin address or script",
-                    lambda: wallet_watch_only.importaddress(label=l, rescan=False, address=ad),
+                    "Address is not valid",
+                    lambda: wallet_watch_only.importdescriptors([{"desc": descsum_create(f"addr({ad})"), "timestamp": "now", "label": l}]),
                 )
 
 

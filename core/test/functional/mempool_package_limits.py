@@ -56,7 +56,7 @@ class MempoolPackageLimitsTest(BitcoinTestFramework):
         self.test_anc_count_limits_2()
         self.test_anc_count_limits_bushy()
 
-        # The node will accept (nonstandard) extra large OP_RETURN outputs.
+        # The node will accept (nonstandard) extra large RIGOR_MARKER_RETURN outputs.
         # Preserve set_test_params / -sandbox=log-and-abort (Category 3: restart must not drop them).
         self.restart_node(0, extra_args=["-datacarriersize=100000"] + self.extra_args[0])
         self.test_anc_size_limits()

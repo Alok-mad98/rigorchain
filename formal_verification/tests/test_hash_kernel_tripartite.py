@@ -84,6 +84,12 @@ def main() -> int:
         check(f"RND-S-{i:03d}", "sha256", payload, exp1, have_ocaml)
         n += 2
 
+    for nlen, vid in ((0, "PAD-0"), (55, "PAD-55"), (56, "PAD-56"), (64, "PAD-64")):
+        payload = bytes([0x5A]) * nlen
+        check(f"{vid}-D", "sha256d", payload, sha256d_py(payload), have_ocaml)
+        check(f"{vid}-S", "sha256", payload, sha256_py(payload), have_ocaml)
+        n += 2
+
     layers = "C++ + hashlib"
     if have_ocaml:
         layers += " + extracted Coq"

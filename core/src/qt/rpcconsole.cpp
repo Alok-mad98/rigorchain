@@ -1168,11 +1168,11 @@ void RPCConsole::updateDetailWidget()
     if (!stats->nodeStats.addrLocal.empty())
         peerAddrDetails += "<br />" + tr("via %1").arg(QString::fromStdString(stats->nodeStats.addrLocal));
     ui->peerHeading->setText(peerAddrDetails);
-    QString bip152_hb_settings;
-    if (stats->nodeStats.m_bip152_highbandwidth_to) bip152_hb_settings = ts.to;
-    if (stats->nodeStats.m_bip152_highbandwidth_from) bip152_hb_settings += (bip152_hb_settings.isEmpty() ? ts.from : QLatin1Char('/') + ts.from);
-    if (bip152_hb_settings.isEmpty()) bip152_hb_settings = ts.no;
-    ui->peerHighBandwidth->setText(bip152_hb_settings);
+    QString compact_block_hb_settings;
+    if (stats->nodeStats.m_compact_block_hb_to) compact_block_hb_settings = ts.to;
+    if (stats->nodeStats.m_compact_block_hb_from) compact_block_hb_settings += (compact_block_hb_settings.isEmpty() ? ts.from : QLatin1Char('/') + ts.from);
+    if (compact_block_hb_settings.isEmpty()) compact_block_hb_settings = ts.no;
+    ui->peerHighBandwidth->setText(compact_block_hb_settings);
     const auto time_now{GetTime<std::chrono::seconds>()};
     ui->peerConnTime->setText(GUIUtil::formatDurationStr(time_now - stats->nodeStats.m_connected));
     ui->peerLastBlock->setText(TimeDurationField(time_now, stats->nodeStats.m_last_block_time));

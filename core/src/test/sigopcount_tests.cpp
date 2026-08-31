@@ -8,6 +8,7 @@
 #include <key.h>
 #include <pubkey.h>
 #include <script/script.h>
+#include <script/script_error.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
@@ -26,24 +27,25 @@ Serialize(const CScript& s)
 
 BOOST_FIXTURE_TEST_SUITE(sigopcount_tests, BasicTestingSetup)
 
-BOOST_AUTO_TEST_CASE(GetSigOpCount)
+BOOST_AUTO_TEST_CASE(CountScriptOpsLegacyTestOnly)
 {
-    // Test CScript::GetSigOpCount()
+    // Tests/fuzz only: CScript::CountScriptOpsLegacyTestOnly is not a consensus path.
     CScript s1;
-    BOOST_CHECK_EQUAL(s1.GetSigOpCount(false), 0U);
-    BOOST_CHECK_EQUAL(s1.GetSigOpCount(true), 0U);
+    BOOST_CHECK_EQUAL(s1.CountScriptOpsLegacyTestOnly(false), 0U);
+    BOOST_CHECK_EQUAL(s1.CountScriptOpsLegacyTestOnly(true), 0U);
 
     uint160 dummy;
-    s1 << OP_1 << ToByteVector(dummy) << ToByteVector(dummy) << OP_2 << OP_CHECKMULTISIG;
-    BOOST_CHECK_EQUAL(s1.GetSigOpCount(true), 2U);
-    s1 << OP_IF << OP_CHECKSIG << OP_ENDIF;
-    BOOST_CHECK_EQUAL(s1.GetSigOpCount(true), 3U);
-    BOOST_CHECK_EQUAL(s1.GetSigOpCount(false), 21U);
+    s1 << RIGOR_PUSH_1 << ToByteVector(dummy) << ToByteVector(dummy) << RIGOR_PUSH_2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    BOOST_CHECK_EQUAL(s1.CountScriptOpsLegacyTestOnly(true), 2U);
+    s1 << RIGOR_RESERVED_LEGACY_IF << RIGOR_RESERVED_LEGACY_CHECKSIG << RIGOR_RESERVED_LEGACY_ENDIF;
+    BOOST_CHECK_EQUAL(s1.CountScriptOpsLegacyTestOnly(true), 3U);
+    BOOST_CHECK_EQUAL(s1.CountScriptOpsLegacyTestOnly(false), 21U);
 
     CScript p2sh = GetScriptForDestination(ScriptHash(s1));
+    BOOST_CHECK(p2sh.empty());
     CScript scriptSig;
-    scriptSig << OP_0 << Serialize(s1);
-    BOOST_CHECK_EQUAL(p2sh.GetSigOpCount(scriptSig), 3U);
+    scriptSig << RIGOR_PUSH_0 << Serialize(s1);
+    BOOST_CHECK_EQUAL(p2sh.CountScriptOpsLegacyTestOnly(scriptSig), 0U);
 
     std::vector<CPubKey> keys;
     for (int i = 0; i < 3; i++)
@@ -52,16 +54,21 @@ BOOST_AUTO_TEST_CASE(GetSigOpCount)
         k.MakeNewKey(true);
         keys.push_back(k.GetPubKey());
     }
-    CScript s2 = GetScriptForMultisig(1, keys);
-    BOOST_CHECK_EQUAL(s2.GetSigOpCount(true), 3U);
-    BOOST_CHECK_EQUAL(s2.GetSigOpCount(false), 20U);
+    CScript s2;
+    s2 << RIGOR_PUSH_1;
+    for (const CPubKey& key : keys) {
+        s2 << ToByteVector(key);
+    }
+    s2 << RIGOR_PUSH_3 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
+    BOOST_CHECK_EQUAL(s2.CountScriptOpsLegacyTestOnly(true), 3U);
+    BOOST_CHECK_EQUAL(s2.CountScriptOpsLegacyTestOnly(false), 20U);
 
     p2sh = GetScriptForDestination(ScriptHash(s2));
-    BOOST_CHECK_EQUAL(p2sh.GetSigOpCount(true), 0U);
-    BOOST_CHECK_EQUAL(p2sh.GetSigOpCount(false), 0U);
+    BOOST_CHECK_EQUAL(p2sh.CountScriptOpsLegacyTestOnly(true), 0U);
+    BOOST_CHECK_EQUAL(p2sh.CountScriptOpsLegacyTestOnly(false), 0U);
     CScript scriptSig2;
-    scriptSig2 << OP_1 << ToByteVector(dummy) << ToByteVector(dummy) << Serialize(s2);
-    BOOST_CHECK_EQUAL(p2sh.GetSigOpCount(scriptSig2), 3U);
+    scriptSig2 << RIGOR_PUSH_1 << ToByteVector(dummy) << ToByteVector(dummy) << Serialize(s2);
+    BOOST_CHECK_EQUAL(p2sh.CountScriptOpsLegacyTestOnly(scriptSig2), 0U);
 }
 
 /**
@@ -72,7 +79,7 @@ static ScriptError VerifyWithFlag(const CTransaction& output, const CMutableTran
 {
     ScriptError error;
     CTransaction inputi(input);
-    bool ret = VerifyScript(inputi.vin[0].scriptSig, output.vout[0].scriptPubKey, &inputi.vin[0].scriptWitness, flags, TransactionSignatureChecker(&inputi, 0, output.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL), &error);
+    bool ret = VerifyRigorPredicate(inputi.vin[0].scriptSig, output.vout[0].scriptPubKey, &inputi.vin[0].scriptWitness, flags, TransactionSignatureChecker(&inputi, 0, output.vout[0].nValue, MissingDataBehavior::ASSERT_FAIL, TestSighashChainId()), &error);
     BOOST_CHECK((ret == true) == (error == SCRIPT_ERR_OK));
 
     return error;
@@ -121,36 +128,38 @@ BOOST_AUTO_TEST_CASE(GetTxSigOpCost)
     CKey key;
     key.MakeNewKey(true);
     CPubKey pubkey = key.GetPubKey();
+    // Consensus CHECKMULTISIG only accepts the 32-byte Ed25519 payload. The
+    // 0x00||pk CPubKey wrapper is wallet-only (SCRIPT_ERR_SECP256K1_DISABLED).
+    const std::vector<unsigned char> pk32 = pubkey.GetEd25519Payload();
     // Default flags
-    const uint32_t flags{SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_P2SH};
+        const uint32_t flags{SCRIPT_VERIFY_WITNESS};
 
     // Multisig script (legacy counting)
     {
-        CScript scriptPubKey = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << OP_CHECKMULTISIGVERIFY;
+        CScript scriptPubKey = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY;
         // Do not use a valid signature to avoid using wallet operations.
-        CScript scriptSig = CScript() << OP_0 << OP_0;
+        CScript scriptSig = CScript() << RIGOR_PUSH_0 << RIGOR_PUSH_0;
 
         BuildTxs(spendingTx, coins, creationTx, scriptPubKey, scriptSig, CScriptWitness());
         // Legacy counting only includes signature operations in scriptSigs and scriptPubKeys
         // of a transaction and does not take the actual executed sig operations into account.
         // spendingTx in itself does not contain a signature operation.
         assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 0);
-        // creationTx contains two signature operations in its scriptPubKey, but legacy counting
-        // is not accurate.
-        assert(GetTransactionSigOpCost(CTransaction(creationTx), coins, flags) == MAX_PUBKEYS_PER_MULTISIG * WITNESS_SCALE_FACTOR);
+        // creationTx is coinbase-shaped: only live WPKH/RES/MINT outputs cost sigops.
+        assert(GetTransactionSigOpCost(CTransaction(creationTx), coins, flags) == 0);
         // Rigor: bare legacy scriptPubKey is rejected before execution (witness v0/v1 only).
-        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_SCRIPT_SIZE);
+        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
     }
 
     // Multisig nested in P2SH
     {
-        CScript redeemScript = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << OP_CHECKMULTISIGVERIFY;
+        CScript redeemScript = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY;
         CScript scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
-        CScript scriptSig = CScript() << OP_0 << OP_0 << ToByteVector(redeemScript);
+        CScript scriptSig = CScript() << RIGOR_PUSH_0 << RIGOR_PUSH_0 << ToByteVector(redeemScript);
 
         BuildTxs(spendingTx, coins, creationTx, scriptPubKey, scriptSig, CScriptWitness());
-        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 2 * WITNESS_SCALE_FACTOR);
-        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_SCRIPT_SIZE);
+        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 0);
+        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
     }
 
     // P2WPKH witness program
@@ -191,13 +200,14 @@ BOOST_AUTO_TEST_CASE(GetTxSigOpCost)
         scriptWitness.stack.push_back(std::vector<unsigned char>(0));
 
         BuildTxs(spendingTx, coins, creationTx, scriptPubKey, scriptSig, scriptWitness);
-        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 1);
-        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_SCRIPT_SIZE);
+        // Nested P2SH-P2WPKH is not a consensus spend path (CountWitnessSigOps does not unwrap P2SH).
+        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 0);
+        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
     }
 
-    // P2WSH witness program
+    // P2WSH is not a consensus spend path: zero witness sigops, wrong-length program.
     {
-        CScript witnessScript = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << OP_CHECKMULTISIGVERIFY;
+        CScript witnessScript = CScript() << 1 << pk32 << pk32 << 2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY;
         CScript scriptPubKey = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
         CScript scriptSig = CScript();
         CScriptWitness scriptWitness;
@@ -206,14 +216,14 @@ BOOST_AUTO_TEST_CASE(GetTxSigOpCost)
         scriptWitness.stack.push_back(std::vector<unsigned char>(witnessScript.begin(), witnessScript.end()));
 
         BuildTxs(spendingTx, coins, creationTx, scriptPubKey, scriptSig, scriptWitness);
-        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 2);
+        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 0);
         assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags & ~SCRIPT_VERIFY_WITNESS) == 0);
-        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_CHECKMULTISIGVERIFY);
+        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
     }
 
-    // P2WSH nested in P2SH
+    // Nested P2SH-P2WSH is also not a consensus spend path.
     {
-        CScript witnessScript = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << OP_CHECKMULTISIGVERIFY;
+        CScript witnessScript = CScript() << 1 << ToByteVector(pubkey) << ToByteVector(pubkey) << 2 << RIGOR_RESERVED_LEGACY_CHECKMULTISIGVERIFY;
         CScript redeemScript = GetScriptForDestination(WitnessV0ScriptHash(witnessScript));
         CScript scriptPubKey = GetScriptForDestination(ScriptHash(redeemScript));
         CScript scriptSig = CScript() << ToByteVector(redeemScript);
@@ -223,8 +233,8 @@ BOOST_AUTO_TEST_CASE(GetTxSigOpCost)
         scriptWitness.stack.push_back(std::vector<unsigned char>(witnessScript.begin(), witnessScript.end()));
 
         BuildTxs(spendingTx, coins, creationTx, scriptPubKey, scriptSig, scriptWitness);
-        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 2);
-        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_SCRIPT_SIZE);
+        assert(GetTransactionSigOpCost(CTransaction(spendingTx), coins, flags) == 0);
+        assert(VerifyWithFlag(CTransaction(creationTx), spendingTx, flags) == SCRIPT_ERR_RIGOR_SCRIPT_TYPE);
     }
 }
 

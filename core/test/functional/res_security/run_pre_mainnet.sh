@@ -20,8 +20,10 @@
 # Chain is mockable devtest; no public network.
 #
 # Optional unit step (not a Coq rebuild; skip if binary missing):
-#   SKIP_UNIT=1     do not run test_bitcoin
-#   TEST_BITCOIN=path  override Boost binary (default: core/src/test/test_bitcoin)
+#   SKIP_UNIT=1     do not run test_rigor
+#   TEST_RIGOR=path  override Boost binary (default: core/src/test/test_rigor)
+#
+# Security unit suites (checklist §D). Comma list is the Boost --run_test filter.
 #
 # Formal verification is a separate gate:
 #   bash formal_verification/scripts/run_differential_gate.sh
@@ -75,20 +77,28 @@ run_py "2/3 Solo-mining security (no pool)" \
 run_py "3/3 RES mint + ORU coinbase maturity" \
   test/functional/feature_res_maturity.py --descriptors "$@"
 
-section "Optional unit: res_orum_tests"
+# Keep in lockstep with docs/security/PRE-MAINNET-CHECKLIST.md §D.
+SECURITY_UNIT_SUITES="res_orum_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests,res_proof_math_tests,convergence_root_tests"
+
+section "Optional unit: ${SECURITY_UNIT_SUITES}"
 if [[ "${SKIP_UNIT:-0}" == "1" ]]; then
-  echo "skipped (SKIP_UNIT=1). Checklist D: ./src/test/test_bitcoin --run_test=res_orum_tests"
-elif [[ -n "${TEST_BITCOIN:-}" && -x "${TEST_BITCOIN}" ]]; then
-  echo "TEST_BITCOIN=${TEST_BITCOIN}"
-  "${TEST_BITCOIN}" --run_test=res_orum_tests
-  echo "PASS: res_orum_tests"
+  echo "skipped (SKIP_UNIT=1). Checklist D: ./src/test/test_rigor --run_test=${SECURITY_UNIT_SUITES}"
+elif [[ -n "${TEST_RIGOR:-${TEST_BITCOIN:-}}" && -x "${TEST_RIGOR:-${TEST_BITCOIN}}" ]]; then
+  UNIT_BIN="${TEST_RIGOR:-${TEST_BITCOIN}}"
+  echo "TEST_RIGOR=${UNIT_BIN}"
+  "${UNIT_BIN}" --run_test="${SECURITY_UNIT_SUITES}"
+  echo "PASS: ${SECURITY_UNIT_SUITES}"
+elif [[ -x "${CORE_DIR}/src/test/test_rigor" ]]; then
+  echo "auto-detected ${CORE_DIR}/src/test/test_rigor"
+  "${CORE_DIR}/src/test/test_rigor" --run_test="${SECURITY_UNIT_SUITES}"
+  echo "PASS: ${SECURITY_UNIT_SUITES}"
 elif [[ -x "${CORE_DIR}/src/test/test_bitcoin" ]]; then
-  echo "auto-detected ${CORE_DIR}/src/test/test_bitcoin"
-  "${CORE_DIR}/src/test/test_bitcoin" --run_test=res_orum_tests
-  echo "PASS: res_orum_tests"
+  echo "auto-detected leftover ${CORE_DIR}/src/test/test_bitcoin (rebuild as test_rigor)"
+  "${CORE_DIR}/src/test/test_bitcoin" --run_test="${SECURITY_UNIT_SUITES}"
+  echo "PASS: ${SECURITY_UNIT_SUITES}"
 else
-  echo "skipped (no test_bitcoin). Checklist D:"
-  echo "  cd ${CORE_DIR} && ./src/test/test_bitcoin --run_test=res_orum_tests"
+  echo "skipped (no test_rigor). Checklist D:"
+  echo "  cd ${CORE_DIR} && ./src/test/test_rigor --run_test=${SECURITY_UNIT_SUITES}"
 fi
 
 echo

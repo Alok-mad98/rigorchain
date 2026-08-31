@@ -2,7 +2,7 @@
 
 **Task:** `TASK-SPEC-007`  
 **Track:** Formal Specification Program  
-**Status:** ESTABLISHED  
+**Status:** ESTABLISHED (F-3 errata 2026-08-25: map only to real Coq identifiers)  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
 **Parents:** SPEC-000 … SPEC-005  
 **Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015`  
@@ -102,30 +102,34 @@ report is treated as consensus truth.
 ## 3. Consensus Mapping
 
 Consensus objectives from [SPEC-000](./SPEC-000-CONSENSUS-SPECIFICATION.md) map to
-formal predicates, Coq theorem families, and runtime evidence layers.
+**real** Coq identifiers in the protocol-core cone
+(`formal_verification/coq/_CoqProject.protocol-core`; inventory:
+[`FORMAL_COQ_LOAD_BEARING_THEOREMS.md`](../security/FORMAL_COQ_LOAD_BEARING_THEOREMS.md)).
+Invented family names are not a mapping. Citable theorems are protocol-core only;
+Phase-4F/4G/5 catalogs are paperwork.
 
-| Spec objective | Formal consensus predicate | Coq theorem family | Runtime evidence |
-|----------------|---------------------------|-------------------|------------------|
-| **CO-1** Chain validity | `ValidChain` — well-formed active chain from genesis; max chainwork | `chain_validity_theorems` (`Transition.v`, `ReplayReorgCore`) | Header validation trace; chain tip witness |
-| **CO-2** Deterministic block acceptance | `ValidBlock(S, B)` — total accept/reject function | `determinism_theorems` (`Determinism.v`, `Execution.v`) | Per-block validation trace; no disagreement vectors |
-| **CO-3** Deterministic state transition | `Transition(S, B)` — unique successor | `state_transition_theorems` (`Transition.v`, `State.v`) | Supply witness step; state encoding obligations |
-| **CO-4** Supply integrity | `ValidSupplyUpdate` — ORU/RES laws hold | `supply_integrity_theorems` (`State.v`, `Properties.v`) | Runtime supply witness; invariant checker (FVR-E) |
-| **CO-5** Replay determinism | `Replay(B₁..h) = S(h)` — platform-independent | `replay_determinism_theorems` (`ReplayStateEncodingTheorem`, `ReplayEquivalence`) | Witness chain replay (FVR-F); golden vectors |
-| **CO-6** Reorg determinism | `Reorg(Σ) = Sequential(Σ)` | `reorg_consistency_theorems` (`ReorgStateEncodingTheorem`, `ReplayReorgCore`) | Reorg witness invalidation; replay snapshots |
-| **CO-7** Protocol freeze preservation | `FrozenParamsValid` — RFC-014/015 semantics only | `freeze_preservation_theorems` (`AntiEquivalenceSafety`, catalog audits) | Phase-5 summary freeze link (FVR-N) |
+| Spec objective | Coq identifiers (protocol-core) | Status |
+|----------------|-------------------------------|--------|
+| **CO-1** Chain validity / max chainwork | — | **NOT VERIFIED.** No chainwork / heaviest-chain theorem. |
+| **CO-2** Deterministic block acceptance | `Replay_Determinism`; `supply_deterministic` | **Partial.** Model `apply_block` only; not C++ `ConnectBlock`. |
+| **CO-3** Deterministic state transition | `apply_block`; `rollback_restores_previous_state` | **Partial.** Replay model. |
+| **CO-4** Supply integrity | `max_issuance_within_cap`; `cap_overshoot_rejects_apply_block`; `apply_block_res_net_bounded_by_scheduled_mints`; `oru_supply_bounded_by_block_count` | **Model.** Not a UTXO-set equality proof. |
+| **CO-5** Replay determinism | `Replay_Determinism`; `supply_deterministic` | **Model.** Finite golden vectors are a differential gate, not this theorem. |
+| **CO-6** Reorg determinism | `rollback_restores_previous_state`; DualPool rollback lemmas in `DualPoolConservation.v` | **Model.** |
+| **CO-7** Protocol freeze preservation | `p5_phase5_paperwork_recorded` (catalog flag) | **NOT VERIFIED** as freeze authority. Catalogs record status; they do not prove RFC freeze. |
 
-**Example trace (CO-1):**
+**Example (CO-4, real path):**
 
 ```
-CO-1 Chain Validity
-    → ValidChain predicate (CONSENSUS_TRANSITION_SYSTEM)
-    → chain_validity_theorems
-    → runtime witness chain (header + tip observability)
+CO-4 Supply integrity
+    → max_issuance_within_cap / cap_overshoot_rejects_apply_block (ResSchedule / ResMintObligation)
+    → apply_block_res_net_bounded_by_scheduled_mints (DualPoolConservation)
+    → runtime: ConnectBlock reject + unit suites (not Coq)
 ```
 
 Consensus rules (CR-*) from [SPEC-003](./SPEC-003-CONSENSUS-RULES.md) refine these
-predicates into layer-specific checks. Every CR-* maps to at least one CO-* and
-one formal predicate family.
+objectives. A CR-* with no row above is **NOT VERIFIED** in Coq until a real
+identifier is named here.
 
 ---
 
@@ -143,8 +147,8 @@ declared cross-layer mapping.
 | **UTXO** | `UTXO : OutPoint ⇀ OutputRecord` | `Coq UTXO` record / `ReplayState` UTXO fragment | UTXO diagnostic aggregates (non-authoritative cross-check) |
 | **ProtocolVersion** | Frozen rule-set identity | Version constants in `Types.v` / params records | Not directly exported; implied by accepted block semantics |
 | **FrozenParameters** | Immutable constant bundle | `RES_PROBABILITY_TARGET`, caps, gates in `Selection.v` / params | `res_max_supply`, `res_reward_amount` in mirror (read-only constants) |
-| **DrawContext** | `(F, C, H_i, eligible, winner, bind_commit)` | `Selection.v`, `Sigma.v`, `ConvergeRoot.v` | Draw fields in candidate exports; **draw closure IMPOSSIBLE** (FVR-M) |
-| **PoWContext** | ASERT difficulty state | `PoWState` / header validation fragment | Header validation observability; `nBits` not used as draw RHS |
+| **DrawContext** | `(F, C, H_i, eligible, winner, B_{h-1})` | `Selection.v`, `Sigma.v`, `ConvergeRoot.v`; `convergence_root_order_independent`; `select_winner_order_independent` | Draw fields in candidate exports; **draw closure IMPOSSIBLE** (FVR-M). Lists are given, not constructed from the UTXO set. Historical `bind_commit` is superseded (Sigma-PoW-01). |
+| **PoWContext** | ASERT difficulty state | **Does not exist in Coq.** No PoW / ASERT / `CheckProofOfWork` module. | C++ `pow_tests` is a **security unit gate**, not an FV gate. `nBits` is not a draw RHS. **NOT VERIFIED.** |
 
 **Observational boundary:** Only `S_ORU`, `S_RES`, and height/hash linkage have
 active Phase-5 witness mapping. UTXO and DrawContext runtime mapping is
@@ -166,7 +170,7 @@ S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 |-------|----------------|
 | **Specification** | CI-021, CR-030..CR-033 |
 | **Formal model** | `RIGOR_FORMAL_STATE_MODEL` supply recurrence; `CONSENSUS_TRANSITION_SYSTEM` §7 |
-| **Coq** | `cb_oru_subsidy`, `cb_oru_burn_delta` (formal field name; product term: converge sum); `rs_oru_supply` step theorems (`THM-05` family) |
+| **Coq** | `cb_oru_subsidy`, `cb_oru_mint_delta`; `rs_oru_supply`; `oru_supply_bounded_by_block_count`. Converge-sum burn is a C++ / witness field, not a Coq mint-delta identifier. |
 | **Runtime witness** | `oru_subsidy_block`, `oru_converge_burn_block` (runtime key; product term: converge sum), `oru_supply_cumulative`; FVR-E ORU-L* checks |
 
 ### 5.2 RES recurrence
@@ -179,63 +183,64 @@ S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
 |-------|----------------|
 | **Specification** | CI-022, CI-024, CR-043..CR-045 |
 | **Formal model** | `S_RES` recurrence; `M(h) ∈ {0,1}` |
-| **Coq** | `cb_res_mint_delta`, `rs_res_supply`, `res_mint_count_M_h`; `THM-05` / cap theorems |
+| **Coq** | `cb_res_mint_delta`, `rs_res_supply`; `max_issuance_within_cap`; `cap_overshoot_rejects_apply_block`; `apply_block_res_net_bounded_by_scheduled_mints` |
 | **Runtime witness** | `res_mint_block`, `res_mint_cumulative`, `res_mint_count_block`; FVR-E RES-L* checks |
 
-**Known mapping gap:** `cb_oru_burn_delta` ↔ `C(h)` Coq field alignment is
-**PARTIAL** (documented in Phase-5 catalogs). Does not affect consensus authority.
+**Known mapping gap:** Coq has `cb_oru_mint_delta` (subsidy step). The product
+converge-sum `C(h)` alignment is **PARTIAL** (Phase-5 catalogs). Does not
+affect consensus authority.
 
 ---
 
 ## 6. Invariant Mapping
 
-Every CI-* from [SPEC-005](./SPEC-005-CONSENSUS-INVARIANTS.md) maps to a Coq
-theorem family. No proofs are claimed here — only obligation routing.
+Every CI-* from [SPEC-005](./SPEC-005-CONSENSUS-INVARIANTS.md) maps to a **real**
+Coq identifier or is marked **NOT VERIFIED**. No proofs of C++ are claimed.
 
 ### 6.1 CI-CONSENSUS
 
-| Invariant | Theorem family |
-|-----------|----------------|
-| CI-001 Chain continuity | `chain_continuity_theorems` |
-| CI-002 Single active chain | `fork_choice_theorems` |
-| CI-003 Deterministic validation | `determinism_theorems` |
+| Invariant | Coq identifier | Status |
+|-----------|----------------|--------|
+| CI-001 Chain continuity | — | **NOT VERIFIED** |
+| CI-002 Single active chain | — | **NOT VERIFIED** (no fork-choice development) |
+| CI-003 Deterministic validation | `Replay_Determinism`; `supply_deterministic` | Model `apply_block` only |
 
 ### 6.2 CI-STATE
 
-| Invariant | Theorem family |
-|-----------|----------------|
-| CI-010 UTXO consistency | `utxo_existence_theorems` |
-| CI-011 No double spend | `utxo_uniqueness_theorems` |
-| CI-012 Deterministic state transition | `state_transition_theorems` |
-| CI-013 Replay equivalence | `replay_determinism_theorems` |
-| CI-014 Reorg consistency | `reorg_consistency_theorems` |
+| Invariant | Coq identifier | Status |
+|-----------|----------------|--------|
+| CI-010 UTXO consistency | `utxo_spend_removes_output`; `utxo_create_adds_output` | Model UTXO fragment |
+| CI-011 No double spend | `utxo_spend_removes_output` | Model |
+| CI-012 Deterministic state transition | `apply_block`; `supply_deterministic` | Model |
+| CI-013 Replay equivalence | `Replay_Determinism` | Model; `equivalence_claimed = false` vs C++ |
+| CI-014 Reorg consistency | `rollback_restores_previous_state` | Model |
 
 ### 6.3 CI-ECONOMIC
 
-| Invariant | Theorem family |
-|-----------|----------------|
-| CI-020 ORU supply non-negativity | `oru_nonnegativity_theorems` |
-| CI-021 ORU recurrence preservation | `oru_supply_equation_theorems` (`THM-05`) |
-| CI-022 RES recurrence preservation | `res_supply_equation_theorems` |
-| CI-023 RES supply cap | `res_cap_theorems` (`THM-04` family) |
-| CI-024 Single RES mint | `single_mint_theorems` |
+| Invariant | Coq identifier | Status |
+|-----------|----------------|--------|
+| CI-020 ORU supply non-negativity | `oru_supply_bounded_by_block_count` | Bound on the model scalar, not a full recurrence |
+| CI-021 ORU recurrence preservation | `oru_supply_bounded_by_block_count` | **Partial.** Not a closed `S_ORU(h+1)` identity vs C++ |
+| CI-022 RES recurrence preservation | `apply_block_res_net_bounded_by_scheduled_mints` | Model net bound |
+| CI-023 RES supply cap | `max_issuance_within_cap`; `cap_overshoot_rejects_apply_block` | Model; C++ ConnectBlock also rejects |
+| CI-024 Single RES mint | `obligation_at_most_one_mint` | Model count. Production extra-mint reject: `res_proof_math_tests`. ConnectBlock winner-must-mint (`bad-rigor-res-winner-mismatch`) is `feature_rigor_convergence_rng_consensus.py`, not the mint evaluator. |
 
 ### 6.4 CI-DRAW
 
-| Invariant | Theorem family |
-|-----------|----------------|
-| CI-030 Draw determinism | `draw_determinism_theorems` (`THM-03`) |
-| CI-031 Single winner | `selection_uniqueness_theorems` (`THM-02`) |
-| CI-032 Draw independent of PoW | `freeze_target_theorems` (RFC-014) |
-| CI-033 Valid mint requires valid draw | `draw_mint_coherence_theorems` |
+| Invariant | Coq identifier | Status |
+|-----------|----------------|--------|
+| CI-030 Draw determinism | `select_winner_order_independent`; `convergence_root_order_independent` | Candidate **list already in hand** |
+| CI-031 Single winner | `select_winner_order_independent` | Same bound |
+| CI-032 Draw independent of PoW | Selection uses constant `RES_PROBABILITY_TARGET` | **Partial.** Not a PoW theorem |
+| CI-033 Valid mint requires valid draw | `we_do_not_claim_ci033_mint_authorization` | **NOT VERIFIED.** `winner_must_mint` quantifies over abstract `cm_draw_won`. Production mint auth is C++ (`ConnectEvaluateCoinbaseResMint` / `res_proof_math_tests`). |
 
 ### 6.5 CI-FREEZE
 
-| Invariant | Theorem family |
-|-----------|----------------|
-| CI-040 Frozen parameter preservation | `parameter_freeze_theorems` |
-| CI-041 Monetary policy preservation | `monetary_policy_theorems` |
-| CI-042 Protocol freeze preservation | `protocol_freeze_theorems` (`AntiEquivalenceSafety`) |
+| Invariant | Coq identifier | Status |
+|-----------|----------------|--------|
+| CI-040 Frozen parameter preservation | `p5_phase5_paperwork_recorded` | Paperwork catalog; **NOT VERIFIED** as a freeze proof |
+| CI-041 Monetary policy preservation | `max_issuance_within_cap` | Schedule/cap in the model |
+| CI-042 Protocol freeze preservation | `p5_phase5_paperwork_recorded`; `CS_ArtifactsConsolidated` | Catalog / certification paperwork; not C++ freeze authority |
 
 ---
 
@@ -247,7 +252,7 @@ and assumptions.
 | Anchor | Formal oracle / assumption | Formalizable? | Notes |
 |--------|---------------------------|---------------|-------|
 | **TA-HASH** | Hash oracle (`Hash256` / `RigorSha256`) | **PARTIAL** | Determinism: vector-backed. FIPS equivalence: open (A-4) |
-| **TA-POW** | PoW oracle (`ExpandCompact`, work comparison) | **PARTIAL** | Spec-defined; ASERT alignment partial |
+| **TA-POW** | PoW oracle (`ExpandCompact`, work comparison) | **NO** (Coq) | **NOT VERIFIED.** No Coq PoW development. Security gate: C++ `pow_tests`. |
 | **TA-CLOCK** | Clock assumption (MTP + forward bound δ) | **YES** | Chain-derived; δ frozen in RFC-005 |
 | **TA-NET** | Network assumption (semi-synchronous delivery) | **NO** | Liveness only; out of consensus validity proofs |
 | **TA-STORAGE** | Persistence assumption (durable block/UTXO store) | **NO** | Operational; replay detects corruption |
@@ -384,3 +389,4 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-06-05 | `TASK-SPEC-007` — initial runtime/formal mapping specification |
+| 0.2 | 2026-08-25 | F-3 (P0-016): replace nonexistent Coq families with protocol-core identifiers; mark CO-1 / PoW / CI-033 **NOT VERIFIED** |

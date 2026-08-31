@@ -1,0 +1,81 @@
+{
+  "task": "TASK-RIGOR-GENESIS-CONSENSUS-FREEZE-AND-RELEASE-INTEGRITY-P0-074",
+  "date": "2026-08-31",
+  "GENESIS_CONSENSUS_FREEZE": "CLOSED",
+  "SINGLE_CONSENSUS_AUTHORITY": true,
+  "CONSENSUS_KERNEL_GENESIS_AUTHORITY": "FINALIZED",
+  "PRODUCTION_KERNEL_SWITCHED": true,
+  "MAINNET_READY": true,
+  "mainnet_launched": false,
+  "legacy_compatibility_required": false,
+  "protocol_version": {
+    "consensus_lock": 2,
+    "serialization_protocol_version": 70016,
+    "note": "Freeze keys off RIGOR_CONSENSUS_LOCK_VERSION, not P2P PROTOCOL_VERSION"
+  },
+  "genesis_parameters": {
+    "height_0_oru_subsidy": 0,
+    "height_0_res_actual": 0,
+    "height_0_res_schedule": 40000000,
+    "nCoinbaseMaturity": 100,
+    "halving_interval": 210000,
+    "draw_at_genesis": "none"
+  },
+  "kernel_entrypoint": "RigorConsensusKernel",
+  "kernel_file": "core/src/consensus/kernel/genesis_authority.cpp",
+  "consensus_authority": {
+    "kernel": "RigorConsensusKernel",
+    "issuance": "GetBlockSubsidy",
+    "res": "GetResMintReward",
+    "maturity": "RigorConsensusKernel::CoinbaseMature",
+    "draw": "ResolveConvergenceDraw",
+    "classify": "ClassifyRigorTxout",
+    "spend": "VerifyRigorPredicate",
+    "supply": "RigorSupplyDelta",
+    "ledger": "LedgerApply",
+    "pow_boundary": "CheckProofOfWork"
+  },
+  "authority_table": {
+    "GetBlockSubsidy": "core/src/consensus/rigor_issuance.cpp",
+    "GetResMintReward": "core/src/consensus/rigor_consensus_lock.h",
+    "ResolveConvergenceDraw": "core/src/consensus/convergence_logic.cpp",
+    "ClassifyRigorTxout": "core/src/script/rigor_classify.cpp",
+    "VerifyRigorPredicate": "core/src/script/predicate_verify.cpp",
+    "RigorSupplyDelta": "core/src/consensus/rigor_supply.cpp",
+    "LedgerApply": "core/src/consensus/ledger/ledger_transition.cpp",
+    "CheckProofOfWork": "core/src/pow.cpp"
+  },
+  "refinement_status": {
+    "refinement_proved": true,
+    "equivalence_proved": false,
+    "coq_admitted": 0,
+    "coq_axioms": 0,
+    "coq_parameters": 0
+  },
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "coq_admitted": 0,
+  "coq_axioms": 0,
+  "coq_parameters": 0,
+  "golden_vectors_file": "formal_verification/phase3_golden_vectors.json",
+  "golden_vectors_hash": "abb478232284c145750398a2522dc12fb66aabc4d17369ec90ae23709bb7de05",
+  "forbidden_duplicate_paths": [
+    "second GetBlockSubsidy body",
+    "second GetResMintReward body",
+    "second ResolveConvergenceDraw body",
+    "second ClassifyRigorTxout body",
+    "second RigorSupplyDelta body",
+    "ConnectBlock bypass of RigorConsensusKernel",
+    "OCaml runtime in production",
+    "extracted oracle in production",
+    "shadow executor in production",
+    "canary executor in production",
+    "migration adapter in production"
+  ],
+  "not_claimed": [
+    "full node equivalence",
+    "CompCert proof",
+    "VST proof",
+    "network proof"
+  ]
+}

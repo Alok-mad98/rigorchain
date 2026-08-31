@@ -15,7 +15,7 @@
 #include <primitives/transaction.h>
 #include <consensus/tx_check.h>
 #include <consensus/res_proof.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <util/check.h>
@@ -35,7 +35,7 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
     // transaction is still considered final if all inputs' nSequence ==
     // SEQUENCE_FINAL (0xffffffff), in which case nLockTime is ignored.
     //
-    // Because of this behavior OP_CHECKLOCKTIMEVERIFY/CheckLockTime() will
+    // Because of this behavior RIGOR_RESERVED_LEGACY_CLTV/CheckLockTime() will
     // also check that the spending input's nSequence != SEQUENCE_FINAL,
     // ensuring that an unsatisfied nLockTime value will actually cause
     // IsFinalTx() to return false here:
@@ -125,31 +125,20 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>& prevHeig
 
 unsigned int GetLegacySigOpCount(const CTransaction& tx)
 {
+    // RIGOR: cost is one per live spendable lock being created. Coinbase
+    // scriptSig bytes and Bitcoin CHECKSIG/CHECKMULTISIG are not counted.
     unsigned int nSigOps = 0;
-    for (const auto& txin : tx.vin)
-    {
-        nSigOps += txin.scriptSig.GetSigOpCount(false);
-    }
-    for (const auto& txout : tx.vout)
-    {
-        nSigOps += txout.scriptPubKey.GetSigOpCount(false);
-    }
-    return nSigOps;
-}
-
-unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& inputs)
-{
-    if (tx.IsCoinBase())
-        return 0;
-
-    unsigned int nSigOps = 0;
-    for (unsigned int i = 0; i < tx.vin.size(); i++)
-    {
-        const Coin& coin = inputs.AccessCoin(tx.vin[i].prevout);
-        assert(!coin.IsSpent());
-        const CTxOut &prevout = coin.out;
-        if (prevout.scriptPubKey.IsPayToScriptHash())
-            nSigOps += prevout.scriptPubKey.GetSigOpCount(tx.vin[i].scriptSig);
+    for (const auto& txout : tx.vout) {
+        std::vector<std::vector<unsigned char>> sols;
+        switch (ClassifyRigorTxout(txout.scriptPubKey, sols)) {
+        case TxoutType::WITNESS_V0_KEYHASH:
+        case TxoutType::WITNESS_V1_RES:
+        case TxoutType::RES_MINT:
+            ++nSigOps;
+            break;
+        default:
+            break;
+        }
     }
     return nSigOps;
 }
@@ -160,10 +149,6 @@ int64_t GetTransactionSigOpCost(const CTransaction& tx, const CCoinsViewCache& i
 
     if (tx.IsCoinBase())
         return nSigOps;
-
-    if (flags & SCRIPT_VERIFY_P2SH) {
-        nSigOps += GetP2SHSigOpCount(tx, inputs) * WITNESS_SCALE_FACTOR;
-    }
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
@@ -189,14 +174,16 @@ bool AccumulateTxInputPools(const CTransaction& tx, TxValidationState& state, co
     pools = {};
     for (const CTxIn& txin : tx.vin) {
         const Coin& coin = inputs.AccessCoin(txin.prevout);
-        assert(!coin.IsSpent());
+        if (coin.IsSpent()) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputs-missingorspent");
+        }
 
         if (IsConvergenceScript(coin.out.scriptPubKey)) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-spend-convergence");
         }
 
         const AssetType in_asset = AssetTypeFromScriptPubKey(coin.out.scriptPubKey);
-        if (in_asset == ASSET_NONE) {
+        if (in_asset == ASSET_NONE || in_asset == ASSET_INVALID) {
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-spend-non-asset-input");
         }
 
@@ -212,21 +199,23 @@ bool AccumulateTxInputPools(const CTransaction& tx, TxValidationState& state, co
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
 
+        // Check before adding, per pool: a post-hoc MoneyRange on the running total
+        // evaluates the overflowing addition first. See AddMoneyOverflows.
         if (in_asset == ASSET_ORU) {
+            if (AddMoneyOverflows(pools.oru_in, coin.out.nValue)) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
+            }
             pools.oru_in += coin.out.nValue;
+        } else if (in_asset != ASSET_RES) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-spend-non-asset-input");
         } else {
-            // ASSET_NONE was rejected above, so RES is the only remaining case. Asserting it
-            // rather than testing it keeps a future asset class from silently contributing to
-            // neither pool, which would read as free value on the fee equation.
-            assert(in_asset == ASSET_RES);
             if (!IsValidResConsensusAmount(coin.out.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-input-invalid");
             }
+            if (AddMoneyOverflows(pools.res_in, coin.out.nValue)) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
+            }
             pools.res_in += coin.out.nValue;
-        }
-
-        if (!MoneyRange(pools.oru_in) || !MoneyRange(pools.res_in)) {
-            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-inputvalues-outofrange");
         }
     }
     return true;
@@ -376,6 +365,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     const bool has_oru_in = pools.oru_in > 0;
 
     for (const auto& out : tx.vout) {
+        if (IsPcorbCarrierScript(out.scriptPubKey) || IsPcorbCarrierOutput(out)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-pcorb-carrier");
+        }
         if (IsConvergenceScript(out.scriptPubKey)) {
             if (has_res_in || *semantic_domain != ASSET_ORU) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "convergence-must-be-orum");
@@ -384,6 +376,9 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
 
         const AssetType out_asset = AssetTypeFromScriptPubKey(out.scriptPubKey);
+        if (out_asset == ASSET_INVALID) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-script-type");
+        }
         if (out_asset == ASSET_NONE) {
             continue;
         }
@@ -421,22 +416,6 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
     Assert(pools.oru_in >= oru_outputs);
     Assert(txfee == pools.oru_in - oru_outputs);
     return true;
-}
-
-bool IsORBMintTx(const CTransaction& tx, const CCoinsViewCache& inputs)
-{
-    bool has_orb_output = false;
-    for (const auto& out : tx.vout) {
-        if (IsResScript(out.scriptPubKey)) {
-            has_orb_output = true;
-            break;
-        }
-    }
-    if (!has_orb_output) return false;
-
-    const std::optional<AssetType> input_asset = Consensus::GetTransactionInputAsset(tx, inputs);
-    if (!input_asset.has_value()) return false;
-    return *input_asset == ASSET_ORU;
 }
 
 bool IsORBClaimTx(const CTransaction& tx, const CCoinsViewCache& inputs)

@@ -228,7 +228,7 @@ class RESConsensusCorrectnessSuiteTest(BitcoinTestFramework):
 
         if exp_winner is not None:
             assert_greater_than_or_equal(int(fr["convergence_root_set_size"]), 1)
-            assert len(res_mint_rows) == 1, f"[{label}] exactly one coinbase OP_RES_MINT"
+            assert len(res_mint_rows) == 1, f"[{label}] exactly one coinbase RIGOR_MARKER_RES_MINT"
             mint_txid, mint_atoms = res_mint_rows[0]
             assert mint_atoms == RES_REWARD_ATOMS, f"[{label}] RES mint atoms"
             assert (
@@ -236,7 +236,7 @@ class RESConsensusCorrectnessSuiteTest(BitcoinTestFramework):
             ), f"[{label}] payout coinbase must pay the parent-draw winner"
             assert_equal(hdr.get("rigor_res_minted"), 1)
         else:
-            assert res_mint_rows == [], f"[{label}] no phantom coinbase OP_RES_MINT"
+            assert res_mint_rows == [], f"[{label}] no phantom coinbase RIGOR_MARKER_RES_MINT"
             assert_equal(hdr.get("rigor_res_minted"), 0)
 
     def run_test(self):

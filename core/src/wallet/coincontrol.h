@@ -64,7 +64,7 @@ public:
     //! Network fee (POOL-F) is always ORU; never set this to infer fee asset.
     std::optional<AssetType> m_asset_type;
 
-    CCoinControl();
+    CCoinControl() = default;
 
     bool HasSelected() const
     {

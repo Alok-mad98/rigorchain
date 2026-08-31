@@ -115,12 +115,12 @@ protected:
      * Map of script id to scripts known by the signing provider.
      *
      * This map originally just held P2SH redeemScripts, and was used by wallet
-     * code to look up script ids referenced in "OP_HASH160 <script id>
-     * OP_EQUAL" P2SH outputs. Later in 605e8473a7d it was extended to hold
+     * code to look up script ids referenced in "RIGOR_RESERVED_LEGACY_HASH160 <script id>
+     * RIGOR_RESERVED_LEGACY_EQUAL" P2SH outputs. Later in 605e8473a7d it was extended to hold
      * P2WSH witnessScripts as well, and used to look up nested scripts
-     * referenced in "OP_0 <script hash>" P2WSH outputs. Later in commits
+     * referenced in "RIGOR_PUSH_0 <script hash>" P2WSH outputs. Later in commits
      * f4691ab3a9d and 248f3a76a82, it was extended once again to hold segwit
-     * "OP_0 <key or script hash>" scriptPubKeys, in order to give the wallet a
+     * "RIGOR_PUSH_0 <key or script hash>" scriptPubKeys, in order to give the wallet a
      * way to distinguish between segwit outputs that it generated addresses for
      * and wanted to receive payments from, and segwit outputs that it never
      * generated addresses for, but it could spend just because of having keys.

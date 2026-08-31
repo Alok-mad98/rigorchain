@@ -6,9 +6,10 @@
 
 #include <consensus/amount.h>
 #include <consensus/res_amount.h>
+#include <consensus/res_proof.h>
 #include <primitives/transaction.h>
 #include <consensus/validation.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/rigor_tags.h>
 #include <script/standard.h>
 
@@ -17,50 +18,22 @@
 namespace Consensus {
 
 /**
- * RIGOR consensus: Only witness v0 (ORU) and witness v1 with 32-byte program (RES) are allowed.
- * All other script types (P2PKH, P2SH, bare multisig, Taproot with control block, etc.) are rejected.
- * This is enforced at consensus level - parsing layer remains compatible for historical data.
+ * RIGOR consensus: Only witness v0 P2WPKH (ORU), witness v1 32-byte RES,
+ * RIGOR_MARKER_RES_MINT, and RIGOR_MARKER_CONVERGE are allowed. P2WSH and all other script types
+ * are rejected.
  */
 bool IsAllowedScript(const CScript& scriptPubKey)
 {
-    if (IsResMintScript(scriptPubKey))
-        return true;
-    if (IsConvergeScript(scriptPubKey))
-        return true;
-
-    int version;
-    std::vector<unsigned char> program;
-
-    if (!scriptPubKey.IsWitnessProgram(version, program))
-        return false;
-
-    if (version == 0) {
-        return program.size() == WITNESS_V0_KEYHASH_SIZE ||
-               program.size() == WITNESS_V0_SCRIPTHASH_SIZE;
-    }
-
-    // Witness v1 / 32-byte is native RES only. Retired CVG2 and the 28-byte-binding
-    // RES2 prefix are not legal programs (RIG-13: native v1 binds the full 32-byte pubkey).
-    if (version == 1 && program.size() == 32) {
-        if (program.size() >= RigorTags::CVG2.size() &&
-            std::equal(RigorTags::CVG2.begin(), RigorTags::CVG2.end(), program.begin())) {
-            return false;
-        }
-        if (IsRes2AssetProgram(program)) {
-            return false;
-        }
-        return true;
-    }
-
-    return false;
+    const AssetType a = AssetTypeFromScriptPubKey(scriptPubKey);
+    return a == ASSET_ORU || a == ASSET_RES;
 }
 
 bool CheckTxOutAssetWitnessBinding(const CTxOut& out, TxValidationState& state)
 {
     std::vector<std::vector<unsigned char>> sols;
     const TxoutType t = ClassifyRigorTxout(out.scriptPubKey, sols);
-    // Only witness v0, witness v1 (RES), or OP_RETURN are valid chain outputs on RigorChain.
-    if (t != TxoutType::WITNESS_V0_KEYHASH && t != TxoutType::WITNESS_V0_SCRIPTHASH &&
+    // Only witness v0, witness v1 (RES), or RIGOR_MARKER_RETURN are valid chain outputs on RigorChain.
+    if (t != TxoutType::WITNESS_V0_KEYHASH &&
         t != TxoutType::WITNESS_V1_RES && t != TxoutType::RES_MINT && t != TxoutType::CONVERGE &&
         t != TxoutType::NULL_DATA) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-asset-script-nonstandard");
@@ -90,11 +63,14 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
     CAmount res_out_total = 0;
     for (const auto& txout : tx.vout)
     {
-        // Prunable / unspendable outputs (OP_RETURN commitments, e.g. CVGE) are not witness programs;
+        // Prunable / unspendable outputs (RIGOR_MARKER_RETURN commitments, e.g. CVGE) are not witness programs;
         // they are allowed at nValue==0 only. Must precede IsAllowedScript.
         if (txout.scriptPubKey.IsUnspendable()) {
             if (txout.nValue != 0) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-opreturn-value");
+            }
+            if (Consensus::IsPcorbCarrierScript(txout.scriptPubKey)) {
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-pcorb-carrier");
             }
             if (!Consensus::CheckTxOutAssetWitnessBinding(txout, state)) {
                 return false;
@@ -116,6 +92,9 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
         if (txout.nValue > MAX_MONEY)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vout-toolarge");
         const AssetType out_asset = AssetTypeFromScriptPubKey(txout.scriptPubKey);
+        if (out_asset == ASSET_INVALID) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-script-type");
+        }
         if (out_asset == ASSET_NONE) {
             if (txout.nValue != 0) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-opreturn-value");
@@ -123,20 +102,24 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
             continue;
         }
         if (out_asset == ASSET_ORU) {
-            oru_out_total += txout.nValue;
-            if (!MoneyRange(oru_out_total))
+            // Check before adding: `total += v` on two in-range amounts is only safe
+            // because MAX_MONEY leaves int64 headroom, and relying on that is how
+            // CVE-2010-5139 was reintroduced downstream. See AddMoneyOverflows.
+            if (AddMoneyOverflows(oru_out_total, txout.nValue))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
-        } else {
+            oru_out_total += txout.nValue;
+        } else if (out_asset == ASSET_RES) {
             if (!IsValidResConsensusAmount(txout.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-amount-invalid");
             }
-            // RES outputs must meet RES_ATOMIC_UNIT (1) granularity (res_amount.h).
             if (!IsValidResOutputValue(txout.nValue)) {
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-output-nonpositive");
             }
-            res_out_total += txout.nValue;
-            if (!MoneyRange(res_out_total))
+            if (AddMoneyOverflows(res_out_total, txout.nValue))
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-txouttotal-toolarge");
+            res_out_total += txout.nValue;
+        } else {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-rigor-script-type");
         }
     }
 

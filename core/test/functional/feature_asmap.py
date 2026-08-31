@@ -47,10 +47,10 @@ class AsmapTest(BitcoinTestFramework):
             self.nodes[node_id].addpeeraddress(address=f"101.{addr}.0.0", tried=tried, port=8333)
 
     def test_without_asmap_arg(self):
-        self.log.info('Test bitcoind with no -asmap arg passed')
+        self.log.info('Test bitcoind with asmap disabled (testdir asmap=0 / -noasmap)')
         self.stop_node(0)
         with self.node.assert_debug_log(['Using /16 prefix for IP bucketing']):
-            self.start_node(0)
+            self.start_node(0, extra_args=['-noasmap'])
 
     def test_asmap_with_absolute_path(self):
         self.log.info('Test bitcoind -asmap=<absolute path>')

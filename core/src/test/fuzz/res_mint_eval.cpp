@@ -50,19 +50,19 @@ COutPoint g_res_prevout;
 
 CScript ResSpkFromProgram(const std::vector<unsigned char>& program32)
 {
-    return CScript() << OP_1 << program32;
+    return CScript() << RIGOR_PUSH_1 << program32;
 }
 
 CScript HonestMintSpk()
 {
-    return GetResMintScriptForProgram(
+    return GetResMintScriptForPubKey(
         static_cast<int64_t>(kPayoutHeight) + Params().GetConsensus().nCoinbaseMaturity,
         g_owner_program);
 }
 
 CScript OruSpk()
 {
-    return CScript() << OP_0 << std::vector<unsigned char>(20, 0x11);
+    return CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
 }
 
 std::vector<unsigned char> MakeResProgram(uint8_t fill)

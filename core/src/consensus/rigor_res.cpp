@@ -11,7 +11,7 @@
 // rules WILL cause a consensus fork. Do not change without a full protocol upgrade.
 // =============================================================================
 //
-// The coinbase OP_RES_MINT is issuance. F is the window C committed in the parent
+// The coinbase RIGOR_MARKER_RES_MINT is issuance. F is the window C committed in the parent
 // coinbase scriptSig. There is no second on-chain restatement of the winner (no PCORB).
 //
 // **CONVERGENCEROOT DEFINES F. POW COMMITS CONVERGENCEROOT. MINT PAYS THE RESOLVED WINNER.**
@@ -23,7 +23,7 @@
 #include <consensus/tx_verify.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 
 #include <algorithm>
@@ -45,7 +45,7 @@ bool ConnectEvaluateCoinbaseResMint(const CTransaction& coinbase,
     }
 
     // The coinbase legitimately carries other RES: the RES fee output and, on mockable chains, the
-    // bootstrap. Those are witness v1 RES, never OP_RES_MINT, so the mint payout is identified by
+    // bootstrap. Those are witness v1 RES, never RIGOR_MARKER_RES_MINT, so the mint payout is identified by
     // its lock and not by "some RES output".
     const CTxOut* payout = nullptr;
     for (const CTxOut& o : coinbase.vout) {

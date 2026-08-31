@@ -51,11 +51,10 @@ export function classifyTxKind(args: {
   hasRes?: boolean;
   isResMint?: boolean;
 }): TxKind {
-  if (args.isCoinbase) return "coinbase";
   if (args.isResMint) return "res_mint";
+  if (args.isCoinbase) return "coinbase";
   if (args.primaryRole === "convergence_lock") return "convergence_lock";
   if (args.hasOru) return "oru_transfer";
-  if (args.hasRes) return "res_mint";
   return "other";
 }
 

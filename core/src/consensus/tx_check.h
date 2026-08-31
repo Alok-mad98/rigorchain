@@ -19,13 +19,13 @@ class CTxOut;
 class TxValidationState;
 
 namespace Consensus {
-/** Enforce ORU ↔ witness v0 / legacy, RES ↔ witness v1 (32-byte program); reject unknown witness versions. */
+/** Enforce allowed script forms via ClassifyRigorTxout (script-as-asset). */
 [[nodiscard]] bool CheckTxOutAssetWitnessBinding(const CTxOut& out, TxValidationState& state);
 
 /**
- * RIGOR consensus: Only witness v0 (ORU) and witness v1 with 32-byte program (RES) are allowed.
- * All other script types (P2PKH, P2SH, bare multisig, Taproot with control block, etc.) are rejected.
- * This is enforced at consensus level - parsing layer remains compatible for historical data.
+ * RIGOR consensus: only witness v0/20 (ORU), native witness v1/32 (RES),
+ * RIGOR_MARKER_RES_MINT, and RIGOR_MARKER_CONVERGE are allowed. P2PKH, P2SH, P2WSH, CVG2, RES2,
+ * and unknown scripts are rejected. No historical compatibility path.
  */
 [[nodiscard]] bool IsAllowedScript(const CScript& scriptPubKey);
 } // namespace Consensus

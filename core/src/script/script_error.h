@@ -86,6 +86,9 @@ typedef enum ScriptError_t
 
     SCRIPT_ERR_CONVERGE_UNSPENDABLE,
 
+    /** scriptPubKey is not a RIGOR consensus lock (witness v0 P2WPKH, v1 RES, or RIGOR_MARKER_RES_MINT). */
+    SCRIPT_ERR_RIGOR_SCRIPT_TYPE,
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 

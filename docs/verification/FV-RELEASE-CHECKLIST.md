@@ -29,14 +29,14 @@ bash formal_verification/scripts/run_fv_release_checklist.sh
 That runs, in order:
 
 1. `check_freeze_artifacts.sh` — key files present; honesty flags false; CURRENT_STATE still cites 414/207 (RC0) and 422/215 (living).
-2. `SKIP_TEST_BITCOIN=1 run_differential_gate.sh` — Python oracle, generated-artifact freshness, **`check_golden_lock.py` (gate step 2b)**, tripartite hash, production σ/root CLI.
+2. `SKIP_TEST_RIGOR=1 run_differential_gate.sh` — Python oracle, generated-artifact freshness, **`check_golden_lock.py` (gate step 2b)**, tripartite hash, production σ/root CLI.
 
 A PASS line must print the three honesty flags as **false**.
 
 | Extra | Command |
 |-------|---------|
 | Coq harness (8.15.0; GoldenHarness is slow) | `FV_COQ=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
-| BOOST `test_bitcoin` if a binary exists | `FV_TEST_BITCOIN=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
+| BOOST `test_rigor` if a binary exists | `FV_TEST_RIGOR=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
 | Re-extract OCaml hash kernel | `FV_EXTRACT=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
 
 Do **not** apt-install Ubuntu `coq` for this gate. Pin **8.15.0** locally.
@@ -51,7 +51,7 @@ Do **not** apt-install Ubuntu `coq` for this gate. Pin **8.15.0** locally.
 |------|---------|-----------|
 | Freeze artifacts | `bash formal_verification/scripts/check_freeze_artifacts.sh` | `freeze artifact check: PASS` |
 | Golden lock | `python3 formal_verification/scripts/check_golden_lock.py` | `golden lock: PASS` · `vectors=422` · `Coq-enforced lemmas=215` · `honesty flags: all false` |
-| Differential gate | `SKIP_TEST_BITCOIN=1 bash formal_verification/scripts/run_differential_gate.sh` | `differential gate: PASS` and the three flags **false** |
+| Differential gate | `SKIP_TEST_RIGOR=1 bash formal_verification/scripts/run_differential_gate.sh` | `differential gate: PASS` and the three flags **false** |
 
 Lock check is already inside the gate (step 2b). Running it alone is useful after a lock bump, before a full gate.
 
@@ -141,7 +141,7 @@ Workflow: `.github/workflows/formal-verification-gate.yml`.
 | Freeze artifacts | **Yes** (via this checklist runner) | Yes |
 | Gate steps 1–4 (oracle, regen `cmp`, lock, hash CLI, σ/root CLI) | **Yes** | Yes |
 | `COQ=1` harness / GoldenHarness | **No** — Ubuntu `coq` is not 8.15.0 | Required after Coq/harness edits |
-| BOOST `test_bitcoin` | **No** (no prebuilt binary; default skips) | `FV_TEST_BITCOIN=1` when a binary exists |
+| BOOST `test_rigor` | **No** (no prebuilt binary; default skips) | `FV_TEST_RIGOR=1` when a binary exists |
 | `EXTRACT=1` | **No** | Optional |
 
 Path filter (PR/push) includes `formal_verification/**`, portable hash/σ/root C++ sources, `selection_golden_bridge.inc` / `selection_golden_tests.cpp`, STATUS/FREEZE, this checklist, `docs/formal/**`, and `GOLDEN-VECTOR-DISCREPANCIES.md`.

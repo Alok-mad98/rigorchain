@@ -1,7 +1,7 @@
 name: formal-verification-gate
 
 # Release / PR gate for the Coq ↔ Python ↔ portable-C++ draw/hash vectors.
-# Does not build bitcoind (full make stays with the operator). test_bitcoin
+# Does not build rigord (full make stays with the operator). test_rigor
 # suites run only when a prebuilt binary is present.
 
 on:
@@ -27,6 +27,9 @@ on:
       - "docs/verification/FV-RELEASE-CHECKLIST.md"
       - "docs/formal/**"
       - ".github/workflows/formal-verification-gate.yml"
+      - "docs/specification/SPEC-006-RUNTIME-FORMAL-MAPPING.md"
+      - "docs/security/HOW_TO_VERIFY_RIGOR.md"
+      - "docs/security/PRE-MAINNET-CHECKLIST.md"
   push:
     paths:
       - "formal_verification/**"
@@ -44,6 +47,9 @@ on:
       - "docs/verification/FV-RELEASE-CHECKLIST.md"
       - "docs/formal/**"
       - ".github/workflows/formal-verification-gate.yml"
+      - "docs/specification/SPEC-006-RUNTIME-FORMAL-MAPPING.md"
+      - "docs/security/HOW_TO_VERIFY_RIGOR.md"
+      - "docs/security/PRE-MAINNET-CHECKLIST.md"
 
 jobs:
   python-differential:
@@ -55,9 +61,27 @@ jobs:
           python-version: "3.10"
       - name: C++ compiler (portable hash CLI)
         run: sudo apt-get update && sudo apt-get install -y g++
+      - name: SPEC-006 and Coq project partition
+        run: |
+          python3 formal_verification/tests/test_coqproject_partition.py
+          python3 formal_verification/tests/test_spec006_mapping.py
       - name: FV release checklist
         run: bash formal_verification/scripts/run_fv_release_checklist.sh
         # Includes freeze artifacts + SKIP_TEST_BITCOIN=1 differential gate
         # (gate step 2b = check_golden_lock.py). Coq 8.15 harness rebuild is
         # local: FV_COQ=1 bash formal_verification/scripts/run_fv_release_checklist.sh
         # Do not apt-install coq here — Ubuntu's package is not pinned to 8.15.0.
+
+  # F-8: protocol-core cone on pinned Coq 8.15. Do not apt-install Ubuntu coq.
+  coq-protocol-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    container:
+      image: coqorg/coq:8.15.0
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python for Print Assumptions
+        run: apt-get update && apt-get install -y --no-install-recommends python3 make
+      - name: Build protocol-core + strict assumptions
+        run: bash formal_verification/scripts/run_protocol_core_coq.sh

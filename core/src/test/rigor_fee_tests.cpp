@@ -11,10 +11,21 @@
 #include <consensus/res_amount.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <primitives/transaction.h>
-#include <script/standard.h>
 #include <script/script.h>
+#include <test/util/script.h>
+#include <serialize.h>
+#include <version.h>
 
 BOOST_AUTO_TEST_SUITE(rigor_fee_tests)
+
+namespace {
+// Native ORU: witness v0 / 20-byte program. Legacy P2PKH is ASSET_NONE (fail-closed),
+// so fee_i would be undefined even when nValue looks like an ORU transfer.
+CScript NativeOruSpk()
+{
+    return CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
+}
+} // namespace
 
 // ============================================================================
 // RIGOR Fee Mechanism Specification §7.1: unit tests
@@ -42,15 +53,15 @@ BOOST_AUTO_TEST_CASE(fee_calculation_orum)
     // Set up input: 100 ORUM
     Coin coin;
     coin.out.nValue = 100 * COIN;
-    coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    coin.out.scriptPubKey = NativeOruSpk();
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
     
     // Set up outputs: 60 ORUM and 30 ORUM (fee = 100 - 60 - 30 = 10 ORUM)
     tx.vout[0].nValue = 60 * COIN;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     tx.vout[1].nValue = 30 * COIN;
-    tx.vout[1].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[1].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     uint64_t fee = 0;
@@ -73,7 +84,7 @@ BOOST_AUTO_TEST_CASE(fee_calculation_multiple_inputs_outputs)
         tx.vin[i].prevout = COutPoint(uint256::ONE, i);
         Coin coin;
         coin.out.nValue = (i == 0 ? 50 : (i == 1 ? 30 : 20)) * COIN;
-        coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+        coin.out.scriptPubKey = NativeOruSpk();
         coin.nHeight = 100;
         view.AddCoin(tx.vin[i].prevout, std::move(coin), false);
     }
@@ -82,7 +93,7 @@ BOOST_AUTO_TEST_CASE(fee_calculation_multiple_inputs_outputs)
     CAmount outputs[] = {25, 20, 15, 10};
     for (size_t i = 0; i < 4; ++i) {
         tx.vout[i].nValue = outputs[i] * COIN;
-        tx.vout[i].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+        tx.vout[i].scriptPubKey = NativeOruSpk();
     }
     
     CTransaction tx_const(tx);
@@ -106,13 +117,13 @@ BOOST_AUTO_TEST_CASE(fee_calculation_zero_fee)
     // Set up input: 100 ORUM
     Coin coin;
     coin.out.nValue = 100 * COIN;
-    coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    coin.out.scriptPubKey = NativeOruSpk();
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
     
     // Set up output: 100 ORUM (fee = 0)
     tx.vout[0].nValue = 100 * COIN;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     uint64_t fee = 0;
@@ -135,13 +146,13 @@ BOOST_AUTO_TEST_CASE(fee_calculation_invalid_negative_fee)
     // Set up input: 100 ORUM
     Coin coin;
     coin.out.nValue = 100 * COIN;
-    coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    coin.out.scriptPubKey = NativeOruSpk();
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
     
     // Set up output: 150 ORUM (invalid, outputs > inputs)
     tx.vout[0].nValue = 150 * COIN;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     uint64_t fee = 0;
@@ -160,7 +171,7 @@ BOOST_AUTO_TEST_CASE(tx_size_bytes_consistency)
     tx.vin[0].prevout = COutPoint(uint256::ONE, 0);
     tx.vout.resize(1);
     tx.vout[0].nValue = 50 * COIN;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     size_t size1 = rigor::GetTransactionSizeBytes(tx_const);
@@ -183,7 +194,7 @@ BOOST_AUTO_TEST_CASE(tx_size_bytes_different_transactions)
     tx1.vin[0].prevout = COutPoint(uint256::ONE, 0);
     tx1.vout.resize(1);
     tx1.vout[0].nValue = 50 * COIN;
-    tx1.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx1.vout[0].scriptPubKey = NativeOruSpk();
     
     tx2.vin.resize(2);
     tx2.vin[0].prevout = COutPoint(uint256::ONE, 0);
@@ -191,8 +202,8 @@ BOOST_AUTO_TEST_CASE(tx_size_bytes_different_transactions)
     tx2.vout.resize(2);
     tx2.vout[0].nValue = 25 * COIN;
     tx2.vout[1].nValue = 25 * COIN;
-    tx2.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
-    tx2.vout[1].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx2.vout[0].scriptPubKey = NativeOruSpk();
+    tx2.vout[1].scriptPubKey = NativeOruSpk();
     
     CTransaction tx1_const(tx1);
     CTransaction tx2_const(tx2);
@@ -265,7 +276,7 @@ BOOST_AUTO_TEST_CASE(f_i_calculation_res_mint)
 
     Coin coin;
     coin.out.nValue = input_value;
-    coin.out.scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22); // ORU
+    coin.out.scriptPubKey = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22); // ORU
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
 
@@ -273,10 +284,10 @@ BOOST_AUTO_TEST_CASE(f_i_calculation_res_mint)
     tx.vout[0].nValue = convergence_amount;
     tx.vout[0].scriptPubKey = Consensus::ConvergenceOutputScript();
     tx.vout[1].nValue = change;
-    tx.vout[1].scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
+    tx.vout[1].scriptPubKey = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
     // A RES payout output is what makes this a mint rather than a plain ORU transfer.
     tx.vout[2].nValue = 0;
-    tx.vout[2].scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0xa1);
+    tx.vout[2].scriptPubKey = TestNativeResScript();
 
     const CTransaction tx_const(tx);
     BOOST_REQUIRE(rigor::IsRESMintTx(tx_const, view).value_or(false));
@@ -317,21 +328,21 @@ BOOST_AUTO_TEST_CASE(f_i_calculation_res_spend)
 
     Coin res_coin;
     res_coin.out.nValue = res_in;
-    res_coin.out.scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0xa1); // RES
+    res_coin.out.scriptPubKey = TestNativeResScript(); // RES
     res_coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(res_coin), false);
 
     Coin oru_coin;
     oru_coin.out.nValue = oru_in;
-    oru_coin.out.scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22); // ORU
+    oru_coin.out.scriptPubKey = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22); // ORU
     oru_coin.nHeight = 100;
     view.AddCoin(tx.vin[1].prevout, std::move(oru_coin), false);
 
     tx.vout.resize(2);
     tx.vout[0].nValue = res_out;
-    tx.vout[0].scriptPubKey = CScript() << OP_1 << std::vector<unsigned char>(32, 0xb2);
+    tx.vout[0].scriptPubKey = TestNativeResScript2();
     tx.vout[1].nValue = oru_out;
-    tx.vout[1].scriptPubKey = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
+    tx.vout[1].scriptPubKey = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
 
     const CTransaction tx_const(tx);
     BOOST_REQUIRE(!rigor::IsRESMintTx(tx_const, view).value_or(true));
@@ -365,13 +376,13 @@ BOOST_AUTO_TEST_CASE(extreme_test_very_small_fee)
     // Set up input: 101 ORUM
     Coin coin;
     coin.out.nValue = 101;
-    coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    coin.out.scriptPubKey = NativeOruSpk();
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
     
     // Set up output: 100 ORUM (fee = 1)
     tx.vout[0].nValue = 100;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     uint64_t fee = 0;
@@ -395,13 +406,13 @@ BOOST_AUTO_TEST_CASE(extreme_test_very_large_fee)
     const uint64_t large_amount = (UINT64_MAX / 2) - 1;
     Coin coin;
     coin.out.nValue = large_amount;
-    coin.out.scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    coin.out.scriptPubKey = NativeOruSpk();
     coin.nHeight = 100;
     view.AddCoin(tx.vin[0].prevout, std::move(coin), false);
     
     // Output: half of input; fee = inputs_ORUM - outputs_ORUM == large_amount / 2
     tx.vout[0].nValue = large_amount / 2;
-    tx.vout[0].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+    tx.vout[0].scriptPubKey = NativeOruSpk();
     
     CTransaction tx_const(tx);
     uint64_t fee = 0;
@@ -418,7 +429,7 @@ BOOST_AUTO_TEST_CASE(extreme_test_very_small_tx)
     tx.vin[0].prevout = COutPoint(uint256::ONE, 0);
     tx.vout.resize(1);
     tx.vout[0].nValue = 1;
-    tx.vout[0].scriptPubKey = CScript() << OP_RETURN;
+    tx.vout[0].scriptPubKey = CScript() << RIGOR_MARKER_RETURN;
     
     CTransaction tx_const(tx);
     size_t size = rigor::GetTransactionSizeBytes(tx_const);
@@ -439,7 +450,7 @@ BOOST_AUTO_TEST_CASE(extreme_test_very_large_tx)
     for (size_t i = 0; i < 100; ++i) {
         tx.vin[i].prevout = COutPoint(uint256::ONE, i);
         tx.vout[i].nValue = 1 * COIN;
-        tx.vout[i].scriptPubKey = GetScriptForDestination(PKHash(uint160()));
+        tx.vout[i].scriptPubKey = NativeOruSpk();
     }
     
     CTransaction tx_const(tx);

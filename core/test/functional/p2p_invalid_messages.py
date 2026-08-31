@@ -50,8 +50,8 @@ class msg_unrecognized:
 
 
 class SenderOfAddrV2(P2PInterface):
-    def wait_for_sendaddrv2(self):
-        self.wait_until(lambda: 'sendaddrv2' in self.last_message)
+    def wait_for_addrv2_ready(self):
+        self.wait_until(lambda: 'verack' in self.last_message)
 
 
 class InvalidMessagesTest(BitcoinTestFramework):
@@ -163,7 +163,7 @@ class InvalidMessagesTest(BitcoinTestFramework):
         # Make sure bitcoind signals support for ADDRv2, otherwise this test
         # will bombard an old node with messages it does not recognize which
         # will produce unexpected results.
-        conn.wait_for_sendaddrv2()
+        conn.wait_for_addrv2_ready()
 
         self.log.info('Test addrv2: ' + label)
 

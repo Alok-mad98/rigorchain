@@ -1,5 +1,11 @@
 (** ConnectBlock/ConnectBlockSupply.v
-    PHASE-4E: bridge ConnectBlock scaffold semantics to replay supply proofs. *)
+    PHASE-4E: bridge replay supply proofs. F-1: do not import
+    [legacy_account_model/ConnectBlockScaffold.v] here.
+
+    Constants align with [ConnectBlock.v] (schedule aliases) and
+    [ConnectBlockMint.v]. The local [scaffold_res_delta] still copies the
+    historical skip-on-overshoot clamp used by [cb_res_mint_delta];
+    [apply_block] rejects overshoot ([cap_overshoot_rejects_apply_block]). *)
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
 Require Import Rigor.legacy_account_model.State.
@@ -10,13 +16,14 @@ Require Import Rigor.ReplayReorgCore.StateTransition.
 Require Import Rigor.ReplayReorgCore.ReorgRules.
 Require Import Rigor.ReplayReorgCore.ReplayDeterminism.
 Require Import Rigor.ReplayReorgCore.SupplyConservation.
+Require Import Rigor.ReplayReorgCore.ResMintObligation.
 
-(** Constants align with [ConnectBlock.v] scaffold.
+(** Constants align with [ConnectBlock.v] schedule aliases and [ConnectBlockMint].
 
     RFC-017 turned the mint amount into a function of height, so this is no longer an equality of
     two constants but an equality of two functions at the block's own height. The bridge is where
     it matters that both sides read the height from the same place: the replay model takes it
-    from [blk_header], and the scaffold must be handed that same value rather than the tip height
+    from [blk_header], and the height argument must be that same value rather than the tip height
     carried in [State], which is the height of the previous block. *)
 Lemma cb_res_mint_amount_eq :
   forall b : BlockAbs,
@@ -33,6 +40,8 @@ Definition replay_to_scaffold_state (s : ReplayState) : State :=
      current_height := Z.of_nat (cm_height (rs_chain s));
      last_hash := 0%Z |}.
 
+(** Historical skip-on-overshoot clamp (same as [cb_res_mint_delta]).
+    F-1: not production ConnectBlock. [apply_block] rejects overshoot. *)
 Definition scaffold_res_delta (st : State) (height : Z) (draw_won : bool) : Z :=
   if draw_won then
     if Z.leb (RES_supply st + RES_MINT_AMOUNT height) MAX_RES_SUPPLY then
@@ -47,6 +56,13 @@ Definition scaffold_apply_res_mint (st : State) (height : Z) (draw_won : bool) :
      RES_supply := (RES_supply st + scaffold_res_delta st height draw_won)%Z;
      current_height := current_height st;
      last_hash := last_hash st |}.
+
+(** F-1: overshoot is a connect reject, not a zeroed delta. *)
+Theorem apply_block_rejects_where_legacy_scaffold_would_skip :
+  forall (s : ReplayState) (b : BlockAbs),
+    (cb_MAX_RES_SUPPLY < rs_res_supply s + cb_res_attempted_amount b)%Z ->
+    apply_block s b = None.
+Proof. exact cap_overshoot_rejects_apply_block. Qed.
 
 Lemma replay_to_scaffold_res_supply (s : ReplayState) :
   RES_supply (replay_to_scaffold_state s) = rs_res_supply s.

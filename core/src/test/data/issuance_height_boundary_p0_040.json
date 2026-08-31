@@ -1,0 +1,25 @@
+{
+  "semantic": "epoch(h) = floor(h / 210000); ORU(0)=0; ORU(h>=1)=1000>>min(epoch(h),3); RES schedule W(epoch(h)); cumulative sums start at height 1",
+  "note": "Frozen C++ / Coq schedule. Not (h-1)/210000. First ORU full-reward heights are 1..209999. Genesis RES schedule is W(0) but res_issued(0)=0.",
+  "kind": {
+    "formal_theorem": "CanonicalIssuance.v closed-form + ConnectBlock issuance fold",
+    "golden_vector": "this file, checked by C++ GetBlockSubsidy/GetResMintReward and Coq vm_compute",
+    "fuzz_coverage": "rigor_supply epoch/reward/closed-form increment; not a theorem"
+  },
+  "vectors": [
+    {"height": 0, "epoch": 0, "res_epoch": 0, "oru_reward": 0, "res_reward": 40000000, "cumulative_oru": 0, "cumulative_res": 0},
+    {"height": 1, "epoch": 0, "res_epoch": 0, "oru_reward": 100000000000, "res_reward": 40000000, "cumulative_oru": 100000000000, "cumulative_res": 40000000},
+    {"height": 2, "epoch": 0, "res_epoch": 0, "oru_reward": 100000000000, "res_reward": 40000000, "cumulative_oru": 200000000000, "cumulative_res": 80000000},
+    {"height": 209998, "epoch": 0, "res_epoch": 0, "oru_reward": 100000000000, "res_reward": 40000000, "cumulative_oru": 20999800000000000, "cumulative_res": 8399920000000},
+    {"height": 209999, "epoch": 0, "res_epoch": 0, "oru_reward": 100000000000, "res_reward": 40000000, "cumulative_oru": 20999900000000000, "cumulative_res": 8399960000000},
+    {"height": 210000, "epoch": 1, "res_epoch": 1, "oru_reward": 50000000000, "res_reward": 14142196, "cumulative_oru": 20999950000000000, "cumulative_res": 8399974142196},
+    {"height": 210001, "epoch": 1, "res_epoch": 1, "oru_reward": 50000000000, "res_reward": 14142196, "cumulative_oru": 21000000000000000, "cumulative_res": 8399988284392},
+    {"height": 210002, "epoch": 1, "res_epoch": 1, "oru_reward": 50000000000, "res_reward": 14142196, "cumulative_oru": 21000050000000000, "cumulative_res": 8400002426588},
+    {"height": 419999, "epoch": 1, "res_epoch": 1, "oru_reward": 50000000000, "res_reward": 14142196, "cumulative_oru": 31499900000000000, "cumulative_res": 11369821160000},
+    {"height": 420000, "epoch": 2, "res_epoch": 2, "oru_reward": 25000000000, "res_reward": 7698004, "cumulative_oru": 31499925000000000, "cumulative_res": 11369828858004},
+    {"height": 420001, "epoch": 2, "res_epoch": 2, "oru_reward": 25000000000, "res_reward": 7698004, "cumulative_oru": 31499950000000000, "cumulative_res": 11369836556008},
+    {"height": 629999, "epoch": 2, "res_epoch": 2, "oru_reward": 25000000000, "res_reward": 7698004, "cumulative_oru": 36749900000000000, "cumulative_res": 12986402000000},
+    {"height": 630000, "epoch": 3, "res_epoch": 3, "oru_reward": 12500000000, "res_reward": 5000000, "cumulative_oru": 36749912500000000, "cumulative_res": 12986407000000},
+    {"height": 630001, "epoch": 3, "res_epoch": 3, "oru_reward": 12500000000, "res_reward": 5000000, "cumulative_oru": 36749925000000000, "cumulative_res": 12986412000000}
+  ]
+}

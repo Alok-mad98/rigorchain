@@ -3297,7 +3297,7 @@ If you are receiving this error you should request the merchant provide a BIP21 
         <context-group purpose="location"><context context-type="linenumber">1162</context></context-group>
       </trans-unit>
       <trans-unit id="_msg581">
-        <source xml:space="preserve">High bandwidth BIP152 compact block relay: %1</source>
+        <source xml:space="preserve">High bandwidth compact block relay: %1</source>
         <target xml:space="preserve"></target>
         <context-group purpose="location"><context context-type="linenumber">1214</context></context-group>
       </trans-unit>

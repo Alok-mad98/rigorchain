@@ -9,11 +9,13 @@
 #include <coins.h>
 #include <policy/policy.h>
 #include <primitives/block.h>
+#include <script/script.h>
 #include <txmempool.h>
 
 #include <memory>
 #include <optional>
 #include <stdint.h>
+#include <string>
 
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index_container.hpp>
@@ -22,7 +24,6 @@ class ArgsManager;
 class ChainstateManager;
 class CBlockIndex;
 class CChainParams;
-class CScript;
 
 namespace Consensus { struct Params; };
 
@@ -139,7 +140,6 @@ private:
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
     CAmount nFeesOru;
-    CAmount nFeesRes;
     /** RFC-018 burn share accumulated from RES-transfer (ASSET_RES input) fees. */
     CAmount nFeesOruResTransferBurn;
     CTxMemPool::setEntries inBlock;
@@ -161,6 +161,10 @@ public:
         CFeeRate blockMinFeeRate{DEFAULT_BLOCK_MIN_TX_FEE};
         // Whether to call TestBlockValidity() at the end of CreateNewBlock().
         bool test_block_validity{true};
+        /** Mockable-chain bootstrap sink from -miningresfeeaddr. Empty on mainnet-shaped params. */
+        CScript res_bootstrap_script{};
+        /** -blockversion override; applied only when MineBlocksOnDemand(). */
+        std::optional<int32_t> block_version_override{};
     };
 
     explicit BlockAssembler(Chainstate& chainstate, const CTxMemPool* mempool);
@@ -168,7 +172,8 @@ public:
 
     /**
      * Construct a new block template. ORU subsidy/fees go to scriptPubKeyIn.
-     * When the mempool contributes Res-domain fees, pass scriptPubKeyResFeeIn (or set -miningresfeeaddr).
+     * scriptPubKeyResFeeIn / Options::res_bootstrap_script apply only on mockable
+     * chains (bootstrap coinbase RES). Ignored on mainnet-shaped params.
      */
     std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn, const CScript& scriptPubKeyResFeeIn = CScript{});
 
@@ -206,14 +211,25 @@ private:
 
 int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParams, const CBlockIndex* pindexPrev);
 
-/** Update an old GenerateCoinbaseCommitment from CreateNewBlock after the block txs have changed */
+/** Update an old GenerateCoinbaseCommitment from CreateNewBlock after the block txs have changed.
+ *  No-ops the erase when the block has no witness commitment (avoids indexing vout.begin()+(-1)). */
 void RegenerateCommitments(CBlock& block, ChainstateManager& chainman);
 
-/** After changing coinbase scriptSig only, rebuild witness commitment + CVGE to match the new coinbase txid. */
-void RefreshCoinbaseWitnessAndconvergence(CBlock& block, const CBlockIndex* pindexPrev, ChainstateManager& chainman);
+/**
+ * Rewrite coinbase scriptSig to height ‖ C ‖ paid-winner, then regenerate the
+ * BIP141 witness commitment and merkle root. Paid-winner is the parent-draw
+ * winner iff the coinbase already carries RIGOR_MARKER_RES_MINT, else 32 zero bytes.
+ *
+ * Requires cs_main, held continuously since the template was created:
+ * `block.hashPrevBlock` must still be the active tip. Returns false without
+ * writing scriptSig if the window cannot be reconstructed (never commits an
+ * all-zero C as if it were a real root).
+ */
+[[nodiscard]] bool RebuildTemplateCommitments(CBlock& block, ChainstateManager& chainman, std::string& err)
+    EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
-/** Apply -blockmintxfee and -blockmaxweight options from ArgsManager to BlockAssembler options. */
-void ApplyArgsManOptions(const ArgsManager& gArgs, BlockAssembler::Options& options);
+/** Apply -blockmintxfee, -blockmaxweight, -miningresfeeaddr, -blockversion from ArgsManager. */
+void ApplyArgsManOptions(const ArgsManager& args, const CChainParams& chainparams, BlockAssembler::Options& options);
 } // namespace node
 
 #endif // BITCOIN_NODE_MINER_H

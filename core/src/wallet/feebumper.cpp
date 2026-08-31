@@ -6,6 +6,7 @@
 #include <wallet/feebumper.h>
 #include <wallet/coincontrol.h>
 
+#include <chainparams.h>
 #include <consensus/validation.h>
 #include <consensus_rigor/fee.h>
 #include <interfaces/chain.h>
@@ -210,9 +211,9 @@ Result CreateRateBumpTransaction(CWallet& wallet, const uint256& txid, const CCo
             // In order to do this, we verify the script with a special SignatureChecker which
             // will observe the signatures verified and record their sizes.
             SignatureWeights weights;
-            TransactionSignatureChecker tx_checker(wtx.tx.get(), i, coin.out.nValue, txdata, MissingDataBehavior::FAIL);
+            TransactionSignatureChecker tx_checker(wtx.tx.get(), i, coin.out.nValue, txdata, MissingDataBehavior::FAIL, Params().GetConsensus().hashGenesisBlock);
             SignatureWeightChecker size_checker(weights, tx_checker);
-            VerifyScript(txin.scriptSig, coin.out.scriptPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, size_checker);
+            VerifyRigorPredicate(txin.scriptSig, coin.out.scriptPubKey, &txin.scriptWitness, STANDARD_SCRIPT_VERIFY_FLAGS, size_checker);
             // Add the difference between max and current to input_weight so that it represents the largest the input could be
             input_weight += weights.GetWeightDiffToMax();
             new_coin_control.SetInputWeight(txin.prevout, input_weight);
@@ -319,7 +320,7 @@ bool SignTransaction(CWallet& wallet, CMutableTransaction& mtx) {
         wallet.FillPSBT(psbtx, complete, SIGHASH_ALL, false /* sign */, true /* bip32derivs */);
         const TransactionError err = wallet.FillPSBT(psbtx, complete, SIGHASH_ALL, true /* sign */, false  /* bip32derivs */);
         if (err != TransactionError::OK) return false;
-        complete = FinalizeAndExtractPSBT(psbtx, mtx);
+        complete = FinalizeAndExtractPSBT(psbtx, mtx, Params().GetConsensus().hashGenesisBlock);
         return complete;
     } else {
         return wallet.SignTransaction(mtx);

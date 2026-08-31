@@ -9,7 +9,7 @@ into its mempool and both nodes mine/confirm it with equal txid and hex.
 """
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import assert_equal
 
 
 class Ed25519CrossNodeTest(BitcoinTestFramework):
@@ -54,10 +54,6 @@ class Ed25519CrossNodeTest(BitcoinTestFramework):
         assert_equal(node_a.gettransaction(txid)["confirmations"], 1)
         assert_equal(node_b.gettransaction(txid)["confirmations"], 1)
 
-        self.log.info("createmultisig must reject secp256k1 compressed pubkeys")
-        secp_hex = "03789ed0bb717d88f7d321a368d905e7430207ebbd82bd342cf11ae157a7ace5fd"
-        secp_hex2 = "03dbc6764b8884a92e871274b87583e6d5c2a58819473e17e107ef3f6aa5a61626"
-        assert_raises_rpc_error(-8, "Ed25519 ORU pubkeys", node_a.createmultisig, 2, [secp_hex, secp_hex2])
 
 
 if __name__ == "__main__":

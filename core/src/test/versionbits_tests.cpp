@@ -418,7 +418,7 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
 
     // check that any deployment on any chain can conceivably reach both
     // ACTIVE and FAILED states in roughly the way we expect
-    for (const auto& chain_name : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::SIGNET, CBaseChainParams::REGTEST}) {
+    for (const auto& chain_name : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::REGTEST}) {
         const auto chainParams = CreateChainParams(*m_node.args, chain_name);
         uint32_t chain_all_vbits{0};
         for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
@@ -436,22 +436,18 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
     }
 
     {
-        // Use regtest/testdummy to ensure we always exercise some
-        // deployment that's not always/never active
-        ArgsManager args;
-        args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999"); // January 1, 2008 - December 31, 2008
-        const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
-        check_computeblockversion(vbcache, chainParams->GetConsensus(), Consensus::DEPLOYMENT_TESTDUMMY);
-    }
+        // testdummy on regtest starts at unix epoch (nStartTime=0, NO_TIMEOUT), so
+        // check_computeblockversion would skip the STARTED/LOCKED_IN window. Copy the
+        // params and give it a finite 2008 window without a runtime -vbparams override.
+        const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::REGTEST);
+        Consensus::Params params = chainParams->GetConsensus();
+        params.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+        params.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999;   // December 31, 2008
+        params.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 0;
+        check_computeblockversion(vbcache, params, Consensus::DEPLOYMENT_TESTDUMMY);
 
-    {
-        // Use regtest/testdummy to ensure we always exercise the
-        // min_activation_height test, even if we're not using that in a
-        // live deployment
-        ArgsManager args;
-        args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999:403200"); // January 1, 2008 - December 31, 2008, min act height 403200
-        const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
-        check_computeblockversion(vbcache, chainParams->GetConsensus(), Consensus::DEPLOYMENT_TESTDUMMY);
+        params.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].min_activation_height = 403200;
+        check_computeblockversion(vbcache, params, Consensus::DEPLOYMENT_TESTDUMMY);
     }
 }
 

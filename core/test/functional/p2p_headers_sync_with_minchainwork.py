@@ -15,11 +15,14 @@ from test_framework.messages import (
 )
 
 from test_framework.blocktools import (
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
     NORMAL_GBT_REQUEST_PARAMS,
     create_block,
 )
 
 from test_framework.util import assert_equal
+
+REGTEST_GENESIS_HASH = '3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63'
 
 NODE1_BLOCKS_REQUIRED = 15
 NODE2_BLOCKS_REQUIRED = 2047
@@ -73,7 +76,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
             assert len(chaintips) == 1
             assert {
                 'height': 0,
-                'hash': '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206',
+                'hash': REGTEST_GENESIS_HASH,
                 'branchlen': 0,
                 'status': 'active',
             } in chaintips
@@ -85,7 +88,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
 
         assert {
             'height': 0,
-            'hash': '0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206',
+            'hash': REGTEST_GENESIS_HASH,
             'branchlen': 0,
             'status': 'active',
         } in self.nodes[2].getchaintips()
@@ -120,7 +123,7 @@ class RejectLowDifficultyHeadersTest(BitcoinTestFramework):
         new_blocks = []
         hashPrevBlock = int(node.getblockhash(0), 16)
         for i in range(2000):
-            block = create_block(hashprev = hashPrevBlock, tmpl=node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS))
+            block = create_block(hashprev = hashPrevBlock, tmpl=node.getblocktemplate(NORMAL_GBT_REQUEST_PARAMS), coinbase_script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY)
             block.solve()
             new_blocks.append(block)
             hashPrevBlock = block.sha256

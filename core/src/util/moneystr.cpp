@@ -74,12 +74,19 @@ std::optional<CAmount> ParseMoney(const std::string& money_string)
     if (*p) {
         return std::nullopt;
     }
-    if (strWhole.size() > 10) // guard against 63 bit overflow
+    // Fast reject on digit count; the exact bound is enforced below. A count-based
+    // guard alone cannot express MAX_MONEY, which is 11 digits of whole ORU.
+    if (strWhole.size() > 11)
         return std::nullopt;
     if (nUnits < 0 || nUnits > COIN)
         return std::nullopt;
-    int64_t nWhole = LocaleIndependentAtoi<int64_t>(strWhole);
-    CAmount value = nWhole * COIN + nUnits;
+    const int64_t nWhole = LocaleIndependentAtoi<int64_t>(strWhole);
+    // Bound the multiplication before performing it: `nWhole * COIN` overflows
+    // int64 for an 11-digit whole part.
+    if (nWhole < 0 || nWhole > (MAX_MONEY - nUnits) / COIN) {
+        return std::nullopt;
+    }
+    const CAmount value = nWhole * COIN + nUnits;
 
     if (!MoneyRange(value)) {
         return std::nullopt;

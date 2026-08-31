@@ -18,8 +18,8 @@ The **economic kernel did not change** in the CONVERGENCE path cleanup: destroy 
 | Frozen T | `RES_PROBABILITY_TARGET` = `floor(2^246 / MIN_CONVERGENCE_AMOUNT) / W` (RFC-017). **Not** parent `nBits`. | `params.h`, `rigor_consensus_lock.h` |
 | Window | `CONVERGENCE_DRAW_WINDOW = 32`. The draw paid at height `h` uses unpaid tickets in `[h-32, h-1]`. | A-9-C |
 | 1-block lag | Block `h` **pays** the set its **parent** committed. Every σ input is fixed once `h-1` is found. | SECURITY-001-A8 |
-| Owner binding | Ticket lock is `OP_PUSHBYTES_20 <HASH160(RES program)> OP_CONVERGE` (`0xbd`, 22 bytes). Mint must pay that HASH160. | `res_owner.h`, `CheckResRewardOwner` |
-| Weight | `f_i` = ORU `nValue` on the unique `OP_CONVERGE` output (raw atoms; **not** β = 7/5). | `GetConvergenceAmount` |
+| Owner binding | Ticket lock is `<20-byte HASH160(pk32)> <0xbd CONVERGE marker>` (22 bytes). Under Option B, HASH160(pk32) equals HASH160(v1 program). Mint must pay that HASH160. | `res_owner.h`, `CheckResRewardOwner` |
+| Weight | `f_i` = ORU `nValue` on the unique CONVERGE-marker output (raw atoms; **not** β = 7/5). | `GetConvergenceAmount` |
 | Draw gate | `|F| ≥ CONVERGENCE_DRAW_MIN_TXS_FOR_RES` (`1`) | RFC-015 |
 
 Winner among the eligible set is **uint512 argmin** of `σ` (cross-multiply by weights, then unsigned txid tie-break). See `selection.cpp`.
@@ -31,14 +31,14 @@ Winner among the eligible set is **uint512 argmin** of `σ` (cross-multiply by w
 A convergence transaction is an ordinary ORU spend with **exactly one** positive-value burn:
 
 ```
-scriptPubKey = OP_PUSHBYTES_20 <20-byte HASH160(RES program)> OP_CONVERGE
+scriptPubKey = <20-byte HASH160(RES program)> <0xbd CONVERGE marker>
 ```
 
-- `OP_CONVERGE = 0xbd`. Encoding is exactly 22 bytes. `EvalScript` returns `SCRIPT_ERR_CONVERGE_UNSPENDABLE`.
+- CONVERGE marker `0xbd`. Encoding is exactly 22 bytes. The output is not a spendable predicate (`AddCoins` skips it).
 - `AddCoins` skips the output (true burn). Amount is `nValue`, not encoded in the script.
 - `MIN_CONVERGENCE_AMOUNT` is **1.00 ORU**.
-- **Owner** is the HASH160 inside that lock. No sibling RESO `OP_RETURN`. Retired CVG2 witness v1 is **not** a convergence.
-- `OP_CVG_CLAIM` (`0xbc`) stays burned (`HasValidOps` still rejects it). Do not reassign.
+- **Owner** is the HASH160 inside that lock. No sibling RESO RETURN-marker. Retired CVG2 witness v1 is **not** a convergence.
+- Byte `0xbc` stays burned (`HasValidOps` still rejects it). Do not reassign.
 
 `HasResOwnerDeclaration` is true iff there is exactly one well-formed lock. Undeclared burns may be valid ORU destruction; they **do not enter F**.
 
@@ -96,11 +96,11 @@ If nobody is eligible, or `|F| < 1`, there is no winner and this block must not 
 
 When the parent draw named a winner and `W(h) > 0` (RFC-017 schedule; `W(k) = 0` after `RES_REWARD_LAST_EPOCH`):
 
-- the coinbase carries **exactly one** `OP_RES_MINT` output,
+- the coinbase carries **exactly one** RES mint-marker (`0xbb`) output,
 - amount is `GetResMintReward(h)`,
 - `scriptPubKey` pays the winner's declared HASH160 (`CheckResRewardOwner`).
 
-Validated only by `rigor::ConnectEvaluateCoinbaseResMint`. There is no body-tx mint and no PCORB / RIGR / CVGE consensus object. Extra `OP_RETURN` outputs are allowed and ignored.
+Validated only by `rigor::ConnectEvaluateCoinbaseResMint`. There is no body-tx mint and no PCORB / RIGR / CVGE consensus object. Extra RETURN-marker outputs are allowed and ignored.
 
 `FindBlockPaidConvergenceTxids` treats the parent-draw winner as paid iff the coinbase has that mint. ConnectBlock resolves the parent draw first, then this block's C. Supply cap is `Consensus::RES_MAX_SUPPLY`.
 
@@ -133,7 +133,7 @@ These are **not** required, matched, or paired with a mint:
 | σ, F, winner, window tail | `convergence_logic.{h,cpp}`, `selection.cpp` |
 | C from txid list | `convergence_root_eligibility.cpp` |
 | Coinbase `scriptSig` C check | `convergence_root.{h,cpp}`, `ConnectBlock` (`bad-cb-convergence-root`) |
-| Owner lock / mint payee | `res_owner.{h,cpp}`, `GetConvergeScriptForProgram` |
+| Owner lock / mint payee | `res_owner.{h,cpp}`, `GetConvergeScriptForPubKey` |
 | Coinbase mint | `rigor_res.cpp` (`ConnectEvaluateCoinbaseResMint`) |
 | Pool / GBT wire | [mining-pool-gbt.md](./mining-pool-gbt.md) |
 | Coinbase maturity | `COINBASE_MATURITY` in `consensus.h` (100) |

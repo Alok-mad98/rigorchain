@@ -28,15 +28,13 @@ namespace {
 //! Domain-separation tag. The trailing "v2" pins the on-the-wire format of
 //! the digest. Any change to leaf layout, preamble layout, or trailer layout
 //! MUST bump this to "v3" (and so on). See state_snapshot.h for the full format.
-constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v2"};
+constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v3"};
 
 //! Build the canonical leaf bytes for one (outpoint, coin) pair.
-//! Layout (matches Coin::Serialize on disk, identical to kernel/coinstats.cpp's
-//! TxOutSer + Coin's nFlags tail):
+//! Layout (matches Coin::Serialize on disk):
 //!   COutPoint::Serialize(op)
 //!   || VARINT(coin.nHeight*2 + coin.fCoinBase)
 //!   || TxOutCompression(coin.out)
-//!   || VARINT(coin.nFlags)
 //!
 //! DataStream is intentionally constructed without an explicit (type, version)
 //! pair: Coin::Serialize and TxOutCompression are version-independent, and
@@ -52,12 +50,12 @@ DataStream MakeLeafBytes(const COutPoint& op, const Coin& coin)
     return ss;
 }
 
-//! Witness-V1 lock-program shape per RFC-003 §5: exactly `OP_1 0x20 <32>`.
+//! Witness-V1 lock-program shape per RFC-003 §5: exactly `RIGOR_PUSH_1 0x20 <32>`.
 //! Matches `CaptureChainstateSummary` / `CaptureReplaySnapshot` lock counting.
 inline bool HasV1LockProgramShape(const CScript& spk)
 {
     return spk.size() == 34 &&
-           static_cast<uint8_t>(spk[0]) == 0x51 /*OP_1*/ &&
+           static_cast<uint8_t>(spk[0]) == 0x51 /*RIGOR_PUSH_1*/ &&
            static_cast<uint8_t>(spk[1]) == 0x20 /*push 32*/;
 }
 

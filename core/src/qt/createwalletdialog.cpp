@@ -95,10 +95,9 @@ CreateWalletDialog::CreateWalletDialog(QWidget* parent) :
         ui->external_signer_checkbox->setChecked(false);
 #endif
 
-#ifndef USE_BDB
+        // RIGOR wallets are always SQLite descriptor wallets.
         ui->descriptor_checkbox->setEnabled(false);
         ui->descriptor_checkbox->setChecked(true);
-#endif
 
 #ifndef ENABLE_EXTERNAL_SIGNER
         //: "External signing" means using devices such as hardware wallets.

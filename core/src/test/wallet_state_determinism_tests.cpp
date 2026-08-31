@@ -44,7 +44,7 @@ void InitDescriptorWalletWithKey(TestingSetup& setup, CWallet& w)
     w.SetupDescriptorScriptPubKeyMans();
     FlatSigningProvider provider;
     std::string error;
-    std::unique_ptr<Descriptor> desc = Parse("combo(" + EncodeSecret(key) + ")", provider, error, /*require_checksum=*/false);
+    std::unique_ptr<Descriptor> desc = Parse("wpkh(" + EncodeSecret(key) + ")", provider, error, /*require_checksum=*/false);
     BOOST_REQUIRE_MESSAGE(desc, error);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
     BOOST_REQUIRE(w.AddWalletDescriptor(w_desc, provider, "", false));
@@ -59,7 +59,7 @@ void InitDescriptorWalletOnChain(TestChain100Setup& setup, CWallet& w)
     w.SetupDescriptorScriptPubKeyMans();
     FlatSigningProvider provider;
     std::string error;
-    std::unique_ptr<Descriptor> desc = Parse("combo(" + EncodeSecret(setup.coinbaseKey) + ")", provider, error, /*require_checksum=*/false);
+    std::unique_ptr<Descriptor> desc = Parse("wpkh(" + EncodeSecret(setup.coinbaseKey) + ")", provider, error, /*require_checksum=*/false);
     BOOST_REQUIRE_MESSAGE(desc, error);
     WalletDescriptor w_desc(std::move(desc), 0, 0, 1, 1);
     BOOST_REQUIRE(w.AddWalletDescriptor(w_desc, provider, "", false));

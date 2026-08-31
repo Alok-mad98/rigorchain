@@ -1,0 +1,130 @@
+[
+  {
+    "name": "oru_v0",
+    "scriptPubKey": "00140000000000000000000000000000000000000000",
+    "expected": "ORU",
+    "txout_type": "witness_v0_keyhash",
+    "coq": "AssetORU",
+    "note": "Witness v0 / 20 HASH160(pk) → ORU. C++ TxoutType::WITNESS_V0_KEYHASH."
+  },
+  {
+    "name": "oru_v0_sighash_spent",
+    "scriptPubKey": "00143333333333333333333333333333333333333333",
+    "expected": "ORU",
+    "txout_type": "witness_v0_keyhash",
+    "coq": "AssetORU",
+    "note": "P0-018 / P0-024 ORU sighash spent script."
+  },
+  {
+    "name": "res_v1",
+    "scriptPubKey": "5120d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a",
+    "expected": "RES",
+    "txout_type": "witness_v1_res",
+    "coq": "AssetRES",
+    "note": "Witness v1 / 32 RFC8032 pk1 is the program. C++ TxoutType::WITNESS_V1_RES."
+  },
+  {
+    "name": "res_v1_sighash_spent",
+    "scriptPubKey": "51204444444444444444444444444444444444444444444444444444444444444444",
+    "expected": "RES",
+    "txout_type": "witness_v1_res",
+    "coq": "AssetRES",
+    "note": "P0-018 / P0-024 RES sighash spent script."
+  },
+  {
+    "name": "res_mint",
+    "scriptPubKey": "0164140000000000000000000000000000000000000000bb",
+    "expected": "RES",
+    "txout_type": "res_mint",
+    "coq": "AssetRES",
+    "note": "RIGOR_MARKER_RES_MINT. AssetType is RES (not a fifth asset). C++ TxoutType::RES_MINT."
+  },
+  {
+    "name": "res_mint_sighash_spent",
+    "scriptPubKey": "0164145555555555555555555555555555555555555555bb",
+    "expected": "RES",
+    "txout_type": "res_mint",
+    "coq": "AssetRES",
+    "note": "P0-018 / P0-024 RES_MINT sighash spent script."
+  },
+  {
+    "name": "converge",
+    "scriptPubKey": "140000000000000000000000000000000000000000bd",
+    "expected": "ORU",
+    "txout_type": "converge",
+    "coq": "AssetORU",
+    "note": "RIGOR_MARKER_CONVERGE → ORU. Unspendable lock, still ORU-classified."
+  },
+  {
+    "name": "op_return",
+    "scriptPubKey": "6a0178",
+    "expected": "NONE",
+    "txout_type": "nulldata",
+    "coq": "AssetNone",
+    "note": "RIGOR_MARKER_RETURN + push-only remainder → NONE."
+  },
+  {
+    "name": "unknown_empty",
+    "scriptPubKey": "",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "Empty script → INVALID."
+  },
+  {
+    "name": "unknown_p2wsh",
+    "scriptPubKey": "00200000000000000000000000000000000000000000000000000000000000000000",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "Witness v0 / 32 → INVALID."
+  },
+  {
+    "name": "unknown_p2pkh",
+    "scriptPubKey": "76a914000000000000000000000000000000000000000088ac",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "Legacy P2PKH → INVALID."
+  },
+  {
+    "name": "unknown_cvg2",
+    "scriptPubKey": "51204356473200000000000000000000000000000000000000000000000000000000",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "CVG2-prefixed v1/32 → INVALID."
+  },
+  {
+    "name": "unknown_res2",
+    "scriptPubKey": "51205245533200000000000000000000000000000000000000000000000000000000",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "RES2-prefixed v1/32 → INVALID."
+  },
+  {
+    "name": "unknown_v1_len20",
+    "scriptPubKey": "51140000000000000000000000000000000000000000",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "Witness v1 / 20 → INVALID."
+  },
+  {
+    "name": "res_mint_pushbytes_1_05",
+    "scriptPubKey": "0105141111111111111111111111111111111111111111bb",
+    "expected": "RES",
+    "txout_type": "res_mint",
+    "coq": "AssetRES",
+    "note": "P0-039: GetResMintScript(5) is OP_PUSHBYTES_1 0x05, not OP_5."
+  },
+  {
+    "name": "res_mint_op_5_rejected",
+    "scriptPubKey": "55141111111111111111111111111111111111111111bb",
+    "expected": "INVALID",
+    "txout_type": "nonstandard",
+    "coq": "AssetInvalid",
+    "note": "P0-039: OP_5 || PUSHBYTES_20 || pkh || RES_MINT is a second encoding and is rejected."
+  }
+]

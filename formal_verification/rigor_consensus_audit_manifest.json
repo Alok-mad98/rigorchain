@@ -1,0 +1,37 @@
+{
+  "protocol": "Rigor",
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-AUDIT-PACKAGE-P0-062",
+  "consensus_kernel": {
+    "status": "closed",
+    "refinement": true,
+    "equivalence": false
+  },
+  "authorities": {
+    "issuance": "GetBlockSubsidy",
+    "res_schedule": "GetResMintReward",
+    "supply": "RigorSupplyDelta",
+    "draw": "ResolveConvergenceDraw",
+    "classification": "ClassifyRigorTxout",
+    "spend": "VerifyRigorPredicate",
+    "pow": "PowBoundary"
+  },
+  "production_kernel": {
+    "implementation": "C++",
+    "switched_to_extraction": false
+  },
+  "formal": {
+    "coq_admitted": 0,
+    "coq_axioms": 0,
+    "coq_parameters": 0
+  },
+  "surface": {
+    "consensus_surface": "closed",
+    "transaction_kernel": "closed",
+    "pow_boundary": "registered",
+    "governance": "closed"
+  },
+  "extracted_kernel": {
+    "role": "VERIFICATION_ORACLE_ONLY",
+    "linked_into_production": false
+  }
+}

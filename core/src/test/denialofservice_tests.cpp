@@ -8,7 +8,10 @@
 #include <chainparams.h>
 #include <net.h>
 #include <net_processing.h>
+#include <netmessagemaker.h>
+#include <protocol.h>
 #include <pubkey.h>
+#include <rigor_capability.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
@@ -20,6 +23,7 @@
 #include <util/system.h>
 #include <util/time.h>
 #include <validation.h>
+#include <version.h>
 
 #include <array>
 #include <stdint.h>
@@ -70,7 +74,7 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
         /*successfully_connected=*/true,
         /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
         /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
-        /*version=*/PROTOCOL_VERSION,
+        /*version=*/RIGOR_PROTOCOL_CURRENT_VERSION,
         /*relay_txs=*/true);
     TestOnlyResetTimeData();
 
@@ -402,6 +406,102 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     BOOST_CHECK(banman->IsDiscouraged(addr));
 
     peerLogic->FinalizeNode(dummyNode);
+}
+
+BOOST_AUTO_TEST_CASE(rigorcap_handshake_fail_closed)
+{
+    LOCK(NetEventsInterface::g_msgproc_mutex);
+
+    ConnmanTestMsg& connman = static_cast<ConnmanTestMsg&>(*m_node.connman);
+    connman.SetPeerConnectTimeout(99999s);
+    const CNetMsgMaker mm{0};
+    NodeId id{50};
+
+    auto handshake_version = [&](CNode& node) {
+        connman.Handshake(node,
+                          /*successfully_connected=*/false,
+                          /*remote_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
+                          /*local_services=*/ServiceFlags(NODE_NETWORK | NODE_WITNESS),
+                          /*version=*/RIGOR_PROTOCOL_CURRENT_VERSION,
+                          /*relay_txs=*/true);
+        BOOST_REQUIRE(!node.fDisconnect);
+        BOOST_CHECK_EQUAL(node.GetCommonVersion(), PROTOCOL_VERSION);
+        BOOST_CHECK_EQUAL(node.nVersion, RIGOR_PROTOCOL_CURRENT_VERSION);
+    };
+
+    {
+        CAddress addr(ip(0xa0b0c001), NODE_NONE);
+        CNode node{id++, nullptr, addr, 0, 0, CAddress(), "", ConnectionType::INBOUND, false};
+        handshake_version(node);
+        CSerializedNetMsg verack{mm.Make(NetMsgType::VERACK)};
+        (void)connman.ReceiveMsgFrom(node, verack);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        BOOST_CHECK(node.fDisconnect);
+        BOOST_CHECK(!node.fSuccessfullyConnected);
+        m_node.peerman->FinalizeNode(node);
+    }
+
+    {
+        CAddress addr(ip(0xa0b0c002), NODE_NONE);
+        CNode node{id++, nullptr, addr, 0, 0, CAddress(), "", ConnectionType::INBOUND, false};
+        handshake_version(node);
+        CSerializedNetMsg cap{mm.Make(NetMsgType::RIGORCAP, uint32_t{1}, RIGOR_LOCAL_ACTIVE_CAPABILITIES)};
+        (void)connman.ReceiveMsgFrom(node, cap);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        CSerializedNetMsg cap2{mm.Make(NetMsgType::RIGORCAP, uint32_t{1}, RIGOR_LOCAL_ACTIVE_CAPABILITIES)};
+        (void)connman.ReceiveMsgFrom(node, cap2);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        BOOST_CHECK(node.fDisconnect);
+        m_node.peerman->FinalizeNode(node);
+    }
+
+    {
+        CAddress addr(ip(0xa0b0c003), NODE_NONE);
+        CNode node{id++, nullptr, addr, 0, 0, CAddress(), "", ConnectionType::INBOUND, false};
+        handshake_version(node);
+        CSerializedNetMsg cap;
+        cap.m_type = NetMsgType::RIGORCAP;
+        CVectorWriter{SER_NETWORK, 0, cap.data, 0, uint32_t{1}, RIGOR_LOCAL_ACTIVE_CAPABILITIES, uint8_t{0xff}};
+        (void)connman.ReceiveMsgFrom(node, cap);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        BOOST_CHECK(node.fDisconnect);
+        m_node.peerman->FinalizeNode(node);
+    }
+
+    {
+        CAddress addr(ip(0xa0b0c004), NODE_NONE);
+        CNode node{id++, nullptr, addr, 0, 0, CAddress(), "", ConnectionType::INBOUND, false};
+        handshake_version(node);
+        CSerializedNetMsg cap;
+        cap.m_type = NetMsgType::RIGORCAP;
+        CVectorWriter{SER_NETWORK, 0, cap.data, 0, uint32_t{1}};
+        (void)connman.ReceiveMsgFrom(node, cap);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        BOOST_CHECK(node.fDisconnect);
+        m_node.peerman->FinalizeNode(node);
+    }
+
+    {
+        CAddress addr(ip(0xa0b0c005), NODE_NONE);
+        CNode node{id++, nullptr, addr, 0, 0, CAddress(), "", ConnectionType::INBOUND, false};
+        handshake_version(node);
+        CSerializedNetMsg cap{mm.Make(NetMsgType::RIGORCAP, uint32_t{1}, RIGOR_LOCAL_ACTIVE_CAPABILITIES)};
+        (void)connman.ReceiveMsgFrom(node, cap);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        CSerializedNetMsg verack{mm.Make(NetMsgType::VERACK)};
+        (void)connman.ReceiveMsgFrom(node, verack);
+        node.fPauseSend = false;
+        connman.ProcessMessagesOnce(node);
+        BOOST_CHECK(!node.fDisconnect);
+        BOOST_CHECK(node.fSuccessfullyConnected);
+        m_node.peerman->FinalizeNode(node);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

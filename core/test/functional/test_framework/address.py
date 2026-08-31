@@ -13,14 +13,14 @@ import unittest
 
 from .script import (
     CScript,
-    OP_0,
-    OP_TRUE,
+    RIGOR_PUSH_0,
+    RIGOR_PUSH_1,
     hash160,
     hash256,
     sha256,
     taproot_construct,
 )
-from .key import ECKey
+from .ed25519 import Ed25519Key, payload_from_cpubkey
 from .util import assert_equal
 from .descriptors import descsum_create
 from test_framework.script_util import (
@@ -35,10 +35,11 @@ from test_framework.segwit_addr import (
 )
 
 
-ADDRESS_BCRT1_UNSPENDABLE = 'rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqju08fx'
-ADDRESS_BCRT1_UNSPENDABLE_DESCRIPTOR = 'addr(rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqju08fx)#tl8xqn37'
-# Coins sent to this address can be spent with a witness stack of just OP_TRUE
-ADDRESS_BCRT1_P2WSH_OP_TRUE = 'rgrt1qft5p2uhsdcdc3l2ua4ap5qqfg4pjaqlp250x7us7a8qqhrxrxfsqnrwx2q'
+# Witness v0 P2WPKH of the all-zero 20-byte program (no known key). P2WSH (v0/32) is not a consensus output.
+ADDRESS_BCRT1_UNSPENDABLE = 'rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfa5c2t'
+ADDRESS_BCRT1_UNSPENDABLE_DESCRIPTOR = 'addr(rgrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqfa5c2t)#rc67eydj'
+# Dummy v0/20 P2WPKH (20 bytes of 0x11); not anyone-can-spend. Name kept for callers.
+ADDRESS_BCRT1_P2WSH_OP_TRUE = 'rgrt1qzyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3mrr9le'
 
 
 class AddressType(enum.Enum):
@@ -52,41 +53,52 @@ b58chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
 def create_deterministic_address_rgrt1_p2tr_op_true():
     """
     Generates a deterministic bech32m address (segwit v1 output) that
-    can be spent with a witness stack of OP_TRUE and the control block
+    can be spent with a witness stack of RIGOR_PUSH_1 and the control block
     with internal public key (script-path spending).
 
     Returns a tuple with the generated address and the internal key.
     """
     internal_key = (1).to_bytes(32, 'big')
-    address = output_key_to_p2tr(taproot_construct(internal_key, [(None, CScript([OP_TRUE]))]).output_pubkey)
+    address = output_key_to_p2tr(taproot_construct(internal_key, [(None, CScript([RIGOR_PUSH_1]))]).output_pubkey)
     assert_equal(address, 'rgrt1p9yfmy5h72durp7zrhlw9lf7jpwjgvwdg0jr0lqmmjtgg83266lqs6vw7mf')
     return (address, internal_key)
 
 
-def get_mini_wallet_privkey():
-    """Same deterministic key as the first 25 coinbases in the shared regtest cache (secret=2, compressed)."""
-    privkey = ECKey()
-    privkey.set((2).to_bytes(32, 'big'), True)
-    return privkey
+def get_mini_wallet_key():
+    """Deterministic Ed25519 seed=2 — same key as the first 25 coinbases in the shared regtest cache."""
+    return Ed25519Key.from_seed_int(2)
+
+
+def test_coinbase_script_pubkey():
+    """P2WPKH for homemade coinbases in tests that only need a structurally valid block.
+
+    Seed 4 is deliberately not the MiniWallet key (seed 2), so these coinbases never
+    turn up in a MiniWallet UTXO scan and cannot perturb its balance.
+    """
+    pk32 = Ed25519Key.from_seed_int(4).get_pubkey_bytes()
+    return bytes(key_to_p2wpkh_script(pk32))
 
 
 def mini_wallet_wpkh_address():
-    """Bech32 P2WPKH used by MiniWallet; witness v0 only (not v1 / RES)."""
-    pub = get_mini_wallet_privkey().get_pubkey().get_bytes()
-    addr = encode_segwit_address('rgrt', 0, hash160(pub))
-    assert_equal(addr, 'rgrt1qq6hag67dl53wl99vzg42z8eyzfz2xlkv2ajmm6')
+    """Bech32 P2WPKH used by MiniWallet; HASH160 of the 32-byte Ed25519 payload."""
+    pk32 = get_mini_wallet_key().get_pubkey_bytes()
+    addr = encode_segwit_address('rgrt', 0, hash160(pk32))
+    assert_equal(addr, 'rgrt1qxvy58p2w9f5kv2eswy5suvcft575d6tuen7r0q')
     return addr
 
 
 def mini_wallet_wpkh_script_pubkey():
-    pub = get_mini_wallet_privkey().get_pubkey().get_bytes()
-    return bytes(key_to_p2wpkh_script(pub))
+    pk32 = get_mini_wallet_key().get_pubkey_bytes()
+    return bytes(key_to_p2wpkh_script(pk32))
 
 
 def mini_wallet_wpkh_descriptor():
-    """Descriptor for generatetodescriptor when building the shared chain cache."""
-    pub = get_mini_wallet_privkey().get_pubkey().get_bytes()
-    return descsum_create('wpkh({})'.format(pub.hex()))
+    """Descriptor for generatetodescriptor when building the shared chain cache.
+
+    ``wpkh()`` takes the 33-byte ORUM wrapper; the node hashes the 32-byte payload.
+    """
+    wrapped = get_mini_wallet_key().get_cpubkey_bytes()
+    return descsum_create('wpkh({})'.format(wrapped.hex()))
 
 
 # Must match src/kernel/chainparams.cpp Bech32HRP() for each -chain= used in functional tests.
@@ -110,16 +122,13 @@ def wif_to_p2wpkh_bech32(wif: str, hrp: str) -> str:
         if payload[-1] != 1:
             raise ValueError('invalid compressed WIF suffix')
         secret = payload[:32]
-        compressed = True
     elif len(payload) == 32:
         secret = payload
-        compressed = False
     else:
         raise ValueError('invalid WIF payload length %d' % len(payload))
-    k = ECKey()
-    k.set(secret, compressed)
-    pub = k.get_pubkey().get_bytes()
-    return encode_segwit_address(hrp, 0, hash160(pub))
+    k = Ed25519Key(secret)
+    pk32 = k.get_pubkey_bytes()
+    return encode_segwit_address(hrp, 0, hash160(pk32))
 
 
 def wif_regtest_to_p2wpkh_rgrt(wif: str) -> str:
@@ -191,7 +200,7 @@ def script_to_p2sh(script, main=False):
 
 def key_to_p2sh_p2wpkh(key, main=False):
     key = check_key(key)
-    p2shscript = CScript([OP_0, hash160(key)])
+    p2shscript = CScript([RIGOR_PUSH_0, hash160(key)])
     return script_to_p2sh(p2shscript, main)
 
 def program_to_witness(version, program, main=False):
@@ -212,7 +221,7 @@ def key_to_p2wpkh(key, main=False):
 
 def script_to_p2sh_p2wsh(script, main=False):
     script = check_script(script)
-    p2shscript = CScript([OP_0, sha256(script)])
+    p2shscript = CScript([RIGOR_PUSH_0, sha256(script)])
     return script_to_p2sh(p2shscript, main)
 
 def output_key_to_p2tr(key, main=False):
@@ -222,9 +231,13 @@ def output_key_to_p2tr(key, main=False):
 def check_key(key):
     if (type(key) is str):
         key = bytes.fromhex(key)  # Assuming this is hex string
-    if (type(key) is bytes and (len(key) == 33 or len(key) == 65)):
+    if type(key) is bytes and len(key) == 32:
         return key
-    assert False
+    if type(key) is bytes and len(key) == 33 and key[0] == 0x00:
+        return payload_from_cpubkey(key)
+    if type(key) is bytes and (len(key) == 33 or len(key) == 65):
+        return key
+    assert False, "expected Ed25519 payload, 0x00-wrapped CPubKey, or a 33/65-byte script test key"
 
 def check_script(script):
     if (type(script) is str):

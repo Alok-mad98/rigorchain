@@ -9,12 +9,12 @@
     consolidated, machine-checked, release-ready state.
 
     HONESTY BOUNDARY (preserved):
-    - "READY_FOR_RELEASE" here means: artifacts are consolidated, frozen,
+    - [CS_ArtifactsConsolidated] means: artifacts are consolidated, frozen,
       machine-checked, and accompanied by an explicit honest verdict and an
       explicit list of OPEN proof obligations (PD-4F-OB-02 / PD-4F-CPP-01 /
-      PD-4F-OB-03).
-    - "READY_FOR_RELEASE" does NOT mean Coq = Runtime, Coq = Frozen C++, or
-      Coq = Consensus. Equivalence remains NOT established.
+      PD-4F-OB-03). F-4 renamed this from CS_ReadyForRelease.
+    - It does NOT mean Coq = Runtime, Coq = Frozen C++, Coq = Consensus, or
+      mainnet-ready. Equivalence remains NOT established.
     - The frozen readiness verdict from 016EE is RV_Partial; this is preserved
       in the certification predicate (the predicate accepts only
       [final_verdict = RV_Partial]; it does NOT accept a fabricated
@@ -40,12 +40,12 @@ Require Import Rigor.Phase4GRefinement.FinalReadinessAudit.
 
 (** A two-valued release certification status. *)
 Inductive CertificationStatus :=
-| CS_ReadyForRelease
+| CS_ArtifactsConsolidated
 | CS_NotReady.
 
 Definition cert_status_eqb (a b : CertificationStatus) : bool :=
   match a, b with
-  | CS_ReadyForRelease, CS_ReadyForRelease => true
+  | CS_ArtifactsConsolidated, CS_ArtifactsConsolidated => true
   | CS_NotReady, CS_NotReady => true
   | _, _ => false
   end.
@@ -104,7 +104,7 @@ Definition release_predicate : bool :=
     ================================================================ *)
 
 Definition certification_status : CertificationStatus :=
-  if release_predicate then CS_ReadyForRelease else CS_NotReady.
+  if release_predicate then CS_ArtifactsConsolidated else CS_NotReady.
 
 (** ================================================================
     Part D:  Master Qed lemmas (no new content; re-export of 016EE)
@@ -142,7 +142,7 @@ Proof. vm_compute. reflexivity. Qed.
     state. The proof depends ONLY on the frozen 016EE verdict data. No new
     equivalence theorem is introduced. *)
 Theorem formal_verification_ready :
-  certification_status = CS_ReadyForRelease.
+  certification_status = CS_ArtifactsConsolidated.
 Proof.
   unfold certification_status. rewrite release_predicate_holds. reflexivity.
 Qed.
@@ -170,7 +170,7 @@ Proof. exact final_no_equivalence. Qed.
 (** Master honesty bundle: the certification value is consistent with PARTIAL
     readiness, NOT with any equivalence claim. *)
 Lemma certification_partial_only :
-  certification_status = CS_ReadyForRelease /\
+  certification_status = CS_ArtifactsConsolidated /\
   final_verdict = RV_Partial /\
   final_verdict <> RV_Equivalent /\
   final_total_agreement < final_verdict_total /\

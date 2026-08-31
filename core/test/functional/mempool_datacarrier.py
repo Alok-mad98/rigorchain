@@ -9,7 +9,7 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    OP_RETURN,
+    RIGOR_MARKER_RETURN,
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.test_node import TestNode
@@ -31,7 +31,7 @@ class DataCarrierTest(BitcoinTestFramework):
 
     def test_null_data_transaction(self, node: TestNode, data: bytes, success: bool) -> None:
         tx = self.wallet.create_self_transfer(fee_rate=0)["tx"]
-        tx.vout.append(CTxOut(nValue=0, scriptPubKey=CScript([OP_RETURN, data])))
+        tx.vout.append(CTxOut(nValue=0, scriptPubKey=CScript([RIGOR_MARKER_RETURN, data])))
         tx.vout[0].nValue -= tx.get_vsize()  # simply pay 1sat/vbyte fee
 
         tx_hex = tx.serialize().hex()
@@ -45,7 +45,7 @@ class DataCarrierTest(BitcoinTestFramework):
     def run_test(self):
         self.wallet = MiniWallet(self.nodes[0])
 
-        # By default, only 80 bytes are used for data (+1 for OP_RETURN, +2 for the pushdata opcodes).
+        # By default, only 80 bytes are used for data (+1 for RIGOR_MARKER_RETURN, +2 for the pushdata opcodes).
         default_size_data = random_bytes(MAX_OP_RETURN_RELAY - 3)
         too_long_data = random_bytes(MAX_OP_RETURN_RELAY - 2)
         small_data = random_bytes(MAX_OP_RETURN_RELAY - 4)

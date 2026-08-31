@@ -26,6 +26,14 @@ hash_kernel_shared_binary_with_cpp = false
 refinement_proved = false
 ```
 
+**Product identity (P0-029):** canonical tree is
+[`https://github.com/rigorchain/rigorchain`](https://github.com/rigorchain/rigorchain).
+Wallet storage is a **SQLite descriptor** file named `rigor-wallet.sqlite`
+(not Berkeley DB, not `wallet.dat`). There is **no** `libbitcoinconsensus`
+(or `librigorconsensus`) C ABI in this tree — consensus verify is in-process
+`VerifyScript` (ScriptPubKey → `AssetTypeFromScriptPubKey` → Ed25519).
+HISTORICAL Bitcoin Core PR URLs in comments stay as citations of past work.
+
 | Public document | Path |
 |-----------------|------|
 | Formal Verification Status | [`docs/verification/FORMAL-VERIFICATION-STATUS.md`](../docs/verification/FORMAL-VERIFICATION-STATUS.md) |
@@ -273,7 +281,7 @@ bash formal_verification/scripts/run_fv_release_checklist.sh
 bash formal_verification/scripts/run_differential_gate.sh --help
 ```
 
-The checklist runner is freeze artifacts plus `SKIP_TEST_BITCOIN=1` `run_differential_gate.sh` (lock check is gate step 2b). Optional: `FV_COQ=1`, `FV_EXTRACT=1`, `FV_TEST_BITCOIN=1`. Direct gate: `bash formal_verification/scripts/run_differential_gate.sh`. This is not a refinement proof. See [`docs/verification/FV-RELEASE-CHECKLIST.md`](../docs/verification/FV-RELEASE-CHECKLIST.md).
+The checklist runner is freeze artifacts plus `SKIP_TEST_RIGOR=1` `run_differential_gate.sh` (lock check is gate step 2b). Optional: `FV_COQ=1`, `FV_EXTRACT=1`, `FV_TEST_RIGOR=1`. Direct gate: `bash formal_verification/scripts/run_differential_gate.sh`. This is not a refinement proof. See [`docs/verification/FV-RELEASE-CHECKLIST.md`](../docs/verification/FV-RELEASE-CHECKLIST.md).
 
 The same gate already runs `tests/test_golden_vectors.py`. Direct:
 

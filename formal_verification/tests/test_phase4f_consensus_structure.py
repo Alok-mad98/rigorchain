@@ -497,7 +497,7 @@ MODULE_EXPECTATIONS_4G_FINAL: dict[str, list[str]] = {
 MODULE_EXPECTATIONS_4G_CERT: dict[str, list[str]] = {
     "FormalVerificationCertification.v": [
         "Inductive CertificationStatus",
-        "CS_ReadyForRelease",
+        "CS_ArtifactsConsolidated",
         "CS_NotReady",
         "Definition cert_status_eqb",
         "Definition verdict_constructor_ok",
@@ -1030,7 +1030,7 @@ MODULE_EXPECTATIONS_5E_PROOF_030: dict[str, list[str]] = {
 
 MODULE_EXPECTATIONS_5E_PROOF_031: dict[str, list[str]] = {
     "Phase5MainnetFreezeCatalog.v": [
-        "Definition p5_mainnet_freeze_established",
+        "Definition p5_phase5_paperwork_recorded",
         "Definition p5_mainnet_freeze_link",
         "Lemma p5_mainnet_freeze_snapshot_matches_candidate",
         "Theorem phase5_mainnet_freeze_draw_permanent",
@@ -1040,7 +1040,7 @@ MODULE_EXPECTATIONS_5E_PROOF_031: dict[str, list[str]] = {
         "Theorem phase5_mainnet_freeze_verdict_holds",
     ],
     "Phase5MainnetFreezeAudit.v": [
-        "Definition audit_p5_mainnet_freeze_established",
+        "Definition audit_p5_phase5_paperwork_recorded",
         "Lemma audit_p5_mainnet_freeze_matches_candidate",
         "Lemma audit_p5_mainnet_freeze_draw_permanent",
         "Lemma audit_p5_mainnet_freeze_no_equivalence",

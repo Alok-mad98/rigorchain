@@ -34,16 +34,29 @@ static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 enum AssetType : uint8_t {
     ASSET_ORU = 0,
     ASSET_RES = 1,
-    /** OP_RETURN / data carrier — not a native asset; output value must be zero. */
+    /** RIGOR_MARKER_RETURN / data carrier — not a native asset; output value must be zero. */
     ASSET_NONE = 2,
     // 3 was ASSET_CVG, the retired OP_CVG_CLAIM covenant ticket (see script.h on 0xbc).
     // Its removal is what collapses the dual-pool fee equation back to two terms: a third
     // asset class put a permanently-zero addend into `oru_out`, which is the kind of thing
     // that is easy to get wrong later. Do not reassign 3.
+    /** Unrecognized script. Distinct from ASSET_NONE so RIGOR_MARKER_RETURN cannot be confused with fail-closed. */
+    ASSET_INVALID = 4,
 };
 
-/** Native asset inferred from scriptPubKey (v1 RES program => RES; v0 witness => ORU; OP_RETURN => NONE). */
+/**
+ * Native asset inferred from scriptPubKey. Authoritative implementation is
+ * ClassifyRigorTxout (rigor_classify.cpp): v0/20 → ORU, native v1/32 (pk32) → RES,
+ * RIGOR_MARKER_RES_MINT → RES, RIGOR_MARKER_CONVERGE → ORU, RIGOR_MARKER_RETURN → NONE, else INVALID.
+ */
 AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey);
+
+/**
+ * Consensus Kernel classification entry. Same implementation as
+ * AssetTypeFromScriptPubKey / ClassifyRigorTxout. Fail-closed: unrecognized
+ * scripts are ASSET_INVALID. Do not add a second matcher.
+ */
+AssetType ClassifyRigorAsset(const CScript& scriptPubKey);
 
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
@@ -96,14 +109,14 @@ public:
     /**
      * Setting nSequence to this value for every input in a transaction
      * disables nLockTime/IsFinalTx().
-     * It fails OP_CHECKLOCKTIMEVERIFY/CheckLockTime() for any input that has
+     * It fails RIGOR_RESERVED_LEGACY_CLTV/CheckLockTime() for any input that has
      * it set (BIP 65).
      * It has SEQUENCE_LOCKTIME_DISABLE_FLAG set (BIP 68/112).
      */
     static const uint32_t SEQUENCE_FINAL = 0xffffffff;
     /**
      * This is the maximum sequence number that enables both nLockTime and
-     * OP_CHECKLOCKTIMEVERIFY (BIP 65).
+     * RIGOR_RESERVED_LEGACY_CLTV (BIP 65).
      * It has SEQUENCE_LOCKTIME_DISABLE_FLAG set (BIP 68/112).
      */
     static const uint32_t MAX_SEQUENCE_NONFINAL{SEQUENCE_FINAL - 1};
@@ -114,7 +127,7 @@ public:
      * If this flag is set, CTxIn::nSequence is NOT interpreted as a
      * relative lock-time.
      * It skips SequenceLocks() for any input that has it set (BIP 68).
-     * It fails OP_CHECKSEQUENCEVERIFY/CheckSequence() for any input that has
+     * It fails RIGOR_RESERVED_LEGACY_CSV/CheckSequence() for any input that has
      * it set (BIP 112).
      */
     static const uint32_t SEQUENCE_LOCKTIME_DISABLE_FLAG = (1U << 31);

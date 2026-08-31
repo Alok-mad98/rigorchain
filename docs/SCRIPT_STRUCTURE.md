@@ -233,9 +233,9 @@ struct ConvergenceCommitment {
 | m_draw_candidates.hash | uint256 | Little Endian | 32 bytes | Per-tx ConvergenceDrawCandidates result (runtime only) |
 | m_draw_candidates.root | uint256 | Little Endian | 32 bytes | Candidate set Merkle root (on-chain data) |
 
-**OP_RETURN script format**:
+**RIGOR_MARKER_RETURN script format**:
 ```
-OP_RETURN (0x6a)
+RIGOR_MARKER_RETURN (0x6a)
 [CompactSize] data length
 [1 byte] "CVGE" (Magic)
 [1 byte] version number (2)
@@ -253,19 +253,19 @@ OP_RETURN (0x6a)
 
 | Opcode | Hex | Type | Description |
 |--------|-----|------|-------------|
-| OP_0 | 0x00 | Constant | Push empty vector |
-| OP_PUSHDATA1 | 0x4C | Data push | Followed by 1-byte length |
-| OP_PUSHDATA2 | 0x4D | Data push | Followed by 2-byte length |
-| OP_PUSHDATA4 | 0x4E | Data push | Followed by 4-byte length |
-| OP_1NEGATE | 0x4F | Constant | Push -1 |
-| OP_1..OP_16 | 0x51-0x60 | Constant | Push 1-16 |
-| OP_DUP | 0x76 | Stack op | Duplicate top stack element |
-| OP_HASH160 | 0xA9 | Crypto | SHA256 + RIPEMD160 |
-| OP_EQUAL | 0x87 | Compare | Equality check |
-| OP_EQUALVERIFY | 0x88 | Compare | Equality check and verify |
-| OP_CHECKSIG | 0xAC | Crypto | ECDSA signature verification |
-| OP_CHECKMULTISIG | 0xAE | Crypto | Multi-signature verification |
-| OP_RETURN | 0x6A | Control flow | Mark data carrier output |
+| RIGOR_PUSH_0 | 0x00 | Constant | Push empty vector |
+| RIGOR_PUSHDATA1 | 0x4C | Data push | Followed by 1-byte length |
+| RIGOR_PUSHDATA2 | 0x4D | Data push | Followed by 2-byte length |
+| RIGOR_PUSHDATA4 | 0x4E | Data push | Followed by 4-byte length |
+| RIGOR_RESERVED_LEGACY_1NEGATE | 0x4F | Constant | Push -1 |
+| RIGOR_PUSH_1..RIGOR_PUSH_16 | 0x51-0x60 | Constant | Push 1-16 |
+| RIGOR_RESERVED_LEGACY_DUP | 0x76 | Stack op | Duplicate top stack element |
+| RIGOR_RESERVED_LEGACY_HASH160 | 0xA9 | Crypto | SHA256 + RIPEMD160 |
+| RIGOR_RESERVED_LEGACY_EQUAL | 0x87 | Compare | Equality check |
+| RIGOR_RESERVED_LEGACY_EQUALVERIFY | 0x88 | Compare | Equality check and verify |
+| RIGOR_RESERVED_LEGACY_CHECKSIG | 0xAC | Crypto | ECDSA signature verification |
+| RIGOR_RESERVED_LEGACY_CHECKMULTISIG | 0xAE | Crypto | Multi-signature verification |
+| RIGOR_MARKER_RETURN | 0x6A | Control flow | Mark data carrier output |
 
 ---
 
@@ -322,8 +322,8 @@ graph TD
 3. **Witness version check**:
    ```cpp
    bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const {
-       if (size() < 4 || (*begin()) != OP_1) return false;
-       int witnessversion = (*begin()) - OP_1;
+       if (size() < 4 || (*begin()) != RIGOR_PUSH_1) return false;
+       int witnessversion = (*begin()) - RIGOR_PUSH_1;
        // parse program content
    }
    ```
@@ -340,7 +340,7 @@ graph TD
 
 **Script structure**:
 ```
-scriptPubKey: OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+scriptPubKey: RIGOR_RESERVED_LEGACY_DUP RIGOR_RESERVED_LEGACY_HASH160 <pubKeyHash> RIGOR_RESERVED_LEGACY_EQUALVERIFY RIGOR_RESERVED_LEGACY_CHECKSIG
 scriptSig: <signature> <pubkey>
 ```
 
@@ -354,13 +354,13 @@ Init  []                  Initialize empty stack
 2     [<signature>]       Push signature
 3     [<signature>, <pubkey>]  Push pubkey
 4     [<signature>, <pubkey>]  Execute scriptPubKey
-5     [<signature>, <pubkey>, <pubkey>]  OP_DUP (duplicate top)
-6     [<signature>, <pubkey>, <pubkey>, <pubkey>]  OP_DUP (repeated)
-7     [<signature>, <pubkey>, <pubkey>]  OP_HASH160 (compute pubkey hash)
+5     [<signature>, <pubkey>, <pubkey>]  RIGOR_RESERVED_LEGACY_DUP (duplicate top)
+6     [<signature>, <pubkey>, <pubkey>, <pubkey>]  RIGOR_RESERVED_LEGACY_DUP (repeated)
+7     [<signature>, <pubkey>, <pubkey>]  RIGOR_RESERVED_LEGACY_HASH160 (compute pubkey hash)
 8     [<signature>, <pubkey>, <pubkeyHash>]  Push hash from scriptPubKey
-9     [<signature>, <pubkey>, <pubkeyHash>, <pubKeyHash>]  OP_EQUALVERIFY
+9     [<signature>, <pubkey>, <pubkeyHash>, <pubKeyHash>]  RIGOR_RESERVED_LEGACY_EQUALVERIFY
 10    [<signature>, <pubkey>]  Terminate if verification fails
-11    [true/false]         OP_CHECKSIG (verify signature)
+11    [true/false]         RIGOR_RESERVED_LEGACY_CHECKSIG (verify signature)
 12    [true/false]         Top-of-stack true means success
 ```
 
@@ -372,37 +372,9 @@ Init  []                  Initialize empty stack
 
 ---
 
-#### 2.2 P2SH (Pay-to-Script-Hash)
+#### 2.2 P2SH (removed)
 
-**Script structure**:
-```
-scriptPubKey: OP_HASH160 <scriptHash> OP_EQUAL
-scriptSig: <redeemScript> <signature...>
-```
-
-**Execution flow**:
-
-```
-Step  Stack state              Operation
-----  ------------------  ------------------------------------
-Init  []                  Initialize empty stack
-1     []                  Execute scriptSig
-2     [<redeemScript>]    Push redeem script
-3     [<redeemScript>, <signature...>]  Push signatures
-4     [<redeemScript>, <signature...>]  Execute scriptPubKey
-5     [<redeemScript>, <signature...>, <redeemScript>]  OP_DUP
-6     [<redeemScript>, <signature...>, <redeemScript>]  OP_HASH160
-7     [<redeemScript>, <signature...>, <scriptHash>]  Push hash from scriptPubKey
-8     [true/false]         OP_EQUAL
-9     [true/false]         If true, execute redeem script
-10    [...]                Redeem script execution
-11    [true/false]         Final result
-```
-
-**Verification logic**:
-- P2SH takes effect when `SCRIPT_VERIFY_P2SH` flag is enabled
-- Redeem script must satisfy standard script rules
-- Signature verification occurs during redeem script execution
+P2SH is **not** a RIGOR consensus lock. `VerifyScript` rejects `RIGOR_RESERVED_LEGACY_HASH160 <20> RIGOR_RESERVED_LEGACY_EQUAL` scriptPubKeys with `SCRIPT_ERR_RIGOR_SCRIPT_TYPE`. `SCRIPT_VERIFY_P2SH` remains an unused enum bit; it is not set by `GetBlockScriptFlags` and does not enable redeem-script execution. Address encoding and descriptors do not expose `ScriptHash` / `sh()`.
 
 ---
 
@@ -410,7 +382,7 @@ Init  []                  Initialize empty stack
 
 **Script structure**:
 ```
-scriptPubKey: OP_0 <pubKeyHash>
+scriptPubKey: RIGOR_PUSH_0 <pubKeyHash>
 witness: <signature> <pubkey>
 ```
 
@@ -423,7 +395,7 @@ Init  []                  Initialize empty stack
 1     []                  Load witness stack
 2     [<signature>]       witness[0]
 3     [<signature>, <pubkey>]  witness[1]
-4     [<signature>, <pubkey>]  Execute implicit script: OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG
+4     [<signature>, <pubkey>]  Execute implicit script: RIGOR_RESERVED_LEGACY_DUP RIGOR_RESERVED_LEGACY_HASH160 <pubKeyHash> RIGOR_RESERVED_LEGACY_EQUALVERIFY RIGOR_RESERVED_LEGACY_CHECKSIG
 5     ...                 Same as P2PKH execution flow
 ```
 
@@ -441,7 +413,7 @@ Init  []                  Initialize empty stack
 
 **Script structure**:
 ```
-scriptPubKey: OP_1 <32-byte program>
+scriptPubKey: RIGOR_PUSH_1 <32-byte program>
 Program format: "CVG2" (4 bytes) || amount (8 bytes BE) || padding (20 bytes)
 ```
 
@@ -469,7 +441,7 @@ Init  []                  Initialize empty stack
 
 **Script structure**:
 ```
-scriptPubKey: OP_1 <32-byte Ed25519 pubkey>
+scriptPubKey: RIGOR_PUSH_1 <32-byte Ed25519 pubkey>
 ```
 
 **Key-path spend flow**:
@@ -519,16 +491,16 @@ Init  []                  Initialize empty stack
 
 | Data length | Opcode | Format |
 |------------|--------|--------|
-| 0 bytes | OP_0 | 0x00 |
+| 0 bytes | RIGOR_PUSH_0 | 0x00 |
 | 1-75 bytes | [length] | 0x01-0x4B |
-| 76-255 bytes | OP_PUSHDATA1 [length] | 0x4C [1-byte length] |
-| 256-65535 bytes | OP_PUSHDATA2 [length] | 0x4D [2-byte LE length] |
-| 65536+ bytes | OP_PUSHDATA4 [length] | 0x4E [4-byte LE length] |
+| 76-255 bytes | RIGOR_PUSHDATA1 [length] | 0x4C [1-byte length] |
+| 256-65535 bytes | RIGOR_PUSHDATA2 [length] | 0x4D [2-byte LE length] |
+| 65536+ bytes | RIGOR_PUSHDATA4 [length] | 0x4E [4-byte LE length] |
 
 **Minimum encoding rules**:
-- 1-16: must use OP_1-OP_16
-- -1: must use OP_1NEGATE
-- 0: must use OP_0
+- 1-16: must use RIGOR_PUSH_1-RIGOR_PUSH_16
+- -1: must use RIGOR_RESERVED_LEGACY_1NEGATE
+- 0: must use RIGOR_PUSH_0
 - Other numbers: must use shortest byte representation
 
 #### 4.2 Arithmetic Operations
@@ -711,7 +683,7 @@ For each element:
 
 #### 4.1 P2PKH Script Example
 
-**Script**: `OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG`
+**Script**: `RIGOR_RESERVED_LEGACY_DUP RIGOR_RESERVED_LEGACY_HASH160 <pubKeyHash> RIGOR_RESERVED_LEGACY_EQUALVERIFY RIGOR_RESERVED_LEGACY_CHECKSIG`
 
 **Byte stream**:
 ```
@@ -720,12 +692,12 @@ For each element:
 
 **Byte-by-byte explanation**:
 ```
-76  = OP_DUP
-A9  = OP_HASH160
+76  = RIGOR_RESERVED_LEGACY_DUP
+A9  = RIGOR_RESERVED_LEGACY_HASH160
 14  = Push 20-byte data
     = pubKeyHash (20 bytes)
-88  = OP_EQUALVERIFY
-AC  = OP_CHECKSIG
+88  = RIGOR_RESERVED_LEGACY_EQUALVERIFY
+AC  = RIGOR_RESERVED_LEGACY_CHECKSIG
 ```
 
 **Complete scriptPubKey** (33 bytes):
@@ -737,7 +709,7 @@ AC  = OP_CHECKSIG
 
 #### 4.2 Witness v0 P2WPKH Example
 
-**Script**: `OP_0 <pubKeyHash>`
+**Script**: `RIGOR_PUSH_0 <pubKeyHash>`
 
 **Byte stream**:
 ```
@@ -746,7 +718,7 @@ AC  = OP_CHECKSIG
 
 **Byte-by-byte explanation**:
 ```
-00  = OP_0 (Witness version 0)
+00  = RIGOR_PUSH_0 (Witness version 0)
 14  = Push 20-byte data
     = pubKeyHash (20 bytes)
 ```
@@ -760,7 +732,7 @@ AC  = OP_CHECKSIG
 
 #### 4.3 Witness v1 Native RES (Ed25519 Program) Example
 
-**Script**: `OP_1 <32-byte Ed25519 pubkey>`
+**Script**: `RIGOR_PUSH_1 <32-byte Ed25519 pubkey>`
 
 **Byte stream**:
 ```
@@ -769,7 +741,7 @@ AC  = OP_CHECKSIG
 
 **Byte-by-byte explanation**:
 ```
-51  = OP_1 (Witness version 1)
+51  = RIGOR_PUSH_1 (Witness version 1)
 20  = Push 32-byte data
     = Ed25519 pubkey (32 bytes)
 ```
@@ -783,7 +755,7 @@ AC  = OP_CHECKSIG
 
 #### 4.4 Witness v1 CVG2 Convergence Example
 
-**Script**: `OP_1 <32-byte CVG2 program>`
+**Script**: `RIGOR_PUSH_1 <32-byte CVG2 program>`
 
 **Program format**: "CVG2" (4 bytes) || amount (8 bytes BE) || padding (20 bytes)
 
@@ -794,7 +766,7 @@ AC  = OP_CHECKSIG
 
 **Byte-by-byte explanation**:
 ```
-51  = OP_1 (Witness version 1)
+51  = RIGOR_PUSH_1 (Witness version 1)
 20  = Push 32-byte data
 43  = 'C'
 56  = 'V'
@@ -813,9 +785,9 @@ AC  = OP_CHECKSIG
 
 ---
 
-#### 4.5 ConvergenceCommitment OP_RETURN Example
+#### 4.5 ConvergenceCommitment RIGOR_MARKER_RETURN Example
 
-**Script**: `OP_RETURN <CONV data>`
+**Script**: `RIGOR_MARKER_RETURN <CONV data>`
 
 **Data format**: "CVGE" (4 bytes) || version (1 byte) || cumulative (8 bytes LE) || root (32 bytes LE)
 
@@ -826,7 +798,7 @@ AC  = OP_CHECKSIG
 
 **Byte-by-byte explanation**:
 ```
-6A  = OP_RETURN
+6A  = RIGOR_MARKER_RETURN
 33  = Push 51-byte data
 43  = 'C'
 56  = 'V'
@@ -852,45 +824,36 @@ AC  = OP_CHECKSIG
 
 | Type | Value | Script Format | Asset Type |
 |------|-------|---------------|------------|
-| WITNESS_V0_KEYHASH | 7 | OP_0 <20 bytes> | ASSET_ORU |
-| WITNESS_V0_SCRIPTHASH | 8 | OP_0 <32 bytes> | ASSET_ORU |
-| WITNESS_V1_RES | 9 | OP_1 <32 bytes> | ASSET_RES |
-| NULL_DATA | 4 | OP_RETURN <data> | ASSET_NONE |
+| WITNESS_V0_KEYHASH | 7 | RIGOR_PUSH_0 <20 bytes> | ASSET_ORU |
+| WITNESS_V0_SCRIPTHASH | — | RIGOR_PUSH_0 <32 bytes> | **Not a consensus type** (P2WSH removed) |
+| WITNESS_V1_RES | 9 | RIGOR_PUSH_1 <32-byte native Ed25519 pubkey> | ASSET_RES |
+| RES_MINT | — | `<maturity> <20-byte pkh> RIGOR_MARKER_RES_MINT` (coinbase) | ASSET_RES |
+| CONVERGE | — | `<20-byte hash> RIGOR_MARKER_CONVERGE` | ASSET_ORU (burn lock) |
+| NULL_DATA | 4 | RIGOR_MARKER_RETURN <data> | ASSET_NONE |
+| *(unrecognized)* | — | anything else | **ASSET_INVALID** (consensus reject) |
 
 ### 2. Asset Type Inference
 
-**AssetTypeFromScriptPubKey logic**:
+**AssetTypeFromScriptPubKey logic** (authoritative C++: `script/rigor_classify.cpp`):
 
 ```cpp
-// Semantically aligned with `primitives/transaction.cpp::AssetTypeFromScriptPubKey`
 AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey) {
-    int witnessversion;
-    std::vector<unsigned char> witnessprogram;
-
-    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
-        if (witnessversion == 0 &&
-            (witnessprogram.size() == WITNESS_V0_KEYHASH_SIZE ||
-             witnessprogram.size() == WITNESS_V0_SCRIPTHASH_SIZE)) {
-            return ASSET_ORU;
-        }
-        if (witnessversion == 1 && witnessprogram.size() == WITNESS_V1_RES_SIZE) {
-            // Prefix "CVG2": convergence output -> ORU domain
-            if (/* CVG2 prefix */) {
-                return ASSET_ORU;
-            }
-            // Other 32-byte v1 programs: RES domain (includes RES2 wire prefix and historical layouts)
-            return ASSET_RES;
-        }
+    switch (ClassifyRigorTxout(scriptPubKey, sols)) {
+    case TxoutType::WITNESS_V0_KEYHASH:
+    case TxoutType::CONVERGE:
+        return ASSET_ORU;
+    case TxoutType::WITNESS_V1_RES:
+    case TxoutType::RES_MINT:
+        return ASSET_RES;
+    case TxoutType::NULL_DATA:
+        return ASSET_NONE;      // push-only RIGOR_MARKER_RETURN, nValue must be 0
+    default:
+        return ASSET_INVALID;   // fail-closed: never ORU, never NONE
     }
-
-    if (scriptPubKey.size() >= 1 && scriptPubKey[0] == OP_RETURN &&
-        scriptPubKey.IsPushOnly(scriptPubKey.begin() + 1)) {
-        return ASSET_NONE;
-    }
-
-    return ASSET_ORU;
 }
 ```
+
+Unrecognized scripts are **`ASSET_INVALID`**, not `ASSET_ORU` and not `ASSET_NONE`. `ASSET_NONE` is only a legal zero-value RIGOR_MARKER_RETURN. `CheckTransaction` rejects `ASSET_INVALID` with `bad-rigor-script-type`.
 
 ### 3. Constant Definitions
 
@@ -899,15 +862,16 @@ AssetType AssetTypeFromScriptPubKey(const CScript& scriptPubKey) {
 | Constant | Value | Description |
 |----------|-------|-------------|
 | WITNESS_V0_KEYHASH_SIZE | 20 | v0 P2WPKH program size |
-| WITNESS_V0_SCRIPTHASH_SIZE | 32 | v0 P2WSH program size |
-| WITNESS_V1_RES_SIZE | 32 | v1 RES program size |
+| WITNESS_V0_SCRIPTHASH_SIZE | 32 | Historic P2WSH program size (not a consensus output) |
+| WITNESS_V1_RES_SIZE | 32 | v1 native RES program size |
 
 On-chain ASCII tags (consensus bytes; do not confuse with product names)
+
 | Tag | Bytes | Purpose |
 |-----|-------|---------|
-| RIGOR | `RIGOR` | Block header coinbase `OP_RETURN` compact draw-target prefix (see `rigor_tags.h`) |
-| CVG2 | `CVG2` | Convergence output program prefix |
-| RES2 | `RES2` | Optional witness v1 RES wire prefix |
+| RIGR | `RIGR` | Coinbase `RIGOR_MARKER_RETURN` compact draw-target prefix (`rigor_tags.h`; **not** the five-byte string `RIGOR`) |
+| CVG2 | `CVG2` | Retired witness-v1 Convergence prefix. Not creatable; live Convergence is `RIGOR_MARKER_CONVERGE`. |
+| RES2 | `RES2` | Retired witness-v1 RES wire prefix. Not creatable; native RES program is the 32-byte Ed25519 pubkey. |
 
 ---
 
@@ -945,7 +909,7 @@ On-chain ASCII tags (consensus bytes; do not confuse with product names)
 | SCRIPT_ERR_INVALID_STACK_OPERATION | Invalid stack operation |
 | SCRIPT_ERR_INVALID_OPCODE | Invalid opcode |
 | SCRIPT_ERR_UNBALANCED_CONDITIONAL | Unbalanced conditional branch |
-| SCRIPT_ERR_OP_RETURN | OP_RETURN execution |
+| SCRIPT_ERR_OP_RETURN | RIGOR_MARKER_RETURN execution |
 | SCRIPT_ERR_SIG_PUSHONLY | scriptSig must be push-only |
 | SCRIPT_ERR_SIG_HIGH_S | S value too high |
 | SCRIPT_ERR_SIG_DERSIG | Non-DER encoded signature |

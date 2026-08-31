@@ -20,6 +20,9 @@ class ArgsManager;
 struct bilingual_str;
 
 namespace wallet {
+/** SQLite wallet payload filename. Not BDB. Leftover wallet.dat is not opened or renamed. */
+static constexpr const char* WALLET_DATABASE_FILENAME = "rigor-wallet.sqlite";
+
 void SplitWalletPath(const fs::path& wallet_path, fs::path& env_directory, std::string& database_filename);
 
 class DatabaseCursor
@@ -151,9 +154,6 @@ public:
      *  Also close the environment if no other databases are open in it.
      */
     virtual void Close() = 0;
-    /* flush the wallet passively (TRY_LOCK)
-       ideal to be called periodically */
-    virtual bool PeriodicFlush() = 0;
 
     virtual void IncrementUpdateCounter() = 0;
 
@@ -165,9 +165,6 @@ public:
     virtual std::string Format() = 0;
 
     std::atomic<unsigned int> nUpdateCounter;
-    unsigned int nLastSeen{0};
-    unsigned int nLastFlushed{0};
-    int64_t nLastWalletUpdate{0};
 
     /** Make a DatabaseBatch connected to this database */
     virtual std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) = 0;
@@ -209,7 +206,6 @@ public:
     bool Backup(const std::string& strDest) const override { return true; }
     void Close() override {}
     void Flush() override {}
-    bool PeriodicFlush() override { return true; }
     void IncrementUpdateCounter() override { ++nUpdateCounter; }
     void ReloadDbEnv() override {}
     std::string Filename() override { return "dummy"; }
@@ -217,23 +213,14 @@ public:
     std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override { return std::make_unique<DummyBatch>(); }
 };
 
-enum class DatabaseFormat {
-    BERKELEY,
-    SQLITE,
-};
-
 struct DatabaseOptions {
     bool require_existing = false;
     bool require_create = false;
-    std::optional<DatabaseFormat> require_format;
     uint64_t create_flags = 0;
     SecureString create_passphrase;
 
-    // Specialized options. Not every option is supported by every backend.
-    bool verify = true;             //!< Check data integrity on load.
-    bool use_unsafe_sync = false;   //!< Disable file sync for faster performance.
-    bool use_shared_memory = false; //!< Let other processes access the database.
-    int64_t max_log_mb = 100;       //!< Max log size to allow before consolidating.
+    bool verify = true;           //!< Check data integrity on load.
+    bool use_unsafe_sync = false; //!< Disable file sync for faster performance. Tests only.
 };
 
 enum class DatabaseStatus {
@@ -256,10 +243,12 @@ std::vector<fs::path> ListDatabases(const fs::path& path);
 void ReadDatabaseArgs(const ArgsManager& args, DatabaseOptions& options);
 std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error);
 
-fs::path BDBDataFile(const fs::path& path);
 fs::path SQLiteDataFile(const fs::path& path);
-bool IsBDBFile(const fs::path& path);
 bool IsSQLiteFile(const fs::path& path);
+
+/** Detect a Berkeley DB file so an unsupported wallet can be rejected with a precise error.
+ *  RIGOR never reads BDB; this is a fail-closed detector, not a compatibility path. */
+bool IsBerkeleyDBFile(const fs::path& path);
 } // namespace wallet
 
 #endif // BITCOIN_WALLET_DB_H

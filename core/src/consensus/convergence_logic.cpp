@@ -12,11 +12,12 @@
 #include <consensus/params.h>
 #include <consensus/res_owner.h>
 #include <consensus/res_proof.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <consensus_rigor/fee.h>
 #include <hash.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/standard.h>
 #include <undo.h>
 
@@ -240,33 +241,32 @@ bool BuildBlockConvergenceCandidatesFromUndo(const CBlock& block,
     if (block_undo.vtxundo.size() + 1 != block.vtx.size()) {
         return false;
     }
-    // Mirrors ListConvergenceRootCommitmentTxids exactly, sourcing input values from undo
-    // data instead of a live view. The two must agree candidate-for-candidate. Fee is not
-    // a membership condition.
+    // Same overlay walk as ListConvergenceRootCommitmentTxids. Missing coins are seeded
+    // from this tx's undo (block-entry UTXOs); same-block creates come from AddCoins.
+    CCoinsView backed;
+    CCoinsViewCache overlay(&backed);
     out.reserve(block.vtx.size());
     for (size_t i = 1; i < block.vtx.size(); ++i) {
         const CTransaction& tx = *block.vtx[i];
-        if (!IsConvergenceCandidate(tx) || !Consensus::HasResOwnerDeclaration(tx)) continue;
         const CTxUndo& undo = block_undo.vtxundo[i - 1];
-        if (undo.vprevout.size() != tx.vin.size()) continue;
-        CCoinsView backed;
-        CCoinsViewCache cache(&backed);
-        bool undo_ok = true;
+        if (undo.vprevout.size() != tx.vin.size()) {
+            return false;
+        }
         for (size_t j = 0; j < tx.vin.size(); ++j) {
+            if (overlay.HaveCoin(tx.vin[j].prevout)) continue;
             const Coin& src = undo.vprevout[j];
             if (src.IsSpent()) {
-                undo_ok = false;
-                break;
+                return false;
             }
-            cache.AddCoin(tx.vin[j].prevout, Coin(CTxOut(src.out), src.nHeight, src.IsCoinBase()), false);
+            overlay.AddCoin(tx.vin[j].prevout, Coin(CTxOut(src.out), src.nHeight, src.IsCoinBase()), false);
         }
-        if (!undo_ok) continue;
-        TxValidationState tx_state;
-        CAmount txfee = 0;
-        if (!Consensus::CheckTxInputs(tx, tx_state, cache, block_height, consensus_params, txfee)) {
-            continue;
+        if (Consensus::IsConvergenceDrawMember(tx, overlay, block_height, consensus_params)) {
+            out.push_back(MakeDrawCandidate(tx, block_height));
         }
-        out.push_back(MakeDrawCandidate(tx, block_height));
+        for (const auto& txin : tx.vin) {
+            overlay.SpendCoin(txin.prevout);
+        }
+        AddCoins(overlay, tx, block_height, /*check=*/true);
     }
     return true;
 }
@@ -291,6 +291,23 @@ bool BuildConvergenceDrawSetFromUndo(const CBlock& block,
     out.source_nbits = block.nBits;
     FinalizeWindowedDrawSet(block, tail, std::move(own_candidates), out, coinbase_paid_txid);
     return true;
+}
+
+ConvergenceWindowTail TailFromParentDrawSet(const ConvergenceDrawSet& parent_set, int connect_height)
+{
+    ConvergenceWindowTail tail;
+    if (!parent_set.IsSet()) {
+        return tail;
+    }
+    const int window_first = std::max(0, connect_height - Consensus::CONVERGENCE_DRAW_WINDOW + 1);
+    tail.candidates.reserve(parent_set.candidates.size());
+    for (const ConvergenceDrawCandidate& candidate : parent_set.candidates) {
+        if (candidate.source_height >= window_first) {
+            tail.candidates.push_back(candidate);
+        }
+    }
+    tail.complete = true;
+    return tail;
 }
 
 bool IsConvergenceCandidate(const CTransaction& tx)

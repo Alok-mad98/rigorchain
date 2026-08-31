@@ -8,11 +8,13 @@
 #include <key_io.h>
 #include <logging.h>
 #include <outputtype.h>
+#include <pubkey.h>
 #include <random.h>
 #include <script/rigor_tags.h>
 #include <script/descriptor.h>
 #include <script/conv_sign_trace.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
+#include <script/rigor_predicate_registry.h>
 #include <script/sign.h>
 #include <script/standard.h>
 #include <util/bip32.h>
@@ -62,19 +64,6 @@ typedef std::vector<unsigned char> valtype;
 namespace {
 
 /**
- * This is an enum that tracks the execution context of a script, similar to
- * SigVersion in script/interpreter. It is separate however because we want to
- * distinguish between top-level scriptPubKey execution and P2SH redeemScript
- * execution (a distinction that has no impact on consensus rules).
- */
-enum class IsMineSigVersion
-{
-    TOP = 0,        //!< scriptPubKey execution
-    P2SH = 1,       //!< P2SH redeemScript
-    WITNESS_V0 = 2, //!< P2WSH witness script execution
-};
-
-/**
  * This is an internal representation of isminetype + invalidity.
  * Its order is significant, as we return the max of all explored
  * possibilities.
@@ -84,159 +73,61 @@ enum class IsMineResult
     NO = 0,         //!< Not ours
     WATCH_ONLY = 1, //!< Included in watch-only balance
     SPENDABLE = 2,  //!< Included in all balances
-    INVALID = 3,    //!< Not spendable by anyone (uncompressed pubkey in segwit, P2SH inside P2SH or witness, witness inside witness)
+    INVALID = 3,    //!< Not spendable by anyone (uncompressed pubkey in segwit)
 };
 
-bool PermitsUncompressed(IsMineSigVersion sigversion)
-{
-    return sigversion == IsMineSigVersion::TOP || sigversion == IsMineSigVersion::P2SH;
-}
-
-bool HaveKeys(const std::vector<valtype>& pubkeys, const LegacyScriptPubKeyMan& keystore)
-{
-    for (const valtype& pubkey : pubkeys) {
-        CKeyID keyID = CPubKey(pubkey).GetID();
-        if (!keystore.HaveKey(keyID)) return false;
-    }
-    return true;
-}
-
-//! Recursively solve script and return spendable/watchonly/invalid status.
-//!
-//! @param keystore            legacy key and script store
-//! @param scriptPubKey        script to solve
-//! @param sigversion          script type (top-level / redeemscript / witnessscript)
-//! @param recurse_scripthash  whether to recurse into nested p2sh and p2wsh
-//!                            scripts or simply treat any script that has been
-//!                            stored in the keystore as spendable
-IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& scriptPubKey, IsMineSigVersion sigversion, bool recurse_scripthash=true)
+//! Solve a top-level scriptPubKey and return spendable/watchonly/invalid status.
+//! Ownership is RIGOR predicate id + HaveKey(program). There is no redeemScript /
+//! witnessScript recursion and no PUBKEY / P2PKH / MULTISIG / SCRIPT_HASH path.
+IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& scriptPubKey)
 {
     IsMineResult ret = IsMineResult::NO;
 
     std::vector<valtype> vSolutions;
-    TxoutType whichType = Solver(scriptPubKey, vSolutions);
-
-    CKeyID keyID;
-    switch (whichType) {
-    case TxoutType::NONSTANDARD:
-    case TxoutType::NULL_DATA:
-    case TxoutType::WITNESS_UNKNOWN:
-    case TxoutType::CONVERGE:
-        break;
-    case TxoutType::PUBKEY:
-        keyID = CPubKey(vSolutions[0]).GetID();
-        if (!PermitsUncompressed(sigversion) && vSolutions[0].size() != 33) {
-            return IsMineResult::INVALID;
-        }
-        if (keystore.HaveKey(keyID)) {
-            ret = std::max(ret, IsMineResult::SPENDABLE);
-        }
-        break;
-    case TxoutType::WITNESS_V0_KEYHASH:
-    {
-        if (sigversion == IsMineSigVersion::WITNESS_V0) {
-            // P2WPKH inside P2WSH is invalid.
-            return IsMineResult::INVALID;
-        }
-        if (sigversion == IsMineSigVersion::TOP && !keystore.HaveCScript(CScriptID(CScript() << OP_0 << vSolutions[0]))) {
-            // We do not support bare witness outputs unless the P2SH version of it would be
-            // acceptable as well. This protects against matching before segwit activates.
-            // This also applies to the P2WSH case.
-            break;
-        }
-        ret = std::max(ret, IsMineInner(keystore, GetScriptForDestination(PKHash(uint160(vSolutions[0]))), IsMineSigVersion::WITNESS_V0));
-        break;
-    }
-    case TxoutType::PUBKEYHASH:
-        keyID = CKeyID(uint160(vSolutions[0]));
-        if (!PermitsUncompressed(sigversion)) {
-            CPubKey pubkey;
-            if (keystore.GetPubKey(keyID, pubkey) && !pubkey.IsCompressed()) {
-                return IsMineResult::INVALID;
+    const std::optional<RigorPredicateID> pred = LookupRigorPredicate(scriptPubKey);
+    if (pred) {
+        (void)Solver(scriptPubKey, vSolutions);
+        switch (*pred) {
+        case RigorPredicateID::ORU_V0_KEYHASH:
+        {
+            if (!keystore.HaveCScript(CScriptID(CScript() << RIGOR_PUSH_0 << vSolutions[0]))) {
+                break;
             }
-        }
-        if (keystore.HaveKey(keyID)) {
-            ret = std::max(ret, IsMineResult::SPENDABLE);
-        }
-        break;
-    case TxoutType::SCRIPTHASH:
-    {
-        if (sigversion != IsMineSigVersion::TOP) {
-            // P2SH inside P2WSH or P2SH is invalid.
-            return IsMineResult::INVALID;
-        }
-        CScriptID scriptID = CScriptID(uint160(vSolutions[0]));
-        CScript subscript;
-        if (keystore.GetCScript(scriptID, subscript)) {
-            ret = std::max(ret, recurse_scripthash ? IsMineInner(keystore, subscript, IsMineSigVersion::P2SH) : IsMineResult::SPENDABLE);
-        }
-        break;
-    }
-    case TxoutType::WITNESS_V0_SCRIPTHASH:
-    {
-        if (sigversion == IsMineSigVersion::WITNESS_V0) {
-            // P2WSH inside P2WSH is invalid.
-            return IsMineResult::INVALID;
-        }
-        if (sigversion == IsMineSigVersion::TOP && !keystore.HaveCScript(CScriptID(CScript() << OP_0 << vSolutions[0]))) {
-            break;
-        }
-        CScriptID scriptID{RIPEMD160(vSolutions[0])};
-        CScript subscript;
-        if (keystore.GetCScript(scriptID, subscript)) {
-            ret = std::max(ret, recurse_scripthash ? IsMineInner(keystore, subscript, IsMineSigVersion::WITNESS_V0) : IsMineResult::SPENDABLE);
-        }
-        break;
-    }
-    case TxoutType::WITNESS_V1_RES:
-    {
-        // RigorChain RES: witness script <pubkey> OP_CHECKSIG is stored under Hash160(script) and RIPEMD160(x-only).
-        if (sigversion == IsMineSigVersion::WITNESS_V0) {
-            return IsMineResult::INVALID;
-        }
-        if (sigversion == IsMineSigVersion::TOP && !keystore.HaveCScript(CScriptID(CScript() << OP_1 << vSolutions[0]))) {
-            break;
-        }
-        CScriptID scriptID{RIPEMD160(vSolutions[0])};
-        CScript subscript;
-        if (keystore.GetCScript(scriptID, subscript)) {
-            ret = std::max(ret, recurse_scripthash ? IsMineInner(keystore, subscript, IsMineSigVersion::WITNESS_V0) : IsMineResult::SPENDABLE);
-        }
-        break;
-    }
-    case TxoutType::RES_MINT:
-        // HASH160(32-byte Ed25519 program) is not CPubKey::GetID(); descriptor wallets
-        // match mint scripts in FindCachedDescriptorIndex. Exact-script watch-only still applies.
-        break;
-
-    case TxoutType::MULTISIG:
-    {
-        // Never treat bare multisig outputs as ours (they can still be made watchonly-though)
-        if (sigversion == IsMineSigVersion::TOP) {
-            break;
-        }
-
-        // Only consider transactions "mine" if we own ALL the
-        // keys involved. Multi-signature transactions that are
-        // partially owned (somebody else has a key that can spend
-        // them) enable spend-out-from-under-you attacks, especially
-        // in shared-wallet situations.
-        std::vector<valtype> keys(vSolutions.begin()+1, vSolutions.begin()+vSolutions.size()-1);
-        if (!PermitsUncompressed(sigversion)) {
-            for (size_t i = 0; i < keys.size(); i++) {
-                if (keys[i].size() != 33) {
+            const CKeyID keyID{uint160(vSolutions[0])};
+            {
+                CPubKey pubkey;
+                if (keystore.GetPubKey(keyID, pubkey) && !pubkey.IsCompressed()) {
                     return IsMineResult::INVALID;
                 }
             }
+            if (keystore.HaveKey(keyID)) {
+                ret = std::max(ret, IsMineResult::SPENDABLE);
+            }
+            break;
         }
-        if (HaveKeys(keys, keystore)) {
-            ret = std::max(ret, IsMineResult::SPENDABLE);
+        case RigorPredicateID::RES_V1_NATIVE_KEY:
+        {
+            if (!keystore.HaveCScript(CScriptID(CScript() << RIGOR_PUSH_1 << vSolutions[0]))) {
+                break;
+            }
+            const XOnlyPubKey xpk{Span<const unsigned char>(vSolutions[0].data(), vSolutions[0].size())};
+            for (const CKeyID& keyid : xpk.GetKeyIDs()) {
+                if (keystore.HaveKey(keyid)) {
+                    ret = std::max(ret, IsMineResult::SPENDABLE);
+                    break;
+                }
+            }
+            break;
         }
-        break;
+        case RigorPredicateID::RES_MINT_V0:
+        case RigorPredicateID::CONVERGE_V0:
+        case RigorPredicateID::OP_RETURN_BURN:
+            break;
+        }
     }
-    } // no default case, so the compiler can warn about missing cases
 
-    if (ret == IsMineResult::NO && keystore.HaveWatchOnly(scriptPubKey)) {
+    if (ret == IsMineResult::NO && keystore.HaveWatchOnly(scriptPubKey) &&
+        IsRigorConstructibleScript(scriptPubKey)) {
         ret = std::max(ret, IsMineResult::WATCH_ONLY);
     }
     return ret;
@@ -246,7 +137,7 @@ IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& s
 
 isminetype LegacyScriptPubKeyMan::IsMine(const CScript& script) const
 {
-    switch (IsMineInner(*this, script, IsMineSigVersion::TOP)) {
+    switch (IsMineInner(*this, script)) {
     case IsMineResult::INVALID:
     case IsMineResult::NO:
         return ISMINE_NO;
@@ -617,7 +508,7 @@ std::unique_ptr<SigningProvider> LegacyScriptPubKeyMan::GetSolvingProvider(const
 
 bool LegacyScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sigdata)
 {
-    IsMineResult ismine = IsMineInner(*this, script, IsMineSigVersion::TOP, /* recurse_scripthash= */ false);
+    IsMineResult ismine = IsMineInner(*this, script);
     if (ismine == IsMineResult::SPENDABLE || ismine == IsMineResult::WATCH_ONLY) {
         // If ismine, it means we recognize keys or script ids in the script, or
         // are watching the script itself, and we can at least provide metadata
@@ -638,9 +529,9 @@ bool LegacyScriptPubKeyMan::CanProvide(const CScript& script, SignatureData& sig
     }
 }
 
-bool LegacyScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const
+bool LegacyScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, const uint256& chain_id, std::map<int, bilingual_str>& input_errors) const
 {
-    return ::SignTransaction(tx, this, coins, sighash, input_errors);
+    return ::SignTransaction(tx, this, coins, chain_id, input_errors);
 }
 
 SigningResult LegacyScriptPubKeyMan::SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const
@@ -656,7 +547,7 @@ SigningResult LegacyScriptPubKeyMan::SignMessage(const std::string& message, con
     return SigningResult::SIGNING_FAILED;
 }
 
-TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
+TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, const uint256& chain_id, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
 {
     if (n_signed) {
         *n_signed = 0;
@@ -685,7 +576,7 @@ TransactionError LegacyScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psb
         }
         SignatureData sigdata;
         input.FillSignatureData(sigdata);
-        SignPSBTInput(HidingSigningProvider(this, !sign, !bip32derivs), psbtx, i, &txdata, sighash_type, nullptr, finalize);
+        SignPSBTInput(HidingSigningProvider(this, !sign, !bip32derivs), psbtx, i, &txdata, chain_id, sighash_type, nullptr, finalize);
 
         bool signed_one = PSBTInputSigned(input);
         if (n_signed && (signed_one || !sign)) {
@@ -780,11 +671,7 @@ bool LegacyScriptPubKeyMan::AddKeyPubKeyWithDB(WalletBatch& batch, const CKey& s
 
     // check if we need to remove from watch-only
     CScript script;
-    script = GetScriptForDestination(PKHash(pubkey));
-    if (HaveWatchOnly(script)) {
-        RemoveWatchOnly(script);
-    }
-    script = GetScriptForRawPubKey(pubkey);
+    script = GetScriptForDestination(WitnessV0KeyHash(pubkey));
     if (HaveWatchOnly(script)) {
         RemoveWatchOnly(script);
     }
@@ -1491,7 +1378,7 @@ bool LegacyScriptPubKeyMan::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& key
 void LegacyScriptPubKeyMan::LearnRelatedScripts(const CPubKey& key, OutputType type)
 {
     assert(type != OutputType::BECH32M);
-    if (key.IsCompressed() && (type == OutputType::P2SH_SEGWIT || type == OutputType::BECH32)) {
+    if (key.IsCompressed() && type == OutputType::BECH32) {
         CTxDestination witdest = WitnessV0KeyHash(key.GetID());
         CScript witprog = GetScriptForDestination(witdest);
         // Make sure the resulting program is solvable.
@@ -1503,8 +1390,7 @@ void LegacyScriptPubKeyMan::LearnRelatedScripts(const CPubKey& key, OutputType t
 
 void LegacyScriptPubKeyMan::LearnAllRelatedScripts(const CPubKey& key)
 {
-    // OutputType::P2SH_SEGWIT always adds all necessary scripts for all types.
-    LearnRelatedScripts(key, OutputType::P2SH_SEGWIT);
+    LearnRelatedScripts(key, OutputType::BECH32);
 }
 
 std::vector<CKeyPool> LegacyScriptPubKeyMan::MarkReserveKeysAsUsed(int64_t keypool_id)
@@ -1539,7 +1425,9 @@ std::vector<CKeyID> GetAffectedKeys(const CScript& spk, const SigningProvider& p
 {
     std::vector<CScript> dummy;
     FlatSigningProvider out;
-    InferDescriptor(spk, provider)->Expand(0, DUMMY_SIGNING_PROVIDER, dummy, out);
+    if (auto desc = InferDescriptor(spk, provider)) {
+        desc->Expand(0, DUMMY_SIGNING_PROVIDER, dummy, out);
+    }
     std::vector<CKeyID> ret;
     ret.reserve(out.pubkeys.size());
     for (const auto& entry : out.pubkeys) {
@@ -1658,7 +1546,7 @@ bool LegacyScriptPubKeyMan::ImportPubKeys(const std::vector<CKeyID>& ordered_pub
             WalletLogPrintf("Already have pubkey %s, skipping\n", HexStr(temp));
             continue;
         }
-        if (!AddWatchOnlyWithDB(batch, GetScriptForRawPubKey(pubkey), timestamp)) {
+        if (!AddWatchOnlyWithDB(batch, GetScriptForDestination(WitnessV0KeyHash(pubkey)), timestamp)) {
             return false;
         }
         mapKeyMetadata[id].nCreateTime = timestamp;
@@ -1703,307 +1591,39 @@ std::unordered_set<CScript, SaltedSipHasher> LegacyScriptPubKeyMan::GetScriptPub
     LOCK(cs_KeyStore);
     std::unordered_set<CScript, SaltedSipHasher> spks;
 
-    // All keys have at least P2PK and P2PKH
+    // Track the live WPKH lock for each key. P2PK / P2PKH are not RIGOR outputs.
     for (const auto& key_pair : mapKeys) {
         const CPubKey& pub = key_pair.second.GetPubKey();
-        spks.insert(GetScriptForRawPubKey(pub));
-        spks.insert(GetScriptForDestination(PKHash(pub)));
+        spks.insert(GetScriptForDestination(WitnessV0KeyHash(pub)));
     }
     for (const auto& key_pair : mapCryptedKeys) {
         const CPubKey& pub = key_pair.second.first;
-        spks.insert(GetScriptForRawPubKey(pub));
-        spks.insert(GetScriptForDestination(PKHash(pub)));
+        spks.insert(GetScriptForDestination(WitnessV0KeyHash(pub)));
     }
 
-    // For every script in mapScript, only the ISMINE_SPENDABLE ones are being tracked.
-    // The watchonly ones will be in setWatchOnly which we deal with later
-    // For all keys, if they have segwit scripts, those scripts will end up in mapScripts
+    // Track live witness programs stored in mapScripts. Do not wrap them as P2SH.
     for (const auto& script_pair : mapScripts) {
         const CScript& script = script_pair.second;
-        if (IsMine(script) == ISMINE_SPENDABLE) {
-            // Add ScriptHash for scripts that are not already P2SH
-            if (!script.IsPayToScriptHash()) {
-                spks.insert(GetScriptForDestination(ScriptHash(script)));
-            }
-            // For segwit scripts, we only consider them spendable if we have the segwit spk
-            int wit_ver = -1;
-            std::vector<unsigned char> witprog;
-            if (script.IsWitnessProgram(wit_ver, witprog)) {
-                // v0 (P2WPKH/P2WSH) and Rigor witness v1 RES (32-byte program)
-                if (wit_ver == 0 || (wit_ver == 1 && witprog.size() == 32)) {
-                    spks.insert(script);
-                }
-            }
-        } else {
-            // Multisigs are special. They don't show up as ISMINE_SPENDABLE unless they are in a P2SH
-            // So check the P2SH of a multisig to see if we should insert it
-            std::vector<std::vector<unsigned char>> sols;
-            TxoutType type = Solver(script, sols);
-            if (type == TxoutType::MULTISIG) {
-                CScript ms_spk = GetScriptForDestination(ScriptHash(script));
-                if (IsMine(ms_spk) != ISMINE_NO) {
-                    spks.insert(ms_spk);
-                }
+        if (IsMine(script) != ISMINE_SPENDABLE) continue;
+        int wit_ver = -1;
+        std::vector<unsigned char> witprog;
+        if (script.IsWitnessProgram(wit_ver, witprog)) {
+            if (wit_ver == 0 || (wit_ver == 1 && witprog.size() == 32)) {
+                spks.insert(script);
             }
         }
     }
 
-    // All watchonly scripts are raw
-    spks.insert(setWatchOnly.begin(), setWatchOnly.end());
+    // Watch-only only for constructible RIGOR locks / RIGOR_MARKER_RETURN.
+    for (const auto& script : setWatchOnly) {
+        if (IsRigorConstructibleScript(script)) {
+            spks.insert(script);
+        } else {
+            WalletLogPrintf("%s: discarding non-RIGOR watch-only script %s\n", __func__, HexStr(script));
+        }
+    }
 
     return spks;
-}
-
-std::optional<MigrationData> LegacyScriptPubKeyMan::MigrateToDescriptor()
-{
-    LOCK(cs_KeyStore);
-    if (m_storage.IsLocked()) {
-        return std::nullopt;
-    }
-
-    MigrationData out;
-
-    std::unordered_set<CScript, SaltedSipHasher> spks{GetScriptPubKeys()};
-
-    // Get all key ids
-    std::set<CKeyID> keyids;
-    for (const auto& key_pair : mapKeys) {
-        keyids.insert(key_pair.first);
-    }
-    for (const auto& key_pair : mapCryptedKeys) {
-        keyids.insert(key_pair.first);
-    }
-
-    // Get key metadata and figure out which keys don't have a seed
-    // Note that we do not ignore the seeds themselves because they are considered IsMine!
-    for (auto keyid_it = keyids.begin(); keyid_it != keyids.end();) {
-        const CKeyID& keyid = *keyid_it;
-        const auto& it = mapKeyMetadata.find(keyid);
-        if (it != mapKeyMetadata.end()) {
-            const CKeyMetadata& meta = it->second;
-            if (meta.hdKeypath == "s" || meta.hdKeypath == "m") {
-                keyid_it++;
-                continue;
-            }
-            if (m_hd_chain.seed_id == meta.hd_seed_id || m_inactive_hd_chains.count(meta.hd_seed_id) > 0) {
-                keyid_it = keyids.erase(keyid_it);
-                continue;
-            }
-        }
-        keyid_it++;
-    }
-
-    // keyids is now all non-HD keys. Each key will have its own combo descriptor
-    for (const CKeyID& keyid : keyids) {
-        CKey key;
-        if (!GetKey(keyid, key)) {
-            assert(false);
-        }
-
-        // Get birthdate from key meta
-        uint64_t creation_time = 0;
-        const auto& it = mapKeyMetadata.find(keyid);
-        if (it != mapKeyMetadata.end()) {
-            creation_time = it->second.nCreateTime;
-        }
-
-        // Get the key origin
-        // Maybe this doesn't matter because floating keys here shouldn't have origins
-        KeyOriginInfo info;
-        bool has_info = GetKeyOrigin(keyid, info);
-        std::string origin_str = has_info ? "[" + HexStr(info.fingerprint) + FormatHDKeypath(info.path) + "]" : "";
-
-        // Construct the combo descriptor
-        std::string desc_str = "combo(" + origin_str + HexStr(key.GetPubKey()) + ")";
-        FlatSigningProvider keys;
-        std::string error;
-        std::unique_ptr<Descriptor> desc = Parse(desc_str, keys, error, false);
-        WalletDescriptor w_desc(std::move(desc), creation_time, 0, 0, 0);
-
-        // Make the DescriptorScriptPubKeyMan and get the scriptPubKeys
-        auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-        desc_spk_man->AddDescriptorKey(key, key.GetPubKey());
-        desc_spk_man->TopUp();
-        auto desc_spks = desc_spk_man->GetScriptPubKeys();
-
-        // Remove the scriptPubKeys from our current set
-        for (const CScript& spk : desc_spks) {
-            size_t erased = spks.erase(spk);
-            assert(erased == 1);
-            assert(IsMine(spk) == ISMINE_SPENDABLE);
-        }
-
-        out.desc_spkms.push_back(std::move(desc_spk_man));
-    }
-
-    // Handle HD keys by using the CHDChains
-    std::vector<CHDChain> chains;
-    chains.push_back(m_hd_chain);
-    for (const auto& chain_pair : m_inactive_hd_chains) {
-        chains.push_back(chain_pair.second);
-    }
-    for (const CHDChain& chain : chains) {
-        for (int i = 0; i < 2; ++i) {
-            // Skip if doing internal chain and split chain is not supported
-            if (chain.seed_id.IsNull() || (i == 1 && !m_storage.CanSupportFeature(FEATURE_HD_SPLIT))) {
-                continue;
-            }
-            // Get the master xprv
-            CKey seed_key;
-            if (!GetKey(chain.seed_id, seed_key)) {
-                assert(false);
-            }
-            CExtKey master_key;
-            master_key.SetSeed(seed_key);
-
-            // Make the combo descriptor
-            std::string xpub = EncodeExtPubKey(master_key.Neuter());
-            std::string desc_str = "combo(" + xpub + "/0'/" + ToString(i) + "'/*')";
-            FlatSigningProvider keys;
-            std::string error;
-            std::unique_ptr<Descriptor> desc = Parse(desc_str, keys, error, false);
-            uint32_t chain_counter = std::max((i == 1 ? chain.nInternalChainCounter : chain.nExternalChainCounter), (uint32_t)0);
-            WalletDescriptor w_desc(std::move(desc), 0, 0, chain_counter, 0);
-
-            // Make the DescriptorScriptPubKeyMan and get the scriptPubKeys
-            auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-            desc_spk_man->AddDescriptorKey(master_key.key, master_key.key.GetPubKey());
-            desc_spk_man->TopUp();
-            auto desc_spks = desc_spk_man->GetScriptPubKeys();
-
-            // Remove the scriptPubKeys from our current set
-            for (const CScript& spk : desc_spks) {
-                size_t erased = spks.erase(spk);
-                assert(erased == 1);
-                assert(IsMine(spk) == ISMINE_SPENDABLE);
-            }
-
-            out.desc_spkms.push_back(std::move(desc_spk_man));
-        }
-    }
-    // Add the current master seed to the migration data
-    if (!m_hd_chain.seed_id.IsNull()) {
-        CKey seed_key;
-        if (!GetKey(m_hd_chain.seed_id, seed_key)) {
-            assert(false);
-        }
-        out.master_key.SetSeed(seed_key);
-    }
-
-    // Handle the rest of the scriptPubKeys which must be imports and may not have all info
-    for (auto it = spks.begin(); it != spks.end();) {
-        const CScript& spk = *it;
-
-        // Get birthdate from script meta
-        uint64_t creation_time = 0;
-        const auto& mit = m_script_metadata.find(CScriptID(spk));
-        if (mit != m_script_metadata.end()) {
-            creation_time = mit->second.nCreateTime;
-        }
-
-        // InferDescriptor as that will get us all the solving info if it is there
-        std::unique_ptr<Descriptor> desc = InferDescriptor(spk, *GetSolvingProvider(spk));
-        // Get the private keys for this descriptor
-        std::vector<CScript> scripts;
-        FlatSigningProvider keys;
-        if (!desc->Expand(0, DUMMY_SIGNING_PROVIDER, scripts, keys)) {
-            assert(false);
-        }
-        std::set<CKeyID> privkeyids;
-        for (const auto& key_orig_pair : keys.origins) {
-            privkeyids.insert(key_orig_pair.first);
-        }
-
-        std::vector<CScript> desc_spks;
-
-        // Make the descriptor string with private keys
-        std::string desc_str;
-        bool watchonly = !desc->ToPrivateString(*this, desc_str);
-        if (watchonly && !m_storage.IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-            out.watch_descs.push_back({desc->ToString(), creation_time});
-
-            // Get the scriptPubKeys without writing this to the wallet
-            FlatSigningProvider provider;
-            desc->Expand(0, provider, desc_spks, provider);
-        } else {
-            // Make the DescriptorScriptPubKeyMan and get the scriptPubKeys
-            WalletDescriptor w_desc(std::move(desc), creation_time, 0, 0, 0);
-            auto desc_spk_man = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(m_storage, w_desc, m_keypool_size));
-            for (const auto& keyid : privkeyids) {
-                CKey key;
-                if (!GetKey(keyid, key)) {
-                    continue;
-                }
-                desc_spk_man->AddDescriptorKey(key, key.GetPubKey());
-            }
-            desc_spk_man->TopUp();
-            auto desc_spks_set = desc_spk_man->GetScriptPubKeys();
-            desc_spks.insert(desc_spks.end(), desc_spks_set.begin(), desc_spks_set.end());
-
-            out.desc_spkms.push_back(std::move(desc_spk_man));
-        }
-
-        // Remove the scriptPubKeys from our current set
-        for (const CScript& desc_spk : desc_spks) {
-            auto del_it = spks.find(desc_spk);
-            assert(del_it != spks.end());
-            assert(IsMine(desc_spk) != ISMINE_NO);
-            it = spks.erase(del_it);
-        }
-    }
-
-    // Multisigs are special. They don't show up as ISMINE_SPENDABLE unless they are in a P2SH
-    // So we have to check if any of our scripts are a multisig and if so, add the P2SH
-    for (const auto& script_pair : mapScripts) {
-        const CScript script = script_pair.second;
-
-        // Get birthdate from script meta
-        uint64_t creation_time = 0;
-        const auto& it = m_script_metadata.find(CScriptID(script));
-        if (it != m_script_metadata.end()) {
-            creation_time = it->second.nCreateTime;
-        }
-
-        std::vector<std::vector<unsigned char>> sols;
-        TxoutType type = Solver(script, sols);
-        if (type == TxoutType::MULTISIG) {
-            CScript sh_spk = GetScriptForDestination(ScriptHash(script));
-            CTxDestination witdest = WitnessV0ScriptHash(script);
-            CScript witprog = GetScriptForDestination(witdest);
-            CScript sh_wsh_spk = GetScriptForDestination(ScriptHash(witprog));
-
-            // We only want the multisigs that we have not already seen, i.e. they are not watchonly and not spendable
-            // For P2SH, a multisig is not ISMINE_NO when:
-            // * All keys are in the wallet
-            // * The multisig itself is watch only
-            // * The P2SH is watch only
-            // For P2SH-P2WSH, if the script is in the wallet, then it will have the same conditions as P2SH.
-            // For P2WSH, a multisig is not ISMINE_NO when, other than the P2SH conditions:
-            // * The P2WSH script is in the wallet and it is being watched
-            std::vector<std::vector<unsigned char>> keys(sols.begin() + 1, sols.begin() + sols.size() - 1);
-            if (HaveWatchOnly(sh_spk) || HaveWatchOnly(script) || HaveKeys(keys, *this) || (HaveCScript(CScriptID(witprog)) && HaveWatchOnly(witprog))) {
-                // The above emulates IsMine for these 3 scriptPubKeys, so double check that by running IsMine
-                assert(IsMine(sh_spk) != ISMINE_NO || IsMine(witprog) != ISMINE_NO || IsMine(sh_wsh_spk) != ISMINE_NO);
-                continue;
-            }
-            assert(IsMine(sh_spk) == ISMINE_NO && IsMine(witprog) == ISMINE_NO && IsMine(sh_wsh_spk) == ISMINE_NO);
-
-            std::unique_ptr<Descriptor> sh_desc = InferDescriptor(sh_spk, *GetSolvingProvider(sh_spk));
-            out.solvable_descs.push_back({sh_desc->ToString(), creation_time});
-
-            const auto desc = InferDescriptor(witprog, *this);
-            if (desc->IsSolvable()) {
-                std::unique_ptr<Descriptor> wsh_desc = InferDescriptor(witprog, *GetSolvingProvider(witprog));
-                out.solvable_descs.push_back({wsh_desc->ToString(), creation_time});
-                std::unique_ptr<Descriptor> sh_wsh_desc = InferDescriptor(sh_wsh_spk, *GetSolvingProvider(sh_wsh_spk));
-                out.solvable_descs.push_back({sh_wsh_desc->ToString(), creation_time});
-            }
-        }
-    }
-
-    // Make sure that we have accounted for all scriptPubKeys
-    assert(spks.size() == 0);
-    return out;
 }
 
 bool LegacyScriptPubKeyMan::DeleteRecords()
@@ -2030,7 +1650,7 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
     }
     {
         LOCK(cs_desc_man);
-        assert(m_wallet_descriptor.descriptor->IsSingleType()); // This is a combo descriptor which should not be an active descriptor
+        assert(m_wallet_descriptor.descriptor->IsSingleType());
         std::optional<OutputType> desc_addr_type = m_wallet_descriptor.descriptor->GetOutputType();
         assert(desc_addr_type);
         if (type != *desc_addr_type) {
@@ -2140,8 +1760,8 @@ std::optional<int32_t> DescriptorScriptPubKeyMan::FindCachedDescriptorIndex(cons
                 return pk_entry.second;
             }
         }
-        // res() descriptors cache witness-v1 scripts whose program is SHA256(pk).
-        // OP_RES_MINT commits to HASH160(pk).
+        // res() descriptors cache witness-v1 scripts whose program is pk32.
+        // RIGOR_MARKER_RES_MINT commits to HASH160(pk).
         for (const auto& pk_entry : m_map_pubkeys) {
             const CPubKey& pk = pk_entry.first;
             const std::vector<unsigned char> payload = pk.GetEd25519Payload();
@@ -2473,11 +2093,12 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
 
     uint32_t purpose = 84;
     switch (addr_type) {
-    case OutputType::LEGACY: purpose = 44; break;
-    case OutputType::P2SH_SEGWIT: purpose = 49; break;
     case OutputType::BECH32: purpose = 84; break;
     case OutputType::BECH32M: purpose = 86; break;
-    case OutputType::UNKNOWN: assert(false);
+    case OutputType::LEGACY:
+    case OutputType::P2SH_SEGWIT:
+    case OutputType::UNKNOWN:
+        assert(false);
     }
 
     CExtKey account_key;
@@ -2492,18 +2113,14 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
 
     std::string desc_str;
     switch (addr_type) {
-    case OutputType::LEGACY:
-        desc_str = "pkh(" + origin + xpub_acc + internal_path + "/*')";
-        break;
-    case OutputType::P2SH_SEGWIT:
-        desc_str = "sh(wpkh(" + origin + xpub_acc + internal_path + "/*'))";
-        break;
     case OutputType::BECH32:
         desc_str = "wpkh(" + origin + xpub_acc + internal_path + "/*')";
         break;
     case OutputType::BECH32M:
         desc_str = "res(" + origin + xpub_acc + internal_path + "/*')";
         break;
+    case OutputType::LEGACY:
+    case OutputType::P2SH_SEGWIT:
     case OutputType::UNKNOWN:
         assert(false);
     }
@@ -2702,7 +2319,7 @@ bool DescriptorScriptPubKeyMan::CanProvide(const CScript& script, SignatureData&
     return GetSigningProvider(script, false) != nullptr;
 }
 
-bool DescriptorScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, int sighash, std::map<int, bilingual_str>& input_errors) const
+bool DescriptorScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const std::map<COutPoint, Coin>& coins, const uint256& chain_id, std::map<int, bilingual_str>& input_errors) const
 {
     std::unique_ptr<FlatSigningProvider> keys = std::make_unique<FlatSigningProvider>();
     for (const auto& coin_pair : coins) {
@@ -2718,7 +2335,7 @@ bool DescriptorScriptPubKeyMan::SignTransaction(CMutableTransaction& tx, const s
                         __func__, static_cast<unsigned>(coins.size()));
     }
 
-    return ::SignTransaction(tx, keys.get(), coins, sighash, input_errors);
+    return ::SignTransaction(tx, keys.get(), coins, chain_id, input_errors);
 }
 
 SigningResult DescriptorScriptPubKeyMan::SignMessage(const std::string& message, const PKHash& pkhash, std::string& str_sig) const
@@ -2739,7 +2356,7 @@ SigningResult DescriptorScriptPubKeyMan::SignMessage(const std::string& message,
     return SigningResult::OK;
 }
 
-TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
+TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction& psbtx, const PrecomputedTransactionData& txdata, const uint256& chain_id, int sighash_type, bool sign, bool bip32derivs, int* n_signed, bool finalize) const
 {
     if (n_signed) {
         *n_signed = 0;
@@ -2817,7 +2434,7 @@ TransactionError DescriptorScriptPubKeyMan::FillPSBT(PartiallySignedTransaction&
             }
         }
 
-        SignPSBTInput(HidingSigningProvider(keys.get(), /*hide_secret=*/!sign, /*hide_origin=*/!bip32derivs), psbtx, i, &txdata, sighash_type, nullptr, finalize);
+        SignPSBTInput(HidingSigningProvider(keys.get(), /*hide_secret=*/!sign, /*hide_origin=*/!bip32derivs), psbtx, i, &txdata, chain_id, sighash_type, nullptr, finalize);
 
         bool signed_one = PSBTInputSigned(input);
         if (n_signed && (signed_one || !sign)) {

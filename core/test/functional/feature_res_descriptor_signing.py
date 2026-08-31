@@ -4,8 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """TASK-RES-SIGNING-PATH-VALIDATION: descriptor wallet signs convergence txs end-to-end.
 
-Consensus **convergence candidate** outputs use witness **v1** CVG2 (``OP_1`` + 32-byte program);
-block-level convergence metadata also uses an ``OP_RETURN`` CVGE commitment in coinbase (not asserted
+Consensus **convergence candidate** outputs use witness **v1** CVG2 (``RIGOR_PUSH_1`` + 32-byte program);
+block-level convergence metadata also uses an ``RIGOR_MARKER_RETURN`` CVGE commitment in coinbase (not asserted
 here). This test proves the **wallet signing path**: native **v0 P2WPKH** ORU inputs → signed witness,
 ``signrawtransactionwithwallet`` ``complete``, and mempool acceptance for **≥2** distinct convergence txs.
 
@@ -34,9 +34,9 @@ def _assert_p2wpkh_v0_script_hex(h: str) -> None:
 
 def _assert_convergence_vout_script_hex(h: str, expected_sats: int) -> None:
     x = h.lower()
-    # OP_PUSHBYTES_20 + 20-byte HASH160 + OP_CONVERGE → 22 bytes → 44 hex chars
+    # OP_PUSHBYTES_20 + 20-byte HASH160 + RIGOR_MARKER_CONVERGE → 22 bytes → 44 hex chars
     assert x.startswith("14") and x.endswith("bd") and len(x) == 44, (
-        f"expected OP_CONVERGE lock hex, got {h!r}"
+        f"expected RIGOR_MARKER_CONVERGE lock hex, got {h!r}"
     )
     del expected_sats
 

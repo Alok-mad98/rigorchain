@@ -57,25 +57,25 @@ BOOST_AUTO_TEST_CASE(blockfilter_basic_test)
     CScript included_scripts[5], excluded_scripts[4];
 
     // First two are outputs on a single transaction.
-    included_scripts[0] << std::vector<unsigned char>(0, 65) << OP_CHECKSIG;
-    included_scripts[1] << OP_DUP << OP_HASH160 << std::vector<unsigned char>(1, 20) << OP_EQUALVERIFY << OP_CHECKSIG;
+    included_scripts[0] << std::vector<unsigned char>(0, 65) << RIGOR_RESERVED_LEGACY_CHECKSIG;
+    included_scripts[1] << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << std::vector<unsigned char>(1, 20) << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
     // Third is an output on in a second transaction.
-    included_scripts[2] << OP_1 << std::vector<unsigned char>(2, 33) << OP_1 << OP_CHECKMULTISIG;
+    included_scripts[2] << RIGOR_PUSH_1 << std::vector<unsigned char>(2, 33) << RIGOR_PUSH_1 << RIGOR_RESERVED_LEGACY_CHECKMULTISIG;
 
     // Last two are spent by a single transaction.
-    included_scripts[3] << OP_0 << std::vector<unsigned char>(3, 32);
-    included_scripts[4] << OP_4 << OP_ADD << OP_8 << OP_EQUAL;
+    included_scripts[3] << RIGOR_PUSH_0 << std::vector<unsigned char>(3, 32);
+    included_scripts[4] << RIGOR_PUSH_4 << RIGOR_RESERVED_LEGACY_ADD << RIGOR_PUSH_8 << RIGOR_RESERVED_LEGACY_EQUAL;
 
-    // OP_RETURN output is an output on the second transaction.
-    excluded_scripts[0] << OP_RETURN << std::vector<unsigned char>(4, 40);
+    // RIGOR_MARKER_RETURN output is an output on the second transaction.
+    excluded_scripts[0] << RIGOR_MARKER_RETURN << std::vector<unsigned char>(4, 40);
 
     // This script is not related to the block at all.
-    excluded_scripts[1] << std::vector<unsigned char>(5, 33) << OP_CHECKSIG;
+    excluded_scripts[1] << std::vector<unsigned char>(5, 33) << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
-    // OP_RETURN is non-standard since it's not followed by a data push, but is still excluded from
+    // RIGOR_MARKER_RETURN is non-standard since it's not followed by a data push, but is still excluded from
     // filter.
-    excluded_scripts[2] << OP_RETURN << OP_4 << OP_ADD << OP_8 << OP_EQUAL;
+    excluded_scripts[2] << RIGOR_MARKER_RETURN << RIGOR_PUSH_4 << RIGOR_RESERVED_LEGACY_ADD << RIGOR_PUSH_8 << RIGOR_RESERVED_LEGACY_EQUAL;
 
     CMutableTransaction tx_1;
     tx_1.vout.emplace_back(100, included_scripts[0]);

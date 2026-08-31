@@ -2,9 +2,9 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Consensus maturity: immature ORU coinbase and coinbase OP_RES_MINT UTXOs cannot be spent.
+"""Consensus maturity: immature ORU coinbase and coinbase RIGOR_MARKER_RES_MINT UTXOs cannot be spent.
 
-RES origin is the coinbase ``OP_RES_MINT`` output (40.000000 RES at epoch 0). Wallet
+RES origin is the coinbase ``RIGOR_MARKER_RES_MINT`` output (40.000000 RES at epoch 0). Wallet
 ``res.trusted`` / immature UI is not the enforcement path — this suite uses raw
 transactions and block connection.
 
@@ -58,7 +58,7 @@ def mint_res_outpoint(node, payout_hash: str) -> tuple[str, int]:
     for o in tx["vout"]:
         if is_res_mint_vout(o):
             return mint_txid, int(o["n"])
-    raise AssertionError("coinbase has no OP_RES_MINT vout")
+    raise AssertionError("coinbase has no RIGOR_MARKER_RES_MINT vout")
 
 
 class ResOruMaturityTest(BitcoinTestFramework):
@@ -289,7 +289,7 @@ class ResOruMaturityTest(BitcoinTestFramework):
         assert_equal(rows[0][0], mint_txid)
         assert_equal(rows[0][1], RES_REWARD_ATOMS)
         assert_equal(int(node.getblockheader(payout_hash).get("rigor_res_minted", 0)), 1)
-        self.log.info("T-ISSUE-1 PASS coinbase OP_RES_MINT=40.000000")
+        self.log.info("T-ISSUE-1 PASS coinbase RIGOR_MARKER_RES_MINT=40.000000")
 
     def _case_t_res_4(self, spend_hex: str) -> None:
         node = self._n()

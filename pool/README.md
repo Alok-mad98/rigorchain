@@ -1,5 +1,9 @@
 # RIGOR Pool (Alpha / ORU-only)
 
+> **SOLO quarantine (P0-014 M-3).** This directory is **not** part of the shipped
+> SOLO miner / `rigord` release. Do not add Stratum extranonce, a pool payout
+> layer, or a second reward path to `core/`. `scriptSig` has zero free bytes.
+
 **Status:** Internal Alpha mining product  
 **Authority:** `docs/pool/RIGOR_POOL_PRODUCT_POSITION.md` (Option A)  
 **Consensus / W / T / RES issuance:** Unchanged — this tree does not modify them.

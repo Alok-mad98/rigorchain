@@ -9,6 +9,7 @@ Test stalling logic during IBD
 import time
 
 from test_framework.blocktools import (
+        DEFAULT_COINBASE_SCRIPT_PUBKEY,
         create_block,
         create_coinbase
 )
@@ -60,13 +61,16 @@ class P2PIBDStallingTest(BitcoinTestFramework):
         self.log.info("Prepare blocks without sending them to the node")
         block_dict = {}
         for _ in range(NUM_BLOCKS):
-            blocks.append(create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(tip, create_coinbase(height, script_pubkey=DEFAULT_COINBASE_SCRIPT_PUBKEY), block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
             height += 1
             block_dict[blocks[-1].sha256] = blocks[-1]
         stall_block = blocks[0].sha256
+        # 1024 headers minus the withheld first block → 1023 block messages. Size is
+        # not Bitcoin's 169-byte empty-block constant.
+        expected_block_bytes = sum(len(blocks[i].serialize()) for i in range(1, NUM_BLOCKS - 1))
 
         headers_message = msg_headers()
         headers_message.headers = [CBlockHeader(b) for b in blocks[:NUM_BLOCKS-1]]
@@ -78,9 +82,9 @@ class P2PIBDStallingTest(BitcoinTestFramework):
             peers[-1].block_store = block_dict
             peers[-1].send_message(headers_message)
 
-        # Need to wait until 1023 blocks are received - the magic total bytes number is a workaround in lack of an rpc
-        # returning the number of downloaded (but not connected) blocks.
-        self.wait_until(lambda: self.total_bytes_recv_for_blocks() == 172761)
+        # Need to wait until 1023 blocks are received. Count payload bytes; the
+        # node's bytesrecv_per_msg includes 24-byte P2P headers, so compare with >=.
+        self.wait_until(lambda: self.total_bytes_recv_for_blocks() >= expected_block_bytes)
 
         self.all_sync_send_with_ping(peers)
         # If there was a peer marked for stalling, it would get disconnected

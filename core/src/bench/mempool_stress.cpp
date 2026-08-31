@@ -51,7 +51,7 @@ static std::vector<CTransactionRef> CreateOrderedCoins(FastRandomContext& det_ra
         tx.vin[0].scriptWitness.stack.push_back(CScriptNum(x).getvch());
         tx.vout.resize(det_rand.randrange(10)+2);
         for (auto& out : tx.vout) {
-            out.scriptPubKey = CScript() << CScriptNum(tx_counter) << OP_EQUAL;
+            out.scriptPubKey = CScript() << CScriptNum(tx_counter) << RIGOR_RESERVED_LEGACY_EQUAL;
             out.nValue = 10 * COIN;
         }
         ordered_coins.emplace_back(MakeTransactionRef(tx));
@@ -80,7 +80,7 @@ static std::vector<CTransactionRef> CreateOrderedCoins(FastRandomContext& det_ra
             }
             tx.vout.resize(det_rand.randrange(10)+2);
             for (auto& out : tx.vout) {
-                out.scriptPubKey = CScript() << CScriptNum(tx_counter) << OP_EQUAL;
+                out.scriptPubKey = CScript() << CScriptNum(tx_counter) << RIGOR_RESERVED_LEGACY_EQUAL;
                 out.nValue = 10 * COIN;
             }
         }

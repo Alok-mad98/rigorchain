@@ -75,7 +75,7 @@ from test_framework.messages import (
     CTxIn,
     CTxOut,
 )
-from test_framework.script import CScript, OP_RETURN
+from test_framework.script import CScript, RIGOR_MARKER_RETURN
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 from test_framework.wallet import MiniWallet
@@ -225,7 +225,7 @@ class FaultInjectionTest(FaultInjectionShared, BitcoinTestFramework):
         burn_value = int(Decimal(utxo["value"]) * COIN) - 1000
         assert burn_value > 0
         tx_burn.vout = [
-            CTxOut(burn_value, CScript([OP_RETURN, b"fault001"])),
+            CTxOut(burn_value, CScript([RIGOR_MARKER_RETURN, b"fault001"])),
         ]
         wallet.sign_tx(tx_burn, utxos_to_spend=[utxo])
         burn_hex = tx_burn.serialize_with_witness().hex()

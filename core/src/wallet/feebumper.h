@@ -6,7 +6,7 @@
 #define BITCOIN_WALLET_FEEBUMPER_H
 
 #include <consensus/consensus.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <primitives/transaction.h>
 
 class uint256;
@@ -79,12 +79,12 @@ public:
     void AddSigWeight(const size_t weight, const SigVersion sigversion)
     {
         switch (sigversion) {
-        case SigVersion::BASE:
+        case SigVersion::WITNESS_V0:
             m_sigs_weight += weight * WITNESS_SCALE_FACTOR;
             m_sigs_count += 1 * WITNESS_SCALE_FACTOR;
             break;
-        case SigVersion::WITNESS_V0:
         case SigVersion::WITNESS_V1_RES:
+        case SigVersion::RES_MINT:
             m_sigs_weight += weight;
             m_sigs_count++;
             break;
@@ -106,9 +106,9 @@ private:
 public:
     SignatureWeightChecker(SignatureWeights& weights, const BaseSignatureChecker& checker) : DeferringSignatureChecker(checker), m_weights(weights) {}
 
-    bool CheckECDSASignature(const std::vector<unsigned char>& sig, const std::vector<unsigned char>& pubkey, const CScript& script, SigVersion sigversion) const override
+    bool CheckEd25519Signature(const std::vector<unsigned char>& sig, const std::vector<unsigned char>& pubkey, const CScript& script, SigVersion sigversion) const override
     {
-        if (m_checker.CheckECDSASignature(sig, pubkey, script, sigversion)) {
+        if (m_checker.CheckEd25519Signature(sig, pubkey, script, sigversion)) {
             m_weights.AddSigWeight(sig.size(), sigversion);
             return true;
         }

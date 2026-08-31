@@ -51,8 +51,7 @@ class DeriveaddressesTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Range should be greater or equal than 0", self.nodes[0].deriveaddresses, ranged_descriptor, [-1, 0])
 
         combo_descriptor = descsum_create(f"combo({TPRV}/1'/1'/0')")
-        combo_addrs = self.nodes[0].deriveaddresses(combo_descriptor)
-        assert_equal(len(combo_addrs), 4)
+        assert_raises_rpc_error(-5, "combo() is not supported", self.nodes[0].deriveaddresses, combo_descriptor)
 
         max_index = self.nodes[0].deriveaddresses(ranged_descriptor, [2147483647, 2147483647])
         assert_equal(len(max_index), 1)

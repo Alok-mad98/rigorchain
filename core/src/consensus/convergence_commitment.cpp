@@ -34,7 +34,7 @@ CScript ConvergenceCommitmentScript(const ConvergenceCommitment& fc)
     payload[4] = fc.m_version;
     WriteLE64(payload.data() + 5, fc.m_cumulative_convergence);
     std::memcpy(payload.data() + 13, fc.m_draw_candidates.root.begin(), 32);
-    return CScript() << OP_RETURN << payload;
+    return CScript() << RIGOR_MARKER_RETURN << payload;
 }
 
 std::optional<ConvergenceCommitment> FindLastConvergenceCommitmentInCoinbase(const CTransaction& coinbase)
@@ -46,7 +46,7 @@ std::optional<ConvergenceCommitment> FindLastConvergenceCommitmentInCoinbase(con
         CScript::const_iterator pc = script.begin();
         opcodetype opcode;
         std::vector<unsigned char> vch;
-        if (!script.GetOp(pc, opcode) || opcode != OP_RETURN) continue;
+        if (!script.GetOp(pc, opcode) || opcode != RIGOR_MARKER_RETURN) continue;
         if (!script.GetOp(pc, opcode, vch)) continue;
         if (auto fc = ParseConvergenceCommitmentPayload(vch)) last = fc;
     }

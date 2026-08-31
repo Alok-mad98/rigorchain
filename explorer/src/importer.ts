@@ -9,9 +9,9 @@ import {
 } from "./importerRecovery";
 import { logMismatchEvent } from "./mismatchLog";
 import { rpc } from "./rpcCli";
-import { classifyScriptPubKey, isConvergenceScriptPubKey } from "./script";
+import { classifyScriptPubKey, isConvergenceScriptPubKey, type AssetKind } from "./script";
 import { oruStringToAtoms, resStringToAtoms } from "./amount";
-import { hasPcorbProofFields } from "./witnessPanel";
+import { coinbaseMintProofItems, findCoinbaseOpResMint } from "./resMint";
 import { collectConsensusFingerprint, winnerSigmaFromCandidates } from "./consensusFingerprint";
 import {
   EMPTY_DRAW_ELIGIBLE_ROOT,
@@ -19,8 +19,6 @@ import {
   optionalBigInt,
   optionalHash,
   optionalString,
-  witness32ToDisplayTxid,
-  witnessPushMatchesTxid,
 } from "./rpcFields";
 import { upsertRfc018FeeBurnStats, backfillMissingRfc018FeeBurn } from "./rfc018FeeBurnStore";
 import { rfc018DestroyedFeeOru, type IndexedPrevout } from "./rfc018FeeBurn";
@@ -29,7 +27,7 @@ type TxVinWitness = string[] | null;
 type OutputMeta = {
   vout_index: number;
   value_atoms: bigint;
-  asset_kind: "ORU" | "RES" | "NONE";
+  asset_kind: AssetKind;
   script_pubkey: string;
   address: string | null;
   witness_version: number | null;
@@ -66,21 +64,6 @@ function asString(x: unknown): string {
 function jsonbParam(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   return JSON.stringify(value);
-}
-
-function leHexToBigIntLE(hex: string): bigint {
-  const s = hex.toLowerCase().replace(/^0x/, "");
-  if (s.length % 2 !== 0) throw new Error(`leHexToBigInt: odd hex length: ${hex}`);
-  const bytes = Buffer.from(s, "hex");
-  const be = Buffer.from(bytes).reverse();
-  const beHex = be.toString("hex") || "00";
-  return BigInt("0x" + beHex);
-}
-
-function leHexToNumberLE(hex: string): number {
-  const b = leHexToBigIntLE(hex);
-  if (b > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`leHexToNumberLE overflow: ${hex}`);
-  return Number(b);
 }
 
 function extractWitnessStack(vin: any): string[] | null {
@@ -505,7 +488,6 @@ async function importBlockAtHeight(
 
     const parsedTxs: ParsedTx[] = [];
     let mintTxid: string | null = null;
-    let mintProofItems: string[] | null = null;
     let winnerMintAmountAtoms: bigint = 0n;
 
     const candidates: any[] = Array.isArray(cr.candidates) ? cr.candidates : [];
@@ -565,16 +547,6 @@ async function importBlockAtHeight(
         const coinbase = vin?.coinbase != null;
         const witnessStack = extractWitnessStack(vin);
         const script_sig = vin?.scriptSig ?? null;
-
-        // Mint detection (PCORB proof witness). A-8 pays the parent winner in this block.
-        // Match witness[0] to the paid winner (display or native endian). If the parent
-        // winner RPC is missing, accept the first PCORB on a minting block.
-        if (blockInsert.rigor_res_minted === 1 && mintTxid === null && witnessStack && hasPcorbProofFields(witnessStack)) {
-          if (!paidWinnerTxid || witnessPushMatchesTxid(witnessStack[0], paidWinnerTxid)) {
-            mintTxid = txid;
-            mintProofItems = witnessStack;
-          }
-        }
 
         vins.push({
           vin_index,
@@ -656,11 +628,6 @@ async function importBlockAtHeight(
         }
       }
 
-      // Compute winner mint amount atoms after vouts parsed.
-      if (mintTxid === txid) {
-        winnerMintAmountAtoms = vouts.reduce((acc, o) => (o.asset_kind === "RES" ? acc + o.value_atoms : acc), 0n);
-      }
-
       parsedTxs.push({
         txid,
         wtxid,
@@ -673,21 +640,17 @@ async function importBlockAtHeight(
       });
     }
 
-    // Safety net: minting block with PCORB+RES body, parent winner RPC missing or endian miss.
-    if (blockInsert.rigor_res_minted === 1 && mintTxid === null) {
-      for (const tx of parsedTxs) {
-        if (tx.is_coinbase) continue;
-        if (!tx.vouts.some((o) => o.asset_kind === "RES")) continue;
-        const proofVin = tx.vins.find((vin) => vin.witness && hasPcorbProofFields(vin.witness));
-        if (!proofVin?.witness) continue;
-        mintTxid = tx.txid;
-        mintProofItems = proofVin.witness;
-        winnerMintAmountAtoms = tx.vouts.reduce(
-          (acc, o) => (o.asset_kind === "RES" ? acc + o.value_atoms : acc),
-          0n,
-        );
-        break;
-      }
+    const coinbaseMint = findCoinbaseOpResMint(parsedTxs);
+    if (coinbaseMint) {
+      mintTxid = coinbaseMint.mintTxid;
+      winnerMintAmountAtoms = coinbaseMint.amountAtoms;
+    } else if (blockInsert.rigor_res_minted === 1) {
+      logMismatchEvent({
+        kind: "res_mint_missing_coinbase",
+        height,
+        block_hash: blockHash,
+        message: "rigor_res_minted=1 but coinbase has no OP_RES_MINT output",
+      });
     }
 
     // Pass 2: insert convergence candidates (convergence_events).
@@ -743,11 +706,12 @@ async function importBlockAtHeight(
       );
     }
 
-    // Pass 3: insert RES mint rows if present.
-    if (blockInsert.rigor_res_minted === 1 && mintTxid && mintProofItems) {
-      const proof = mintProofItems;
-      const proofConvergenceTxid = asString(proof[0]);
-      const winnerStoreTxid = paidWinnerTxid || witness32ToDisplayTxid(proofConvergenceTxid);
+    // Pass 3: insert RES mint rows from coinbase OP_RES_MINT (A-8 pays parent winner).
+    if (coinbaseMint) {
+      const winnerStoreTxid = paidWinnerTxid;
+      const mintBindHash = optionalHash(parentCr.bind_hash) ?? optionalHash(cr.bind_hash);
+      const mintBindHeight = optionalBigInt(parentCr.bind_height) ?? optionalBigInt(cr.bind_height);
+      const mintConvergenceRoot = parentComputed ?? committed;
 
       let winnerDrawEligible = false;
       if (winnerStoreTxid) {
@@ -763,26 +727,11 @@ async function importBlockAtHeight(
         }
       }
 
-      // proof items per Witness V1 display rules:
-      // [0] convergence_txid, [1] convergence_amount_sat (LE64), [2] bind_hash, [3] height (LE64), [4] target_prev (LE32), [5] convergence_root
-      const proofConvergenceRoot = asString(proof[5]);
-      const proofBindHash = asString(proof[2]);
-      const proofHeightLe = proof[3];
-      const proofBindHeight = leHexToBigIntLE(proofHeightLe);
-
-      for (const o of parsedTxs.find((t) => t.txid === mintTxid)?.vouts ?? []) {
-        if (o.asset_kind !== "RES") continue;
-
-        // Deterministic replay correctness: store proof items verbatim (no reinterpretation).
-        const proof_items_obj = {
-          witness_stack: proof,
-          parsed: {
-            convergence_txid: proofConvergenceTxid,
-            bind_hash: proofBindHash,
-            bind_height: proofBindHeight.toString(),
-            convergence_root: proofConvergenceRoot,
-          },
-        };
+      for (const o of coinbaseMint.outputs) {
+        const proof_items_obj = coinbaseMintProofItems({
+          script_pubkey: o.script_pubkey,
+          paid_winner_txid: winnerStoreTxid,
+        });
 
         await pool.query(
           `
@@ -816,15 +765,15 @@ async function importBlockAtHeight(
               proof_items = EXCLUDED.proof_items
           `,
           [
-            mintTxid,
+            coinbaseMint.mintTxid,
             o.vout_index,
             blockHash,
             BigInt(height),
             winnerStoreTxid,
             o.value_atoms,
-            optionalHash(cr.bind_hash),
-            optionalBigInt(cr.bind_height),
-            proofConvergenceRoot || committed,
+            mintBindHash,
+            mintBindHeight,
+            mintConvergenceRoot,
             winnerDrawEligible,
             optionalString(cr.res_probability_target) ?? resProbTarget,
             committed,
@@ -835,14 +784,11 @@ async function importBlockAtHeight(
       }
     }
 
-    if (winnerMintAmountAtoms > 0n && (paidWinnerTxid || mintProofItems)) {
-      const paidTxid = paidWinnerTxid || witness32ToDisplayTxid(mintProofItems?.[0]);
-      if (paidTxid && height > 0) {
-        await pool.query(
-          `UPDATE convergence_events SET mint_amount = $1 WHERE convergence_txid = $2 AND block_height = $3`,
-          [winnerMintAmountAtoms, paidTxid, BigInt(height - 1)],
-        );
-      }
+    if (winnerMintAmountAtoms > 0n && paidWinnerTxid && height > 0) {
+      await pool.query(
+        `UPDATE convergence_events SET mint_amount = $1 WHERE convergence_txid = $2 AND block_height = $3`,
+        [winnerMintAmountAtoms, paidWinnerTxid, BigInt(height - 1)],
+      );
     }
 
     // Pass 4: insert inputs; mark ORU UTXOs spent; insert RES transfer rows; RFC-018 burn stats.
@@ -887,7 +833,10 @@ async function importBlockAtHeight(
         );
         const prevAsset = prev.rows[0]?.asset_kind ?? null;
         if (prev.rows[0]) {
-          const kind = prevAsset === "ORU" || prevAsset === "RES" ? prevAsset : "NONE";
+          const kind =
+            prevAsset === "ORU" || prevAsset === "RES" || prevAsset === "INVALID"
+              ? prevAsset
+              : "NONE";
           prevouts.push({ asset_kind: kind, value_atoms: BigInt(prev.rows[0].value_atoms) });
         } else {
           prevouts.push(null);

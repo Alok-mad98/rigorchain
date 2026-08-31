@@ -27,8 +27,8 @@ static CBlock BuildBlockTestCase() {
     tx.vin[0].scriptSig.resize(10);
     tx.vout.resize(1);
     tx.vout[0].nValue = 42;
-    // Rigor consensus requires ORU-bearing outputs to use witness v0/v1 or OP_RETURN.
-    tx.vout[0].scriptPubKey = CScript{} << OP_0 << std::vector<unsigned char>(20, 0x01);
+    // Rigor consensus requires ORU-bearing outputs to use witness v0/v1 or RIGOR_MARKER_RETURN.
+    tx.vout[0].scriptPubKey = CScript{} << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x01);
 
     block.vtx.resize(3);
     block.vtx[0] = MakeTransactionRef(tx);
@@ -272,7 +272,7 @@ BOOST_AUTO_TEST_CASE(EmptyBlockRoundTripTest)
     coinbase.vin[0].scriptSig.resize(10);
     coinbase.vout.resize(1);
     coinbase.vout[0].nValue = 42;
-    coinbase.vout[0].scriptPubKey = CScript{} << OP_0 << std::vector<unsigned char>(20, 0x01);
+    coinbase.vout[0].scriptPubKey = CScript{} << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x01);
 
     CBlock block;
     block.vtx.resize(1);

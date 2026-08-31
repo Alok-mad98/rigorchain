@@ -55,7 +55,7 @@ bool FlatSigningProvider::GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const
 {
     // Prefer the pubkey implied by the private key: merged providers / descriptor caches can legally
     // hold only `keys` for an id, and in pathological cases `pubkeys[id]` can disagree with `keys[id]`
-    // (then witness stack pubkey != Ed25519 verification key and ProduceSignature's final VerifyScript fails).
+    // (then witness stack pubkey != Ed25519 verification key and ProduceSignature's final VerifyRigorPredicate fails).
     CKey key;
     if (LookupHelper(keys, keyid, key)) {
         pubkey = key.GetPubKey();
@@ -89,7 +89,6 @@ FlatSigningProvider& FlatSigningProvider::Merge(FlatSigningProvider&& b)
 void FillableSigningProvider::ImplicitlyLearnRelatedKeyScripts(const CPubKey& pubkey)
 {
     AssertLockHeld(cs_KeyStore);
-    CKeyID key_id = pubkey.GetID();
     // This adds the redeemscripts necessary to detect P2WPKH and P2SH-P2WPKH
     // outputs. Technically P2WPKH outputs don't have a redeemscript to be
     // spent. However, our current IsMine logic requires the corresponding
@@ -224,7 +223,7 @@ CKeyID GetKeyForDestination(const SigningProvider& store, const CTxDestination& 
     }
     if (auto output_key = std::get_if<WitnessV1Res>(&dest)) {
         CScript wit;
-        const uint160 xid = RIPEMD160(Span{output_key->data(), XOnlyPubKey::size()});
+        const uint160 xid = RIPEMD160(Span{output_key->data(), output_key->size()});
         if (store.GetCScript(CScriptID(xid), wit)) {
             std::vector<std::vector<unsigned char>> sols;
             if (Solver(wit, sols) == TxoutType::PUBKEY && !sols.empty()) {
@@ -235,7 +234,7 @@ CKeyID GetKeyForDestination(const SigningProvider& store, const CTxDestination& 
             }
         }
         CPubKey pub;
-        if (store.GetPubKeyByXOnly(*output_key, pub)) {
+        if (store.GetPubKeyByXOnly(XOnlyPubKey{Span{output_key->data(), output_key->size()}}, pub)) {
             return pub.GetID();
         }
     }

@@ -1,5 +1,7 @@
 # SECURITY-001-A / A-7 — RES spending paths and the ConvergeProof signature
 
+> **P0-018.** Witness signature encoding (`64 + 1 hashtype`) in this report is superseded. Consensus signatures are 64-byte Ed25519 over the unique tagged sighash (`docs/security/RIGOR_ED25519_SIGNING_DOMAIN_AUDIT_P0_018.md` §4).
+
 **Status:** **CLOSED** (code complete; process closed under TASK-MAINNET-CLOSURE-001)
 **Prior status:** implemented, awaiting review
 **Closure:** 2026-08-05 — PCORB script-path spend removed; Witness v1 RES is key-path only; mint witness 6-item path retained. Operator re-verification: local `make` + RES functional suite (user-run; see MAINNET_GO_NO_GO_CHECKLIST).

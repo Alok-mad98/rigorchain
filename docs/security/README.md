@@ -2,6 +2,9 @@
 
 | Document | Role |
 |----------|------|
+| [RIGOR_CONSENSUS_KERNEL_ADVERSARIAL_SECURITY_P0_063.md](./RIGOR_CONSENSUS_KERNEL_ADVERSARIAL_SECURITY_P0_063.md) | P0-063 adversarial security baseline on the CLOSED Consensus / Transaction Kernel boundary |
+| [RIGOR_CONVERGE_SINGLE_PATH_HARDENING_P0_011.md](./RIGOR_CONVERGE_SINGLE_PATH_HARDENING_P0_011.md) | P0 post-audit hardening: H-1 paid-winner index, H-2 docs, H-3 SOLO mining boundary |
+| [RIGOR_CONVERGE_SINGLE_PATH_IMPLEMENTATION_AUDIT.md](./RIGOR_CONVERGE_SINGLE_PATH_IMPLEMENTATION_AUDIT.md) | P0 single-path CONVERGE implementation audit (consensus / script / mint / template / pool / Coq); conditional pass on H-1 |
 | [RIGOR_DOCUMENTATION_SHIPPING_POLISH_REPORT.md](./RIGOR_DOCUMENTATION_SHIPPING_POLISH_REPORT.md) | Docs polish: shipping `E = 246` / `C = 1024`; labeled RFC-014 `65536` history |
 | [RIGOR_PROTOCOL_CONSISTENCY_FINAL_AUDIT.md](./RIGOR_PROTOCOL_CONSISTENCY_FINAL_AUDIT.md) | P0 protocol consistency final audit (code / spec / Coq / Python / vectors / whitepaper / website) |
 | [RIGOR_WHITEPAPER_TECHNICAL_TRACEABILITY_MATRIX.md](./RIGOR_WHITEPAPER_TECHNICAL_TRACEABILITY_MATRIX.md) | Whitepaper claim → implementation → formal artifact → status |

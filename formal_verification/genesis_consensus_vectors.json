@@ -1,0 +1,34 @@
+{
+  "task": "TASK-RIGOR-GENESIS-CONSENSUS-FREEZE-AND-RELEASE-INTEGRITY-P0-074",
+  "note": "Frozen genesis consensus pins. Does not prove C++ = Coq = Python.",
+  "production_kernel_switched": true,
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "genesis": {
+    "height": 0,
+    "oru_issuance": 0,
+    "res_issuance": 0,
+    "GetResMintReward": 40000000,
+    "res_issued_at_height": 0,
+    "draw": "none"
+  },
+  "issuance_heights": [0, 1, 99, 100, 101, 209999, 210000, 419999, 420000],
+  "height": [
+    {"height": 0, "epoch": 0, "oru": 0, "res_schedule": 40000000, "res_issued": 0},
+    {"height": 1, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000, "res_issued": 40000000},
+    {"height": 99, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000, "res_issued": 40000000},
+    {"height": 100, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000, "res_issued": 40000000},
+    {"height": 101, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000, "res_issued": 40000000},
+    {"height": 209999, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000, "res_issued": 40000000},
+    {"height": 210000, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196, "res_issued": 14142196},
+    {"height": 419999, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196, "res_issued": 14142196},
+    {"height": 420000, "epoch": 2, "oru": 25000000000, "res_schedule": 7698004, "res_issued": 7698004}
+  ],
+  "maturity": {
+    "nCoinbaseMaturity": 100,
+    "immature_at": [1, 99, 100],
+    "mature_at": [101]
+  },
+  "draw": ["empty_F", "single_candidate", "equal_weight_tie_break", "T_eq_0"],
+  "mismatch_policy": "GENESIS_CONSENSUS_FREEZE_DRIFT; never auto-correct"
+}

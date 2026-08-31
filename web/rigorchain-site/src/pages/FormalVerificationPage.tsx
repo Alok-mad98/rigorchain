@@ -85,19 +85,27 @@ export function FormalVerificationPage() {
         <p>Outside boundary:</p>
         <ul>
           <li>Mining (templates, GBT, solo miner)</li>
-          <li>Difficulty / PoW hardness</li>
+          <li>
+            Difficulty / PoW hardness — Coq has <strong>no</strong> PoW, ASERT, or{" "}
+            <code>CheckProofOfWork</code> module (<code>NOT VERIFIED</code>). C++{" "}
+            <code>pow_tests</code> is a security unit gate, not the formal-verification gate.
+          </li>
           <li>Wallet security and UX</li>
           <li>Networking / P2P / mempool</li>
           <li>Complete C++ equivalence (`equivalence_claimed = false`)</li>
+          <li>
+            CI-033 mint authorization — model <code>winner_must_mint</code> uses an abstract flag;
+            production mint auth is C++ only
+          </li>
         </ul>
       </section>
 
       <SectionTitle>Living lock</SectionTitle>
       <section className="card-grid">
-        <DarkCard title="422 shared golden vectors">
+        <DarkCard title="433 shared golden vectors">
           <p>Python oracle and generated C++ cases. Finite-vector agreement, not equivalence.</p>
         </DarkCard>
-        <DarkCard title="215 Coq-enforced vectors">
+        <DarkCard title="226 Coq-enforced vectors">
           <p>
             <code>vm_compute</code> lemmas in the golden harness. A regressed enforced vector
             breaks the Coq build.

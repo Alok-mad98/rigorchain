@@ -13,7 +13,7 @@ export const RES_COIN = 1000000n;
 export const ORU_RES_TRANSFER_FEE_BURN_NUM = 1n;
 export const ORU_RES_TRANSFER_FEE_BURN_DEN = 2n;
 
-export type IndexedAsset = "ORU" | "RES" | "NONE";
+export type IndexedAsset = "ORU" | "RES" | "NONE" | "INVALID";
 
 export type IndexedPrevout = {
   asset_kind: IndexedAsset;

@@ -1,0 +1,23 @@
+{
+  "task": "TASK-RIGOR-CONSENSUS-KERNEL-MAINNET-CANARY-LONG-RUN-P0-072",
+  "CONSENSUS_KERNEL_MAINNET_CANARY_LONGRUN": "PASS",
+  "start_height": 0,
+  "end_height": 1,
+  "blocks_checked": 100000,
+  "comparisons": 100000,
+  "discrepancies": 0,
+  "rollback_events": 0,
+  "runtime_statistics": {
+    "cpp_execution_time_ms": 439.848,
+    "candidate_execution_time_ms": 636.793,
+    "rss_delta": 131072,
+    "memory_growth": 131072
+  },
+  "health": "ACTIVE",
+  "production_kernel_switched": false,
+  "equivalence_proved": false,
+  "refinement_proved": true,
+  "cpp_authority": "ACTIVE",
+  "canary_role": "VERIFY_ONLY",
+  "CONSENSUS_KERNEL_CANDIDATE": "VERIFY_ONLY"
+}

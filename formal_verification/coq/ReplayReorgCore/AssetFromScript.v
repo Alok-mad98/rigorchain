@@ -6,8 +6,10 @@
     there is no independent [out_asset] tag on [TxOut].
 
     This matches C++ [AssetTypeFromScriptPubKey] at the *shape* layer
-    (witness v0/v1, CVG2, [OP_RES_MINT], OP_RETURN). It is **not** a script
-    interpreter, **not** P2WSH execution, **not** [ConnectEvaluateResMintTx],
+    (witness v0/20 P2WPKH, native v1 RES, [OP_RES_MINT], [OP_CONVERGE],
+    OP_RETURN). Unrecognized scripts, including CVG2, RES2, and [OP_CVG_CLAIM],
+    map to [AssetInvalid] (not ORU, not [AssetNone] / OP_RETURN — TASK-010 C-4 / R-9).
+    It is **not** a script interpreter, **not** P2WSH execution, **not** [ConnectEvaluateResMintTx],
     and **not** a C++ refinement.
 
     [apply_tx] requires [apply_tx_derived_assets_obligation], which holds
@@ -32,7 +34,7 @@ Definition smw_to_asset_kind (a : ScriptMintWitness.SmwAsset) : AssetKind :=
   | ScriptMintWitness.SmwORU => AssetORU
   | ScriptMintWitness.SmwRES => AssetRES
   | ScriptMintWitness.SmwNone => AssetNone
-  | ScriptMintWitness.SmwCVG => AssetCVG
+  | ScriptMintWitness.SmwInvalid => AssetInvalid
   end.
 
 Lemma asset_kind_of_script_smw :
@@ -139,12 +141,12 @@ Lemma p2wpkh_kind_oru :
   asset_kind_of_script ScriptMintWitness.canonical_p2wpkh = AssetORU.
 Proof. vm_compute. reflexivity. Qed.
 
-Lemma res2_kind_res :
-  asset_kind_of_script ScriptMintWitness.canonical_res2_script = AssetRES.
+Lemma native_res_kind_res :
+  asset_kind_of_script ScriptMintWitness.canonical_native_res = AssetRES.
 Proof. vm_compute. reflexivity. Qed.
 
-Lemma cvg2_kind_oru :
-  asset_kind_of_script InvalidCvg.canonical_cvg2_script = AssetORU.
+Lemma cvg2_kind_invalid :
+  asset_kind_of_script InvalidCvg.canonical_cvg2_script = AssetInvalid.
 Proof. vm_compute. reflexivity. Qed.
 
 Lemma mint_kind_res :
@@ -152,34 +154,54 @@ Lemma mint_kind_res :
 Proof. vm_compute. reflexivity. Qed.
 
 Lemma opret_kind_none :
-  asset_kind_of_script [ScriptMintWitness.OP_RETURN] = AssetNone.
+  asset_kind_of_script [ScriptMintWitness.RIGOR_MARKER_RETURN] = AssetNone.
 Proof. vm_compute. reflexivity. Qed.
 
-(** Empty script classifies as ORU. DualPool fixtures therefore use
-    [spk_oru] / [spk_res], not [nil]. *)
-Lemma empty_script_kind_oru :
-  asset_kind_of_script nil = AssetORU.
+Lemma converge_kind_oru :
+  asset_kind_of_script ScriptMintWitness.canonical_converge_script = AssetORU.
 Proof. vm_compute. reflexivity. Qed.
+
+(** Empty script is [AssetInvalid], not ORU and not OP_RETURN [AssetNone].
+    DualPool fixtures therefore use [spk_oru] / [spk_res], not [nil]. *)
+Lemma empty_script_kind_invalid :
+  asset_kind_of_script nil = AssetInvalid.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma p2wsh_kind_invalid :
+  asset_kind_of_script ScriptMintWitness.canonical_p2wsh = AssetInvalid.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma res2_kind_invalid :
+  asset_kind_of_script ScriptMintWitness.canonical_res2_script = AssetInvalid.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma p2pkh_kind_invalid :
+  asset_kind_of_script ScriptMintWitness.canonical_p2pkh = AssetInvalid.
+Proof. vm_compute. reflexivity. Qed.
+
+Lemma invalid_is_not_none :
+  asset_kind_of_script nil <> AssetNone.
+Proof. vm_compute. discriminate. Qed.
 
 Lemma mint_script_is_res_bytes :
   ScriptMintWitness.is_res_script ScriptMintWitness.canonical_res_mint_script = true.
 Proof. vm_compute. reflexivity. Qed.
 
-Lemma cvg_claim_kind_cvg :
-  asset_kind_of_script canonical_cvg_claim_script = AssetCVG.
+Lemma cvg_claim_kind_invalid :
+  asset_kind_of_script canonical_cvg_claim_script = AssetInvalid.
 Proof. vm_compute. reflexivity. Qed.
 
 Lemma is_cvg_claim_script_kind :
   forall spk : list nat,
     is_cvg_claim_script spk = true ->
-    asset_kind_of_script spk = AssetCVG.
+    asset_kind_of_script spk = AssetInvalid.
 Proof.
   intros spk H.
   unfold asset_kind_of_script, ScriptMintWitness.asset_from_script.
   rewrite H. reflexivity.
 Qed.
 
-Lemma cvg_claim_script_is_cvg_bytes :
+Lemma cvg_claim_script_is_invalid_bytes :
   ScriptMintWitness.asset_from_script canonical_cvg_claim_script =
-    ScriptMintWitness.SmwCVG.
+    ScriptMintWitness.SmwInvalid.
 Proof. vm_compute. reflexivity. Qed.

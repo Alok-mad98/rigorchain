@@ -44,7 +44,6 @@ AssetBadgeKind AssetBadge::fromSemantic(wallet::TxSemanticKind semantic)
     case TxSemanticKind::OruTransfer:
         return AssetBadgeKind::ORU;
     case TxSemanticKind::ResTransfer:
-    case TxSemanticKind::ResClaim:
         return AssetBadgeKind::RES;
     case TxSemanticKind::OruConvergence:
         return AssetBadgeKind::CVG;

@@ -28,7 +28,7 @@ class SignetBasicTest(BitcoinTestFramework):
         self.chain = "signet"
         self.num_nodes = 6
         self.setup_clean_chain = True
-        shared_args1 = ["-signetchallenge=51"]  # OP_TRUE
+        shared_args1 = ["-signetchallenge=51"]  # RIGOR_PUSH_1
         shared_args2 = []  # default challenge
         # we use the exact same challenge except we do it as a 2-of-2, which means it should fail
         shared_args3 = ["-signetchallenge=522103ad5e0edad18cb1f0fc0d28a3d4f1f3e445640337489abb10404f2d1e086be430210359ef5021964fe22d6f8e05b2463c9540ce96883fe3b278760f048f5189f2e6c452ae"]
@@ -48,7 +48,7 @@ class SignetBasicTest(BitcoinTestFramework):
         self.connect_nodes(4, 5)
 
     def run_test(self):
-        self.log.info("basic tests using OP_TRUE challenge")
+        self.log.info("basic tests using RIGOR_PUSH_1 challenge")
 
         self.log.info('getmininginfo')
         mining_info = self.nodes[0].getmininginfo()

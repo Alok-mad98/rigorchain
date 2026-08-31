@@ -5,30 +5,23 @@
 #include <connect_block_rigor_checks.h>
 
 #include <consensus/params.h>
+#include <consensus/rigor_supply.h>
 #include <consensus/validation.h>
 #include <kernel/chainparams.h>
 #include <logging.h>
-#include <primitives/block.h>
-#include <uint256.h>
 
 namespace ConnectBlockRigor {
 
 bool VerifyCoinbaseConvergenceAndResLayout(BlockValidationState& state,
     const CChainParams& params,
-    const CBlock& block,
-    CBlockIndex* pindex,
     const CAmount nFeesRes,
     const CAmount res_coinbase_value,
-    const CAmount res_mint_coinbase,
-    const uint256& expected_draw_candidate_root)
+    const CAmount res_mint_coinbase)
 {
-    (void)block;
-    (void)pindex;
-    (void)expected_draw_candidate_root;
-
     const CAmount res_bootstrap_coinbase =
         params.IsMockableChain() ? params.GetConsensus().res_wallet_bootstrap_coinbase : 0;
-    const CAmount expected_res_coinbase = nFeesRes + res_bootstrap_coinbase + res_mint_coinbase;
+    const CAmount expected_res_coinbase =
+        RigorResCoinbaseExpected(nFeesRes, res_bootstrap_coinbase, res_mint_coinbase);
     if (res_coinbase_value != expected_res_coinbase) {
         LogPrintf("ERROR: ConnectBlock(): RES coinbase mismatch (actual=%d expected=%d nFeesRes=%d bootstrap=%d mint=%d)\n",
             res_coinbase_value, expected_res_coinbase, nFeesRes, res_bootstrap_coinbase, res_mint_coinbase);

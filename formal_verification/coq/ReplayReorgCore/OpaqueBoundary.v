@@ -41,9 +41,10 @@ Require Import Rigor.ReplayReorgCore.AssetFromScript.
     - same script bytes ⇒ same pooling class
 
     Finite *shape* lift remains:
-    - non-empty created scripts must be [IsAllowedScript] or zero-value
-      [OP_RETURN]; empty [out_script] is a shape placeholder (pools as ORU)
-    - spent CVG2 scripts are rejected ([InvalidCvg.is_cvg2_script])
+    - created scripts must be [IsAllowedScript] or zero-value [OP_RETURN];
+      empty [out_script] is [AssetInvalid] and fails the shape gate
+    - spent CVG2 scripts are rejected ([InvalidCvg.is_cvg2_script]); created
+      CVG2 scripts are [AssetInvalid] and fail [IsAllowedScript]
     - [tx_pcorb = Some stack] must parse PCORB field *sizes*
     - [tx_pcorb = None] skips the witness-shape conjunct *)
 
@@ -230,9 +231,10 @@ Qed.
 
     Pooling consults [asset_kind_of_script] (which uses [is_res_script] at
     the shape layer). [created_script_shape_ok] is still a byte-template
-    gate, not [EvalScript]. CVG2 scripts pool as ORU. *)
+    gate, not [EvalScript]. CVG2 scripts classify as [AssetInvalid], not ORU. *)
 Require ScriptMintWitness.
 Require InvalidCvg.
+Require Import Rigor.ReplayReorgCore.CvgCovenant.
 
 Theorem p2wpkh_is_not_res_script_but_shape_ok :
   ScriptMintWitness.is_res_script ScriptMintWitness.canonical_p2wpkh = false /\
@@ -243,8 +245,30 @@ Theorem p2wpkh_is_not_res_script_but_shape_ok :
                   out_script := ScriptMintWitness.canonical_p2wpkh |} = AssetORU.
 Proof. split; [|split]; vm_compute; reflexivity. Qed.
 
-Theorem cvg2_script_pools_as_oru :
+Theorem cvg2_script_is_invalid :
   InvalidCvg.is_cvg2_script InvalidCvg.canonical_cvg2_script = true /\
   output_asset {| out_value := 1%Z;
-                  out_script := InvalidCvg.canonical_cvg2_script |} = AssetORU.
+                  out_script := InvalidCvg.canonical_cvg2_script |} = AssetInvalid /\
+  output_asset {| out_value := 1%Z;
+                  out_script := InvalidCvg.canonical_cvg2_script |} <> AssetORU /\
+  output_asset {| out_value := 1%Z;
+                  out_script := InvalidCvg.canonical_cvg2_script |} <> AssetNone.
+Proof. split; [|split; [|split]]; vm_compute; try reflexivity; discriminate. Qed.
+
+(** TASK-010 C-4 / R-9: [OP_CVG_CLAIM] is not a live pooling class. C++ has no such
+    template. There is no [AssetCVG] constructor. *)
+Theorem we_do_not_claim_cvg_exists_in_cpp :
+  asset_kind_of_script canonical_cvg_claim_script = AssetInvalid /\
+  ScriptMintWitness.is_allowed_script canonical_cvg_claim_script = false /\
+  ScriptMintWitness.asset_from_script canonical_cvg_claim_script =
+    ScriptMintWitness.SmwInvalid.
+Proof. split; [|split]; vm_compute; reflexivity. Qed.
+
+(** * 5. CI-033 is not a theorem of this cone (F-2)
+
+    [winner_must_mint] quantifies over [cm_draw_won]. Production mint
+    authorization is owner hash160 × scheduled W(h) × parent draw set. *)
+Theorem we_do_not_claim_ci033_mint_authorization :
+  valid_res_mint_obligation (ob_blk true 1) = true /\
+  cm_draw_won (blk_mint (ob_blk true 1)) = true.
 Proof. split; vm_compute; reflexivity. Qed.

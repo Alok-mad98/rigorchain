@@ -20,9 +20,10 @@
 #include <hash.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
-#include <script/interpreter.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/standard.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <undo.h>
 
@@ -30,10 +31,10 @@
 #include <set>
 
 namespace {
-/** Distinct OP_CONVERGE lock so txid differs from the default test script. */
+/** Distinct RIGOR_MARKER_CONVERGE lock so txid differs from the default test script. */
 CScript MakeConvergeAlternateOwner()
 {
-    return GetConvergeScriptForProgram(std::vector<unsigned char>(32, 0x02));
+    return GetConvergeScriptForPubKey(std::vector<unsigned char>(32, 0x02));
 }
 
 uint160 OwnerHash(unsigned char fill = 0xa1)
@@ -41,18 +42,18 @@ uint160 OwnerHash(unsigned char fill = 0xa1)
     return Hash160(std::vector<unsigned char>(32, fill));
 }
 
-const CScript g_oru_spk = CScript() << OP_0 << std::vector<unsigned char>(20, 0x22);
+const CScript g_oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x22);
 
 /** Witness v1 RES transfer script (not a mint lock). Used by paid-ticket scanners. */
-CScript MakeResPayoutScript(unsigned char fill)
+CScript MakeResPayoutScript(unsigned char /*fill*/)
 {
-    return CScript() << OP_1 << std::vector<unsigned char>(32, fill);
+    return TestNativeResScript();
 }
 
 /** Canonical mint lock for owner program `32 × fill`. Maturity is not part of the owner check. */
 CScript MakeResMintPayout(unsigned char fill)
 {
-    return GetResMintScriptForProgram(/*maturity_height=*/100, std::vector<unsigned char>(32, fill));
+    return GetResMintScriptForPubKey(/*maturity_height=*/100, std::vector<unsigned char>(32, fill));
 }
 
 CTxOut DummyResMintOut()
@@ -86,7 +87,7 @@ BOOST_AUTO_TEST_CASE(res_reward_owner_binding)
     conv.vin[0].prevout = COutPoint(uint256S("0x11"), 0);
     conv.vout.resize(2);
     conv.vout[0].nValue = COIN;
-    conv.vout[0].scriptPubKey = GetConvergeScriptForProgram(owner_program);
+    conv.vout[0].scriptPubKey = GetConvergeScriptForPubKey(owner_program);
     conv.vout[1].nValue = 0;
     conv.vout[1].scriptPubKey = g_oru_spk;
     const auto conv_ref = MakeTransactionRef(conv);
@@ -239,7 +240,7 @@ BOOST_AUTO_TEST_CASE(fee_domain_uses_inputs_not_first_vout_op_return)
     mtx.vin[0].prevout = COutPoint(h_oru, 0);
     mtx.vout.resize(2);
     mtx.vout[0].nValue = 0;
-    mtx.vout[0].scriptPubKey = CScript() << OP_RETURN << std::vector<unsigned char>{1, 2, 3};
+    mtx.vout[0].scriptPubKey = CScript() << RIGOR_MARKER_RETURN << std::vector<unsigned char>{1, 2, 3};
     mtx.vout[1].nValue = 19 * COIN;
     mtx.vout[1].scriptPubKey = g_oru_spk;
     const CTransaction tx(mtx);
@@ -256,7 +257,7 @@ BOOST_AUTO_TEST_CASE(collect_winner_empty_body_matches_empty_draw_candidate_root
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     block.vtx.push_back(MakeTransactionRef(cb));
 
     const int block_h = 5;
@@ -320,7 +321,7 @@ BOOST_AUTO_TEST_CASE(convergence_winner_is_deterministic_on_repeat_and_undo_path
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     block.vtx.push_back(MakeTransactionRef(cb));
     block.vtx.push_back(MakeTransactionRef(tx_a));
     block.vtx.push_back(MakeTransactionRef(tx_b));
@@ -373,7 +374,7 @@ BOOST_AUTO_TEST_CASE(convergence_winner_invariant_under_tx_order_permutation)
         cb.vin.resize(1);
         cb.vin[0].prevout.SetNull();
         cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-        cb.vout.emplace_back(0, CScript() << OP_RETURN);
+        cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
         blk.vtx.push_back(MakeTransactionRef(cb));
         blk.vtx.push_back(MakeTransactionRef(a));
         blk.vtx.push_back(MakeTransactionRef(b));
@@ -432,7 +433,7 @@ BOOST_AUTO_TEST_CASE(winner_is_strict_argmin)
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     b.vtx.push_back(MakeTransactionRef(cb));
     b.vtx.push_back(MakeTransactionRef(tx0));
     b.vtx.push_back(MakeTransactionRef(tx1));
@@ -502,7 +503,7 @@ BOOST_AUTO_TEST_CASE(security001a8_draw_is_a_function_of_the_committing_block_al
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     parent.vtx.push_back(MakeTransactionRef(cb));
     parent.vtx.push_back(MakeTransactionRef(mk(p0)));
     parent.vtx.push_back(MakeTransactionRef(mk(p1)));
@@ -673,7 +674,7 @@ BOOST_AUTO_TEST_CASE(candidate_set_deterministic)
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     blk.vtx.push_back(MakeTransactionRef(cb));
     blk.vtx.push_back(MakeTransactionRef(tx0));
     blk.vtx.push_back(MakeTransactionRef(tx1));
@@ -950,7 +951,7 @@ CBlock MakeCandidateBlock(CCoinsViewCache& coins, unsigned char prevout_fill, in
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     blk.vtx.push_back(MakeTransactionRef(cb));
 
     for (int i = 0; i < count; ++i) {
@@ -1019,6 +1020,40 @@ BOOST_AUTO_TEST_CASE(a9c_buried_candidates_join_the_draw_set)
     // by A-9-C, which is what keeps A-8 intact.
     BOOST_CHECK_EQUAL(wide.source_block_hash, blk.GetHash());
     BOOST_CHECK_EQUAL(wide.source_height, h);
+}
+
+BOOST_AUTO_TEST_CASE(a9c_tail_from_parent_draw_drops_candidates_leaving_the_window)
+{
+    BOOST_CHECK(!TailFromParentDrawSet(ConvergenceDrawSet{}, 10).complete);
+
+    const int h = 500;
+    ConvergenceDrawSet parent;
+    parent.source_height = h - 1;
+    parent.source_nbits = 0x1d00ffff;
+    parent.candidates.push_back(MakeBuriedCandidate(0x01, COIN, h - Consensus::CONVERGENCE_DRAW_WINDOW));
+    parent.candidates.push_back(MakeBuriedCandidate(0x02, COIN, h - Consensus::CONVERGENCE_DRAW_WINDOW + 1));
+    parent.candidates.push_back(MakeBuriedCandidate(0x03, COIN, h - 1));
+
+    const ConvergenceWindowTail tail = TailFromParentDrawSet(parent, h);
+    BOOST_REQUIRE(tail.complete);
+    BOOST_REQUIRE_EQUAL(tail.candidates.size(), 2U);
+    BOOST_CHECK_EQUAL(tail.candidates[0].txid, parent.candidates[1].txid);
+    BOOST_CHECK_EQUAL(tail.candidates[1].txid, parent.candidates[2].txid);
+
+    CCoinsView base;
+    CCoinsViewCache coins(&base);
+    const CBlock blk = MakeCandidateBlock(coins, 0xd7, 1);
+    const ConvergenceDrawSet advanced = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), tail);
+    ConvergenceWindowTail rebuilt_tail = ConvergenceWindowTail::Empty();
+    rebuilt_tail.candidates.push_back(parent.candidates[1]);
+    rebuilt_tail.candidates.push_back(parent.candidates[2]);
+    const ConvergenceDrawSet rebuilt = BuildConvergenceDrawSet(blk, h, coins, Params().GetConsensus(), rebuilt_tail);
+    BOOST_CHECK_EQUAL(advanced.convergence_root, rebuilt.convergence_root);
+    BOOST_REQUIRE_EQUAL(advanced.candidates.size(), rebuilt.candidates.size());
+    for (size_t i = 0; i < advanced.candidates.size(); ++i) {
+        BOOST_CHECK_EQUAL(advanced.candidates[i].txid, rebuilt.candidates[i].txid);
+        BOOST_CHECK_EQUAL(advanced.candidates[i].source_height, rebuilt.candidates[i].source_height);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(a9c_window_root_is_independent_of_candidate_order)
@@ -1165,7 +1200,7 @@ BOOST_AUTO_TEST_CASE(a9c_decoy_proof_shaped_witness_does_not_mark_ticket_paid)
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     blk.vtx.push_back(MakeTransactionRef(cb));
 
     CMutableTransaction decoy;
@@ -1231,7 +1266,7 @@ BOOST_AUTO_TEST_CASE(a9c_reorg_branch_without_mint_does_not_inherit_already_paid
     cb.vin.resize(1);
     cb.vin[0].prevout.SetNull();
     cb.vin[0].scriptSig = CScript() << CScriptNum{1};
-    cb.vout.emplace_back(0, CScript() << OP_RETURN);
+    cb.vout.emplace_back(0, CScript() << RIGOR_MARKER_RETURN);
     with_mint.vtx.push_back(MakeTransactionRef(cb));
 
     CMutableTransaction paid_cb(cb);

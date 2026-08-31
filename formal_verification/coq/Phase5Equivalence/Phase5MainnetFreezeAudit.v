@@ -19,8 +19,8 @@ Local Close Scope string_scope.
 
 (** ---- Audit exports ---- *)
 
-Definition audit_p5_mainnet_freeze_established : bool :=
-  p5_mainnet_freeze_established.
+Definition audit_p5_phase5_paperwork_recorded : bool :=
+  p5_phase5_paperwork_recorded.
 
 Definition audit_p5_mainnet_freeze_task : string :=
   p5_mainnet_freeze_task.
@@ -85,7 +85,7 @@ Proof. exact p5_mainnet_freeze_link_intact. Qed.
 
 Definition phase5_mainnet_freeze_audit_verdict : Prop :=
   phase5_mainnet_freeze_model_established /\
-  audit_p5_mainnet_freeze_established = true /\
+  audit_p5_phase5_paperwork_recorded = true /\
   phase5_mainnet_freeze_verdict /\
   phase5_freeze_candidate_verdict /\
   equivalence_claimed = false /\

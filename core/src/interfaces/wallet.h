@@ -151,14 +151,14 @@ public:
         int& change_pos,
         CAmount& fee) = 0;
 
-    //! Create a convergence transaction (ORU to consensus OP_CONVERGE output).
+    //! Create a convergence transaction (ORU to consensus RIGOR_MARKER_CONVERGE output).
     virtual util::Result<CTransactionRef> createConvergenceTransaction(CAmount amount_oru,
         const wallet::CCoinControl& coin_control,
         bool sign,
         int& change_pos,
         CAmount& fee) = 0;
 
-    //! OP_CONVERGE burn recipient (HASH160 of a fresh RES program). ORU only.
+    //! RIGOR_MARKER_CONVERGE burn recipient (HASH160 of a fresh RES program). ORU only.
     virtual util::Result<wallet::CRecipient> makeConvergenceRecipient(CAmount amount_oru) = 0;
 
     //! Commit transaction.

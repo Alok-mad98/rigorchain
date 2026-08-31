@@ -16,7 +16,6 @@ from test_framework.messages import (
     COutPoint,
     CTransaction,
     CTxIn,
-    CTxInWitness,
     CTxOut,
     MAX_BLOCK_WEIGHT,
     MAX_MONEY,
@@ -25,18 +24,16 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     CScript,
-    OP_0,
-    OP_HASH160,
-    OP_RETURN,
-    OP_TRUE,
+    RIGOR_PUSH_0,
+    RIGOR_RESERVED_LEGACY_HASH160,
+    RIGOR_MARKER_RETURN,
+    RIGOR_PUSH_1,
 )
 from test_framework.script_util import (
     DUMMY_MIN_OP_RETURN_SCRIPT,
     keys_to_multisig_script,
     MIN_PADDING,
     MIN_STANDARD_TX_NONWITNESS_SIZE,
-    script_to_p2sh_script,
-    script_to_p2wsh_script,
 )
 from test_framework.util import (
     assert_equal,
@@ -140,7 +137,7 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
         self.wallet.sign_tx(tx, utxos_to_spend=[st['utxo_spent']])
         raw_tx_final = tx.serialize().hex()
         tx = tx_from_hex(raw_tx_final)
-        fee_expected = Decimal('50.0') - output_amount
+        fee_expected = st['utxo_spent']['value'] - output_amount
         self.check_mempool_result(
             result_expected=[{'txid': tx.rehash(), 'allowed': True, 'vsize': tx.get_vsize(), 'fees': {'base': fee_expected}}],
             rawtxs=[tx.serialize().hex()],
@@ -311,22 +308,22 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
-        tx.vout[0].scriptPubKey = CScript([OP_0])  # Some non-standard script
+        tx.vout[0].scriptPubKey = CScript([RIGOR_PUSH_0])  # not a RIGOR constructible output
         self.check_mempool_result(
-            result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'scriptpubkey'}],
+            result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'bad-rigor-script-type'}],
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
         key = ECKey()
         key.generate()
         pubkey = key.get_pubkey().get_bytes()
-        tx.vout[0].scriptPubKey = keys_to_multisig_script([pubkey] * 3, k=2)  # Some bare multisig script (2-of-3)
+        tx.vout[0].scriptPubKey = keys_to_multisig_script([pubkey] * 3, k=2)  # bare multisig is not a RIGOR output
         self.check_mempool_result(
-            result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'bare-multisig'}],
+            result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'bad-rigor-script-type'}],
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
-        tx.vin[0].scriptSig = CScript([OP_HASH160])  # Some not-pushonly scriptSig
+        tx.vin[0].scriptSig = CScript([RIGOR_RESERVED_LEGACY_HASH160])  # Some not-pushonly scriptSig
         self.check_mempool_result(
             result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'scriptsig-not-pushonly'}],
             rawtxs=[tx.serialize().hex()],
@@ -338,25 +335,25 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
-        output_p2sh_burn = CTxOut(nValue=540, scriptPubKey=script_to_p2sh_script(b'burn'))
-        out_len = len(output_p2sh_burn.serialize())
-        # Duplicate outputs until GetTransactionWeight exceeds MAX_STANDARD_TX_WEIGHT (IsStandardTx "tx-size").
+        output_wpkh = CTxOut(nValue=540, scriptPubKey=CScript(self.wallet.get_scriptPubKey()))
+        out_len = len(output_wpkh.serialize())
+        # Duplicate legal P2WPKH outputs until GetTransactionWeight exceeds MAX_STANDARD_TX_WEIGHT.
         num_scripts = (100000 // out_len) + 1
         assert_greater_than(num_scripts * out_len, 100000)
-        tx.vout = [output_p2sh_burn] * num_scripts
+        tx.vout = [output_wpkh] * num_scripts
         self.check_mempool_result(
             result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'tx-size'}],
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
-        tx.vout[0] = output_p2sh_burn
-        tx.vout[0].nValue -= 1  # Make output smaller, such that it is dust for our policy
+        tx.vout[0] = CTxOut(nValue=1, scriptPubKey=CScript(self.wallet.get_scriptPubKey()))
         self.check_mempool_result(
             result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'dust'}],
             rawtxs=[tx.serialize().hex()],
         )
         tx = tx_from_hex(raw_tx_reference)
-        tx.vout[0].scriptPubKey = CScript([OP_RETURN, b'\xff'])
+        tx.vout[0].scriptPubKey = CScript([RIGOR_MARKER_RETURN, b'\xff'])
+        tx.vout[0].nValue = 0
         tx.vout = [tx.vout[0]] * 2
         self.check_mempool_result(
             result_expected=[{'txid': tx.rehash(), 'allowed': False, 'reject-reason': 'multi-op-return'}],
@@ -381,16 +378,16 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
             maxfeerate=0,
         )
 
-        # Prep for tiny-tx tests with wsh(OP_TRUE) output
-        seed_tx = self.wallet.send_to(from_node=node, scriptPubKey=script_to_p2wsh_script(CScript([OP_TRUE])), amount=COIN)
+        # Prep for tiny-tx tests: spend a MiniWallet P2WPKH (Ed25519), not P2WSH.
+        seed_tx = self.wallet.send_to(from_node=node, scriptPubKey=CScript(self.wallet.get_scriptPubKey()), amount=COIN)
         self.generate(node, 1)
+        seed_utxo = {"txid": seed_tx[0], "vout": seed_tx[1], "value": Decimal(1)}
 
         self.log.info('A tiny transaction(in non-witness bytes) that is disallowed')
         tx = CTransaction()
         tx.vin.append(CTxIn(COutPoint(int(seed_tx[0], 16), seed_tx[1]), b"", SEQUENCE_FINAL))
-        tx.wit.vtxinwit = [CTxInWitness()]
-        tx.wit.vtxinwit[0].scriptWitness.stack = [CScript([OP_TRUE])]
-        tx.vout.append(CTxOut(0, CScript([OP_RETURN] + ([OP_0] * (MIN_PADDING - 2)))))
+        tx.vout.append(CTxOut(0, CScript([RIGOR_MARKER_RETURN] + ([RIGOR_PUSH_0] * (MIN_PADDING - 2)))))
+        self.wallet.sign_tx(tx, utxos_to_spend=[seed_utxo])
         # Note it's only non-witness size that matters!
         assert_equal(len(tx.serialize_without_witness()), 64)
         assert_equal(MIN_STANDARD_TX_NONWITNESS_SIZE - 1, 64)
@@ -403,10 +400,12 @@ class MempoolAcceptanceTest(BitcoinTestFramework):
         )
 
         self.log.info('Minimally-small transaction(in non-witness bytes) that is allowed')
-        tx.vout[0] = CTxOut(COIN - 1000, DUMMY_MIN_OP_RETURN_SCRIPT)
+        # RIGOR OP_RETURN outputs must have nValue 0; the whole 1 ORU input is fee.
+        tx.vout[0] = CTxOut(0, DUMMY_MIN_OP_RETURN_SCRIPT)
+        self.wallet.sign_tx(tx, utxos_to_spend=[seed_utxo])
         assert_equal(len(tx.serialize_without_witness()), MIN_STANDARD_TX_NONWITNESS_SIZE)
         self.check_mempool_result(
-            result_expected=[{'txid': tx.rehash(), 'allowed': True, 'vsize': tx.get_vsize(), 'fees': { 'base': Decimal('0.00001000')}}],
+            result_expected=[{'txid': tx.rehash(), 'allowed': True, 'vsize': tx.get_vsize(), 'fees': { 'base': Decimal('1')}}],
             rawtxs=[tx.serialize().hex()],
             maxfeerate=0,
         )
