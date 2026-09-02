@@ -839,7 +839,7 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
                /*conn_type_in=*/ConnectionType::OUTBOUND_FULL_RELAY,
                /*inbound_onion=*/false};
 
-    const uint64_t services{NODE_NETWORK | NODE_WITNESS};
+    const ServiceFlags nServices{NODE_NETWORK | NODE_WITNESS};
     const int64_t time{0};
     const CNetMsgMaker msg_maker{PROTOCOL_VERSION};
 
@@ -854,8 +854,19 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     std::atomic<bool> interrupt_dummy{false};
     std::chrono::microseconds time_received_dummy{0};
 
-    const auto msg_version =
-        msg_maker.Make(NetMsgType::VERSION, RIGOR_PROTOCOL_CURRENT_VERSION, services, time, services, peer_us);
+    const auto msg_version = msg_maker.Make(
+        NetMsgType::VERSION,
+        RIGOR_PROTOCOL_CURRENT_VERSION,
+        Using<CustomUintFormatter<8>>(nServices),
+        time,
+        Using<CustomUintFormatter<8>>(nServices),
+        peer_us,
+        int64_t{},
+        CService{},
+        uint64_t{1},
+        std::string{},
+        int32_t{},
+        true);
     CDataStream msg_version_stream{msg_version.data, SER_NETWORK, PROTOCOL_VERSION};
 
     m_node.peerman->ProcessMessage(

@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 // P063 verify-only ledger apply. Does not recode issuance / RES / draw / PoW.
+// P0-077: allocation + uniqueness layout only. Same accept/reject and delta order.
 
 #include <consensus/ledger/ledger_transition.h>
 
@@ -32,29 +33,34 @@ bool OutpointIn(const LedgerOutpoint& o, const std::vector<LedgerOutpoint>& xs, 
     return false;
 }
 
+/** Duplicate-outpoint reject. Single unsorted scan; matches Coq nodup_ops.
+ *
+ *  B1 (proof-to-binary): do not reintroduce a second algorithm. clightgen/VST
+ *  will consume this function as one body. A small-n nested scan plus a
+ *  large-n ordered-copy pass is two programs and cannot be one funspec.
+ *  spent_delta order is the consumed order; this scan never permutes it. */
 bool NoDupOutpoints(const std::vector<LedgerOutpoint>& xs)
 {
-    for (std::size_t i = 0; i < xs.size(); ++i) {
+    const std::size_t n = xs.size();
+    for (std::size_t i = 0; i < n; ++i) {
         if (OutpointIn(xs[i], xs, i + 1)) return false;
     }
     return true;
 }
 
-bool SumAsset(const std::vector<LedgerCoin>& coins, LedgerAsset asset, CAmount& out)
+/** One pass: known-asset check + ORU/RES sums. Same predicates as AllAssetsKnown + SumAsset. */
+bool SumKnownAssets(const std::vector<LedgerCoin>& coins, CAmount& oru, CAmount& res)
 {
-    out = 0;
-    for (const auto& c : coins) {
-        if (c.asset != asset) continue;
-        if (!AddMoney(out, c.value, out)) return false;
-    }
-    return true;
-}
-
-bool AllAssetsKnown(const std::vector<LedgerCoin>& coins)
-{
+    oru = 0;
+    res = 0;
     for (const auto& c : coins) {
         if (c.asset != LedgerAsset::ORU && c.asset != LedgerAsset::RES) return false;
         if (!AmountOk(c.value)) return false;
+        if (c.asset == LedgerAsset::ORU) {
+            if (!AddMoney(oru, c.value, oru)) return false;
+        } else {
+            if (!AddMoney(res, c.value, res)) return false;
+        }
     }
     return true;
 }
@@ -88,7 +94,13 @@ LedgerKernelOutput LedgerApply(const LedgerKernelInput& in)
     if (!in.tx.accept || !in.consensus.accept) return out;
     if (!AmountOk(in.fee) || !AmountOk(in.burn) || !AmountOk(in.converge)) return out;
     if (!AmountOk(in.consensus.oru_issuance) || !AmountOk(in.consensus.res_mint)) return out;
-    if (!AllAssetsKnown(in.consumed) || !AllAssetsKnown(in.created)) return out;
+
+    CAmount in_oru = 0;
+    CAmount in_res = 0;
+    CAmount out_oru = 0;
+    CAmount out_res = 0;
+    if (!SumKnownAssets(in.consumed, in_oru, in_res)) return out;
+    if (!SumKnownAssets(in.created, out_oru, out_res)) return out;
 
     std::vector<LedgerOutpoint> spent;
     spent.reserve(in.consumed.size());
@@ -101,14 +113,6 @@ LedgerKernelOutput LedgerApply(const LedgerKernelInput& in)
 
     CAmount in_all = 0;
     CAmount out_all = 0;
-    CAmount in_oru = 0;
-    CAmount out_oru = 0;
-    CAmount in_res = 0;
-    CAmount out_res = 0;
-    if (!SumAsset(in.consumed, LedgerAsset::ORU, in_oru)) return out;
-    if (!SumAsset(in.consumed, LedgerAsset::RES, in_res)) return out;
-    if (!SumAsset(in.created, LedgerAsset::ORU, out_oru)) return out;
-    if (!SumAsset(in.created, LedgerAsset::RES, out_res)) return out;
     if (!AddMoney(in_oru, in_res, in_all)) return out;
     if (!AddMoney(out_oru, out_res, out_all)) return out;
 

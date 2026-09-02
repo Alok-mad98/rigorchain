@@ -51,6 +51,24 @@ def production_script_files() -> list[Path]:
     return out
 
 
+def extract_function_body(text: str, signature: str) -> str:
+    start = text.find(signature)
+    if start < 0:
+        return ""
+    brace = text.find("{", start)
+    if brace < 0:
+        return ""
+    depth = 0
+    for i, ch in enumerate(text[brace:], brace):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[brace : i + 1]
+    return text[brace:]
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -90,16 +108,34 @@ def main() -> int:
 
     makefile = MAKEFILE.read_text(encoding="utf-8", errors="replace")
     if "consensus/txkernel" in makefile:
-        errors.append("txkernel compiled into production")
+        errors.append("txkernel listed as its own production translation unit")
+    # A1: the header is header-only, so it can never appear in Makefile.am.
+    # What must hold instead is that production reaches the boundary through
+    # the unique authority, and only through it.
+    if "#include <consensus/txkernel/transaction_kernel_input.h>" not in pred:
+        errors.append("predicate_verify.cpp does not include the txkernel header")
+    if "MakeKernelInput(" not in pred:
+        errors.append("VerifyRigorPredicate does not call MakeKernelInput")
+    if "VerifyRigorPredicateBoundary(" not in pred:
+        errors.append("VerifyRigorPredicate does not call VerifyRigorPredicateBoundary")
+    vrp = extract_function_body(pred, "bool VerifyRigorPredicate(")
+    if re.search(r"if\s*\(\s*ClassifyRigorPredicateError\s*\(", vrp):
+        errors.append("production dual-verifies with the diagnostic predicate")
+    if "&& ClassifyRigorPredicateError" in vrp:
+        errors.append("production uses diagnostic boolean as consensus accept")
+    if "FixedEd25519Checker" not in pred:
+        errors.append("reject-path ScriptError classifier may repeat Ed25519 verification")
     if "caml_" in makefile or "consensus_kernel.ml" in makefile:
         errors.append("Makefile.am links extracted OCaml")
+    if "makekernelinput_oracle.ml" in makefile:
+        errors.append("Makefile.am links MakeKernelInput test oracle")
     if "PRODUCTION_KERNEL_SWITCHED" in makefile:
         errors.append("production kernel switch flag in Makefile.am")
 
     print("VERIFY_RIGOR_PREDICATE_UNIQUE", "PASS" if "bool VerifyRigorPredicate(" in pred else "FAIL")
     print("SCRIPT_VM_ABSENT", "PASS")
     print("MULTISIG_ABSENT", "PASS")
-    print("PRODUCTION_KERNEL_SWITCHED", "NO")
+    print("EXTRACTED_TO_BINARY", "NOT-LINKED")
 
     if errors:
         print("FAIL: transaction kernel refinement lint")

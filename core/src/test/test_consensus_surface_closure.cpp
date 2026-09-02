@@ -120,6 +120,7 @@ int main()
         ok.witness = {ok.signature, ok.pubkey};
         ok.keyhash_match = true;
         ok.crypto_accept = true;
+        ok.sighash_tag = KernelAssignedSighashTag(oru);
         if (!VerifyRigorPredicateBoundary(ok)) return fail("valid predicate");
 
         TransactionKernelInput bad = ok;
@@ -132,6 +133,13 @@ int main()
 
         TransactionKernelInput sighash_a = ok;
         sighash_a.spent_script = sighash_a.scriptPubKey;
+        sighash_a.sighash_tag = {'R', 'G', 'R', 'O', 'R', 'U', '0', '1'};
+        sighash_a.chain_id.assign(32, 0x11);
+        sighash_a.hashPrevouts.assign(32, 0x22);
+        sighash_a.hashSequence.assign(32, 0x33);
+        sighash_a.hashOutputs.assign(32, 0x44);
+        sighash_a.prevout_hash.assign(32, 0x55);
+        sighash_a.sighash_fields_present = true;
         sighash_a.amount = 1;
         TransactionKernelInput sighash_b = sighash_a;
         sighash_b.amount = 2;

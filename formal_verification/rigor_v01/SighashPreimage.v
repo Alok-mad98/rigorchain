@@ -9,7 +9,10 @@
       amount(LE64) || nSequence(LE32) || nLockTime(LE32)
 
     Digest is [hash256_bytes] of that concatenation. Not ∀-tx VST of
-    SignatureHash. No [Axiom] / [Admitted]. *)
+    SignatureHash. MakeKernelInput.different_tags_different_preimages
+    is the typed-integer form of tag injectivity; SignatureDomainSeparation
+    proves the same fact over pre-serialized field widths.
+    No [Axiom] / [Admitted]. *)
 From Coq Require Import List.
 From Coq Require Import Arith.PeanoNat.
 From Coq Require Import ZArith.ZArith.
@@ -30,15 +33,19 @@ Fixpoint le_bytes (n : Z) (count : nat) : list byte :=
 Definition le32 (n : Z) : list byte := le_bytes n 4%nat.
 Definition le64 (n : Z) : list byte := le_bytes n 8%nat.
 
-(** Bitcoin compact size used to serialize CScript as a byte vector. *)
+(** Bitcoin compact size used to serialize CScript as a byte vector.
+    Compare 16/32-bit ceilings in [Z] so Coq does not emit
+    [abstract-large-number] for unary [nat] literals. *)
 Definition compact_size (n : nat) : list byte :=
   if Nat.ltb n 253%nat then [n]
-  else if Nat.leb n 65535%nat then
-    253%nat :: le_bytes (Z.of_nat n) 2%nat
-  else if Nat.leb n 4294967295%nat then
-    254%nat :: le_bytes (Z.of_nat n) 4%nat
   else
-    255%nat :: le_bytes (Z.of_nat n) 8%nat.
+    let z := Z.of_nat n in
+    if z <=? 65535 then
+      253%nat :: le_bytes z 2%nat
+    else if z <=? 4294967295 then
+      254%nat :: le_bytes z 4%nat
+    else
+      255%nat :: le_bytes z 8%nat.
 
 Definition serialize_script (spk : list byte) : list byte :=
   compact_size (length spk) ++ spk.

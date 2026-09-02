@@ -76,14 +76,14 @@ export function convergenceOutputLabels(): {
   };
 }
 
-/** CScriptNum-shaped non-negative integer push used by GetResMintScript. */
+/**
+ * Height prefix of GetResMintScript: OP_0 or a CScriptNum data push
+ * (PUSHBYTES_1 0x05 for height 5, not OP_5). P0-039 / P0-016.
+ */
 function isCanonicalNonNegIntPush(bytes: Buffer): boolean {
   if (bytes.length === 0) return false;
   if (bytes.length === 1) {
-    const op = bytes[0];
-    if (op === 0x00) return true;
-    if (op >= 0x51 && op <= 0x60) return true;
-    return false;
+    return bytes[0] === 0x00;
   }
   const plen = bytes[0];
   if (plen < 1 || plen > 5 || bytes.length !== 1 + plen) return false;
@@ -92,7 +92,6 @@ function isCanonicalNonNegIntPush(bytes: Buffer): boolean {
   if (data.length > 1 && data[data.length - 1] === 0 && (data[data.length - 2] & 0x80) === 0) {
     return false;
   }
-  if (data.length === 1 && data[0] <= 16) return false;
   return true;
 }
 

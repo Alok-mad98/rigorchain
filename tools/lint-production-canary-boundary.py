@@ -11,10 +11,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 SRC = ROOT / "core/src"
 CANARY_DIR = SRC / "consensus/kernel_canary"
-RUNTIME = SRC / "node/kernel_runtime_canary.cpp"
-RUNTIME_H = SRC / "node/kernel_runtime_canary.h"
+RUNTIME = SRC / "test/kernel_runtime_canary.cpp"
+RUNTIME_H = SRC / "test/kernel_runtime_canary.h"
 VALIDATION = SRC / "validation.cpp"
 MAKEFILE = SRC / "Makefile.am"
 
@@ -78,10 +80,34 @@ def main() -> int:
     ):
         if needle not in ctl:
             errors.append(f"controller missing {needle}")
-    if "inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = true" not in ctl:
-        errors.append("mainnet canary must be armed for P071 compare-only")
+    if "inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = false" not in ctl:
+        errors.append("mainnet canary must stay unarmed")
     if "inline constexpr bool CANARY_ENABLED_DEFAULT = false" not in ctl:
         errors.append("CANARY_ENABLED default must be FALSE")
+
+    armed_m = re.search(
+        r"inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED\s*=\s*(true|false)",
+        ctl,
+    )
+    if not armed_m:
+        errors.append("cannot parse PRODUCTION_MAINNET_CANARY_ARMED")
+    else:
+        armed = armed_m.group(1)
+        docs = ROOT / "docs"
+        for p in docs.rglob("*.md"):
+            rel = p.relative_to(ROOT).as_posix()
+            text = p.read_text(encoding="utf-8", errors="replace")
+            for i, line in enumerate(text.splitlines(), 1):
+                m = re.search(
+                    r"PRODUCTION_MAINNET_CANARY_ARMED\s*=\s*(TRUE|FALSE|true|false)",
+                    line,
+                )
+                if not m:
+                    continue
+                if m.group(1).lower() != armed:
+                    errors.append(
+                        f"{rel}:{i}: docs ARMED={m.group(1)} code={armed}"
+                    )
 
     metrics = (CANARY_DIR / "canary_metrics.h").read_text(encoding="utf-8", errors="replace")
     for needle in (
@@ -122,7 +148,7 @@ def main() -> int:
     print("CANARY_AVAILABLE=TRUE")
     print("CANARY_ENABLED=FALSE")
     print("ROLLBACK_READY=TRUE")
-    print("PRODUCTION_KERNEL_SWITCHED=FALSE")
+    print_status()
     return 0
 
 

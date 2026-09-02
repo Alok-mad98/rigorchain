@@ -1,7 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-PRODUCTION-MIGRATION-READINESS-P0-067",
   "note": "Migration readiness vectors. Production switch remains OFF. Does not modify golden vectors.",
-  "production_kernel_switched": false,
   "refinement_proved": true,
   "equivalence_proved": false,
   "genesis": {
@@ -11,10 +10,37 @@
     "actual_issuance_res": 0,
     "draw": "none"
   },
-  "epoch": [1, 99, 100, 101, 209999, 210000, 210001, 419999],
-  "transaction": ["valid_spend", "invalid_spend", "bad_signature", "malformed_witness", "unknown_asset"],
-  "draw": ["empty_F", "single_candidate", "equal_weight", "txid_tie_break"],
-  "ledger": ["mint", "burn", "fee", "transfer", "double_spend_reject", "overflow"],
+  "epoch": [
+    1,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    210001,
+    419999
+  ],
+  "transaction": [
+    "valid_spend",
+    "invalid_spend",
+    "bad_signature",
+    "malformed_witness",
+    "unknown_asset"
+  ],
+  "draw": [
+    "empty_F",
+    "single_candidate",
+    "equal_weight",
+    "txid_tie_break"
+  ],
+  "ledger": [
+    "mint",
+    "burn",
+    "fee",
+    "transfer",
+    "double_spend_reject",
+    "overflow"
+  ],
   "compare": [
     "issuance",
     "maturity",
@@ -24,5 +50,9 @@
     "ledger_delta",
     "coinbase_expectation"
   ],
-  "mismatch_policy": "FAIL HARD; never auto-correct"
+  "mismatch_policy": "FAIL HARD; never auto-correct",
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

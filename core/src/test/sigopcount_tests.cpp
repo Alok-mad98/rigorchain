@@ -110,7 +110,10 @@ static void BuildTxs(CMutableTransaction& spendingTx, CCoinsViewCache& coins, CM
     spendingTx.vout[0].nValue = 1;
     spendingTx.vout[0].scriptPubKey = CScript();
 
-    AddCoins(coins, CTransaction(creationTx), 0);
+    // This helper is reused in one test with the same coinbase-shaped creation
+    // tx (same txid). Allow overwrite so a later fixture does not throw
+    // "Attempted to overwrite an unspent coin".
+    AddCoins(coins, CTransaction(creationTx), 0, /*check_for_overwrite=*/true);
 }
 
 BOOST_AUTO_TEST_CASE(GetTxSigOpCost)

@@ -117,7 +117,13 @@
   },
   "state_boundary": {
     "pure_kernel_form": "Kernel(Input) -> Result",
-    "works_for": ["classify", "issuance", "pow_digest", "draw_predicate", "asert"],
+    "works_for": [
+      "classify",
+      "issuance",
+      "pow_digest",
+      "draw_predicate",
+      "asert"
+    ],
     "supply_delta_form": "Kernel(Input, MinimalState) -> Result",
     "connectblock_form": "orchestration",
     "blocker": "Constructing draw set F requires index/undo walk. Cut after F is materialised."
@@ -128,8 +134,15 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_SUPPORT",
       "domain": "CONNECTBLOCK",
-      "called_by": ["PeerManagerImpl::ProcessBlock", "rpc/mining.cpp"],
-      "calls": ["CheckBlock", "AcceptBlock", "ActivateBestChain"],
+      "called_by": [
+        "PeerManagerImpl::ProcessBlock",
+        "rpc/mining.cpp"
+      ],
+      "calls": [
+        "CheckBlock",
+        "AcceptBlock",
+        "ActivateBestChain"
+      ],
       "reads_global_state": true,
       "writes_state": true,
       "depends_on_chain_state": true,
@@ -142,8 +155,18 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "CONNECTBLOCK",
-      "called_by": ["ConnectTip", "TestBlockValidity"],
-      "calls": ["CheckTxInputs", "CheckInputScripts", "ResolveConvergenceDraw", "ConnectEvaluateCoinbaseResMint", "GetBlockSubsidy", "UpdateCoins"],
+      "called_by": [
+        "ConnectTip",
+        "TestBlockValidity"
+      ],
+      "calls": [
+        "CheckTxInputs",
+        "CheckInputScripts",
+        "ResolveConvergenceDraw",
+        "ConnectEvaluateCoinbaseResMint",
+        "GetBlockSubsidy",
+        "UpdateCoins"
+      ],
       "reads_global_state": true,
       "writes_state": true,
       "depends_on_chain_state": true,
@@ -156,8 +179,16 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "TRANSACTION",
-      "called_by": ["ProcessNewBlock", "AcceptBlock", "ConnectBlock"],
-      "calls": ["CheckBlockHeader", "CheckTransaction", "BlockMerkleRoot"],
+      "called_by": [
+        "ProcessNewBlock",
+        "AcceptBlock",
+        "ConnectBlock"
+      ],
+      "calls": [
+        "CheckBlockHeader",
+        "CheckTransaction",
+        "BlockMerkleRoot"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -170,8 +201,13 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "POW",
-      "called_by": ["CheckBlock", "AcceptBlockHeader"],
-      "calls": ["CheckProofOfWork"],
+      "called_by": [
+        "CheckBlock",
+        "AcceptBlockHeader"
+      ],
+      "calls": [
+        "CheckProofOfWork"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -184,8 +220,14 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "ASERT",
-      "called_by": ["AcceptBlockHeader", "TestBlockValidity"],
-      "calls": ["GetNextWorkRequired", "CheckProofOfWork"],
+      "called_by": [
+        "AcceptBlockHeader",
+        "TestBlockValidity"
+      ],
+      "calls": [
+        "GetNextWorkRequired",
+        "CheckProofOfWork"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -198,8 +240,18 @@
       "file": "core/src/script/rigor_classify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "CLASSIFICATION",
-      "called_by": ["AssetTypeFromScriptPubKey", "GetLegacySigOpCount", "CheckTxOutAssetWitnessBinding", "Solver"],
-      "calls": ["IsWitnessProgram", "ParseResMintScript", "ParseConvergeScript", "IsRigorResNativeWitnessProgram"],
+      "called_by": [
+        "AssetTypeFromScriptPubKey",
+        "GetLegacySigOpCount",
+        "CheckTxOutAssetWitnessBinding",
+        "Solver"
+      ],
+      "calls": [
+        "IsWitnessProgram",
+        "ParseResMintScript",
+        "ParseConvergeScript",
+        "IsRigorResNativeWitnessProgram"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -212,8 +264,15 @@
       "file": "core/src/script/rigor_classify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "CLASSIFICATION",
-      "called_by": ["CheckTxInputs", "CheckTransaction", "GetOutputValueByAsset", "GetTransactionInputAsset"],
-      "calls": ["ClassifyRigorTxout"],
+      "called_by": [
+        "CheckTxInputs",
+        "CheckTransaction",
+        "GetOutputValueByAsset",
+        "GetTransactionInputAsset"
+      ],
+      "calls": [
+        "ClassifyRigorTxout"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -226,8 +285,14 @@
       "file": "core/src/script/rigor_classify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "MINT",
-      "called_by": ["ClassifyRigorTxout", "IsResMintScript", "ConnectEvaluateCoinbaseResMint"],
-      "calls": ["GetResMintScript"],
+      "called_by": [
+        "ClassifyRigorTxout",
+        "IsResMintScript",
+        "ConnectEvaluateCoinbaseResMint"
+      ],
+      "calls": [
+        "GetResMintScript"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -240,8 +305,15 @@
       "file": "core/src/script/predicate_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "PREDICATE",
-      "called_by": ["CheckInputScripts", "CScriptCheck::operator()"],
-      "calls": ["VerifyResMintSpend", "VerifyWitnessProgram", "SignatureHash"],
+      "called_by": [
+        "CheckInputScripts",
+        "CScriptCheck::operator()"
+      ],
+      "calls": [
+        "VerifyResMintSpend",
+        "VerifyWitnessProgram",
+        "SignatureHash"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -254,7 +326,10 @@
       "file": "core/src/script/predicate_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "SIGHASH",
-      "called_by": ["VerifyRigorPredicate", "VerifyWitnessProgram"],
+      "called_by": [
+        "VerifyRigorPredicate",
+        "VerifyWitnessProgram"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -268,8 +343,14 @@
       "file": "core/src/consensus/tx_check.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "TRANSACTION",
-      "called_by": ["CheckBlock"],
-      "calls": ["IsAllowedScript", "AssetTypeFromScriptPubKey", "IsResMintScript"],
+      "called_by": [
+        "CheckBlock"
+      ],
+      "calls": [
+        "IsAllowedScript",
+        "AssetTypeFromScriptPubKey",
+        "IsResMintScript"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -282,8 +363,15 @@
       "file": "core/src/consensus/tx_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "TRANSACTION",
-      "called_by": ["ConnectBlock", "IsConvergenceDrawMember"],
-      "calls": ["GetTransactionInputAsset", "CheckTxInputs_ORU", "CheckTxInputs_RES_DualPool"],
+      "called_by": [
+        "ConnectBlock",
+        "IsConvergenceDrawMember"
+      ],
+      "calls": [
+        "GetTransactionInputAsset",
+        "CheckTxInputs_ORU",
+        "CheckTxInputs_RES_DualPool"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -296,8 +384,12 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "PREDICATE",
-      "called_by": ["ConnectBlock"],
-      "calls": ["VerifyRigorPredicate"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "VerifyRigorPredicate"
+      ],
       "reads_global_state": true,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -310,7 +402,9 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "ISSUANCE",
-      "called_by": ["ConnectBlock"],
+      "called_by": [
+        "ConnectBlock"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -324,8 +418,13 @@
       "file": "core/src/consensus/rigor_consensus_lock.h",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "ISSUANCE",
-      "called_by": ["ConnectEvaluateCoinbaseResMint", "ConnectBlock"],
-      "calls": ["ResRewardForEpoch"],
+      "called_by": [
+        "ConnectEvaluateCoinbaseResMint",
+        "ConnectBlock"
+      ],
+      "calls": [
+        "ResRewardForEpoch"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -338,7 +437,9 @@
       "file": "core/src/consensus/rigor_consensus_lock.h",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "ISSUANCE",
-      "called_by": ["GetResMintReward"],
+      "called_by": [
+        "GetResMintReward"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -352,7 +453,9 @@
       "file": "core/src/consensus/rigor_consensus_lock.h",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "SUPPLY",
-      "called_by": ["ConnectBlock"],
+      "called_by": [
+        "ConnectBlock"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -366,8 +469,13 @@
       "file": "core/src/consensus/convergence_logic.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["ConnectBlock"],
-      "calls": ["SelectionDigest", "ConvergenceDrawInequalityHolds"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "SelectionDigest",
+        "ConvergenceDrawInequalityHolds"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -380,8 +488,12 @@
       "file": "core/src/consensus/rigor_math.h",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["ResolveConvergenceDraw"],
-      "calls": ["Mul256x256Full"],
+      "called_by": [
+        "ResolveConvergenceDraw"
+      ],
+      "calls": [
+        "Mul256x256Full"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -394,7 +506,9 @@
       "file": "core/src/consensus_rigor/sigma_hash.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["SelectionDigest"],
+      "called_by": [
+        "SelectionDigest"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -408,8 +522,13 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_SUPPORT",
       "domain": "DRAW",
-      "called_by": ["ConnectBlock"],
-      "calls": ["BuildConvergenceWindowTail", "BuildConvergenceDrawSetFromUndo"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "BuildConvergenceWindowTail",
+        "BuildConvergenceDrawSetFromUndo"
+      ],
       "reads_global_state": true,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -422,8 +541,13 @@
       "file": "core/src/consensus/convergence_logic.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["ConnectBlock"],
-      "calls": ["ListConvergenceRootCommitmentTxids", "FinalizeWindowedDrawSet"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "ListConvergenceRootCommitmentTxids",
+        "FinalizeWindowedDrawSet"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -436,7 +560,9 @@
       "file": "core/src/consensus/convergence_root_eligibility.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["FinalizeWindowedDrawSet"],
+      "called_by": [
+        "FinalizeWindowedDrawSet"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -450,7 +576,10 @@
       "file": "core/src/consensus/convergenceres_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DRAW",
-      "called_by": ["ConnectBlock", "IsConvergenceDrawMember"],
+      "called_by": [
+        "ConnectBlock",
+        "IsConvergenceDrawMember"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -464,7 +593,10 @@
       "file": "core/src/consensus/convergenceres_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "SUPPLY",
-      "called_by": ["ConnectBlock", "ResolveConvergenceDraw"],
+      "called_by": [
+        "ConnectBlock",
+        "ResolveConvergenceDraw"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -478,8 +610,15 @@
       "file": "core/src/consensus/rigor_res.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "MINT",
-      "called_by": ["ConnectBlock"],
-      "calls": ["IsResMintScript", "ParseResMintScript", "CheckResRewardOwner", "GetResMintReward"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "IsResMintScript",
+        "ParseResMintScript",
+        "CheckResRewardOwner",
+        "GetResMintReward"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -492,7 +631,9 @@
       "file": "core/src/consensus/res_owner.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "MINT",
-      "called_by": ["ConnectEvaluateCoinbaseResMint"],
+      "called_by": [
+        "ConnectEvaluateCoinbaseResMint"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -506,7 +647,9 @@
       "file": "core/src/connect_block_rigor_checks.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "CONNECTBLOCK",
-      "called_by": ["ConnectBlock"],
+      "called_by": [
+        "ConnectBlock"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -520,8 +663,15 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "SUPPLY",
-      "called_by": ["ConnectBlock (inline today)"],
-      "calls": ["OruResTransferFeeBurnShare", "GetBlockSubsidy", "GetResMintReward", "VerifyCoinbaseConvergenceAndResLayout"],
+      "called_by": [
+        "ConnectBlock (inline today)"
+      ],
+      "calls": [
+        "OruResTransferFeeBurnShare",
+        "GetBlockSubsidy",
+        "GetResMintReward",
+        "VerifyCoinbaseConvergenceAndResLayout"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -534,8 +684,12 @@
       "file": "core/src/validation.cpp",
       "classification": "CONSENSUS_SUPPORT",
       "domain": "CONNECTBLOCK",
-      "called_by": ["ConnectBlock"],
-      "calls": ["AddCoins"],
+      "called_by": [
+        "ConnectBlock"
+      ],
+      "calls": [
+        "AddCoins"
+      ],
       "reads_global_state": false,
       "writes_state": true,
       "depends_on_chain_state": true,
@@ -548,7 +702,9 @@
       "file": "core/src/validation.cpp",
       "classification": "RPC_ONLY",
       "domain": "SUPPLY",
-      "called_by": ["ConnectBlock"],
+      "called_by": [
+        "ConnectBlock"
+      ],
       "calls": [],
       "reads_global_state": true,
       "writes_state": true,
@@ -562,8 +718,14 @@
       "file": "core/src/pow.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "POW",
-      "called_by": ["CheckBlockHeader", "ContextualCheckBlockHeader", "HasValidProofOfWork"],
-      "calls": ["GetRigorPowHash"],
+      "called_by": [
+        "CheckBlockHeader",
+        "ContextualCheckBlockHeader",
+        "HasValidProofOfWork"
+      ],
+      "calls": [
+        "GetRigorPowHash"
+      ],
       "reads_global_state": true,
       "writes_state": true,
       "depends_on_chain_state": false,
@@ -576,8 +738,13 @@
       "file": "core/src/rigor_kernel/pow_digest.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "POW",
-      "called_by": ["CheckProofOfWork"],
-      "calls": ["Sha3_256Short", "BuildPowPreimage"],
+      "called_by": [
+        "CheckProofOfWork"
+      ],
+      "calls": [
+        "Sha3_256Short",
+        "BuildPowPreimage"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -590,8 +757,12 @@
       "file": "core/src/rigor_kernel/keccak.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "POW",
-      "called_by": ["GetRigorPowHash"],
-      "calls": ["KeccakF1600"],
+      "called_by": [
+        "GetRigorPowHash"
+      ],
+      "calls": [
+        "KeccakF1600"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": false,
@@ -604,7 +775,10 @@
       "file": "core/src/pow_opus.cpp",
       "classification": "DEAD_CODE",
       "domain": "POW",
-      "called_by": ["miner", "pool (out of node consensus path)"],
+      "called_by": [
+        "miner",
+        "pool (out of node consensus path)"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -618,8 +792,14 @@
       "file": "core/src/pow.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "ASERT",
-      "called_by": ["GetNextWorkRequired"],
-      "calls": ["AsertAnchorIndex", "AsertNextTargetWide", "ClampTargetToPrev"],
+      "called_by": [
+        "GetNextWorkRequired"
+      ],
+      "calls": [
+        "AsertAnchorIndex",
+        "AsertNextTargetWide",
+        "ClampTargetToPrev"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -632,8 +812,12 @@
       "file": "core/src/pow.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DIFFICULTY",
-      "called_by": ["ContextualCheckBlockHeader"],
-      "calls": ["GetNextWorkASERT"],
+      "called_by": [
+        "ContextualCheckBlockHeader"
+      ],
+      "calls": [
+        "GetNextWorkASERT"
+      ],
       "reads_global_state": false,
       "writes_state": false,
       "depends_on_chain_state": true,
@@ -646,7 +830,10 @@
       "file": "core/src/pow.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "DIFFICULTY",
-      "called_by": ["headers sync", "tests"],
+      "called_by": [
+        "headers sync",
+        "tests"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,
@@ -660,7 +847,10 @@
       "file": "core/src/pow.cpp",
       "classification": "BITCOIN_LEGACY",
       "domain": "DIFFICULTY",
-      "called_by": ["tests", "tooling"],
+      "called_by": [
+        "tests",
+        "tooling"
+      ],
       "calls": [],
       "reads_global_state": false,
       "writes_state": false,

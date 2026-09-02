@@ -218,6 +218,11 @@ def main() -> int:
             errors.append(f"{pin['id']} cpp status {cj['status']} want {pin['expect_status']}")
             continue
         if pin["expect_status"] == "REJECT":
+            want_reason = pin.get("reject_reason")
+            if want_reason and cj.get("reason") != want_reason:
+                errors.append(
+                    f"{pin['id']} cpp reason {cj.get('reason')} want {want_reason}"
+                )
             continue
 
         sub = int(run(OCAML, "oru", str(pin["height"])))

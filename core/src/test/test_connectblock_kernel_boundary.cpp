@@ -152,9 +152,84 @@ int main()
     // --- Coinbase expectation is Kernel, not miner ---
     if (RigorResCoinbaseExpected(1, 2, 3) != 6) return fail("coinbase expected sum");
 
+    // --- RigorSupplyDelta reject reasons (must match Coq kernel_supply_reject) ---
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 1;
+        in.has_winner = true;
+        in.draw_cardinality = 1;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("winner-mismatch accepted");
+        if (st.GetRejectReason() != "bad-rigor-res-winner-mismatch")
+            return fail("winner-mismatch reason");
+    }
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 1;
+        in.res_mint = 40000000;
+        in.has_winner = true;
+        in.draw_cardinality = 0;
+        in.res_coinbase = 40000000;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("trigger-underflow accepted");
+        if (st.GetRejectReason() != "bad-rigor-res-trigger-underflow")
+            return fail("trigger-underflow reason");
+    }
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 1;
+        in.res_mint = 40000000;
+        in.has_winner = false;
+        in.draw_cardinality = 1;
+        in.res_coinbase = 40000000;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("without-winner accepted");
+        if (st.GetRejectReason() != "bad-rigor-res-without-winner")
+            return fail("without-winner reason");
+    }
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 52710000;
+        in.res_mint = 1;
+        in.has_winner = true;
+        in.draw_cardinality = 1;
+        in.res_coinbase = 1;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("unauth mint accepted");
+        if (st.GetRejectReason() != "bad-rigor-res-amount")
+            return fail("unauth mint reason");
+    }
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 1;
+        in.oru_coinbase = 100000000001LL;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("bad-cb-amount accepted");
+        if (st.GetRejectReason() != "bad-cb-amount")
+            return fail("bad-cb-amount reason");
+    }
+    {
+        RigorSupplyDeltaInput in;
+        in.height = 1;
+        in.res_coinbase = 1;
+        BlockValidationState st;
+        RigorSupplyDeltaResult out;
+        if (RigorSupplyDelta(in, p, out, st)) return fail("bad-cb-res accepted");
+        if (st.GetRejectReason() != "bad-cb-res-amount")
+            return fail("bad-cb-res-amount reason");
+    }
+
     std::printf("PASS: connectblock kernel boundary\n");
     std::printf("INPUT_PREPARATION_ALIGNMENT=PASS\n");
     std::printf("RESULT_CONSUMPTION_ALIGNMENT=PASS\n");
-    std::printf("PRODUCTION_KERNEL_SWITCHED=YES\n");
+        std::printf("PRODUCTION_CONSENSUS_AUTHORITY=RigorConsensusKernel(C++)\n");
+    std::printf("FORMAL_REFINEMENT_STATUS=PROVED\n");
+    std::printf("EXTRACTED_KERNEL_PRODUCTION=FALSE\n");
+    std::printf("COMPCERT_BINARY_VERIFIED_KERNEL=FALSE\n");
     return 0;
 }

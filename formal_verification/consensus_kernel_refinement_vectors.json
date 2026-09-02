@@ -4,10 +4,30 @@
   "refinement_proved": false,
   "equivalence_proved": false,
   "refinement_scope": "finite canonical vector domain",
-  "not_proven": ["forall height", "forall byte", "forall state"],
+  "not_proven": [
+    "forall height",
+    "forall byte",
+    "forall state"
+  ],
   "current_authority": "C++ production kernel",
   "extracted_kernel": "verification oracle",
-  "issuance_heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "issuance_heights": [
+    0,
+    1,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    210001,
+    419999,
+    420000,
+    630000,
+    630001,
+    840000,
+    840001,
+    1050000
+  ],
   "issuance": [
     {
       "id": "P053-ISS-0",
@@ -89,6 +109,46 @@
       "oru_subsidy": 25000000000,
       "res_schedule": 7698004,
       "res_issued": 7698004
+    },
+    {
+      "id": "P053-ISS-630000",
+      "height": 630000,
+      "epoch": 3,
+      "oru_subsidy": 12500000000,
+      "res_schedule": 5000000,
+      "res_issued": 5000000
+    },
+    {
+      "id": "P053-ISS-630001",
+      "height": 630001,
+      "epoch": 3,
+      "oru_subsidy": 12500000000,
+      "res_schedule": 5000000,
+      "res_issued": 5000000
+    },
+    {
+      "id": "P053-ISS-840000",
+      "height": 840000,
+      "epoch": 4,
+      "oru_subsidy": 12500000000,
+      "res_schedule": 3577712,
+      "res_issued": 3577712
+    },
+    {
+      "id": "P053-ISS-840001",
+      "height": 840001,
+      "epoch": 4,
+      "oru_subsidy": 12500000000,
+      "res_schedule": 3577712,
+      "res_issued": 3577712
+    },
+    {
+      "id": "P053-ISS-1050000",
+      "height": 1050000,
+      "epoch": 5,
+      "oru_subsidy": 12500000000,
+      "res_schedule": 2721656,
+      "res_issued": 2721656
     }
   ],
   "maturity": [
@@ -190,12 +250,35 @@
     "txid_b": "0000000000000000000000000000000000000000000000000000000000000002",
     "txid_c": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
     "cases": [
-      {"id": "P053-DRAW-EMPTY", "kind": "empty"},
-      {"id": "P053-DRAW-SINGLE", "kind": "single", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
-      {"id": "P053-DRAW-EQ-WEIGHT", "kind": "equal_weight", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,0000000000000000000000000000000000000000000000000000000000000002:209715200000000"},
-      {"id": "P053-DRAW-EQ-WEIGHT-SWAP", "kind": "equal_weight_swap", "spec": "0000000000000000000000000000000000000000000000000000000000000002:209715200000000,0000000000000000000000000000000000000000000000000000000000000001:209715200000000"},
-      {"id": "P053-DRAW-DIFF-WEIGHT", "kind": "different_sigma", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:104857600000000"},
-      {"id": "P053-DRAW-T0", "kind": "t0", "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"}
+      {
+        "id": "P053-DRAW-EMPTY",
+        "kind": "empty"
+      },
+      {
+        "id": "P053-DRAW-SINGLE",
+        "kind": "single",
+        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
+      },
+      {
+        "id": "P053-DRAW-EQ-WEIGHT",
+        "kind": "equal_weight",
+        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,0000000000000000000000000000000000000000000000000000000000000002:209715200000000"
+      },
+      {
+        "id": "P053-DRAW-EQ-WEIGHT-SWAP",
+        "kind": "equal_weight_swap",
+        "spec": "0000000000000000000000000000000000000000000000000000000000000002:209715200000000,0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
+      },
+      {
+        "id": "P053-DRAW-DIFF-WEIGHT",
+        "kind": "different_sigma",
+        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:104857600000000"
+      },
+      {
+        "id": "P053-DRAW-T0",
+        "kind": "t0",
+        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
+      }
     ],
     "equal_sigma_collision_constructed": false
   },
@@ -277,7 +360,7 @@
       "expect_status": "OK"
     },
     {
-      "id": "P053-SUP-REJECT-CPP",
+      "id": "P053-SUP-REJECT-WITHOUT-WINNER",
       "kind": "reject_cpp",
       "height": 1,
       "fees": 0,
@@ -289,13 +372,113 @@
       "oru_cb": 0,
       "res_cb": 40000000,
       "boot": 0,
-      "expect_status": "REJECT"
+      "expect_status": "REJECT",
+      "reject_reason": "bad-rigor-res-without-winner"
+    },
+    {
+      "id": "P053-SUP-REJECT-WINNER-MISMATCH",
+      "kind": "reject_cpp",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 1,
+      "card": 1,
+      "oru_cb": 0,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "REJECT",
+      "reject_reason": "bad-rigor-res-winner-mismatch"
+    },
+    {
+      "id": "P053-SUP-REJECT-TRIGGER-UNDERFLOW",
+      "kind": "reject_cpp",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 40000000,
+      "has_winner": 1,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 40000000,
+      "boot": 0,
+      "expect_status": "REJECT",
+      "reject_reason": "bad-rigor-res-trigger-underflow"
+    },
+    {
+      "id": "P053-SUP-REJECT-RES-AMOUNT",
+      "kind": "reject_cpp",
+      "height": 52710000,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 1,
+      "has_winner": 1,
+      "card": 1,
+      "oru_cb": 0,
+      "res_cb": 1,
+      "boot": 0,
+      "expect_status": "REJECT",
+      "reject_reason": "bad-rigor-res-amount"
+    },
+    {
+      "id": "P053-SUP-REJECT-CB-AMOUNT",
+      "kind": "reject_cpp",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 100000000001,
+      "res_cb": 0,
+      "boot": 0,
+      "expect_status": "REJECT",
+      "reject_reason": "bad-cb-amount"
+    },
+    {
+      "id": "P053-SUP-REJECT-CB-RES-AMOUNT",
+      "kind": "reject_cpp",
+      "height": 1,
+      "fees": 0,
+      "burn": 0,
+      "converge": 0,
+      "mint": 0,
+      "has_winner": 0,
+      "card": 0,
+      "oru_cb": 0,
+      "res_cb": 1,
+      "boot": 0,
+      "expect_status": "REJECT",
+      "reject_reason": "bad-cb-res-amount"
     },
     {
       "id": "P053-SUP-REJECT-COQ",
       "kind": "reject_coq",
-      "apply_delta": ["1", "0", "1", "0", "0", "1", "0", "0"],
+      "apply_delta": [
+        "1",
+        "0",
+        "1",
+        "0",
+        "0",
+        "1",
+        "0",
+        "0"
+      ],
       "expect_status": "REJECT"
+    }
+  ],
+  "kernel_connect_reject": [
+    {
+      "id": "P057-KR-CONNECT-INPUT",
+      "reason": "kernel-connect-input"
+    },
+    {
+      "id": "P057-KR-NEG-HEIGHT",
+      "reason": "kernel-negative-height"
     }
   ]
 }

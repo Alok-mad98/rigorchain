@@ -32,9 +32,9 @@ Theorem fee_burn_determinism :
 Proof. exact fee_burn_deterministic. Qed.
 
 Theorem same_transaction_same_block_same_burn :
-  forall fee c,
-    calculate_fee_burn fee c = calculate_fee_burn fee c.
-Proof. reflexivity. Qed.
+  forall fee c h n,
+    fee_burn_in_context fee c h n = calculate_fee_burn fee c.
+Proof. intros. apply fee_burn_function_of_fee_and_class. Qed.
 
 Theorem burn_share_is_a_function_of_fee :
   forall fee,

@@ -30,21 +30,10 @@
 #include <uint256.h>
 
 #include <boost/test/unit_test.hpp>
-#include <cassert>
 #include <cstring>
 #include <utility>
 
 namespace {
-/** RIGOR_PUSH_1 + 32-byte witness v1 program: ASCII ORB2 + pubkey[4..31] (matches interpreter spend binding). */
-CScript MakeOrb2ScriptPubKeyForPubkey(const std::vector<unsigned char>& pubkey)
-{
-    assert(pubkey.size() == ed25519::PUBKEY_SIZE);
-    std::vector<unsigned char> wp(32);
-    std::memcpy(wp.data(), RigorTags::Res2WirePrefix.data(), RigorTags::Res2WirePrefix.size());
-    std::memcpy(wp.data() + 4, pubkey.data() + 4, 28);
-    return CScript() << RIGOR_PUSH_1 << wp;
-}
-
 /** Native witness v1 RES (32-byte program, not CVG2 / RES2). */
 CScript MakeNativeResScriptPubKeyMinimal()
 {

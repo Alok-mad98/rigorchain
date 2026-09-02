@@ -20,6 +20,11 @@ for banned in coq_formula_copy.cpp extracted_formula_copy.cpp adapter_formula.cp
 done
 echo "DUPLICATE_KERNEL=PASS"
 
+python3 "$TOOLS/lint-kernel-switch-single-source.py"
+python3 "$TOOLS/lint-frozen-kernel-params.py"
+python3 "$TOOLS/lint-kernel-reject-coverage.py"
+python3 "$TOOLS/lint-coq-claim-strength.py"
+
 echo "== 0. ExtractConsensusKernel.v introduces no Admitted / Axiom / Parameter =="
 if grep -E '^[[:space:]]*(Admitted|Axiom|Parameter)[[:space:]]' \
      "$FV/coq/ExtractConsensusKernel.v"; then
@@ -50,6 +55,9 @@ CXX="${CXX:-$(command -v g++ || command -v c++)}"
 
 echo "== 3. vector comparison (no auto-fix) =="
 python3 "$TOOLS/run_consensus_kernel_refinement.py"
+
+echo "== 3b. mutation test (constants / LedgerApply early-return) =="
+python3 "$TOOLS/run_kernel_mutation_test.py"
 
 echo "== 4. honesty (P053 finite vectors stay execution-only) =="
 python3 -c "
@@ -92,4 +100,4 @@ bash "$FV/run_utxo_state_transition_refinement.sh"
 echo "CONSENSUS_KERNEL_REFINEMENT_EXECUTION_CLOSED"
 echo "P053_VECTOR_REFINEMENT_PROVED=false"
 echo "P056_KERNEL_BOUNDARY_REFINEMENT_PROVED=true"
-echo "EQUIVALENCE_PROVED=false"
+python3 "$ROOT/tools/refinement_status.py"

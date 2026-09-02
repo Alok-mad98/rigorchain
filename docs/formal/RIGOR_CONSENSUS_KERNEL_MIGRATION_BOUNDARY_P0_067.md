@@ -6,7 +6,10 @@
 
 ```
 CONSENSUS_KERNEL_MIGRATION_READINESS = CLOSED/PASS
-PRODUCTION_KERNEL_SWITCHED           = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 DUPLICATE_AUTHORITY                  = NONE
 MIGRATION_BOUNDARY                   = READY
 REFINEMENT_PROVED                    = TRUE
@@ -64,7 +67,7 @@ inputs and results. It may only **call** the authorities above. It does not
 recode issuance, RES, draw, classify, sighash, verify, or supply.
 
 ```
-PRODUCTION_KERNEL_SWITCHED = FALSE
+EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 ```
 
 `validation.cpp` does not reference the shim. `Makefile.am` does not compile

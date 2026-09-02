@@ -17,6 +17,8 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <string>
+
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
@@ -42,7 +44,9 @@ BOOST_FIXTURE_TEST_SUITE(test_genesis_consensus_authority, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(switched_constants)
 {
-    BOOST_REQUIRE_EQUAL(PRODUCTION_KERNEL_SWITCHED, true);
+    BOOST_REQUIRE_EQUAL(std::string(PRODUCTION_CONSENSUS_AUTHORITY), "RigorConsensusKernel(C++)");
+    BOOST_REQUIRE_EQUAL(EXTRACTED_KERNEL_PRODUCTION, false);
+    BOOST_REQUIRE_EQUAL(COMPCERT_BINARY_VERIFIED_KERNEL, false);
     BOOST_REQUIRE_EQUAL(GENESIS_SINGLE_PRODUCTION_AUTHORITY, true);
     BOOST_REQUIRE_EQUAL(GENESIS_EQUIVALENCE_PROVED, false);
 }
@@ -149,6 +153,45 @@ BOOST_AUTO_TEST_CASE(spend_and_ledger_transition)
     BOOST_REQUIRE(RigorConsensusKernel::EvaluateConnect(in, out, state));
     BOOST_REQUIRE(out.accept);
     BOOST_REQUIRE_EQUAL(out.res_mint, 0);
+}
+
+BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_null_input)
+{
+    RigorConsensusKernelConnectInput in;
+    RigorConsensusKernelConnectResult out;
+    BlockValidationState state;
+    BOOST_REQUIRE(!RigorConsensusKernel::EvaluateConnect(in, out, state));
+    BOOST_REQUIRE_EQUAL(state.GetRejectReason(), "kernel-connect-input");
+}
+
+BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_negative_height)
+{
+    const Consensus::Params p = FrozenParams();
+    const CTransactionRef cb = EmptyCoinbase();
+    RigorConsensusKernelConnectInput in;
+    in.height = -1;
+    in.coinbase = cb.get();
+    in.params = &p;
+    RigorConsensusKernelConnectResult out;
+    BlockValidationState state;
+    BOOST_REQUIRE(!RigorConsensusKernel::EvaluateConnect(in, out, state));
+    BOOST_REQUIRE_EQUAL(state.GetRejectReason(), "kernel-negative-height");
+}
+
+BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_winner_mismatch)
+{
+    const Consensus::Params p = FrozenParams();
+    const CTransactionRef cb = EmptyCoinbase();
+    RigorConsensusKernelConnectInput in;
+    in.height = 1;
+    in.coinbase = cb.get();
+    in.params = &p;
+    in.supply.has_winner = true;
+    in.supply.draw_cardinality = 1;
+    RigorConsensusKernelConnectResult out;
+    BlockValidationState state;
+    BOOST_REQUIRE(!RigorConsensusKernel::EvaluateConnect(in, out, state));
+    BOOST_REQUIRE_EQUAL(state.GetRejectReason(), "bad-rigor-res-winner-mismatch");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -20,7 +20,7 @@ refinement_proved = false
 | 3 | [`FORMAL_CLAIM_TRACEABILITY_MATRIX.md`](./FORMAL_CLAIM_TRACEABILITY_MATRIX.md) |
 | 4 | [`FORMAL_GOLDEN_VECTOR_COVERAGE_REPORT.md`](./FORMAL_GOLDEN_VECTOR_COVERAGE_REPORT.md) |
 | 5 | [`FORMAL_VERIFICATION_WEBSITE_CONSISTENCY_REPORT.md`](./FORMAL_VERIFICATION_WEBSITE_CONSISTENCY_REPORT.md) |
-| Appendix | [`FORMAL_THEOREM_INVENTORY.json`](./FORMAL_THEOREM_INVENTORY.json) (2873 named results; regenerate with `formal_verification/tools/gen_theorem_inventory.py`) |
+| Appendix | [`FORMAL_THEOREM_INVENTORY.json`](./FORMAL_THEOREM_INVENTORY.json) (3867 named results; regenerate with `formal_verification/tools/gen_theorem_inventory.py`) |
 | Appendix | [`FORMAL_COQ_LOAD_BEARING_THEOREMS.md`](./FORMAL_COQ_LOAD_BEARING_THEOREMS.md) |
 
 Prior living classification: [`../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md`](../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md).
@@ -63,9 +63,9 @@ Classification:
 
 | Slice | `.v` modules (approx.) | Named Theorem/Lemma/Corollary |
 |-------|------------------------|-------------------------------|
-| Protocol core (non-Phase) | 68 | 1123 |
+| Protocol core (non-Phase) | 68 | 1132 |
 | Phase-4F / 4G / 5 catalogs | ~158 | 1750 |
-| **Total `_CoqProject`** | **221** | **2873** (generated; see appendix) |
+| **Total `_CoqProject`** | **272** | **3867** (generated; see appendix) |
 
 Full machine inventory: `FORMAL_THEOREM_INVENTORY.json`.
 

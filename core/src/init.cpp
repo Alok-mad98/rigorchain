@@ -46,6 +46,7 @@
 #include <node/mempool_args.h>
 #include <node/mempool_persist_args.h>
 #include <node/miner.h>
+#include <node/operations/node_operations_hooks.h>
 #include <node/txreconciliation.h>
 #include <node/validation_cache_args.h>
 #include <policy/feerate.h>
@@ -1042,6 +1043,10 @@ bool AppInitParameterInteraction(const ArgsManager& args, bool use_syscall_sandb
         }
     }
 
+    if (const auto ops_err = RunNodeOperationsStartupChecks(args)) {
+        return InitError(Untranslated(*ops_err));
+    }
+
     return true;
 }
 
@@ -1108,6 +1113,10 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!init::StartLogging(args)) {
         // Detailed error printed inside StartLogging().
         return false;
+    }
+
+    if (const auto ops_err = RunNodeOperationsDataDirectoryChecks(args)) {
+        return InitError(Untranslated(*ops_err));
     }
 
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);

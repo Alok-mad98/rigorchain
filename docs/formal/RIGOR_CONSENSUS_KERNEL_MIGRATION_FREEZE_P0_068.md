@@ -9,7 +9,10 @@ CONSENSUS_KERNEL_MIGRATION_FREEZE = CLOSED
 CANARY_STATUS                     = PASS
 CURRENT_CPP_AUTHORITY             = PASS
 MIGRATION_PATH                    = PASS
-PRODUCTION_KERNEL_SWITCHED        = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED                 = TRUE
 EQUIVALENCE_PROVED                = FALSE
 ```
@@ -55,7 +58,7 @@ issuance, RES, draw, classify, supply, spend, or PoW.
 
 ```
 candidate != production
-PRODUCTION_KERNEL_SWITCHED = FALSE
+EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 ```
 
 `validation.cpp` and `Makefile.am` are unchanged. OCaml / `caml_startup` /

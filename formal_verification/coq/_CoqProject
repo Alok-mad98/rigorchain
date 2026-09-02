@@ -111,6 +111,7 @@ KernelResultApplication.v
 ConnectBlockKernelBoundary.v
 SignatureBoundary.v
 TransactionKernelRefinement.v
+MakeKernelInput.v
 ConsensusSurfaceClosure.v
 LedgerTransitionRefinement.v
 UTXOStateTransitionRefinement.v

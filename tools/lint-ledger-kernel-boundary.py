@@ -53,6 +53,14 @@ def main() -> int:
     cpp = LEDGER_CC.read_text(encoding="utf-8", errors="replace")
     if not BODY.search(cpp):
         errors.append("LedgerApply body missing")
+    if "std::sort" in cpp:
+        errors.append("NoDupOutpoints must stay a single unsorted scan (B1 / VST)")
+    if "OutpointLess" in cpp:
+        errors.append("ordered-copy helper must stay deleted from ledger_transition.cpp")
+    if "#include <algorithm>" in cpp:
+        errors.append("ledger_transition.cpp must not pull <algorithm> (second nodup algorithm)")
+    if "bool NoDupOutpoints" not in cpp:
+        errors.append("NoDupOutpoints missing")
 
     makefile = MAKEFILE.read_text(encoding="utf-8", errors="replace")
     if "consensus/ledger" in makefile:
@@ -67,10 +75,27 @@ def main() -> int:
     coq = COQ.read_text(encoding="utf-8", errors="replace")
     if re.search(r"^\s*(Admitted|Axiom|Parameter)\s", coq, re.MULTILINE):
         errors.append("LedgerTransitionRefinement.v is not axiom-free")
+    if re.search(
+        r"Definition\s+CppLedgerApply\b[^=]*=\s*(fun\s+\w+\s*=>\s*)?CoqLedgerApply",
+        coq,
+    ):
+        errors.append("CppLedgerApply is an alias of CoqLedgerApply")
+    apply_body = re.search(
+        r"Definition CppLedgerApply\b.*?:=\s*(.*?)Lemma ",
+        coq,
+        re.DOTALL,
+    )
+    body = apply_body.group(1) if apply_body else ""
+    if body.count("cpp_ledger_reject") < 10:
+        errors.append("CppLedgerApply is missing independent early-return structure")
+    if body.count("if negb") < 12:
+        errors.append("CppLedgerApply early-return count drifted from C++ LedgerApply")
     if "equivalence_proved : bool := false" not in coq:
         errors.append("Coq equivalence flag drifted")
     if "CppLedgerApply" not in coq or "CoqLedgerApply" not in coq:
         errors.append("apply equivalence names missing")
+    if "Fixpoint nodup_ops" not in coq:
+        errors.append("Coq nodup_ops missing")
 
     if not VECTORS.is_file():
         errors.append("missing ledger_transition_vectors.json")
@@ -82,7 +107,7 @@ def main() -> int:
         return 1
 
     print("LEDGER_KERNEL_BOUNDARY=PASS")
-    print("PRODUCTION_KERNEL_SWITCHED=NO")
+    print("LEDGER_APPLY_IN_PRODUCTION=false")
     print("PRODUCTION_CONSENSUS_MODIFIED=NO")
     return 0
 

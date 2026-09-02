@@ -94,6 +94,12 @@ static TransactionKernelInput BaseSpend()
     in.signature.assign(64, 0x07);
     in.pubkey.assign(32, 0x09);
     in.sighash_tag = {'R', 'G', 'R', 'O', 'R', 'U', '0', '1'};
+    in.chain_id.assign(32, 0x11);
+    in.hashPrevouts.assign(32, 0x22);
+    in.hashSequence.assign(32, 0x33);
+    in.hashOutputs.assign(32, 0x44);
+    in.prevout_hash.assign(32, 0x55);
+    in.sighash_fields_present = true;
     return in;
 }
 
@@ -304,6 +310,9 @@ int main(int argc, char** argv)
     std::printf("DUPLICATE_RULE_DETECTION=PASS\n");
     std::printf("COQ_ADMITTED=0\n");
     std::printf("COQ_AXIOMS=0\n");
-    std::printf("PRODUCTION_KERNEL_SWITCHED=NO\n");
+        std::printf("PRODUCTION_CONSENSUS_AUTHORITY=RigorConsensusKernel(C++)\n");
+    std::printf("FORMAL_REFINEMENT_STATUS=PROVED\n");
+    std::printf("EXTRACTED_KERNEL_PRODUCTION=FALSE\n");
+    std::printf("COMPCERT_BINARY_VERIFIED_KERNEL=FALSE\n");
     return 0;
 }

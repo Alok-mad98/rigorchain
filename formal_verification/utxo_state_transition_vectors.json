@@ -3,7 +3,6 @@
   "note": "Kernel + Transaction + Ledger composition refinement. Not a full-node, LevelDB, network, wallet, CompCert, or VST proof.",
   "refinement_proved": true,
   "equivalence_proved": false,
-  "production_kernel_switched": false,
   "genesis": {
     "height": 0,
     "oru_actual": 0,
@@ -13,16 +12,57 @@
     "accept": true
   },
   "maturity": [
-    {"height": 99, "coinbase_height": 0, "accept": false},
-    {"height": 100, "coinbase_height": 0, "accept": true},
-    {"height": 101, "coinbase_height": 0, "accept": true}
+    {
+      "height": 99,
+      "coinbase_height": 0,
+      "accept": false
+    },
+    {
+      "height": 100,
+      "coinbase_height": 0,
+      "accept": true
+    },
+    {
+      "height": 101,
+      "coinbase_height": 0,
+      "accept": true
+    }
   ],
   "epoch": [
-    {"height": 209999, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 210000, "oru": 50000000000, "res_schedule": 14142196}
+    {
+      "height": 209999,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 210000,
+      "oru": 50000000000,
+      "res_schedule": 14142196
+    }
   ],
-  "double_spend": {"accept": false},
-  "asset": ["valid_oru", "valid_res", "invalid_asset", "unknown_version"],
-  "draw": ["empty", "single", "weight_tie", "txid_tie_break"],
-  "malformed": ["overflow", "negative_height", "invalid_witness", "bad_signature"]
+  "double_spend": {
+    "accept": false
+  },
+  "asset": [
+    "valid_oru",
+    "valid_res",
+    "invalid_asset",
+    "unknown_version"
+  ],
+  "draw": [
+    "empty",
+    "single",
+    "weight_tie",
+    "txid_tie_break"
+  ],
+  "malformed": [
+    "overflow",
+    "negative_height",
+    "invalid_witness",
+    "bad_signature"
+  ],
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

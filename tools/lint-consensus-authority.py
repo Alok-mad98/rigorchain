@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 SRC = ROOT / "core/src"
 MAKEFILE = SRC / "Makefile.am"
 VALIDATION = SRC / "validation.cpp"
@@ -278,7 +280,7 @@ def main() -> int:
     print("AUTHORITY_LOCK=PASS")
     print("DUPLICATE_RULE_DETECTION=PASS")
     print("PRODUCTION_CONSENSUS_MODIFIED=NO")
-    print("PRODUCTION_KERNEL_SWITCHED=YES")
+    print_status()
     return 0
 
 

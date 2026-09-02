@@ -14,6 +14,7 @@
 #include <util/translation.h>
 #include <util/vector.h>
 
+#include <cassert>
 #include <stdint.h>
 
 static constexpr uint8_t DB_COIN{'C'};
@@ -26,10 +27,7 @@ static constexpr uint8_t DB_FLAG{'F'};
 static constexpr uint8_t DB_REINDEX_FLAG{'R'};
 static constexpr uint8_t DB_LAST_BLOCK{'l'};
 
-// Keys used in previous version that might still be found in the DB:
-static constexpr uint8_t DB_COINS{'c'};
 static constexpr uint8_t DB_TXINDEX_BLOCK{'T'};
-//               uint8_t DB_TXINDEX{'t'}
 
 std::optional<bilingual_str> CheckLegacyTxindex(CBlockTreeDB& block_tree_db)
 {
@@ -49,15 +47,6 @@ std::optional<bilingual_str> CheckLegacyTxindex(CBlockTreeDB& block_tree_db)
     return std::nullopt;
 }
 
-bool CCoinsViewDB::NeedsUpgrade()
-{
-    std::unique_ptr<CDBIterator> cursor{m_db->NewIterator()};
-    // DB_COINS was deprecated in v0.15.0, commit
-    // 1088b02f0ccd7358d2b7076bb9e122d59d502d02
-    cursor->Seek(std::make_pair(DB_COINS, uint256{}));
-    return cursor->Valid();
-}
-
 namespace {
 
 struct CoinEntry {
@@ -69,6 +58,13 @@ struct CoinEntry {
 };
 
 } // namespace
+
+bool CCoinsViewDB::NeedsUpgrade()
+{
+    // RIGOR has no inherited Bitcoin coin formats. Wipe / -reindex is the
+    // only recovery. Deserialize failure of any record fail-closes.
+    return false;
+}
 
 CCoinsViewDB::CCoinsViewDB(DBParams db_params, CoinsViewOptions options) :
     m_db_params{std::move(db_params)},
@@ -90,7 +86,8 @@ void CCoinsViewDB::ResizeCache(size_t new_cache_size)
 }
 
 bool CCoinsViewDB::GetCoin(const COutPoint &outpoint, Coin &coin) const {
-    return m_db->Read(CoinEntry(&outpoint), coin);
+    auto wrap = Using<CoinDiskFormatter>(coin);
+    return m_db->Read(CoinEntry(&outpoint), wrap);
 }
 
 bool CCoinsViewDB::HaveCoin(const COutPoint &outpoint) const {
@@ -150,7 +147,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
             if (it->second.coin.IsSpent())
                 batch.Erase(entry);
             else
-                batch.Write(entry, it->second.coin);
+                batch.Write(entry, Using<CoinDiskFormatter>(it->second.coin));
             changed++;
         }
         count++;
@@ -242,13 +239,12 @@ std::unique_ptr<CCoinsViewCursor> CCoinsViewDB::Cursor() const
        only need read operations on it, use a const-cast to get around
        that restriction.  */
     i->pcursor->Seek(DB_COIN);
-    // Cache key of first record
-    if (i->pcursor->Valid()) {
+    if (i->pcursor->Valid() && i->pcursor->HasKeyType(DB_COIN)) {
         CoinEntry entry(&i->keyTmp.second);
         i->pcursor->GetKey(entry);
         i->keyTmp.first = entry.key;
     } else {
-        i->keyTmp.first = 0; // Make sure Valid() and GetKey() return false
+        i->keyTmp.first = 0;
     }
     return i;
 }
@@ -265,7 +261,8 @@ bool CCoinsViewDBCursor::GetKey(COutPoint &key) const
 
 bool CCoinsViewDBCursor::GetValue(Coin &coin) const
 {
-    return pcursor->GetValue(coin);
+    auto wrap = Using<CoinDiskFormatter>(coin);
+    return pcursor->GetValue(wrap);
 }
 
 bool CCoinsViewDBCursor::Valid() const
@@ -276,12 +273,13 @@ bool CCoinsViewDBCursor::Valid() const
 void CCoinsViewDBCursor::Next()
 {
     pcursor->Next();
-    CoinEntry entry(&keyTmp.second);
-    if (!pcursor->Valid() || !pcursor->GetKey(entry)) {
-        keyTmp.first = 0; // Invalidate cached key after last record so that Valid() and GetKey() return false
-    } else {
-        keyTmp.first = entry.key;
+    if (!pcursor->Valid() || !pcursor->HasKeyType(DB_COIN)) {
+        keyTmp.first = 0;
+        return;
     }
+    CoinEntry entry(&keyTmp.second);
+    pcursor->GetKey(entry);
+    keyTmp.first = entry.key;
 }
 
 bool CBlockTreeDB::WriteBatchSync(const std::vector<std::pair<int, const CBlockFileInfo*> >& fileInfo, int nLastFile, const std::vector<const CBlockIndex*>& blockinfo) {
@@ -318,40 +316,41 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
     // Load m_block_index
     while (pcursor->Valid()) {
         if (ShutdownRequested()) return false;
-        std::pair<uint8_t, uint256> key;
-        if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
-            CDiskBlockIndex diskindex;
-            if (pcursor->GetValue(diskindex)) {
-                // Construct block index object
-                CBlockIndex* pindexNew = insertBlockIndex(diskindex.ConstructBlockHash());
-                pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
-                pindexNew->nHeight        = diskindex.nHeight;
-                pindexNew->nFile          = diskindex.nFile;
-                pindexNew->nDataPos       = diskindex.nDataPos;
-                pindexNew->nUndoPos       = diskindex.nUndoPos;
-                pindexNew->nVersion       = diskindex.nVersion;
-                pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-                pindexNew->nTime          = diskindex.nTime;
-                pindexNew->nBits          = diskindex.nBits;
-                pindexNew->nNonce         = diskindex.nNonce;
-                pindexNew->Observational().SetCumulativeConvergence(diskindex.Observational().GetCumulativeConvergence());
-                pindexNew->m_draw_candidate_root = diskindex.m_draw_candidate_root;
-                pindexNew->has_res = diskindex.has_res;
-                pindexNew->last_res_mint_block_hash = diskindex.last_res_mint_block_hash;
-                pindexNew->m_block_res_mint_sum = diskindex.m_block_res_mint_sum;
-                pindexNew->m_block_converge_sum = diskindex.m_block_converge_sum;
-                pindexNew->m_paid_winner_txid = diskindex.m_paid_winner_txid;
-                pindexNew->m_draw_set = diskindex.m_draw_set;
-                pindexNew->nStatus        = diskindex.nStatus;
-                pindexNew->nTx            = diskindex.nTx;
-
-                pcursor->Next();
-            } else {
-                return error("%s: failed to read value", __func__);
-            }
-        } else {
+        if (!pcursor->HasKeyType(DB_BLOCK_INDEX)) {
             break;
         }
+        std::pair<uint8_t, uint256> key;
+        CDiskBlockIndex diskindex;
+        try {
+            pcursor->GetKey(key);
+            assert(key.first == DB_BLOCK_INDEX);
+            pcursor->GetValue(diskindex);
+        } catch (const std::exception& e) {
+            return error("%s: failed to read block index (%s)", __func__, e.what());
+        }
+        CBlockIndex* pindexNew = insertBlockIndex(diskindex.ConstructBlockHash());
+        pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
+        pindexNew->nHeight        = diskindex.nHeight;
+        pindexNew->nFile          = diskindex.nFile;
+        pindexNew->nDataPos       = diskindex.nDataPos;
+        pindexNew->nUndoPos       = diskindex.nUndoPos;
+        pindexNew->nVersion       = diskindex.nVersion;
+        pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+        pindexNew->nTime          = diskindex.nTime;
+        pindexNew->nBits          = diskindex.nBits;
+        pindexNew->nNonce         = diskindex.nNonce;
+        pindexNew->Observational().SetCumulativeConvergence(diskindex.Observational().GetCumulativeConvergence());
+        pindexNew->m_draw_candidate_root = diskindex.m_draw_candidate_root;
+        pindexNew->has_res = diskindex.has_res;
+        pindexNew->last_res_mint_block_hash = diskindex.last_res_mint_block_hash;
+        pindexNew->m_block_res_mint_sum = diskindex.m_block_res_mint_sum;
+        pindexNew->m_block_converge_sum = diskindex.m_block_converge_sum;
+        pindexNew->m_paid_winner_txid = diskindex.m_paid_winner_txid;
+        pindexNew->m_draw_set = diskindex.m_draw_set;
+        pindexNew->nStatus        = diskindex.nStatus;
+        pindexNew->nTx            = diskindex.nTx;
+
+        pcursor->Next();
     }
 
     return true;

@@ -5,15 +5,39 @@
 #include <coins.h>
 
 #include <consensus/consensus.h>
+#include <crc32c/crc32c.h>
 #include <logging.h>
 #include <random.h>
 #include <script/standard.h>
 #include <util/trace.h>
 #include <version.h>
 
+#include <cstring>
 #include <map>
 #include <utility>
 #include <vector>
+
+uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out)
+{
+    std::vector<unsigned char> raw;
+    raw.reserve(4 + 1 + 8 + 4 + out.scriptPubKey.size());
+    raw.push_back('R');
+    raw.push_back('G');
+    raw.push_back('C');
+    raw.push_back('I');
+    for (int i = 0; i < 4; ++i) {
+        raw.push_back(static_cast<unsigned char>(nHeight >> (8 * i)));
+    }
+    raw.push_back(fCoinBase ? 1 : 0);
+    uint64_t value_bits = 0;
+    static_assert(sizeof(out.nValue) == 8, "CAmount is 64-bit");
+    std::memcpy(&value_bits, &out.nValue, 8);
+    for (int i = 0; i < 8; ++i) {
+        raw.push_back(static_cast<unsigned char>(value_bits >> (8 * i)));
+    }
+    raw.insert(raw.end(), out.scriptPubKey.begin(), out.scriptPubKey.end());
+    return crc32c::Crc32c(raw.data(), raw.size());
+}
 
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
 uint256 CCoinsView::GetBestBlock() const { return uint256(); }
@@ -74,7 +98,7 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
 
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
     assert(!coin.IsSpent());
-    if (coin.out.scriptPubKey.IsUnspendable()) return;
+    if (!EntersUtxoSet(coin.out.scriptPubKey)) return;
     CCoinsMap::iterator it;
     bool inserted;
     std::tie(it, inserted) = cacheCoins.emplace(std::piecewise_construct, std::forward_as_tuple(outpoint), std::tuple<>());
@@ -127,12 +151,10 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
         // Convergence (RIGOR_MARKER_CONVERGE) is validated in-block only; it must not occupy the UTXO set.
         // Skipping it here is what makes its value destroyed rather than merely locked, which
         // is the premise of counting it as RFC-002 C(t) (see Consensus::GetConvergenceAmount).
-        if (IsConvergenceScript(tx.vout[i].scriptPubKey)) {
+        if (!EntersUtxoSet(tx.vout[i].scriptPubKey)) {
             continue;
         }
-        bool overwrite = check_for_overwrite ? cache.HaveCoin(COutPoint(txid, i)) : fCoinbase;
-        // Coinbase transactions can always be overwritten, in order to correctly
-        // deal with the pre-BIP30 occurrences of duplicate coinbase transactions.
+        bool overwrite = check_for_overwrite && cache.HaveCoin(COutPoint(txid, i));
         Coin coin(tx.vout[i], nHeight, fCoinbase);
         cache.AddCoin(COutPoint(txid, i), std::move(coin), overwrite);
     }
@@ -444,10 +466,9 @@ bool CCoinsViewErrorCatcher::GetCoin(const COutPoint &outpoint, Coin &coin) cons
             f();
         }
         LogPrintf("Error reading from database: %s\n", e.what());
-        // Starting the shutdown sequence and returning false to the caller would be
-        // interpreted as 'entry not found' (as opposed to unable to read data), and
-        // could lead to invalid interpretation. Just exit immediately, as we can't
-        // continue anyway, and all writes should be atomic.
+        // DESERIALIZATION_FAILURE / DATABASE_CORRUPTION / LevelDB I/O must not
+        // return false (that would be 'entry not found' → TX_CONSENSUS).
+        // CoinsDB is a persistent carrier, not a second Consensus Kernel.
         std::abort();
     }
 }

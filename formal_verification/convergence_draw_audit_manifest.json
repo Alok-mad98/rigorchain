@@ -1,0 +1,69 @@
+{
+  "task": "TASK-RIGOR-CONVERGENCE-DRAW-SECURITY-AUDIT-P0-079",
+  "date": "2026-08-31",
+  "note": "Security audit of the Convergence Draw lottery. Does not modify ResolveConvergenceDraw, the draw formula, issuance, supply, ConsensusKernel, or TransactionKernel.",
+  "consensus_modified": false,
+  "draw_formula_modified": false,
+  "issuance_modified": false,
+  "supply_modified": false,
+  "consensus_kernel_modified": false,
+  "transaction_kernel_modified": false,
+  "new_theorem_added": false,
+  "draw_authority_count": 1,
+  "unique_draw_authority": "ResolveConvergenceDraw",
+  "production_body": "core/src/consensus/convergence_logic.cpp",
+  "kernel_wrapper": "RigorConsensusKernel::ResolveDraw",
+  "kernel_wrapper_note": "Forwards to ResolveConvergenceDraw. Not a second formula.",
+  "assembly": "GetConvergenceDrawSetForBlock",
+  "assembly_file": "core/src/validation.cpp",
+  "assembly_note": "Candidate assembly only. Does not select a winner.",
+  "inputs": {
+    "F": "candidate set (ConvergenceDrawSet.candidates)",
+    "T": "threshold / draw parameter (RES_PROBABILITY_TARGET)"
+  },
+  "output": "winner | none",
+  "forbidden_entries": [
+    "SelectWinner legacy path",
+    "miner local selection",
+    "wallet selection",
+    "RPC selection"
+  ],
+  "historical_select_winner": {
+    "symbol": "SelectWinner",
+    "file": "core/src/consensus/selection.cpp",
+    "connectblock_authority": false,
+    "called_from_validation": false,
+    "called_from_miner": false,
+    "called_from_wallet": false,
+    "called_from_rpc": false
+  },
+  "candidate_assembly_policy": "REJECT",
+  "candidate_rejects": [
+    "candidate mutation (reconstructed C != coinbase C)",
+    "duplicate candidate (block duplicate txid; not a second F member)",
+    "empty candidate (F empty => none)",
+    "invalid candidate (IsConvergenceDrawMember false)",
+    "unknown asset (not a converge lock)",
+    "malformed tx (CheckTxInputs / structure fail)"
+  ],
+  "draw_determinism": "PASS",
+  "draw_tiebreak": "PASS",
+  "draw_weight_security": "PASS",
+  "manipulation_resistance": "PASS",
+  "overflow": "NONE",
+  "invalid_weight": "NONE",
+  "weight_arithmetic": "uint512 Mul256x256Full; ConvergenceDrawInequalityHolds rejects f < 1 and !MoneyRange",
+  "tie_break": "unsigned byte-wise txid memcmp; smaller txid wins; independent of vector/map/memory order",
+  "sigma": "Hash256(txid || C || B_{h-1} || LE32(h)); parent-hash seeded (Sigma-PoW-01)",
+  "existing_draw_refinement_theorem": "ConsensusKernelRefinement.draw_refinement",
+  "coq_admitted": 0,
+  "coq_axioms": 0,
+  "coq_parameters": 0,
+  "fuzz_status": "PASS",
+  "not_claimed": [
+    "true randomness proof",
+    "economic game theory equilibrium",
+    "miner behavior prediction"
+  ],
+  "final_verdict": "RIGOR_CONVERGENCE_DRAW_SECURITY_AUDIT_CLOSED"
+}

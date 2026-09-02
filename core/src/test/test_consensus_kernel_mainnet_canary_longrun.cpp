@@ -10,7 +10,7 @@
 #include <consensus/kernel_canary/MainnetCanaryMonitor.h>
 #include <consensus/kernel_canary/canary_controller.h>
 #include <consensus/kernel_canary/canary_health.h>
-#include <node/kernel_runtime_canary.h>
+#include <test/kernel_runtime_canary.h>
 #include <test/util/setup_common.h>
 #include <util/system.h>
 
@@ -36,43 +36,34 @@ BOOST_AUTO_TEST_CASE(disabled_by_default)
 BOOST_AUTO_TEST_CASE(armed_operator_mode)
 {
     RigorKernelRuntimeCanaryResetStats();
-    BOOST_REQUIRE(PRODUCTION_MAINNET_CANARY_ARMED);
+    BOOST_REQUIRE(!PRODUCTION_MAINNET_CANARY_ARMED);
     auto& ctl = ConsensusKernelCanaryController::Instance();
     std::string err;
     BOOST_REQUIRE(!ctl.Enable(false, true, err));
     err.clear();
-    BOOST_REQUIRE(ctl.Enable(true, true, err));
-    BOOST_REQUIRE(ctl.Enabled());
+    BOOST_REQUIRE(!ctl.Enable(true, true, err));
+    BOOST_REQUIRE_EQUAL(err, KERNEL_CANARY_MAINNET_NOT_ARMED);
+    BOOST_REQUIRE(!ctl.Enabled());
 
     auto& mon = MainnetCanaryMonitor::Instance();
-    BOOST_REQUIRE(mon.Start());
-    BOOST_REQUIRE(mon.enabled());
-    BOOST_REQUIRE_EQUAL(std::string(mon.Status()), "ON");
-    BOOST_REQUIRE_EQUAL(mon.Health(), ConsensusKernelCanaryHealthState::ACTIVE);
+    BOOST_REQUIRE(!mon.Start());
+    BOOST_REQUIRE(!mon.enabled());
 
+    struct RestoreCanaryArg {
+        ~RestoreCanaryArg() { gArgs.ForceSetArg("-enableconsensuskernelcanary", "0"); }
+    } restore;
     gArgs.ForceSetArg("-enableconsensuskernelcanary", "1");
-    BOOST_REQUIRE(RigorKernelRuntimeCanaryEnabled());
-    mon.Pause();
-    BOOST_REQUIRE_EQUAL(mon.Health(), ConsensusKernelCanaryHealthState::PAUSED);
     BOOST_REQUIRE(!RigorKernelRuntimeCanaryEnabled());
-    gArgs.ForceSetArg("-enableconsensuskernelcanary", "0");
 }
 
 BOOST_AUTO_TEST_CASE(normal_compare)
 {
     auto& mon = MainnetCanaryMonitor::Instance();
     RigorKernelRuntimeCanaryResetStats();
-    BOOST_REQUIRE(mon.Start());
+    BOOST_REQUIRE(!mon.Start());
     std::string err;
-    BOOST_REQUIRE_MESSAGE(mon.RunSoak(2000, err), err);
-    BOOST_REQUIRE_EQUAL(mon.discrepancy_count(), 0);
-    BOOST_REQUIRE(mon.blocks_checked() >= 2000);
-    BOOST_REQUIRE(mon.comparison_count() >= 2000);
-    BOOST_REQUIRE_EQUAL(mon.Health(), ConsensusKernelCanaryHealthState::ACTIVE);
-    (void)mon.mainnet_canary_runtime_cpp();
-    (void)mon.mainnet_canary_runtime_candidate();
-    (void)mon.rss_delta();
-    (void)mon.memory_growth();
+    BOOST_REQUIRE(!mon.RunSoak(2000, err));
+    BOOST_REQUIRE_EQUAL(err, KERNEL_MAINNET_CANARY_NOT_ARMED);
 }
 
 BOOST_AUTO_TEST_CASE(fault_injection)
@@ -81,7 +72,7 @@ BOOST_AUTO_TEST_CASE(fault_injection)
     for (const char* name : kFaults) {
         auto& mon = MainnetCanaryMonitor::Instance();
         RigorKernelRuntimeCanaryResetStats();
-        BOOST_REQUIRE(mon.Start());
+        BOOST_REQUIRE(!mon.Start());
         BOOST_REQUIRE(mon.FaultInject(name));
         BOOST_REQUIRE(!mon.enabled());
         BOOST_REQUIRE_EQUAL(mon.Health(), ConsensusKernelCanaryHealthState::DISABLED);
@@ -98,7 +89,7 @@ BOOST_AUTO_TEST_CASE(rollback)
 {
     auto& mon = MainnetCanaryMonitor::Instance();
     RigorKernelRuntimeCanaryResetStats();
-    BOOST_REQUIRE(mon.Start());
+    BOOST_REQUIRE(!mon.Start());
     const uint64_t before = mon.rollback_events();
     mon.DisableOnFailure();
     BOOST_REQUIRE(!mon.enabled());
@@ -111,12 +102,12 @@ BOOST_AUTO_TEST_CASE(continue_cpp_authority)
 {
     auto& mon = MainnetCanaryMonitor::Instance();
     RigorKernelRuntimeCanaryResetStats();
-    BOOST_REQUIRE(mon.Start());
+    BOOST_REQUIRE(!mon.Start());
     mon.InjectDiscrepancyForTest(210000, "bh", "txid", "cpp", "cand", "issuance");
     BOOST_REQUIRE(RigorObserveConnectBlockRuntimeCanary(210000, uint256(), uint256(), {}, uint256(), {}, {},
         Params().GetConsensus()));
     BOOST_REQUIRE_EQUAL(DEFAULT_ENABLE_CONSENSUS_KERNEL_CANARY, false);
-    BOOST_REQUIRE_EQUAL(PRODUCTION_MAINNET_CANARY_ARMED, true);
+    BOOST_REQUIRE_EQUAL(PRODUCTION_MAINNET_CANARY_ARMED, false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

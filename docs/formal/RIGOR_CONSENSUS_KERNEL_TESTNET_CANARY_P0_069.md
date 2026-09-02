@@ -10,7 +10,10 @@ NETWORK                         = REGTEST/TESTNET
 BLOCKS_VALIDATED                = 10000
 DISCREPANCY_COUNT               = 0
 CRASH_COUNT                     = 0
-PRODUCTION_KERNEL_SWITCHED      = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED               = TRUE
 EQUIVALENCE_PROVED              = FALSE
 ```
@@ -55,7 +58,7 @@ path is never replaced.
 ## Production remains OFF
 
 ```
-PRODUCTION_KERNEL_SWITCHED = FALSE
+EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 ```
 
 Mainnet cannot start with the flag. Release default is OFF. Logs under

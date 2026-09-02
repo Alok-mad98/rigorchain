@@ -1,5 +1,5 @@
 {
- "count": 2873,
+ "count": 3867,
  "theorems": [
   {
    "file": "RigorBytes.v",
@@ -77,6 +77,150 @@
    "file": "RigorBytesOrder.v",
    "kind": "Lemma",
    "name": "bytes_ltb_total",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "sha3_256_empty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "sha3_256_abc",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "sha3_256_len134",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "keccak_rc_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "lane_to_bytes_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "repeat_byte_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "sha3_256_pad_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "RigorKeccak.v",
+   "kind": "Lemma",
+   "name": "sha3_256_block_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "rigor_pow_domain_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "preimage_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Theorem",
+   "name": "pow_single_permutation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "keccak_round_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "keccak_rounds_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "keccak_f1600_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "lanes_of_bytes_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "bytes_of_lanes_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Theorem",
+   "name": "pow_digest_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Theorem",
+   "name": "target_ok_monotone",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "zero_header_wf",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "pow_digest_zero_header",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "pow_digest_zero_header_le",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "pow_domain_is_load_bearing",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "pow_valid_zero_target_false",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "PowDigest.v",
+   "kind": "Lemma",
+   "name": "pow_valid_max_target_true",
    "slice": "protocol_core"
   },
   {
@@ -832,7 +976,7 @@
   {
    "file": "ScriptMintWitness.v",
    "kind": "Lemma",
-   "name": "canonical_cvg_claim_is_cvg",
+   "name": "canonical_cvg_claim_is_invalid",
    "slice": "protocol_core"
   },
   {
@@ -2602,6 +2746,72 @@
   {
    "file": "Kernel/GoldenHarness.v",
    "kind": "Lemma",
+   "name": "golden_SASS_000",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_001",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_002",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_003",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_004",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_005",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_006",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_007",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_008",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_009",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
+   "name": "golden_SASS_010",
+   "slice": "kernel_harness"
+  },
+  {
+   "file": "Kernel/GoldenHarness.v",
+   "kind": "Lemma",
    "name": "golden_XFAM_003",
    "slice": "kernel_harness"
   },
@@ -3197,6 +3407,12 @@
    "file": "ReplayReorgCore/ConnectBlockMint.v",
    "kind": "Lemma",
    "name": "cb_oru_divisor_bounds",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/ConnectBlockMint.v",
+   "kind": "Lemma",
+   "name": "cb_expected_oru_subsidy_genesis_zero",
    "slice": "replay"
   },
   {
@@ -4042,7 +4258,7 @@
   {
    "file": "ReplayReorgCore/AssetFromScript.v",
    "kind": "Lemma",
-   "name": "cvg_claim_kind_cvg",
+   "name": "cvg_claim_kind_invalid",
    "slice": "replay"
   },
   {
@@ -4054,7 +4270,7 @@
   {
    "file": "ReplayReorgCore/AssetFromScript.v",
    "kind": "Lemma",
-   "name": "cvg_claim_script_is_cvg_bytes",
+   "name": "cvg_claim_script_is_invalid_bytes",
    "slice": "replay"
   },
   {
@@ -6290,6 +6506,18 @@
    "slice": "replay"
   },
   {
+   "file": "ReplayReorgCore/OpaqueBoundary.v",
+   "kind": "Theorem",
+   "name": "we_do_not_claim_cvg_exists_in_cpp",
+   "slice": "replay"
+  },
+  {
+   "file": "ReplayReorgCore/OpaqueBoundary.v",
+   "kind": "Theorem",
+   "name": "we_do_not_claim_ci033_mint_authorization",
+   "slice": "replay"
+  },
+  {
    "file": "ReplayReorgCore/ScriptShapeLift.v",
    "kind": "Lemma",
    "name": "sl_gather_singleton",
@@ -6681,6 +6909,12 @@
   },
   {
    "file": "ConnectBlock/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "apply_block_rejects_where_legacy_scaffold_would_skip",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlock/ConnectBlockSupply.v",
    "kind": "Lemma",
    "name": "replay_to_scaffold_res_supply",
    "slice": "protocol_core"
@@ -6725,6 +6959,5736 @@
    "file": "ConnectBlock/ConnectBlockSupply.v",
    "kind": "Theorem",
    "name": "default_mint_apply_block_preserves_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "option_b_program_is_pubkey",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "unique_classifier_is_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "classify_is_a_function_of_script_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "no_asset_from_witness_version",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "no_asset_from_address",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "no_asset_from_descriptor",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "no_asset_from_explorer",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "p2wpkh_is_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "native_res_is_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "native_res_program_eq_pk",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "mint_is_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "pushbytes_1_05_mint_is_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "op5_mint_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_5_is_pushbytes_1_05",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_5_is_not_op5",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "op1_to_op16_not_scriptnum_prefix",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "op1_to_op16_not_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "mint_split_at_app",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "decode_prefix_is_encode",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "parse_canonical_mint_means_encoder",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "two_scripts_same_mint_parse_are_byte_equal",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "classify_res_from_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "classify_not_res_unless_witness_or_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_5_is_not_a_witness_program",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "classify_pushbytes_1_05_via_parser",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "converge_is_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "opret_is_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "empty_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "p2wsh_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "res2_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "cvg2_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "p2pkh_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Lemma",
+   "name": "invalid_is_not_oru_or_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "same_script_same_asset",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "invalid_cannot_enter_asset_domain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "p2wsh_cannot_enter_asset_domain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetClassification.v",
+   "kind": "Theorem",
+   "name": "p2pkh_cannot_enter_asset_domain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "same_script_same_ownership",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "same_script_same_asset_and_ownership",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "oru_mint_predicates_distinct",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "oru_converge_predicates_distinct",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "mint_converge_predicates_distinct",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "res_v1_not_hash160_lock",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "canonical_p2wpkh_own",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "canonical_native_res_own",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "canonical_mint_own",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "canonical_converge_own",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "p2wpkh_and_mint_not_same_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "p2wpkh_and_res_v1_not_same_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "res_v1_and_mint_not_same_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Theorem",
+   "name": "res_v1_ownership_is_program",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "p2wpkh_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "res_v1_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "mint_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "converge_not_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "opret_not_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ScriptAssetBoundary.v",
+   "kind": "Lemma",
+   "name": "p2wsh_not_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "every_spendable_path_is_ed25519",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "spend_paths_exhaustive",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "res_v1_key_ok_is_program_eq_pk",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "res_v1_key_ok_rejects_mismatch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "spend_authorized_requires_ed25519_encoding",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "spend_authorized_requires_crypto_accept",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "spend_authorized_requires_key_binding",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "spendable_own_has_ed25519_path",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "unspendable_own_has_no_path",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/Ed25519Ownership.v",
+   "kind": "Theorem",
+   "name": "res_v1_authorized_implies_pk_eq_program",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "tag_len_8",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "tags_pairwise_distinct",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "distinct_paths_distinct_tags",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "serialize_script_injective",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "app_bytes_assoc",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "app_bytes_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "app_bytes_fixed_inj",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "preimage_starts_with_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "different_tags_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "different_chain_ids_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "serialize_then_suffix_inj",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "different_scripts_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "different_amounts_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Theorem",
+   "name": "different_paths_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "golden_oru_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "golden_res_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "golden_mint_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SignatureDomainSeparation.v",
+   "kind": "Lemma",
+   "name": "golden_oru_preimage_prefix",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_oru_v0_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_oru_v0_sighash_spent_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_v1_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_v1_sighash_spent_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_sighash_spent_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_converge_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_op_return_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_empty_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_p2wsh_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_p2pkh_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_cvg2_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_res2_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_unknown_v1_len20_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_pushbytes_1_05_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_op_5_rejected_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Theorem",
+   "name": "classification_vectors_agree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_oru_preimage_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_oru_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_preimage_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_preimage_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Lemma",
+   "name": "vec_res_mint_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Theorem",
+   "name": "sighash_tag_vectors_agree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/VectorAgreement.v",
+   "kind": "Theorem",
+   "name": "sighash_hash_vectors_agree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_create_eq_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_single_parser",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_owner_is_not_option_a",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_owner_is_hash160_of_pk",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "option_b_collapses_program_hash_to_pk_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "res_mint_maturity_locked_to_coinbase",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_spend_requires_both_maturity_layers",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Lemma",
+   "name": "script_lock_rejects_early_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "reward_owner_is_mint_field",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "reward_owner_equals_spend_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Lemma",
+   "name": "canonical_mint_is_res_asset",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Lemma",
+   "name": "canonical_mint_own_is_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Lemma",
+   "name": "canonical_mint_path_is_res_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_sighash_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_tag_not_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_tag_not_res_v1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_path_is_ed25519",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_attempt_uses_spend_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_attempt_not_oru_or_res_v1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "unique_mint_interpreter",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_cannot_bypass_coinbase_maturity",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ResMintCorrectness.v",
+   "kind": "Theorem",
+   "name": "mint_script_lock_cannot_bypass_maturity_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "consensus_spend_iso",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_eval_script",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_miniscript",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_p2wsh_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_checkmultisig",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_taproot",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_ecdsa_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "no_opcode_vm",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "p2wsh_classifies_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "p2wsh_output_not_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "p2pkh_classifies_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "res2_classifies_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "cvg2_classifies_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "consensus_spend_never_obsolete_auth",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "every_consensus_spend_is_ed25519",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "consensus_spend_cardinality_three",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "unique_model_path",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "unique_model_no_second_classifier",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NoInterpreterConsensus.v",
+   "kind": "Theorem",
+   "name": "validation_independent_of_opcode_evaluation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "invalid_create_is_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "invalid_own_cannot_be_spent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "none_own_cannot_be_spent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "converge_own_cannot_be_spent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "res_supply_step",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "oru_supply_step",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "total_supply_conservation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AssetStateTransition.v",
+   "kind": "Theorem",
+   "name": "no_mint_no_subsidy_is_burn_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "byte_namespace_partition_is_frozen",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "byte_namespace_is_total",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "unknown_template_not_in_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "v01_predicates_are_registered",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "future_slot_not_in_v01_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "checksig_byte_is_reserved_inert",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "checksig_script_not_a_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "checksig_classifies_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "if_byte_is_reserved_inert",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "nop1_is_reserved_inert",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "reserved_inert_is_not_a_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "vacant_is_not_a_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "burned_is_not_a_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "predicate_of_spk_never_future",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "future_activation_is_not_checksig",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "return_is_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "res_mint_is_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "converge_is_live_marker",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "burned_cvg_claim_not_a_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "live_canonicals_are_registered",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "p2pkh_not_in_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeNamespace.v",
+   "kind": "Theorem",
+   "name": "p2wsh_not_in_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "byte_class_complete",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "live_markers_are_frozen",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "burned_0xbc_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "vacant_future_bytes_are_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "reserved_checksig_byte_is_inert",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "no_execution_loop",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "no_stack_transition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "no_opcode_semantics",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "no_general_script_vm",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorByteNamespace.v",
+   "kind": "Theorem",
+   "name": "unknown_predicate_not_spendable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorOpcodeNamespace.v",
+   "kind": "Theorem",
+   "name": "opcode_namespace_partition_is_frozen",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorOpcodeNamespace.v",
+   "kind": "Theorem",
+   "name": "checksig_byte_is_reserved_inert_here",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorOpcodeNamespace.v",
+   "kind": "Theorem",
+   "name": "live_asset_markers",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "live_count_is_five",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "classified_spk_has_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Lemma",
+   "name": "predicate_of_spk_not_future",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "unknown_has_no_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "canonicals_lookup",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "checksig_is_not_a_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorPredicateRegistry.v",
+   "kind": "Theorem",
+   "name": "p2pkh_is_not_a_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorWalletOwnership.v",
+   "kind": "Theorem",
+   "name": "ownable_scripts_are_classified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorWalletOwnership.v",
+   "kind": "Theorem",
+   "name": "burn_outputs_are_never_ownable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorWalletOwnership.v",
+   "kind": "Theorem",
+   "name": "bitcoin_templates_are_never_ownable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorWalletOwnership.v",
+   "kind": "Theorem",
+   "name": "checksig_output_is_not_owned_by_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorWalletOwnership.v",
+   "kind": "Theorem",
+   "name": "p2pkh_output_is_not_owned_by_registry",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeBoundary.v",
+   "kind": "Theorem",
+   "name": "future_id_never_classified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeBoundary.v",
+   "kind": "Theorem",
+   "name": "future_slot_not_live",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeBoundary.v",
+   "kind": "Theorem",
+   "name": "checksig_byte_stays_reserved_inert",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/RigorUpgradeBoundary.v",
+   "kind": "Theorem",
+   "name": "reserved_checksig_is_not_a_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "capability_change_neq_state_transition_change",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "capability_change_is_not_state_transition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "missing_advertisement_enables_nothing",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "not_has_capability_implies_not_enabled",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "empty_bitmap_enables_nothing",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "unknown_capability_no_effect",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "unimplemented_slots_not_enabled",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "future_relay_slots_not_enabled_in_v1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "predicate_version_neq_network_capability",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "v1_active_caps_are_relay_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "network_capability_does_not_feed_asset_state",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "network_cannot_bypass_verify_rigor_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "capability_does_not_add_spend_constructor",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "capability_does_not_enable_opcode_vm",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkCapabilityBoundary.v",
+   "kind": "Theorem",
+   "name": "every_spend_still_ed25519_after_capability",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "p2p_message_neq_predicate_transition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "p2p_message_does_not_feed_predicate_transition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "p2p_cannot_bypass_verify_rigor_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "invalid_network_object_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "stripped_block_not_accepted",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "bloom_command_not_accepted",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "witness_block_may_enter_validation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "capability_neq_predicate_version",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "predicate_version_neq_network_capability_restated",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "compact_block_cap_does_not_change_asset_state",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/NetworkSecurityBoundary.v",
+   "kind": "Theorem",
+   "name": "every_spend_still_ed25519_after_network_hardening",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "window_start_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "in_window_height_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "window_length_full",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "window_length_genesis_truncation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "draw_length_is_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "clamped_draw_agrees_with_parent_source",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "clamped_draw_full_when_h_ge_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "window_membership_height_stable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "reorg_preserves_window_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "reorg_changes_contents_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "deep_reorg_stability",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "deep_reorg_depths_relative_to_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "orphan_state_not_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "canonical_owner_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "same_height_distinct_branches_distinct_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "orphan_hash_is_not_canonical_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "hash_cache_is_reorg_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "height_only_cache_not_reorg_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "group_id_cache_not_reorg_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "floor_slice_cache_not_reorg_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "reorg_changes_cache_key",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "old_hash_does_not_alias_new_hash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "not_floor_partition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "coincides_with_floor_slice_only_at_slice_end",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "windows_overlap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "one_source_window_per_source_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_constant_is_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_predicate_ignores_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_absolute_depth",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "window_width_does_not_mature",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_not_equal_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_not_derived_from_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "maturity_not_div_W_rule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "W_ok_excludes_one",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "W_ok_holds_for_non_pow2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "W_ok_holds_for_pow2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Lemma",
+   "name": "pow2_mono",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "thirty_six_is_not_a_power_of_two",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "three_is_not_a_power_of_two",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "subsidy_independent_of_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowGeneric.v",
+   "kind": "Theorem",
+   "name": "rfc017_name_collision_is_not_coupling",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Lemma",
+   "name": "unwindowed_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Lemma",
+   "name": "mint_cost_is_1024_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "mint_cost_independent_of_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T_floor_bracket",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Lemma",
+   "name": "div_bracket_unique",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T_floor_bracket_unique",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "expected_wins_neutral_integer",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "mass_near_unwindowed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T_pinned_old_W_is_not_generic",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T32_matches_shipping_shift_encoding",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "shift5_is_not_T_of_36",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T32_floor_pair",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "T36_floor_pair",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "stale_T32_with_W36_overshoots",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "W32_residue_mod_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "W36_residue_mod_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "saturation_weight_at_32",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowTarget.v",
+   "kind": "Theorem",
+   "name": "saturation_weight_at_36",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_window_length_full",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_genesis_clamp",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_golden_W_minus_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_golden_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_golden_W_plus_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_golden_2W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_draw_interval",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_clamped_draw_at_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_preserves_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_changes_contents_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_deep_reorg_relative",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_not_floor_partition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_A_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_A_reorg_does_not_slide",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_B_boundaries",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_maturity_independent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_orphan_not_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_cache_hash_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W32_T_shipping",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_not_power_of_two",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_window_length_full",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_genesis_clamp",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_golden_W_minus_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_golden_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_golden_W_plus_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_golden_2W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_draw_interval",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_reorg_preserves_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_reorg_changes_contents_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_deep_reorg_relative",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_not_floor_partition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_maturity_independent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_maturity_same_as_W32",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_cache_hash_safe",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_T_is_floor_unwindowed_div_36",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_T_differs_from_T32",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "W36_stale_T32_is_not_the_pair",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "production_W36_not_landed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/WindowSpecialization.v",
+   "kind": "Theorem",
+   "name": "production_W_is_32",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_window_width_locked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_group_membership_height_stable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_preserves_group_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_preserves_group_boundary_formula",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_changes_contents_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_orphan_state_not_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_canonical_owner_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_maturity_constant_is_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_maturity_neq_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_maturity_independent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_maturity_not_derived_from_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_deep_reorg_stability",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_deep_reorg_depths_33_and_64",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_not_floor_partition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_coincides_with_floor_slice_only_at_slice_end",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_A_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_A_reorg_does_not_slide_interval",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_task_scenario_B_boundaries",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_windows_overlap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_one_source_window_per_source_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/W32ReorgStability.v",
+   "kind": "Theorem",
+   "name": "W32_genesis_clamp",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Lemma",
+   "name": "apply_delta_some_admissible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "mint_supply_conservation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "ledger_conservation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "fee_burn_does_not_enter_circulating",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "fee_burn_does_not_reduce_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "converge_reduces_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Lemma",
+   "name": "ordinary_forces_zero_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "ordinary_tx_cannot_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "invalid_tx_cannot_enter_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "unauthorized_mint_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "invalid_mint_cannot_enter_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "mint_cannot_exceed_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "immature_mint_cannot_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "immature_script_lock_cannot_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "maturity_independent_of_draw_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "replay_conservation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "unified_matches_pool_identity",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/MintSupplyConservation.v",
+   "kind": "Theorem",
+   "name": "cpp_refinement_not_claimed_here",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "apply_block_supply_is_apply_delta",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_invalid_tx_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_unauthorized_mint_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_ordinary_cannot_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_conservation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_fee_burn_not_circulating",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_maturity_still_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_reward_is_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_supply_fields_complete",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_is_apply_block_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_observational_oru_matches_ledger",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "connectblock_fee_burn_not_in_observational_ledger",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_valid_res_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_converge",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_fee_burn_circulating",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_maturity_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_invalid_tx_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_unauthorized_mint_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ConnectBlockSupply.v",
+   "kind": "Theorem",
+   "name": "cpp_slice_ordinary_cannot_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "app_bytes_assoc",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "app_bytes_nil_r",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "mint_create_field_eq_spend_field",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_5",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_16",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_0_roundtrip",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_5_roundtrip",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_100_roundtrip",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_150_roundtrip",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "parse_canonical_mint_unique",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "two_encodings_cannot_be_same_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "nonminimal_small_push_is_not_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "pushdata1_is_not_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "trailing_bytes_cannot_be_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "wrong_marker_cannot_be_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "empty_cannot_be_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "wrong_pkh_length_cannot_be_canonical_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "unparseable_mint_is_not_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "ambiguous_script_cannot_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "witness_wrong_length_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "witness_empty_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "trailing_on_p2wpkh_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "trailing_on_native_res_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalMintEncoding.v",
+   "kind": "Theorem",
+   "name": "wrong_witness_version_v2_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "classifier_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "classify_eq_cpp_aligned",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "classify_is_cpp_decision_tree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "live_parse_canonical_mint_is_encoder",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "op1_through_op16_cannot_be_canonical_mint_prefix",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "canonical_mint_0_is_aligned_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "pushbytes_1_05_is_res_not_op5",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "nonminimal_mint_is_not_aligned_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "malformed_script_cannot_classify",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "p2wpkh_aligned_is_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "p2wsh_aligned_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "native_res_aligned_is_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "converge_aligned_is_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierRefinementBoundary.v",
+   "kind": "Theorem",
+   "name": "create_eq_spend_still",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "gate_false_not_push0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "gate_false_not_mint_push",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "gate_false_not_push20",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "gate_false_not_op1_16",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "gate_false_not_return",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "nongate_not_witness_version",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "parse_witness_nongate_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "decode_scriptnum_nongate_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "parse_mint_nongate_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "converge_nongate_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "opreturn_nongate_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Theorem",
+   "name": "classify_nongate_first_byte",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Theorem",
+   "name": "empty_script_is_invalid",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "app_bytes_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "encode_scriptnum_nonnil",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "encode_canonical_mint_len_ge_23",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "parse_canonical_mint_len_ge_23",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Lemma",
+   "name": "parse_witness_length_lt_4",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ClassifierGate.v",
+   "kind": "Theorem",
+   "name": "classify_length_lt_4_not_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "production_W_locked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "mint_cap_is_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "different_canonical_contents_same_reward_rule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_depth_does_not_enter_reward",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Lemma",
+   "name": "fold_mint_shift",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Lemma",
+   "name": "fold_mint_le_cap_acc",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "chain_mint_le_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Lemma",
+   "name": "apply_delta_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "canonical_res_is_surviving_mints",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "orphan_mint_cannot_enter_canonical_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "canonical_ledger_is_surviving_subsidy_minus_converge",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "orphan_coinbase_cannot_enter_canonical_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_cannot_create_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_depth_1_cannot_create_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_depth_W_cannot_create_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_depth_greater_than_W_cannot_create_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_depth_greater_than_maturity_cannot_create_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_preserves_window_identity",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "W32_reorg_window_stable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "W_does_not_change_subsidy",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "W_does_not_change_maturity",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "T_uses_correct_W",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "T32_is_shipping_pair",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "wrong_W_T_pair_is_not_equivalent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reward_not_recomputed_from_window",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "DisconnectBlock_orphan_mint_not_in_surviving_chain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "DisconnectBlock_orphan_coinbase_not_in_surviving_chain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "InvalidateBlock_surviving_issuance_le_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/ReorgIssuanceBound.v",
+   "kind": "Theorem",
+   "name": "reorg_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_zero_cpp_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_reward_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "current_cpp_genesis_is_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "proposed_agrees_after_genesis",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "height_1_reward_unchanged",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "height_2_reward_unchanged",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "no_height_1_compensation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "no_height_2_compensation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_supply_zero_cumulative",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_height_1_is_one_subsidy",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_height_2_is_two_subsidies",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Lemma",
+   "name": "genesis_zero_delta_admissible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_has_no_oru_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_apply_leaves_zero_supply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_supply_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_unified_supply_stays_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_conservation_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_connectblock_supply_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Lemma",
+   "name": "get_res_mint_reward_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Lemma",
+   "name": "height1_delta_admissible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "height1_apply_issues_one_subsidy",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_has_no_oru_allocation_proposed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "landed_genesis_reward_is_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "zero_coinbase_plus_treasury_is_hidden_premine",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_mint_must_be_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "current_ledger_utxo_aligned",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "proposed_ledger_utxo_aligned",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "W32_impact_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "maturity_impact_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "res_w0_impact_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/GenesisZeroIssuance.v",
+   "kind": "Theorem",
+   "name": "res_reward_not_used_as_oru_compensation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "oru_res_halving_boundary_agree",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "genesis_reward_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "first_issuance_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "no_height_1_compensation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "epoch_0_on_genesis_and_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "first_halving_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "second_halving_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "third_halving_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "height_209999_full_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "height_210000_halved_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "height_210000_ne_209999",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "height_420000_quarter_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "height_630000_floor_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "first_full_oru_epoch_last_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "res_follows_same_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_210000_oru_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_210000_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_420000_oru_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "golden_height_420000_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/IssuanceHeightBoundary.v",
+   "kind": "Theorem",
+   "name": "issuance_boundary_formula_is_height_div_interval",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_209999",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_210000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_210001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_419999",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_420000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "epoch_formula",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_res_same_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_halving_height_is_210000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_halving_is_not_210001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_halving_shared_oru_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_genesis",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_first_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_last_epoch0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_first_halved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_second_halved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "no_genesis_compensation_at_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "oru_reward_is_frozen_cpp_schedule",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "leb_false",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "ltb_false",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "zdiv_in_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_ge1_div",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_in_epoch0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_in_epoch1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_in_epoch2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_in_tail",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_w_pins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_in_epoch_nat",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_in_epoch0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_in_epoch1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_in_epoch2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_in_epoch3",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_ge1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_oru_nonpos",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_oru_e0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_oru_e1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_oru_e2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_oru_tail",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "total_oru_closed_step",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "total_oru_issued_nat_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "total_oru_issued_eq_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_excluded_from_oru_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_oru_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_epoch_oru_atoms",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_epoch_oru_coins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "through_first_halving_oru_atoms",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "through_first_halving_oru_coins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_oru_210001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_oru_420000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_oru_420001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_epoch_not_210000000_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_res_nonpos",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_res_e0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_res_e1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_res_e2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "closed_res_e3",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_in_e0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_in_e1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_in_e2",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_in_e3",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "total_res_closed_step",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "total_res_issued_nat_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "total_res_issued_eq_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_excluded_from_res_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_res_schedule_is_not_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_res_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "first_epoch_res_atoms",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "through_first_halving_res_atoms",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_res_210001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_res_420000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "cumulative_res_420001",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "golden_res_cumulative_literals",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "oru_reward_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "res_issued_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "canonical_delta_admissible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Lemma",
+   "name": "apply_canonical_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "genesis_connectblock_issuance_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "apply_block_supply_uses_canonical_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "apply_block_supply_uses_height_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "fold_canonical_issuance_from_genesis",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "circulating_is_canonical_issuance_when_no_sinks",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "height1_connectblock_one_oru_subsidy",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/CanonicalIssuance.v",
+   "kind": "Theorem",
+   "name": "canonical_issuance_cpp_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "p049_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "p049_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_epoch_formula",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_epoch_pins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_res_same_epoch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_genesis_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_height_1",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_halving_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_cumulative_coins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_no_height_1_compensation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_res_schedule_at_genesis",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_res_actual_issuance_at_genesis",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_genesis_schedule_is_not_actual_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_genesis_connectblock_supply_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_maturity_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_res_maturity_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_height_1_immature_at_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_height_1_mature_at_101",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_empty_F_has_no_winner",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_winner_in_F",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelAlignment.v",
+   "kind": "Theorem",
+   "name": "kernel_oru_claimable_formula",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "p052_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "p052_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_epoch_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_oru_subsidy_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_res_schedule_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_epoch_bridge_formula",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_epoch_bridge_pins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_oru_genesis_actual_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_res_schedule_at_genesis_is_w0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_res_actual_at_genesis_is_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "genesis_schedule_value_ne_actual_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_maturity_oru_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_maturity_res_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_height_1_immature_at_100",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_height_1_mature_at_101",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "supply_bridge_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "supply_bridge_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_circulating_is_ledger_not_utxo",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_claimable_is_cap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "layers_differ_when_burn_positive",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "apply_delta_ledger_matches_cpp_field",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "genesis_cpp_circulating_delta_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "supply_layers_not_identical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SupplyDeltaBridge.v",
+   "kind": "Theorem",
+   "name": "supply_layers_aligned_by_layer",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "draw_bridge_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "draw_bridge_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_select_winner_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_pick_better_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_target_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "empty_F_resolves_to_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "empty_select_winner_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "winner_comes_from_F",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "assembly_is_not_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "DrawResolverBridge.v",
+   "kind": "Theorem",
+   "name": "resolver_is_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "classify_bridge_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "classify_bridge_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_classify_bridge_is_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "unique_classifier_authority",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "no_classify_spend_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ClassificationBridge.v",
+   "kind": "Theorem",
+   "name": "empty_script_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "CoinbaseLayoutBridge.v",
+   "kind": "Theorem",
+   "name": "coinbase_bridge_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "CoinbaseLayoutBridge.v",
+   "kind": "Theorem",
+   "name": "coinbase_bridge_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "CoinbaseLayoutBridge.v",
+   "kind": "Theorem",
+   "name": "cpp_res_coinbase_expected_is_sum",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "CoinbaseLayoutBridge.v",
+   "kind": "Theorem",
+   "name": "genesis_res_coinbase_schedule_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "CoinbaseLayoutBridge.v",
+   "kind": "Theorem",
+   "name": "build_coinbase_is_not_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "kernel_boundary_refinement_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "node_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "connectblock_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_epoch_is_coq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_res_epoch_eq_coq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_res_schedule_is_coq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_oru_frozen_is_coq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "issuance_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "issuance_pins",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "oru_subsidy_constant_after_cap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "res_schedule_at_0_is_40000000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "res_actual_issuance_at_0_is_0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "res_schedule_is_not_actual_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_fail_closed_empty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_fail_closed_unknown",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_fail_closed_malformed_witness",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_valid_oru",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_valid_res",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classification_is_script_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "sigma_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_cross_product_is_512",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_txid_tie_break",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "resolve_min_card_redundant",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_empty_F",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_one_candidate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_weight_zero_ineligible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_T0_ineligible",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_T0_none",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "draw_select_winner_none_only_empty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "supply_delta_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fee_burn_not_in_ledger_delta",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "coinbase_boundary_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "coinbase_builder_not_in_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "kernel_input_excludes_db",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "kernel_input_excludes_node_context",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "prepared_input_eq_canonical",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "prepare_preserves_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "prepare_preserves_F",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "prepare_preserves_T",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "genesis_prepare_height_0",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockInputPreparation.v",
+   "kind": "Theorem",
+   "name": "genesis_prepare_empty_F",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "apply_does_not_recompute_formulas",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "apply_reject_when_not_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "apply_delta_when_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_issuance_is_cpp",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_draw_is_resolver",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_ledger_is_bridge",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_coinbase_is_sum",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_ok_iff",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_rejects_when_input_not_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "runkernel_rejects_when_supply_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "winner_mismatch_input_not_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "genesis_run_oru_actual_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "genesis_run_res_schedule_40000000",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "genesis_run_res_actual_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "KernelResultApplication.v",
+   "kind": "Theorem",
+   "name": "genesis_run_empty_draw",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_full_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_boundary_flag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "p056_refinement_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "p056_equivalence_still_false",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_kernel_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_only_prepares_and_consumes",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "input_preparation_alignment",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "result_consumption_is_apply",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "genesis_orchestration_applies_zero_delta",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_rejects_bad_input",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_rejects_negative_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_rejects_winner_mismatch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "connectblock_can_reject",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConnectBlockKernelBoundary.v",
+   "kind": "Theorem",
+   "name": "explicit_nongoals",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SignatureBoundary.v",
+   "kind": "Theorem",
+   "name": "valid_signature_eq_accept_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SignatureBoundary.v",
+   "kind": "Theorem",
+   "name": "signature_boundary_rejects_bad_sig_len",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SignatureBoundary.v",
+   "kind": "Theorem",
+   "name": "signature_boundary_rejects_bad_pk_len",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SignatureBoundary.v",
+   "kind": "Theorem",
+   "name": "signature_boundary_requires_accept",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "SignatureBoundary.v",
+   "kind": "Theorem",
+   "name": "no_curve_math_in_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "transaction_kernel_boundary_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "node_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "transaction_kernel_input_excludes_state",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "transaction_kernel_input_excludes_node",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "split_at_app",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "witness_version_of_1_4",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "decode_scriptnum_prefix_head",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "parse_witness_v0_20_mismatch",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "mint_script_not_witness",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "mint_script_ownership",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "ownership_oru_parse",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "ownership_res_parse",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "ownership_mint_is_mint_script",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Lemma",
+   "name": "cxx_witness_unknown_false",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "spend_predicate_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "predicate_theorem",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "sighash_alignment",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "no_sighash_all_byte",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "no_sighash_flags_mutation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "no_scriptcode_mutation",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "signature_boundary_alignment",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "script_vm_absent_pass",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "multisig_absent_pass",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "no_eval_script_in_tx_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "no_multisig_in_tx_kernel",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_empty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_p2pkh",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_unknown_version",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_bad_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_malformed_witness",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_wrong_pubkey",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_wrong_signature",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "valid_oru_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "valid_res_key_path",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "classify_then_predicate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "TransactionKernelRefinement.v",
+   "kind": "Theorem",
+   "name": "fail_closed_flag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "vst_deferred_and_narrow",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "acceptance_grew_means_new_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "mint_no_crypto_unless_push_only",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "witness_no_crypto_without_flag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "witness_no_crypto_if_scriptSig",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "crypto_accept_implies_oracle",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "crypto_accept_implies_path_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "to_tki_crypto_accept",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "raw_flag_witness_to_tki",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "andb_false_r",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "cxx_oru_inner_no_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "cxx_witness_no_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "cxx_mint_no_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "crypto_accept_false_blocks_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "make_crypto_reject_blocks_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "to_tki_projects_flags",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "to_tki_projects_stack_clean",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "to_tki_projects_spend_height",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "to_tki_projects_sighash",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "spend_message_is_sighash_digest",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "spend_message_is_coq_sighash_digest",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "kernel_signature_message_len",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "app_length_inj",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "different_tags_different_preimages",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "path_tags_are_eight",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "pin_v0_accept_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "pin_v0_no_witness_flag_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "pin_mint_accept_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Lemma",
+   "name": "pin_v1_accept_crypto",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "domain_raw_uses_path_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "mint_oru_preimages_differ",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "oru_res_preimages_differ",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "mint_res_preimages_differ",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "pin_tags_domain_separated",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "unknown_version_empty_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "non_native_v1_empty_tag",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "mint_oru_tag_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "v0_res_tag_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "v1_oru_tag_rejected",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "tag_mismatch_all_inconsistent",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "tag_mismatch_all_reject",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "tag_mismatch_nonempty",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "all_raw_size",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "MakeKernelInput.v",
+   "kind": "Theorem",
+   "name": "domain_reject_blocks_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "surface_refinement_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "node_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "full_node_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_is_registered",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "p056_kernel_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "p057_connectblock_still_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "p058_tx_kernel_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "ConsensusSurfaceClosed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "every_decision_has_a_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "consensus_surface_exhaustive",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "kernel_decisions_use_kernel_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "tx_decisions_use_tx_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_decisions_use_pow_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "acceptance_path_order",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "every_path_decision_step_has_boundary",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "authority_table_covers_surface",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_boundary_accept_iff_le",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_digest_model_is_registered",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "pow_not_reimplemented",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "phase5_not_authority",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "legacy_not_authority",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "vacuous_placeholder_not_evidence",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "explicit_nongoals",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "ConsensusSurfaceClosure.v",
+   "kind": "Theorem",
+   "name": "prior_boundaries_remain",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "ledger_boundary_refinement_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "node_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "ledger_apply_not_in_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "db_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "negb_false_is_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_accept_is_ledger_checks",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_apply_accept_record",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_reject_empty_delta",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_value_ok_is_spec",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "cpp_record_eta",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "ledger_apply_eq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "ledger_apply_delta_eq",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "outpoint_eqb_refl",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "nodup_two_same",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "andb_false_l",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "andb_false_r",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "genesis_actual_zero",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "genesis_schedule_not_issuance",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "value_conservation_normal_spend",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "value_conservation_fee",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "value_conservation_burn",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "asset_conservation_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "double_spend_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "double_spend_nodup",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "negative_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "overflow_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "unknown_asset_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "maturity_99_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "maturity_100_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "maturity_101_accepts",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "reject_when_tx_kernel_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "tx_reject_value_ok_fail_closed",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "LedgerTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "reject_when_consensus_kernel_rejects",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "composition_refinement_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "node_equivalence_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_production",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "extracted_kernel_not_linked",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "compcert_binary_not_verified",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "transition_is_explicit",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "transaction_gate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "consensus_gate",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "ledger_transition",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "valid_input_height_nonneg",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "valid_issuance_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "valid_res_mint_ok",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "valid_genesis_draw",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Lemma",
+   "name": "assemble_eq_cpp_assemble",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "state_transition_refinement",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "state_transition_refinement_id",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "cpp_rejects_unscheduled_res_mint",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "prior_tx_kernel_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "prior_consensus_kernel_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "prior_ledger_kernel_still_true",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "UTXOStateTransitionRefinement.v",
+   "kind": "Theorem",
+   "name": "genesis_issuance_predicates",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AmountBoundary.v",
+   "kind": "Theorem",
+   "name": "amount_boundary_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AmountBoundary.v",
+   "kind": "Theorem",
+   "name": "max_money_leaves_add_headroom",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AmountBoundary.v",
+   "kind": "Theorem",
+   "name": "money_range_sum_no_wrap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AmountBoundary.v",
+   "kind": "Theorem",
+   "name": "circulating_delta_no_wrap",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/AmountBoundary.v",
+   "kind": "Theorem",
+   "name": "in_range_sum_equals_mod_2_64",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_refinement_not_proved",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "hash256_bytes_is_sha256d",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_oru_preimage_sha256d",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_res_preimage_sha256d",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_mint_preimage_sha256d",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_preimage_sha256d_three_paths",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashByteCorrespondence.v",
+   "kind": "Theorem",
+   "name": "sighash_obligation_is_refutable",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashPreimage.v",
+   "kind": "Theorem",
+   "name": "sighash_digest_is_sha256d",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashPreimage.v",
+   "kind": "Theorem",
+   "name": "compact_size_small",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashPreimage.v",
+   "kind": "Theorem",
+   "name": "le32_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashPreimage.v",
+   "kind": "Theorem",
+   "name": "le64_length",
+   "slice": "protocol_core"
+  },
+  {
+   "file": "../rigor_v01/SighashPreimage.v",
+   "kind": "Theorem",
+   "name": "tag_oru_is_rgroru01",
    "slice": "protocol_core"
   },
   {
@@ -14116,13 +20080,13 @@
   {
    "file": "Phase5Equivalence/DrawClosureImpossibilityCatalog.v",
    "kind": "Lemma",
-   "name": "draw_encoder_missing_on_current_architecture",
+   "name": "draw_encoder_missing_on_018GG_freeze",
    "slice": "phase_catalog"
   },
   {
    "file": "Phase5Equivalence/DrawClosureImpossibilityCatalog.v",
    "kind": "Lemma",
-   "name": "draw_hash_kernel_missing_on_current_architecture",
+   "name": "draw_hash_kernel_missing_on_018GG_freeze",
    "slice": "phase_catalog"
   },
   {

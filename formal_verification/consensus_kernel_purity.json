@@ -31,7 +31,9 @@
     {
       "name": "RigorIssuanceEpoch",
       "file": "core/src/consensus/rigor_issuance.h",
-      "inputs": ["height:int"],
+      "inputs": [
+        "height:int"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -43,7 +45,10 @@
     {
       "name": "GetBlockSubsidy",
       "file": "core/src/consensus/rigor_issuance.cpp",
-      "inputs": ["nHeight:int", "Consensus::Params.{nBlockSubsidyBase,nSubsidyHalvingInterval,nBlockSubsidyMaxHalvingShifts}"],
+      "inputs": [
+        "nHeight:int",
+        "Consensus::Params.{nBlockSubsidyBase,nSubsidyHalvingInterval,nBlockSubsidyMaxHalvingShifts}"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -55,7 +60,10 @@
     {
       "name": "ComputeRigorIssuance",
       "file": "core/src/consensus/rigor_issuance.cpp",
-      "inputs": ["height:int", "Consensus::Params (ORU fields only)"],
+      "inputs": [
+        "height:int",
+        "Consensus::Params (ORU fields only)"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -67,7 +75,9 @@
     {
       "name": "GetResMintReward",
       "file": "core/src/consensus/rigor_consensus_lock.h",
-      "inputs": ["height:int"],
+      "inputs": [
+        "height:int"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -85,7 +95,9 @@
         "BlockValidationState (output reject sink, not a consensus input)"
       ],
       "state_dependencies": [],
-      "side_effects": ["LogPrintf on ORU/RES coinbase reject (non-semantic)"],
+      "side_effects": [
+        "LogPrintf on ORU/RES coinbase reject (non-semantic)"
+      ],
       "deterministic": true,
       "fail_closed": true,
       "single_authority": true,
@@ -95,7 +107,11 @@
     {
       "name": "RigorResCoinbaseExpected",
       "file": "core/src/consensus/rigor_supply.h",
-      "inputs": ["fees_res", "bootstrap", "mint"],
+      "inputs": [
+        "fees_res",
+        "bootstrap",
+        "mint"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -122,7 +138,9 @@
     {
       "name": "ClassifyRigorAsset",
       "file": "core/src/script/rigor_classify.cpp",
-      "inputs": ["scriptPubKey"],
+      "inputs": [
+        "scriptPubKey"
+      ],
       "state_dependencies": [],
       "side_effects": [],
       "deterministic": true,
@@ -133,11 +151,41 @@
     }
   ],
   "direct_dependencies": {
-    "rigor_issuance.*": ["consensus/amount.h", "consensus/params.h", "consensus/rigor_consensus_lock.h", "algorithm"],
-    "rigor_supply.*": ["consensus/amount.h", "consensus/params.h", "consensus/rigor_consensus_lock.h", "consensus/rigor_issuance.h", "consensus/validation.h", "logging.h"],
-    "rigor_coinbase_layout.h": ["consensus/convergence_logic.h", "consensus/convergence_root.h", "consensus/rigor_supply.h"],
-    "convergence_logic.h": ["consensus/amount.h", "consensus/state_diff.h", "primitives/block.h", "primitives/transaction.h", "serialize.h", "uint256.h"],
-    "rigor_classify.cpp": ["script/standard.h", "primitives/transaction.h", "script/predicate_verify.h", "script/rigor_tags.h", "script/script.h", "uint256.h"]
+    "rigor_issuance.*": [
+      "consensus/amount.h",
+      "consensus/params.h",
+      "consensus/rigor_consensus_lock.h",
+      "algorithm"
+    ],
+    "rigor_supply.*": [
+      "consensus/amount.h",
+      "consensus/params.h",
+      "consensus/rigor_consensus_lock.h",
+      "consensus/rigor_issuance.h",
+      "consensus/validation.h",
+      "logging.h"
+    ],
+    "rigor_coinbase_layout.h": [
+      "consensus/convergence_logic.h",
+      "consensus/convergence_root.h",
+      "consensus/rigor_supply.h"
+    ],
+    "convergence_logic.h": [
+      "consensus/amount.h",
+      "consensus/state_diff.h",
+      "primitives/block.h",
+      "primitives/transaction.h",
+      "serialize.h",
+      "uint256.h"
+    ],
+    "rigor_classify.cpp": [
+      "script/standard.h",
+      "primitives/transaction.h",
+      "script/predicate_verify.h",
+      "script/rigor_tags.h",
+      "script/script.h",
+      "uint256.h"
+    ]
   },
   "forbidden_dependencies": [],
   "boundary": {

@@ -2,7 +2,6 @@
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-MIGRATION-FREEZE-P0-068",
   "date": "2026-08-31",
   "note": "Pre-switch freeze of unique authorities. Candidate path is not production.",
-  "production_kernel_switched": false,
   "refinement_proved": true,
   "equivalence_proved": false,
   "candidate_equals_production": false,
@@ -43,5 +42,9 @@
     "linked_into_production": false,
     "called_from_connect_block": false
   },
-  "extra_authority_token": "CONSENSUS_AUTHORITY_FREEZE_VIOLATION"
+  "extra_authority_token": "CONSENSUS_AUTHORITY_FREEZE_VIOLATION",
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

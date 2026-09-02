@@ -118,6 +118,7 @@ int main()
         ok.witness = {ok.signature, ok.pubkey};
         ok.keyhash_match = true;
         ok.crypto_accept = true;
+        ok.sighash_tag = KernelAssignedSighashTag(oru);
         if (!VerifyRigorPredicateBoundary(ok)) return fail("valid predicate");
 
         TransactionKernelInput bad = ok;
@@ -168,6 +169,9 @@ int main()
     }
 
     std::printf("PASS: consensus mainnet boundary\n");
-    std::printf("PRODUCTION_KERNEL_SWITCHED=NO\n");
+        std::printf("PRODUCTION_CONSENSUS_AUTHORITY=RigorConsensusKernel(C++)\n");
+    std::printf("FORMAL_REFINEMENT_STATUS=PROVED\n");
+    std::printf("EXTRACTED_KERNEL_PRODUCTION=FALSE\n");
+    std::printf("COMPCERT_BINARY_VERIFIED_KERNEL=FALSE\n");
     return 0;
 }

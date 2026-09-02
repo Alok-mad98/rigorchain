@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 MANIFEST = ROOT / "formal_verification/rigor_consensus_audit_manifest.json"
 VECTORS = ROOT / "formal_verification/release_consensus_vectors.json"
 
@@ -81,6 +83,12 @@ def main() -> int:
         errors.append("audit manifest kernel status")
     if ck.get("refinement") is not True:
         errors.append("audit manifest refinement")
+    if ck.get("coq_model_closure") != "PROVED":
+        errors.append("audit manifest coq_model_closure")
+    if ck.get("coq_to_cpp") != "VECTOR-TESTED":
+        errors.append("audit manifest coq_to_cpp")
+    if ck.get("extracted_to_binary") != "NOT-LINKED":
+        errors.append("audit manifest extracted_to_binary")
     if ck.get("equivalence") is not False:
         errors.append("audit manifest equivalence must be false")
     auth = man.get("authorities") or {}
@@ -99,6 +107,8 @@ def main() -> int:
     pk = man.get("production_kernel") or {}
     if pk.get("implementation") != "C++" or pk.get("switched_to_extraction") is not False:
         errors.append("audit manifest production kernel")
+    if not records_cpp_authority(pk):
+        errors.append("audit manifest must record C++ production authority")
     formal = man.get("formal") or {}
     if formal.get("coq_admitted") or formal.get("coq_axioms") or formal.get("coq_parameters"):
         errors.append("audit manifest formal counts")
@@ -136,7 +146,7 @@ def main() -> int:
 
     print("AUDIT_SCOPE=PASS")
     print("AUDIT_PACKAGE_STATUS=PASS")
-    print("EQUIVALENCE_PROVED=false")
+    print_status()
     return 0
 
 

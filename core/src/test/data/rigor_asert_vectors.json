@@ -1,0 +1,20 @@
+[
+ {
+  "id": "height1_copies_genesis_nbits",
+  "parent_height": 0,
+  "parent_nbits": "1d008000",
+  "parent_time": 1786125600,
+  "child_time": 1786126200,
+  "expected_nbits": "1d008000"
+ },
+ {
+  "id": "height2_spacing_unchanged",
+  "parent_height": 1,
+  "parent_nbits": "1d008000",
+  "parent_time": 1786126200,
+  "genesis_nbits": "1d008000",
+  "genesis_time": 1786125600,
+  "child_time": 1786126800,
+  "expected_nbits": "1d008000"
+ }
+]

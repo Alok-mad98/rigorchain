@@ -292,12 +292,19 @@ inline constexpr CAmount ORU_GENESIS_BLOCK_SUBSIDY = 0;
 
 static_assert(ORU_GENESIS_BLOCK_SUBSIDY == 0, "genesis must issue 0 ORU");
 static_assert(ORU_INITIAL_BLOCK_SUBSIDY == 1000 * COIN, "h>=1 ORU base must stay 1000");
+static_assert(ORU_INITIAL_BLOCK_SUBSIDY == 100000000000LL,
+    "FrozenKernelParams.cpp_base in ConsensusKernelRefinement.v");
 
 /** Standard halving interval on Rigor public networks using ORU_SUBSIDY_HALVING_INTERVAL. */
 inline constexpr int ORU_SUBSIDY_HALVING_INTERVAL = 210000;
 
 /** Maximum halving shifts (subsidy floor at 125 ORU). */
 inline constexpr int ORU_SUBSIDY_MAX_SHIFTS = 3;
+
+static_assert(ORU_SUBSIDY_HALVING_INTERVAL == 210000,
+    "FrozenKernelParams.cpp_interval in ConsensusKernelRefinement.v");
+static_assert(ORU_SUBSIDY_MAX_SHIFTS == 3,
+    "FrozenKernelParams.cpp_max_shifts in ConsensusKernelRefinement.v");
 
 /** Subsidy after ORU_SUBSIDY_MAX_SHIFTS right-shifts of ORU_INITIAL_BLOCK_SUBSIDY. */
 inline constexpr CAmount ORU_MIN_BLOCK_SUBSIDY = (ORU_INITIAL_BLOCK_SUBSIDY >> ORU_SUBSIDY_MAX_SHIFTS);

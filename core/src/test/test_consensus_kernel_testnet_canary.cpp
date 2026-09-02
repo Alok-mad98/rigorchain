@@ -6,8 +6,9 @@
 
 #include <chainparams.h>
 #include <chainparamsbase.h>
+#include <consensus/kernel_canary/canary_controller.h>
 #include <consensus/params.h>
-#include <node/kernel_runtime_canary.h>
+#include <test/kernel_runtime_canary.h>
 #include <test/util/setup_common.h>
 #include <util/system.h>
 
@@ -30,7 +31,7 @@ BOOST_AUTO_TEST_CASE(startup_flag_default_off)
         Params().GetConsensus()));
 }
 
-BOOST_AUTO_TEST_CASE(network_restriction_mainnet_armed)
+BOOST_AUTO_TEST_CASE(network_restriction_mainnet_forbidden)
 {
     BOOST_REQUIRE(RigorKernelRuntimeCanaryNetworkAllowed(Params()));
     const auto testnet = CChainParams::TestNet();
@@ -38,13 +39,14 @@ BOOST_AUTO_TEST_CASE(network_restriction_mainnet_armed)
     BOOST_REQUIRE(RigorKernelRuntimeCanaryNetworkAllowed(*testnet));
     const auto main = CChainParams::Main();
     BOOST_REQUIRE(main);
-    BOOST_REQUIRE(RigorKernelRuntimeCanaryNetworkAllowed(*main));
+    BOOST_REQUIRE(!RigorKernelRuntimeCanaryNetworkAllowed(*main));
+    BOOST_REQUIRE_EQUAL(PRODUCTION_MAINNET_CANARY_ARMED, false);
 
     ArgsManager args;
     args.ForceSetArg("-enableconsensuskernelcanary", "1");
     std::string err;
-    BOOST_REQUIRE(RigorKernelRuntimeCanaryStartupCheck(args, *main, err));
-    BOOST_REQUIRE(err.empty());
+    BOOST_REQUIRE(!RigorKernelRuntimeCanaryStartupCheck(args, *main, err));
+    BOOST_REQUIRE_EQUAL(err, KERNEL_RUNTIME_CANARY_MAINNET_FORBIDDEN);
 
     err.clear();
     BOOST_REQUIRE(RigorKernelRuntimeCanaryStartupCheck(args, Params(), err));

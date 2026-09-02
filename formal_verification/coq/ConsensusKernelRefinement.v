@@ -13,8 +13,10 @@
     toward zero; Coq [Z.div] floors. Those differ for [h < 0]. This file
     does not change either formula.
 
-      refinement_proved   = true   (this kernel boundary only)
-      equivalence_proved  = false  (not the node)
+      refinement_proved                    = true   (this kernel boundary only)
+      equivalence_proved                   = false  (not the node)
+      extracted_kernel_production          = false
+      compcert_binary_verified_kernel      = false
 
     No [Admitted] / [Axiom] / [Parameter] / [Extract Constant]. *)
 
@@ -43,6 +45,9 @@ Local Open Scope Z_scope.
 
 Definition refinement_proved : bool := true.
 Definition equivalence_proved : bool := false.
+Definition extracted_kernel_production : bool := false.
+Definition extracted_kernel_linked : bool := extracted_kernel_production.
+Definition compcert_binary_verified_kernel : bool := false.
 Definition connectblock_refinement_proved : bool := false.
 Definition utxo_refinement_proved : bool := false.
 Definition db_refinement_proved : bool := false.
@@ -53,6 +58,15 @@ Theorem kernel_boundary_refinement_proved : refinement_proved = true.
 Proof. reflexivity. Qed.
 
 Theorem node_equivalence_not_proved : equivalence_proved = false.
+Proof. reflexivity. Qed.
+
+Theorem extracted_kernel_not_production : extracted_kernel_production = false.
+Proof. reflexivity. Qed.
+
+Theorem extracted_kernel_not_linked : extracted_kernel_linked = false.
+Proof. reflexivity. Qed.
+
+Theorem compcert_binary_not_verified : compcert_binary_verified_kernel = false.
 Proof. reflexivity. Qed.
 
 Theorem connectblock_not_proved : connectblock_refinement_proved = false.
@@ -66,10 +80,18 @@ Record cpp_issuance_params := {
   cpp_max_shifts : Z
 }.
 
+(** Must match Consensus::ORU_INITIAL_BLOCK_SUBSIDY / HALVING_INTERVAL / MAX_SHIFTS.
+    FrozenKernelParams does not apply to regtest (nSubsidyHalvingInterval = 150). *)
 Definition FrozenKernelParams : cpp_issuance_params :=
   {| cpp_base := 100000000000;
      cpp_interval := 210000;
      cpp_max_shifts := 3 |}.
+
+Definition ORU_GENESIS_BLOCK_SUBSIDY_Z : Z := 0.
+Definition ORU_MIN_BLOCK_SUBSIDY_Z : Z :=
+  Z.shiftr (cpp_base FrozenKernelParams) (cpp_max_shifts FrozenKernelParams).
+Definition ORU_SUBSIDY_CAP_HEIGHT : Z :=
+  cpp_interval FrozenKernelParams * cpp_max_shifts FrozenKernelParams.
 
 Definition kernel_params_frozen (p : cpp_issuance_params) : Prop :=
   p = FrozenKernelParams.
@@ -80,7 +102,7 @@ Definition cpp_RigorIssuanceEpoch (h : Z) : Z :=
 Definition cpp_GetBlockSubsidy (h : Z) (p : cpp_issuance_params) : Z :=
   if cpp_base p <=? 0 then 0
   else if cpp_interval p <=? 0 then 0
-  else if h =? 0 then 0
+  else if h =? 0 then ORU_GENESIS_BLOCK_SUBSIDY_Z
   else
     let halvings := h / cpp_interval p in
     if cpp_max_shifts p >=? 0 then
@@ -201,9 +223,48 @@ Theorem issuance_pins :
   cpp_issuance 100 p = coq_issuance 100 p /\
   cpp_issuance 209999 p = coq_issuance 209999 p /\
   cpp_issuance 210000 p = coq_issuance 210000 p /\
-  cpp_issuance 419999 p = coq_issuance 419999 p.
+  cpp_issuance 419999 p = coq_issuance 419999 p /\
+  cpp_issuance 630000 p = coq_issuance 630000 p /\
+  cpp_issuance 840000 p = coq_issuance 840000 p /\
+  cpp_issuance 1050000 p = coq_issuance 1050000 p.
 Proof.
   repeat split; apply issuance_refinement; unfold kernel_params_frozen; reflexivity; lia.
+Qed.
+
+Theorem oru_subsidy_constant_after_cap :
+  forall h,
+    ORU_SUBSIDY_CAP_HEIGHT <= h ->
+    cpp_GetBlockSubsidy h FrozenKernelParams = ORU_MIN_BLOCK_SUBSIDY_Z /\
+    oru_subsidy h = ORU_MIN_BLOCK_SUBSIDY_Z.
+Proof.
+  intros h Hh.
+  assert (Hge0 : 0 <= h) by (unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia).
+  split.
+  - unfold cpp_GetBlockSubsidy, FrozenKernelParams, ORU_GENESIS_BLOCK_SUBSIDY_Z.
+    simpl.
+    destruct (h =? 0) eqn:Z0.
+    + apply Z.eqb_eq in Z0. unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia.
+    + replace (Z.min (h / 210000) 3) with 3.
+      { unfold ORU_MIN_BLOCK_SUBSIDY_Z, FrozenKernelParams. simpl. reflexivity. }
+      symmetry. apply Z.min_r.
+      unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh. simpl in Hh.
+      assert (3 <= h / 210000).
+      { replace 3 with (630000 / 210000) by reflexivity.
+        apply Z.div_le_mono; lia. }
+      lia.
+  - rewrite <- cpp_oru_frozen_is_coq by exact Hge0.
+    unfold cpp_GetBlockSubsidy, FrozenKernelParams, ORU_GENESIS_BLOCK_SUBSIDY_Z.
+    simpl.
+    destruct (h =? 0) eqn:Z0.
+    + apply Z.eqb_eq in Z0. unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia.
+    + replace (Z.min (h / 210000) 3) with 3.
+      { unfold ORU_MIN_BLOCK_SUBSIDY_Z, FrozenKernelParams. simpl. reflexivity. }
+      symmetry. apply Z.min_r.
+      unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh. simpl in Hh.
+      assert (3 <= h / 210000).
+      { replace 3 with (630000 / 210000) by reflexivity.
+        apply Z.div_le_mono; lia. }
+      lia.
 Qed.
 
 Theorem res_schedule_at_0_is_40000000 :

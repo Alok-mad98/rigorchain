@@ -65,7 +65,13 @@
   "maturity": {
     "nCoinbaseMaturity": 100,
     "coin_height": 1,
-    "immature_spend_height": [1, 99, 100],
-    "mature_spend_height": [101]
+    "immature_spend_height": [
+      1,
+      99,
+      100
+    ],
+    "mature_spend_height": [
+      101
+    ]
   }
 }

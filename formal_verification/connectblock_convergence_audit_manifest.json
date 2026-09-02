@@ -1,0 +1,88 @@
+{
+  "task": "TASK-RIGOR-CONNECTBLOCK-CONSENSUS-CONVERGENCE-AUDIT-P0-086",
+  "date": "2026-09-02",
+  "nature": "Audit-first security review of ConnectBlock and the block-acceptance call graph. Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES, draw, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
+  "connectblock_consensus_convergence_audit": "OPEN",
+  "connectblock_acceptance_authority_count": 1,
+  "consensus_kernel_authority_count": 1,
+  "pow_acceptance_authority_count": 1,
+  "predicate_acceptance_authority_count": 1,
+  "ledger_acceptance_authority_count": 0,
+  "supply_acceptance_authority_count": 1,
+  "issuance_acceptance_authority_count": 1,
+  "res_acceptance_authority_count": 1,
+  "draw_acceptance_authority_count": 1,
+  "consensus_bypass_count": 5,
+  "duplicate_authority_count": 1,
+  "state_mutation_before_acceptance": true,
+  "connect_disconnect_symmetry": "PARTIAL",
+  "reorg_coverage": "PARTIAL",
+  "database_boundary_status": "INHERITED_BASE_LAYER_OPEN",
+  "database_consensus_implementation": "INHERITED_BASE_LAYER",
+  "database_consensus_risk": "OPEN",
+  "formal_coverage": "PARTIAL",
+  "fuzz_status": "PARTIAL",
+  "mutation_status": "PASS",
+  "golden_vector_status": "PARTIAL",
+  "release_guardian_coverage": "PARTIAL",
+  "live_mint_golden_vector": "NOT_COVERED",
+  "reorgbind_golden_vector": "NOT_COVERED",
+  "production_consensus_surface": "RigorConsensusKernel(C++) via Chainstate::ConnectBlock",
+  "node_acceptance_authority": "Chainstate::ConnectBlock → RigorConsensusKernel::EvaluateConnect",
+  "miner_acceptance_authority": "NONE (CreateNewBlock / GBT assemble; node accept is still ProcessNewBlock)",
+  "pool_acceptance_authority": "NONE (submitblock → ProcessNewBlock)",
+  "explorer_interpretation": "NONE (RPC / index readers; not accept/reject)",
+  "consensus_code_changed": false,
+  "protocol_parameters_changed": false,
+  "formal_theorems_changed": false,
+  "production_consensus_modified": false,
+  "formal_layers": {
+    "A_coq_connectblock_full": "NOT-COVERED (connectblock_full_proof = false)",
+    "B_coq_kernel_boundary": "PROVED (ConnectBlockKernelBoundary / InputPreparation / KernelResultApplication)",
+    "C_cpp_production_differential": "DIFFERENTIAL-TESTED for predicate/kernel slices; not full ConnectBlock",
+    "D_golden_vectors": "VECTOR-LOCKED height-1 valid + stale merkle; other cases LIVE-MUTATION or NOT_COVERED",
+    "E_fuzz": "FUZZ-TESTED model + CheckBlock; not Chainstate::ConnectBlock",
+    "F_database": "INHERITED_BASE_LAYER; sibling P0-086 database audit remains BLOCKED"
+  },
+  "bypass_paths": [
+    {
+      "id": "P0-086-CB-01",
+      "name": "ContextualCheckBlock / ContextualCheckBlockHeader not re-run in ConnectBlock",
+      "severity": "P0",
+      "class": "validation only on one ingress / upgrade hazard"
+    },
+    {
+      "id": "P0-086-CB-02",
+      "name": "RollforwardBlock applies UTXO without consensus checks",
+      "severity": "P0",
+      "class": "bypass / crash-recovery"
+    },
+    {
+      "id": "P0-086-CB-03",
+      "name": "assumevalid skips CheckInputScripts",
+      "severity": "P1",
+      "class": "bypass (mainnet policy-disabled; code path remains)"
+    },
+    {
+      "id": "P0-086-CB-04",
+      "name": "CheckRigorDrawTargetCommitment is a constant-true stub",
+      "severity": "P1",
+      "class": "missing validation"
+    },
+    {
+      "id": "P0-086-CB-05",
+      "name": "ConnectBlock CheckBlock(fCheckPOW=fCheckMerkle=!fJustCheck) skips PoW/merkle on TestBlockValidity",
+      "severity": "P2",
+      "class": "validation only on one ingress (TestBlockValidity still has its own Contextual/CheckBlock flags)"
+    }
+  ],
+  "duplicate_authorities": [
+    {
+      "name": "ConnectBlockRigor::VerifyCoinbaseConvergenceAndResLayout",
+      "status": "DEAD_DUPLICATE",
+      "production": false,
+      "overlaps": "RigorSupplyDelta bad-cb-res-amount"
+    }
+  ],
+  "reproduce": "bash tools/run-connectblock-consensus-convergence-audit.sh"
+}

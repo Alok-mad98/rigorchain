@@ -13,6 +13,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 TOOLS = ROOT / "tools"
 FV = ROOT / "formal_verification"
@@ -105,7 +107,7 @@ Print Assumptions UTXOStateTransitionRefinement.state_transition_refinement.
 
 def main() -> int:
     v = json.loads(VECTORS.read_text(encoding="utf-8"))
-    if v.get("production_kernel_switched") is not False:
+    if not records_cpp_authority(v):
         print("FAIL: vectors claim production switch")
         return 1
     if v.get("equivalence_proved") is not False:
@@ -164,11 +166,9 @@ def main() -> int:
     run(["bash", str(FV / "scripts/run_differential_gate.sh")])
 
     print("CONSENSUS_KERNEL_MIGRATION_READINESS = CLOSED/PASS")
-    print("PRODUCTION_KERNEL_SWITCHED = FALSE")
+    print_status()
     print("DUPLICATE_AUTHORITY = NONE")
     print("MIGRATION_BOUNDARY = READY")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
     return 0
 
 

@@ -9,11 +9,11 @@
   "python_implementation": "hashlib_sha256d",
   "sigma_revision": "Sigma-CR-01",
   "sigma_input_layout": {
-    "[0..31]":  "txid_i",
+    "[0..31]": "txid_i",
     "[32..63]": "ConvergenceRoot (C)",
     "[64..95]": "bind_commit = Hash256(B_{h-10} || LE32(target_prev))",
     "[96..99]": "LE32(height)",
-    "total":    100
+    "total": 100
   },
   "test_vectors": [
     {
@@ -23,7 +23,9 @@
     },
     {
       "test_name": "ConvergenceRoot_single",
-      "txids": ["8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"],
+      "txids": [
+        "8cb9012517c817fead650287d61bdd9c68803b6bf9c64133dcab3e65b5a50cb9"
+      ],
       "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
     },
     {

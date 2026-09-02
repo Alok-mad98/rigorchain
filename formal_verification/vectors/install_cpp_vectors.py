@@ -13,6 +13,12 @@ SRC = ROOT / "core" / "src"
 JSON_FILES = [
     "rigor_classification_vectors.json",
     "rigor_sighash_vectors.json",
+    "rigor_sighash_mutation_vectors.json",
+    "rigor_ed25519_signature_vectors.json",
+    "rigor_native_tx_vectors.json",
+    "rigor_asert_vectors.json",
+    "rigor_gbt_layout_vectors.json",
+    "rigor_connectblock_vectors.json",
 ]
 
 NEW_CPP = [

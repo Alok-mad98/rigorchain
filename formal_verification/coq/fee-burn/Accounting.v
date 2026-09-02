@@ -269,9 +269,9 @@ Proof.
 Qed.
 
 Lemma same_tx_same_burn :
-  forall fee c,
-    calculate_fee_burn fee c = calculate_fee_burn fee c.
-Proof. reflexivity. Qed.
+  forall fee c h1 n1 h2 n2,
+    fee_burn_in_context fee c h1 n1 = fee_burn_in_context fee c h2 n2.
+Proof. intros. apply fee_burn_deterministic. Qed.
 
 (** * Finite golden pins (share function; RES-transfer) *)
 

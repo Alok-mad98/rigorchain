@@ -251,7 +251,7 @@ def main() -> int:
     print("EXTRACTED_KERNEL_EXECUTION=PASS")
     print("SHADOW_COMPARE=PASS")
     print("DISCREPANCY=NONE")
-    print("PRODUCTION_KERNEL_SWITCHED=NO")
+    print("EXTRACTED_TO_BINARY=NOT-LINKED")
     print("REFINEMENT_PROVED=false")
     print("EQUIVALENCE_PROVED=false")
     return 0

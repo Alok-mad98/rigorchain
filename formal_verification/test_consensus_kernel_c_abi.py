@@ -146,7 +146,7 @@ def main() -> int:
         return 1
     print("PASS: extracted OCaml = C ABI = C++ Kernel on the C ABI vector domain")
     print("EXTRACTED_KERNEL_C_ABI=PASS CPP_ADAPTER=PASS")
-    print("REFINEMENT_PROVED=false EQUIVALENCE_PROVED=false PRODUCTION_KERNEL_SWITCHED=NO")
+    print("REFINEMENT_PROVED=false EQUIVALENCE_PROVED=false EXTRACTED_TO_BINARY=NOT-LINKED")
     return 0
 
 

@@ -25,23 +25,17 @@ namespace Consensus {
 
 namespace {
 
-//! Domain-separation tag. The trailing "v2" pins the on-the-wire format of
-//! the digest. Any change to leaf layout, preamble layout, or trailer layout
-//! MUST bump this to "v3" (and so on). See state_snapshot.h for the full format.
-constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v3"};
+//! Domain-separation tag. Bump the suffix on any leaf / preamble / trailer change.
+constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v4"};
 
 //! Build the canonical leaf bytes for one (outpoint, coin) pair.
-//! Layout (matches Coin::Serialize on disk):
+//! Layout (Coin::Serialize leaf; disk adds CRC-32C via CoinDiskFormatter):
 //!   COutPoint::Serialize(op)
 //!   || VARINT(coin.nHeight*2 + coin.fCoinBase)
-//!   || TxOutCompression(coin.out)
+//!   || CompressAmount || VARINT(scriptLen) || script
 //!
-//! DataStream is intentionally constructed without an explicit (type, version)
-//! pair: Coin::Serialize and TxOutCompression are version-independent, and
-//! pinning to PROTOCOL_VERSION would risk silent drift on future bumps. This
-//! matches the pattern used by `kernel/coinstats.cpp::TxOutSer`, which is the
-//! production-validated canonical form for the assumeutxo / UTXO snapshot
-//! commitment.
+//! DataStream has no GetType(); CoinDiskFormatter is never applied to MuHash
+//! leaves. Do not switch this to CDataStream(SER_DISK).
 DataStream MakeLeafBytes(const COutPoint& op, const Coin& coin)
 {
     DataStream ss{};

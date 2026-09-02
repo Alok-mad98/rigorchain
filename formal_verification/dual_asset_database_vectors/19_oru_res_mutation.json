@@ -1,0 +1,31 @@
+[
+  {
+    "id": "oru_script_mutated_to_res",
+    "before": "ORU",
+    "after": "RES",
+    "reclassified": true,
+    "same_key_would_decode_as_other_asset": true,
+    "production_checksum": false,
+    "fail_closed": false,
+    "note": "No asset tag. Script mutation is asset mutation."
+  },
+  {
+    "id": "res_script_mutated_to_oru",
+    "before": "RES",
+    "after": "ORU",
+    "reclassified": true,
+    "same_key_would_decode_as_other_asset": true,
+    "production_checksum": false,
+    "fail_closed": false,
+    "note": "Corrupt RES v1/32 \u2192 v0/20 is classified as ORU after load."
+  },
+  {
+    "id": "mint_script_mutated_to_v1_res",
+    "before": "RES",
+    "after": "RES",
+    "reclassified": false,
+    "lost_mint_identity": true,
+    "fail_closed": false,
+    "note": "Still ASSET_RES, but mint lock / script-encoded maturity is gone."
+  }
+]

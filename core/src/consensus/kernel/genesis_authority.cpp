@@ -37,6 +37,9 @@ bool RigorConsensusKernel::EvaluateConnect(const RigorConsensusKernelConnectInpu
     if (!in.coinbase || !in.params) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "kernel-connect-input");
     }
+    if (in.height < 0) {
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "kernel-negative-height");
+    }
 
     if (!rigor::ConnectEvaluateCoinbaseResMint(*in.coinbase, in.height, *in.params,
             in.parent_draw, in.parent_draw_outcome, state, out.res_mint)) {

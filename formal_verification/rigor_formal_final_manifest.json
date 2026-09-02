@@ -6,11 +6,13 @@
   "COQ_ADMITTED": 0,
   "COQ_AXIOMS": 0,
   "COQ_PARAMETERS": 0,
+  "COQ_MODEL_CLOSURE": "PROVED",
+  "COQ_TO_CPP": "VECTOR-TESTED",
+  "EXTRACTED_TO_BINARY": "NOT-LINKED",
   "REFINEMENT_PROVED": true,
   "EQUIVALENCE_PROVED": false,
   "CONSENSUS_KERNEL_GENESIS_AUTHORITY": "FINALIZED",
   "SINGLE_PRODUCTION_AUTHORITY": true,
-  "PRODUCTION_KERNEL_SWITCHED": true,
   "canonical_coq_kernel": {
     "role": "machine-checked Kernel / Transaction / Ledger / UTXO-composition / ConnectBlock-boundary model",
     "files": [
@@ -210,5 +212,9 @@
     "LevelDB / coinsdb refinement",
     "full ConnectBlock proof"
   ],
-  "reproduce": "tools/reproduce_rigor_formal_release.sh"
+  "reproduce": "tools/reproduce_rigor_formal_release.sh",
+  "PRODUCTION_CONSENSUS_AUTHORITY": "RigorConsensusKernel(C++)",
+  "FORMAL_REFINEMENT_STATUS": "PROVED",
+  "EXTRACTED_KERNEL_PRODUCTION": false,
+  "COMPCERT_BINARY_VERIFIED_KERNEL": false
 }

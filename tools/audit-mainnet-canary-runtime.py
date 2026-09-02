@@ -15,13 +15,14 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 TOOLS = ROOT / "tools"
 CANARY_DIR = SRC / "consensus/kernel_canary"
-RUNTIME = SRC / "node/kernel_runtime_canary.cpp"
+RUNTIME = SRC / "test/kernel_runtime_canary.cpp"
 VALIDATION = SRC / "validation.cpp"
 MAKEFILE = SRC / "Makefile.am"
-OBSERVATION = ROOT / "formal_verification/mainnet_canary_observation.json"
 
 MUTATION = re.compile(
     r"\bAbortNode\s*\(|"
@@ -85,8 +86,8 @@ def main() -> int:
         errors.append("ConnectBlock still dual-path canary")
 
     ctl = (CANARY_DIR / "canary_controller.h").read_text(encoding="utf-8", errors="replace")
-    if "inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = true" not in ctl:
-        errors.append("PRODUCTION_MAINNET_CANARY_ARMED must be TRUE")
+    if "inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = false" not in ctl:
+        errors.append("PRODUCTION_MAINNET_CANARY_ARMED must be FALSE")
 
     health = (CANARY_DIR / "canary_health.h").read_text(encoding="utf-8", errors="replace")
     for needle in ("ConsensusKernelCanaryHealth", "ACTIVE", "PAUSED", "DISABLED"):
@@ -132,51 +133,34 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    stale = ROOT / "formal_verification/mainnet_canary_observation.json"
+    if stale.is_file():
+        return fail("stale mainnet_canary_observation.json must not exist")
+
     cxx = os.environ.get("CXX") or "g++"
-    with tempfile.TemporaryDirectory(prefix="rigor_mn_canary_longrun_") as td:
+    with tempfile.TemporaryDirectory(prefix="rigor_mn_canary_forbidden_") as td:
         src = Path(td) / "run.cpp"
-        obs = OBSERVATION
         src.write_text(
-            f"""#include <consensus/kernel_canary/MainnetCanaryMonitor.h>
-#include <node/kernel_runtime_canary.h>
+            """#include <consensus/kernel_canary/MainnetCanaryMonitor.h>
+#include <test/kernel_runtime_canary.h>
 #include <cstdio>
 #include <string>
-int main() {{
-    RigorKernelRuntimeCanaryResetStats();
+int main() {
+    if (PRODUCTION_MAINNET_CANARY_ARMED) return 1;
     auto& m = MainnetCanaryMonitor::Instance();
-    if (m.Health() != ConsensusKernelCanaryHealthState::PAUSED) return 10;
+    if (m.Start()) return 2;
     std::string err;
-    if (!m.RunSoak(MAINNET_CANARY_LONGRUN_BLOCKS, err)) {{
-        std::fprintf(stderr, "%s\\n", err.c_str());
-        return 1;
-    }}
-    const int blocks = (int)m.blocks_checked();
-    if (blocks < MAINNET_CANARY_LONGRUN_BLOCKS) return 11;
-    if (m.discrepancy_count() != 0) return 2;
-    if (m.Health() != ConsensusKernelCanaryHealthState::ACTIVE) return 12;
-    if (!m.ExportObservation("{obs.as_posix()}")) return 13;
-    const char* faults[] = {{"issuance", "draw", "classify", "ledger_delta"}};
-    for (const char* name : faults) {{
-        RigorKernelRuntimeCanaryResetStats();
-        if (!m.Start()) return 14;
-        if (!m.FaultInject(name)) return 15;
-        if (m.enabled()) return 3;
-        if (m.Health() != ConsensusKernelCanaryHealthState::DISABLED) return 16;
-        if (m.discrepancy_count() == 0) return 4;
-        if (!RigorObserveConnectBlockRuntimeCanary(1, uint256(), uint256(), {{}}, uint256(), {{}}, {{}}, {{}})) return 5;
-    }}
-    std::printf("BLOCKS_MONITORED=%d\\n", blocks);
-    std::printf("DISCREPANCY_COUNT=0\\n");
-    std::printf("FAULT_INJECTION=PASS\\n");
-    std::printf("ROLLBACK_TEST=PASS\\n");
+    if (m.RunSoak(1, err)) return 3;
+    std::printf("MAINNET_CANARY_ARMED=FALSE\\n");
+    std::printf("MAINNET_SOAK_REFUSED=TRUE\\n");
     std::printf("CPP_AUTHORITY=ACTIVE\\n");
-    std::printf("CANARY_ROLE=VERIFY_ONLY\\n");
+    std::printf("CANARY_ROLE=TEST_ONLY\\n");
     return 0;
-}}
+}
 """,
             encoding="utf-8",
         )
-        out = Path(td) / "run_mn_canary_longrun"
+        out = Path(td) / "run_mn_canary_forbidden"
         cmd = [
             cxx,
             "-O2",
@@ -189,7 +173,7 @@ int main() {{
             "-o",
             str(out),
             str(src),
-            str(SRC / "node/kernel_runtime_canary.cpp"),
+            str(SRC / "test/kernel_runtime_canary.cpp"),
             str(SRC / "consensus/rigor_issuance.cpp"),
             str(SRC / "consensus/rigor_supply.cpp"),
             str(TOOLS / "consensus_kernel_refinement_log_stub.cpp"),
@@ -210,47 +194,15 @@ int main() {{
         except subprocess.CalledProcessError as e:
             return fail(str(e))
         sys.stdout.write(r.stdout)
-        if "ROLLBACK_TEST=PASS" not in r.stdout:
-            return fail("rollback test did not report PASS")
-        if "FAULT_INJECTION=PASS" not in r.stdout:
-            return fail("fault injection did not report PASS")
-        if "BLOCKS_MONITORED=" not in r.stdout:
-            return fail("missing BLOCKS_MONITORED")
+        if "MAINNET_SOAK_REFUSED=TRUE" not in r.stdout:
+            return fail("mainnet soak did not refuse")
 
-    if not OBSERVATION.is_file():
-        return fail("missing formal_verification/mainnet_canary_observation.json")
-    data = json.loads(OBSERVATION.read_text(encoding="utf-8"))
-    for field in (
-        "start_height",
-        "end_height",
-        "blocks_checked",
-        "comparisons",
-        "discrepancies",
-        "rollback_events",
-        "runtime_statistics",
-    ):
-        if field not in data:
-            return fail(f"observation missing {field}")
-    if int(data["blocks_checked"]) < 100000:
-        return fail("BLOCKS_MONITORED < 100000")
-    if int(data["discrepancies"]) != 0:
-        return fail("DISCREPANCY_COUNT != 0")
-    if data.get("production_kernel_switched") is not False:
-        return fail("observation must keep PRODUCTION_KERNEL_SWITCHED false")
-    if data.get("equivalence_proved") is not False:
-        return fail("observation must keep EQUIVALENCE_PROVED false")
-    stats = data["runtime_statistics"]
-    for k in ("cpp_execution_time_ms", "candidate_execution_time_ms", "rss_delta", "memory_growth"):
-        if k not in stats:
-            return fail(f"runtime_statistics missing {k}")
-
-    print("CONSENSUS_KERNEL_MAINNET_CANARY_LONGRUN = PASS")
-    print("CONSENSUS_KERNEL_MAINNET_CANARY = ACTIVE")
-    print("ROLLBACK_TEST = PASS")
-    print("FAULT_INJECTION = PASS")
+    print("CONSENSUS_KERNEL_MAINNET_CANARY_ARMED = FALSE")
+    print("CONSENSUS_KERNEL_MAINNET_CANARY = FORBIDDEN")
+    print("MAINNET_CANARY=DISARMED")
     print("CPP_AUTHORITY = ACTIVE")
-    print("CANARY_ROLE = VERIFY_ONLY")
-    print("PRODUCTION_KERNEL_SWITCHED = FALSE")
+    print("CANARY_ROLE = TEST_ONLY")
+    print_status()
     return 0
 
 

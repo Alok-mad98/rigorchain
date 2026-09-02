@@ -1,0 +1,391 @@
+{
+  "task": "TASK-RIGOR-DUAL-ASSET-ORU-RES-DATABASE-AUDIT-P0-086B",
+  "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
+  "oru_res_storage_model": "SHARED_COIN_MODEL",
+  "res_persistence_class": "C_HYBRID",
+  "res_persistence_class_note": "Ordinary RES (WITNESS_V1_RES) is a Coin. RES mint is a Coin whose script is RIGOR_MARKER_RES_MINT. Draw / convergence are not Coin fields. Mint-time maturity_height lives in the script; spend-time maturity uses Coin.nHeight + fCoinBase.",
+  "canonical": {
+    "coin_layout": "VARINT((coinbase?1:0)|(height<<1)) || VARINT(CompressAmount) || ScriptCompression",
+    "key_layout": "0x43 || txid32 || VARINT(vout)",
+    "asset_field_in_coin": false,
+    "asset_in_key": false,
+    "asset_source": "scriptPubKey via ClassifyRigorTxout after load",
+    "oru_key_prefix": "0x43",
+    "res_key_prefix": "0x43",
+    "separate_column": false,
+    "separate_database": false,
+    "separate_state_table": false
+  },
+  "vectors": {
+    "01_oru_only_coin": {
+      "value_hex": "03321600140102030405060708090a0b0c0d0e0f1011121314db717a9e",
+      "key_hex": "43aff9133e67215b4e6ca2437ce94914ab1283465f7643d7243c8c022f0316bf7500",
+      "asset": "ORU"
+    },
+    "02_res_only_coin": {
+      "value_hex": "020922512005060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223241c5c7e35",
+      "key_hex": "433ae58f67b95a09c04745ae2a643554923b3a65fce697072dad12d8df9ba180ad00",
+      "asset": "RES"
+    },
+    "03_oru_spend": {
+      "note": "spent coins are erased; see chain digest"
+    },
+    "04_res_spend": {
+      "note": "spent coins are erased; see chain digest"
+    },
+    "05_oru_res_same_block": {
+      "block": "A",
+      "contains": [
+        "ORU coinbase",
+        "RES mint",
+        "ORU transfer",
+        "RES transfer output"
+      ]
+    },
+    "06_oru_res_same_transaction": {
+      "allowed_by_protocol": "dual-pool RES spend with ORU fee inputs",
+      "harness_tx": "C mix tx persists both outputs"
+    },
+    "07_res_mint": {
+      "value_hex": "0326180165140708090a0b0c0d0e0f101112131415161718191abb804f19a9",
+      "key_hex": "4369ac2169a07e823c667eb62d2a77b256a0ed2ebe5d35df2e2459692a3ede44a601",
+      "asset": "RES",
+      "coinbase": true
+    },
+    "08_res_maturity": {
+      "spend_height_100_coin_1": false,
+      "spend_height_101_coin_1": true,
+      "nCoinbaseMaturity": 100,
+      "script_maturity_checked_at_mint_only": true,
+      "spend_uses_coinbase_flag_and_height": true
+    },
+    "09_reorg_oru": {
+      "covered_by": "reorg_recovery.by_asset.ORU"
+    },
+    "10_reorg_res": {
+      "covered_by": "reorg_recovery.by_asset.RES"
+    },
+    "11_restart_oru": {
+      "covered_by": "cache_db_equivalence.by_asset.ORU"
+    },
+    "12_restart_res": {
+      "covered_by": "cache_db_equivalence.by_asset.RES"
+    },
+    "13_reindex_oru": {
+      "harness": true,
+      "production_reindex": false
+    },
+    "14_reindex_res": {
+      "harness": true,
+      "production_reindex": false
+    },
+    "15_corrupted_oru": {
+      "see": "corruption oru_*"
+    },
+    "16_corrupted_res": {
+      "see": "corruption res_*"
+    },
+    "17_unknown_asset": {
+      "script_hex": "76a914000102030405060708090a0b0c0d0e0f1011121388ac",
+      "asset": "INVALID",
+      "fail_closed_classify": true
+    },
+    "18_malformed_asset": {
+      "script_hex": "5110000102030405060708090a0b0c0d0e0f",
+      "asset": "INVALID",
+      "retired_res2_asset": "INVALID",
+      "fail_closed_classify": true
+    },
+    "19_oru_res_mutation": {
+      "see": "mutation"
+    }
+  },
+  "keys": {
+    "oru_key_hex": "43aff9133e67215b4e6ca2437ce94914ab1283465f7643d7243c8c022f0316bf7500",
+    "res_key_hex": "433ae58f67b95a09c04745ae2a643554923b3a65fce697072dad12d8df9ba180ad00",
+    "shared_schema": true,
+    "asset_distinguishes_key": false,
+    "collision_only_if_same_outpoint": true
+  },
+  "cache_db_equivalence": {
+    "path_digests": {
+      "clean": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+      "cache_heavy": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+      "restart": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+      "flush_restart": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2"
+    },
+    "equivalent": true,
+    "oru_equivalent": true,
+    "res_equivalent": true,
+    "supply_equivalent": true,
+    "by_asset": {
+      "clean": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      },
+      "cache_heavy": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      },
+      "restart": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      },
+      "flush_restart": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      }
+    },
+    "supply": {
+      "clean": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      },
+      "cache_heavy": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      },
+      "restart": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      },
+      "flush_restart": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      }
+    }
+  },
+  "reorg_recovery": {
+    "via_reorg": {
+      "digest": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+      "by_asset": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      },
+      "supply": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      }
+    },
+    "via_clean_alt": {
+      "digest": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+      "by_asset": {
+        "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+        "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+        "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+        "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+      },
+      "supply": {
+        "oru": 19000000000,
+        "res": 140000000,
+        "other": 0,
+        "total_atoms": 19140000000
+      }
+    },
+    "equivalent": true,
+    "oru_equivalent": true,
+    "res_equivalent": true,
+    "supply_equivalent": true
+  },
+  "rebuild_equivalence": {
+    "from_block_storage_replay": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+    "from_live_alt": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+    "consensus_state_equivalent": true,
+    "oru_equivalent": true,
+    "res_equivalent": true,
+    "supply_equivalent": true,
+    "production_reindex_executed": false
+  },
+  "mutation": [
+    {
+      "id": "oru_script_mutated_to_res",
+      "before": "ORU",
+      "after": "RES",
+      "reclassified": true,
+      "same_key_would_decode_as_other_asset": true,
+      "production_checksum": false,
+      "fail_closed": false,
+      "note": "No asset tag. Script mutation is asset mutation."
+    },
+    {
+      "id": "res_script_mutated_to_oru",
+      "before": "RES",
+      "after": "ORU",
+      "reclassified": true,
+      "same_key_would_decode_as_other_asset": true,
+      "production_checksum": false,
+      "fail_closed": false,
+      "note": "Corrupt RES v1/32 \u2192 v0/20 is classified as ORU after load."
+    },
+    {
+      "id": "mint_script_mutated_to_v1_res",
+      "before": "RES",
+      "after": "RES",
+      "reclassified": false,
+      "lost_mint_identity": true,
+      "fail_closed": false,
+      "note": "Still ASSET_RES, but mint lock / script-encoded maturity is gone."
+    }
+  ],
+  "amounts": [
+    {
+      "case": "zero",
+      "n": 0,
+      "oru_money_range": true,
+      "res_money_range": true,
+      "res_amount_ok": true,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "one",
+      "n": 1,
+      "oru_money_range": true,
+      "res_money_range": true,
+      "res_amount_ok": true,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "oru_coin",
+      "n": 100000000,
+      "oru_money_range": true,
+      "res_money_range": true,
+      "res_amount_ok": true,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "res_coin_display",
+      "n": 1000000,
+      "oru_money_range": true,
+      "res_money_range": true,
+      "res_amount_ok": true,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "max_money",
+      "n": 1000000000000000000,
+      "oru_money_range": true,
+      "res_money_range": true,
+      "res_amount_ok": true,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "max_money_plus_one",
+      "n": 1000000000000000001,
+      "oru_money_range": false,
+      "res_money_range": false,
+      "res_amount_ok": false,
+      "same_storage_type": true,
+      "compress_roundtrip": true
+    },
+    {
+      "case": "negative",
+      "n": -1,
+      "oru_money_range": false,
+      "res_money_range": false,
+      "res_amount_ok": false,
+      "same_storage_type": true,
+      "compress_roundtrip": null
+    },
+    {
+      "case": "oru_plus_res_atoms",
+      "oru": 5000000000,
+      "res": 40000000,
+      "sum_atoms": 5040000000,
+      "same_monetary_unit": false,
+      "consensus_forbids_unfiltered_sum_as_fee": true,
+      "legacy_GetValueOut_sums_all_assets": true
+    }
+  ],
+  "corruption": [
+    {
+      "case": "oru_empty",
+      "asset_intent": "ORU",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "oru_trunc",
+      "asset_intent": "ORU",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "res_empty",
+      "asset_intent": "RES",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "res_trunc",
+      "asset_intent": "RES",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "oru_flipped_last",
+      "asset_intent": "ORU",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "res_flipped_last",
+      "asset_intent": "RES",
+      "harness_outcome": "FAIL_CLOSED",
+      "production_read_maps_to_missing": false,
+      "silently_becomes_other_asset": false
+    },
+    {
+      "case": "corrupt_oru_script_to_res",
+      "asset_intent": "ORU",
+      "decoded_asset": "RES",
+      "harness_outcome": "SILENT_RECLASSIFY",
+      "silently_becomes_other_asset": true,
+      "fail_closed": false
+    },
+    {
+      "case": "corrupt_res_script_to_oru",
+      "asset_intent": "RES",
+      "decoded_asset": "ORU",
+      "harness_outcome": "SILENT_RECLASSIFY",
+      "silently_becomes_other_asset": true,
+      "fail_closed": false
+    }
+  ],
+  "production_failure_boundary": {
+    "malformed_value": "Read catch \u2192 missing \u2192 TX_CONSENSUS",
+    "script_mutation_reclassifies_asset": true,
+    "database_fail_closed_for_value_corruption": false,
+    "oru_corruption_fail_closed": false,
+    "res_corruption_fail_closed": false
+  }
+}

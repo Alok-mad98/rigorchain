@@ -6,6 +6,15 @@
 // ConnectBlock prepares inputs, calls this Kernel, and consumes results.
 // Unique formula bodies remain in issuance / RES / draw / classify / supply.
 // No OCaml runtime. C ABI stays verify-only. EQUIVALENCE_PROVED = FALSE.
+//
+// Status is four independent facts. Do not reintroduce PRODUCTION_KERNEL_SWITCHED:
+// that name was used both for "C++ kernel is production" and "extracted kernel
+// is not production", which made true and false both look correct.
+//
+//   PRODUCTION_CONSENSUS_AUTHORITY = RigorConsensusKernel(C++)
+//   FORMAL_REFINEMENT_STATUS       = PROVED   (Coq; not a C++ runtime bit)
+//   EXTRACTED_KERNEL_PRODUCTION    = FALSE
+//   COMPCERT_BINARY_VERIFIED_KERNEL = FALSE
 
 #ifndef BITCOIN_CONSENSUS_KERNEL_GENESIS_AUTHORITY_H
 #define BITCOIN_CONSENSUS_KERNEL_GENESIS_AUTHORITY_H
@@ -20,7 +29,15 @@
 #include <script/script.h>
 #include <script/standard.h>
 
-inline constexpr bool PRODUCTION_KERNEL_SWITCHED = true;
+/** Unique production consensus authority. Coq is the spec, not a runtime. */
+inline constexpr const char PRODUCTION_CONSENSUS_AUTHORITY[] = "RigorConsensusKernel(C++)";
+/** Extracted OCaml/C kernel is not production. Do not reuse a "switched" flag. */
+inline constexpr bool EXTRACTED_KERNEL_PRODUCTION = false;
+/** CompCert/VST of a production kernel object is not claimed. Deferred.
+ *  The only future candidate is MakeKernelInput (pure marshalling). */
+inline constexpr bool COMPCERT_BINARY_VERIFIED_KERNEL = false;
+inline constexpr bool COMPCERT_VST_DEFERRED = true;
+inline constexpr const char COMPCERT_VST_CANDIDATE[] = "MakeKernelInput";
 inline constexpr bool GENESIS_SINGLE_PRODUCTION_AUTHORITY = true;
 inline constexpr bool GENESIS_EQUIVALENCE_PROVED = false;
 

@@ -1,7 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-MIGRATION-FREEZE-P0-068",
   "note": "Freeze vectors. Aligns current C++ authority, migration candidate, and existing refinement pins. Does not prove equivalence.",
-  "production_kernel_switched": false,
   "refinement_proved": true,
   "equivalence_proved": false,
   "alignment_source": [
@@ -16,17 +15,93 @@
     "oru_actual": 0,
     "draw": "none"
   },
-  "issuance_heights": [0, 1, 99, 100, 101, 209999, 210000, 419999, 420000],
+  "issuance_heights": [
+    0,
+    1,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    419999,
+    420000,
+    630000,
+    840000,
+    1050000
+  ],
   "epoch": [
-    {"height": 0, "epoch": 0, "oru": 0, "res_schedule": 40000000, "res_issued": 0},
-    {"height": 1, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 99, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 100, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 101, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 209999, "epoch": 0, "oru": 100000000000, "res_schedule": 40000000},
-    {"height": 210000, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196},
-    {"height": 419999, "epoch": 1, "oru": 50000000000, "res_schedule": 14142196},
-    {"height": 420000, "epoch": 2, "oru": 25000000000}
+    {
+      "height": 0,
+      "epoch": 0,
+      "oru": 0,
+      "res_schedule": 40000000,
+      "res_issued": 0
+    },
+    {
+      "height": 1,
+      "epoch": 0,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 99,
+      "epoch": 0,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 100,
+      "epoch": 0,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 101,
+      "epoch": 0,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 209999,
+      "epoch": 0,
+      "oru": 100000000000,
+      "res_schedule": 40000000
+    },
+    {
+      "height": 210000,
+      "epoch": 1,
+      "oru": 50000000000,
+      "res_schedule": 14142196
+    },
+    {
+      "height": 419999,
+      "epoch": 1,
+      "oru": 50000000000,
+      "res_schedule": 14142196
+    },
+    {
+      "height": 420000,
+      "epoch": 2,
+      "oru": 25000000000
+    },
+    {
+      "height": 630000,
+      "epoch": 3,
+      "oru": 12500000000,
+      "res_schedule": 5000000
+    },
+    {
+      "height": 840000,
+      "epoch": 4,
+      "oru": 12500000000,
+      "res_schedule": 3577712
+    },
+    {
+      "height": 1050000,
+      "epoch": 5,
+      "oru": 12500000000,
+      "res_schedule": 2721656
+    }
   ],
   "draw": [
     "empty_F",
@@ -59,5 +134,9 @@
     "duplicate_input",
     "unknown_asset"
   ],
-  "mismatch_policy": "CONSENSUS_KERNEL_FREEZE_DRIFT; never auto-correct"
+  "mismatch_policy": "CONSENSUS_KERNEL_FREEZE_DRIFT; never auto-correct",
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

@@ -4,7 +4,7 @@
 //
 // P067 verify-only migration shim. Calls existing authorities only.
 // Not compiled into production. Does not recode formulas.
-// PRODUCTION_KERNEL_SWITCHED = FALSE
+// EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 
 #ifndef BITCOIN_CONSENSUS_KERNEL_MIGRATION_KERNEL_MIGRATION_H
 #define BITCOIN_CONSENSUS_KERNEL_MIGRATION_KERNEL_MIGRATION_H

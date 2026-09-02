@@ -117,6 +117,8 @@ std::string ScriptErrorString(const ScriptError serror)
             return "RIGOR_MARKER_CONVERGE output is unspendable";
         case SCRIPT_ERR_RIGOR_SCRIPT_TYPE:
             return "Script type is not a RIGOR consensus lock";
+        case SCRIPT_ERR_RIGOR_CLASSIFIER_DIVERGENCE:
+            return "Rigor predicate classifier diverged from the production boundary";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

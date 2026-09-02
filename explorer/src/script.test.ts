@@ -1,5 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   classifyScriptPubKey,
   CONVERGENCE_OUTPUT_STATE,
@@ -81,6 +83,35 @@ describe("script-as-asset fail-closed classification", () => {
     assert.equal(cls.scriptName, "OP_RES_MINT");
     assert.equal(cls.address, null);
     assert.equal(isResMintScriptPubKey(mint), true);
+  });
+
+  it("rejects OP_5 mint encoding as INVALID, matching C++ P0-039", () => {
+    const op5 = "55" + "14" + "11".repeat(20) + "bb";
+    const cls = classifyScriptPubKey(op5, "rg");
+    assert.equal(cls.assetKind, "INVALID");
+    assert.equal(isResMintScriptPubKey(op5), false);
+    assert.notEqual(cls.assetKind, "RES");
+  });
+
+  it("classifies GetResMintScript(5) PUSHBYTES_1 0x05 as RES", () => {
+    const mint5 = "0105" + "14" + "11".repeat(20) + "bb";
+    const cls = classifyScriptPubKey(mint5, "rg");
+    assert.equal(cls.assetKind, "RES");
+    assert.equal(isResMintScriptPubKey(mint5), true);
+  });
+
+  it("replays P0-024 classification golden JSON (no second path)", () => {
+    const jsonPath = path.join(__dirname, "..", "..", "formal_verification", "vectors", "rigor_classification_vectors.json");
+    const rows = JSON.parse(fs.readFileSync(jsonPath, "utf8")) as Array<{
+      name: string;
+      scriptPubKey: string;
+      expected: string;
+    }>;
+    assert.ok(rows.length >= 14);
+    for (const row of rows) {
+      const cls = classifyScriptPubKey(row.scriptPubKey, "rg");
+      assert.equal(cls.assetKind, row.expected, row.name);
+    }
   });
 
   it("classifies v0/32 P2WSH as INVALID, not ORU", () => {

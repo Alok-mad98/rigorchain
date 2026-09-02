@@ -6,11 +6,12 @@
     This is not a full-node proof, not UTXO / DB / P2P / miner / wallet,
     not CompCert, not VST, not a PoW algorithm proof.
 
-      refinement_proved           = true   (surface closure)
-      equivalence_proved          = false
-      full_node_refinement        = false
-      pow_refinement_proved       = false
-      production_kernel_switched  = false
+      refinement_proved                    = true   (surface closure)
+      equivalence_proved                   = false
+      full_node_refinement                 = false
+      pow_refinement_proved                = false
+      extracted_kernel_production          = false
+      compcert_binary_verified_kernel      = false
 
     Phase5Equivalence / legacy_account_model / VACUOUS-PLACEHOLDER are
     NON_AUTHORITATIVE and are not refinement evidence.
@@ -36,7 +37,9 @@ Local Open Scope Z_scope.
 Definition refinement_proved : bool := true.
 Definition equivalence_proved : bool := false.
 Definition full_node_refinement : bool := false.
-Definition production_kernel_switched : bool := false.
+Definition extracted_kernel_production : bool := false.
+Definition extracted_kernel_linked : bool := extracted_kernel_production.
+Definition compcert_binary_verified_kernel : bool := false.
 Definition pow_refinement_proved : bool := false.
 Definition pow_boundary_registered : bool := true.
 
@@ -49,7 +52,13 @@ Proof. reflexivity. Qed.
 Theorem full_node_not_proved : full_node_refinement = false.
 Proof. reflexivity. Qed.
 
-Theorem production_kernel_not_switched : production_kernel_switched = false.
+Theorem extracted_kernel_not_production : extracted_kernel_production = false.
+Proof. reflexivity. Qed.
+
+Theorem extracted_kernel_not_linked : extracted_kernel_linked = false.
+Proof. reflexivity. Qed.
+
+Theorem compcert_binary_not_verified : compcert_binary_verified_kernel = false.
 Proof. reflexivity. Qed.
 
 Theorem pow_not_proved : pow_refinement_proved = false.

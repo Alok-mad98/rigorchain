@@ -1,0 +1,115 @@
+{
+  "task": "TASK-RIGOR-CRYPTOGRAPHIC-BOUNDARY-SECURITY-AUDIT-P0-080",
+  "date": "2026-08-31",
+  "note": "Security audit of the cryptographic boundary (SHA256d / SHA3-256 PoW / Ed25519 / SignatureHash). Does not modify protocol rules, Consensus Kernel, Transaction Kernel, PoW, Genesis, issuance, supply, or draw.",
+  "consensus_modified": false,
+  "pow_modified": false,
+  "genesis_modified": false,
+  "issuance_modified": false,
+  "supply_modified": false,
+  "draw_modified": false,
+  "new_theorem_added": false,
+  "crypto_authority_count": 4,
+  "sha256_authority_count": 1,
+  "ed25519_authority_count": 1,
+  "sighash_authority_count": 1,
+  "hash_roles": [
+    {
+      "role": "pow_hash",
+      "symbol": "GetRigorPowHash",
+      "primitive": "SHA3-256(RGRPOW01 || header_80)",
+      "file": "core/src/rigor_kernel/pow_digest.cpp",
+      "caller": "CheckProofOfWork",
+      "not": "SHA256d"
+    },
+    {
+      "role": "block_header_hash",
+      "symbol": "CBlockHeader::GetHash",
+      "primitive": "SHA256d via SerializeHash",
+      "file": "core/src/primitives/block.cpp"
+    },
+    {
+      "role": "transaction_digest",
+      "symbol": "CTransaction::ComputeHash",
+      "alias": "CMutableTransaction::GetHash",
+      "primitive": "SHA256d SER_GETHASH no-witness",
+      "file": "core/src/primitives/transaction.cpp"
+    },
+    {
+      "role": "sighash_preimage_hash",
+      "symbol": "SignatureHash",
+      "primitive": "SHA256d via HashWriter::GetHash",
+      "file": "core/src/script/predicate_verify.cpp"
+    }
+  ],
+  "sha256d_primitive": "CSHA256 composed twice (CHash256 / HashWriter::GetHash)",
+  "sha256_hardware_transform": "SHA256AutoDetect selects equivalent Transform; not a second authority",
+  "pow_domain_tag": "RGRPOW01",
+  "ed25519_authority": "ed25519::VerifyDetached",
+  "ed25519_provider": "core/src/crypto/ed25519_provider.cpp",
+  "ed25519_libsodium": "crypto_sign_verify_detached",
+  "spend_path": [
+    "VerifyRigorPredicate",
+    "CheckEd25519Signature",
+    "ed25519::VerifyDetached"
+  ],
+  "sighash_authority": "SignatureHash",
+  "sighash_preimage": "tag || chain_id || nVersion || hashPrevouts || hashSequence || hashOutputs || this prevout || spent scriptPubKey || amount || nSequence || nLockTime",
+  "sighash_tags": [
+    "RGRORU01",
+    "RGRRES01",
+    "RGRMNT01"
+  ],
+  "hashtype_byte": false,
+  "hidden_sighash_flag": false,
+  "mutable_signing_domain": false,
+  "ambiguous_serialization": false,
+  "second_hash_implementation": "NONE",
+  "fallback_hash": "NONE",
+  "wallet_hash_as_authority": false,
+  "miner_hash_as_authority": false,
+  "miner_opuhash_residue": "miner/sha2.c historical search; not CheckProofOfWork",
+  "python_sighash_consensus": false,
+  "alternate_verification_path": "NONE",
+  "legacy_checksig": false,
+  "script_vm_residue_executable": false,
+  "signature_parser_bypass": false,
+  "malformed_policy": "REJECT",
+  "ed25519_fail_closed": [
+    "wrong key",
+    "wrong signature",
+    "modified message",
+    "modified digest",
+    "replay signature",
+    "truncated signature",
+    "oversized signature",
+    "malformed public key"
+  ],
+  "mutation_must_change_hash_or_reject": [
+    "header byte mutation",
+    "nonce mutation",
+    "nBits mutation",
+    "tx byte mutation",
+    "sighash field mutation",
+    "endian reversal"
+  ],
+  "existing_signature_boundary_theorem": "SignatureBoundary.valid_signature_eq_accept_boundary",
+  "refinement_proved": true,
+  "refinement_proved_note": "Inherited SignatureBoundary accept-boundary. Unchanged. No new theorem. Not a SHA256 or Ed25519 cryptosystem proof.",
+  "equivalence_proved": false,
+  "sha256_math_proof_claimed": false,
+  "ed25519_crypto_proof_claimed": false,
+  "pow_digest_model_refinement_proved": false,
+  "coq_admitted": 0,
+  "coq_axioms": 0,
+  "coq_parameters": 0,
+  "fuzz_status": "PASS",
+  "crash_found": false,
+  "undefined_behavior": false,
+  "not_claimed": [
+    "SHA256 mathematical security proof",
+    "Ed25519 cryptographic proof",
+    "C++ equivalence to Coq hash/PoW models"
+  ],
+  "final_verdict": "RIGOR_CRYPTOGRAPHIC_BOUNDARY_SECURITY_AUDIT_CLOSED"
+}

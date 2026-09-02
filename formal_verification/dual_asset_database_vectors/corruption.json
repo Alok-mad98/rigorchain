@@ -1,0 +1,60 @@
+[
+  {
+    "case": "oru_empty",
+    "asset_intent": "ORU",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "oru_trunc",
+    "asset_intent": "ORU",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "res_empty",
+    "asset_intent": "RES",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "res_trunc",
+    "asset_intent": "RES",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "oru_flipped_last",
+    "asset_intent": "ORU",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "res_flipped_last",
+    "asset_intent": "RES",
+    "harness_outcome": "FAIL_CLOSED",
+    "production_read_maps_to_missing": false,
+    "silently_becomes_other_asset": false
+  },
+  {
+    "case": "corrupt_oru_script_to_res",
+    "asset_intent": "ORU",
+    "decoded_asset": "RES",
+    "harness_outcome": "SILENT_RECLASSIFY",
+    "silently_becomes_other_asset": true,
+    "fail_closed": false
+  },
+  {
+    "case": "corrupt_res_script_to_oru",
+    "asset_intent": "RES",
+    "decoded_asset": "ORU",
+    "harness_outcome": "SILENT_RECLASSIFY",
+    "silently_becomes_other_asset": true,
+    "fail_closed": false
+  }
+]

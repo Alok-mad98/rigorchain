@@ -2434,6 +2434,7 @@ def main() -> None:
                 "vectors": vectors,
             },
             indent=2,
+            ensure_ascii=False,
         )
         + "\n"
     )

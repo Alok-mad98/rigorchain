@@ -1,0 +1,43 @@
+{
+  "consensus_code_changed": false,
+  "database_audit_status": "CLOSED",
+  "database_format_changed": false,
+  "database_security_audit_status": "CLOSED",
+  "database_security_stage": "ADDED",
+  "date": "2026-09-02",
+  "draw_production_rebuild_equivalence": "PASS",
+  "errors": [],
+  "evidence": {
+    "p0_087": "formal_verification/database_architecture_audit_manifest.json",
+    "p0_088": "formal_verification/production_reindex_reconstruction_audit_manifest.json",
+    "p0_089": "formal_verification/wallet_sqlite_audit_manifest.json"
+  },
+  "final_verdict": "PASS",
+  "formal_theorems_changed": false,
+  "guardian_executes": [
+    "bash tools/run-production-reindex-reconstruction-audit.sh",
+    "bash tools/run-wallet-sqlite-audit.sh"
+  ],
+  "guardian_requires": [
+    "PRODUCTION_FULL_REINDEX=PASS",
+    "WALLET_SQLITE_AUDIT_STATUS=CLOSED"
+  ],
+  "mint_production_rebuild_equivalence": "PASS",
+  "nature": "Audit closure only. No consensus changes. No database format changes.",
+  "oru_production_rebuild_equivalence": "PASS",
+  "p0_requiring_code_change": 0,
+  "production_full_reindex": "PASS",
+  "production_rebuild_divergence_count": 0,
+  "production_reindex_audit": "PASS",
+  "production_reindex_chainstate": "PASS",
+  "res_production_rebuild_equivalence": "PASS",
+  "rigor_database_architecture_audit": "CLOSED",
+  "task": "TASK-RIGOR-DATABASE-SECURITY-CLOSURE-P0-091",
+  "utxo_production_rebuild_equivalence": "PASS",
+  "wallet_format_changed": false,
+  "wallet_sqlite_asset_display_boundary": "VERIFIED",
+  "wallet_sqlite_audit_status": "CLOSED",
+  "wallet_sqlite_corruption_fail_closed": true,
+  "wallet_sqlite_crash_recovery": "VERIFIED",
+  "wallet_sqlite_schema_boundary": "VERIFIED"
+}

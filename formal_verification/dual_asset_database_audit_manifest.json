@@ -1,0 +1,150 @@
+{
+  "task": "TASK-RIGOR-DUAL-ASSET-ORU-RES-DATABASE-AUDIT-P0-086B",
+  "date": "2026-09-02",
+  "nature": "Audit-first dual-asset (ORU / RES) CoinsDB / persistence review on top of P0-086. Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES mint rules, draw, convergence, ORU rules, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
+  "dual_asset_database_audit": "BLOCKED",
+  "oru_res_storage_model": "SHARED_COIN_MODEL",
+  "oru_database_semantics": "SCRIPT_AS_ASSET_COIN",
+  "res_database_semantics": "HYBRID_COIN_PLUS_MINT_SCRIPT_PLUS_INDEX_MEMO",
+  "res_persistence_class": "C_HYBRID",
+  "asset_id_authority_count": 1,
+  "observational_asset_id_replica_count": 4,
+  "oru_database_authority_count": 1,
+  "res_database_authority_count": 3,
+  "oru_supply_authority_count": 1,
+  "res_supply_authority_count": 1,
+  "oru_supply_equivalence": true,
+  "res_supply_equivalence": true,
+  "oru_cache_db_equivalence": "PASS",
+  "res_cache_db_equivalence": "PASS",
+  "oru_reorg_recovery": "PASS",
+  "res_reorg_recovery": "PASS",
+  "oru_rebuild_equivalence": "PARTIAL",
+  "res_rebuild_equivalence": "PARTIAL",
+  "oru_corruption_fail_closed": false,
+  "res_corruption_fail_closed": false,
+  "oru_res_implicit_conversion": "PRESENT_AT_OBSERVATIONAL_BOUNDARY",
+  "oru_res_cross_accounting": "OBSERVATIONAL",
+  "fuzz_status": "PASS",
+  "mutation_status": "RECLASSIFIES",
+  "golden_vector_status": "LOCKED",
+  "formal_coverage": "NOT_COVERED",
+  "release_guardian_dual_asset_coverage": "PARTIAL",
+  "consensus_code_changed": false,
+  "protocol_parameters_changed": false,
+  "formal_theorems_changed": false,
+  "production_consensus_modified": false,
+  "formal_layers": {
+    "ORU_DATABASE_PROVED": "NOT_COVERED",
+    "ORU_DATABASE_DIFFERENTIAL_TESTED": "harness PASS (cache / reorg / rebuild digest)",
+    "ORU_DATABASE_FUZZED": "smoke PASS; not a campaign",
+    "ORU_DATABASE_VECTOR_LOCKED": true,
+    "RES_DATABASE_PROVED": "NOT_COVERED",
+    "RES_DATABASE_DIFFERENTIAL_TESTED": "harness PASS (cache / reorg / rebuild digest)",
+    "RES_DATABASE_FUZZED": "smoke PASS; not a campaign",
+    "RES_DATABASE_VECTOR_LOCKED": true,
+    "DATABASE_FORMALLY_PROVED": false
+  },
+  "storage": {
+    "shared_coin_model": true,
+    "asset_field_in_coin": false,
+    "asset_in_key": false,
+    "key_layout": "0x43 || txid32 || VARINT(vout)",
+    "value_layout": "VARINT((coinbase?1:0)|(height<<1)) || TxOutCompression",
+    "oru_key_prefix": "0x43",
+    "res_key_prefix": "0x43",
+    "separate_column": false,
+    "separate_database": false,
+    "separate_state_table": false,
+    "key_collision_only_if_same_outpoint": true
+  },
+  "res_hybrid": {
+    "ordinary_res": "WITNESS_V1_RES Coin",
+    "res_mint": "RIGOR_MARKER_RES_MINT Coin (usually coinbase)",
+    "draw": "CBlockIndex memo; not a Coin field",
+    "convergence": "not a UTXO; AddCoins skips",
+    "mint_maturity_in_script": true,
+    "spend_maturity_uses_coinbase_flag_and_height": true,
+    "observational_supply": "memory-only RuntimeSupplyState"
+  },
+  "findings": [
+    {
+      "id": "P0-086B-01",
+      "severity": "P0",
+      "title": "Script mutation reclassifies ORU ↔ RES because Coin has no asset tag or checksum",
+      "production": "Coin::Unserialize + AssetTypeFromScriptPubKey(scriptPubKey)",
+      "effect": "A well-formed Coin whose script is flipped from v0/20 to native v1/32 is decoded as RES; the reverse becomes ORU. Production Read accepts the mutated value. This is not a conversion function; it is silent identity change after load.",
+      "classification": "DUAL_ASSET_IMPLICIT_CONVERSION / CORRUPTION_RECLASSIFY",
+      "fail_closed": false,
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-02",
+      "severity": "P0",
+      "title": "Inherited deserialize→missing maps to CONSENSUS_INVALID for both ORU and RES",
+      "inherits": "P0-086-01",
+      "effect": "Truncated ORU or RES Coin → GetCoin false → CheckTxInputs TX_CONSENSUS",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-03",
+      "severity": "P0",
+      "title": "Height / coinbase flag trusted for both assets; RES mint spend maturity is not re-checked from script",
+      "inherits": "P0-086-02",
+      "production": "CheckTxInputs uses coin.IsCoinBase() + nHeight. ConnectEvaluateCoinbaseResMint checks script maturity_height only at mint time. Coin::RequiresMaturity has no callers.",
+      "effect": "Flipping fCoinBase on a RES mint Coin skips spend-time maturity. Script-encoded maturity_height is not consulted on spend.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-04",
+      "severity": "P1",
+      "title": "CTransaction::GetValueOut() without asset sums ORU + RES + NONE + INVALID",
+      "production": "primitives/transaction.cpp GetValueOut()",
+      "effect": "Cross-asset atom sum. Not used by CheckTxInputs / ConnectBlock. Used in tests and fuzz. Header documents it as legacy / sanity.",
+      "classification": "DUAL_ASSET_IMPLICIT_CONVERSION / ORU_RES_CROSS_ACCOUNTING",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-05",
+      "severity": "P1",
+      "title": "ValueFromAmountAsset and Qt AssetContext default non-RES to ORU",
+      "production": "core_write.cpp ValueFromAmountAsset; qt/rigorwallet/assetcontext.cpp fromAssetType / toAssetType",
+      "effect": "ASSET_INVALID and unknown context display as ORU scale / ORU context. Observational only.",
+      "classification": "DUAL_ASSET_IMPLICIT_CONVERSION",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-06",
+      "severity": "P1",
+      "title": "gettxout / getassetbalance render RES amounts on the ORU 8-decimal scale",
+      "production": "rpc/blockchain.cpp gettxout ValueFromAmount; getassetbalance returns ValueFromAmount even for RES",
+      "effect": "EXPLORER_DUAL_ASSET_SEMANTIC_DIVERGENCE / RPC display. Not a consensus accept path. listunspent uses ValueFromAmountAsset.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-07",
+      "severity": "P2",
+      "title": "Observational UTXO supply scan lumps ORU + INVALID + NONE as utxo_non_res_balance",
+      "production": "AggregateUtxoSupplyBalances: IsResScript ? res : non-res",
+      "effect": "A mutated-to-invalid script still adds its nValue to the ORU-proxy bucket. Observational; ConnectBlock does not read it.",
+      "classification": "ORU_RES_CROSS_ACCOUNTING",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-08",
+      "severity": "P2",
+      "title": "getreceivedbyaddress returns the ORU tally for any non-RES address domain",
+      "production": "wallet/rpc/coins.cpp domain == ASSET_RES ? res : oru",
+      "effect": "INVALID / NONE address scripts are displayed as ORU. Wallet only.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086B-09",
+      "severity": "P2",
+      "title": "Explorer TypeScript classifier is a second asset interpreter",
+      "production": "explorer/src/script.ts classifyScriptPubKey",
+      "effect": "Not consensus. Drift would be EXPLORER_DUAL_ASSET_SEMANTIC_DIVERGENCE. Current tests pin the same cases as C++.",
+      "fixed_in_this_task": false
+    }
+  ]
+}

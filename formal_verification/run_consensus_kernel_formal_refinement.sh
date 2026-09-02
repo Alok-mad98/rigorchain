@@ -37,6 +37,7 @@ Print Assumptions ConsensusKernelRefinement.classification_refinement.
 Print Assumptions ConsensusKernelRefinement.draw_refinement.
 Print Assumptions ConsensusKernelRefinement.supply_delta_refinement.
 Print Assumptions ConsensusKernelRefinement.coinbase_boundary_refinement.
+Print Assumptions ConsensusKernelRefinement.oru_subsidy_constant_after_cap.
 EOF
 )"
 echo "$ASSUME"
@@ -52,6 +53,5 @@ echo "CLASSIFICATION_REFINEMENT=PASS"
 echo "DRAW_REFINEMENT=PASS"
 echo "SUPPLY_DELTA_REFINEMENT=PASS"
 echo "COINBASE_BOUNDARY_REFINEMENT=PASS"
-echo "REFINEMENT_PROVED=true"
-echo "EQUIVALENCE_PROVED=false"
-echo "PRODUCTION_KERNEL_SWITCHED=NO"
+echo "TAIL_EMISSION_CAP=PASS"
+python3 "$ROOT/tools/refinement_status.py"

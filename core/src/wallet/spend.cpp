@@ -30,6 +30,7 @@
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/wallet_safety_boundary.h>
+#include <wallet/security/wallet_security_boundary.h>
 #include <wallet/fees.h>
 #include <wallet/asset_domain.h>
 #include <wallet/fee_domain.h>
@@ -1647,6 +1648,25 @@ util::Result<CreatedTransactionResult> CreateTransaction(
 
     if (std::any_of(vecSend.cbegin(), vecSend.cend(), [](const auto& recipient){ return recipient.nAmount < 0; })) {
         return util::Error{_("Transaction amounts must not be negative")};
+    }
+
+    // P0-077: wallet request firewall. REJECT aborts before coin selection.
+    // ACCEPT_TO_BUILDER continues into CreateTransactionInternal. Spend
+    // validity remains VerifyRigorPredicate (Transaction Kernel).
+    {
+        WalletTransactionRequest wreq;
+        wreq.kind = WalletTxKind::TRANSFER;
+        for (const auto& rec : vecSend) {
+            WalletOutputSpec o;
+            o.amount = rec.nAmount;
+            o.asset = WalletAssetFromProduction(static_cast<uint8_t>(rec.asset));
+            o.destination.assign(rec.scriptPubKey.begin(), rec.scriptPubKey.end());
+            wreq.outputs.push_back(std::move(o));
+        }
+        const WalletSecurityResult ev = WalletSecurityBoundary::Evaluate(wreq);
+        if (ev.IsReject()) {
+            return util::Error{Untranslated(ev.reason ? ev.reason : "wallet-security-reject")};
+        }
     }
 
     LOCK(wallet.cs_wallet);

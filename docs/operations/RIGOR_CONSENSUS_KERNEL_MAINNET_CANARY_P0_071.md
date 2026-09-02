@@ -5,13 +5,17 @@
 **Nature:** Compare-only on mainnet. No ConnectBlock switch.
 
 ```
-CONSENSUS_KERNEL_MAINNET_CANARY = ACTIVE
-CANARY_ROLE                    = VERIFY_ONLY
+CONSENSUS_KERNEL_MAINNET_CANARY = FORBIDDEN
+CANARY_ROLE                    = TEST_ONLY
 CPP_AUTHORITY                  = ACTIVE
-PRODUCTION_KERNEL_SWITCHED     = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED              = TRUE
 EQUIVALENCE_PROVED             = FALSE
-PRODUCTION_MAINNET_CANARY_ARMED = TRUE
+PRODUCTION_MAINNET_CANARY_ARMED = FALSE
+MAINNET_CANARY                 = DISARMED
 ```
 
 Default remains **OFF**. The unique block decision is handwritten C++.
@@ -23,9 +27,9 @@ Default remains **OFF**. The unique block decision is handwritten C++.
 Both must be true:
 
 1. Operator explicit: `-enableconsensuskernelcanary`
-2. Release manifest: `PRODUCTION_MAINNET_CANARY_ARMED = TRUE`
+2. Release manifest: `PRODUCTION_MAINNET_CANARY_ARMED = FALSE`
 
-Otherwise init fails with `MAINNET_CANARY_NOT_ARMED`.
+Mainnet canary is disarmed. Init must not activate compare-only on mainnet.
 
 This is compare-only. Candidate output never decides accept/reject.
 
@@ -82,4 +86,4 @@ Long-run observation (P0-072):
 - ConnectBlock acceptance logic is unchanged.
 - C++ authorities are not deleted or replaced.
 - Issuance / RES / draw / supply / PoW / ASERT are unchanged.
-- `PRODUCTION_KERNEL_SWITCHED = FALSE`
+- `EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)`

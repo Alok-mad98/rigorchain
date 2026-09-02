@@ -33,6 +33,8 @@ echo "== Print Assumptions =="
 ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
 Require LedgerTransitionRefinement.
 Print Assumptions LedgerTransitionRefinement.ledger_apply_eq.
+Print Assumptions LedgerTransitionRefinement.ledger_apply_delta_eq.
+Print Assumptions LedgerTransitionRefinement.tx_reject_value_ok_fail_closed.
 Print Assumptions LedgerTransitionRefinement.genesis_actual_zero.
 Print Assumptions LedgerTransitionRefinement.double_spend_rejects.
 Print Assumptions LedgerTransitionRefinement.value_conservation_normal_spend.
@@ -47,6 +49,7 @@ fi
 echo "Print Assumptions: Closed under the global context (Axioms: 0)"
 
 python3 "$TOOLS/lint-ledger-kernel-boundary.py"
+python3 "$TOOLS/lint-coq-claim-strength.py"
 
 CXX="${CXX:-$(command -v g++ || command -v c++)}"
 mkdir -p "$OUT"
@@ -68,6 +71,5 @@ echo "VALUE_CONSERVATION=PASS"
 echo "DOUBLE_SPEND_BOUNDARY=PASS"
 echo "ASSET_CONSERVATION=PASS"
 echo "PRODUCTION_CONSENSUS_MODIFIED=NO"
-echo "PRODUCTION_KERNEL_SWITCHED=NO"
-echo "REFINEMENT_PROVED=true"
-echo "EQUIVALENCE_PROVED=false"
+echo "NODUP_SINGLE_ALGORITHM=PASS"
+python3 "$TOOLS/refinement_status.py"

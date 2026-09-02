@@ -10,6 +10,9 @@ supply_kernel.mli
 sighash_kernel.mli
 consensus_kernel.mli
 consensus_kernel_c.mli
+# F-4: MakeKernelInput test oracle is generated each gate run. Not production.
+makekernelinput_oracle.ml
+makekernelinput_oracle.mli
 *.vo
 *.glob
 *.aux

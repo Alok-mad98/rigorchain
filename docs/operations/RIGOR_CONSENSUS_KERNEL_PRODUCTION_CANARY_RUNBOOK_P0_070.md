@@ -9,10 +9,14 @@ CONSENSUS_KERNEL_PRODUCTION_CANARY_READY = PASS
 CANARY_AVAILABLE                         = TRUE
 CANARY_ENABLED                           = FALSE
 ROLLBACK_READY                           = TRUE
-PRODUCTION_KERNEL_SWITCHED               = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED                        = TRUE
 EQUIVALENCE_PROVED                       = FALSE
-PRODUCTION_MAINNET_CANARY_ARMED          = TRUE
+PRODUCTION_MAINNET_CANARY_ARMED          = FALSE
+MAINNET_CANARY                           = DISARMED
 ```
 
 Superseded for activation by
@@ -97,4 +101,4 @@ Do not treat a finite compare as equivalence. `EQUIVALENCE_PROVED = FALSE`.
 - Authorities are not replaced or deleted.
 - Extracted OCaml is not linked.
 - Issuance / RES / draw / supply / PoW / ASERT are unchanged.
-- `PRODUCTION_KERNEL_SWITCHED = FALSE`
+- `EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)`

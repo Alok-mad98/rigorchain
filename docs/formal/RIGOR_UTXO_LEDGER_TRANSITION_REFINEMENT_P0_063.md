@@ -12,7 +12,10 @@ ASSET_CONSERVATION             = PASS
 COQ_ADMITTED                   = 0
 COQ_AXIOMS                     = 0
 PRODUCTION_CONSENSUS_MODIFIED  = NO
-PRODUCTION_KERNEL_SWITCHED     = NO
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED              = TRUE
 EQUIVALENCE_PROVED             = FALSE
 ```
@@ -48,6 +51,10 @@ RES: `input RES + mint = output RES`
 
 Reject: negative amount, overflow past `MAX_MONEY`, duplicate outpoint,
 unknown asset, immature coinbase, Transaction/Consensus Kernel reject.
+
+`NoDupOutpoints` is a single unsorted scan (same shape as Coq
+`nodup_ops`). Do not restore a `n<=24` / `std::sort` split: that is two
+algorithms and blocks the B1 Clight/VST funspec for this function.
 
 Genesis height 0: actual issuance 0. `GetResMintReward(0)` stays
 40000000 and is not applied as circulating issuance.

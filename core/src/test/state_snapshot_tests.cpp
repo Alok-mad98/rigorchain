@@ -69,8 +69,8 @@ BOOST_FIXTURE_TEST_SUITE(state_snapshot_tests, BasicTestingSetup)
 
 namespace {
 
-//! Pre-genesis pre-image (STEP-0101 v2):
-//!   ASCII "RIGOR/STATE_HASH/v3" (19 bytes)
+//! Pre-genesis pre-image (STEP-0101 v4):
+//!   ASCII "RIGOR/STATE_HASH/v4" (19 bytes)
 //! || 4 zero bytes (height LE32 == 0)
 //! || 32 zero bytes (tip hash)
 //! || 32 zero bytes (UTXO MuHash slot — zero sentinel at pre-genesis)
@@ -84,10 +84,10 @@ namespace {
 //! vector above).
 //!
 constexpr unsigned char kExpectedRawSHA256d[32] = {
-    0xc8, 0x7b, 0xcb, 0x5d, 0xe5, 0xb1, 0x08, 0xba,
-    0x58, 0xa3, 0x92, 0x1e, 0xff, 0xd3, 0x82, 0x36,
-    0xc0, 0xc1, 0xbc, 0x07, 0x51, 0x59, 0x52, 0xf5,
-    0x19, 0xbd, 0x47, 0xfe, 0xcf, 0xfb, 0xd7, 0x36,
+    0xb1, 0x9e, 0x45, 0x51, 0xf9, 0x6f, 0x8a, 0xe3,
+    0xae, 0x8d, 0x8b, 0xb0, 0x98, 0x98, 0x9f, 0x79,
+    0x88, 0x05, 0xec, 0x7b, 0x74, 0xf4, 0xa0, 0x67,
+    0x67, 0x54, 0xaf, 0xfd, 0x2a, 0x3b, 0x14, 0xec,
 };
 
 //! Independent reference SHA256d implementation that does NOT share
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(state_hash_pre_genesis_byte_vector)
     // state_snapshot.h. We construct it from raw byte primitives, NOT from
     // any helper that the production code also uses, so any divergence in
     // the production code's encoding will surface here.
-    static constexpr char kTag[] = "RIGOR/STATE_HASH/v3";
+    static constexpr char kTag[] = "RIGOR/STATE_HASH/v4";
     constexpr size_t kTagLen = sizeof(kTag) - 1; // exclude trailing NUL
     BOOST_REQUIRE_EQUAL(kTagLen, 19u);
 
@@ -262,7 +262,7 @@ uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
     uint256 utxo_hash;
     muhash.Finalize(utxo_hash);
 
-    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v3"};
+    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v4"};
     HashWriter hw;
     hw.write(Span<const std::byte>{
         reinterpret_cast<const std::byte*>(kTag.data()),

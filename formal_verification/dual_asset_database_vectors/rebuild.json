@@ -1,0 +1,9 @@
+{
+  "from_block_storage_replay": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+  "from_live_alt": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+  "consensus_state_equivalent": true,
+  "oru_equivalent": true,
+  "res_equivalent": true,
+  "supply_equivalent": true,
+  "production_reindex_executed": false
+}

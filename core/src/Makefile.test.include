@@ -26,6 +26,12 @@ JSON_TEST_FILES = \
   test/data/rigor_script_asset_classifier.json \
   test/data/rigor_classification_vectors.json \
   test/data/rigor_sighash_vectors.json \
+  test/data/rigor_sighash_mutation_vectors.json \
+  test/data/rigor_ed25519_signature_vectors.json \
+  test/data/rigor_native_tx_vectors.json \
+  test/data/rigor_asert_vectors.json \
+  test/data/rigor_gbt_layout_vectors.json \
+  test/data/rigor_connectblock_vectors.json \
   test/data/issuance_height_boundary_p0_040.json \
   test/data/tx_invalid.json \
   test/data/tx_valid.json
@@ -37,6 +43,7 @@ GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.r
 
 BITCOIN_TEST_SUITE = \
   test/main.cpp \
+  test/kernel_runtime_canary.cpp \
   $(TEST_UTIL_H)
 
 FUZZ_SUITE_LD_COMMON = \
@@ -172,7 +179,13 @@ BITCOIN_TESTS =\
   test/test_consensus_kernel_mainnet_canary.cpp \
   test/test_consensus_kernel_mainnet_canary_longrun.cpp \
   test/test_genesis_consensus_authority.cpp \
-  node/kernel_runtime_canary.cpp \
+  test/test_p2p_security_boundary.cpp \
+  test/test_wallet_security_boundary.cpp \
+  test/test_script_opcode_security.cpp \
+  test/test_convergence_draw_security.cpp \
+  test/test_crypto_boundary_security.cpp \
+  test/test_pow_boundary_security.cpp \
+  test/test_node_operations_baseline.cpp \
   test/convergence_window_ui_tests.cpp \
   test/convergence_root_tests.cpp \
   test/rpc_tests.cpp \
@@ -183,6 +196,8 @@ BITCOIN_TESTS =\
   test/rigor_opcode_namespace_tests.cpp \
   test/rigor_classification_vector_tests.cpp \
   test/rigor_sighash_vector_tests.cpp \
+  test/rigor_connectblock_gbt_vector_tests.cpp \
+  test/rigor_connectblock_convergence_audit_tests.cpp \
   test/rigor_predicate_registry_tests.cpp \
   test/rigor_wallet_ownership_tests.cpp \
   test/script_tests.cpp \
@@ -436,6 +451,7 @@ endif # ENABLE_FUZZ_BINARY
 nodist_test_test_rigor_SOURCES = $(GENERATED_TEST_FILES)
 
 $(BITCOIN_TESTS): $(GENERATED_TEST_FILES)
+$(test_test_rigor_OBJECTS): $(GENERATED_TEST_FILES)
 
 CLEAN_BITCOIN_TEST = test/*.gcda test/*.gcno test/fuzz/*.gcda test/fuzz/*.gcno test/util/*.gcda test/util/*.gcno $(GENERATED_TEST_FILES) $(addsuffix .log,$(basename $(BITCOIN_TESTS)))
 

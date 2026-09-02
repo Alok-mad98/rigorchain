@@ -91,8 +91,8 @@ enum class TxoutType {
 
 class CNoDestination {
 public:
-    friend bool operator==(const CNoDestination &a, const CNoDestination &b) { return true; }
-    friend bool operator<(const CNoDestination &a, const CNoDestination &b) { return true; }
+    friend bool operator==(const CNoDestination&, const CNoDestination&) { return true; }
+    friend bool operator<(const CNoDestination&, const CNoDestination&) { return true; }
 };
 
 struct PKHash : public BaseHash<uint160>
@@ -235,6 +235,12 @@ bool IsConvergenceV1ScriptPubKey(const CScript& scriptPubKey);
 bool IsConvergenceScript(const CScript& scriptPubKey);
 /** Witness v1, 32-byte program that is neither CVG2 nor RES2-prefixed (native RES). Not Bitcoin Taproot. */
 bool IsResScript(const CScript& scriptPubKey);
+
+/** Outputs that occupy a Coin in the UTXO set. Return-marker and convergence do not. */
+inline bool EntersUtxoSet(const CScript& scriptPubKey)
+{
+    return !scriptPubKey.IsUnspendable() && !IsConvergenceScript(scriptPubKey);
+}
 
 /**
  * True iff every prevout is RES-classified (`GetTransactionInputAsset` == ASSET_RES).

@@ -1,7 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-CANARY-MIGRATION-P0-068",
   "note": "Canary vectors. Production switch remains OFF. Does not prove equivalence.",
-  "production_kernel_switched": false,
   "canary_default": "OFF",
   "enable_flag": "ENABLE_CONSENSUS_KERNEL_CANARY",
   "refinement_proved": true,
@@ -13,11 +12,38 @@
     "actual_issuance_res": 0,
     "draw": "none"
   },
-  "height": [0, 1, 99, 100, 101],
-  "epoch": [209999, 210000, 419999, 420000],
-  "transaction": ["valid_spend", "invalid_spend", "bad_signature", "malformed_witness"],
-  "draw": ["empty_F", "single_candidate", "equal_weight", "txid_tie_break", "zero_weight"],
-  "supply": ["mint", "burn", "fee", "invalid_delta"],
+  "height": [
+    0,
+    1,
+    99,
+    100,
+    101
+  ],
+  "epoch": [
+    209999,
+    210000,
+    419999,
+    420000
+  ],
+  "transaction": [
+    "valid_spend",
+    "invalid_spend",
+    "bad_signature",
+    "malformed_witness"
+  ],
+  "draw": [
+    "empty_F",
+    "single_candidate",
+    "equal_weight",
+    "txid_tie_break",
+    "zero_weight"
+  ],
+  "supply": [
+    "mint",
+    "burn",
+    "fee",
+    "invalid_delta"
+  ],
   "compare": [
     "accept",
     "issuance",
@@ -28,5 +54,9 @@
     "coinbase_expectation"
   ],
   "mismatch_policy": "CONSENSUS_KERNEL_CANARY_DISCREPANCY; never auto-correct",
-  "deterministic_cases": 10000
+  "deterministic_cases": 10000,
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

@@ -1,0 +1,36 @@
+{
+  "task": "TASK-RIGOR-ECONOMIC-MODEL-VALIDATION-PHASE-D-P0-076",
+  "date": "2026-08-31",
+  "note": "Simulation and validation only. Does not invent protocol values. Does not prove market price or external equilibrium.",
+  "consensus_formula_source": "RigorConsensusKernel",
+  "economic_model": "simulation_only",
+  "consensus_modified": false,
+  "formula_duplicate": false,
+  "issuance_modified": false,
+  "refinement_proved": true,
+  "equivalence_proved": false,
+  "authorities": {
+    "issuance": "GetBlockSubsidy",
+    "res_schedule": "GetResMintReward",
+    "issuance_pack": "ComputeRigorIssuance",
+    "supply": "RigorSupplyDelta"
+  },
+  "vector_source": "formal_verification/release_consensus_vectors.json",
+  "simulation_tools": [
+    "tools/economic_model_simulator.py",
+    "tools/security_budget_projection.py"
+  ],
+  "tests": [
+    "core/src/test/test_economic_model_validation.cpp"
+  ],
+  "forbidden": {
+    "second_economic_authority": false,
+    "connectblock_path": false,
+    "wallet_miner_rpc_consensus_dependency": false,
+    "formula_reimplementation": false
+  },
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
+}

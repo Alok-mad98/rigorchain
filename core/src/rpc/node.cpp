@@ -14,6 +14,7 @@
 #include <interfaces/ipc.h>
 #include <kernel/cs_main.h>
 #include <node/context.h>
+#include <node/operations/node_operations_hooks.h>
 #include <rpc/server.h>
 #include <rpc/server_util.h>
 #include <rpc/util.h>
@@ -417,10 +418,54 @@ static RPCHelpMan getindexinfo()
     };
 }
 
+static RPCHelpMan getnodehealth()
+{
+    return RPCHelpMan{"getnodehealth",
+                "Returns production node health: height, best chain hash, peers, sync, database, mempool, and consensus kernel presence.\n"
+                "Observational only. Does not modify chainstate and does not recode consensus formulas.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "height", "Best fully-validated chain height, or -1 if no tip"},
+                        {RPCResult::Type::STR_HEX, "best_block_hash", "Hash of the current best block"},
+                        {RPCResult::Type::NUM, "peer_count", "Number of connected peers"},
+                        {RPCResult::Type::BOOL, "syncing", "True if the node is in initial block download"},
+                        {RPCResult::Type::STR, "database_status", "ok | missing | corrupt | locked | version_mismatch | network_mismatch"},
+                        {RPCResult::Type::NUM, "mempool_size", "Number of transactions in the mempool"},
+                        {RPCResult::Type::NUM, "mempool_bytes", "Total virtual size of mempool transactions"},
+                        {RPCResult::Type::STR, "consensus_kernel_status", "available | unavailable (presence only; not a kernel decision)"},
+                        {RPCResult::Type::STR, "network", "main | test | regtest | devtest"},
+                    },
+                },
+                RPCExamples{
+                    HelpExampleCli("getnodehealth", "")
+            + HelpExampleRpc("getnodehealth", "")
+                },
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
+{
+    const node::NodeContext& node = EnsureAnyNodeContext(request.context);
+    const NodeHealthSnapshot h = FillNodeHealthSnapshot(node);
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("height", h.height);
+    obj.pushKV("best_block_hash", h.best_block_hash);
+    obj.pushKV("peer_count", h.peer_count);
+    obj.pushKV("syncing", h.syncing);
+    obj.pushKV("database_status", NodeOperationsBaseline::DatabaseHealthName(h.database_status));
+    obj.pushKV("mempool_size", h.mempool_size);
+    obj.pushKV("mempool_bytes", h.mempool_bytes);
+    obj.pushKV("consensus_kernel_status", NodeOperationsBaseline::KernelHealthName(h.kernel_status));
+    obj.pushKV("network", NodeOperationsBaseline::NetworkName(h.network));
+    return obj;
+},
+    };
+}
+
 void RegisterNodeRPCCommands(CRPCTable& t)
 {
     static const CRPCCommand commands[]{
         {"control", &getmemoryinfo},
+        {"control", &getnodehealth},
         {"control", &logging},
         {"util", &getindexinfo},
         {"hidden", &setmocktime},

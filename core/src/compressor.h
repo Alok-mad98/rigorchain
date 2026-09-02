@@ -6,11 +6,14 @@
 #ifndef BITCOIN_COMPRESSOR_H
 #define BITCOIN_COMPRESSOR_H
 
+#include <consensus/amount.h>
 #include <prevector.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <serialize.h>
 #include <span.h>
+
+#include <ios>
 
 /**
  * This saves us from making many heap allocations when serializing
@@ -80,18 +83,43 @@ struct ScriptCompression
         if (nSize < nSpecialScripts) {
             CompressedScript vch(GetSpecialScriptSize(nSize), 0x00);
             s >> Span{vch};
-            DecompressScript(script, nSize, vch);
+            if (!DecompressScript(script, nSize, vch)) {
+                throw std::ios_base::failure("ScriptCompression: DecompressScript failed (DATABASE_CORRUPTION)");
+            }
             return;
         }
         nSize -= nSpecialScripts;
         if (nSize > MAX_SCRIPT_SIZE) {
-            // Overly long script, replace with a short invalid one
-            script << RIGOR_MARKER_RETURN;
-            s.ignore(nSize);
+            throw std::ios_base::failure("ScriptCompression: script exceeds MAX_SCRIPT_SIZE (DATABASE_CORRUPTION)");
         } else {
             script.resize(nSize);
             s >> Span{script};
         }
+    }
+};
+
+/** Plain script bytes. No Bitcoin P2PKH/P2SH/P2PK special cases (script-as-asset). */
+struct ScriptPlainFormatter
+{
+    template<typename Stream>
+    void Ser(Stream &s, const CScript& script) {
+        unsigned int nSize = script.size();
+        if (nSize > MAX_SCRIPT_SIZE) {
+            throw std::ios_base::failure("ScriptPlainFormatter: script exceeds MAX_SCRIPT_SIZE (DATABASE_CORRUPTION)");
+        }
+        s << VARINT(nSize);
+        s << Span{script};
+    }
+
+    template<typename Stream>
+    void Unser(Stream &s, CScript& script) {
+        unsigned int nSize = 0;
+        s >> VARINT(nSize);
+        if (nSize > MAX_SCRIPT_SIZE) {
+            throw std::ios_base::failure("ScriptPlainFormatter: script exceeds MAX_SCRIPT_SIZE (DATABASE_CORRUPTION)");
+        }
+        script.resize(nSize);
+        s >> Span{script};
     }
 };
 
@@ -105,16 +133,20 @@ struct AmountCompression
     {
         uint64_t v;
         s >> VARINT(v);
-        val = DecompressAmount(v);
+        const uint64_t n = DecompressAmount(v);
+        if (n > static_cast<uint64_t>(MAX_MONEY)) {
+            throw std::ios_base::failure("AmountCompression: nValue out of MoneyRange (DATABASE_CORRUPTION)");
+        }
+        val = static_cast<I>(n);
     }
 };
 
-/** wrapper for CTxOut that provides a more compact serialization (Bitcoin-compatible: amount + script only). */
+/** wrapper for CTxOut that provides a compact serialization (amount compression + plain script). */
 struct TxOutCompression
 {
     FORMATTER_METHODS(CTxOut, obj)
     {
-        READWRITE(Using<AmountCompression>(obj.nValue), Using<ScriptCompression>(obj.scriptPubKey));
+        READWRITE(Using<AmountCompression>(obj.nValue), Using<ScriptPlainFormatter>(obj.scriptPubKey));
     }
 };
 

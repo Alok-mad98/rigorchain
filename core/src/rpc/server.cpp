@@ -5,6 +5,8 @@
 
 #include <rpc/server.h>
 
+#include <node/operations/node_operations_baseline.h>
+#include <rpc/protocol.h>
 #include <rpc/util.h>
 #include <shutdown.h>
 #include <sync.h>
@@ -18,6 +20,7 @@
 
 #include <cassert>
 #include <chrono>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -491,6 +494,16 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     // Find method
     auto it = mapCommands.find(request.strMethod);
     if (it != mapCommands.end()) {
+        NodeNetwork net = NodeNetwork::MAIN;
+        try {
+            net = NodeOperationsBaseline::ParseNetwork(gArgs.GetChainName().c_str());
+        } catch (const std::exception&) {
+            net = NodeNetwork::UNKNOWN;
+        }
+        const OperationsResult gate = NodeOperationsBaseline::EvaluateRpcMethod(net, request.strMethod.c_str());
+        if (gate.IsFail()) {
+            throw JSONRPCError(RPC_MISC_ERROR, gate.reason ? gate.reason : "RPC method disabled by node operations baseline");
+        }
         UniValue result;
         if (ExecuteCommands(it->second, request, result)) {
             return result;

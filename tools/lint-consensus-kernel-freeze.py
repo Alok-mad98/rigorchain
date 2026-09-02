@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import cpp_authority_reason, print_status  # noqa: E402
 SRC = ROOT / "core/src"
 MAKEFILE = SRC / "Makefile.am"
 VALIDATION = SRC / "validation.cpp"
@@ -85,8 +87,25 @@ def main() -> int:
         if authorities.get(domain) != name:
             errors.append(f"{domain} must remain {name}")
 
-    if man.get("production_kernel_switched") is not False:
-        errors.append("manifest claims production switch")
+    def contains_retired_key(obj: object) -> bool:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if str(k).lower() == "production_kernel_switched":
+                    return True
+                if contains_retired_key(v):
+                    return True
+        elif isinstance(obj, list):
+            return any(contains_retired_key(x) for x in obj)
+        return False
+    if contains_retired_key(man):
+        errors.append(
+            "retired PRODUCTION_KERNEL_SWITCHED must not appear; "
+            "C++ production is PRODUCTION_CONSENSUS_AUTHORITY, "
+            "extracted cutover is EXTRACTED_KERNEL_PRODUCTION"
+        )
+    ok, reason = cpp_authority_reason(man)
+    if not ok:
+        errors.append(f"manifest must record C++ production authority ({reason})")
     if man.get("equivalence_proved") is not False:
         errors.append("manifest overclaims equivalence")
     if man.get("candidate_equals_production") is not False:
@@ -159,7 +178,7 @@ def main() -> int:
     if errors:
         return fail(errors)
     print("AUTHORITY_FREEZE=PASS")
-    print("PRODUCTION_KERNEL_SWITCHED=FALSE")
+    print_status()
     return 0
 
 

@@ -20,6 +20,12 @@
       RES  v1      : RGRRES01
       RES  MINT    : RGRMNT01
 
+    The typed-integer layout record is SighashPreimage.SighashFields.
+    This module's SighashFields is the length-indexed prefix-injectivity
+    encoding (pre-serialized field widths).
+    [different_tags_different_preimages] here is not the same theorem as
+    MakeKernelInput.different_tags_different_preimages.
+
     chain_id is the genesis block hash, an explicit argument, never a
     consensus global. Ed25519 signs SHA256d of this preimage (C++
     HashWriter::GetHash). This module proves field-prefix injectivity

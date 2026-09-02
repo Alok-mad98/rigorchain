@@ -1,0 +1,56 @@
+{
+  "project": "RIGOR",
+  "version": "0.1.3",
+  "channel": "stable",
+  "artifacts": [
+    "windows-x86_64",
+    "linux-x86_64",
+    "macos-x86_64",
+    "macos-arm64"
+  ],
+  "sha256_verified": true,
+  "task": "TASK-RIGOR-GITHUB-PRODUCTION-RELEASE-P0-093",
+  "nature": "Release engineering / distribution verification. NOT a consensus TASK.",
+  "date": "2026-09-03",
+  "tag": "v0.1.3",
+  "title": "RIGOR v0.1.3",
+  "alphaplus_release": false,
+  "forbidden_legacy_prefix": "rigor-v0.1.2-alphaplus-",
+  "official_artifacts": [
+    "rigor-v0.1.3-windows-x86_64.exe",
+    "rigor-v0.1.3-windows-x86_64.zip",
+    "rigor-v0.1.3-linux-x86_64.tar.gz",
+    "rigor-v0.1.3-macos-x86_64.dmg",
+    "rigor-v0.1.3-macos-arm64.dmg",
+    "SHA256SUMS"
+  ],
+  "local_sha256": {
+    "rigor-v0.1.3-windows-x86_64.exe": "83b698f0826e85a5e424600d692296bf4a6e1c0b89614a631177aadd0c237bd9",
+    "rigor-v0.1.3-windows-x86_64.zip": "bbb7cc0d1bb7b03bdabe8c5f2fdd6df80e14df850ef06696fccce3c1821e3858",
+    "rigor-v0.1.3-linux-x86_64.tar.gz": "78784fe9691ee67ef5d68eb5ccc437b316c362698b6033434d635b7f3a020ff9"
+  },
+  "artifacts_missing_local": [
+    "rigor-v0.1.3-macos-x86_64.dmg",
+    "rigor-v0.1.3-macos-arm64.dmg"
+  ],
+  "wsl_cannot_generate_macos_binaries": true,
+  "github_actions_macos": {
+    "intel": "macos-15-intel",
+    "arm64": "macos-15"
+  },
+  "linux_install_test": "PASS",
+  "windows_install_test": "PASS",
+  "macos_intel_install_test": "FAIL",
+  "macos_arm_install_test": "FAIL",
+  "windows_run": "SKIPPED_NO_WINE",
+  "release_guardian_this_host": {
+    "command": "bash tools/run-release-guardian-full-pipeline-audit.sh",
+    "result": "FAIL",
+    "blocked_reason": "stale production binary; source newer than rigord: core/src/init.cpp mtime (content unchanged; no git diff)"
+  },
+  "consensus_code_changed": false,
+  "database_format_changed": false,
+  "wallet_format_changed": false,
+  "notes": "docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md",
+  "staging": ".github/releases/v0.1.3/"
+}

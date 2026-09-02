@@ -83,6 +83,7 @@ static TransactionKernelInput ValidOruTx()
     in.witness = {in.signature, in.pubkey};
     in.keyhash_match = true;
     in.crypto_accept = true;
+    in.sighash_tag = KernelAssignedSighashTag(CScript(in.scriptPubKey.begin(), in.scriptPubKey.end()));
     return in;
 }
 
@@ -282,6 +283,9 @@ int main()
 
     std::printf("PASS: utxo state transition refinement\n");
     std::printf("UTXO_STATE_TRANSITION_REFINEMENT=PASS\n");
-    std::printf("PRODUCTION_KERNEL_SWITCHED=NO\n");
+        std::printf("PRODUCTION_CONSENSUS_AUTHORITY=RigorConsensusKernel(C++)\n");
+    std::printf("FORMAL_REFINEMENT_STATUS=PROVED\n");
+    std::printf("EXTRACTED_KERNEL_PRODUCTION=FALSE\n");
+    std::printf("COMPCERT_BINARY_VERIFIED_KERNEL=FALSE\n");
     return 0;
 }

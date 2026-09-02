@@ -11,6 +11,7 @@
 #include <script/script_error.h>
 #include <span.h>
 #include <primitives/transaction.h>
+#include <consensus/amount.h>
 #include <uint256.h>
 
 #include <optional>
@@ -152,10 +153,24 @@ Span<const unsigned char> GetSighashDomainTag(SigVersion sigversion);
 template <class T>
 uint256 SignatureHash(const CScript& spent_script, const T& txTo, unsigned int nIn, const CAmount& amount, SigVersion sigversion, const uint256& chain_id, const PrecomputedTransactionData* cache = nullptr);
 
+/** Tx fields SignatureHash commits to. Marshalling only; not a second authority. */
+struct KernelSighashTxView {
+    uint256 chain_id;
+    int32_t nVersion{0};
+    uint256 hashPrevouts;
+    uint256 hashSequence;
+    uint256 hashOutputs;
+    uint256 prevout_hash;
+    uint32_t prevout_n{0};
+    CAmount amount{0};
+    uint32_t nSequence{0};
+    uint32_t nLockTime{0};
+};
+
 class BaseSignatureChecker
 {
 public:
-    virtual bool CheckEd25519Signature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const
+    virtual bool CheckEd25519Signature(const std::vector<unsigned char>&, const std::vector<unsigned char>&, const CScript&, SigVersion) const
     {
         return false;
     }
@@ -164,6 +179,13 @@ public:
     virtual int GetSpendHeight() const { return 0; }
 
     virtual const PrecomputedTransactionData* GetTxData() const { return nullptr; }
+
+    /** Tx fields SignatureHash commits to. False if the checker has no tx. */
+    virtual bool GetKernelSighashTxView(KernelSighashTxView& out) const
+    {
+        (void)out;
+        return false;
+    }
 
     virtual ~BaseSignatureChecker() {}
 };
@@ -200,6 +222,7 @@ public:
     bool CheckEd25519Signature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
     int GetSpendHeight() const override { return nSpendHeight; }
     const PrecomputedTransactionData* GetTxData() const override { return txdata; }
+    bool GetKernelSighashTxView(KernelSighashTxView& out) const override;
 };
 
 using TransactionSignatureChecker = GenericTransactionSignatureChecker<CTransaction>;
@@ -221,6 +244,11 @@ public:
     int GetSpendHeight() const override { return m_checker.GetSpendHeight(); }
 
     const PrecomputedTransactionData* GetTxData() const override { return m_checker.GetTxData(); }
+
+    bool GetKernelSighashTxView(KernelSighashTxView& out) const override
+    {
+        return m_checker.GetKernelSighashTxView(out);
+    }
 };
 
 // REMOVED: ComputeTapleafHash, ComputeTapbranchHash, ComputeWitnessV1PathMerkleRoot
@@ -258,14 +286,30 @@ inline bool ParseRigorScriptTemplate(const CScript& script, std::vector<std::vec
 }
 
 /**
- * Consensus spend: ScriptPubKey → fixed predicate → Ed25519. Not an opcode VM.
- * Unknown templates fail closed with SCRIPT_ERR_RIGOR_SCRIPT_TYPE.
+ * Consensus spend: ScriptPubKey → MakeKernelInput → VerifyRigorPredicateBoundary
+ * → Ed25519. Not an opcode VM. Unknown templates fail closed with
+ * SCRIPT_ERR_RIGOR_SCRIPT_TYPE.
  *
- * This is the only spend classifier. Do not add a second enum mirroring the
- * templates matched here: `LookupRigorPredicate` (rigor_predicate_registry.h)
- * names them for the wallet, and a third copy would be free to drift.
+ * This is the only spend authority. ClassifyRigorPredicateError reconstructs
+ * the pre-A1 predicate for ScriptError codes after a reject, and for tests.
+ * Do not add a second enum mirroring the templates matched here:
+ * `LookupRigorPredicate` (rigor_predicate_registry.h) names them for the
+ * wallet, and a third copy would be free to drift.
  */
 bool VerifyRigorPredicate(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror = nullptr);
+
+/**
+ * Pre-A1 spend predicate, retained as ScriptError classification and as a
+ * test/fuzz diagnostic oracle.
+ *
+ * Not a consensus authority. `validation.cpp` must not call this.
+ * `VerifyRigorPredicate` must not use the returned boolean as the
+ * accept/reject verdict: production acceptance is MakeKernelInput +
+ * VerifyRigorPredicateBoundary only. SAME-FUNCTION means that boolean
+ * matches this diagnostic's boolean; it does not mean ScriptError codes
+ * are a proved object.
+ */
+bool ClassifyRigorPredicateError(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror = nullptr);
 
 size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags);
 

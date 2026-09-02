@@ -15,8 +15,14 @@ AUDIT_PACKAGE_STATUS        = PASS
 COQ_ADMITTED                = 0
 COQ_AXIOMS                  = 0
 PRODUCTION_CONSENSUS_MODIFIED = NO
-PRODUCTION_KERNEL_SWITCHED  = NO
-REFINEMENT_PROVED           = TRUE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
+COQ_MODEL_CLOSURE           = PROVED
+COQ_TO_CPP                  = VECTOR-TESTED
+EXTRACTED_TO_BINARY         = NOT-LINKED
+PREDICATE_BOUNDARY_VS_PRODUCTION = SAME-FUNCTION
 EQUIVALENCE_PROVED          = FALSE
 ```
 
@@ -50,6 +56,13 @@ ASERT_CHANGED    = NO
 ```
 
 Production remains handwritten C++. Extracted OCaml is not linked.
+
+Kernel proof-to-binary (scope = ledger apply + supply delta, not the
+node) is the remaining path to `EXTRACTED_TO_BINARY`. B1 extracts a C99
+kernel. `NoDupOutpoints` is already a single unsorted scan so that
+extraction does not have to pick between two C++ bodies. Spend
+predicates stay behind the Ed25519 oracle; they are not in the first
+CompCert object.
 
 ---
 

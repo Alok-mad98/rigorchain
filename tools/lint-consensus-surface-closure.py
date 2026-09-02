@@ -11,6 +11,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 SRC = ROOT / "core/src"
 MAKEFILE = SRC / "Makefile.am"
 PHASE5 = ROOT / "formal_verification/coq/Phase5Equivalence/EquivalenceFramework.v"
@@ -145,7 +147,7 @@ def main() -> int:
         errors.append("txkernel compiled into production")
 
     print("PRODUCTION_CONSENSUS_MODIFIED=NO")
-    print("PRODUCTION_KERNEL_SWITCHED=YES")
+    print_status()
     print("ISSUANCE_CHANGED=NO")
     print("RES_CHANGED=NO")
     print("POW_CHANGED=NO")

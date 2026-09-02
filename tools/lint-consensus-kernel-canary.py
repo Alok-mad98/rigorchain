@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""P068: canary is verify-only. No second authority. Switch remains OFF."""
+"""P068: canary is verify-only. No second authority. EXTRACTED_KERNEL_PRODUCTION stays false."""
 
 from __future__ import annotations
 
@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 CANARY = SRC / "consensus/kernel_canary"
 MAKEFILE = SRC / "Makefile.am"
@@ -127,8 +129,8 @@ def main() -> int:
         errors.append("missing formal_verification/kernel_canary_vectors.json")
     else:
         v = json.loads(VECTORS.read_text(encoding="utf-8"))
-        if v.get("production_kernel_switched") is not False:
-            errors.append("vectors claim production kernel switched")
+        if not records_cpp_authority(v):
+            errors.append("vectors must record C++ production authority; extracted kernel is not production")
         if v.get("equivalence_proved") is not False:
             errors.append("vectors overclaim equivalence")
         if v.get("canary_default") != "OFF":
@@ -160,7 +162,7 @@ def main() -> int:
         return fail(errors)
     print("CANARY_IMPLEMENTED=TRUE")
     print("DUPLICATE_AUTHORITY=NONE")
-    print("PRODUCTION_KERNEL_SWITCHED=FALSE")
+    print_status()
     return 0
 
 

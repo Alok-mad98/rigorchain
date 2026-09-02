@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 STATUS = ROOT / "formal_verification/consensus_kernel_single_authority.json"
 CONNECT = ROOT / "core/src/validation.cpp"
 MAKEFILE = ROOT / "core/src/Makefile.am"
@@ -86,8 +88,8 @@ def main() -> int:
     st = json.loads(STATUS.read_text(encoding="utf-8"))
     if st.get("equivalence_proved"):
         errors.append("single-authority JSON flipped honesty flags")
-    if st.get("production_kernel_switched") is not True:
-        errors.append("JSON must record genesis Kernel switch")
+    if not records_cpp_authority(st):
+        errors.append("JSON must record C++ RigorConsensusKernel as production authority")
     if st.get("phase5_authority") != "NON_AUTHORITATIVE":
         errors.append("Phase5 must be NON_AUTHORITATIVE")
 
@@ -142,7 +144,7 @@ def main() -> int:
             print(f"  - {e}")
         return 1
     print("PASS: production Kernel path is single; ConnectBlock is orchestration")
-    print("REFINEMENT_PROVED=false EQUIVALENCE_PROVED=false PRODUCTION_KERNEL_SWITCHED=YES")
+    print_status()
     return 0
 
 

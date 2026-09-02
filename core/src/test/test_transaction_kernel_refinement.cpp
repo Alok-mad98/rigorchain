@@ -37,6 +37,7 @@ static TransactionKernelInput BaseInput()
     in.hashOutputs.assign(32, 0);
     in.prevout_hash.assign(32, 0);
     in.nVersion = 2;
+    in.sighash_fields_present = true;
     return in;
 }
 
@@ -85,6 +86,7 @@ int main()
         in.witness = {in.signature, in.pubkey};
         in.keyhash_match = true;
         in.crypto_accept = true;
+        in.sighash_tag = KernelAssignedSighashTag(res);
         if (!VerifyRigorPredicateBoundary(in)) return fail("valid RES key path");
     }
 

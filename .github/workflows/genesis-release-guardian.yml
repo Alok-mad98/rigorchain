@@ -1,0 +1,48 @@
+# P0-082: Genesis Release Guardian — unique pre-mainnet release gate.
+# CI / audit automation only. Does not modify consensus implementation.
+# Fail: RIGOR_RELEASE_BLOCKED
+# Reproduce locally: bash tools/run-genesis-release-guardian.sh
+
+name: genesis-release-guardian
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release-guardian:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - name: CI environment preflight
+        run: bash tools/ci/ci-environment-preflight.sh
+      - name: C++ compiler
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++
+      - name: Setup pinned Coq 8.15.0
+        uses: ./.github/actions/setup-coq
+      # Stage DATABASE_SECURITY (P0-091) is executed by the orchestrator via
+      # tools/run-database-security-guardian-stage.sh. It runs
+      # tools/run-production-reindex-reconstruction-audit.sh and
+      # tools/run-wallet-sqlite-audit.sh and requires
+      # PRODUCTION_FULL_REINDEX=PASS and WALLET_SQLITE_AUDIT_STATUS=CLOSED.
+      # Needs in-tree core/src/rigord matching wallet / CoinsDB sources.
+      - name: Genesis Release Guardian (all stages)
+        run: bash tools/run-genesis-release-guardian.sh
+      - name: Upload release guardian manifest
+        if: success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: release-guardian-manifest
+          path: release/release_guardian_manifest.json
+      - name: Release blocked
+        if: failure()
+        run: |
+          echo "RIGOR_RELEASE_BLOCKED"
+          echo "GENESIS_RELEASE_GUARDIAN=FAIL"
+          exit 1

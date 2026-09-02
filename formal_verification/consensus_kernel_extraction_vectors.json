@@ -3,7 +3,20 @@
   "note": "Pins for the extracted kernel. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,
-  "heights": [0, 1, 2, 99, 100, 101, 209999, 210000, 210001, 419999, 420000, 630000],
+  "heights": [
+    0,
+    1,
+    2,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    210001,
+    419999,
+    420000,
+    630000
+  ],
   "epoch": {
     "0": 0,
     "1": 0,

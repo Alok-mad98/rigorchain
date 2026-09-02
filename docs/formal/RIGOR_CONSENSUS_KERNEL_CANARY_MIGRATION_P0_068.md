@@ -10,8 +10,10 @@ CPP_PATH_STATUS        = PASS
 EXTRACTED_PATH_STATUS  = PASS
 COMPARE_STATUS         = PASS
 DISCREPANCY_COUNT      = 0
-PRODUCTION_SWITCHED    = FALSE
-REFINEMENT_PROVED      = TRUE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 EQUIVALENCE_PROVED     = FALSE
 ```
 
@@ -70,7 +72,7 @@ authority.
 ## Production default OFF
 
 ```
-PRODUCTION_KERNEL_SWITCHED = FALSE
+EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 ```
 
 This TASK does not flip ConnectBlock. It only opens a reversible compare

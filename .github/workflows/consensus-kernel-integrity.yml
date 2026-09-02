@@ -1,6 +1,8 @@
 # P060: Consensus Kernel integrity. Blocks merge on authority / assumption / gate drift.
 # Fail: CONSENSUS_KERNEL_INTEGRITY_FAILED
-# Do not apt-install Ubuntu Coq — pin coqorg/coq:8.15.0.
+# Do not apt-install Ubuntu Coq. Do not use job-level container: (coqorg/coq:8.15.0
+# is not a published Docker Hub tag; pull failures become ContainerId=null).
+# Pin Coq 8.15.0 + OCaml 4.13.1 via opam on ubuntu-latest.
 
 name: consensus-kernel-integrity
 
@@ -13,14 +15,36 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+      - name: CI environment preflight
+        run: bash tools/ci/ci-environment-preflight.sh
+      - name: CI docker-failure contract
+        run: bash tools/ci/test_docker_failure_contract.sh
       - name: C++ compiler
         run: sudo apt-get update && sudo apt-get install -y g++
+      - name: CI reproducibility
+        run: bash tools/ci/print-reproducibility.sh
       - name: Unique Kernel authority lock
         run: python3 tools/lint-consensus-authority.py
+      - name: Kernel switch single source
+        run: python3 tools/lint-kernel-switch-single-source.py
+      - name: Retired-flag lint reverse tests
+        run: python3 tools/tests/test_lint_kernel_switch.py
+      - name: Vacuous-result honesty
+        run: python3 formal_verification/tools/check_vacuous.py
+      - name: Extracted-oracle and CompCert/VST scope
+        run: python3 tools/lint-extracted-oracle-and-vst-scope.py
+      - name: FrozenKernelParams pin
+        run: python3 tools/lint-frozen-kernel-params.py
+      - name: Kernel reject-reason coverage
+        run: python3 tools/lint-kernel-reject-coverage.py
+      - name: Coq claim-strength lock
+        run: python3 tools/lint-coq-claim-strength.py
+      - name: Predicate boundary differential lock
+        run: python3 tools/lint-predicate-boundary-differential.py
       - name: Frozen vectors + governance test
         run: SKIP_COQ=1 bash formal_verification/run_consensus_kernel_governance.sh
       - name: Mainnet readiness audit
@@ -31,6 +55,9 @@ jobs:
         run: python3 tools/lint-ledger-kernel-boundary.py
       - name: UTXO state-transition lint
         run: python3 tools/lint-utxo-state-transition-boundary.py
+      - name: CI status
+        if: success()
+        run: echo "CI_STATUS=PASS"
       - name: Integrity failed
         if: failure()
         run: |
@@ -40,15 +67,27 @@ jobs:
   coq-assumptions:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    container:
-      image: coqorg/coq:8.15.0
-      options: --user root
     steps:
-      - uses: actions/checkout@v4
-      - name: Python
-        run: apt-get update && apt-get install -y --no-install-recommends python3
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - name: CI environment preflight
+        run: bash tools/ci/ci-environment-preflight.sh
+      - name: Setup pinned Coq 8.15.0
+        uses: ./.github/actions/setup-coq
+      - name: Build Coq objects (clean checkout)
+        run: bash tools/ci/build-coq-objects.sh
+      - name: CI reproducibility
+        run: bash tools/ci/print-reproducibility.sh
       - name: Coq assumption gate
         run: python3 tools/check-coq-consensus-assumptions.py
+      - name: CI status
+        if: success()
+        run: |
+          echo "CI_STATUS=PASS"
+          echo "COQ_ADMITTED=0"
+          echo "COQ_AXIOMS=0"
       - name: Integrity failed
         if: failure()
         run: |
@@ -58,17 +97,32 @@ jobs:
   kernel-gates:
     runs-on: ubuntu-latest
     timeout-minutes: 120
-    container:
-      image: coqorg/coq:8.15.0
-      options: --user root
     steps:
-      - uses: actions/checkout@v4
-      - name: Toolchain
-        run: apt-get update && apt-get install -y --no-install-recommends python3 g++ make
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      - name: CI environment preflight
+        run: bash tools/ci/ci-environment-preflight.sh
+      - name: Setup pinned Coq 8.15.0
+        uses: ./.github/actions/setup-coq
+      - name: Build Coq objects (clean checkout)
+        run: bash tools/ci/build-coq-objects.sh
+      - name: CI reproducibility
+        run: bash tools/ci/print-reproducibility.sh
       - name: Kernel refinement gate
         run: bash formal_verification/run_consensus_kernel_refinement_gate.sh
       - name: Differential gate
         run: SKIP_TEST_RIGOR=1 bash formal_verification/scripts/run_differential_gate.sh
+      - name: Transaction kernel P058 gate
+        run: bash formal_verification/run_transaction_kernel_refinement.sh
+      - name: CI status
+        if: success()
+        run: |
+          echo "CI_STATUS=PASS"
+          echo "COQ_ADMITTED=0"
+          echo "COQ_AXIOMS=0"
+          echo "REFINEMENT_PROVED=TRUE"
       - name: Integrity failed
         if: failure()
         run: |

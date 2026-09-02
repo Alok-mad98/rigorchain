@@ -7,45 +7,11 @@
 #define BITCOIN_UNDO_H
 
 #include <coins.h>
-#include <compressor.h>
-#include <consensus/consensus.h>
 #include <primitives/transaction.h>
-#include <ios>
 #include <serialize.h>
-#include <version.h>
 
-/** Formatter for undo information for a CTxIn
- *
- *  Contains the prevout's CTxOut being spent, and its metadata as well
- *  (coinbase or not, height). The serialization contains a dummy value of
- *  zero. This is compatible with older versions which expect to see
- *  the transaction version there.
- */
-struct TxInUndoFormatter
-{
-    template<typename Stream>
-    void Ser(Stream &s, const Coin& txout) {
-        ::Serialize(s, VARINT(txout.nHeight * uint32_t{2} + txout.fCoinBase ));
-        if (txout.nHeight > 0) {
-            // Dummy version byte (legacy). Always 0 — mint identity is the script.
-            ::Serialize(s, (unsigned char)0);
-        }
-        ::Serialize(s, Using<TxOutCompression>(txout.out));
-    }
-
-    template<typename Stream>
-    void Unser(Stream &s, Coin& txout) {
-        uint32_t nCode = 0;
-        ::Unserialize(s, VARINT(nCode));
-        txout.nHeight = nCode >> 1;
-        txout.fCoinBase = nCode & 1;
-        if (txout.nHeight > 0) {
-            unsigned int nVersionDummy;
-            ::Unserialize(s, VARINT(nVersionDummy));
-        }
-        ::Unserialize(s, Using<TxOutCompression>(txout.out));
-    }
-};
+/** Undo encoding is the disk Coin encoding (leaf + CRC-32C). No Bitcoin dummy version byte. */
+using TxInUndoFormatter = CoinDiskFormatter;
 
 /** Undo information for a CTransaction */
 class CTxUndo

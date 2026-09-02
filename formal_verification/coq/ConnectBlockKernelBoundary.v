@@ -94,6 +94,37 @@ Theorem genesis_orchestration_applies_zero_delta :
   ConnectBlockOrchestration genesis_block_state = CB_AcceptApplyDelta 0.
 Proof. vm_compute. reflexivity. Qed.
 
+Theorem connectblock_rejects_bad_input :
+  forall s,
+    kernel_input_ok (PrepareKernelInput s) = false ->
+    ConnectBlockOrchestration s = CB_Reject.
+Proof.
+  intros s Hbad.
+  unfold ConnectBlockOrchestration, ConnectBlockApply, RunKernel.
+  simpl. rewrite Hbad. reflexivity.
+Qed.
+
+Theorem connectblock_rejects_negative_height :
+  ConnectBlockOrchestration negative_height_state = CB_Reject.
+Proof.
+  apply connectblock_rejects_bad_input.
+  vm_compute. reflexivity.
+Qed.
+
+Theorem connectblock_rejects_winner_mismatch :
+  ConnectBlockOrchestration winner_mismatch_state = CB_Reject.
+Proof.
+  apply connectblock_rejects_bad_input.
+  vm_compute. reflexivity.
+Qed.
+
+Theorem connectblock_can_reject :
+  exists s, ConnectBlockOrchestration s = CB_Reject.
+Proof.
+  exists winner_mismatch_state.
+  apply connectblock_rejects_winner_mismatch.
+Qed.
+
 Definition utxo_refinement_in_scope : bool := false.
 Definition db_refinement_in_scope : bool := false.
 Definition pow_refinement_in_scope : bool := false.

@@ -8,6 +8,7 @@
 
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import List.
+From Coq Require Import Bool.Bool.
 Import ListNotations.
 
 From RigorV01 Require Import AssetClassification.
@@ -26,6 +27,68 @@ Record ConsensusKernelResult := {
   ckr_ok : bool
 }.
 
+Definition KERNEL_MAX_MONEY : Z := 10000000000 * 100000000.
+
+Definition kernel_money_ok (n : Z) : bool :=
+  (0 <=? n) && (n <=? KERNEL_MAX_MONEY).
+
+Definition kernel_params_ok (p : cpp_issuance_params) : bool :=
+  (0 <? cpp_base p) && (0 <? cpp_interval p).
+
+Definition CONVERGENCE_DRAW_MIN_TXS_FOR_RES_Z : Z := 1.
+
+Inductive KernelRejectReason :=
+| KR_WinnerMismatch
+| KR_TriggerUnderflow
+| KR_WithoutWinner
+| KR_ResAmount
+| KR_BadCbAmount
+| KR_BadCbResAmount.
+
+(** Transcription of RigorSupplyDelta reject reasons
+    (core/src/consensus/rigor_supply.cpp). Not coinbase-script parsing. *)
+Definition kernel_supply_reject (i : ConsensusKernelInput)
+  : option KernelRejectReason :=
+  let scheduled := cpp_GetResMintReward (cki_height i) in
+  let authorized := 0 <? scheduled in
+  let minted := 0 <? cki_mint i in
+  if authorized && cki_has_winner i && negb minted then Some KR_WinnerMismatch
+  else if (cki_draw_cardinality i <? CONVERGENCE_DRAW_MIN_TXS_FOR_RES_Z) && minted
+       then Some KR_TriggerUnderflow
+  else if negb (cki_has_winner i) && minted then Some KR_WithoutWinner
+  else if negb authorized && minted then Some KR_ResAmount
+  else
+    let subsidy := cpp_GetBlockSubsidy (cki_height i) (cki_params i) in
+    let claimable := (cki_fees_oru i - cki_burn i) + subsidy in
+    if cki_oru_coinbase i >? claimable then Some KR_BadCbAmount
+    else if negb (cki_res_coinbase i =?
+                 expected_res_coinbase_cpp
+                   (cki_fees_res i) (cki_bootstrap i) (cki_mint i))
+         then Some KR_BadCbResAmount
+    else None.
+
+Definition kernel_supply_ok (i : ConsensusKernelInput) : bool :=
+  match kernel_supply_reject i with
+  | None => true
+  | Some _ => false
+  end.
+
+(** Reject path for malformed / out-of-range prepared inputs plus
+    RigorSupplyDelta fail-closed. Height < 0 matches EvaluateConnect. *)
+Definition kernel_input_ok (i : ConsensusKernelInput) : bool :=
+  kernel_params_ok (cki_params i) &&
+  (0 <=? cki_height i) &&
+  kernel_money_ok (cki_converge i) &&
+  kernel_money_ok (cki_burn i) &&
+  kernel_money_ok (cki_mint i) &&
+  kernel_money_ok (cki_fees_oru i) &&
+  kernel_money_ok (cki_fees_res i) &&
+  kernel_money_ok (cki_bootstrap i) &&
+  (if cki_height i =? 0
+   then (cki_mint i =? 0) && (cki_converge i =? 0)
+   else true) &&
+  kernel_supply_ok i.
+
 (** Kernel run on a prepared input. Calls P056 surfaces only. *)
 Definition RunKernel (i : ConsensusKernelInput) : ConsensusKernelResult :=
   {| ckr_issuance := cpp_issuance (cki_height i) (cki_params i);
@@ -40,7 +103,7 @@ Definition RunKernel (i : ConsensusKernelInput) : ConsensusKernelResult :=
      ckr_res_coinbase_expected :=
        expected_res_coinbase_cpp
          (cki_fees_res i) (cki_bootstrap i) (cki_mint i);
-     ckr_ok := true |}.
+     ckr_ok := kernel_input_ok i |}.
 
 Inductive ConnectBlockAction :=
 | CB_Reject
@@ -102,6 +165,30 @@ Theorem runkernel_coinbase_is_sum :
     expected_res_coinbase_cpp
       (cki_fees_res i) (cki_bootstrap i) (cki_mint i).
 Proof. intros. reflexivity. Qed.
+
+Theorem runkernel_ok_iff :
+  forall i, ckr_ok (RunKernel i) = kernel_input_ok i.
+Proof. intros. reflexivity. Qed.
+
+Theorem runkernel_rejects_when_input_not_ok :
+  forall i, kernel_input_ok i = false -> ckr_ok (RunKernel i) = false.
+Proof.
+  intros i H. rewrite runkernel_ok_iff. exact H.
+Qed.
+
+Theorem runkernel_rejects_when_supply_rejects :
+  forall i,
+    kernel_supply_ok i = false -> ckr_ok (RunKernel i) = false.
+Proof.
+  intros i H.
+  unfold RunKernel. simpl.
+  unfold kernel_input_ok.
+  rewrite H, andb_false_r. reflexivity.
+Qed.
+
+Theorem winner_mismatch_input_not_ok :
+  kernel_input_ok (PrepareKernelInput winner_mismatch_state) = false.
+Proof. vm_compute. reflexivity. Qed.
 
 Theorem genesis_run_oru_actual_zero :
   ip_oru (ckr_issuance (RunKernel (PrepareKernelInput genesis_block_state))) = 0.

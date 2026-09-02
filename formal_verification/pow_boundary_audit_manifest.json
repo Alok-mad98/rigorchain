@@ -1,0 +1,122 @@
+{
+  "task": "TASK-RIGOR-POW-BOUNDARY-SECURITY-AUDIT-P0-081",
+  "date": "2026-08-31",
+  "note": "Security audit of the PoW boundary (header_80 / SHA3-256 digest / compact target / ASERT). Does not modify protocol rules, PoW parameters, SHA256, ASERT, Consensus Kernel, Transaction Kernel, or Ledger.",
+  "production_consensus_modified": false,
+  "pow_modified": false,
+  "sha256_modified": false,
+  "asert_modified": false,
+  "consensus_kernel_modified": false,
+  "transaction_kernel_modified": false,
+  "ledger_modified": false,
+  "new_theorem_added": false,
+  "pow_authority_count": 1,
+  "hash_authority_count": 1,
+  "asert_authority_count": 1,
+  "target_validation_status": "PASS",
+  "header_serialization_status": "PASS",
+  "fuzz_status": "PASS",
+  "consensus_bypass_status": "NONE",
+  "roles": [
+    {
+      "role": "block_hash_calculation",
+      "symbol": "CBlockHeader::GetHash",
+      "primitive": "SHA256d via SerializeHash",
+      "file": "core/src/primitives/block.cpp",
+      "not": "PoW digest"
+    },
+    {
+      "role": "pow_digest",
+      "symbol": "GetRigorPowHash",
+      "primitive": "SHA3-256(RGRPOW01 || header_80)",
+      "file": "core/src/rigor_kernel/pow_digest.cpp",
+      "caller": "CheckProofOfWork"
+    },
+    {
+      "role": "target_comparison",
+      "symbol": "CheckProofOfWork",
+      "primitive": "compact decode then digest <= target",
+      "file": "core/src/pow.cpp",
+      "outputs": [
+        "ACCEPT",
+        "REJECT"
+      ]
+    },
+    {
+      "role": "difficulty_adjustment",
+      "symbol": "GetNextWorkRequired",
+      "body": "GetNextWorkASERT",
+      "file": "core/src/pow.cpp",
+      "not": "CalculateNextWorkRequired"
+    }
+  ],
+  "pow_domain_tag": "RGRPOW01",
+  "header_len": 80,
+  "header_fields": [
+    "version",
+    "previous block hash",
+    "merkle root",
+    "timestamp",
+    "nBits",
+    "nonce"
+  ],
+  "extra_header_fields": false,
+  "serialization_deterministic": true,
+  "second_hash_path": "NONE",
+  "miner_pow_as_authority": false,
+  "wallet_pow_as_authority": false,
+  "rpc_pow_override": "NONE",
+  "legacy_pow_validation_path": "NONE",
+  "opus_hash_residue": "pow_opus.cpp linked; zero production callers",
+  "calculate_next_work_required": "tests/tooling only; not validation.cpp",
+  "connectblock_pow_recheck": false,
+  "kernel_is_pow_authority": false,
+  "illegal_target_policy": "REJECT",
+  "target_fail_closed": [
+    "target = 0",
+    "target above powLimit",
+    "compact overflow",
+    "compact negative",
+    "digest > target"
+  ],
+  "asert": {
+    "half_life_mainnet": 43200,
+    "anchor_height": 1,
+    "child_ntime_in_exponent": false,
+    "uniqueness": "same previous difficulty state + timestamps => unique compact target"
+  },
+  "attack_vectors": [
+    "invalid nonce",
+    "invalid hash",
+    "fake target",
+    "malformed nBits",
+    "timestamp manipulation",
+    "header mutation",
+    "replay old valid header",
+    "chainwork comparison attack"
+  ],
+  "crash_found": false,
+  "undefined_behavior": false,
+  "existing_pow_boundary_theorem": "ConsensusSurfaceClosure.pow_boundary_accept_iff_le",
+  "refinement_proved": true,
+  "refinement_proved_note": "Inherited PowBoundary accept-iff-le. Unchanged. No new theorem. Not a SHA256, SHA3, or PoW-economic proof.",
+  "pow_digest_model_refinement_proved": false,
+  "equivalence_proved": false,
+  "sha256_math_proof_claimed": false,
+  "pow_economic_proof_claimed": false,
+  "fifty_one_percent_impossible_claimed": false,
+  "coq_admitted": 0,
+  "coq_axioms": 0,
+  "coq_parameters": 0,
+  "not_claimed": [
+    "SHA256 mathematical security proof",
+    "PoW economic security proof",
+    "51% attacks cannot occur",
+    "C++ equivalence to Coq PowDigest"
+  ],
+  "final_verdict": "RIGOR_POW_BOUNDARY_SECURITY_AUDIT_CLOSED",
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
+}

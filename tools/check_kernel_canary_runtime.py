@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 TOOLS = ROOT / "tools"
 LOGDIR = ROOT / "logs/consensus_kernel_canary"
@@ -37,7 +39,7 @@ def compile_and_run_stream() -> None:
     with tempfile.TemporaryDirectory(prefix="rigor_tn_canary_") as td:
         src = Path(td) / "run.cpp"
         src.write_text(
-            """#include <node/kernel_runtime_canary.h>
+            """#include <test/kernel_runtime_canary.h>
 #include <cstdio>
 #include <string>
 int main() {
@@ -69,7 +71,7 @@ int main() {
             "-o",
             str(out),
             str(src),
-            str(SRC / "node/kernel_runtime_canary.cpp"),
+            str(SRC / "test/kernel_runtime_canary.cpp"),
             str(SRC / "consensus/rigor_issuance.cpp"),
             str(SRC / "consensus/rigor_supply.cpp"),
             str(TOOLS / "consensus_kernel_refinement_log_stub.cpp"),
@@ -113,14 +115,14 @@ def main() -> int:
     max_us = float(st.get("max_block_micros", 0))
     if max_us > PERF_BUDGET_US:
         return fail(f"performance regression max_block_micros={max_us}")
-    if st.get("production_kernel_switched") is not False:
-        return fail("production switch claimed")
+    if not records_cpp_authority(st):
+        return fail("runtime status must record C++ production authority")
     print("CONSENSUS_KERNEL_TESTNET_CANARY = CLOSED/PASS")
     print("NETWORK = REGTEST/TESTNET")
     print(f"BLOCKS_VALIDATED = {blocks}")
     print("DISCREPANCY_COUNT = 0")
     print("CRASH_COUNT = 0")
-    print("PRODUCTION_KERNEL_SWITCHED = FALSE")
+    print_status()
     return 0
 
 

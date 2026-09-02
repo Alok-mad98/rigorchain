@@ -63,7 +63,4 @@ bash "$ROOT/formal_verification/run_consensus_mainnet_readiness.sh"
 
 echo "RIGOR_CONSENSUS_AUDIT_PACKAGE_REPRODUCIBLE"
 echo "AUDIT_PACKAGE_STATUS=PASS"
-echo "COQ_ADMITTED=0"
-echo "COQ_AXIOMS=0"
-echo "EQUIVALENCE_PROVED=false"
-echo "PRODUCTION_KERNEL_SWITCHED=NO"
+python3 "$ROOT/tools/refinement_status.py"

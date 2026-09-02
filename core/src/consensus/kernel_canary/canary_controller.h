@@ -5,7 +5,7 @@
 // P070 production-canary readiness controller. Compare-control only.
 // ENABLE_CONSENSUS_KERNEL_CANARY remains the verify-only dual-path guard
 // for KernelCanaryExecutor. This file does not recode authorities.
-// PRODUCTION_KERNEL_SWITCHED = FALSE
+// EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 // CANARY_AVAILABLE = TRUE
 // CANARY_ENABLED default FALSE
 
@@ -18,8 +18,8 @@
 
 inline constexpr bool CANARY_AVAILABLE = true;
 inline constexpr bool CANARY_ENABLED_DEFAULT = false;
-/** Release manifest: mainnet compare-only may start when the operator flag is set. */
-inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = true;
+/** Mainnet compare-only is not armed. Test-only canary, test chains only. */
+inline constexpr bool PRODUCTION_MAINNET_CANARY_ARMED = false;
 
 inline constexpr const char* KERNEL_CANARY_OPERATOR_EXPLICIT_REQUIRED = "OPERATOR_EXPLICIT_REQUIRED";
 inline constexpr const char* KERNEL_CANARY_ROLLBACK_DISCREPANCY = "CONSENSUS_KERNEL_CANARY_RUNTIME_DISCREPANCY";

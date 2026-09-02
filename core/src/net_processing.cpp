@@ -20,6 +20,7 @@
 #include <kernel/mempool_entry.h>
 #include <logging.h>
 #include <netbase.h>
+#include <net/security/p2p_message_boundary.h>
 #include <netmessagemaker.h>
 #include <node/blockstorage.h>
 #include <node/txreconciliation.h>
@@ -3237,6 +3238,28 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
 
     PeerRef peer = GetPeerRef(pfrom.GetId());
     if (peer == nullptr) return;
+
+    // P0-076: network validation boundary. Output is ACCEPT_TO_VALIDATION /
+    // REJECT / BAN_PEER only. Does not mutate chainstate or enter the Kernel.
+    // Spend validity of accepted tx messages remains VerifyRigorPredicate.
+    if (msg_type == NetMsgType::VERSION || msg_type == NetMsgType::BLOCK || msg_type == NetMsgType::TX) {
+        P2PSecurityInput p2p_in;
+        p2p_in.command = msg_type;
+        const auto* raw = reinterpret_cast<const uint8_t*>(vRecv.data());
+        p2p_in.payload.assign(raw, raw + vRecv.size());
+        const P2PValidationResult p2p_r = P2PMessageBoundary::Evaluate(p2p_in);
+        if (p2p_r.decision == P2PValidationDecision::BAN_PEER) {
+            LogPrint(BCLog::NET, "P2P security boundary BAN_PEER (%s) cmd=%s peer=%d\n",
+                     p2p_r.reason ? p2p_r.reason : "", msg_type, pfrom.GetId());
+            Misbehaving(*peer, DISCOURAGEMENT_THRESHOLD, p2p_r.reason ? p2p_r.reason : "p2p-security-boundary");
+            return;
+        }
+        if (p2p_r.decision == P2PValidationDecision::REJECT) {
+            LogPrint(BCLog::NET, "P2P security boundary REJECT (%s) cmd=%s peer=%d\n",
+                     p2p_r.reason ? p2p_r.reason : "", msg_type, pfrom.GetId());
+            return;
+        }
+    }
 
     if (msg_type == NetMsgType::VERSION) {
         if (pfrom.nVersion != 0) {

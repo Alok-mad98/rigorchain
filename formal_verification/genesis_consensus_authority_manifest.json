@@ -3,7 +3,6 @@
   "date": "2026-08-31",
   "CONSENSUS_KERNEL_GENESIS_AUTHORITY": "FINALIZED",
   "SINGLE_PRODUCTION_AUTHORITY": true,
-  "PRODUCTION_KERNEL_SWITCHED": true,
   "REFINEMENT_PROVED": true,
   "EQUIVALENCE_PROVED": false,
   "MAINNET_READY": true,
@@ -74,7 +73,11 @@
     "core/src/consensus/kernel_canary/",
     "core/src/consensus/kernel_migration/",
     "core/src/consensus/shadow/",
-    "core/src/node/kernel_runtime_canary.cpp",
+    "core/src/test/kernel_runtime_canary.cpp",
     "core/src/consensus/bridge/"
-  ]
+  ],
+  "PRODUCTION_CONSENSUS_AUTHORITY": "RigorConsensusKernel(C++)",
+  "FORMAL_REFINEMENT_STATUS": "PROVED",
+  "EXTRACTED_KERNEL_PRODUCTION": false,
+  "COMPCERT_BINARY_VERIFIED_KERNEL": false
 }

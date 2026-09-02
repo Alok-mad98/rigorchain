@@ -1,0 +1,108 @@
+{
+  "task": "TASK-RIGOR-RELEASE-BUILD-MATRIX-P0-092",
+  "nature": "Release engineering / artifact reproducibility. NOT a consensus task.",
+  "date": "2026-09-03",
+  "version": "0.1.3",
+  "git_commit": "7e6f53f997999d84fa22035bb7f533ae07e7eab3",
+  "old_artifact_name": "rigor-v0.1.2-alphaplus-linux.tar.gz",
+  "official_artifacts": [
+    "rigor-v0.1.3-windows-x86_64.exe",
+    "rigor-v0.1.3-windows-x86_64.zip",
+    "rigor-v0.1.3-linux-x86_64.tar.gz",
+    "rigor-v0.1.3-macos-x86_64.dmg",
+    "rigor-v0.1.3-macos-arm64.dmg"
+  ],
+  "sha256_sidecars": [
+    "rigor-v0.1.3-windows-x86_64.exe.sha256",
+    "rigor-v0.1.3-windows-x86_64.zip.sha256",
+    "rigor-v0.1.3-linux-x86_64.tar.gz.sha256",
+    "rigor-v0.1.3-macos-x86_64.dmg.sha256",
+    "rigor-v0.1.3-macos-arm64.dmg.sha256"
+  ],
+  "matrix": [
+    {
+      "target": "windows-x86_64",
+      "runner": "windows-latest",
+      "os": "windows",
+      "arch": "x86_64",
+      "artifacts": [
+        "rigor-v0.1.3-windows-x86_64.exe",
+        "rigor-v0.1.3-windows-x86_64.zip"
+      ],
+      "runner_notes": "GitHub-hosted Windows x86_64"
+    },
+    {
+      "target": "linux-x86_64",
+      "runner": "ubuntu-latest",
+      "os": "linux",
+      "arch": "x86_64",
+      "artifacts": [
+        "rigor-v0.1.3-linux-x86_64.tar.gz"
+      ],
+      "runner_notes": "GitHub-hosted Linux x86_64"
+    },
+    {
+      "target": "macos-x86_64",
+      "runner": "macos-15-intel",
+      "os": "macos",
+      "arch": "x86_64",
+      "artifacts": [
+        "rigor-v0.1.3-macos-x86_64.dmg"
+      ],
+      "runner_notes": "GitHub-hosted Intel macOS (macos-15-intel; macos-26-intel allowed)"
+    },
+    {
+      "target": "macos-arm64",
+      "runner": "macos-15",
+      "os": "macos",
+      "arch": "arm64",
+      "artifacts": [
+        "rigor-v0.1.3-macos-arm64.dmg"
+      ],
+      "runner_notes": "GitHub-hosted Apple Silicon (macos-15 / macos-latest are arm64)"
+    }
+  ],
+  "github_actions": {
+    "workflow": ".github/workflows/release-build.yml",
+    "macos_intel_runner": "macos-15-intel",
+    "macos_intel_runner_alt": "macos-26-intel",
+    "macos_arm64_runner": "macos-15",
+    "macos_arm64_runner_alt": "macos-latest",
+    "wsl_cannot_generate_macos_binaries": true,
+    "required_job_steps": [
+      "Checkout source",
+      "Record git commit, compiler, OS, architecture",
+      "Build current sources",
+      "Run minimal smoke test",
+      "Package artifact",
+      "Verify filename"
+    ]
+  },
+  "local_linux": {
+    "target": "linux-x86_64",
+    "exit": 0,
+    "log": "formal_verification/release_build_matrix/local_linux_build.log",
+    "artifact": "dist/release/v0.1.3/linux-x86_64/rigor-v0.1.3-linux-x86_64.tar.gz",
+    "sha256": "b453a8291ca7ad47e4f10a0d9edd028aa63299b8d049b1ca2d15283e7cf4d1f0",
+    "sha256_sidecar": "formal_verification/release_build_matrix/rigor-v0.1.3-linux-x86_64.tar.gz.sha256"
+  },
+  "security_boundary": {
+    "CONSENSUS_CODE_CHANGED": false,
+    "DATABASE_FORMAT_CHANGED": false,
+    "WALLET_FORMAT_CHANGED": false,
+    "forbidden_paths_changed": [],
+    "release_guardian_stages_modified": false
+  },
+  "windows_build": "PASS",
+  "linux_build": "PASS",
+  "macos_intel_build": "PASS",
+  "macos_arm64_build": "PASS",
+  "artifact_naming": "PASS",
+  "sha256_manifest": "PASS",
+  "release_build_matrix_status": "PASS",
+  "consensus_code_changed": false,
+  "database_format_changed": false,
+  "wallet_format_changed": false,
+  "errors": [],
+  "final_verdict": "PASS"
+}

@@ -1,0 +1,171 @@
+{
+  "task": "TASK-RIGOR-CONNECTBLOCK-CONSENSUS-CONVERGENCE-AUDIT-P0-086",
+  "date": "2026-09-02",
+  "note": "Catalog of ConnectBlock acceptance cases. Hex rows that exist are frozen. Cases without block_hex are live C++ or explicitly NOT_COVERED. Do not invent PASS.",
+  "live_mint_golden_vector": "NOT_COVERED",
+  "reorgbind_golden_vector": "NOT_COVERED",
+  "hex_source": "formal_verification/vectors/rigor_connectblock_vectors.json",
+  "cases": [
+    {
+      "id": 1,
+      "name": "valid_block",
+      "expect": true,
+      "coverage": "VECTOR-LOCKED",
+      "vector_name": "valid_height1_coinbase_only",
+      "path": "ProcessNewBlock → AcceptBlock → ActivateBestChain → ConnectBlock"
+    },
+    {
+      "id": 2,
+      "name": "invalid_merkle",
+      "expect": false,
+      "coverage": "VECTOR-LOCKED",
+      "vector_name": "invalid_stale_merkle_extra_tx",
+      "reason": "bad-txnmrklroot",
+      "alt_hex_name": "invalid_merkle_root_xor"
+    },
+    {
+      "id": 3,
+      "name": "invalid_tx",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "reason": "bad-txns-inputs-missingorspent or bad-txns-vin-empty",
+      "notes": "No frozen body-tx hex. Live dummy tx / tx-order mutation in Boost tests."
+    },
+    {
+      "id": 4,
+      "name": "invalid_coinbase",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "reason": "bad-cb-amount",
+      "notes": "Coinbase value +1 on height-1 template. Kernel/supply also covers this reject string."
+    },
+    {
+      "id": 5,
+      "name": "invalid_witness",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "reason": "bad-witness-merkle-match or bad-txnmrklroot",
+      "notes": "Witness commitment last-byte xor."
+    },
+    {
+      "id": 6,
+      "name": "invalid_predicate",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "reason": "mandatory-script-verify-flag-failed",
+      "notes": "Mature coinbase spend with flipped signature. Not a frozen block_hex."
+    },
+    {
+      "id": 7,
+      "name": "invalid_pow",
+      "expect": false,
+      "coverage": "CONDITIONAL-HEX",
+      "alt_hex_name": "invalid_nonce_xor",
+      "notes": "Regtest nBits=0x207fffff is easy; nonce xor rejects only when the new header fails CheckProofOfWork."
+    },
+    {
+      "id": 8,
+      "name": "invalid_target",
+      "expect": false,
+      "coverage": "HEX-HEADER",
+      "alt_hex_name": "invalid_nbits_zero",
+      "reason": "high-hash or bad-diffbits"
+    },
+    {
+      "id": 9,
+      "name": "invalid_timestamp",
+      "expect": false,
+      "coverage": "CONDITIONAL-HEX",
+      "alt_hex_name": "invalid_ntime_xor",
+      "notes": "Header time xor. May fail PoW first on this frozen header; ContextualCheckBlockHeader is the timestamp authority and is not re-run inside ConnectBlock."
+    },
+    {
+      "id": 10,
+      "name": "invalid_issuance",
+      "expect": false,
+      "coverage": "KERNEL-ONLY",
+      "reason": "bad-cb-amount",
+      "notes": "test_connectblock_kernel_boundary.cpp. No ConnectBlock block_hex."
+    },
+    {
+      "id": 11,
+      "name": "invalid_res",
+      "expect": false,
+      "coverage": "UNIT-NOT-GOLDEN",
+      "notes": "connectblock_res_mint_p0_041_tests + kernel rejects. LIVE_MINT_GOLDEN_VECTOR=NOT_COVERED."
+    },
+    {
+      "id": 12,
+      "name": "invalid_draw",
+      "expect": false,
+      "coverage": "KERNEL-ONLY",
+      "notes": "Kernel draw tests and w32 logic tests. No frozen ConnectBlock hex."
+    },
+    {
+      "id": 13,
+      "name": "invalid_supply",
+      "expect": false,
+      "coverage": "KERNEL-ONLY",
+      "reason": "bad-cb-amount / bad-cb-res-amount / bad-rigor-res-winner-mismatch"
+    },
+    {
+      "id": 14,
+      "name": "invalid_maturity",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "reason": "bad-txns-premature-spend-coinbase",
+      "notes": "Spend tip coinbase at next height. Maturity authority is CheckTxInputs / CoinbaseMature."
+    },
+    {
+      "id": 15,
+      "name": "duplicate_tx",
+      "expect": false,
+      "coverage": "LIVE-MUTATION",
+      "notes": "Two identical body txs. Native tx vectors cover duplicate vin only."
+    },
+    {
+      "id": 16,
+      "name": "malformed_block",
+      "expect": false,
+      "coverage": "HEX-DECODE",
+      "alt_hex_name": "malformed_truncated_header",
+      "notes": "DecodeHexBlk / CheckBlock fail before ConnectBlock."
+    },
+    {
+      "id": 17,
+      "name": "state_mutation_failure",
+      "expect": false,
+      "coverage": "LIVE-ASSERT",
+      "notes": "Invalid block must leave CoinsTip best-block and height unchanged. Not a hex row."
+    },
+    {
+      "id": 18,
+      "name": "connect_disconnect_connect",
+      "expect": true,
+      "coverage": "LIVE-ASSERT",
+      "notes": "InvalidateBlock then ResetBlockFailureFlags + ActivateBestChain. Not a frozen hex."
+    },
+    {
+      "id": 19,
+      "name": "reorg",
+      "expect": true,
+      "coverage": "PARTIAL",
+      "notes": "Unit/functional reorg tests exist. REORGBIND_GOLDEN_VECTOR=NOT_COVERED."
+    },
+    {
+      "id": 20,
+      "name": "invalid_after_valid",
+      "expect": false,
+      "coverage": "LIVE-ASSERT",
+      "notes": "Valid height-1 then invalid child/sibling; tip must stay on the valid block."
+    }
+  ],
+  "header_hex_mutations": {
+    "valid_height1_coinbase_only": "see rigor_connectblock_vectors.json[0]",
+    "invalid_merkle_root_xor": "0000002063afc2dc06d035f2e9ea76ab6e018bb46b3958322f3888323a151b2c7ef4703047140b7ba88c45483f1e9a13f75e9161e160618c69afcd59a81ba1df5c121156af8efd69ffff7f200000000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff4351200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014384e00f1adfdd52fc7256fcb09586f0c85ffa1960000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+    "invalid_nbits_zero": "0000002063afc2dc06d035f2e9ea76ab6e018bb46b3958322f3888323a151b2c7ef4703046140b7ba88c45483f1e9a13f75e9161e160618c69afcd59a81ba1df5c121156af8efd69000000000000000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff4351200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014384e00f1adfdd52fc7256fcb09586f0c85ffa1960000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+    "invalid_ntime_xor": "0000002063afc2dc06d035f2e9ea76ab6e018bb46b3958322f3888323a151b2c7ef4703046140b7ba88c45483f1e9a13f75e9161e160618c69afcd59a81ba1df5c121156ae8efd69ffff7f200000000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff4351200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014384e00f1adfdd52fc7256fcb09586f0c85ffa1960000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+    "invalid_nonce_xor": "0000002063afc2dc06d035f2e9ea76ab6e018bb46b3958322f3888323a151b2c7ef4703046140b7ba88c45483f1e9a13f75e9161e160618c69afcd59a81ba1df5c121156af8efd69ffff7f200100000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff4351200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014384e00f1adfdd52fc7256fcb09586f0c85ffa1960000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+    "malformed_truncated_header": "0000002063afc2dc06d035f2e9ea76ab6e018bb46b3958322f3888323a151b2c7ef4703046140b7b"
+  }
+}

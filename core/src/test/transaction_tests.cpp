@@ -4,6 +4,7 @@
 
 #include <test/data/tx_invalid.json.h>
 #include <test/data/tx_valid.json.h>
+#include <test/data/rigor_native_tx_vectors.json.h>
 #include <test/util/script.h>
 #include <test/util/setup_common.h>
 
@@ -21,6 +22,7 @@
 #include <policy/policy.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>
+#include <script/predicate_verify.h>
 #include <script/script.h>
 #include <script/script_error.h>
 #include <script/sign.h>
@@ -46,6 +48,26 @@
 #include <univalue.h>
 
 typedef std::vector<unsigned char> valtype;
+
+/** Plant golden-vector prevouts without EntersUtxoSet. Convergence burns are
+ *  skipped by CCoinsViewCache::AddCoin; CheckTxInputs still has to reject a
+ *  planted RIGOR_MARKER_CONVERGE coin as bad-txns-spend-convergence. */
+class CCoinsViewMap : public CCoinsView
+{
+    std::map<COutPoint, Coin> m_coins;
+public:
+    bool GetCoin(const COutPoint& outpoint, Coin& coin) const override
+    {
+        const auto it = m_coins.find(outpoint);
+        if (it == m_coins.end()) return false;
+        coin = it->second;
+        return !coin.IsSpent();
+    }
+    void Put(const COutPoint& outpoint, Coin coin)
+    {
+        m_coins[outpoint] = std::move(coin);
+    }
+};
 
 static CFeeRate g_dust{DUST_RELAY_TX_FEE};
 static bool g_bare_multi{DEFAULT_PERMIT_BAREMULTISIG};
@@ -194,6 +216,89 @@ BOOST_AUTO_TEST_CASE(tx_valid)
 BOOST_AUTO_TEST_CASE(tx_invalid)
 {
     BOOST_TEST_MESSAGE("Skipping tx_invalid: legacy JSON hex may need regeneration.");
+}
+
+BOOST_AUTO_TEST_CASE(rigor_native_golden_vectors_p0_016)
+{
+    UniValue root = read_json(std::string(
+        json_tests::rigor_native_tx_vectors,
+        json_tests::rigor_native_tx_vectors + sizeof(json_tests::rigor_native_tx_vectors)));
+    BOOST_REQUIRE(root.isArray());
+    BOOST_REQUIRE_GE(root.size(), 9U);
+
+    auto bytes_to_uint256 = [](const std::vector<unsigned char>& b) {
+        BOOST_REQUIRE_EQUAL(b.size(), 32U);
+        uint256 out;
+        std::memcpy(out.begin(), b.data(), 32);
+        return out;
+    };
+
+    for (size_t i = 0; i < root.size(); ++i) {
+        const UniValue& v = root[i];
+        const std::string name = v["name"].get_str();
+        const bool expect = v["expect"].get_bool();
+        const std::string layer = v["layer"].get_str();
+        CMutableTransaction mtx;
+        BOOST_REQUIRE_MESSAGE(DecodeHexTx(mtx, v["tx_hex"].get_str()), name + " DecodeHexTx");
+        const CTransaction tx(mtx);
+        const std::string roundtrip = EncodeHexTx(tx);
+        BOOST_CHECK_MESSAGE(roundtrip == v["tx_hex"].get_str(), name + " EncodeHexTx round-trip");
+
+        if (layer == "checktransaction") {
+            TxValidationState state;
+            const bool ok = CheckTransaction(tx, state);
+            BOOST_CHECK_MESSAGE(ok == expect, name + " CheckTransaction " + state.ToString());
+            if (!expect && v.exists("reason")) {
+                BOOST_CHECK_MESSAGE(state.GetRejectReason() == v["reason"].get_str(),
+                                    name + " reject=" + state.GetRejectReason());
+            }
+            continue;
+        }
+
+        BOOST_REQUIRE(v.exists("prevouts"));
+        CCoinsViewMap dummy;
+        CCoinsViewCache coins(&dummy);
+        const UniValue& prevouts = v["prevouts"];
+        CScript spent_spk;
+        CAmount spent_amount = 0;
+        for (size_t p = 0; p < prevouts.size(); ++p) {
+            CTxOut out;
+            out.nValue = prevouts[p]["amount"].getInt<CAmount>();
+            const auto spk = ParseHex(prevouts[p]["scriptPubKey"].get_str());
+            out.scriptPubKey = CScript(spk.begin(), spk.end());
+            const uint256 h = bytes_to_uint256(ParseHex(prevouts[p]["hash"].get_str()));
+            dummy.Put(COutPoint(h, prevouts[p]["n"].getInt<uint32_t>()), Coin(out, 1, false));
+            if (p == 0) {
+                spent_spk = out.scriptPubKey;
+                spent_amount = out.nValue;
+            }
+        }
+
+        if (layer == "checktxinputs") {
+            TxValidationState state;
+            CAmount fee = 0;
+            const bool ok = Consensus::CheckTxInputs(tx, state, coins, 200, Params().GetConsensus(), fee);
+            BOOST_CHECK_MESSAGE(ok == expect, name + " CheckTxInputs " + state.ToString());
+            if (!expect && v.exists("reason")) {
+                BOOST_CHECK_MESSAGE(state.GetRejectReason() == v["reason"].get_str(),
+                                    name + " reject=" + state.GetRejectReason());
+            }
+            continue;
+        }
+
+        BOOST_REQUIRE_EQUAL(layer, "predicate");
+        const uint256 chain_id = bytes_to_uint256(ParseHex(v["chain_id"].get_str()));
+        PrecomputedTransactionData txdata(tx);
+        ScriptError err{SCRIPT_ERR_UNKNOWN_ERROR};
+        const bool ok = VerifyRigorPredicate(
+            tx.vin[0].scriptSig,
+            spent_spk,
+            &tx.vin[0].scriptWitness,
+            STANDARD_SCRIPT_VERIFY_FLAGS,
+            TransactionSignatureChecker(&tx, 0, spent_amount, txdata, MissingDataBehavior::ASSERT_FAIL, chain_id),
+            &err);
+        BOOST_CHECK_MESSAGE(ok == expect, name + " VerifyRigorPredicate " + ScriptErrorString(err));
+    }
 }
 
 BOOST_AUTO_TEST_CASE(basic_transaction_tests)
@@ -781,8 +886,8 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     }
 
     // Non-standard witness program shapes (wrong length / version) are rejected by policy.
-    for (int op = RIGOR_PUSH_1; op <= RIGOR_PUSH_16; op += 1) {
-        t.vout[0].scriptPubKey = CScript() << (opcodetype)op << std::vector<unsigned char>(2, 0);
+    for (unsigned int op = RIGOR_PUSH_1; op <= RIGOR_PUSH_16; op += 1) {
+        t.vout[0].scriptPubKey = CScript() << static_cast<opcodetype>(op) << std::vector<unsigned char>(2, 0);
         t.vout[0].nValue = COIN;
         CheckIsNotStandard(t, "scriptpubkey");
     }

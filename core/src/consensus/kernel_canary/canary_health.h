@@ -4,7 +4,7 @@
 //
 // P072 canary health latch. ENABLE_CONSENSUS_KERNEL_CANARY is the
 // verify-only dual-path guard. Does not recode authorities.
-// PRODUCTION_KERNEL_SWITCHED = FALSE
+// EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
 
 #ifndef BITCOIN_CONSENSUS_KERNEL_CANARY_CANARY_HEALTH_H
 #define BITCOIN_CONSENSUS_KERNEL_CANARY_CANARY_HEALTH_H

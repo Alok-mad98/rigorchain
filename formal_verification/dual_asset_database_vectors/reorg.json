@@ -1,0 +1,36 @@
+{
+  "via_reorg": {
+    "digest": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+    "by_asset": {
+      "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+      "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+      "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+      "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+    },
+    "supply": {
+      "oru": 19000000000,
+      "res": 140000000,
+      "other": 0,
+      "total_atoms": 19140000000
+    }
+  },
+  "via_clean_alt": {
+    "digest": "6c471437e5fc388e1c60bf54804454cc9c82c075d5cee6306a9ee1d06201aec2",
+    "by_asset": {
+      "ORU": "087fafdea0c2fc533ab3047e216df10ba42c1256158b13d3835239062599399f",
+      "RES": "2f34e8aad7d2ab4f3d5fc91842ec623c9a3a00854534598385de7daa5a8277a0",
+      "NONE": "c627c09c14e58e44bc51622dac392958ec88244e414b508020634f53cfcd1e69",
+      "INVALID": "1ee01cc6701e8bfb4d21161c9e414870dbb33e9d515e4015dbb85b719d9d1efc"
+    },
+    "supply": {
+      "oru": 19000000000,
+      "res": 140000000,
+      "other": 0,
+      "total_atoms": 19140000000
+    }
+  },
+  "equivalent": true,
+  "oru_equivalent": true,
+  "res_equivalent": true,
+  "supply_equivalent": true
+}

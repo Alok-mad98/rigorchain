@@ -8,15 +8,18 @@
         → UTXO delta application
         → UTXO output
 
-    Proves CppLedgerApply = CoqLedgerApply and the conservation /
-    double-spend / genesis boundaries.
+    Proves forall i, CppLedgerApply i = CoqLedgerApply i and the conservation /
+    double-spend / genesis boundaries. CoqLedgerApply is fail-closed on
+    value_ok (matches LedgerApply early-return).
 
     Not a full-node, LevelDB, network, wallet, or Bitcoin Core proof.
 
-      refinement_proved          = true   (this ledger boundary)
-      equivalence_proved         = false
-      production_kernel_switched = false
-      db_refinement_proved       = false
+      refinement_proved                    = true   (this ledger boundary)
+      equivalence_proved                   = false
+      extracted_kernel_production          = false
+      compcert_binary_verified_kernel      = false
+      ledger_apply_in_production           = false
+      db_refinement_proved                 = false
 
     No [Admitted] / [Axiom] / [Parameter] / [Extract Constant]. *)
 
@@ -32,7 +35,10 @@ Local Open Scope Z_scope.
 
 Definition refinement_proved : bool := true.
 Definition equivalence_proved : bool := false.
-Definition production_kernel_switched : bool := false.
+Definition extracted_kernel_production : bool := false.
+Definition extracted_kernel_linked : bool := extracted_kernel_production.
+Definition compcert_binary_verified_kernel : bool := false.
+Definition ledger_apply_in_production : bool := false.
 Definition db_refinement_proved : bool := false.
 Definition full_node_refinement : bool := false.
 
@@ -42,7 +48,16 @@ Proof. reflexivity. Qed.
 Theorem node_equivalence_not_proved : equivalence_proved = false.
 Proof. reflexivity. Qed.
 
-Theorem production_kernel_not_switched : production_kernel_switched = false.
+Theorem extracted_kernel_not_production : extracted_kernel_production = false.
+Proof. reflexivity. Qed.
+
+Theorem extracted_kernel_not_linked : extracted_kernel_linked = false.
+Proof. reflexivity. Qed.
+
+Theorem compcert_binary_not_verified : compcert_binary_verified_kernel = false.
+Proof. reflexivity. Qed.
+
+Theorem ledger_apply_not_in_production : ledger_apply_in_production = false.
 Proof. reflexivity. Qed.
 
 Theorem db_not_proved : db_refinement_proved = false.
@@ -199,7 +214,7 @@ Definition res_identity (in_res mint out_res : Z) : bool :=
   | None => false
   end.
 
-Definition ledger_checks (i : LedgerKernelInput) : bool :=
+Definition early_checks (i : LedgerKernelInput) : bool :=
   tkr_accept (lki_tx i) &&
   ckr_accept (lki_ck i) &&
   money_ok (lki_fee i) &&
@@ -212,7 +227,24 @@ Definition ledger_checks (i : LedgerKernelInput) : bool :=
   nodup_ops (map lc_outpoint (lki_consumed i)) &&
   nodup_ops (map lc_outpoint (lki_created i)) &&
   all_mature (lki_height i) (lki_maturity i) (lki_consumed i) &&
-  genesis_ok i &&
+  genesis_ok i.
+
+Definition value_ok_of (i : LedgerKernelInput) : bool :=
+  match sum_asset LA_ORU (lki_consumed i),
+        sum_asset LA_RES (lki_consumed i),
+        sum_asset LA_ORU (lki_created i),
+        sum_asset LA_RES (lki_created i) with
+  | Some in_oru, Some in_res, Some out_oru, Some out_res =>
+      match add_money in_oru in_res, add_money out_oru out_res with
+      | Some in_all, Some out_all =>
+          value_conservation in_all (ckr_oru_issuance (lki_ck i))
+            (ckr_res_mint (lki_ck i)) out_all (lki_burn i) (lki_fee i)
+      | _, _ => false
+      end
+  | _, _, _, _ => false
+  end.
+
+Definition conservation_ok (i : LedgerKernelInput) : bool :=
   match sum_asset LA_ORU (lki_consumed i),
         sum_asset LA_RES (lki_consumed i),
         sum_asset LA_ORU (lki_created i),
@@ -230,33 +262,245 @@ Definition ledger_checks (i : LedgerKernelInput) : bool :=
   | _, _, _, _ => false
   end.
 
+Definition ledger_checks (i : LedgerKernelInput) : bool :=
+  early_checks i && conservation_ok i.
+
 Definition CoqLedgerApply (i : LedgerKernelInput) : LedgerKernelOutput :=
   let ok := ledger_checks i in
   {| lko_accept := ok;
      lko_spent := if ok then map lc_outpoint (lki_consumed i) else [];
      lko_created := if ok then lki_created i else [];
-     lko_value_ok :=
-       match sum_asset LA_ORU (lki_consumed i),
-             sum_asset LA_RES (lki_consumed i),
-             sum_asset LA_ORU (lki_created i),
-             sum_asset LA_RES (lki_created i) with
-       | Some in_oru, Some in_res, Some out_oru, Some out_res =>
-           match add_money in_oru in_res, add_money out_oru out_res with
-           | Some in_all, Some out_all =>
-               value_conservation in_all (ckr_oru_issuance (lki_ck i))
-                 (ckr_res_mint (lki_ck i)) out_all (lki_burn i) (lki_fee i)
-           | _, _ => false
-           end
-       | _, _, _, _ => false
-       end
-  |}.
+     lko_value_ok := if early_checks i then value_ok_of i else false |}.
 
-(** C++-shaped apply is the same body. *)
-Definition CppLedgerApply := CoqLedgerApply.
+Definition cpp_ledger_reject : LedgerKernelOutput :=
+  {| lko_accept := false; lko_spent := []; lko_created := []; lko_value_ok := false |}.
+
+Definition cpp_ledger_accept (i : LedgerKernelInput) : LedgerKernelOutput :=
+  {| lko_accept := true;
+     lko_spent := map lc_outpoint (lki_consumed i);
+     lko_created := lki_created i;
+     lko_value_ok := true |}.
+
+(** Independent C++-shaped early-return transcription of LedgerApply
+    (core/src/consensus/ledger/ledger_transition.cpp). Not an alias. *)
+Definition CppLedgerApply (i : LedgerKernelInput) : LedgerKernelOutput :=
+  if negb (tkr_accept (lki_tx i)) then cpp_ledger_reject
+  else if negb (ckr_accept (lki_ck i)) then cpp_ledger_reject
+  else if negb (money_ok (lki_fee i)) then cpp_ledger_reject
+  else if negb (money_ok (lki_burn i)) then cpp_ledger_reject
+  else if negb (money_ok (lki_converge i)) then cpp_ledger_reject
+  else if negb (money_ok (ckr_oru_issuance (lki_ck i))) then cpp_ledger_reject
+  else if negb (money_ok (ckr_res_mint (lki_ck i))) then cpp_ledger_reject
+  else if negb (coins_ok (lki_consumed i)) then cpp_ledger_reject
+  else if negb (coins_ok (lki_created i)) then cpp_ledger_reject
+  else if negb (nodup_ops (map lc_outpoint (lki_consumed i))) then cpp_ledger_reject
+  else if negb (nodup_ops (map lc_outpoint (lki_created i))) then cpp_ledger_reject
+  else if negb (all_mature (lki_height i) (lki_maturity i) (lki_consumed i)) then cpp_ledger_reject
+  else if negb (genesis_ok i) then cpp_ledger_reject
+  else
+    match sum_asset LA_ORU (lki_consumed i),
+          sum_asset LA_RES (lki_consumed i),
+          sum_asset LA_ORU (lki_created i),
+          sum_asset LA_RES (lki_created i) with
+    | Some in_oru, Some in_res, Some out_oru, Some out_res =>
+        match add_money in_oru in_res, add_money out_oru out_res with
+        | Some in_all, Some out_all =>
+            if negb (value_conservation in_all (ckr_oru_issuance (lki_ck i))
+                       (ckr_res_mint (lki_ck i)) out_all (lki_burn i) (lki_fee i))
+            then cpp_ledger_reject
+            else if negb (oru_identity in_oru (ckr_oru_issuance (lki_ck i))
+                            (lki_burn i) (lki_converge i) (lki_fee i) out_oru)
+            then {| lko_accept := false; lko_spent := []; lko_created := [];
+                    lko_value_ok := true |}
+            else if negb (res_identity in_res (ckr_res_mint (lki_ck i)) out_res)
+            then {| lko_accept := false; lko_spent := []; lko_created := [];
+                    lko_value_ok := true |}
+            else cpp_ledger_accept i
+        | _, _ => cpp_ledger_reject
+        end
+    | _, _, _, _ => cpp_ledger_reject
+    end.
+
+Lemma negb_false_is_true : forall b, negb b = false -> b = true.
+Proof. intros b H. destruct b; [reflexivity | discriminate H]. Qed.
+
+Lemma cpp_accept_is_ledger_checks :
+  forall i, lko_accept (CppLedgerApply i) = ledger_checks i.
+Proof.
+  intros i.
+  unfold CppLedgerApply, ledger_checks, early_checks, conservation_ok.
+  destruct (tkr_accept (lki_tx i)); simpl; [|reflexivity].
+  destruct (ckr_accept (lki_ck i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_fee i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_burn i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_converge i)); simpl; [|reflexivity].
+  destruct (money_ok (ckr_oru_issuance (lki_ck i))); simpl; [|reflexivity].
+  destruct (money_ok (ckr_res_mint (lki_ck i))); simpl; [|reflexivity].
+  destruct (coins_ok (lki_consumed i)); simpl; [|reflexivity].
+  destruct (coins_ok (lki_created i)); simpl; [|reflexivity].
+  destruct (nodup_ops (map lc_outpoint (lki_consumed i))); simpl; [|reflexivity].
+  destruct (nodup_ops (map lc_outpoint (lki_created i))); simpl; [|reflexivity].
+  destruct (all_mature (lki_height i) (lki_maturity i) (lki_consumed i)); simpl; [|reflexivity].
+  destruct (genesis_ok i); simpl; [|reflexivity].
+  destruct (sum_asset LA_ORU (lki_consumed i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_RES (lki_consumed i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_ORU (lki_created i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_RES (lki_created i)); simpl; [|reflexivity].
+  destruct (add_money z z0); simpl; [|reflexivity].
+  destruct (add_money z1 z2); simpl; [|reflexivity].
+  destruct (value_conservation z3 (ckr_oru_issuance (lki_ck i))
+              (ckr_res_mint (lki_ck i)) z4 (lki_burn i) (lki_fee i)); simpl; [|reflexivity].
+  destruct (oru_identity z (ckr_oru_issuance (lki_ck i))
+              (lki_burn i) (lki_converge i) (lki_fee i) z1); simpl; [|reflexivity].
+  destruct (res_identity z0 (ckr_res_mint (lki_ck i)) z2); simpl; reflexivity.
+Qed.
+
+Lemma cpp_apply_accept_record :
+  forall i,
+    lko_accept (CppLedgerApply i) = true ->
+    CppLedgerApply i = cpp_ledger_accept i.
+Proof.
+  intros i Ha.
+  unfold CppLedgerApply in *.
+  destruct (tkr_accept (lki_tx i)); simpl in Ha; try discriminate.
+  destruct (ckr_accept (lki_ck i)); simpl in Ha; try discriminate.
+  destruct (money_ok (lki_fee i)); simpl in Ha; try discriminate.
+  destruct (money_ok (lki_burn i)); simpl in Ha; try discriminate.
+  destruct (money_ok (lki_converge i)); simpl in Ha; try discriminate.
+  destruct (money_ok (ckr_oru_issuance (lki_ck i))); simpl in Ha; try discriminate.
+  destruct (money_ok (ckr_res_mint (lki_ck i))); simpl in Ha; try discriminate.
+  destruct (coins_ok (lki_consumed i)); simpl in Ha; try discriminate.
+  destruct (coins_ok (lki_created i)); simpl in Ha; try discriminate.
+  destruct (nodup_ops (map lc_outpoint (lki_consumed i))); simpl in Ha; try discriminate.
+  destruct (nodup_ops (map lc_outpoint (lki_created i))); simpl in Ha; try discriminate.
+  destruct (all_mature (lki_height i) (lki_maturity i) (lki_consumed i)); simpl in Ha; try discriminate.
+  destruct (genesis_ok i); simpl in Ha; try discriminate.
+  destruct (sum_asset LA_ORU (lki_consumed i)); simpl in Ha; try discriminate.
+  destruct (sum_asset LA_RES (lki_consumed i)); simpl in Ha; try discriminate.
+  destruct (sum_asset LA_ORU (lki_created i)); simpl in Ha; try discriminate.
+  destruct (sum_asset LA_RES (lki_created i)); simpl in Ha; try discriminate.
+  destruct (add_money z z0); simpl in Ha; try discriminate.
+  destruct (add_money z1 z2); simpl in Ha; try discriminate.
+  destruct (value_conservation z3 (ckr_oru_issuance (lki_ck i))
+              (ckr_res_mint (lki_ck i)) z4 (lki_burn i) (lki_fee i));
+    simpl in Ha; try discriminate.
+  destruct (oru_identity z (ckr_oru_issuance (lki_ck i))
+              (lki_burn i) (lki_converge i) (lki_fee i) z1);
+    simpl in Ha; try discriminate.
+  destruct (res_identity z0 (ckr_res_mint (lki_ck i)) z2);
+    simpl in Ha; try discriminate.
+  reflexivity.
+Qed.
+
+Lemma cpp_reject_empty_delta :
+  forall i,
+    lko_accept (CppLedgerApply i) = false ->
+    lko_spent (CppLedgerApply i) = [] /\ lko_created (CppLedgerApply i) = [].
+Proof.
+  intros i Ha.
+  destruct (CppLedgerApply i) eqn:E.
+  simpl in *. subst.
+  unfold CppLedgerApply in E.
+  destruct (tkr_accept (lki_tx i)); simpl in E; try (inversion E; auto).
+  destruct (ckr_accept (lki_ck i)); simpl in E; try (inversion E; auto).
+  destruct (money_ok (lki_fee i)); simpl in E; try (inversion E; auto).
+  destruct (money_ok (lki_burn i)); simpl in E; try (inversion E; auto).
+  destruct (money_ok (lki_converge i)); simpl in E; try (inversion E; auto).
+  destruct (money_ok (ckr_oru_issuance (lki_ck i))); simpl in E; try (inversion E; auto).
+  destruct (money_ok (ckr_res_mint (lki_ck i))); simpl in E; try (inversion E; auto).
+  destruct (coins_ok (lki_consumed i)); simpl in E; try (inversion E; auto).
+  destruct (coins_ok (lki_created i)); simpl in E; try (inversion E; auto).
+  destruct (nodup_ops (map lc_outpoint (lki_consumed i))); simpl in E; try (inversion E; auto).
+  destruct (nodup_ops (map lc_outpoint (lki_created i))); simpl in E; try (inversion E; auto).
+  destruct (all_mature (lki_height i) (lki_maturity i) (lki_consumed i)); simpl in E; try (inversion E; auto).
+  destruct (genesis_ok i); simpl in E; try (inversion E; auto).
+  destruct (sum_asset LA_ORU (lki_consumed i)); simpl in E; try (inversion E; auto).
+  destruct (sum_asset LA_RES (lki_consumed i)); simpl in E; try (inversion E; auto).
+  destruct (sum_asset LA_ORU (lki_created i)); simpl in E; try (inversion E; auto).
+  destruct (sum_asset LA_RES (lki_created i)); simpl in E; try (inversion E; auto).
+  destruct (add_money z z0); simpl in E; try (inversion E; auto).
+  destruct (add_money z1 z2); simpl in E; try (inversion E; auto).
+  destruct (value_conservation z3 (ckr_oru_issuance (lki_ck i))
+              (ckr_res_mint (lki_ck i)) z4 (lki_burn i) (lki_fee i));
+    simpl in E; try (inversion E; auto).
+  destruct (oru_identity z (ckr_oru_issuance (lki_ck i))
+              (lki_burn i) (lki_converge i) (lki_fee i) z1);
+    simpl in E; try (inversion E; auto).
+  destruct (res_identity z0 (ckr_res_mint (lki_ck i)) z2);
+    simpl in E; inversion E; auto.
+Qed.
+
+Lemma cpp_value_ok_is_spec :
+  forall i,
+    lko_value_ok (CppLedgerApply i) =
+    if early_checks i then value_ok_of i else false.
+Proof.
+  intros i.
+  unfold CppLedgerApply, early_checks, value_ok_of.
+  destruct (tkr_accept (lki_tx i)); simpl; [|reflexivity].
+  destruct (ckr_accept (lki_ck i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_fee i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_burn i)); simpl; [|reflexivity].
+  destruct (money_ok (lki_converge i)); simpl; [|reflexivity].
+  destruct (money_ok (ckr_oru_issuance (lki_ck i))); simpl; [|reflexivity].
+  destruct (money_ok (ckr_res_mint (lki_ck i))); simpl; [|reflexivity].
+  destruct (coins_ok (lki_consumed i)); simpl; [|reflexivity].
+  destruct (coins_ok (lki_created i)); simpl; [|reflexivity].
+  destruct (nodup_ops (map lc_outpoint (lki_consumed i))); simpl; [|reflexivity].
+  destruct (nodup_ops (map lc_outpoint (lki_created i))); simpl; [|reflexivity].
+  destruct (all_mature (lki_height i) (lki_maturity i) (lki_consumed i)); simpl; [|reflexivity].
+  destruct (genesis_ok i); simpl; [|reflexivity].
+  destruct (sum_asset LA_ORU (lki_consumed i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_RES (lki_consumed i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_ORU (lki_created i)); simpl; [|reflexivity].
+  destruct (sum_asset LA_RES (lki_created i)); simpl; [|reflexivity].
+  destruct (add_money z z0); simpl; [|reflexivity].
+  destruct (add_money z1 z2); simpl; [|reflexivity].
+  destruct (value_conservation z3 (ckr_oru_issuance (lki_ck i))
+              (ckr_res_mint (lki_ck i)) z4 (lki_burn i) (lki_fee i)); simpl; [|reflexivity].
+  destruct (oru_identity z (ckr_oru_issuance (lki_ck i))
+              (lki_burn i) (lki_converge i) (lki_fee i) z1); simpl; [|reflexivity].
+  destruct (res_identity z0 (ckr_res_mint (lki_ck i)) z2); simpl; reflexivity.
+Qed.
+
+Lemma cpp_record_eta :
+  forall i,
+    CppLedgerApply i =
+    {| lko_accept := lko_accept (CppLedgerApply i);
+       lko_spent := lko_spent (CppLedgerApply i);
+       lko_created := lko_created (CppLedgerApply i);
+       lko_value_ok := lko_value_ok (CppLedgerApply i) |}.
+Proof. intros i. destruct (CppLedgerApply i). reflexivity. Qed.
 
 Theorem ledger_apply_eq :
   forall i, CppLedgerApply i = CoqLedgerApply i.
-Proof. intros. reflexivity. Qed.
+Proof.
+  intros i.
+  rewrite cpp_record_eta.
+  unfold CoqLedgerApply.
+  rewrite <- cpp_accept_is_ledger_checks.
+  rewrite cpp_value_ok_is_spec.
+  destruct (lko_accept (CppLedgerApply i)) eqn:Ha.
+  - pose proof (cpp_apply_accept_record i Ha) as Hr.
+    replace (lko_spent (CppLedgerApply i)) with (map lc_outpoint (lki_consumed i))
+      by (rewrite Hr; reflexivity).
+    replace (lko_created (CppLedgerApply i)) with (lki_created i)
+      by (rewrite Hr; reflexivity).
+    reflexivity.
+  - pose proof (cpp_reject_empty_delta i Ha) as Hd.
+    destruct Hd as [Hs Hc]. rewrite Hs, Hc. reflexivity.
+Qed.
+
+Theorem ledger_apply_delta_eq :
+  forall i,
+    lko_accept (CoqLedgerApply i) = true ->
+    lko_spent (CppLedgerApply i) = lko_spent (CoqLedgerApply i) /\
+    lko_created (CppLedgerApply i) = lko_created (CoqLedgerApply i).
+Proof.
+  intros i _.
+  rewrite ledger_apply_eq.
+  split; reflexivity.
+Qed.
 
 Lemma outpoint_eqb_refl : forall o, outpoint_eqb o o = true.
 Proof.
@@ -410,8 +654,21 @@ Theorem reject_when_tx_kernel_rejects :
     lko_accept (CoqLedgerApply i) = false.
 Proof.
   intros i H.
-  unfold CoqLedgerApply, ledger_checks.
+  unfold CoqLedgerApply, ledger_checks, early_checks.
   rewrite H. reflexivity.
+Qed.
+
+Theorem tx_reject_value_ok_fail_closed :
+  forall i,
+    tkr_accept (lki_tx i) = false ->
+    lko_value_ok (CoqLedgerApply i) = false /\
+    lko_value_ok (CppLedgerApply i) = false.
+Proof.
+  intros i H.
+  split.
+  - unfold CoqLedgerApply, early_checks. rewrite H. reflexivity.
+  - rewrite ledger_apply_eq. unfold CoqLedgerApply, early_checks.
+    rewrite H. reflexivity.
 Qed.
 
 Theorem reject_when_consensus_kernel_rejects :
@@ -421,6 +678,6 @@ Theorem reject_when_consensus_kernel_rejects :
     lko_accept (CoqLedgerApply i) = false.
 Proof.
   intros i Ht Hc.
-  unfold CoqLedgerApply, ledger_checks.
+  unfold CoqLedgerApply, ledger_checks, early_checks.
   rewrite Ht, Hc. reflexivity.
 Qed.

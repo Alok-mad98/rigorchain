@@ -33,6 +33,7 @@ echo "== Print Assumptions =="
 ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
 Require UTXOStateTransitionRefinement.
 Print Assumptions UTXOStateTransitionRefinement.state_transition_refinement.
+Print Assumptions UTXOStateTransitionRefinement.cpp_rejects_unscheduled_res_mint.
 Print Assumptions UTXOStateTransitionRefinement.transaction_gate.
 Print Assumptions UTXOStateTransitionRefinement.consensus_gate.
 Print Assumptions UTXOStateTransitionRefinement.ledger_transition.
@@ -70,6 +71,4 @@ echo "== g++ test_utxo_state_transition_refinement =="
 
 echo "UTXO_STATE_TRANSITION_REFINEMENT=PASS/CLOSED"
 echo "PRODUCTION_CONSENSUS_MODIFIED=NO"
-echo "PRODUCTION_KERNEL_SWITCHED=NO"
-echo "REFINEMENT_PROVED=true"
-echo "EQUIVALENCE_PROVED=false"
+python3 "$TOOLS/refinement_status.py"

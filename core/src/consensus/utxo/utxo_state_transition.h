@@ -100,11 +100,11 @@ inline UTXOStateTransitionResult UTXOStateTransition(const UTXOStateTransitionIn
         return out;
     }
 
-    const LedgerKernelOutput applied = LedgerApply(ledger);
+    LedgerKernelOutput applied = LedgerApply(ledger);
     out.accept = applied.accept;
     if (applied.accept) {
-        out.delta.removals = applied.spent_delta;
-        out.delta.additions = applied.created_delta;
+        out.delta.removals = std::move(applied.spent_delta);
+        out.delta.additions = std::move(applied.created_delta);
     }
     return out;
 }

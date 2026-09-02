@@ -92,6 +92,15 @@ def main() -> int:
     coq = COQ.read_text(encoding="utf-8", errors="replace")
     if re.search(r"^\s*(Admitted|Axiom|Parameter)\s", coq, re.MULTILINE):
         errors.append("UTXOStateTransitionRefinement.v is not axiom-free")
+    if re.search(
+        r"Definition\s+CppStateTransition\b[^=]*=\s*(fun\s+\w+\s*=>\s*)?CoqStateTransition",
+        coq,
+    ):
+        errors.append("CppStateTransition is an alias of CoqStateTransition")
+    if coq.count("cpp_utxo_reject") < 3:
+        errors.append("CppStateTransition is missing independent reject structure")
+    if "CppStateTransitionST" in coq:
+        errors.append("dummy two-state CppStateTransitionST must be removed")
     if "equivalence_proved : bool := false" not in coq:
         errors.append("Coq equivalence flag drifted")
     if "CppStateTransition" not in coq or "CoqStateTransition" not in coq:
@@ -115,7 +124,7 @@ def main() -> int:
         return 1
 
     print("UTXO_STATE_TRANSITION_BOUNDARY=PASS")
-    print("PRODUCTION_KERNEL_SWITCHED=NO")
+    print("UTXO_COMPOSE_IN_PRODUCTION=false")
     print("PRODUCTION_CONSENSUS_MODIFIED=NO")
     return 0
 

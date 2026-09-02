@@ -22,7 +22,7 @@ check_PROGRAMS =
 TESTS =
 BENCHMARKS =
 
-BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS)
+BITCOIN_INCLUDES=-I$(builddir) -I$(srcdir)/$(MINISKETCH_INCLUDE_DIR_INT) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT) $(LEVELDB_CPPFLAGS) -I$(srcdir)/crc32c/include
 
 LIBBITCOIN_NODE=libbitcoin_node.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
@@ -192,6 +192,10 @@ BITCOIN_CORE_H = \
   memusage.h \
   merkleblock.h \
   net.h \
+  net/security/p2p_security_input.h \
+  net/security/p2p_validation_result.h \
+  net/security/p2p_message_boundary.h \
+  net/security/peer_misbehavior_score.h \
   net_permissions.h \
   net_processing.h \
   net_types.h \
@@ -214,6 +218,9 @@ BITCOIN_CORE_H = \
   node/mempool_args.h \
   node/mempool_persist_args.h \
   node/miner.h \
+  node/operations/operations_result.h \
+  node/operations/node_operations_baseline.h \
+  node/operations/node_operations_hooks.h \
   node/minisketchwrapper.h \
   node/psbt.h \
   node/transaction.h \
@@ -342,6 +349,10 @@ BITCOIN_CORE_H = \
   wallet/fee_domain.h \
   wallet/psbt_domain.h \
   wallet/asset_domain.h \
+  wallet/security/wallet_transaction_request.h \
+  wallet/security/wallet_security_result.h \
+  wallet/security/wallet_security_boundary.h \
+  wallet/security/wallet_signing_boundary.h \
   wallet/sqlite.h \
   wallet/transaction.h \
   wallet/types.h \
@@ -424,6 +435,7 @@ libbitcoin_node_a_SOURCES = \
   kernel/mempool_persist.cpp \
   mapport.cpp \
   net.cpp \
+  net/security/p2p_message_boundary.cpp \
   net_processing.cpp \
   netgroup.cpp \
   node/auto_res_mint.cpp \
@@ -445,6 +457,8 @@ libbitcoin_node_a_SOURCES = \
   node/mempool_args.cpp \
   node/mempool_persist_args.cpp \
   node/miner.cpp \
+  node/operations/node_operations_baseline.cpp \
+  node/operations/node_operations_hooks.cpp \
   node/minisketchwrapper.cpp \
   node/psbt.cpp \
   node/transaction.cpp \
@@ -523,6 +537,8 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/fees.cpp \
   wallet/convergencestate.cpp \
   wallet/asset_domain.cpp \
+  wallet/security/wallet_security_boundary.cpp \
+  wallet/security/wallet_signing_boundary.cpp \
   wallet/interfaces.cpp \
   wallet/load.cpp \
   wallet/receive.cpp \
@@ -903,6 +919,7 @@ rigor_tx_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
+  $(LIBCRC32C) \
   $(SODIUM_LIBS)
 #
 
@@ -975,7 +992,7 @@ lib_LTLIBRARIES += $(LIBBITCOINKERNEL)
 
 libbitcoinkernel_la_LDFLAGS = $(AM_LDFLAGS) -no-undefined $(RELDFLAGS) $(PTHREAD_FLAGS)
 libbitcoinkernel_la_LIBADD = $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(SODIUM_LIBS)
-libbitcoinkernel_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
+libbitcoinkernel_la_CPPFLAGS = $(AM_CPPFLAGS) -I$(builddir)/obj -DBUILD_BITCOIN_INTERNAL $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -I$(srcdir)/crc32c/include -I$(srcdir)/$(UNIVALUE_INCLUDE_DIR_INT)
 
 # libbitcoinkernel requires default symbol visibility, explicitly specify that
 # here so that things still work even when user configures with

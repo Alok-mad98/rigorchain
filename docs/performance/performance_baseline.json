@@ -1,0 +1,679 @@
+{
+  "task": "P0-082-RIGOR-GENESIS-RELEASE-GUARDIAN-CI",
+  "source": "docs/performance/performance_results.json",
+  "note": "Fingerprint contract pinned from a passing P077 bench on this tree. Latency is reported, not a cross-host fail.",
+  "samples": [
+    {
+      "bench": "consensus_kernel",
+      "component": "issuance",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 407.338,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "issuance",
+      "scenario": "empty_block",
+      "path": "memo",
+      "iters": 600,
+      "latency_ns": 4.5,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "maturity",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3.667,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "classification",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 51.002,
+      "fingerprint": "8576d1cbd7e958d8"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "draw",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 10.667,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "supply",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 432.838,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 934.012,
+      "fingerprint": "cbc1fb7185797ad9"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "classification",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 189.335,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 884.345,
+      "fingerprint": "75487b3624c7a842"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "classification",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 626.008,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "maturity",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3.667,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 886.845,
+      "fingerprint": "75487b3624c7a842"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "draw",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 28328.52,
+      "fingerprint": "8576d1cbd7e958d8"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 25185.315,
+      "fingerprint": "52dde54560d88352"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "draw",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 106328.483,
+      "fingerprint": "2d57d561095d663a"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 105911.252,
+      "fingerprint": "b479e32afff8a9eb"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "issuance",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 235.502,
+      "fingerprint": "c53b63144bba723d"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 1856.523,
+      "fingerprint": "82a2385b5ed113b4"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "issuance",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 230.503,
+      "fingerprint": "739e36ac3cad91c8"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 1868.69,
+      "fingerprint": "0ff815a79dea2d06"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "normal_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 430.005,
+      "fingerprint": "75487b3624c7a842"
+    },
+    {
+      "bench": "consensus_kernel",
+      "component": "full",
+      "scenario": "large_transaction_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 14448.68,
+      "fingerprint": "52dde54560d88352"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 5.5,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "classify",
+      "scenario": "empty_block",
+      "path": "legacy",
+      "iters": 600,
+      "latency_ns": 63.835,
+      "fingerprint": "44701f69cc08b000"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 255.503,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "classify",
+      "scenario": "oru_transfer",
+      "path": "legacy",
+      "iters": 600,
+      "latency_ns": 272.67,
+      "fingerprint": "8f202be3452f3a6c"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "sighash",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 384.338,
+      "fingerprint": "7997bd3d0d716b08"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "signature",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 1.833,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 1225.348,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "classify",
+      "scenario": "res_maturity_spend",
+      "path": "legacy",
+      "iters": 600,
+      "latency_ns": 1570.353,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "normal_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 256.17,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "large_transaction_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 265.337,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 111.502,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 308.005,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 249.67,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 247.503,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "transaction_kernel",
+      "component": "predicate",
+      "scenario": "malformed_reject",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 23.5,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 50.333,
+      "fingerprint": "61f5eda641eced14"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 149.002,
+      "fingerprint": "b741ae6f947a134d"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "normal_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 193.168,
+      "fingerprint": "b741ae6f947a134d"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 203.503,
+      "fingerprint": "e2959d78b2492399"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "res_maturity_spend",
+      "path": "immature",
+      "iters": 600,
+      "latency_ns": 58.668,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 135.002,
+      "fingerprint": "471e4f30988a86da"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 141.722,
+      "fingerprint": "a3bd2338c85f9618"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 2851.87,
+      "fingerprint": "fae80f6489afc554"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 2667.867,
+      "fingerprint": "ac8acb48be1fcecc"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "large_transaction_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 2203.193,
+      "fingerprint": "fae80f6489afc554"
+    },
+    {
+      "bench": "ledger_apply",
+      "component": "apply",
+      "scenario": "malformed_reject",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 7.5,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 277.003,
+      "fingerprint": "ca53b69fc08d7311"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 833.51,
+      "fingerprint": "8d82c174d6fa6253"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "normal_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 805.843,
+      "fingerprint": "8d82c174d6fa6253"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 2678.533,
+      "fingerprint": "1cde0b878414bb69"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3379.71,
+      "fingerprint": "98dc0d01bd4a57f0"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 4133.166,
+      "fingerprint": "1b6b686b372a34b3"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "input_lookup_linear",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 2.649,
+      "fingerprint": "0ac66c5df4e87f01"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "input_lookup_map",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 12.583,
+      "fingerprint": "0ac66c5df4e87f01"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3516.543,
+      "fingerprint": "f0dbb3463088808d"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 5048.23,
+      "fingerprint": "acc21027cfb55513"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "large_transaction_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3494.71,
+      "fingerprint": "f0dbb3463088808d"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "apply",
+      "scenario": "malformed_reject",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 254.503,
+      "fingerprint": "8461b85f0e24be49"
+    },
+    {
+      "bench": "utxo_state_transition",
+      "component": "rss_probe",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 4800,
+      "latency_ns": 0,
+      "fingerprint": "0000000000000000"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "empty_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 293.17,
+      "fingerprint": "c35173f0bb6ece0e"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "normal_block",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 6683.918,
+      "fingerprint": "ff09a766b186f1c1"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "large_transaction_block",
+      "path": "kernel",
+      "iters": 151,
+      "latency_ns": 63573.642,
+      "fingerprint": "7ee2e680de4b1f7f"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "many_inputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3014.872,
+      "fingerprint": "b6e50cd45b9519c0"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "many_outputs",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3515.545,
+      "fingerprint": "6cd61274a17b261e"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "oru_transfer",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 901.177,
+      "fingerprint": "9a4794c350dd3a04"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "res_maturity_spend",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 1571.352,
+      "fingerprint": "abb0b15cd0f7024f"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "convergence_draw",
+      "path": "kernel",
+      "iters": 600,
+      "latency_ns": 3335.71,
+      "fingerprint": "11ef2ec9edd06685"
+    },
+    {
+      "bench": "block_validation",
+      "component": "compose",
+      "scenario": "large_utxo",
+      "path": "kernel",
+      "iters": 76,
+      "latency_ns": 3613.211,
+      "fingerprint": "dccd165a9a4e0229"
+    }
+  ],
+  "kernel_latency": {
+    "empty_block": 934.012,
+    "oru_transfer": 884.345,
+    "res_maturity_spend": 886.845,
+    "convergence_draw": 25185.315,
+    "large_utxo": 105911.252,
+    "many_inputs": 1856.523,
+    "many_outputs": 1868.69,
+    "normal_block": 430.005,
+    "large_transaction_block": 14448.68
+  },
+  "block_validation_latency": {
+    "empty_block": 293.17,
+    "normal_block": 6683.918,
+    "large_transaction_block": 63573.642,
+    "many_inputs": 3014.872,
+    "many_outputs": 3515.545,
+    "oru_transfer": 901.177,
+    "res_maturity_spend": 1571.352,
+    "convergence_draw": 3335.71,
+    "large_utxo": 3613.211
+  },
+  "utxo_performance": {
+    "empty_block": 277.003,
+    "oru_transfer": 833.51,
+    "normal_block": 805.843,
+    "res_maturity_spend": 2678.533,
+    "convergence_draw": 3379.71,
+    "large_utxo": 4133.166,
+    "many_inputs": 3516.543,
+    "many_outputs": 5048.23,
+    "large_transaction_block": 3494.71,
+    "malformed_reject": 254.503
+  },
+  "gates": {
+    "PERFORMANCE_BASELINE": "PASS",
+    "CONSENSUS_BEHAVIOR_CHANGED": false,
+    "STATE_TRANSITION_CHANGED": false,
+    "HASH_CHANGED": false,
+    "MEMORY_SAFETY": "PASS",
+    "CRASH_FOUND": "NO"
+  }
+}

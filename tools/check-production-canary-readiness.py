@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 TOOLS = ROOT / "tools"
 TOKEN = "CONSENSUS_KERNEL_CANARY_NOT_READY"
 
@@ -54,9 +56,7 @@ def main() -> int:
     print("CANARY_AVAILABLE = TRUE")
     print("CANARY_ENABLED = FALSE")
     print("ROLLBACK_READY = TRUE")
-    print("PRODUCTION_KERNEL_SWITCHED = FALSE")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
+    print_status()
     return 0
 
 

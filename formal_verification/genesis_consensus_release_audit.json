@@ -8,7 +8,6 @@
   "GENESIS_CONSENSUS_READY": true,
   "REFINEMENT_PROVED": true,
   "EQUIVALENCE_PROVED": false,
-  "PRODUCTION_KERNEL_SWITCHED": true,
   "SINGLE_PRODUCTION_AUTHORITY": true,
   "production_call_graph": [
     "Block",
@@ -52,5 +51,9 @@
     "invalid_draw": "none / reject mint",
     "invalid_maturity": "reject",
     "deterministic": true
-  }
+  },
+  "PRODUCTION_CONSENSUS_AUTHORITY": "RigorConsensusKernel(C++)",
+  "FORMAL_REFINEMENT_STATUS": "PROVED",
+  "EXTRACTED_KERNEL_PRODUCTION": false,
+  "COMPCERT_BINARY_VERIFIED_KERNEL": false
 }

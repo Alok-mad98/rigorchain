@@ -1,0 +1,267 @@
+{
+  "task": "TASK-RIGOR-DATABASE-STATE-PERSISTENCE-SECURITY-AUDIT-P0-086",
+  "date": "2026-09-02",
+  "nature": "Fail-closed fix for CoinsDB deserialize / Coin integrity (Scheme A). Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES, draw, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
+  "production_consensus_modified": false,
+  "database_security_audit": "PASS",
+  "database_consensus_boundary": "CLOSED",
+  "database_fail_closed": true,
+  "cache_db_equivalence": "PASS",
+  "reorg_recovery": "PASS",
+  "rebuild_equivalence": "PARTIAL",
+  "consensus_state_equivalence": true,
+  "corruption_test": "PASS",
+  "database_consensus_divergence": 0,
+  "fuzz_status": "PASS",
+  "crash_found": false,
+  "undefined_behavior": false,
+  "database_consensus_authority_count": 0,
+  "database_validation_authority_count": 1,
+  "database_state_reconstruction_path_count": 5,
+  "inherited_bitcoin_db_surface": "AUDITED",
+  "database_formal_proof": false,
+  "database_formally_proved": false,
+  "database_trust_boundary": "EXTERNAL_INFRASTRUCTURE",
+  "release_guardian_database_coverage": "FULL",
+  "database_release_gate": "PARTIAL",
+  "formal_layers": {
+    "A_coq_consensus_kernel": "out of scope; unchanged",
+    "B_cpp_production_differential": "not claimed",
+    "C_database_serialization": "locked by golden vectors + standalone codec; disk Coin is leaf + CRC32C_RGCI; MuHash leaves omit checksum (STATE_HASH v4)",
+    "D_database_recovery_equivalence": "harness PASS; production -reindex not executed",
+    "E_database_implementation_correctness": "inherited Bitcoin Core LevelDB wrapper; value-corruption fail-closed TRUE",
+    "F_leveldb_correctness": "trusted external infrastructure; not formalized"
+  },
+  "databases": [
+    {
+      "name": "CoinsDB / chainstate/",
+      "class": "CCoinsViewDB",
+      "engine": "LevelDB via CDBWrapper",
+      "writer": "CCoinsViewCache::Flush/Sync → CCoinsViewDB::BatchWrite",
+      "reader": "CCoinsViewCache → CCoinsViewErrorCatcher → CCoinsViewDB::GetCoin",
+      "affects_consensus": true,
+      "rebuildable": true,
+      "consensus_authority": false,
+      "notes": "Persistence of the UTXO set. Serialization is not a second kernel. Corrupt values abort. CoinDiskFormatter CRC-32C. Wipe / -reindex; no in-place migration."
+    },
+    {
+      "name": "block index / blocks/index/",
+      "class": "CBlockTreeDB",
+      "engine": "LevelDB via CDBWrapper",
+      "writer": "CBlockTreeDB::WriteBatchSync",
+      "reader": "LoadBlockIndexGuts",
+      "affects_consensus": true,
+      "rebuildable": true,
+      "consensus_authority": false,
+      "rigor_fields": [
+        "m_draw_candidate_root",
+        "has_res",
+        "last_res_mint_block_hash",
+        "m_block_res_mint_sum",
+        "m_block_converge_sum",
+        "m_paid_winner_txid",
+        "m_draw_set",
+        "observational cumulative convergence"
+      ],
+      "notes": "GetValue failure is fail-closed. Truncated pre-H-1 records throw. m_paid_winner_txid is re-checked by ValidatePaidWinnerRecord."
+    },
+    {
+      "name": "block storage blk*.dat + rev*.dat",
+      "class": "FlatFile / UndoReadFromDisk",
+      "engine": "flat files, not LevelDB",
+      "writer": "BlockManager",
+      "reader": "ConnectBlock / DisconnectBlock / ReplayBlocks / reindex",
+      "affects_consensus": true,
+      "rebuildable": false,
+      "consensus_authority": false,
+      "notes": "Authoritative block and undo bytes. chainstate is reconstructed from these."
+    },
+    {
+      "name": "wallet / rigor-wallet.sqlite",
+      "class": "SQLite descriptor wallet",
+      "affects_consensus": false,
+      "rebuildable": true,
+      "consensus_authority": false,
+      "notes": "Wallet DB cannot accept or reject blocks. Berkeley DB wallets are rejected."
+    },
+    {
+      "name": "txindex",
+      "class": "TxIndex",
+      "optional": true,
+      "affects_consensus": false,
+      "rebuildable": true,
+      "consensus_authority": false
+    },
+    {
+      "name": "blockfilterindex",
+      "class": "BlockFilterIndex",
+      "optional": true,
+      "affects_consensus": false,
+      "rebuildable": true,
+      "consensus_authority": false
+    },
+    {
+      "name": "coinstatsindex",
+      "class": "CoinStatsIndex",
+      "optional": true,
+      "affects_consensus": false,
+      "rebuildable": true,
+      "consensus_authority": false
+    },
+    {
+      "name": "pool / explorer SQL",
+      "class": "external",
+      "affects_consensus": false,
+      "rebuildable": true,
+      "consensus_authority": false,
+      "notes": "Not on the node accept/reject path."
+    }
+  ],
+  "findings": [
+    {
+      "id": "P0-086-01",
+      "severity": "P0",
+      "title": "CDBWrapper::Read maps deserialize failure to missing coin",
+      "production": "dbwrapper.h Read() catch(std::exception) return false",
+      "effect": "Corrupted Coin value → GetCoin false → AccessCoin empty → CheckTxInputs TX_CONSENSUS bad-txns-inputs-missingorspent",
+      "maps_database_failure_to": "DATABASE_CORRUPTION / abort",
+      "can_reject_valid_block": false,
+      "can_accept_invalid_block": "No. Read throws; ErrorCatcher abort(). HaveCoin/Exists is key presence only.",
+      "remediation": "Fixed: existing-key deserialize failure throws DESERIALIZATION_FAILURE / DATABASE_CORRUPTION. Missing key still returns false.",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-02",
+      "severity": "P0",
+      "title": "Height and coinbase flag are trusted from CoinsDB with no checksum",
+      "production": "Coin::Unserialize reads VARINT code into nHeight/fCoinBase",
+      "effect": "A flipped coinbase bit or reduced height fails CoinIntegrityChecksum and aborts (cannot skip maturity).",
+      "remediation": "Fixed Scheme A: CRC-32C Castagnoli over nHeight, fCoinBase, nValue, scriptPubKey in CoinDiskFormatter. Mismatch is DATABASE_CORRUPTION. Wipe / -reindex; no format marker.",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-03",
+      "severity": "P1",
+      "title": "ScriptCompression oversized records are rewritten to RIGOR_MARKER_RETURN",
+      "production": "compressor.h ScriptCompression::Unser",
+      "effect": "nSize > MAX_SCRIPT_SIZE throws DATABASE_CORRUPTION. No rewrite to RIGOR_MARKER_RETURN.",
+      "classification": "fail-closed deserialize",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-04",
+      "severity": "P1",
+      "title": "Bitcoin compressed-script types on the Coin path",
+      "production": "compressor.h TxOutCompression uses ScriptPlainFormatter",
+      "effect": "Coin path is VARINT(len)||bytes. Types 4/5 no longer exist on disk Coin records.",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-05",
+      "severity": "P1",
+      "title": "AddCoins encodes UTXO-membership for convergence in the cache layer",
+      "production": "coins.cpp AddCoin/AddCoins and validation DisconnectBlock use EntersUtxoSet",
+      "effect": "Second copy of 'convergence is not a UTXO'. Not a second accept/reject kernel. DisconnectBlock must stay symmetric.",
+      "classification": "DATABASE_CONSENSUS_LOGIC_DUPLICATION",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-06",
+      "severity": "P1",
+      "title": "ApplyTxInUndo copies sibling metadata when undo height is 0",
+      "production": "validation.cpp ApplyTxInUndo",
+      "effect": "Height-0 non-coinbase undo throws. DisconnectBlock AbortNode. No sibling copy. Genesis coinbase undos (height 0 + coinbase) keep stored metadata.",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-07",
+      "severity": "P2",
+      "title": "CCoinsViewCache::Cursor skips GetValue failures",
+      "production": "coins.cpp Cursor",
+      "effect": "A corrupt record disappears from RPC/snapshot materialization without aborting.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-08",
+      "severity": "P2",
+      "title": "DisconnectBlock special-cased Bitcoin BIP30 exception heights",
+      "production": "validation.cpp ConnectBlock always rejects duplicate outpoints",
+      "effect": "BIP30 exception helpers removed. Duplicate outpoints are consensus-invalid.",
+      "fixed_in_this_task": true
+    },
+    {
+      "id": "P0-086-09",
+      "severity": "P2",
+      "title": "CCoinsViewDB::HaveCoin uses Exists without deserializing the value",
+      "production": "txdb.cpp HaveCoin → m_db->Exists",
+      "effect": "A corrupt value looks present to direct DB HaveCoin. ConnectBlock cache HaveCoin uses FetchCoin/GetCoin and aborts.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-10",
+      "severity": "P2",
+      "title": "ErrorCatcher does not wrap ReplayBlocks",
+      "production": "ReplayBlocks: CCoinsViewCache cache(&CoinsDB())",
+      "effect": "Crash recovery deserialize throws rather than ErrorCatcher abort. Not mapped to TX_CONSENSUS.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-11",
+      "severity": "P2",
+      "title": "CRC-32C is not a MAC",
+      "production": "CoinIntegrityChecksum / CoinDiskFormatter",
+      "effect": "Well-formed tampering with a recomputed trailer is trusted infrastructure, not random-corruption fail-closed.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-12",
+      "severity": "P2",
+      "title": "Audit gate replica is not production libbitcoin_common",
+      "production": "tools/database_state_codec.py and standalone test; coins_tests.cpp is the production lock",
+      "effect": "Coverage gap if replica drifts. Lint locks production fail-closed sites.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-13",
+      "severity": "coverage",
+      "title": "Production -reindex not executed",
+      "effect": "REBUILD_EQUIVALENCE remains PARTIAL. CONSENSUS_STATE_EQUIVALENCE is harness-TRUE.",
+      "fixed_in_this_task": false
+    },
+    {
+      "id": "P0-086-14",
+      "severity": "P2",
+      "title": "Fuzz is smoke, not a campaign",
+      "effect": "CRASH_FOUND=NO is limited to fuzz/database/run_smoke.sh plus overlay ops.",
+      "fixed_in_this_task": false
+    }
+  ],
+  "error_class_matrix": {
+    "CONSENSUS_INVALID": "Kernel / ConnectBlock / CheckTxInputs reject of a well-read state",
+    "DATABASE_FAILURE": "LevelDB I/O error (throws; ErrorCatcher abort)",
+    "NODE_RECOVERY_REQUIRED": "ReplayBlocks unknown heads; NeedsUpgrade; reindex flags",
+    "CORRUPTED_PERSISTENT_STATE": "Malformed value or checksum mismatch → abort / DISCONNECT_FAILED"
+  },
+  "canonical_coin": {
+    "layout": "leaf VARINT((coinbase?1:0)|(height<<1)) || VARINT(CompressAmount) || VARINT(scriptLen) || script; disk/undo adds CRC32C_RGCI",
+    "txout_compression": "VARINT(CompressAmount(nValue)) || ScriptPlainFormatter",
+    "asset_persisted": false,
+    "issuance_persisted_in_coin": false,
+    "draw_persisted_in_coin": false
+  },
+  "inherited_tests": [
+    "core/src/test/coins_tests.cpp",
+    "core/src/test/validation_flush_tests.cpp",
+    "core/src/test/validation_chainstate_tests.cpp",
+    "core/src/test/fuzz/coins_view.cpp",
+    "core/src/test/fuzz/coinscache_sim.cpp",
+    "core/test/functional/feature_dbcrash.py"
+  ],
+  "rigor_required_retests": [
+    "Coin ser/deser with witness v0 ORU, witness v1 RES, RES mint, convergence skip",
+    "undo of RES mint / RES transfer / convergence-not-in-UTXO",
+    "CDiskBlockIndex m_paid_winner_txid / m_draw_set fail-closed (paid_winner_index_tests)",
+    "cache vs restart vs reindex consensus-state on a RIGOR golden chain",
+    "corruption of height / coinbase / asset script must abort (not CONSENSUS_INVALID)"
+  ]
+}

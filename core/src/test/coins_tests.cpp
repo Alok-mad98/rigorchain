@@ -4,8 +4,10 @@
 
 #include <clientversion.h>
 #include <coins.h>
+#include <compressor.h>
 #include <script/script.h>
 #include <script/standard.h>
+#include <span.h>
 #include <streams.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
@@ -13,14 +15,16 @@
 #include <uint256.h>
 #include <undo.h>
 #include <util/strencodings.h>
+#include <validation.h>
 
+#include <cstddef>
 #include <map>
+#include <stdexcept>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
 
 int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out);
-void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight);
 
 namespace
 {
@@ -300,17 +304,13 @@ UtxoData::iterator FindRandomFrom(const std::set<COutPoint> &utxoSet) {
 }
 
 
-// This test is similar to the previous test
-// except the emphasis is on testing the functionality of UpdateCoins
-// random txs are created and UpdateCoins is used to update the cache stack
-// In particular it is tested that spending a duplicate coinbase tx
-// has the expected effect (the other duplicate is overwritten at all cache levels)
+// Random UpdateCoins / disconnect / cache-stack simulation.
+// RIGOR does not overwrite duplicate outpoints (no Bitcoin BIP30 coinbase reuse).
 BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
 {
     SeedInsecureRand(SeedRand::ZEROS);
     g_mock_deterministic_tests = true;
 
-    bool spent_a_duplicate_coinbase = false;
     // A simple map to track what we expect the cache stack to represent.
     std::map<COutPoint, Coin> result;
 
@@ -322,7 +322,6 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
     // Track the txids we've used in various sets
     std::set<COutPoint> coinbase_coins;
     std::set<COutPoint> disconnected_coins;
-    std::set<COutPoint> duplicate_coins;
     std::set<COutPoint> utxoset;
 
     for (unsigned int i = 0; i < NUM_SIMULATION_ITERATIONS; i++) {
@@ -333,26 +332,15 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
             CMutableTransaction tx;
             tx.vin.resize(1);
             tx.vout.resize(1);
-            tx.vout[0].nValue = i; //Keep txs unique unless intended to duplicate
+            tx.vout[0].nValue = i; //Keep txs unique
             tx.vout[0].scriptPubKey.assign(InsecureRand32() & 0x3F, 0); // Random sizes so we can test memory usage accounting
-            const int height{int(InsecureRand32() >> 1)};
+            // Height-0 non-coinbase undo is DATABASE_CORRUPTION; keep simulated heights >= 1.
+            const int height{int(InsecureRand32() >> 2) + 1};
             Coin old_coin;
 
             // 2/20 times create a new coinbase
             if (randiter % 20 < 2 || coinbase_coins.size() < 10) {
-                // 1/10 of those times create a duplicate coinbase
-                if (InsecureRandRange(10) == 0 && coinbase_coins.size()) {
-                    auto utxod = FindRandomFrom(coinbase_coins);
-                    // Reuse the exact same coinbase
-                    tx = CMutableTransaction{std::get<0>(utxod->second)};
-                    // shouldn't be available for reconnection if it's been duplicated
-                    disconnected_coins.erase(utxod->first);
-
-                    duplicate_coins.insert(utxod->first);
-                }
-                else {
-                    coinbase_coins.insert(COutPoint(tx.GetHash(), 0));
-                }
+                coinbase_coins.insert(COutPoint(tx.GetHash(), 0));
                 assert(CTransaction(tx).IsCoinBase());
             }
 
@@ -370,10 +358,10 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
                         continue;
                     }
 
-                    // If this tx is already IN the UTXO, then it must be a coinbase, and it must be a duplicate
+                    // Already in the UTXO set: reconnect would overwrite. Skip.
                     if (utxoset.count(utxod->first)) {
-                        assert(CTransaction(tx).IsCoinBase());
-                        assert(duplicate_coins.count(utxod->first));
+                        disconnected_coins.erase(utxod->first);
+                        continue;
                     }
                     disconnected_coins.erase(utxod->first);
                 }
@@ -393,12 +381,6 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
                 result[prevout].Clear();
 
                 utxoset.erase(prevout);
-
-                // The test is designed to ensure spending a duplicate coinbase will work properly
-                // if that ever happens and not resurrect the previously overwritten coinbase
-                if (duplicate_coins.count(prevout)) {
-                    spent_a_duplicate_coinbase = true;
-                }
 
             }
             // Update the expected result to know about the new output coins
@@ -467,9 +449,6 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
         if (disconnected_coins.size() > 1 && InsecureRandRange(30) == 0) {
             stack[InsecureRand32() % stack.size()]->Uncache(FindRandomFrom(disconnected_coins)->first);
         }
-        if (duplicate_coins.size() > 1 && InsecureRandRange(30) == 0) {
-            stack[InsecureRand32() % stack.size()]->Uncache(FindRandomFrom(duplicate_coins)->first);
-        }
 
         if (InsecureRandRange(100) == 0) {
             // Every 100 iterations, flush an intermediate cache
@@ -494,59 +473,56 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test)
         }
     }
 
-    // Verify coverage.
-    BOOST_CHECK(spent_a_duplicate_coinbase);
-
     g_mock_deterministic_tests = false;
+}
+
+BOOST_AUTO_TEST_CASE(addcoins_duplicate_outpoint_throws)
+{
+    CCoinsViewTest base;
+    CCoinsViewCacheTest view(&base);
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vout.resize(1);
+    tx.vout[0].nValue = 1 * COIN;
+    tx.vout[0].scriptPubKey << RIGOR_PUSH_1;
+    AddCoins(view, CTransaction(tx), /*nHeight=*/1, /*check=*/false);
+    BOOST_CHECK_THROW(AddCoins(view, CTransaction(tx), /*nHeight=*/2, /*check=*/false), std::logic_error);
 }
 
 BOOST_AUTO_TEST_CASE(ccoins_serialization)
 {
-    // Good example
-    DataStream ss1{ParseHex("97f23c835800816115944e077fe7c803cfa57f29b36bf87c1d35")};
     Coin cc1;
-    ss1 >> cc1;
-    BOOST_CHECK_EQUAL(cc1.fCoinBase, false);
-    BOOST_CHECK_EQUAL(cc1.nHeight, 203998U);
-    BOOST_CHECK_EQUAL(cc1.out.nValue, CAmount{60000000000});
-    BOOST_CHECK_EQUAL(HexStr(cc1.out.scriptPubKey), HexStr(CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ParseHex("816115944e077fe7c803cfa57f29b36bf87c1d35") << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG));
+    cc1.fCoinBase = false;
+    cc1.nHeight = 203998;
+    cc1.out.nValue = CAmount{60000000000};
+    cc1.out.scriptPubKey = CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ParseHex("816115944e077fe7c803cfa57f29b36bf87c1d35") << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG;
 
-    // Good example
-    DataStream ss2{ParseHex("8ddf77bbd123008c988f1a4a4de2161e0f50aac7f17e7f9555caa4")};
-    Coin cc2;
-    ss2 >> cc2;
-    BOOST_CHECK_EQUAL(cc2.fCoinBase, true);
-    BOOST_CHECK_EQUAL(cc2.nHeight, 120891U);
-    BOOST_CHECK_EQUAL(cc2.out.nValue, 110397);
-    BOOST_CHECK_EQUAL(HexStr(cc2.out.scriptPubKey), HexStr(CScript() << RIGOR_RESERVED_LEGACY_DUP << RIGOR_RESERVED_LEGACY_HASH160 << ParseHex("8c988f1a4a4de2161e0f50aac7f17e7f9555caa4") << RIGOR_RESERVED_LEGACY_EQUALVERIFY << RIGOR_RESERVED_LEGACY_CHECKSIG));
+    DataStream ss1;
+    ss1 << cc1;
+    Coin decoded1;
+    ss1 >> decoded1;
+    BOOST_CHECK(cc1.fCoinBase == decoded1.fCoinBase);
+    BOOST_CHECK_EQUAL(decoded1.nHeight, 203998U);
+    BOOST_CHECK_EQUAL(decoded1.out.nValue, CAmount{60000000000});
+    BOOST_CHECK_EQUAL(HexStr(decoded1.out.scriptPubKey), HexStr(cc1.out.scriptPubKey));
+    BOOST_CHECK(ss1.empty());
 
-    // Smallest possible example
-    DataStream ss3{ParseHex("000006")};
     Coin cc3;
-    ss3 >> cc3;
-    BOOST_CHECK_EQUAL(cc3.fCoinBase, false);
-    BOOST_CHECK_EQUAL(cc3.nHeight, 0U);
-    BOOST_CHECK_EQUAL(cc3.out.nValue, 0);
-    BOOST_CHECK_EQUAL(cc3.out.scriptPubKey.size(), 0U);
+    cc3.fCoinBase = false;
+    cc3.nHeight = 0;
+    cc3.out.nValue = 0;
+    DataStream ss3;
+    ss3 << cc3;
+    Coin decoded3;
+    ss3 >> decoded3;
+    BOOST_CHECK_EQUAL(decoded3.nHeight, 0U);
+    BOOST_CHECK_EQUAL(decoded3.out.nValue, 0);
+    BOOST_CHECK_EQUAL(decoded3.out.scriptPubKey.size(), 0U);
 
-    // scriptPubKey that ends beyond the end of the stream
     DataStream ss4{ParseHex("000007")};
     try {
         Coin cc4;
         ss4 >> cc4;
-        BOOST_CHECK_MESSAGE(false, "We should have thrown");
-    } catch (const std::ios_base::failure&) {
-    }
-
-    // Very large scriptPubKey (3*10^9 bytes) past the end of the stream
-    DataStream tmp{};
-    uint64_t x = 3000000000ULL;
-    tmp << VARINT(x);
-    BOOST_CHECK_EQUAL(HexStr(tmp), "8a95c0bb00");
-    DataStream ss5{ParseHex("00008a95c0bb00")};
-    try {
-        Coin cc5;
-        ss5 >> cc5;
         BOOST_CHECK_MESSAGE(false, "We should have thrown");
     } catch (const std::ios_base::failure&) {
     }
@@ -1072,16 +1048,113 @@ BOOST_AUTO_TEST_CASE(coin_serialization_roundtrip_no_trailing_flags)
     coin.fCoinBase = false;
 
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
-    ss << coin;
+    ss << Using<CoinDiskFormatter>(coin);
 
     Coin decoded;
-    ss >> decoded;
+    auto wrap = Using<CoinDiskFormatter>(decoded);
+    ss >> wrap;
     BOOST_CHECK(coin == decoded);
 }
 
-BOOST_AUTO_TEST_CASE(txundo_formatter_dummy_byte_roundtrip)
+BOOST_AUTO_TEST_CASE(coin_disk_integrity_checksum_fail_closed)
 {
-    // Dummy version byte is always 0.
+    Coin coin;
+    coin.out.nValue = 50 * COIN;
+    coin.out.scriptPubKey << RIGOR_PUSH_1;
+    coin.nHeight = 100;
+    coin.fCoinBase = true;
+
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << Using<CoinDiskFormatter>(coin);
+    BOOST_REQUIRE(ss.size() >= 4);
+
+    // Flip the checksum trailer: must not decode as a valid Coin.
+    ss[ss.size() - 1] = std::byte(std::to_integer<uint8_t>(ss[ss.size() - 1]) ^ uint8_t{0xFF});
+    Coin decoded;
+    auto wrap = Using<CoinDiskFormatter>(decoded);
+    BOOST_CHECK_THROW(ss >> wrap, std::ios_base::failure);
+
+    CDataStream truncated(SER_DISK, PROTOCOL_VERSION);
+    truncated << Using<CoinDiskFormatter>(coin);
+    truncated.resize(truncated.size() - 4);
+    Coin decoded2;
+    auto wrap2 = Using<CoinDiskFormatter>(decoded2);
+    BOOST_CHECK_THROW(truncated >> wrap2, std::ios_base::failure);
+
+    CDataStream extra(SER_DISK, PROTOCOL_VERSION);
+    extra << Using<CoinDiskFormatter>(coin);
+    extra << uint8_t{0x00};
+    Coin decoded3;
+    auto wrap3 = Using<CoinDiskFormatter>(decoded3);
+    extra >> wrap3;
+    BOOST_CHECK(!extra.empty());
+}
+
+BOOST_AUTO_TEST_CASE(coin_height_coinbase_tamper_fail_closed)
+{
+    Coin coin;
+    coin.out.nValue = 1 * COIN;
+    coin.out.scriptPubKey << RIGOR_PUSH_2;
+    coin.nHeight = 50;
+    coin.fCoinBase = true;
+
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    ss << Using<CoinDiskFormatter>(coin);
+    BOOST_REQUIRE(!ss.empty());
+    ss[0] = std::byte(std::to_integer<uint8_t>(ss[0]) ^ uint8_t{0x01});
+    Coin decoded;
+    auto wrap = Using<CoinDiskFormatter>(decoded);
+    BOOST_CHECK_THROW(ss >> wrap, std::ios_base::failure);
+}
+
+BOOST_AUTO_TEST_CASE(coin_oversized_script_fail_closed)
+{
+    // P0-086-03: nSize > MAX_SCRIPT_SIZE must throw, not rewrite to OP_RETURN.
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    uint32_t code = 2; // height 1, not coinbase
+    ss << VARINT(code);
+    ss << VARINT(CompressAmount(1));
+    unsigned int nSize = MAX_SCRIPT_SIZE + 1;
+    ss << VARINT(nSize);
+    std::vector<unsigned char> dummy(MAX_SCRIPT_SIZE + 1, 0x00);
+    ss << Span{dummy};
+    Coin decoded;
+    BOOST_CHECK_THROW(ss >> decoded, std::ios_base::failure);
+}
+
+BOOST_AUTO_TEST_CASE(applytxinundo_height0_non_coinbase_is_corruption)
+{
+    CCoinsViewTest base;
+    CCoinsViewCacheTest view(&base);
+    Coin undo;
+    undo.out.nValue = 1 * COIN;
+    undo.out.scriptPubKey << RIGOR_PUSH_1;
+    undo.nHeight = 0;
+    undo.fCoinBase = false;
+    COutPoint out(uint256S("0x1"), 0);
+    BOOST_CHECK_THROW(ApplyTxInUndo(std::move(undo), view, out), std::runtime_error);
+}
+
+BOOST_AUTO_TEST_CASE(applytxinundo_genesis_coinbase_keeps_metadata)
+{
+    CCoinsViewTest base;
+    CCoinsViewCacheTest view(&base);
+    Coin undo;
+    undo.out.nValue = 50 * COIN;
+    undo.out.scriptPubKey << RIGOR_PUSH_1;
+    undo.nHeight = 0;
+    undo.fCoinBase = true;
+    COutPoint out(uint256S("0x2"), 0);
+    BOOST_CHECK_EQUAL(ApplyTxInUndo(std::move(undo), view, out), DISCONNECT_OK);
+    const Coin& restored = view.AccessCoin(out);
+    BOOST_CHECK(restored.IsCoinBase());
+    BOOST_CHECK_EQUAL(restored.nHeight, 0U);
+    BOOST_CHECK_EQUAL(restored.out.nValue, 50 * COIN);
+}
+
+BOOST_AUTO_TEST_CASE(txundo_formatter_matches_disk_coin)
+{
+    // Undo encoding is CoinDiskFormatter (leaf + CRC-32C). No dummy version byte.
     Coin coin;
     coin.out.nValue = 10 * COIN;
     coin.out.scriptPubKey << RIGOR_PUSH_2;

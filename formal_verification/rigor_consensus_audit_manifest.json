@@ -4,7 +4,10 @@
   "consensus_kernel": {
     "status": "closed",
     "refinement": true,
-    "equivalence": false
+    "equivalence": false,
+    "coq_model_closure": "PROVED",
+    "coq_to_cpp": "VECTOR-TESTED",
+    "extracted_to_binary": "NOT-LINKED"
   },
   "authorities": {
     "issuance": "GetBlockSubsidy",
@@ -17,7 +20,11 @@
   },
   "production_kernel": {
     "implementation": "C++",
-    "switched_to_extraction": false
+    "switched_to_extraction": false,
+    "production_consensus_authority": "RigorConsensusKernel(C++)",
+    "formal_refinement_status": "PROVED",
+    "extracted_kernel_production": false,
+    "compcert_binary_verified_kernel": false
   },
   "formal": {
     "coq_admitted": 0,

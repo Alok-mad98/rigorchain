@@ -4,7 +4,7 @@
 //
 // P070 optional canary telemetry. Does not write a consensus log by default.
 // ENABLE_CONSENSUS_KERNEL_CANARY is the verify-only dual-path guard.
-// PRODUCTION_KERNEL_SWITCHED = FALSE
+// EXTRACTED_KERNEL_PRODUCTION = FALSE. Retired PRODUCTION_KERNEL_SWITCHED must not return.
 
 #ifndef BITCOIN_CONSENSUS_KERNEL_CANARY_CANARY_METRICS_H
 #define BITCOIN_CONSENSUS_KERNEL_CANARY_CANARY_METRICS_H

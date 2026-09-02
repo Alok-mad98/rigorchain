@@ -13,7 +13,10 @@ ROLLBACK                               = PASS
 CPP_AUTHORITY                          = ACTIVE
 CANARY_ROLE                            = VERIFY_ONLY
 CONSENSUS_KERNEL_CANDIDATE             = VERIFY_ONLY
-PRODUCTION_KERNEL_SWITCHED             = FALSE
+PRODUCTION_CONSENSUS_AUTHORITY     = RigorConsensusKernel(C++)
+FORMAL_REFINEMENT_STATUS           = PROVED
+EXTRACTED_KERNEL_PRODUCTION        = FALSE
+COMPCERT_BINARY_VERIFIED_KERNEL    = FALSE
 REFINEMENT_PROVED                      = TRUE
 EQUIVALENCE_PROVED                     = FALSE
 ```
@@ -28,9 +31,9 @@ Default remains **OFF**. The unique block decision is handwritten C++.
 |------|--------|
 | Production decision | `CPP_AUTHORITY = ACTIVE` |
 | Canary | `CONSENSUS_KERNEL_CANDIDATE = VERIFY_ONLY` |
-| Production switch | `PRODUCTION_KERNEL_SWITCHED = FALSE` |
+| Production switch | `EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)` |
 | Operator flag | `-enableconsensuskernelcanary` (default off) |
-| Release arm | `PRODUCTION_MAINNET_CANARY_ARMED = TRUE` |
+| Release arm | `PRODUCTION_MAINNET_CANARY_ARMED = FALSE` |
 | Health default | `PAUSED` until `MainnetCanaryMonitor::Start()` |
 
 Observation mode:
@@ -56,7 +59,9 @@ draw, classify, spends, RES maturity, empty block, high-tx, large UTXO,
 convergence draw). It is **not** 100000 mined live-chain blocks and it is
 **not** an equivalence proof.
 
-Evidence file: `formal_verification/mainnet_canary_observation.json`
+Mainnet canary is disarmed (`PRODUCTION_MAINNET_CANARY_ARMED = FALSE`).
+No committed observation file is kept: a stale `mainnet_canary_observation.json`
+would overclaim a soak that cannot run while the arm is false.
 
 ---
 
@@ -112,4 +117,4 @@ candidate is never accepted.
 - C++ authorities are not deleted or replaced.
 - Issuance / RES / draw / supply / PoW / ASERT are unchanged.
 - OCaml runtime is not linked.
-- `PRODUCTION_KERNEL_SWITCHED = FALSE`
+- `EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)`

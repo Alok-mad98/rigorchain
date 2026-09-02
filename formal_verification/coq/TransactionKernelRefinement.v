@@ -9,12 +9,21 @@
     Also: CppSighash = CoqSighash (layout). Ed25519 is the external
     primitive in SignatureBoundary.v (no curve math).
 
+    Oracle inputs (given, not computed here): tki_scriptSig_push_only,
+    tki_stack_clean, tki_keyhash_match, tki_crypto_accept. Production
+    VerifyRigorPredicate marshals those fields through MakeKernelInput
+    and decides accept/reject with this boundary. The theorem itself is
+    still over TransactionKernelInput, not over CScript arguments.
+    Raw-input marshalling gates (flags, witness, decode) are specified in
+    MakeKernelInput.v; this file does not claim that proof.
+
     Scope: Transaction Kernel only.
     Not proved: UTXO, LevelDB, chainstate, P2P, wallet, miner, GBT, PoW, ASERT.
 
-      refinement_proved            = true   (this spend boundary)
-      equivalence_proved           = false
-      production_kernel_switched   = false
+      refinement_proved                    = true   (this spend boundary)
+      equivalence_proved                   = false
+      extracted_kernel_production          = false
+      compcert_binary_verified_kernel      = false
 
     No [Admitted] / [Axiom] / [Parameter] / [Extract Constant]. *)
 
@@ -38,7 +47,9 @@ Local Open Scope Z_scope.
 
 Definition refinement_proved : bool := true.
 Definition equivalence_proved : bool := false.
-Definition production_kernel_switched : bool := false.
+Definition extracted_kernel_production : bool := false.
+Definition extracted_kernel_linked : bool := extracted_kernel_production.
+Definition compcert_binary_verified_kernel : bool := false.
 Definition connectblock_full_proof : bool := false.
 Definition utxo_refinement_proved : bool := false.
 
@@ -48,7 +59,13 @@ Proof. reflexivity. Qed.
 Theorem node_equivalence_not_proved : equivalence_proved = false.
 Proof. reflexivity. Qed.
 
-Theorem production_kernel_not_switched : production_kernel_switched = false.
+Theorem extracted_kernel_not_production : extracted_kernel_production = false.
+Proof. reflexivity. Qed.
+
+Theorem extracted_kernel_not_linked : extracted_kernel_linked = false.
+Proof. reflexivity. Qed.
+
+Theorem compcert_binary_not_verified : compcert_binary_verified_kernel = false.
 Proof. reflexivity. Qed.
 
 (** * TransactionKernelInput — explicit fields only *)

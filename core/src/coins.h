@@ -15,22 +15,41 @@
 #include <util/hasher.h>
 
 #include <assert.h>
+#include <limits>
 #include <stdint.h>
+#include <string.h>
 
 #include <functional>
 #include <ios>
+#include <stdexcept>
 #include <unordered_map>
+
+/**
+ * CRC-32C (Castagnoli) over consensus-visible Coin fields. Domain tag "RGCI".
+ *
+ * CoinsDB is a persistent carrier, not a second Consensus Kernel. This
+ * checksum does not decide accept/reject and is not a MAC. A mismatch is
+ * DATABASE_CORRUPTION and must fail closed. Untrusted chainstate is rebuilt
+ * from blk*.dat.
+ *
+ * Covers: nHeight, fCoinBase, nValue, scriptPubKey.
+ */
+uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out);
 
 /**
  * A UTXO entry.
  *
- * Serialized format (LevelDB / coins cache) — Bitcoin Core layout, no trailing flags:
+ * Canonical leaf layout (`Coin::Serialize`, MuHash / RIGOR/STATE_HASH/v4):
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
- * - the non-spent CTxOut (via TxOutCompression; native asset is implied by scriptPubKey)
+ * - TxOutCompression: VARINT(CompressAmount(nValue)) || VARINT(scriptLen) || script
  *
- * Consensus meaning lives in scriptPubKey (`RIGOR_MARKER_RES_MINT` for body RES mint locks).
- * ApplyTxInUndo() copies nHeight/fCoinBase from a sibling output when undo
- * metadata is missing (legacy undo). Block undo uses TxInUndoFormatter in undo.h.
+ * Disk / undo layout (`CoinDiskFormatter`): leaf bytes || uint32 CRC32C trailer.
+ * Checksum is never part of Coin::Serialize. Do not add GetType() to DataStream
+ * to "reuse" disk encoding for leaves.
+ *
+ * Native asset is implied by scriptPubKey (script-as-asset). Height-0
+ * non-coinbase undo is DATABASE_CORRUPTION. Genesis coinbase undos keep
+ * stored height 0 + coinbase.
  */
 class Coin
 {
@@ -39,14 +58,14 @@ public:
     CTxOut out;
 
     //! whether containing transaction was a coinbase
-    unsigned int fCoinBase : 1;
+    bool fCoinBase{false};
 
     //! at which height this containing transaction was included in the active block chain
-    uint32_t nHeight : 31;
+    uint32_t nHeight{0};
 
     //! construct a Coin from a CTxOut and height/coinbase information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(nHeightIn) {}
-    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn),nHeight(nHeightIn) {}
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)) {}
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)) {}
 
     void Clear() {
         out.SetNull();
@@ -55,30 +74,29 @@ public:
     }
 
     //! empty constructor
-    Coin() : fCoinBase(false), nHeight(0) { }
+    Coin() = default;
 
     bool IsCoinBase() const {
         return fCoinBase;
     }
 
-    bool RequiresMaturity() const {
-        return IsCoinBase();
-    }
-
     template<typename Stream>
     void Serialize(Stream &s) const {
         assert(!IsSpent());
-        uint32_t code = nHeight * uint32_t{2} + fCoinBase;
+        const uint64_t code = (uint64_t{nHeight} << 1) | (fCoinBase ? 1u : 0u);
         ::Serialize(s, VARINT(code));
         ::Serialize(s, Using<TxOutCompression>(out));
     }
 
     template<typename Stream>
     void Unserialize(Stream &s) {
-        uint32_t code = 0;
+        uint64_t code = 0;
         ::Unserialize(s, VARINT(code));
-        nHeight = code >> 1;
-        fCoinBase = code & 1;
+        if ((code >> 1) > std::numeric_limits<uint32_t>::max()) {
+            throw std::ios_base::failure("Coin height exceeds uint32 (DATABASE_CORRUPTION)");
+        }
+        nHeight = static_cast<uint32_t>(code >> 1);
+        fCoinBase = (code & 1) != 0;
         ::Unserialize(s, Using<TxOutCompression>(out));
     }
 
@@ -91,6 +109,29 @@ public:
 
     size_t DynamicMemoryUsage() const {
         return memusage::DynamicUsage(out.scriptPubKey);
+    }
+};
+
+/**
+ * LevelDB / undo encoding. Leaf bytes (Coin::Serialize) plus CRC-32C trailer.
+ * Never used for MuHash leaves.
+ */
+struct CoinDiskFormatter
+{
+    template<typename Stream>
+    void Ser(Stream& s, const Coin& coin) {
+        ::Serialize(s, coin);
+        ::Serialize(s, CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out));
+    }
+
+    template<typename Stream>
+    void Unser(Stream& s, Coin& coin) {
+        ::Unserialize(s, coin);
+        uint32_t stored = 0;
+        ::Unserialize(s, stored);
+        if (stored != CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out)) {
+            throw std::ios_base::failure("Coin integrity checksum mismatch (DATABASE_CORRUPTION)");
+        }
     }
 };
 

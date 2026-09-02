@@ -67,6 +67,7 @@ inline TransactionKernelInput ValidOruTx()
     in.witness = {in.signature, in.pubkey};
     in.keyhash_match = true;
     in.crypto_accept = true;
+    in.sighash_tag = KernelAssignedSighashTag(CScript(in.scriptPubKey.begin(), in.scriptPubKey.end()));
     return in;
 }
 
@@ -82,6 +83,7 @@ inline TransactionKernelInput ValidMintTx(int64_t lock, int64_t spend)
     in.spend_height = spend;
     in.keyhash_match = true;
     in.crypto_accept = true;
+    in.sighash_tag = KernelAssignedSighashTag(CScript(in.scriptPubKey.begin(), in.scriptPubKey.end()));
     return in;
 }
 

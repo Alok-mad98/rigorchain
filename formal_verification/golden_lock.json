@@ -54,25 +54,82 @@
     }
   },
   "families": {
-    "WindowExclusion": {"vectors": 59, "coq_enforced": 59},
-    "DrawCandidateRoot": {"vectors": 36, "coq_enforced": 36},
-    "Inequality": {"vectors": 25, "coq_enforced": 25},
-    "ConvergenceRoot": {"vectors": 25, "coq_enforced": 9},
-    "NegativeCore": {"vectors": 16, "coq_enforced": 16},
-    "InvalidCvg": {"vectors": 14, "coq_enforced": 14},
-    "ScriptMintNeg": {"vectors": 12, "coq_enforced": 12},
-    "ScriptAsset": {"vectors": 11, "coq_enforced": 11},
-    "EdgeCross": {"vectors": 20, "coq_enforced": 20},
-    "ReorgBind": {"vectors": 12, "coq_enforced": 0},
-    "BlockTrace": {"vectors": 12, "coq_enforced": 0},
-    "SigmaEncoder": {"vectors": 10, "coq_enforced": 10},
-    "Sha256Fips": {"vectors": 8, "coq_enforced": 0},
-    "RunSelection": {"vectors": 84, "coq_enforced": 7},
-    "SigmaPoW01": {"vectors": 50, "coq_enforced": 5},
-    "HashKernel": {"vectors": 29, "coq_enforced": 2},
-    "SupplyScaffold": {"vectors": 5, "coq_enforced": 0},
-    "Replay": {"vectors": 3, "coq_enforced": 0},
-    "WindowIncomplete": {"vectors": 2, "coq_enforced": 0}
+    "WindowExclusion": {
+      "vectors": 59,
+      "coq_enforced": 59
+    },
+    "DrawCandidateRoot": {
+      "vectors": 36,
+      "coq_enforced": 36
+    },
+    "Inequality": {
+      "vectors": 25,
+      "coq_enforced": 25
+    },
+    "ConvergenceRoot": {
+      "vectors": 25,
+      "coq_enforced": 9
+    },
+    "NegativeCore": {
+      "vectors": 16,
+      "coq_enforced": 16
+    },
+    "InvalidCvg": {
+      "vectors": 14,
+      "coq_enforced": 14
+    },
+    "ScriptMintNeg": {
+      "vectors": 12,
+      "coq_enforced": 12
+    },
+    "ScriptAsset": {
+      "vectors": 11,
+      "coq_enforced": 11
+    },
+    "EdgeCross": {
+      "vectors": 20,
+      "coq_enforced": 20
+    },
+    "ReorgBind": {
+      "vectors": 12,
+      "coq_enforced": 0
+    },
+    "BlockTrace": {
+      "vectors": 12,
+      "coq_enforced": 0
+    },
+    "SigmaEncoder": {
+      "vectors": 10,
+      "coq_enforced": 10
+    },
+    "Sha256Fips": {
+      "vectors": 8,
+      "coq_enforced": 0
+    },
+    "RunSelection": {
+      "vectors": 84,
+      "coq_enforced": 7
+    },
+    "SigmaPoW01": {
+      "vectors": 50,
+      "coq_enforced": 5
+    },
+    "HashKernel": {
+      "vectors": 29,
+      "coq_enforced": 2
+    },
+    "SupplyScaffold": {
+      "vectors": 5,
+      "coq_enforced": 0
+    },
+    "Replay": {
+      "vectors": 3,
+      "coq_enforced": 0
+    },
+    "WindowIncomplete": {
+      "vectors": 2,
+      "coq_enforced": 0
+    }
   },
   "surface_splits": {
     "comment": "Named L1 vs L2 splits. Gate fails if a listed id is dropped, moved, or demoted. Disposition keep = opaque/compilation-unit/unary-height; do not close this cycle. Catalog: docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md.",
@@ -113,35 +170,56 @@
     ],
     "rows": [
       {
-        "ids": ["NEG-014", "NEG-015"],
+        "ids": [
+          "NEG-014",
+          "NEG-015"
+        ],
         "family": "NegativeCore",
         "harness_kind": "neg_core",
         "kind": "qed_opaque_hash32",
         "disposition": "keep"
       },
       {
-        "ids": ["NEG-008", "NEG-009", "NEG-012", "NEG-013"],
+        "ids": [
+          "NEG-008",
+          "NEG-009",
+          "NEG-012",
+          "NEG-013"
+        ],
         "family": "NegativeCore",
         "harness_kind": "neg_core",
         "kind": "z_height_obligation",
         "disposition": "keep"
       },
       {
-        "ids": ["SMW-010", "SMW-011"],
+        "ids": [
+          "SMW-010",
+          "SMW-011"
+        ],
         "family": "ScriptMintNeg",
         "harness_kind": "smw",
         "kind": "script_half_only",
         "disposition": "keep"
       },
       {
-        "ids": ["XFAM-003", "XFAM-004", "XFAM-005"],
+        "ids": [
+          "XFAM-003",
+          "XFAM-004",
+          "XFAM-005"
+        ],
         "family": "EdgeCross",
         "harness_kind": "xfam",
         "kind": "thinner_mint_surface",
         "disposition": "keep"
       },
       {
-        "ids": ["XFAM-009", "XFAM-010", "XFAM-011", "XFAM-018", "XFAM-019"],
+        "ids": [
+          "XFAM-009",
+          "XFAM-010",
+          "XFAM-011",
+          "XFAM-018",
+          "XFAM-019"
+        ],
         "family": "EdgeCross",
         "harness_kind": "neg_core",
         "kind": "z_height_schedule",

@@ -24,7 +24,7 @@ namespace Consensus {
  * RULE-3 no hidden order dependence, RULE-4 minimal consensus surface):
  *
  *   state_hash = SHA256d(
- *       "RIGOR/STATE_HASH/v3"        // 19 bytes ASCII domain tag
+ *       "RIGOR/STATE_HASH/v4"        // 19 bytes ASCII domain tag
  *    || LE32(pindex->nHeight)        //  4 bytes
  *    || pindex->GetBlockHash()       // 32 bytes (matches view.GetBestBlock())
  *    || utxo_muhash                  // 32 bytes (MuHash3072 over the UTXO set)
@@ -69,7 +69,7 @@ namespace Consensus {
  *
  * Stability guarantees:
  *   - Canonical serialization: uses `COutPoint::Serialize` and
- *     `Coin::Serialize` (VARINT height/coinbase + TxOutCompression),
+ *     `Coin::Serialize` (VARINT height/coinbase + compressed amount + plain script),
  *     pinned at SER_DISK / version 0 for leaves; `HashWriter` + `serialize.h`
  *     for all numeric / `uint256` trailer fields (fixed width, LE).
  *   - Stable cross-platform: SHA256d and MuHash3072 are byte-exact across

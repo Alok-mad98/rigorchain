@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 SRC = ROOT / "core/src"
 VALIDATION = SRC / "validation.cpp"
 MAKEFILE = SRC / "Makefile.am"
@@ -57,8 +59,10 @@ def main() -> int:
         errors.append("production still registers canary flag")
 
     header = KERNEL_H.read_text(encoding="utf-8", errors="replace")
-    if "inline constexpr bool PRODUCTION_KERNEL_SWITCHED = true" not in header:
-        errors.append("PRODUCTION_KERNEL_SWITCHED is not true")
+    if 'PRODUCTION_CONSENSUS_AUTHORITY[] = "RigorConsensusKernel(C++)"' not in header:
+        errors.append("PRODUCTION_CONSENSUS_AUTHORITY must be RigorConsensusKernel(C++)")
+    if "inline constexpr bool EXTRACTED_KERNEL_PRODUCTION = false" not in header:
+        errors.append("EXTRACTED_KERNEL_PRODUCTION must be false")
     if "GENESIS_EQUIVALENCE_PROVED = false" not in header:
         errors.append("must not claim EQUIVALENCE_PROVED")
 
@@ -148,8 +152,7 @@ def main() -> int:
             print(f"  - {e}")
         return 1
     print("GENESIS_CONSENSUS_READY = TRUE")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
+    print_status()
     print("PRODUCTION_ISOLATION = PASS")
     print("DUPLICATE_FORMULA = NONE")
     print("CANARY_LINKED = FALSE")

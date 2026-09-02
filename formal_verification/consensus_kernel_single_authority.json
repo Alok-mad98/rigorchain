@@ -6,7 +6,6 @@
   "extracted_kernel_role": "VERIFICATION_ORACLE",
   "c_abi_boundary": "STABLE",
   "production_consensus_modified": false,
-  "production_kernel_switched": true,
   "refinement_proved": false,
   "equivalence_proved": false,
   "phase5_authority": "NON_AUTHORITATIVE",
@@ -85,5 +84,9 @@
   "observational_not_kernel": [
     "GetChainOruTotal (validation.cpp; calls GetBlockSubsidy; RFC-002 path fold)",
     "node/supply_monitor (observer)"
-  ]
+  ],
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

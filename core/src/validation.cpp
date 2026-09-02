@@ -37,6 +37,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <stdexcept>
 #include <consensus/consensus.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -2015,17 +2016,8 @@ int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out)
 
     if (view.HaveCoin(out)) fClean = false; // overwriting transaction output
 
-    if (undo.nHeight == 0) {
-        // Missing undo metadata (height and coinbase). Older versions included this
-        // information only in undo records for the last spend of a transactions'
-        // outputs. This implies that it must be present for some other output of the same tx.
-        const Coin& alternate = AccessByTxid(view, out.hash);
-        if (!alternate.IsSpent()) {
-            undo.nHeight = alternate.nHeight;
-            undo.fCoinBase = alternate.fCoinBase;
-        } else {
-            return DISCONNECT_FAILED; // adding output for transaction without known metadata
-        }
+    if (undo.nHeight == 0 && !undo.fCoinBase) {
+        throw std::runtime_error("DATABASE_CORRUPTION: height-0 non-coinbase undo");
     }
     // If the coin already exists as an unspent coin in the cache, then the
     // possible_overwrite parameter to AddCoin must be set to true. We have
@@ -2055,35 +2047,23 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
         return DISCONNECT_FAILED;
     }
 
-    // Ignore blocks that contain transactions which are 'overwritten' by later transactions,
-    // unless those are already completely spent.
-    // See https://github.com/bitcoin/bitcoin/issues/22596 for additional information.
-    // Note: the blocks specified here are different than the ones used in ConnectBlock because DisconnectBlock
-    // unwinds the blocks in reverse. As a result, the inconsistency is not discovered until the earlier
-    // blocks with the duplicate coinbase transactions are disconnected.
-    bool fEnforceBIP30 = !((pindex->nHeight==91722 && pindex->GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
-                           (pindex->nHeight==91812 && pindex->GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f")));
-
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
-        bool is_bip30_exception = (is_coinbase && !fEnforceBIP30);
 
         // Check that all outputs are available and match the outputs in the block itself exactly.
         for (size_t o = 0; o < tx.vout.size(); o++) {
             // Symmetric with AddCoins: convergence outputs are not represented in the UTXO set — do not SpendCoin them.
-            if (tx.vout[o].scriptPubKey.IsUnspendable() || IsConvergenceScript(tx.vout[o].scriptPubKey)) {
+            if (!EntersUtxoSet(tx.vout[o].scriptPubKey)) {
                 continue;
             }
             COutPoint out(hash, o);
             Coin coin;
             bool is_spent = view.SpendCoin(out, &coin);
-            if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
-                if (!is_bip30_exception) {
-                    fClean = false; // transaction output mismatch
-                }
+            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase) {
+                fClean = false;
             }
         }
 
@@ -2097,9 +2077,14 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
             for (unsigned int j = tx.vin.size(); j > 0;) {
                 --j;
                 const COutPoint& out = tx.vin[j].prevout;
-                int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
-                if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
-                fClean = fClean && res != DISCONNECT_UNCLEAN;
+                try {
+                    int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+                    if (res == DISCONNECT_FAILED) return DISCONNECT_FAILED;
+                    fClean = fClean && res != DISCONNECT_UNCLEAN;
+                } catch (const std::exception& e) {
+                    AbortNode(std::string("DATABASE_CORRUPTION: ") + e.what());
+                    return DISCONNECT_FAILED;
+                }
             }
             // At this point, all of txundo.vprevout should have been moved out.
         }
@@ -2128,26 +2113,20 @@ bool ApplyBlockUndoCoinsOnly_SCRATCH(CCoinsViewCache& view, const CBlock& block,
         return false;
     }
 
-    bool fEnforceBIP30 = !((pindex->nHeight==91722 && pindex->GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
-                           (pindex->nHeight==91812 && pindex->GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f")));
-
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = *(block.vtx[i]);
         uint256 hash = tx.GetHash();
         bool is_coinbase = tx.IsCoinBase();
-        bool is_bip30_exception = (is_coinbase && !fEnforceBIP30);
 
         for (size_t o = 0; o < tx.vout.size(); o++) {
-            if (tx.vout[o].scriptPubKey.IsUnspendable() || IsConvergenceScript(tx.vout[o].scriptPubKey)) {
+            if (!EntersUtxoSet(tx.vout[o].scriptPubKey)) {
                 continue;
             }
             COutPoint out(hash, o);
             Coin coin;
             bool is_spent = view.SpendCoin(out, &coin);
-            if (!is_spent || tx.vout[o] != coin.out || pindex->nHeight != coin.nHeight || is_coinbase != coin.fCoinBase) {
-                if (!is_bip30_exception) {
-                    fClean = false;
-                }
+            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase) {
+                fClean = false;
             }
         }
 
@@ -2159,9 +2138,14 @@ bool ApplyBlockUndoCoinsOnly_SCRATCH(CCoinsViewCache& view, const CBlock& block,
             for (unsigned int j = tx.vin.size(); j > 0;) {
                 --j;
                 const COutPoint& out = tx.vin[j].prevout;
-                int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
-                if (res == DISCONNECT_FAILED) return false;
-                fClean = fClean && res != DISCONNECT_UNCLEAN;
+                try {
+                    int res = ApplyTxInUndo(std::move(txundo.vprevout[j]), view, out);
+                    if (res == DISCONNECT_FAILED) return false;
+                    fClean = fClean && res != DISCONNECT_UNCLEAN;
+                } catch (const std::exception& e) {
+                    AbortNode(std::string("DATABASE_CORRUPTION: ") + e.what());
+                    return false;
+                }
             }
         }
     }
@@ -2850,20 +2834,12 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     //   REQUIRE(NoOverflow(tx));
     // ==============================================================================
 
-    // BIP30 and other basic checks
-    bool fEnforceBIP30 = !IsBIP30Repeat(*pindex);
-    assert(pindex->pprev);
-    CBlockIndex* pindexBIP34height = pindex->pprev->GetAncestor(params.GetConsensus().BIP34Height);
-    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height || !(pindexBIP34height->GetBlockHash() == params.GetConsensus().BIP34Hash));
-    static constexpr int BIP34_IMPLIES_BIP30_LIMIT = 1983702;
-
-    if (fEnforceBIP30 || pindex->nHeight >= BIP34_IMPLIES_BIP30_LIMIT) {
-        for (const auto& tx : block.vtx) {
-            for (size_t o = 0; o < tx->vout.size(); o++) {
-                if (view.HaveCoin(COutPoint(tx->GetHash(), o))) {
-                    LogPrintf("ERROR: ConnectBlock(): tried to overwrite transaction\n");
-                    return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-BIP30");
-                }
+    // Duplicate outpoints are consensus-invalid. No Bitcoin BIP30 exception heights.
+    for (const auto& tx : block.vtx) {
+        for (size_t o = 0; o < tx->vout.size(); o++) {
+            if (view.HaveCoin(COutPoint(tx->GetHash(), o))) {
+                LogPrintf("ERROR: ConnectBlock(): tried to overwrite transaction\n");
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-txns-BIP30");
             }
         }
     }
@@ -6378,7 +6354,7 @@ bool ChainstateManager::PopulateAndValidateSnapshot(
                       coins_count - coins_left);
             return false;
         }
-        if (coin.nHeight > base_height ||
+        if (base_height < 0 || coin.nHeight > static_cast<uint32_t>(base_height) ||
             outpoint.n >= std::numeric_limits<decltype(outpoint.n)>::max() // Avoid integer wrap-around in coinstats.cpp:ApplyHash
         ) {
             LogPrintf("[snapshot] bad snapshot data after deserializing %d coins\n",
@@ -6784,18 +6760,6 @@ Chainstate& ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uin
     LogPrintf("[snapshot] switching active chainstate to %s\n", m_snapshot_chainstate->ToString());
     m_active_chainstate = m_snapshot_chainstate.get();
     return *m_snapshot_chainstate;
-}
-
-bool IsBIP30Repeat(const CBlockIndex& block_index)
-{
-    return (block_index.nHeight==91842 && block_index.GetBlockHash() == uint256S("0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-           (block_index.nHeight==91880 && block_index.GetBlockHash() == uint256S("0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721"));
-}
-
-bool IsBIP30Unspendable(const CBlockIndex& block_index)
-{
-    return (block_index.nHeight==91722 && block_index.GetBlockHash() == uint256S("0x00000000000271a2dc26e7667f8419f2e15416dc6955e5a6c6cdf3f2574dd08e")) ||
-           (block_index.nHeight==91812 && block_index.GetBlockHash() == uint256S("0x00000000000af0aed4792b1acee3d966af36cf5def14935db8de83d6f9306f2f"));
 }
 
 void Chainstate::InvalidateCoinsDBOnDisk()

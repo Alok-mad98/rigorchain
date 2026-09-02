@@ -4,7 +4,6 @@
   "GENESIS_CONSENSUS_FREEZE": "CLOSED",
   "SINGLE_CONSENSUS_AUTHORITY": true,
   "CONSENSUS_KERNEL_GENESIS_AUTHORITY": "FINALIZED",
-  "PRODUCTION_KERNEL_SWITCHED": true,
   "MAINNET_READY": true,
   "mainnet_launched": false,
   "legacy_compatibility_required": false,
@@ -77,5 +76,9 @@
     "CompCert proof",
     "VST proof",
     "network proof"
-  ]
+  ],
+  "PRODUCTION_CONSENSUS_AUTHORITY": "RigorConsensusKernel(C++)",
+  "FORMAL_REFINEMENT_STATUS": "PROVED",
+  "EXTRACTED_KERNEL_PRODUCTION": false,
+  "COMPCERT_BINARY_VERIFIED_KERNEL": false
 }

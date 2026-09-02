@@ -4,9 +4,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <script/predicate_verify.h>
+#include <script/fixed_ed25519_checker.h>
 
 #include <script/rigor_tags.h>
 #include <consensus/amount.h>
+#include <consensus/txkernel/transaction_kernel_input.h>
 #include <crypto/common.h>
 #include <crypto/ripemd160.h>
 #include <crypto/ed25519_provider.h>
@@ -232,6 +234,26 @@ bool GenericTransactionSignatureChecker<T>::CheckEd25519Signature(const std::vec
     return VerifyEd25519Signature(vchSigIn, vchPubKey, sighash);
 }
 
+template <class T>
+bool GenericTransactionSignatureChecker<T>::GetKernelSighashTxView(KernelSighashTxView& out) const
+{
+    if (!txTo || nIn >= txTo->vin.size()) {
+        return false;
+    }
+    const bool cacheready = txdata && txdata->m_bip143_segwit_ready;
+    out.chain_id = m_chain_id;
+    out.nVersion = txTo->nVersion;
+    out.hashPrevouts = cacheready ? txdata->hashPrevouts : SHA256Uint256(GetPrevoutsSHA256(*txTo));
+    out.hashSequence = cacheready ? txdata->hashSequence : SHA256Uint256(GetSequencesSHA256(*txTo));
+    out.hashOutputs = cacheready ? txdata->hashOutputs : SHA256Uint256(GetOutputsSHA256(*txTo));
+    out.prevout_hash = txTo->vin[nIn].prevout.hash;
+    out.prevout_n = txTo->vin[nIn].prevout.n;
+    out.amount = amount;
+    out.nSequence = txTo->vin[nIn].nSequence;
+    out.nLockTime = txTo->nLockTime;
+    return true;
+}
+
 // explicit instantiation
 template class GenericTransactionSignatureChecker<CTransaction>;
 template class GenericTransactionSignatureChecker<CMutableTransaction>;
@@ -417,7 +439,9 @@ static bool VerifyResMintSpend(const CScript& scriptSig, const CScript& scriptPu
     return set_success(serror);
 }
 
-bool VerifyRigorPredicate(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
+/** Pre-A1 predicate. ScriptError classification and diagnostic oracle.
+ *  Not the production accept/reject authority. */
+bool ClassifyRigorPredicateError(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
 {
     static const CScriptWitness emptyWitness;
     if (witness == nullptr) {
@@ -461,6 +485,33 @@ bool VerifyRigorPredicate(const CScript& scriptSig, const CScript& scriptPubKey,
         return false;
     }
     return set_success(serror);
+}
+
+/** Fill ScriptError for a spend the P058 boundary already rejected.
+ *  If the diagnostic would have accepted, the acceptance sets diverged —
+ *  fail closed. The diagnostic boolean is never the production verdict. */
+static bool VerifyRigorPredicateClassifyError(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness& witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
+{
+    if (ClassifyRigorPredicateError(scriptSig, scriptPubKey, &witness, flags, checker, serror)) {
+        return set_error(serror, SCRIPT_ERR_RIGOR_CLASSIFIER_DIVERGENCE);
+    }
+    return false;
+}
+
+bool VerifyRigorPredicate(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
+{
+    g_rigor_fixed_ed25519_tuple_mismatch = 0;
+    static const CScriptWitness emptyWitness;
+    if (witness == nullptr) {
+        witness = &emptyWitness;
+    }
+
+    const TransactionKernelInput in = MakeKernelInput(scriptSig, scriptPubKey, *witness, flags, checker);
+    if (VerifyRigorPredicateBoundary(in)) {
+        return set_success(serror);
+    }
+    const FixedEd25519Checker fixed(checker, in.crypto_accept);
+    return VerifyRigorPredicateClassifyError(scriptSig, scriptPubKey, *witness, flags, fixed, serror);
 }
 
 size_t static WitnessSigOps(int witversion, const std::vector<unsigned char>& witprogram, const CScriptWitness& witness)

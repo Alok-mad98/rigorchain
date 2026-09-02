@@ -183,13 +183,25 @@ public:
 
     void Next();
 
+    /** First byte of the current key, or false if empty/invalid. Prefix end is a type mismatch, not deserialize failure. */
+    bool HasKeyType(uint8_t type) const {
+        if (!Valid()) return false;
+        const leveldb::Slice sl = piter->key();
+        return sl.size() >= 1 && static_cast<uint8_t>(sl[0]) == type;
+    }
+
     template<typename K> bool GetKey(K& key) {
         leveldb::Slice slKey = piter->key();
         try {
             DataStream ssKey{MakeByteSpan(slKey)};
             ssKey >> key;
-        } catch (const std::exception&) {
-            return false;
+            if (!ssKey.empty()) {
+                throw dbwrapper_error("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: trailing bytes in key");
+            }
+        } catch (const dbwrapper_error&) {
+            throw;
+        } catch (const std::exception& e) {
+            throw dbwrapper_error(std::string("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: ") + e.what());
         }
         return true;
     }
@@ -200,8 +212,13 @@ public:
             CDataStream ssValue{MakeByteSpan(slValue), SER_DISK, CLIENT_VERSION};
             ssValue.Xor(dbwrapper_private::GetObfuscateKey(parent));
             ssValue >> value;
-        } catch (const std::exception&) {
-            return false;
+            if (!ssValue.empty()) {
+                throw dbwrapper_error("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: trailing bytes in value");
+            }
+        } catch (const dbwrapper_error&) {
+            throw;
+        } catch (const std::exception& e) {
+            throw dbwrapper_error(std::string("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: ") + e.what());
         }
         return true;
     }
@@ -279,8 +296,16 @@ public:
             CDataStream ssValue{MakeByteSpan(strValue), SER_DISK, CLIENT_VERSION};
             ssValue.Xor(obfuscate_key);
             ssValue >> value;
-        } catch (const std::exception&) {
-            return false;
+            if (!ssValue.empty()) {
+                throw dbwrapper_error("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: trailing bytes");
+            }
+        } catch (const dbwrapper_error&) {
+            throw;
+        } catch (const std::exception& e) {
+            // CoinsDB is a persistent carrier, not a second Consensus Kernel.
+            // Returning false here would be treated as "missing coin" and
+            // become TX_CONSENSUS. Existing-key corruption must fail closed.
+            throw dbwrapper_error(std::string("DESERIALIZATION_FAILURE / DATABASE_CORRUPTION: ") + e.what());
         }
         return true;
     }

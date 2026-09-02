@@ -78,7 +78,13 @@
     },
     {
       "id": "P049-ORU-RES-EPOCH",
-      "heights": [0, 1, 209999, 210000, 210001],
+      "heights": [
+        0,
+        1,
+        209999,
+        210000,
+        210001
+      ],
       "fact": "ORU and RES use the same epoch(h)=floor(h/210000)"
     }
   ]

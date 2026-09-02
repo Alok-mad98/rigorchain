@@ -3,7 +3,7 @@
 **Task:** `TASK-RIGOR-FORMAL-VERIFICATION-COVERAGE-AUDIT-P0-001`  
 **Date:** 2026-08-20  
 
-This is the human-readable cone for PART 2. The full 2873-name list is `FORMAL_THEOREM_INVENTORY.json`.
+This is the human-readable cone for PART 2. The full 3867-name list is `FORMAL_THEOREM_INVENTORY.json`.
 **Citable theorems are the protocol-core cone only** (`formal_verification/coq/_CoqProject.protocol-core`).
 Phase-4F/4G/5 catalog modules are paperwork; do not add them to a “proved” count.
 Identifiers still named `p5_mainnet_freeze_*` in Phase5 catalogs are snapshot

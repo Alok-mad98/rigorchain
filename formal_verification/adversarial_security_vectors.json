@@ -5,7 +5,18 @@
   "equivalence_proved": false,
   "production_consensus_modified": false,
   "protocol_parameters_modified": false,
-  "heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "heights": [
+    0,
+    1,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    210001,
+    419999,
+    420000
+  ],
   "issuance": [
     {
       "id": "P063-ISS-0",
@@ -81,46 +92,180 @@
     }
   ],
   "maturity": [
-    {"id": "P063-MAT-ORU-99", "asset": "ORU", "source_height": 0, "spend_height": 99, "mature": false},
-    {"id": "P063-MAT-ORU-100", "asset": "ORU", "source_height": 0, "spend_height": 100, "mature": true},
-    {"id": "P063-MAT-ORU-1-100", "asset": "ORU", "source_height": 1, "spend_height": 100, "mature": false},
-    {"id": "P063-MAT-ORU-1-101", "asset": "ORU", "source_height": 1, "spend_height": 101, "mature": true},
-    {"id": "P063-MAT-RES-99", "asset": "RES", "source_height": 0, "spend_height": 99, "mature": false},
-    {"id": "P063-MAT-RES-100", "asset": "RES", "source_height": 0, "spend_height": 100, "mature": true},
-    {"id": "P063-MAT-RES-1-100", "asset": "RES", "source_height": 1, "spend_height": 100, "mature": false},
-    {"id": "P063-MAT-RES-1-101", "asset": "RES", "source_height": 1, "spend_height": 101, "mature": true}
+    {
+      "id": "P063-MAT-ORU-99",
+      "asset": "ORU",
+      "source_height": 0,
+      "spend_height": 99,
+      "mature": false
+    },
+    {
+      "id": "P063-MAT-ORU-100",
+      "asset": "ORU",
+      "source_height": 0,
+      "spend_height": 100,
+      "mature": true
+    },
+    {
+      "id": "P063-MAT-ORU-1-100",
+      "asset": "ORU",
+      "source_height": 1,
+      "spend_height": 100,
+      "mature": false
+    },
+    {
+      "id": "P063-MAT-ORU-1-101",
+      "asset": "ORU",
+      "source_height": 1,
+      "spend_height": 101,
+      "mature": true
+    },
+    {
+      "id": "P063-MAT-RES-99",
+      "asset": "RES",
+      "source_height": 0,
+      "spend_height": 99,
+      "mature": false
+    },
+    {
+      "id": "P063-MAT-RES-100",
+      "asset": "RES",
+      "source_height": 0,
+      "spend_height": 100,
+      "mature": true
+    },
+    {
+      "id": "P063-MAT-RES-1-100",
+      "asset": "RES",
+      "source_height": 1,
+      "spend_height": 100,
+      "mature": false
+    },
+    {
+      "id": "P063-MAT-RES-1-101",
+      "asset": "RES",
+      "source_height": 1,
+      "spend_height": 101,
+      "mature": true
+    }
   ],
   "draw": [
-    {"id": "P063-DRAW-EMPTY", "candidates": 0, "expect": "none"},
-    {"id": "P063-DRAW-SINGLE", "candidates": 1, "expect": "candidate"},
-    {"id": "P063-DRAW-EQUAL-WEIGHT", "note": "permutation-invariant 512-bit argmin + txid tie-break"},
-    {"id": "P063-DRAW-T0", "T": 0, "expect": "none"},
-    {"id": "P063-DRAW-ZERO-WEIGHT", "weight": 0, "expect": "none"},
-    {"id": "P063-DRAW-WEIGHT-OVERFLOW", "weight": "uint64_max", "expect": "none"}
+    {
+      "id": "P063-DRAW-EMPTY",
+      "candidates": 0,
+      "expect": "none"
+    },
+    {
+      "id": "P063-DRAW-SINGLE",
+      "candidates": 1,
+      "expect": "candidate"
+    },
+    {
+      "id": "P063-DRAW-EQUAL-WEIGHT",
+      "note": "permutation-invariant 512-bit argmin + txid tie-break"
+    },
+    {
+      "id": "P063-DRAW-T0",
+      "T": 0,
+      "expect": "none"
+    },
+    {
+      "id": "P063-DRAW-ZERO-WEIGHT",
+      "weight": 0,
+      "expect": "none"
+    },
+    {
+      "id": "P063-DRAW-WEIGHT-OVERFLOW",
+      "weight": "uint64_max",
+      "expect": "none"
+    }
   ],
   "classify": [
-    {"id": "P063-CL-ORU", "kind": "valid_oru", "asset": "ORU"},
-    {"id": "P063-CL-RES", "kind": "valid_res", "asset": "RES"},
-    {"id": "P063-CL-EMPTY", "script": "", "asset": "INVALID"},
-    {"id": "P063-CL-UNKNOWN-VER", "kind": "unknown_version", "asset": "INVALID"},
-    {"id": "P063-CL-TRUNCATED", "kind": "truncated", "asset": "INVALID"},
-    {"id": "P063-CL-OVERSIZED", "kind": "oversized", "asset": "INVALID"},
-    {"id": "P063-CL-RANDOM", "kind": "random", "asset": "INVALID"}
+    {
+      "id": "P063-CL-ORU",
+      "kind": "valid_oru",
+      "asset": "ORU"
+    },
+    {
+      "id": "P063-CL-RES",
+      "kind": "valid_res",
+      "asset": "RES"
+    },
+    {
+      "id": "P063-CL-EMPTY",
+      "script": "",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P063-CL-UNKNOWN-VER",
+      "kind": "unknown_version",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P063-CL-TRUNCATED",
+      "kind": "truncated",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P063-CL-OVERSIZED",
+      "kind": "oversized",
+      "asset": "INVALID"
+    },
+    {
+      "id": "P063-CL-RANDOM",
+      "kind": "random",
+      "asset": "INVALID"
+    }
   ],
   "supply": [
-    {"id": "P063-SUP-GENESIS", "height": 0, "oru_delta": 0, "res_delta": 0},
-    {"id": "P063-SUP-NO-WINNER-MINT", "expect": "bad-rigor-res-without-winner"},
-    {"id": "P063-SUP-WINNER-OMIT", "expect": "bad-rigor-res-winner-mismatch"},
-    {"id": "P063-SUP-OVERFLOW-CB", "expect": "bad-cb-amount"}
+    {
+      "id": "P063-SUP-GENESIS",
+      "height": 0,
+      "oru_delta": 0,
+      "res_delta": 0
+    },
+    {
+      "id": "P063-SUP-NO-WINNER-MINT",
+      "expect": "bad-rigor-res-without-winner"
+    },
+    {
+      "id": "P063-SUP-WINNER-OMIT",
+      "expect": "bad-rigor-res-winner-mismatch"
+    },
+    {
+      "id": "P063-SUP-OVERFLOW-CB",
+      "expect": "bad-cb-amount"
+    }
   ],
   "transaction": [
-    {"id": "P063-TX-EMPTY-SIG", "expect": "reject"},
-    {"id": "P063-TX-MALFORMED-SIG", "expect": "reject"},
-    {"id": "P063-TX-WRONG-PUBKEY", "expect": "reject"},
-    {"id": "P063-TX-MODIFIED-WITNESS", "expect": "reject"},
-    {"id": "P063-TX-MODIFIED-SIGHASH", "expect": "reject"},
-    {"id": "P063-TX-REPLAY-CHAIN", "expect": "reject"},
-    {"id": "P063-TX-WRONG-ASSET", "expect": "reject"}
+    {
+      "id": "P063-TX-EMPTY-SIG",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-MALFORMED-SIG",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-WRONG-PUBKEY",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-MODIFIED-WITNESS",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-MODIFIED-SIGHASH",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-REPLAY-CHAIN",
+      "expect": "reject"
+    },
+    {
+      "id": "P063-TX-WRONG-ASSET",
+      "expect": "reject"
+    }
   ],
   "fail_tokens": {
     "issuance": "CONSENSUS_ISSUANCE_ATTACK_FOUND",

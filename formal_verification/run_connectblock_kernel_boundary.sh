@@ -39,7 +39,9 @@ Require ConnectBlockKernelBoundary.
 Print Assumptions ConnectBlockKernelBoundary.connectblock_kernel_boundary.
 Print Assumptions ConnectBlockKernelBoundary.input_preparation_alignment.
 Print Assumptions ConnectBlockKernelBoundary.result_consumption_is_apply.
-Print Assumptions ConnectBlockKernelBoundary.p056_refinement_still_true.
+Print Assumptions ConnectBlockKernelBoundary.connectblock_can_reject.
+Print Assumptions ConnectBlockKernelBoundary.connectblock_rejects_bad_input.
+Print Assumptions ConnectBlockKernelBoundary.connectblock_rejects_winner_mismatch.
 EOF
 )"
 echo "$ASSUME"
@@ -75,6 +77,4 @@ echo "== g++ test_connectblock_kernel_boundary =="
 echo "CONNECTBLOCK_BOUNDARY_REFINEMENT=PASS"
 echo "INPUT_PREPARATION_ALIGNMENT=PASS"
 echo "RESULT_CONSUMPTION_ALIGNMENT=PASS"
-echo "PRODUCTION_KERNEL_SWITCHED=YES"
-echo "REFINEMENT_PROVED=true"
-echo "EQUIVALENCE_PROVED=false"
+python3 "$TOOLS/refinement_status.py"

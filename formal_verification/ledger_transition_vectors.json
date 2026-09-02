@@ -3,7 +3,6 @@
   "note": "Closed ledger transition pins. Not a full-node or LevelDB proof.",
   "refinement_proved": true,
   "equivalence_proved": false,
-  "production_kernel_switched": false,
   "genesis": {
     "height": 0,
     "oru_actual": 0,
@@ -12,10 +11,34 @@
     "accept": true
   },
   "maturity": [
-    {"height": 99, "accept": false},
-    {"height": 100, "accept": false},
-    {"height": 101, "accept": true}
+    {
+      "height": 99,
+      "accept": false
+    },
+    {
+      "height": 100,
+      "accept": false
+    },
+    {
+      "height": 101,
+      "accept": true
+    }
   ],
-  "reject": ["double_spend", "overflow", "negative", "duplicate", "unknown_asset"],
-  "value_conservation": ["normal_spend", "fee_spend", "burn", "mint"]
+  "reject": [
+    "double_spend",
+    "overflow",
+    "negative",
+    "duplicate",
+    "unknown_asset"
+  ],
+  "value_conservation": [
+    "normal_spend",
+    "fee_spend",
+    "burn",
+    "mint"
+  ],
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }

@@ -1,0 +1,16 @@
+name: setup-coq
+description: Pin Coq 8.15.0 and OCaml 4.13.1 via opam on ubuntu-latest. No Docker.
+
+runs:
+  using: composite
+  steps:
+    - name: Cache opam switch
+      uses: actions/cache@v5
+      with:
+        path: ~/.opam
+        key: ${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-${{ env.ImageVersion }}-opam-coq-8.15.0-ocaml-4.13.1-v1
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-${{ env.ImageOS }}-opam-coq-8.15.0-ocaml-4.13.1-
+    - name: Install pinned Coq 8.15.0
+      shell: bash
+      run: bash tools/ci/setup-coq-8.15.0.sh

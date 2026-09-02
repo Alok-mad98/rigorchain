@@ -3,7 +3,18 @@
   "note": "Bridge pins. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,
-  "heights": [0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000],
+  "heights": [
+    0,
+    1,
+    99,
+    100,
+    101,
+    209999,
+    210000,
+    210001,
+    419999,
+    420000
+  ],
   "vectors": [
     {
       "id": "P052-G0-ORU",

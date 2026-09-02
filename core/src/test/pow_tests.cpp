@@ -13,6 +13,8 @@
 #include <rigor_kernel/pow_digest.h>
 #include <arith_uint256.h>
 #include <streams.h>
+#include <test/data/rigor_asert_vectors.json.h>
+#include <test/util/json.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
@@ -25,6 +27,7 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
+#include <string>
 #include <vector>
 
 BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
@@ -392,6 +395,47 @@ BOOST_AUTO_TEST_CASE(asert_mainnet_reference_vectors)
     CBlockHeader h2;
     h2.nTime = b1.nTime + static_cast<uint32_t>(consensus.nPowTargetSpacing);
     BOOST_CHECK_EQUAL(GetNextWorkRequired(&b1, &h2, consensus), genesis.nBits);
+}
+
+BOOST_AUTO_TEST_CASE(asert_golden_vectors_p0_016)
+{
+    UniValue root = read_json(std::string(
+        json_tests::rigor_asert_vectors,
+        json_tests::rigor_asert_vectors + sizeof(json_tests::rigor_asert_vectors)));
+    BOOST_REQUIRE(root.isArray());
+    BOOST_REQUIRE_EQUAL(root.size(), 2U);
+
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    const CBlock& genesis_block = chainParams->GenesisBlock();
+    BOOST_CHECK_EQUAL(genesis_block.nBits, 0x1d008000u);
+    BOOST_CHECK_EQUAL(genesis_block.nTime, 1786125600u);
+
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.pprev = nullptr;
+    genesis.nBits = genesis_block.nBits;
+    genesis.nTime = genesis_block.nTime;
+
+    for (size_t i = 0; i < root.size(); ++i) {
+        const UniValue& v = root[i];
+        const std::string id = v["id"].get_str();
+        const unsigned int expected = std::stoul(v["expected_nbits"].get_str(), nullptr, 16);
+        const int parent_height = v["parent_height"].getInt<int>();
+        CBlockHeader child;
+        child.nTime = v["child_time"].getInt<int64_t>();
+        if (parent_height == 0) {
+            BOOST_CHECK_MESSAGE(GetNextWorkRequired(&genesis, &child, consensus) == expected, id);
+            continue;
+        }
+        BOOST_REQUIRE_EQUAL(parent_height, 1);
+        CBlockIndex b1{};
+        b1.nHeight = 1;
+        b1.pprev = &genesis;
+        b1.nBits = std::stoul(v["parent_nbits"].get_str(), nullptr, 16);
+        b1.nTime = v["parent_time"].getInt<int64_t>();
+        BOOST_CHECK_MESSAGE(GetNextWorkRequired(&b1, &child, consensus) == expected, id);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(asert_extreme_future_parent_is_clamped)

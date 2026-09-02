@@ -34,7 +34,11 @@ Record BlockState := {
   bs_mint : Z;
   bs_fees_oru : Z;
   bs_fees_res : Z;
-  bs_bootstrap : Z
+  bs_bootstrap : Z;
+  bs_has_winner : bool;
+  bs_draw_cardinality : Z;
+  bs_oru_coinbase : Z;
+  bs_res_coinbase : Z
 }.
 
 Record ConsensusKernelInput := {
@@ -50,7 +54,11 @@ Record ConsensusKernelInput := {
   cki_mint : Z;
   cki_fees_oru : Z;
   cki_fees_res : Z;
-  cki_bootstrap : Z
+  cki_bootstrap : Z;
+  cki_has_winner : bool;
+  cki_draw_cardinality : Z;
+  cki_oru_coinbase : Z;
+  cki_res_coinbase : Z
 }.
 
 Definition ConsensusKernelInput_has_utxo_db : bool := false.
@@ -86,7 +94,11 @@ Definition PrepareKernelInput (s : BlockState) : ConsensusKernelInput :=
      cki_mint := bs_mint s;
      cki_fees_oru := bs_fees_oru s;
      cki_fees_res := bs_fees_res s;
-     cki_bootstrap := bs_bootstrap s |}.
+     cki_bootstrap := bs_bootstrap s;
+     cki_has_winner := bs_has_winner s;
+     cki_draw_cardinality := bs_draw_cardinality s;
+     cki_oru_coinbase := bs_oru_coinbase s;
+     cki_res_coinbase := bs_res_coinbase s |}.
 
 (** Canonical Kernel input from the same assembled state. *)
 Definition KernelInput (s : BlockState) : ConsensusKernelInput :=
@@ -102,7 +114,11 @@ Definition KernelInput (s : BlockState) : ConsensusKernelInput :=
      cki_mint := bs_mint s;
      cki_fees_oru := bs_fees_oru s;
      cki_fees_res := bs_fees_res s;
-     cki_bootstrap := bs_bootstrap s |}.
+     cki_bootstrap := bs_bootstrap s;
+     cki_has_winner := bs_has_winner s;
+     cki_draw_cardinality := bs_draw_cardinality s;
+     cki_oru_coinbase := bs_oru_coinbase s;
+     cki_res_coinbase := bs_res_coinbase s |}.
 
 Theorem prepared_input_eq_canonical :
   forall s, PrepareKernelInput s = KernelInput s.
@@ -120,8 +136,8 @@ Theorem prepare_preserves_T :
   forall s, cki_T (PrepareKernelInput s) = bs_T s.
 Proof. intros. reflexivity. Qed.
 
-Definition genesis_block_state : BlockState :=
-  {| bs_height := 0;
+Definition mk_block_state (h : Z) : BlockState :=
+  {| bs_height := h;
      bs_params := FrozenKernelParams;
      bs_F := [];
      bs_C := [];
@@ -133,7 +149,35 @@ Definition genesis_block_state : BlockState :=
      bs_mint := 0;
      bs_fees_oru := 0;
      bs_fees_res := 0;
-     bs_bootstrap := 0 |}.
+     bs_bootstrap := 0;
+     bs_has_winner := false;
+     bs_draw_cardinality := 0;
+     bs_oru_coinbase := 0;
+     bs_res_coinbase := 0 |}.
+
+Definition genesis_block_state : BlockState := mk_block_state 0.
+
+Definition negative_height_state : BlockState := mk_block_state (-1).
+
+(** C++ RigorSupplyDelta: authorized mint, winner present, mint omitted. *)
+Definition winner_mismatch_state : BlockState :=
+  {| bs_height := 1;
+     bs_params := FrozenKernelParams;
+     bs_F := [];
+     bs_C := [];
+     bs_B := [];
+     bs_T := 0;
+     bs_scripts := [];
+     bs_converge := 0;
+     bs_burn := 0;
+     bs_mint := 0;
+     bs_fees_oru := 0;
+     bs_fees_res := 0;
+     bs_bootstrap := 0;
+     bs_has_winner := true;
+     bs_draw_cardinality := 1;
+     bs_oru_coinbase := 0;
+     bs_res_coinbase := 0 |}.
 
 Theorem genesis_prepare_height_0 :
   cki_height (PrepareKernelInput genesis_block_state) = 0.

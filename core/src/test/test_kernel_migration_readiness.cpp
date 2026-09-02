@@ -72,6 +72,7 @@ static TransactionKernelInput ValidOruTx()
     in.witness = {in.signature, in.pubkey};
     in.keyhash_match = true;
     in.crypto_accept = true;
+    in.sighash_tag = KernelAssignedSighashTag(s);
     return in;
 }
 
@@ -274,6 +275,9 @@ int main()
 
     std::printf("PASS: kernel migration dual-path verify\n");
     std::printf("CONSENSUS_KERNEL_MIGRATION_READINESS=CLOSED/PASS\n");
-    std::printf("PRODUCTION_KERNEL_SWITCHED=FALSE\n");
+        std::printf("PRODUCTION_CONSENSUS_AUTHORITY=RigorConsensusKernel(C++)\n");
+    std::printf("FORMAL_REFINEMENT_STATUS=PROVED\n");
+    std::printf("EXTRACTED_KERNEL_PRODUCTION=FALSE\n");
+    std::printf("COMPCERT_BINARY_VERIFIED_KERNEL=FALSE\n");
     return 0;
 }

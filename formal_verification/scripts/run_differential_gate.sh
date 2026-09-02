@@ -55,6 +55,15 @@ fail_diff() {
   exit 1
 }
 
+# JSON lockfiles are compared semantically. json.dump indent/newline must not
+# fail GitHub runners when the vector set is unchanged (CI infrastructure).
+json_eq() {
+  python3 -c 'import json, sys
+a = json.load(open(sys.argv[1], encoding="utf-8"))
+b = json.load(open(sys.argv[2], encoding="utf-8"))
+sys.exit(0 if a == b else 1)' "$1" "$2"
+}
+
 echo "== 1. Python golden oracle (full vector set) =="
 python3 tests/test_phase3_oracle.py
 python3 tests/test_golden_vectors.py
@@ -67,7 +76,7 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 GOLDEN_OUT="$tmp/phase3_golden_vectors.json" python3 generate_phase3_vectors.py
-if ! cmp -s phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"; then
+if ! json_eq phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"; then
   fail_diff "phase3_golden_vectors.json" phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"
 fi
 
@@ -80,7 +89,7 @@ if ! cmp -s coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"; then
   fail_diff "coq/Kernel/NegativeCoreHarness.v" \
     coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"
 fi
-if ! cmp -s coq_harness_index.json "$tmp/coq_harness_index.json"; then
+if ! json_eq coq_harness_index.json "$tmp/coq_harness_index.json"; then
   fail_diff "coq_harness_index.json" coq_harness_index.json "$tmp/coq_harness_index.json"
 fi
 

@@ -489,5 +489,20 @@ BOOST_AUTO_TEST_CASE(unicodepath)
     BOOST_CHECK(fs::exists(lockPath));
 }
 
+BOOST_AUTO_TEST_CASE(dbwrapper_deserialize_failure_is_not_missing)
+{
+    // P0-086-01: an existing key with a malformed value must throw, not
+    // return false (false is "not found" and became TX_CONSENSUS).
+    fs::path ph = m_args.GetDataDirBase() / "dbwrapper_deser_fail";
+    CDBWrapper dbw({.path = ph, .cache_bytes = 1 << 20, .memory_only = true, .wipe_data = false, .obfuscate = false});
+    const uint8_t key{'k'};
+    const std::string short_val{"xx"};
+    BOOST_REQUIRE(dbw.Write(key, short_val));
+    uint256 res;
+    BOOST_CHECK_THROW(dbw.Read(key, res), dbwrapper_error);
+    uint256 missing;
+    BOOST_CHECK(!dbw.Read(uint8_t{'z'}, missing));
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

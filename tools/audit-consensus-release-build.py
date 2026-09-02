@@ -16,6 +16,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status  # noqa: E402
 SRC = ROOT / "core/src"
 MAKEFILE = SRC / "Makefile.am"
 VALIDATION = SRC / "validation.cpp"
@@ -141,7 +143,7 @@ def main() -> int:
     print("AUTHORITY_INVENTORY=PASS")
     print("EXTRACTED_KERNEL_ISOLATION=PASS")
     print("RELEASE_BUILD_AUDIT=PASS")
-    print("PRODUCTION_KERNEL_SWITCHED=YES")
+    print_status()
     print("extracted kernel remains VERIFICATION_ORACLE_ONLY")
     return 0
 

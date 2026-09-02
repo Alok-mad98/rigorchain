@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 TOOLS = ROOT / "tools"
 FV = ROOT / "formal_verification"
@@ -62,7 +64,7 @@ def align_refinement_pins() -> None:
     freeze = json.loads(VECTORS.read_text(encoding="utf-8"))
     release = json.loads(RELEASE.read_text(encoding="utf-8"))
     frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
-    if freeze.get("equivalence_proved") is not False or freeze.get("production_kernel_switched") is not False:
+    if freeze.get("equivalence_proved") is not False or not records_cpp_authority(freeze):
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
     if freeze["genesis"]["GetResMintReward"] != 40000000:
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
@@ -91,7 +93,7 @@ def align_refinement_pins() -> None:
 
 def main() -> int:
     man = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    if man.get("production_kernel_switched") is not False:
+    if not records_cpp_authority(man):
         print("CONSENSUS_KERNEL_FREEZE_DRIFT")
         return 1
 
@@ -116,9 +118,7 @@ def main() -> int:
     print("CONSENSUS_KERNEL_FREEZE_PASS")
     print("CURRENT_CPP_AUTHORITY = PASS")
     print("MIGRATION_PATH = PASS")
-    print("PRODUCTION_KERNEL_SWITCHED = FALSE")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
+    print_status()
     return 0
 
 

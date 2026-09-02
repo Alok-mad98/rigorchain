@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 VALIDATION = SRC / "validation.cpp"
 MAKEFILE = SRC / "Makefile.am"
@@ -42,8 +45,14 @@ def main() -> int:
         errors.append("missing genesis Kernel authority")
 
     header = KERNEL_H.read_text(encoding="utf-8", errors="replace")
-    if "inline constexpr bool PRODUCTION_KERNEL_SWITCHED = true" not in header:
-        errors.append("PRODUCTION_KERNEL_SWITCHED must be true")
+    if 'PRODUCTION_CONSENSUS_AUTHORITY[] = "RigorConsensusKernel(C++)"' not in header:
+        errors.append("PRODUCTION_CONSENSUS_AUTHORITY must be RigorConsensusKernel(C++)")
+    if "inline constexpr bool EXTRACTED_KERNEL_PRODUCTION = false" not in header:
+        errors.append("EXTRACTED_KERNEL_PRODUCTION must be false")
+    if "inline constexpr bool COMPCERT_VST_DEFERRED = true" not in header:
+        errors.append("COMPCERT_VST_DEFERRED must be true")
+    if 'COMPCERT_VST_CANDIDATE[] = "MakeKernelInput"' not in header:
+        errors.append("COMPCERT_VST_CANDIDATE must be MakeKernelInput")
     if "GENESIS_EQUIVALENCE_PROVED = false" not in header:
         errors.append("must not claim EQUIVALENCE_PROVED")
 
@@ -63,6 +72,18 @@ def main() -> int:
     makefile = MAKEFILE.read_text(encoding="utf-8", errors="replace")
     if "consensus/kernel/genesis_authority.cpp" not in makefile:
         errors.append("genesis Kernel not compiled into production")
+    tracked_logs = subprocess.run(
+        ["git", "ls-files", "logs/"],
+        cwd=str(ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if tracked_logs.returncode != 0:
+        errors.append("cannot verify logs/ is uncommitted (git ls-files failed)")
+    leftover = [ln.strip() for ln in tracked_logs.stdout.splitlines() if ln.strip()]
+    if leftover:
+        errors.append(f"logs/ must not be committed: {leftover}")
     if "kernel_runtime_canary.cpp" in makefile:
         errors.append("production still compiles runtime canary")
     if "caml_" in makefile or "consensus_kernel.ml" in makefile:
@@ -108,8 +129,8 @@ def main() -> int:
         errors.append("missing genesis_consensus_authority_manifest.json")
     else:
         man = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        if man.get("PRODUCTION_KERNEL_SWITCHED") is not True:
-            errors.append("manifest PRODUCTION_KERNEL_SWITCHED")
+        if not records_cpp_authority(man):
+            errors.append("manifest must record C++ production authority")
         if man.get("EQUIVALENCE_PROVED") is not False:
             errors.append("manifest overclaims equivalence")
         if man.get("REFINEMENT_PROVED") is not True:
@@ -124,9 +145,7 @@ def main() -> int:
         return 1
     print("CONSENSUS_KERNEL_GENESIS_AUTHORITY = FINALIZED")
     print("SINGLE_PRODUCTION_AUTHORITY = TRUE")
-    print("PRODUCTION_KERNEL_SWITCHED = TRUE")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
+    print_status()
     print("MAINNET_READY = TRUE")
     return 0
 

@@ -89,6 +89,9 @@ typedef enum ScriptError_t
     /** scriptPubKey is not a RIGOR consensus lock (witness v0 P2WPKH, v1 RES, or RIGOR_MARKER_RES_MINT). */
     SCRIPT_ERR_RIGOR_SCRIPT_TYPE,
 
+    /** Production rejected while the diagnostic classifier would have accepted. Fail-closed. */
+    SCRIPT_ERR_RIGOR_CLASSIFIER_DIVERGENCE,
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 

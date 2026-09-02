@@ -1,0 +1,88 @@
+{
+  "task": "TASK-RIGOR-SCRIPT-OPCODE-SECURITY-AUDIT-P0-078",
+  "date": "2026-08-31",
+  "note": "Security audit of the Transaction Script / opcode boundary. Does not modify protocol rules, Consensus Kernel, Transaction Kernel, VerifyRigorPredicate semantics, Sighash, Ed25519, asset classification, or ledger transition.",
+  "consensus_modified": false,
+  "script_authority_count": 1,
+  "unique_spend_authority": "VerifyRigorPredicate",
+  "production_body": "core/src/script/predicate_verify.cpp",
+  "kernel_boundary": "VerifyRigorPredicateBoundary",
+  "kernel_boundary_note": "C++-shaped explicit-input projection. Not a second production parser. Production authority remains VerifyRigorPredicate.",
+  "registry_wrapper": "VerifyRigorRegistryPredicate",
+  "registry_wrapper_note": "Inline forward to VerifyRigorPredicate. Naming only.",
+  "allowed_entries": [
+    "scriptPubKey",
+    "scriptSig",
+    "witness",
+    "signature",
+    "pubkey",
+    "sighash"
+  ],
+  "forbidden_entries": [
+    "EvalScript",
+    "VerifyScript",
+    "CScript VM",
+    "opcode interpreter",
+    "stack machine"
+  ],
+  "script_vm_present": false,
+  "script_vm_residue": "NONE",
+  "opcode_surface_count": 0,
+  "opcode_surface_note": "Live VM-executed opcodes. Named reserved-inert bytes exist for parser/display only.",
+  "named_byte_identifiers": 115,
+  "live_markers": [
+    {
+      "byte": "0x6a",
+      "name": "RIGOR_MARKER_RETURN",
+      "class": "RETURN_MARKER",
+      "spendable": false
+    },
+    {
+      "byte": "0xbb",
+      "name": "RIGOR_MARKER_RES_MINT",
+      "class": "RES_MINT_MARKER",
+      "spendable": true
+    },
+    {
+      "byte": "0xbd",
+      "name": "RIGOR_MARKER_CONVERGE",
+      "class": "CONVERGE_MARKER",
+      "spendable": false
+    }
+  ],
+  "burned_bytes": [
+    "0xbc"
+  ],
+  "legacy_script_residue_found": true,
+  "legacy_script_residue": [
+    "RIGOR_RESERVED_LEGACY_* named bytes (parser/display; never dispatched)",
+    "IsOpSuccess (BIP342 name table; not a consensus spend path)",
+    "CastToBool (unused by VerifyRigorPredicate)",
+    "MAX_OPS_PER_SCRIPT / MAX_STACK_SIZE / MAX_PUBKEYS_PER_MULTISIG constants",
+    "CountScriptOpsLegacyTestOnly (tests/fuzz only)",
+    "TxoutType PUBKEY/PUBKEYHASH/SCRIPTHASH/MULTISIG/WITNESS_V0_SCRIPTHASH/WITNESS_UNKNOWN dead arms",
+    "SCRIPT_ERR_OP_* and SCRIPT_ERR_WITNESS_SCRIPT_PATH_* leftover error names",
+    "GetOpNameAlias OP_ prefix strip for ParseScript roundtrip"
+  ],
+  "legacy_script_residue_executable": false,
+  "duplicate_validation_path": "NONE",
+  "bitcoin_opcode_identifiers_in_production": 0,
+  "bitcoin_opcodes_scanned": [
+    "OP_CHECKSIG",
+    "OP_CHECKMULTISIG",
+    "OP_CHECKLOCKTIMEVERIFY",
+    "OP_CHECKSEQUENCEVERIFY",
+    "OP_DUP",
+    "OP_HASH160",
+    "OP_EQUALVERIFY",
+    "OP_RETURN"
+  ],
+  "spend_path": [
+    "scriptPubKey / scriptSig / witness",
+    "TransactionKernel",
+    "VerifyRigorPredicate"
+  ],
+  "malformed_policy": "REJECT",
+  "fuzz_status": "PASS",
+  "final_verdict": "RIGOR_SCRIPT_OPCODE_SECURITY_AUDIT_CLOSED"
+}

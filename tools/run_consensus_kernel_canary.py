@@ -14,6 +14,8 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from refinement_status import print_status, records_cpp_authority  # noqa: E402
 SRC = ROOT / "core/src"
 TOOLS = ROOT / "tools"
 FV = ROOT / "formal_verification"
@@ -63,7 +65,7 @@ def compile_canary(cxx: str, out: Path) -> None:
 
 def main() -> int:
     v = json.loads(VECTORS.read_text(encoding="utf-8"))
-    if v.get("production_kernel_switched") is not False:
+    if not records_cpp_authority(v):
         print("CONSENSUS_KERNEL_CANARY_DISCREPANCY")
         print("FAIL: vectors claim production switch")
         return 1
@@ -97,9 +99,7 @@ def main() -> int:
     print("EXTRACTED_PATH_STATUS = PASS")
     print("COMPARE_STATUS = PASS")
     print("DISCREPANCY_COUNT = 0")
-    print("PRODUCTION_SWITCHED = FALSE")
-    print("REFINEMENT_PROVED = TRUE")
-    print("EQUIVALENCE_PROVED = FALSE")
+    print_status()
     return 0
 
 

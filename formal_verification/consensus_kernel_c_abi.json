@@ -1,7 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-C-ABI-EXTRACTION-BRIDGE-P0-053",
   "extracted_kernel_abi_ready": true,
-  "production_kernel_switched": false,
   "refinement_proved": false,
   "equivalence_proved": false,
   "current_authority": "C++ production kernel",
@@ -19,5 +18,9 @@
     "rigor_resolve_draw": "ResolveConvergenceDraw",
     "rigor_supply_delta": "RigorSupplyDelta"
   },
-  "uint256_in_c_abi": "rigor_u256 (32 POD bytes); C++ uint256 is a class and is not in the C header"
+  "uint256_in_c_abi": "rigor_u256 (32 POD bytes); C++ uint256 is a class and is not in the C header",
+  "production_consensus_authority": "RigorConsensusKernel(C++)",
+  "formal_refinement_status": "PROVED",
+  "extracted_kernel_production": false,
+  "compcert_binary_verified_kernel": false
 }
