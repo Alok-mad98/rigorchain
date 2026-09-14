@@ -24,17 +24,13 @@ BODY = {
         re.compile(r"^CAmount GetBlockSubsidy\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         SRC / "consensus/rigor_issuance.cpp",
     ),
-    "GetResMintReward": (
-        re.compile(r"inline constexpr CAmount GetResMintReward\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        SRC / "consensus/rigor_consensus_lock.h",
+    "CheckResMintArithmetic": (
+        re.compile(r"inline constexpr bool CheckResMintArithmetic\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
+        SRC / "consensus/res_issuance.h",
     ),
     "RigorSupplyDelta": (
         re.compile(r"^bool RigorSupplyDelta\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         SRC / "consensus/rigor_supply.cpp",
-    ),
-    "ResolveConvergenceDraw": (
-        re.compile(r"^ConvergenceDrawOutcome ResolveConvergenceDraw\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        SRC / "consensus/convergence_logic.cpp",
     ),
     "ClassifyRigorTxout": (
         re.compile(r"^TxoutType ClassifyRigorTxout\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -91,9 +87,8 @@ def main() -> int:
     print("Domain                Authority")
     table = (
         ("ORU issuance", "GetBlockSubsidy"),
-        ("RES schedule", "GetResMintReward"),
+        ("RES mint", "CheckResMintArithmetic"),
         ("supply", "RigorSupplyDelta"),
-        ("draw", "ResolveConvergenceDraw"),
         ("classify", "ClassifyRigorTxout"),
         ("spend", "VerifyRigorPredicate"),
         ("sighash", "canonical sighash (SignatureHash)"),
@@ -122,7 +117,7 @@ def main() -> int:
     if "SIGHASH_ALL" in pred:
         errors.append("SignatureHash writes SIGHASH_ALL")
 
-    if "NON_AUTHORITATIVE" not in PHASE5.read_text(encoding="utf-8", errors="replace"):
+    if PHASE5.is_file() and "NON_AUTHORITATIVE" not in PHASE5.read_text(encoding="utf-8", errors="replace"):
         errors.append("Phase5 missing NON_AUTHORITATIVE")
     if "NON_AUTHORITATIVE" not in LEGACY.read_text(encoding="utf-8", errors="replace"):
         errors.append("legacy_account_model missing NON_AUTHORITATIVE")

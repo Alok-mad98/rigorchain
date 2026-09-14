@@ -13,8 +13,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COQ_DIR = REPO_ROOT / "formal_verification" / "coq" / "Phase4FConsensus"
-DOC_DIR = REPO_ROOT / "docs" / "formal" / "phase4f_consensus"
+COQ_DIR = REPO_ROOT / "formal_verification" / "archive" / "lottery" / "coq" / "Phase4FConsensus"
+DOC_DIR = REPO_ROOT / "archive" / "p0-history" / "docs" / "formal" / "phase4f_consensus"
 
 PROJECTION_V = COQ_DIR / "ConsensusDrawProjection.v"
 GOLDEN_TRACE_V = COQ_DIR / "ConsensusGoldenTrace.v"

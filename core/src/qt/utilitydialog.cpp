@@ -41,11 +41,11 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about) :
     GUIUtil::ApplyRigorDialogChrome(this);
 
     const QString productName = RigorWallet::WalletIdentity::brand().productName;
-    QString version = productName + " " + tr("version") + " " + QString::fromStdString(FormatFullVersion());
+    QString version = productName + " " + tr("version") + " " + QString::fromUtf8(RIGOR_RELEASE_VERSION);
 
     if (about)
     {
-        setWindowTitle(tr("About %1").arg(productName));
+        setWindowTitle(tr("About %1").arg(productName) + QStringLiteral(" ") + QString::fromUtf8(RIGOR_RELEASE_VERSION));
 
         // Product About copy only — no Bitcoin Core / upstream MIT dump.
         const QString compliance = RigorWallet::WalletIdentity::aboutComplianceHtml();

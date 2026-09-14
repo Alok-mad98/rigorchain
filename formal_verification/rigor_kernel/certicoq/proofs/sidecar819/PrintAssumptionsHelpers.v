@@ -1,0 +1,2 @@
+From Phase10 Require Import ClosedSelectionHelpersOru.
+Print Assumptions selection_helpers_check_oru.

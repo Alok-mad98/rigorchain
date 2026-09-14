@@ -42,9 +42,8 @@ LEAK = re.compile(
 )
 REQUIRED_CALLS = (
     "GetBlockSubsidy",
-    "GetResMintReward",
+    "ResDestroyCostAtHeight",
     "ComputeRigorIssuance",
-    "ResolveConvergenceDraw",
     "ClassifyRigorTxout",
     "ClassifyRigorAsset",
     "RigorSupplyDelta",

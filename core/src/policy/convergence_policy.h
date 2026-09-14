@@ -11,8 +11,8 @@
  * Mempool policy (this header) handles economic ordering only: which transactions are evicted
  * first under memory pressure, and how RPC surfaces fee-related metadata.
  *
- * Consensus alone defines convergence draw validity (H(txid||bind||H), target, β/γ convergence weight, MIN_CONVERGENCE_AMOUNT)
- * and the single Res mint winner (minimum H). Policy MUST NOT:
+ * Consensus alone defines mint validity (CheckResMintArithmetic) and the
+ * positive OP_CONVERGE burn (nValue > 0). Policy MUST NOT:
  *   - use draw hash H for ordering,
  *   - use ratios like h/convergence_amount or nonlinear “probability” heuristics,
  *   - predict winners or simulate draw outcomes.

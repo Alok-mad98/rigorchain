@@ -301,7 +301,7 @@ void RigorGUI::createActions()
     tabGroup->addAction(historyAction);
 
     convergenceAction = new QAction(platformStyle->SingleColorIcon(QStringLiteral(":/icons/convergence")), tr("&Convergence"), this);
-    convergenceAction->setStatusTip(tr("Convergence: commit ORU, wait for the Convergence period, and view RES minted results"));
+    convergenceAction->setStatusTip(tr("Convergence: destroy ORU to mint RES at the current protocol cost"));
     convergenceAction->setToolTip(convergenceAction->statusTip());
     convergenceAction->setCheckable(true);
     convergenceAction->setShortcut(QKeySequence(QStringLiteral("Alt+5")));
@@ -542,7 +542,6 @@ void RigorGUI::createMenuBar()
         settings->addSeparator();
         m_advanced_menu = settings->addMenu(tr("&Advanced"));
         m_advanced_menu->addAction(m_key_management_action);
-        m_advanced_menu->addAction(openRPCConsoleAction);
         settings->addSeparator();
     }
     settings->addAction(optionsAction);
@@ -1441,11 +1440,16 @@ bool RigorGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
 
 void RigorGUI::setHDStatus(bool privkeyDisabled, int hdEnabled)
 {
-    // RIGOR uses descriptor wallets (ORU witness v0 / RES witness v1). Keep the
-    // Bitcoin-era HD status icon hidden; Key Management shows ORU/RES HD lines.
-    Q_UNUSED(privkeyDisabled);
-    Q_UNUSED(hdEnabled);
-    labelWalletHDStatusIcon->hide();
+    labelWalletHDStatusIcon->setThemedPixmap(
+        privkeyDisabled ? QStringLiteral(":/icons/eye") :
+        hdEnabled ? QStringLiteral(":/icons/hd_enabled") :
+                    QStringLiteral(":/icons/hd_disabled"),
+        STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
+    labelWalletHDStatusIcon->setToolTip(
+        privkeyDisabled ? tr("Private key <b>disabled</b>") :
+        hdEnabled ? tr("HD wallet (Hierarchical Deterministic) is <b>enabled</b>") :
+                    tr("HD wallet is <b>not available</b>"));
+    labelWalletHDStatusIcon->show();
 }
 
 void RigorGUI::setEncryptionStatus(int status)
@@ -1493,7 +1497,10 @@ void RigorGUI::updateWalletStatus()
     }
     WalletModel * const walletModel = walletView->getWalletModel();
     setEncryptionStatus(walletModel->getEncryptionStatus());
-    setHDStatus(walletModel->wallet().privateKeysDisabled(), walletModel->wallet().hdEnabled());
+    // Show HD when either asset has ranged derivation. Do not use wallet-wide
+    // IsHDEnabled() alone — a dedicated-key RES import must not hide ORU HD.
+    setHDStatus(walletModel->wallet().privateKeysDisabled(),
+                walletModel->wallet().oruHdEnabled() || walletModel->wallet().resHdEnabled());
 }
 #endif // ENABLE_WALLET
 

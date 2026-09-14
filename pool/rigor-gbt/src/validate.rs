@@ -2,6 +2,17 @@ use crate::error::{GbtError, GbtResult};
 use crate::gbt::GbtTemplate;
 use sha2::{Digest, Sha256};
 
+/// Lottery GBT keys that shipping rigord must not emit (RFC-020).
+const LOTTERY_GBT_KEYS: &[&str] = &[
+    "paid_winner_txid",
+    "default_res_mint",
+    "default_pcorb_carrier",
+    "convergence_root",
+    "convergence_draw",
+    "convergence_txids",
+    "default_convergence_commitment",
+];
+
 /// Validation gate V-01 through V-10 (RIGOR_GBT_ADAPTER_SPEC §9.3).
 pub fn validate_template(template: &GbtTemplate, raw_json: &str) -> GbtResult<[u8; 32]> {
     v01_height(template)?;
@@ -9,7 +20,7 @@ pub fn validate_template(template: &GbtTemplate, raw_json: &str) -> GbtResult<[u
     v03_bits_and_prev_nbits(template)?;
     v04_coinbasevalue(template)?;
     v05_transaction_data(template)?;
-    v06_convergence_txids(template)?;
+    v06_reject_lottery_fields(raw_json)?;
     v07_longpollid(template)?;
     v08_weightlimit(template)?;
     v09_bits_distinct(template)?;
@@ -66,28 +77,30 @@ fn v05_transaction_data(template: &GbtTemplate) -> GbtResult<()> {
     Ok(())
 }
 
-/// V-06: the committed set and the root the node published over it must agree.
+/// V-06: shipping GBT must not carry leftover lottery fields.
 ///
-/// This used to require every `convergence_txid` to appear in `transactions`. A-9-C widened the
-/// committed set to the whole draw window, so its members are mostly transactions of earlier
-/// blocks and that requirement now rejects every valid template. Hashing the list and comparing
-/// against the node's own root catches the same class of desync without assuming a one-block set.
-fn v06_convergence_txids(template: &GbtTemplate) -> GbtResult<()> {
-    let Some(node_root) = template.convergence_root.as_deref() else {
-        // Pre-A9C node. Nothing left to check the list against.
-        return Ok(());
-    };
-    let local_root = rigor_convergence_root::native_to_hash_hex(
-        &rigor_convergence_root::compute_convergence_root(&template.convergence_txids),
-    );
-    if !local_root.eq_ignore_ascii_case(node_root) {
+/// Scans `raw_json` for keys that lottery-era nodes emitted. Any present and
+/// non-null value fails the template — the pool must not mine on those fields.
+fn v06_reject_lottery_fields(raw_json: &str) -> GbtResult<()> {
+    let value: serde_json::Value = serde_json::from_str(raw_json).map_err(|e| GbtError::Validation {
+        rule: "V-06",
+        message: format!("raw GBT JSON does not parse: {e}"),
+    })?;
+    let Some(obj) = value.as_object() else {
         return Err(GbtError::Validation {
             rule: "V-06",
-            message: format!(
-                "convergence_root {node_root} is not C over the {} committed txids (locally {local_root})",
-                template.convergence_txids.len()
-            ),
+            message: "raw GBT JSON must be an object".into(),
         });
+    };
+    for key in LOTTERY_GBT_KEYS {
+        if let Some(v) = obj.get(*key) {
+            if !v.is_null() {
+                return Err(GbtError::Validation {
+                    rule: "V-06",
+                    message: format!("lottery GBT field `{key}` is present and non-null"),
+                });
+            }
+        }
     }
     Ok(())
 }
@@ -186,13 +199,12 @@ mod tests {
                     "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 }
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd/1",
             "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
-            "height": 100,
-            "convergence_txids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+            "height": 100
         }"#;
         let template: GbtTemplate = serde_json::from_str(raw).unwrap();
         (template, raw.to_string())
@@ -237,23 +249,74 @@ mod tests {
     }
 
     #[test]
-    fn v06_rejects_root_that_is_not_c_over_the_committed_txids() {
-        let (mut t, raw) = valid_template();
-        t.convergence_root = Some("cc".repeat(32));
-        let err = validate_template(&t, &raw).unwrap_err();
+    fn v06_rejects_lottery_convergence_root() {
+        let (t, _) = valid_template();
+        let raw = r#"{
+            "previousblockhash": "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd",
+            "transactions": [],
+            "coinbasevalue": 12800000000,
+            "longpollid": "lp",
+            "weightlimit": 1000000,
+            "bits": "1d00ffff",
+            "prev_nbits": "1c00ff00",
+            "height": 100,
+            "convergence_root": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }"#;
+        let err = validate_template(&t, raw).unwrap_err();
         assert!(matches!(err, GbtError::Validation { rule: "V-06", .. }));
     }
 
     #[test]
-    fn v06_accepts_buried_window_candidates() {
-        // A-9-C: the committed set spans the draw window, so a member need not be a transaction
-        // of this template. What must hold is that the node's root is C over the list.
-        let (mut t, raw) = valid_template();
-        t.convergence_txids = vec!["aa".repeat(32), "bb".repeat(32)];
-        t.convergence_root = Some(rigor_convergence_root::native_to_hash_hex(
-            &rigor_convergence_root::compute_convergence_root(&t.convergence_txids),
-        ));
-        assert!(validate_template(&t, &raw).is_ok());
+    fn v06_rejects_lottery_convergence_txids() {
+        let (t, _) = valid_template();
+        let raw = r#"{
+            "previousblockhash": "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd",
+            "transactions": [],
+            "coinbasevalue": 12800000000,
+            "longpollid": "lp",
+            "weightlimit": 1000000,
+            "bits": "1d00ffff",
+            "prev_nbits": "1c00ff00",
+            "height": 100,
+            "convergence_txids": ["aa"]
+        }"#;
+        let err = validate_template(&t, raw).unwrap_err();
+        assert!(matches!(err, GbtError::Validation { rule: "V-06", .. }));
+    }
+
+    #[test]
+    fn v06_rejects_default_res_mint() {
+        let (t, _) = valid_template();
+        let raw = r#"{
+            "previousblockhash": "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd",
+            "transactions": [],
+            "coinbasevalue": 12800000000,
+            "longpollid": "lp",
+            "weightlimit": 1000000,
+            "bits": "1d00ffff",
+            "prev_nbits": "1c00ff00",
+            "height": 100,
+            "default_res_mint": {"value": 1, "scriptPubKey": "bb"}
+        }"#;
+        let err = validate_template(&t, raw).unwrap_err();
+        assert!(matches!(err, GbtError::Validation { rule: "V-06", .. }));
+    }
+
+    #[test]
+    fn v06_accepts_null_lottery_key() {
+        let (t, _) = valid_template();
+        let raw = r#"{
+            "previousblockhash": "0000000000000000000123456789abcdef0123456789abcdef0123456789abcd",
+            "transactions": [{"data": "0100000001", "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}],
+            "coinbasevalue": 12800000000,
+            "longpollid": "lp/1",
+            "weightlimit": 1000000,
+            "bits": "1d00ffff",
+            "prev_nbits": "1c00ff00",
+            "height": 100,
+            "convergence_draw": null
+        }"#;
+        assert!(validate_template(&t, raw).is_ok());
     }
 
     #[test]

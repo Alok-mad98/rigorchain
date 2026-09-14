@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-COQ_DIR = REPO_ROOT / "formal_verification" / "coq" / "Phase4FConsensus"
-COQ_DIR_4G = REPO_ROOT / "formal_verification" / "coq" / "Phase4GRefinement"
-COQ_DIR_5E = REPO_ROOT / "formal_verification" / "coq" / "Phase5Equivalence"
+COQ_DIR = REPO_ROOT / "formal_verification" / "archive" / "lottery" / "coq" / "Phase4FConsensus"
+COQ_DIR_4G = REPO_ROOT / "formal_verification" / "archive" / "lottery" / "coq" / "Phase4GRefinement"
+COQ_DIR_5E = REPO_ROOT / "formal_verification" / "archive" / "lottery" / "coq" / "Phase5Equivalence"
 DOC_DIR = REPO_ROOT / "docs" / "formal" / "phase4f_consensus"
 DOC_DIR_5E = REPO_ROOT / "docs" / "formal" / "phase5_equivalence"
 COQ_PROJECT = REPO_ROOT / "formal_verification" / "coq" / "_CoqProject"
@@ -2085,106 +2085,22 @@ def check_definitions() -> list[str]:
 
 
 def check_coq_project() -> list[str]:
+    """RFC-019 Phase 5: these modules were git-mv'd to archive/lottery.
+
+    The live _CoqProject must not list them. The files themselves are checked
+    via COQ_DIR / COQ_DIR_4G / COQ_DIR_5E, which now point at the archive.
+    """
     errors: list[str] = []
     if not COQ_PROJECT.is_file():
         return ["missing _CoqProject"]
     proj = read_text(COQ_PROJECT)
-    for mod in MODULE_EXPECTATIONS:
-        rel = f"Phase4FConsensus/{mod}"
-        if rel not in proj:
-            errors.append(f"_CoqProject: missing {rel}")
-    for expectations in (
-        MODULE_EXPECTATIONS_4G,
-        MODULE_EXPECTATIONS_4G_CLOSURE,
-        MODULE_EXPECTATIONS_4G_FINAL,
-        MODULE_EXPECTATIONS_4G_CERT,
-        MODULE_EXPECTATIONS_5E,
-        MODULE_EXPECTATIONS_5E_DRAW,
-        MODULE_EXPECTATIONS_5E_REPLAY,
-        MODULE_EXPECTATIONS_5E_REORG,
-        MODULE_EXPECTATIONS_5E_CB,
-        MODULE_EXPECTATIONS_5E_SE,
-        MODULE_EXPECTATIONS_5E_E2E,
-        MODULE_EXPECTATIONS_5E_GG,
-        MODULE_EXPECTATIONS_5E_GG_B,
-        MODULE_EXPECTATIONS_5E_GG_C,
-        MODULE_EXPECTATIONS_5E_GG_D,
-        MODULE_EXPECTATIONS_5E_GG_E,
-        MODULE_EXPECTATIONS_5E_GG_F,
-        MODULE_EXPECTATIONS_5E_GG_G,
-        MODULE_EXPECTATIONS_5E_GG_H,
-        MODULE_EXPECTATIONS_5E_GG_I,
-        MODULE_EXPECTATIONS_5E_GG_J,
-        MODULE_EXPECTATIONS_5E_GG_K,
-        MODULE_EXPECTATIONS_5E_GG_L,
-        MODULE_EXPECTATIONS_5E_GG_M,
-        MODULE_EXPECTATIONS_5E_GG_N,
-        MODULE_EXPECTATIONS_5E_FVR_J,
-        MODULE_EXPECTATIONS_5E_FVR_K,
-        MODULE_EXPECTATIONS_5E_FVR_L,
-        MODULE_EXPECTATIONS_5E_FVR_M,
-        MODULE_EXPECTATIONS_5E_FVR_N,
-        MODULE_EXPECTATIONS_5E_PROOF_019,
-        MODULE_EXPECTATIONS_5E_PROOF_020,
-        MODULE_EXPECTATIONS_5E_PROOF_021,
-        MODULE_EXPECTATIONS_5E_PROOF_022,
-        MODULE_EXPECTATIONS_5E_PROOF_023,
-        MODULE_EXPECTATIONS_5E_PROOF_024,
-        MODULE_EXPECTATIONS_5E_PROOF_025,
-    ):
-        phase = (
-            "Phase5Equivalence"
-            if expectations
-            in (
-                MODULE_EXPECTATIONS_5E,
-                MODULE_EXPECTATIONS_5E_DRAW,
-                MODULE_EXPECTATIONS_5E_REPLAY,
-                MODULE_EXPECTATIONS_5E_REORG,
-                MODULE_EXPECTATIONS_5E_CB,
-                MODULE_EXPECTATIONS_5E_SE,
-                MODULE_EXPECTATIONS_5E_E2E,
-                MODULE_EXPECTATIONS_5E_GG,
-                MODULE_EXPECTATIONS_5E_GG_B,
-                MODULE_EXPECTATIONS_5E_GG_C,
-                MODULE_EXPECTATIONS_5E_GG_D,
-                MODULE_EXPECTATIONS_5E_GG_E,
-                MODULE_EXPECTATIONS_5E_GG_F,
-                MODULE_EXPECTATIONS_5E_GG_G,
-                MODULE_EXPECTATIONS_5E_GG_H,
-                MODULE_EXPECTATIONS_5E_GG_I,
-                MODULE_EXPECTATIONS_5E_GG_J,
-                MODULE_EXPECTATIONS_5E_GG_K,
-                MODULE_EXPECTATIONS_5E_GG_L,
-                MODULE_EXPECTATIONS_5E_GG_M,
-                MODULE_EXPECTATIONS_5E_GG_N,
-                MODULE_EXPECTATIONS_5E_FVR_J,
-                MODULE_EXPECTATIONS_5E_FVR_K,
-                MODULE_EXPECTATIONS_5E_FVR_L,
-                MODULE_EXPECTATIONS_5E_FVR_M,
-                MODULE_EXPECTATIONS_5E_FVR_N,
-                MODULE_EXPECTATIONS_5E_PROOF_019,
-        MODULE_EXPECTATIONS_5E_PROOF_020,
-        MODULE_EXPECTATIONS_5E_PROOF_021,
-        MODULE_EXPECTATIONS_5E_PROOF_022,
-        MODULE_EXPECTATIONS_5E_PROOF_023,
-        MODULE_EXPECTATIONS_5E_PROOF_024,
-        MODULE_EXPECTATIONS_5E_PROOF_025,
-        MODULE_EXPECTATIONS_5E_PROOF_026,
-        MODULE_EXPECTATIONS_5E_PROOF_027,
-        MODULE_EXPECTATIONS_5E_PROOF_028,
-        MODULE_EXPECTATIONS_5E_PROOF_029,
-        MODULE_EXPECTATIONS_5E_PROOF_030,
-        MODULE_EXPECTATIONS_5E_PROOF_031,
-        MODULE_EXPECTATIONS_5E_PROOF_032,
-        MODULE_EXPECTATIONS_5E_PROOF_033,
-            )
-            else "Phase4GRefinement"
-        )
-        for mod in expectations:
-            rel = f"{phase}/{mod}"
-            if rel not in proj:
-                errors.append(f"_CoqProject: missing {rel}")
+    prefixes = ("Phase4FConsensus/", "Phase4GRefinement/", "Phase5Equivalence/")
+    for line in proj.splitlines():
+        s = line.strip()
+        if any(s.startswith(p) for p in prefixes):
+            errors.append(f"_CoqProject still lists archived module: {s}")
     return errors
+
 
 
 def check_generated_data() -> list[str]:

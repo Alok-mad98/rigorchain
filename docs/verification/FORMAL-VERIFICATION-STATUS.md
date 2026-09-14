@@ -1,6 +1,6 @@
 # Formal verification status (freeze)
 
-**Date**: 2026-08-18 freeze baseline; living lock 2026-08-20 (`TASK-FV-VECTOR-SELECTIVE-DENSIFY-001`, 422/215) — RC0 FV freeze then 414/207; honesty unchanged from 2026-08-16  
+**Date**: 2026-08-18 freeze baseline; living lock 2026-08-20 (historical verification record, 422/215) — RC0 FV freeze then 414/207; honesty unchanged from 2026-08-16  
 **Role**: **Single current status page** for the correspondence boundary. Pre-release checks: [FV-RELEASE-CHECKLIST.md](./FV-RELEASE-CHECKLIST.md). Operator freeze: [FORMAL-VERIFICATION-FREEZE.md](./FORMAL-VERIFICATION-FREEZE.md). Citable freeze declaration: [RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md](../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md) §0.  
 **Does not supersede** [FORMAL-VERIFICATION-VERDICT.md](./FORMAL-VERIFICATION-VERDICT.md) on *what the Coq model proves*.
 
@@ -28,10 +28,10 @@ Coq lock: `formal_verification/coq/DrawBridgeProgress.v` (re-export of
 
 ## Operator entry
 
-Primary command (from `~/rigor-official-tree`):
+Primary command (from this repository):
 
 ```bash
-cd ~/rigor-official-tree
+# from repository root
 bash formal_verification/scripts/run_fv_release_checklist.sh
 ```
 
@@ -45,7 +45,7 @@ Pre-mainnet **security** gates (window / solo / maturity functional suites) are 
 
 **Maintenance mode only:** fix regressions. Do not expand scope (new vectors, new Coq theories, new CLIs, refinement, shared production hash) without a new task.
 
-The 2026-08-18 operator freeze remains the scope gate. Dated 2026-08-20 model-core tasks, the RC0 FV freeze (`TASK-FV-FREEZE-RC0-READINESS-001`, then **414 / 207**), and selective densify (`TASK-FV-VECTOR-SELECTIVE-DENSIFY-001`) were new tasks; they did **not** flip honesty flags. Living counts: **422** / **215**. Citable declaration: [CURRENT_STATE §0](../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md).
+The 2026-08-18 operator freeze remains the scope gate. Dated 2026-08-20 model-core tasks, the RC0 FV freeze (historical verification record, then **414 / 207**), and selective densify (historical verification record) were new tasks; they did **not** flip honesty flags. Living counts: **422** / **215**. Citable declaration: [CURRENT_STATE §0](../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md).
 
 ---
 
@@ -57,7 +57,7 @@ The 2026-08-18 operator freeze remains the scope gate. Dated 2026-08-20 model-co
 | Tripartite hash (step 3) | Portable `CSHA256` × hashlib × extracted Coq | Shared production hash; SIMD |
 | σ/root CLI (step 4) | Production `ComputeSigmaHash` + `ComputeConvergenceRootFromEligibilityTxids` vs existing JSON families | Coin-view wrapper; Coq extract of encoder/root |
 
-Living (2026-08-20 + `TASK-FV-VECTOR-SELECTIVE-DENSIFY-001`): **422** shared vectors; **215** Coq-enforced; σ/root CLI in the gate. The RC0 FV freeze recorded 414 / 207. The 2026-08-18 operator freeze recorded 324 / 117. Optional `COQ=1` rebuilds the harness; optional `test_bitcoin` BOOST if a binary is present.
+Living (2026-08-20 + historical verification record): **422** shared vectors; **215** Coq-enforced; σ/root CLI in the gate. The RC0 FV freeze recorded 414 / 207. The 2026-08-18 operator freeze recorded 324 / 117. Optional `COQ=1` rebuilds the harness; optional `test_bitcoin` BOOST if a binary is present.
 
 **Explicit non-claims:** no Coq⇄C++ refinement; no shared production hash binary in `rigord`; no network / mempool / P2P layer; no grinding-cost theorem about real SHA-256.
 
@@ -145,7 +145,7 @@ If the gate prints **`test_bitcoin` STALE (no `sha256_fips_golden`)**:
 - BOOST `sha256_fips_golden` is **not** in that binary. Rebuild `test_bitcoin` (operator full `make` in `core/`) to cover it.
 
 ```bash
-cd ~/rigor-official-tree/core
+cd core
 # operator: make -j$(nproc)
 ./src/test/test_bitcoin --run_test=selection_golden_tests,convergence_consensus_tests
 ```
@@ -189,7 +189,7 @@ Operator summary:
 
 ## Operator reproducibility
 
-From `~/rigor-official-tree`:
+From this repository:
 
 **1. Coq targets** (Coq 8.15.0):
 
@@ -220,7 +220,7 @@ bash formal_verification/scripts/check_freeze_artifacts.sh
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-DRAW-CANDIDATE-ROOT-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. This is a dated model expansion, not a new freeze.
 
@@ -233,7 +233,7 @@ Living counts: [`../formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md`](../forma
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-DCR-INTEGRATION-AND-VECTORS-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -243,7 +243,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-DCR-SELECTION-E2E-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -253,7 +253,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-NEGATIVE-CORE-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -264,7 +264,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-DCR-SELECTION-NEGATIVE-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -273,7 +273,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-DOCS-FREEZE-SYNC-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. This is a documentation freeze of the model-core closed loop, not a new proof.
 
@@ -283,7 +283,7 @@ Honesty flags were **not** flipped. This is a documentation freeze of the model-
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-INVALID-CONVERGENCE-ROOT-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -294,7 +294,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-SCRIPT-AND-MINT-WITNESS-NEG-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -304,7 +304,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-SCRIPT-SHAPE-LIFT-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -314,7 +314,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-GATE-AND-HARNESS-HARDENING-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -325,7 +325,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-RESIDUAL-OPAQUE-BOUNDARY-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. This declares residual abstract surfaces; it does not close them.
 
@@ -335,7 +335,7 @@ Honesty flags were **not** flipped. This declares residual abstract surfaces; it
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-ARCHITECTURE-REFINEMENT-FEASIBILITY-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. Phase-5 `DCS_Impossible` was **not** rewritten. No consensus or Coq catalog change.
 
@@ -344,7 +344,7 @@ Honesty flags were **not** flipped. Phase-5 `DCS_Impossible` was **not** rewritt
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -354,7 +354,7 @@ Honesty flags were **not** flipped.
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-DISCREPANCY-AND-LOCK-MAINTENANCE-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. No vector was added or removed. Opaque / compilation-unit splits were **not** closed.
 
@@ -364,7 +364,7 @@ Honesty flags were **not** flipped. No vector was added or removed. Opaque / com
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-MODEL-SMALL-LIFT-FOLLOWUPS-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. No vector was added. `apply_tx` was **not** changed. Refinement was **not** attempted.
 
@@ -384,7 +384,7 @@ Honesty flags were **not** flipped. No vector was added. `apply_tx` was **not** 
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-FREEZE-RC0-READINESS-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. No vector was added. This is the citable RC0 FV freeze, not a new proof.
 
@@ -395,7 +395,7 @@ Honesty flags were **not** flipped. No vector was added. This is the citable RC0
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-VECTOR-SELECTIVE-DENSIFY-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped.
 
@@ -411,7 +411,7 @@ Golden: **414 → 422** shared; **207 → 215** Coq-enforced (GoldenHarness 185�
 
 ---
 
-## Addendum — 2026-08-20 (`TASK-FV-OPS-REGRESSION-GUARD-001`)
+## Addendum — 2026-08-20 (historical verification record)
 
 Honesty flags were **not** flipped. No vector or Coq theorem was added.
 

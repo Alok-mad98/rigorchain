@@ -1,0 +1,8 @@
+{
+  "actual_result": "reject",
+  "attack_type": "A1_repeat_spend",
+  "block_hash": null,
+  "case": "A1_connectblock_double_spend",
+  "expected_result": "reject",
+  "height": null
+}

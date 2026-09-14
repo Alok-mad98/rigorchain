@@ -7,8 +7,9 @@ error is visible as a mismatch against OCaml. Numeric identities (ledger ignores
 fee-burn, circulating subtracts it, unauthorized mint rejects) are the checks
 that would still fail if both sides drifted the same way.
 
-Uses the non-degenerate mint-chain slice (32769 ORU converge, 40 RES mint)
-from connectblock_res_mint_p0_041_tests. Not a ConnectBlock VST.
+RFC-020 conservation slice: subsidy is 128 ORU, a mint may be any R in
+[0, RES_MAX_SUPPLY] when authorized, and destroy_cost(h) is not a grant. This is
+not the pole mint predicate and not a ConnectBlock VST.
 """
 from __future__ import annotations
 
@@ -20,10 +21,11 @@ ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "extracted" / "supply_cli"
 
 COIN = 100_000_000
-RES_COIN = 1_000_000
+RES_COIN = 100_000_000
+RES_MAX_SUPPLY = 419_430_400_000_000
 SATURATING = 32769 * COIN
-SUBSIDY = 1000 * COIN
-MINT = 40 * RES_COIN  # GetResMintReward in epoch 0
+SUBSIDY = 128 * COIN
+MINT = 1 * RES_COIN
 
 
 def apply_delta(s, d):
@@ -32,15 +34,12 @@ def apply_delta(s, d):
         return None
     if subsidy < 0 or mint < 0 or converge < 0 or burn < 0:
         return None
-    cap = MINT
     if authorized:
-        if mint not in (0, cap):
+        if mint > RES_MAX_SUPPLY:
             return None
     elif mint != 0:
         return None
     if ordinary and mint != 0:
-        return None
-    if mint > cap:
         return None
     ledger, circ, res, acc = s
     return (
@@ -72,7 +71,7 @@ def main() -> int:
     if s1[0] != SUBSIDY - SATURATING:
         raise SystemExit("FAIL ledger identity")
 
-    # Payout block: 40 RES mint, authorized, not ordinary.
+    # Authorized body mint of 1 RES; amount is not destroy_cost(h).
     d2 = (135, SUBSIDY, MINT, 0, 0, 0, 1, 0)
     s2 = apply_delta(s1, d2)
     # supply_cli always starts from genesis, so compare the single-step mint from genesis.
@@ -83,6 +82,8 @@ def main() -> int:
         raise SystemExit(f"FAIL mint slice python={exp2} coq={oc2}")
     if from_genesis[2] != MINT:
         raise SystemExit("FAIL mint credit")
+    if s2[2] != MINT:
+        raise SystemExit("FAIL chained mint credit")
 
     # Unauthorized mint is rejected.
     d_bad = (135, 0, MINT, 0, 0, 1, 0, 0)
@@ -100,8 +101,15 @@ def main() -> int:
     if ocaml_apply(d_bad) != "REJECT":
         raise SystemExit("FAIL coq should reject unauthorized mint")
 
+    # Single-block mint above the hard cap is rejected.
+    d_cap = (1, 0, RES_MAX_SUPPLY + 1, 0, 0, 0, 1, 0)
+    if apply_delta((0, 0, 0, 0), d_cap) is not None:
+        raise SystemExit("FAIL python should reject over-cap mint")
+    if ocaml_apply(d_cap) != "REJECT":
+        raise SystemExit("FAIL coq should reject over-cap mint")
+
     print("supply shadow: converge + mint slices agree with extracted apply_delta")
-    print(f"  converge ledger delta = {SUBSIDY - SATURATING}")
+    print(f"  subsidy = {SUBSIDY} (128 ORU)")
     print(f"  mint RES credit = {MINT}")
     print("Not a ConnectBlock refinement proof.")
     return 0

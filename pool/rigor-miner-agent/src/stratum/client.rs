@@ -9,7 +9,7 @@ use crate::error::{MinerError, MinerResult};
 use crate::metrics::Metrics;
 use crate::stratum::messages::{MiningNotify, MiningNotifyRigor, SetDifficulty, SubscribeResult};
 use crate::stratum::protocol::{
-    build_request, parse_line, requires_opushash_agent, StratumMessage, StratumResponse,
+    build_request, parse_line, requires_rgrpow01_agent, StratumMessage, StratumResponse,
     DEFAULT_AGENT,
 };
 
@@ -91,9 +91,9 @@ impl StratumClient {
 
     pub fn subscribe(&mut self, agent: Option<&str>) -> MinerResult<SubscribeResult> {
         let agent = agent.unwrap_or(DEFAULT_AGENT);
-        if !requires_opushash_agent(agent) {
+        if !requires_rgrpow01_agent(agent) {
             return Err(MinerError::Stratum(
-                "agent string must contain opushash".into(),
+                "agent string must contain rgrpow01 (SHA3-256 RGRPOW01)".into(),
             ));
         }
         self.agent = agent.to_string();

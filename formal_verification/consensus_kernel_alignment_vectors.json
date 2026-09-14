@@ -1,6 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-COQ-CPP-ALIGNMENT-P0-049",
-  "note": "New alignment vectors. Does not modify phase3_golden_vectors.json or any existing golden value.",
+  "note": "RFC-020 alignment vectors. Display destroy_cost(h) is not actual issuance. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,
   "vectors": [
@@ -20,8 +20,8 @@
     {
       "id": "P049-G0-RES-SCHEDULE",
       "height": 0,
-      "fact": "Genesis RES schedule value is W(0), not actual issuance",
-      "get_res_mint_reward": 40000000,
+      "fact": "Genesis RES destroy cost is destroy_cost(0), not actual issuance",
+      "get_res_mint_reward": 102400000000,
       "res_issued": 0,
       "schedule_is_not_actual": true
     },
@@ -42,8 +42,8 @@
     {
       "id": "P049-H1-ORU",
       "height": 1,
-      "fact": "height 1 ORU issuance > 0",
-      "get_block_subsidy_oru": 1000
+      "fact": "height 1 ORU issuance is the flat 128 ORU subsidy",
+      "get_block_subsidy_oru": 128
     },
     {
       "id": "P049-H1-DRAW-MATURITY",

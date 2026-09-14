@@ -49,7 +49,15 @@ struct CoqSupplyFieldHook {
     CAmount cb_res_mint_delta{0};  //!< `cb_res_mint_delta` ↔ res_mint_block
 
     // --- RES mint cardinality ---
-    uint8_t res_mint_count_M_h{0}; //!< M(h) ∈ {0,1} ↔ res_mint_count_block
+    /**
+     * M(h) ∈ {0,1} ↔ res_mint_present_block. Kept under the historical Coq name.
+     *
+     * Under RFC-019 M(h) is an indicator ("this block minted"), not a mint count —
+     * a block may carry many mints. The name still says "count" because it mirrors
+     * the Coq symbol; reconciling the two spellings belongs to the Phase 5 pass over
+     * the extraction contract, not here.
+     */
+    uint8_t res_mint_count_M_h{0};
 
     // --- Parent ledger (recurrence witnesses) ---
     CAmount rs_oru_supply_parent{0};

@@ -147,9 +147,20 @@ class FrameworkInfo(object):
 class ApplicationBundleInfo(object):
     def __init__(self, path: str):
         self.path = path
-        # for backwards compatibility reasons, this must remain as Bitcoin-Qt
-        self.binaryPath = os.path.join(path, "Contents", "MacOS", "Bitcoin-Qt")
-        if not os.path.exists(self.binaryPath):
+        macos = os.path.join(path, "Contents", "MacOS")
+        self.binaryPath = None
+        for name in ("rigor-qt", "Rigor-Qt", "Bitcoin-Qt"):
+            cand = os.path.join(macos, name)
+            if os.path.exists(cand):
+                self.binaryPath = cand
+                break
+        if self.binaryPath is None and os.path.isdir(macos):
+            for name in sorted(os.listdir(macos)):
+                cand = os.path.join(macos, name)
+                if os.path.isfile(cand) and os.access(cand, os.X_OK):
+                    self.binaryPath = cand
+                    break
+        if not self.binaryPath or not os.path.exists(self.binaryPath):
             raise RuntimeError(f"Could not find bundle binary for {path}")
         self.resourcesPath = os.path.join(path, "Contents", "Resources")
         self.pluginPath = os.path.join(path, "Contents", "PlugIns")
@@ -426,7 +437,7 @@ if os.path.exists(appname + ".temp.dmg"):
 
 # ------------------------------------------------
 
-target = os.path.join("dist", "Bitcoin-Qt.app")
+target = os.path.join("dist", os.path.basename(os.path.normpath(app_bundle)))
 
 print("+ Copying source bundle +")
 if verbose:
@@ -534,7 +545,7 @@ ds['.']['icvp'] = icvp
 ds['.']['vSrn'] = ('long', 1)
 
 ds['Applications']['Iloc'] = (370, 156)
-ds['Bitcoin-Qt.app']['Iloc'] = (128, 156)
+ds[os.path.basename(os.path.normpath(app_bundle))]['Iloc'] = (128, 156)
 
 ds.flush()
 ds.close()

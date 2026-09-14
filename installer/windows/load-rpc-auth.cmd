@@ -1,51 +1,55 @@
 @echo off
-REM Load or generate AlphaPlus RPC credentials (CSW-8).
-REM Sets RPC_USER and RPC_PASS. Expects DATADIR to be set.
+REM Load or generate RPC credentials. Sets RPC_USER and RPC_PASS.
+REM Requires DATADIR. Reads ASCII sidecar files (not findstr / PowerShell stdout).
 if not defined DATADIR (
   echo ERROR: DATADIR is not set.
   exit /b 1
 )
 if not exist "%DATADIR%" mkdir "%DATADIR%"
-set "RPCAUTH=%DATADIR%\rpc-auth.conf"
 set "RPC_USER="
 set "RPC_PASS="
+set "GENPS1=%~dp0gen-rpc-auth.ps1"
+if not exist "%GENPS1%" (
+  echo ERROR: missing %GENPS1%
+  echo Copy gen-rpc-auth.ps1 next to load-rpc-auth.cmd
+  exit /b 1
+)
 
-if exist "%RPCAUTH%" goto :read_auth
-
-echo Generating RPC authentication credentials...
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$dir=$env:DATADIR; if (-not $dir) { $dir='%~1' };" ^
-  "$bytes=New-Object byte[] 40; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes);" ^
-  "$user='rigor_' + ([BitConverter]::ToString($bytes[0..7]) -replace '-').ToLowerInvariant();" ^
-  "$pass=([BitConverter]::ToString($bytes[8..39]) -replace '-').ToLowerInvariant();" ^
-  "$p=Join-Path $dir 'rpc-auth.conf';" ^
-  "@('# AlphaPlus generated RPC credentials. Do not share.','rpcuser='+$user,'rpcpassword='+$pass) | Set-Content -Path $p -Encoding ascii;" ^
-  "Write-Output ('generated '+$p)"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%GENPS1%" "%DATADIR%"
 if errorlevel 1 (
-  echo ERROR: failed to generate RPC credentials.
+  echo ERROR: failed to write RPC credentials into %DATADIR%
+  echo Close Rigor Wallet completely, then retry.
   exit /b 1
 )
-echo Generated configuration:
-echo   file: %RPCAUTH%
 
-:read_auth
-for /f "usebackq tokens=1,* delims==" %%A in (`findstr /i /b /c:"rpcuser=" "%RPCAUTH%"`) do set "RPC_USER=%%B"
-for /f "usebackq tokens=1,* delims==" %%A in (`findstr /i /b /c:"rpcpassword=" "%RPCAUTH%"`) do set "RPC_PASS=%%B"
-if not defined RPC_USER (
-  echo ERROR: rpcuser missing in %RPCAUTH%
+if not exist "%DATADIR%\rpc-user.txt" (
+  echo ERROR: %DATADIR%\rpc-user.txt was not created.
+  echo Close the wallet and retry.
   exit /b 1
 )
-if not defined RPC_PASS (
-  echo ERROR: rpcpassword missing in %RPCAUTH%
+if not exist "%DATADIR%\rpc-pass.txt" (
+  echo ERROR: %DATADIR%\rpc-pass.txt was not created.
+  echo Close the wallet and retry.
   exit /b 1
 )
+
+set /p RPC_USER=<"%DATADIR%\rpc-user.txt"
+set /p RPC_PASS=<"%DATADIR%\rpc-pass.txt"
+if not defined RPC_USER goto :fail_read
+if not defined RPC_PASS goto :fail_read
+
 if /I "%RPC_USER%"=="user" if /I "%RPC_PASS%"=="pass" (
-  echo ERROR: default rpcuser/rpcpassword are not allowed on AlphaPlus mainnet.
-  echo Delete %RPCAUTH% and restart to generate unique credentials.
+  echo ERROR: default rpcuser/rpcpassword are not allowed.
   exit /b 1
 )
 if /I "%RPC_PASS%"=="pass" (
-  echo ERROR: default rpcpassword is not allowed on AlphaPlus mainnet.
+  echo ERROR: default rpcpassword is not allowed.
   exit /b 1
 )
+echo RPC credentials ready.
 exit /b 0
+
+:fail_read
+echo ERROR: rpc-user.txt / rpc-pass.txt are empty.
+echo Close the wallet, delete those two files, and retry start-node.cmd.
+exit /b 1

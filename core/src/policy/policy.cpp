@@ -43,13 +43,18 @@ CAmount GetDustThreshold(const CTxOut& txout, const CFeeRate& dustRelayFeeIn)
     // so dust is a spendable txout less than
     // 98*dustRelayFee/1000 (in satoshis).
     // 294 satoshis at the default rate of 3000 sat/kvB.
-    if (txout.scriptPubKey.IsUnspendable())
+    // Dust is "costs more to spend than it is worth". Outputs that never enter
+    // the UTXO set cannot be spent, so the threshold is zero. That includes
+    // OP_RETURN-class scripts (IsUnspendable) and OP_CONVERGE (AddCoins skips
+    // them). Do not treat a 1-atom burn as policy dust: consensus floor is one
+    // ORU atom, and EntersUtxoSet() is the SSOT for "occupies a Coin".
+    if (!EntersUtxoSet(txout.scriptPubKey))
         return 0;
 
     std::vector<std::vector<unsigned char>> vSolutions;
     const TxoutType rigor_type = ClassifyRigorTxout(txout.scriptPubKey, vSolutions);
     if (rigor_type == TxoutType::WITNESS_V1_RES || rigor_type == TxoutType::RES_MINT) {
-        // RES amounts are in RES_ATOMIC_UNIT (1 = 0.000001 RES); relay/min fee rates are in ORU
+        // RES amounts are in RES_ATOMIC_UNIT (1 = 0.00000001 RES); relay/min fee rates are in ORU
         // base units. Do not compare GetFee() (ORU-scale) to RES nValue — that misclassifies
         // almost all RES outputs as dust. Consensus already enforces a minimum output; policy
         // uses the smallest valid unit as the dust floor.
@@ -156,6 +161,8 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
 
         if (whichType == TxoutType::NULL_DATA)
             nDataOut++;
+        else if (whichType == TxoutType::CONVERGE)
+            continue; // never a UTXO; dust-as-spend-cost does not apply
         else if (IsDust(txout, dust_relay_fee)) {
             reason = "dust";
             return false;

@@ -68,6 +68,7 @@ public:
         AmountWithFeeExceedsBalance,
         DuplicateAddress,
         TransactionCreationFailed, // Error returned when wallet is still locked
+        TransactionCommitFailed,   // Mempool refused the broadcast; the wallet abandoned the tx
         AbsurdFee,
         AssetNotSelected,
         MixedAssetTypes,
@@ -110,12 +111,12 @@ public:
     SendCoinsReturn prepareTransaction(WalletModelTransaction &transaction, const wallet::CCoinControl& coinControl);
 
     // Send coins to a list of recipients
-    void sendCoins(WalletModelTransaction& transaction);
+    SendCoinsReturn sendCoins(WalletModelTransaction& transaction);
 
     /** Build and broadcast a convergence transaction (ORU to RIGOR_MARKER_CONVERGE). */
     SendCoinsReturn sendConvergenceOru(CAmount amount_oru);
 
-    //! Convergence draw / convergence-root summary for a block (uses this wallet's convergence txids for is_mine).
+    //! Convergence-root summary for a block (uses this wallet's convergence txids for is_mine).
     bool tryGetConvergenceBlockResult(int height, interfaces::ConvergenceBlockResult& out) const;
 
     // Wallet encryption
@@ -218,7 +219,7 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const interfaces::WalletBalances& balances);
 
-    /** WALLET_EXTREME_SAFETY_V1: emitted when block/reorg/conflict changed wallet-derived state (convergence metadata, conflicts, …). */
+    /** WALLET_EXTREME_SAFETY_V1: emitted when block/reorg/conflict changed wallet-derived state. */
     void walletStateRevisionChanged(quint64 revision);
 
     /** Emitted when tryGetBalances repeatedly fails under contention (true) or recovers (false). */

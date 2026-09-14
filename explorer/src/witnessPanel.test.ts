@@ -8,7 +8,6 @@ import {
   classifyWitnessPath,
 } from "./witnessPanel";
 import { buildTxConvergencePanel } from "./convergencePanel";
-import { COINBASE_RES_MINT_SOURCE } from "./resMint";
 
 const BOOTSTRAP_REDEEM = "75757575757551";
 
@@ -57,20 +56,20 @@ describe("witnessPanel", () => {
     assert.equal(leftover.pcorb_items, null);
   });
 
-  it("associates RES mint from indexed coinbase OP_RES_MINT row", () => {
-    const txid = "coinbase";
+  it("associates RES mint from indexed RFC-020 body-tx row", () => {
+    const txid = "minttx";
     const panel = buildTxConvergencePanel([]);
     const proof = buildResMintProofView(
       txid,
       [
         {
           mint_vout_index: 1,
-          mint_amount: "40000000",
-          winner_convergence_txid: "parentwinner",
+          mint_amount: "100000000",
+          winner_convergence_txid: "minttx",
           block_hash: "blockhash",
           block_height: 100,
           convergence_root: "roothex",
-          proof_items: { source: COINBASE_RES_MINT_SOURCE, script_pubkey: "00" + "14" + "11".repeat(20) + "bb" },
+          proof_items: { source: "rfc020_body_mint", burn_atoms: "102400000000", mint_atoms: "100000000" },
         },
       ],
       { block_hash: "blockhash", height: 100, rigor_winner: "", rigor_res_minted: 1 },
@@ -80,7 +79,7 @@ describe("witnessPanel", () => {
     assert.equal(proof.present, true);
     assert.equal(proof.confirmation_status, "Confirmed in block");
     assert.equal(proof.matches_winner_block, true);
-    assert.equal(proof.mint_amount_display, "40.000000 RES");
+    assert.equal(proof.mint_amount_display, "1.00000000 RES");
     assert.equal(proof.proof_items, null);
   });
 
@@ -96,28 +95,28 @@ describe("witnessPanel", () => {
     assert.equal(proof.confirmation_status, "Not a RES mint");
   });
 
-  it("builds full tx witness panel for coinbase mint", () => {
-    const txid = "coinbase";
+  it("builds full tx witness panel for RFC-020 body mint", () => {
+    const txid = "minttx";
     const convPanel = buildTxConvergencePanel([]);
     const panel = buildTxWitnessPanel(
       txid,
-      [{ vin_index: 0, coinbase: true, txinwitness: [] }],
+      [{ vin_index: 0, coinbase: false, txinwitness: ["aa", "bb"] }],
       [
         {
           mint_vout_index: 1,
-          mint_amount: "40000000",
-          winner_convergence_txid: "parentwinner",
+          mint_amount: "100000000",
+          winner_convergence_txid: "minttx",
           block_hash: "bh",
           block_height: 100,
           convergence_root: "c".repeat(64),
-          proof_items: { source: COINBASE_RES_MINT_SOURCE },
+          proof_items: { source: "rfc020_body_mint" },
         },
       ],
       { block_hash: "bh", height: 100, rigor_winner: "", rigor_res_minted: 1 },
       convPanel,
       [{ block_height: 100, convergence_root: "c".repeat(64) }],
     );
-    assert.equal(panel.inputs[0].path_kind, "coinbase");
+    assert.equal(panel.inputs[0].path_kind, "res_key_path");
     assert.equal(panel.res_mint_proof.present, true);
     assert.equal(panel.res_mint_proof.proof_items, null);
   });

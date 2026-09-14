@@ -1,0 +1,112 @@
+# Real Rigor Wallet DMGs (Qt app bundle). Not an identity stub.
+# GitHub-hosted macOS only. WSL cannot emit Mach-O / UDZO.
+# Official names: rigor-v0.2-macos-x86_64.dmg / rigor-v0.2-macos-arm64.dmg
+# P0-094: CI environment recovery. P0-095: Developer ID signing (defers if secrets missing).
+# P0-101: tags v* must run this workflow (production governance gate).
+# Does not change wallet or consensus.
+name: release-wallet-macos
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+  workflow_call:
+
+env:
+  RIGOR_RELEASE_VERSION: "0.2"
+
+jobs:
+  macos-wallet:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-x86_64
+            os: macos-15-intel
+            expected_arch: x86_64
+          - target: macos-arm64
+            os: macos-15
+            expected_arch: arm64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Record runner / compiler / Qt
+        run: |
+          set -euo pipefail
+          echo "RUNNER_OS=${{ matrix.os }}"
+          echo "TARGET=${{ matrix.target }}"
+          echo "UNAME=$(uname -a)"
+          echo "ARCH=$(uname -m)"
+          echo "GIT_COMMIT=$(git rev-parse HEAD)"
+          clang++ --version | head -n1
+          echo "HOMEBREW=$(brew --prefix)"
+
+      - name: Install wallet build dependencies
+        run: |
+          set -euo pipefail
+          # GitHub macos-15 images sometimes ship aws/tap. None of our
+          # formulae come from that tap (all homebrew/core). Untap it
+          # instead of disabling Homebrew tap-trust checks.
+          if brew tap | grep -qx 'aws/tap'; then
+            echo "UNTAP=aws/tap (not required; runner leftover)"
+            brew untap aws/tap
+          else
+            echo "UNTAP=none"
+          fi
+          brew tap | grep -qx 'aws/tap' && {
+            echo "FAIL: aws/tap still present after untap" >&2
+            exit 1
+          }
+          # Official Homebrew core only. qt@5 is deprecated-but-available
+          # (5.15.19). Do not migrate to Qt6 in this TASK.
+          brew install automake libtool pkg-config boost libevent qt@5 libsodium qrencode
+          echo "QT5_PREFIX=$(brew --prefix qt@5)"
+          echo "QT5_VERSION=$(brew list --versions qt@5)"
+          python3 -m venv "${RUNNER_TEMP}/rigor-macos-dmg-venv"
+          "${RUNNER_TEMP}/rigor-macos-dmg-venv/bin/pip" install --upgrade pip
+          "${RUNNER_TEMP}/rigor-macos-dmg-venv/bin/pip" install ds_store mac_alias
+          echo "${RUNNER_TEMP}/rigor-macos-dmg-venv/bin" >> "$GITHUB_PATH"
+          echo "VENV_PYTHON=${RUNNER_TEMP}/rigor-macos-dmg-venv/bin/python3"
+
+      - name: Build wallet DMG
+        env:
+          RIGOR_MACOS_DMG_VENV: ${{ runner.temp }}/rigor-macos-dmg-venv
+        run: bash tools/release/build-macos-wallet-dmg.sh
+
+      - name: Smoke-test DMG
+        run: bash tools/release/smoke-macos-wallet-dmg.sh "${{ matrix.target }}" "${{ matrix.expected_arch }}"
+
+      # P0-095: Developer ID Application signing. Missing secrets DEFER
+      # (exit 0) and do not block the unsigned wallet DMG. Notarization is a later TASK.
+      - name: Developer ID sign
+        env:
+          MACOS_DEVELOPER_ID_APPLICATION_CERTIFICATE: ${{ secrets.MACOS_DEVELOPER_ID_APPLICATION_CERTIFICATE }}
+          MACOS_DEVELOPER_ID_APPLICATION_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_APPLICATION_PASSWORD }}
+          MACOS_DEVELOPER_ID_APPLICATION_IDENTITY: ${{ secrets.MACOS_DEVELOPER_ID_APPLICATION_IDENTITY }}
+        run: bash tools/release/sign-macos-wallet-dmg.sh "${{ matrix.target }}"
+
+      - name: SHA256
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+          p = Path("dist/release/v0.2/${{ matrix.target }}/rigor-v0.2-${{ matrix.target }}.dmg")
+          digest = hashlib.sha256(p.read_bytes()).hexdigest()
+          sidecar = Path(str(p) + ".sha256")
+          sidecar.write_text(f"{digest}  {p.name}\n", encoding="utf-8")
+          print(f"SHA256 {p.name} {digest}")
+          print(f"SIZE {p.stat().st_size}")
+          PY
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: rigor-v0.2-${{ matrix.target }}-wallet
+          path: dist/release/v0.2/${{ matrix.target }}/rigor-v0.2-*

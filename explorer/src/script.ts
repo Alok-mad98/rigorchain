@@ -4,8 +4,8 @@ export type AssetKind = "ORU" | "RES" | "NONE" | "INVALID";
 
 export const OP_CONVERGE_OPCODE = 0xbd;
 export const OP_CONVERGE_SCRIPT_NAME = "OP_CONVERGE";
-export const CONVERGENCE_BURN_SCRIPT_LABEL = "Convergence burn script";
-export const CONVERGENCE_OUTPUT_STATE = "Unspendable burn output / draw participation";
+export const CONVERGENCE_BURN_SCRIPT_LABEL = "Convergence destroy script";
+export const CONVERGENCE_OUTPUT_STATE = "Unspendable destroy output";
 
 /**
  * Historical RFC-014 / retired design: Witness v1 program prefix ASCII "CVG2".
@@ -57,7 +57,7 @@ export function isRetiredCvg2WitnessV1(scriptPubKeyHex: string): boolean {
 }
 
 /**
- * True iff the script is a live Convergence burn / draw-entry lock.
+ * True iff the script is a live Convergence burn lock.
  * Mirrors node `IsConvergeScript` / `IsConvergenceScript` for explorer indexing.
  */
 export function isConvergenceScriptPubKey(scriptPubKeyHex: string): boolean {

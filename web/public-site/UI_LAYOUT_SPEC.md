@@ -45,7 +45,7 @@ Protocol
 │   ├── Conservation equation
 │   └── Mint / cap gates
 ├── FORGE
-│   ├── MTH burn → RES path
+│   ├── Destroy-to-mint at destroy_cost(h) → RES path
 │   ├── |F| ≥ 2 rule
 │   └── PCORB validation
 ├── Consensus

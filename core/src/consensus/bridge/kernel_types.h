@@ -22,7 +22,8 @@ typedef struct rigor_u256 {
 
 typedef struct rigor_issuance_result {
     uint64_t oru_subsidy;
-    uint64_t res_reward_schedule;
+    /** RFC-020 display destroy_cost(h): ORU atoms to mint one whole RES at this height. */
+    uint64_t res_destroy_cost;
     uint32_t epoch;
 } rigor_issuance_result;
 

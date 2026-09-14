@@ -1,14 +1,16 @@
-(** DrawBridgeProgress.v — operator path for honesty greps.
+(** DrawBridgeProgress.v — honesty flags after the lottery archive.
 
-    Canonical module: Phase5Equivalence/DrawBridgeProgress.v
-    This file re-exports it so
-      formal_verification/coq/DrawBridgeProgress.v
-    contains the freeze flags.
+    The full draw-bridge module lives at
+    archive/lottery/coq/Phase5Equivalence/DrawBridgeProgress.v (P9).
+    This operator path keeps the freeze greps false. RFC-019 does not
+    revive a draw refinement claim.
 
     HONESTY: equivalence_claimed remains false.
     HONESTY: hash_kernel_shared_binary_with_cpp remains false. *)
 
-From Rigor.Phase5Equivalence Require Export DrawBridgeProgress.
+Definition hash_kernel_shared_binary_with_cpp : bool := false.
+Definition refinement_proved : bool := false.
+Definition equivalence_claimed : bool := false.
 
 Lemma operator_path_equivalence_claimed : equivalence_claimed = false.
 Proof. reflexivity. Qed.

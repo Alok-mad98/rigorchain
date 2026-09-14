@@ -351,7 +351,14 @@ Result CommitTransaction(CWallet& wallet, const uint256& txid, CMutableTransacti
     mapValue_t mapValue = oldWtx.mapValue;
     mapValue["replaces_txid"] = oldWtx.GetHash().ToString();
 
-    wallet.CommitTransaction(tx, std::move(mapValue), oldWtx.vOrderForm);
+    std::string commit_error;
+    if (!wallet.CommitTransaction(tx, std::move(mapValue), oldWtx.vOrderForm, &commit_error)) {
+        // The replacement was refused and has been abandoned, so the original is still
+        // the live transaction. Marking it replaced by a tx nobody has would leave the
+        // inputs looking spent with no way to confirm either one.
+        errors.push_back(Untranslated(strprintf("The fee-bumped transaction was not accepted by the mempool: %s. The original transaction is unchanged.", commit_error)));
+        return Result::WALLET_ERROR;
+    }
 
     // mark the original tx as bumped
     bumped_txid = tx->GetHash();

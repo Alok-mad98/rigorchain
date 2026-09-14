@@ -25,5 +25,6 @@ explicitly a retired design study. The live tree still compiles the originals.
 | `coq/CvgCovenant.v` | `coq/ReplayReorgCore/CvgCovenant.v` | OP_CVG_CLAIM / covenant mint — C++ has no such opcode |
 | `coq/legacy_account_model/README.md` | `coq/legacy_account_model/` | Global account model; not UTXO ConnectBlock |
 
-Draw / σ / SHA-256 / ResSchedule proofs are **not** obsolete. They stay in
-`coq/` as the monetary and convergence cone.
+Draw / σ proofs **are** obsolete as of RFC-019 Phase 5. They were `git mv`'d
+to `archive/lottery/` (see `lottery/WHY_ARCHIVED.md`). SHA-256 and the
+B-class ResSchedule cone stay in `coq/` until rewritten in Phase 5 step 3.

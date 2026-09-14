@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn hardcoded_x_password_no_longer_authorizes() {
         let mgr = hashed_manager();
-        mgr.subscribe(1, "rigor-miner/1.0-opushash", 4);
+        mgr.subscribe(1, "rigor-miner/1.0-rgrpow01", 4);
         assert_eq!(
             mgr.authorize(1, "alice.worker1", "x").unwrap_err(),
             AuthError::BadPassword

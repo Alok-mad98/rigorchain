@@ -1,0 +1,97 @@
+{
+  "case_id": "SV-B2_p2pkh",
+  "raw_block_hex": null,
+  "raw_tx_hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff01f0c07648170000001976a914111111111111111111111111111111111111111188ac00000000",
+  "kind": "tx",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CTransaction",
+    "error": null,
+    "fields": {
+      "nVersion": 1,
+      "nLockTime": 0,
+      "vin": 1,
+      "vout": 1,
+      "has_witness": false,
+      "values": [
+        99999990000
+      ],
+      "script_lens": [
+        25
+      ]
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "reject",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "ClassifyRigorAsset",
+    "function": "ClassifyRigorTxout",
+    "reject_reason": "bad-rigor-script-type"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": false,
+    "ki_pow_ok": null,
+    "ki_asert_ok": null,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "only_allowed_script_shapes_enter_utxo",
+  "trace": {
+    "raw_bytes": {
+      "hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff01f0c07648170000001976a914111111111111111111111111111111111111111188ac00000000",
+      "source": "attack_lab",
+      "entry_function": "UnserializeTransaction"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CTransaction",
+      "error": null,
+      "fields": {
+        "nVersion": 1,
+        "nLockTime": 0,
+        "vin": 1,
+        "vout": 1,
+        "has_witness": false,
+        "values": [
+          99999990000
+        ],
+        "script_lens": [
+          25
+        ]
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "ClassifyRigorAsset",
+      "function": "ClassifyRigorTxout",
+      "reject_reason": "bad-rigor-script-type"
+    },
+    "decision": "reject",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": false,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "only_allowed_script_shapes_enter_utxo"
+  }
+}

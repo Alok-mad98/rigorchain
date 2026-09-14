@@ -5,11 +5,15 @@
 #include <clientversion.h>
 #include <coins.h>
 #include <compressor.h>
+#include <consensus/convergenceres.h>
+#include <consensus/res_amount.h>
+#include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
 #include <span.h>
 #include <streams.h>
 #include <test/util/random.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <txdb.h>
 #include <uint256.h>
@@ -34,6 +38,7 @@ bool operator==(const Coin &a, const Coin &b) {
     if (a.IsSpent() && b.IsSpent()) return true;
     return a.fCoinBase == b.fCoinBase &&
            a.nHeight == b.nHeight &&
+           a.nFlags == b.nFlags &&
            a.out == b.out;
 }
 
@@ -1039,13 +1044,14 @@ void TestFlushBehavior(
     BOOST_CHECK(!base.HaveCoin(outp));
 }
 
-BOOST_AUTO_TEST_CASE(coin_serialization_roundtrip_no_trailing_flags)
+BOOST_AUTO_TEST_CASE(coin_serialization_roundtrip_zero_flags)
 {
     Coin coin;
     coin.out.nValue = 50 * COIN;
     coin.out.scriptPubKey << RIGOR_PUSH_1;
     coin.nHeight = 100;
     coin.fCoinBase = false;
+    coin.nFlags = 0;
 
     CDataStream ss(SER_DISK, PROTOCOL_VERSION);
     ss << Using<CoinDiskFormatter>(coin);
@@ -1054,6 +1060,7 @@ BOOST_AUTO_TEST_CASE(coin_serialization_roundtrip_no_trailing_flags)
     auto wrap = Using<CoinDiskFormatter>(decoded);
     ss >> wrap;
     BOOST_CHECK(coin == decoded);
+    BOOST_CHECK(!decoded.IsResMint());
 }
 
 BOOST_AUTO_TEST_CASE(coin_disk_integrity_checksum_fail_closed)
@@ -1169,6 +1176,7 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_matches_disk_coin)
     BOOST_CHECK(coin.out == out.out);
     BOOST_CHECK_EQUAL(out.nHeight, coin.nHeight);
     BOOST_CHECK_EQUAL(out.fCoinBase, coin.fCoinBase);
+    BOOST_CHECK_EQUAL(out.nFlags, coin.nFlags);
 
     CTxUndo undo;
     undo.vprevout.push_back(coin);
@@ -1186,6 +1194,51 @@ BOOST_AUTO_TEST_CASE(txundo_formatter_matches_disk_coin)
     BOOST_CHECK_EQUAL(undo2.vprevout.size(), 2U);
     BOOST_CHECK(undo2.vprevout[0].out == coin.out);
     BOOST_CHECK(undo2.vprevout[1].out == coin2.out);
+}
+
+BOOST_AUTO_TEST_CASE(txundo_formatter_res_mint_flag_roundtrip)
+{
+    Coin coin;
+    coin.out.nValue = RES_COIN;
+    coin.out.scriptPubKey = TestNativeResScript();
+    coin.nHeight = 50;
+    coin.fCoinBase = false;
+    coin.nFlags = COIN_FLAG_RES_MINT;
+
+    CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+    TxInUndoFormatter{}.Ser(ss, coin);
+
+    Coin out;
+    TxInUndoFormatter{}.Unser(ss, out);
+    BOOST_CHECK(out.IsResMint());
+    BOOST_CHECK(!out.IsCoinBase());
+    BOOST_CHECK_EQUAL(out.nFlags, COIN_FLAG_RES_MINT);
+    BOOST_CHECK(out.out == coin.out);
+}
+
+BOOST_AUTO_TEST_CASE(addcoins_marks_body_res_mint_not_res_transfer)
+{
+    CCoinsViewTest base;
+    CCoinsViewCacheTest view(&base);
+
+    CMutableTransaction mint;
+    mint.vin.emplace_back(COutPoint{uint256S("0x1"), 0});
+    mint.vout.emplace_back(RES_COIN, TestNativeResScript());
+    mint.vout.emplace_back(COIN, Consensus::ConvergenceOutputScript());
+    AddCoins(view, CTransaction(mint), /*nHeight=*/40);
+    const Coin& minted = view.AccessCoin(COutPoint(mint.GetHash(), 0));
+    BOOST_CHECK(!minted.IsSpent());
+    BOOST_CHECK(minted.IsResMint());
+    BOOST_CHECK(TxOutputIsBodyResMint(CTransaction(mint), 0));
+    BOOST_CHECK(!view.HaveCoin(COutPoint(mint.GetHash(), 1)));
+
+    CMutableTransaction xfer;
+    xfer.vin.emplace_back(COutPoint{uint256S("0x2"), 0});
+    xfer.vout.emplace_back(RES_COIN / 2, TestNativeResScript());
+    AddCoins(view, CTransaction(xfer), /*nHeight=*/41);
+    const Coin& transferred = view.AccessCoin(COutPoint(xfer.GetHash(), 0));
+    BOOST_CHECK(!transferred.IsSpent());
+    BOOST_CHECK(!transferred.IsResMint());
 }
 
 BOOST_AUTO_TEST_CASE(ccoins_flush_behavior)

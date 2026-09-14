@@ -1,8 +1,8 @@
 # SPEC-008: RIGOR Proof-of-Work (SHA3-256)
 
-**Task:** `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046`
-**Track:** Consensus kernel extraction (PoW pilot)
-**Status:** PROPOSED — supersedes OpuHash on ratification
+**Document status:** Production specification  
+**Historical verification reference:** P0-046  
+**Status:** CURRENT PRODUCTION (implemented in `CheckProofOfWork` / `GetRigorPowHash`). **OpuHash** is the algorithm name for SHA3-256(`"RGRPOW01" || header_80`). The retired 64 KiB mix in `pow_opus.cpp` is not OpuHash.
 **Parents:** `SPEC-000`, `SPEC-003`
 **Supersedes:** `core/doc/opushash_v3.md`, `core/doc/miner-opushash.md`
 **Governance:** Level-5 (frozen architecture change; requires freeze-declaration amendment)

@@ -3,18 +3,30 @@ import path from "node:path";
 import type { Config } from "./config";
 import type { ChainStateRow } from "./db";
 import { rpc } from "./rpcCli";
-import { ALPHAPLUS_CODENAME, ALPHAPLUS_GENESIS_HASH, ALPHAPLUS_PRODUCT } from "./network";
+import {
+  MAINNET_GENESIS_HASH,
+  RIGOR_CHAIN_NAME,
+  RIGOR_CODENAME,
+  RIGOR_PRODUCT,
+  RPC_CHAIN_ID,
+  TESTNET_GENESIS_HASH,
+  expectedGenesisForNetwork,
+} from "./network";
 
 /** Freeze baseline — display only; never derived or inferred at runtime. */
 export const EQUIVALENCE_CLAIMED = false as const;
 
-/** Closed testnet genesis (frozen infrastructure baseline). */
-export const FROZEN_TESTNET_GENESIS_HASH =
-  "dc14491196188457f5e2d9f5951e38b788a1c714dd606225b7490dafa9ef8bca";
+/** Node testnet genesis. Display/compliance only. */
+export const FROZEN_TESTNET_GENESIS_HASH = TESTNET_GENESIS_HASH;
 
-export { ALPHAPLUS_CODENAME, ALPHAPLUS_GENESIS_HASH, ALPHAPLUS_PRODUCT };
-
-const EXPECTED_TESTNET_CHAIN = "test";
+export {
+  RIGOR_CODENAME,
+  RIGOR_PRODUCT,
+  MAINNET_GENESIS_HASH,
+  RIGOR_CODENAME as ALPHAPLUS_CODENAME,
+  MAINNET_GENESIS_HASH as ALPHAPLUS_GENESIS_HASH,
+  RIGOR_PRODUCT as ALPHAPLUS_PRODUCT,
+};
 
 export type ComplianceMismatches = {
   root_mismatch: boolean;
@@ -37,6 +49,9 @@ export type CompliancePayload = {
   mismatches: ComplianceMismatches;
   mismatch_active: boolean;
   mismatch_messages: string[];
+  /** Operational catch-up. Not a chain-integrity mismatch. */
+  catchup_active: boolean;
+  catchup_messages: string[];
   /** Operational (RPC busy / work queue). Not a chain-integrity mismatch. */
   rpc_degraded: boolean;
   rpc_messages: string[];
@@ -60,51 +75,43 @@ function readExplorerVersion(): string {
 
 function chainDisplayName(config: Config): string {
   if (process.env.EXPLORER_CHAIN_NAME) return process.env.EXPLORER_CHAIN_NAME;
-  if (config.network === "mainnet") return ALPHAPLUS_PRODUCT;
-  if (config.network === "testnet") return "Rigor testnet (closed)";
-  return `Rigor ${config.network}`;
+  return RIGOR_CHAIN_NAME;
 }
 
 function networkTypeLabel(config: Config): string {
   if (process.env.EXPLORER_NETWORK_TYPE) return process.env.EXPLORER_NETWORK_TYPE;
-  if (config.network === "mainnet") return ALPHAPLUS_CODENAME;
-  if (config.network === "testnet") return "closed testnet";
   return config.network;
 }
 
-function expectedGenesisHash(config: Config): string | null {
-  const fromEnv = process.env.EXPECTED_GENESIS_HASH?.trim();
-  if (fromEnv) return fromEnv;
-  if (config.network === "testnet") return FROZEN_TESTNET_GENESIS_HASH;
-  if (config.network === "mainnet") {
-    return process.env.EXPECTED_MAINNET_GENESIS_HASH?.trim() || ALPHAPLUS_GENESIS_HASH;
-  }
-  return process.env.EXPECTED_MAINNET_GENESIS_HASH?.trim() ?? null;
-}
-
-/** Lag inside one draw window is normal while the indexer polls. */
-export const INDEXER_LAG_CRITICAL_BLOCKS = 32;
+/** RFC-019 retired the 32-block draw window. Catch-up lag is never integrity CRITICAL. */
+export const INDEXER_LAG_CRITICAL_BLOCKS = 0;
 
 export function isRpcWorkQueueError(err: unknown): boolean {
   return /Work queue depth exceeded/i.test(String(err));
 }
 
-/** Integrity CRITICAL vs operational RPC busy. */
-export function isIntegrityIndexerLag(lag: number): boolean {
-  return lag > INDEXER_LAG_CRITICAL_BLOCKS;
+/** Lag alone is not a fork. Tip-hash mismatch at the indexed height is. */
+export function isIntegrityIndexerLag(_lag: number): boolean {
+  return false;
+}
+
+export function isCatchupIndexerLag(lag: number): boolean {
+  return Number.isFinite(lag) && lag > 0;
 }
 
 export async function buildCompliancePayload(config: Config, chainState: ChainStateRow): Promise<CompliancePayload> {
   const mismatch_messages: string[] = [];
   const rpc_messages: string[] = [];
+  const catchup_messages: string[] = [];
   let chain_mismatch = false;
   let genesis_mismatch = false;
   let indexer_mismatch = false;
   let rpc_degraded = false;
+  let catchup_active = false;
 
   const root_mismatch = Boolean(chainState.critical_root_mismatch);
 
-  const expectedGenesis = expectedGenesisHash(config);
+  const expectedGenesis = expectedGenesisForNetwork(config.network);
   let genesis_hash = expectedGenesis ?? "";
   let nodeChain: string | null = null;
   let nodeHeight = -1;
@@ -133,9 +140,12 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
       );
     }
 
-    if (config.network === "testnet" && nodeChain && nodeChain !== EXPECTED_TESTNET_CHAIN) {
+    const expectedChain = RPC_CHAIN_ID[config.network];
+    if (nodeChain && nodeChain !== expectedChain) {
       chain_mismatch = true;
-      mismatch_messages.push(`Chain mismatch: node chain="${nodeChain}"; expected "${EXPECTED_TESTNET_CHAIN}".`);
+      mismatch_messages.push(
+        `Chain mismatch: node chain="${nodeChain}"; expected "${expectedChain}" for RIGOR_NETWORK=${config.network}.`,
+      );
     }
   } catch (e) {
     rpc_degraded = true;
@@ -152,9 +162,11 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
 
   if (nodeHeight >= 0 && indexerHeight >= 0) {
     const lag = Math.max(0, nodeHeight - indexerHeight);
-    if (lag > 0 && isIntegrityIndexerLag(lag)) {
-      indexer_mismatch = true;
-      mismatch_messages.push(`Indexer lag: node height ${nodeHeight}, indexer height ${indexerHeight} (${lag} blocks behind).`);
+    if (isCatchupIndexerLag(lag)) {
+      catchup_active = true;
+      catchup_messages.push(
+        `Indexer catching up: node height ${nodeHeight}, indexer height ${indexerHeight} (${lag} blocks behind). Not a chain fork.`,
+      );
     }
   }
 
@@ -195,8 +207,8 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
   return {
     chain_name: chainDisplayName(config),
     network_type: networkTypeLabel(config),
-    product: config.network === "mainnet" ? ALPHAPLUS_PRODUCT : chainDisplayName(config),
-    codename: config.network === "mainnet" ? ALPHAPLUS_CODENAME : networkTypeLabel(config),
+    product: RIGOR_PRODUCT,
+    codename: RIGOR_CODENAME,
     network: chainState.network,
     genesis_hash,
     genesis_hash_short: shortHash(genesis_hash),
@@ -206,6 +218,8 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
     mismatches,
     mismatch_active,
     mismatch_messages,
+    catchup_active,
+    catchup_messages,
     rpc_degraded,
     rpc_messages,
   };

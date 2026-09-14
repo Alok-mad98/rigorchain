@@ -1,11 +1,13 @@
 # RIGOR Specification Index
 
 **Track:** Formal Specification Program  
-**Task:** `TASK-SPEC-001` … `TASK-SPEC-008`  
+**Document status:** Production specification  
 **Purpose:** Canonical index of the specification layer. All future formal models and
 proofs MUST reference documents listed here.
 
-> **Parameter boundary.** RFC-014 `E = 240` / `C = 65536` ORU and RFC-015 fixed `100 RES` are **Historical RFC** values and **not active consensus parameters**. See SPEC-000 / SPEC-002 and `docs/archive/rfc/HISTORICAL_PARAMETER_STATUS.md`.
+> **Parameter boundary.** Live issuance is RFC-020 (`docs/protocol/RFC-020.md`).
+> RFC-014 / RFC-015 / RFC-019 numbers are historical and not active consensus
+> parameters. Historical RFC texts: `archive/rfc/`.
 
 ---
 
@@ -21,10 +23,11 @@ source of normative semantics.
 Specification  →  Formal Model  →  Proof  →  Runtime Alignment Evidence
 ```
 
-**Specification supersedes implementation** (see `SPEC-000` §7).
+**Specification supersedes implementation** (see `SPEC-000` §7 and
+[`../formal/SSOT_HIERARCHY.md`](../formal/SSOT_HIERARCHY.md)).
 
 **Freeze boundary:** Nothing in this index or its documents supersedes
-`MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or `TASK-MAINNET-FREEZE-001`.
+`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`.
 
 ---
 
@@ -40,26 +43,22 @@ Specification  →  Formal Model  →  Proof  →  Runtime Alignment Evidence
 | **SPEC-005** | [Consensus Invariants](./SPEC-005-CONSENSUS-INVARIANTS.md) | **ESTABLISHED** | CI-CONSENSUS/STATE/ECONOMIC/DRAW/FREEZE invariants, dependency graph, FVR boundary, SI→CI mapping, freeze compatibility |
 | **SPEC-006** | [Runtime / Formal Mapping](./SPEC-006-RUNTIME-FORMAL-MAPPING.md) | **ESTABLISHED** | Spec→formal→Coq→witness mappings, MP principles, CI/CO/TA/FVR tables, equivalence boundary, verification hierarchy |
 | **SPEC-007** | [Equivalence Boundaries](./SPEC-007-EQUIVALENCE-BOUNDARIES.md) | **ESTABLISHED** | CES/ECS layers, FVR-I..N closure boundaries, draw impossibility, PD-4F debt, future scoped equivalence conditions |
+| **SPEC-008** | [Proof-of-Work (SHA3-256)](./SPEC-008-PROOF-OF-WORK.md) | **CURRENT PRODUCTION** | Node `CheckProofOfWork` is SHA3-256(`RGRPOW01` \|\| header_80). OpuHash is historical. SHA256d retained for block id, merkle, txid, and σ. |
 
 ---
 
-## Proposed Documents (Not Ratified)
+## Historical design notes
 
-A **PROPOSED** entry is not normative. It does not supersede implementation,
-freeze declarations, or any ESTABLISHED SPEC entry until ratified.
-
-| ID | Title | Status | Governance | Description |
-|----|-------|--------|------------|-------------|
-| **SPEC-008** | [Proof-of-Work (SHA3-256)](./SPEC-008-PROOF-OF-WORK.md) | **PROPOSED** | Level-5 · `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` | Replaces OpuHash with a single-permutation SHA3-256 PoW digest over an 88-byte tagged preimage. Scoped to the grinding path only; SHA256d retained for block id, merkle, txid, and σ. Requires freeze-declaration amendment and genesis difficulty re-derivation |
+SPEC-008 records the live Proof-of-Work digest. Production `core/src/pow.cpp`
+implements it. The retired 64 KiB mix in `pow_opus.cpp` is not the live
+work function.
 
 ---
 
 ## Planned Documents (Placeholders)
 
 All planned specification-layer documents through SPEC-007 are **ESTABLISHED**.
-Future SPEC entries require a new formal-program governance task; SPEC-008 is
-raised under `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` and is **PROPOSED**, not
-established.
+SPEC-008 is **implemented** in production `CheckProofOfWork`.
 
 | ID | Title | Status | Scope (planned) |
 |----|-------|--------|-----------------|
@@ -74,12 +73,11 @@ ESTABLISHED SPEC entry:
 
 | Document | Role |
 |----------|------|
-| `docs/archive/rfc/RFC-000-consensus-constitution.md` | Historical constitutional record |
-| `docs/archive/rfc/RFC-008-canonical-mathematical-specification.md` | Historical formula record |
-| `docs/archive/rfc/RFC-009-canonical-serialization-specification.md` … RFC-015 | Historical freeze / economics / witness records |
+| [`docs/protocol/RFC-020.md`](../protocol/RFC-020.md) | Live issuance |
+| [`docs/protocol/RFC-018.md`](../protocol/RFC-018.md) | RES-transfer fee burn |
 | `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md` | Public mathematics |
-| `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` | Mainnet freeze statement |
-| `ARCHITECTURE.md` | Engineering architecture (non-normative for consensus semantics) |
+| [`docs/protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](../protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | Mainnet freeze statement |
+| [`docs/developer/Architecture.md`](../developer/Architecture.md) | Engineering architecture (non-normative for consensus semantics) |
 
 ---
 
@@ -107,12 +105,12 @@ ESTABLISHED SPEC entry:
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-001` — index created; SPEC-000 established |
-| 0.2 | 2026-06-05 | `TASK-SPEC-002` — SPEC-001 state model established |
-| 0.3 | 2026-06-05 | `TASK-SPEC-003` — SPEC-002 economic model established |
-| 0.4 | 2026-06-05 | `TASK-SPEC-004` — SPEC-003 consensus rules established |
-| 0.5 | 2026-06-05 | `TASK-SPEC-005` — SPEC-004 trust anchors established |
-| 0.6 | 2026-06-05 | `TASK-SPEC-006` — SPEC-005 consensus invariants established |
-| 0.7 | 2026-06-05 | `TASK-SPEC-007` — SPEC-006 runtime/formal mapping established |
-| 0.8 | 2026-06-05 | `TASK-SPEC-008` — SPEC-007 equivalence boundaries established; specification layer complete |
-| 0.9 | 2026-08-30 | `TASK-RIGOR-POW-REPLACEMENT-SHA3-P0-046` — SPEC-008 proof-of-work **proposed** (SHA3-256 replaces OpuHash); Proposed Documents section added |
+| 0.1 | 2026-06-05 | Index created; SPEC-000 established |
+| 0.2 | 2026-06-05 | SPEC-001 state model established |
+| 0.3 | 2026-06-05 | SPEC-002 economic model established |
+| 0.4 | 2026-06-05 | SPEC-003 consensus rules established |
+| 0.5 | 2026-06-05 | SPEC-004 trust anchors established |
+| 0.6 | 2026-06-05 | SPEC-005 consensus invariants established |
+| 0.7 | 2026-06-05 | SPEC-006 runtime/formal mapping established |
+| 0.8 | 2026-06-05 | SPEC-007 equivalence boundaries established; specification layer complete |
+| 0.9 | 2026-08-30 | SPEC-008 proof-of-work added (SHA3-256 / `RGRPOW01`) |

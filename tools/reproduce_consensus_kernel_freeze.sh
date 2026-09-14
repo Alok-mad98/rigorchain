@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COQ="$ROOT/formal_verification/coq"
-FLAGS=(-q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01)
+FLAGS=(-q -R . Rigor -R ../rigor_v01 RigorV01)
 
 fail() {
   echo "CONSENSUS_KERNEL_FREEZE_DRIFT"
@@ -40,7 +40,7 @@ echo "== coqc refinement files =="
 echo "== Print Assumptions =="
 ASSUME="$(cd "$COQ" && coqtop "${FLAGS[@]}" <<'EOF'
 Require ConsensusKernelRefinement.
-Print Assumptions ConsensusKernelRefinement.issuance_refinement.
+Print Assumptions ConsensusKernelRefinement.cpp_flat_oru_pins.
 EOF
 )"
 echo "$ASSUME"

@@ -141,8 +141,7 @@ CBlockIndex* BlockManager::AddToBlockIndex(const CBlockHeader& block, CBlockInde
     }
     pindexNew->nTimeMax = (pindexNew->pprev ? std::max(pindexNew->pprev->nTimeMax, pindexNew->nTime) : pindexNew->nTime);
     pindexNew->nChainWork = (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) + GetBlockProof(*pindexNew);
-        pindexNew->m_block_res_mint_sum = 0;
-        pindexNew->m_paid_winner_txid.SetNull();
+    pindexNew->m_block_res_mint_sum = 0;
     pindexNew->RaiseValidity(BLOCK_VALID_TREE);
     if (best_header == nullptr || best_header->nChainWork < pindexNew->nChainWork) {
         best_header = pindexNew;

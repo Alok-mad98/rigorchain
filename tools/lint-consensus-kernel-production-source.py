@@ -26,7 +26,7 @@ KERNEL_FORMULA_FILES = [
     ROOT / "core/src/consensus/rigor_supply.h",
     ROOT / "core/src/consensus/rigor_supply.cpp",
     ROOT / "core/src/consensus/rigor_consensus_lock.h",
-    ROOT / "core/src/consensus/convergence_logic.cpp",
+    ROOT / "core/src/consensus/res_issuance.h",
     ROOT / "core/src/script/rigor_classify.cpp",
 ]
 
@@ -59,17 +59,9 @@ BODY = {
         re.compile(r"inline int RigorIssuanceEpoch\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         ROOT / "core/src/consensus/rigor_issuance.h",
     ),
-    "GetResMintReward": (
-        re.compile(r"inline constexpr CAmount GetResMintReward\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        ROOT / "core/src/consensus/rigor_consensus_lock.h",
-    ),
-    "ResRewardForEpoch": (
-        re.compile(r"inline constexpr CAmount ResRewardForEpoch\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        ROOT / "core/src/consensus/rigor_consensus_lock.h",
-    ),
-    "ResolveConvergenceDraw": (
-        re.compile(r"^ConvergenceDrawOutcome ResolveConvergenceDraw\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        ROOT / "core/src/consensus/convergence_logic.cpp",
+    "ResDestroyCostAtHeight": (
+        re.compile(r"inline constexpr CAmount ResDestroyCostAtHeight\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
+        ROOT / "core/src/consensus/res_issuance.h",
     ),
     "ClassifyRigorTxout": (
         re.compile(r"^TxoutType ClassifyRigorTxout\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -124,7 +116,6 @@ def main() -> int:
         errors.append("ConnectBlock definition missing")
     for needle in (
         "RigorConsensusKernel",
-        "GetConvergenceDrawSetForBlock",
         "hashGenesisBlock",
     ):
         if needle not in cb:
@@ -133,6 +124,9 @@ def main() -> int:
         errors.append("ConnectBlock references extracted/OCaml linkage")
 
     for path in KERNEL_FORMULA_FILES:
+        if not path.is_file():
+            errors.append(f"missing formula file {path.relative_to(ROOT)}")
+            continue
         text = path.read_text(encoding="utf-8", errors="replace")
         if MINUS_ONE_EPOCH.search(text):
             errors.append(f"{path.relative_to(ROOT)} uses (height-1)/210000")
@@ -149,7 +143,6 @@ def main() -> int:
         "consensus/rigor_issuance.cpp",
         "consensus/rigor_supply.cpp",
         "script/rigor_classify.cpp",
-        "consensus/convergence_logic.cpp",
     ):
         if src not in makefile:
             errors.append(f"Makefile.am missing {src}")

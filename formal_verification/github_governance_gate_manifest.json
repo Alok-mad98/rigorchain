@@ -1,0 +1,125 @@
+{
+  "task": "TASK-RIGOR-GITHUB-PRODUCTION-GOVERNANCE-GATE-P0-101",
+  "date": "2026-09-03",
+  "nature": "Repository governance. CI security gate. Production integrity protection. NOT a consensus modification task.",
+  "principle": "CODE > DOCUMENTATION > RELEASE",
+  "consensus_ssot": "core/src/consensus/",
+  "command": "bash tools/run-production-governance-gate.sh",
+  "git_describe": "v0.1.3-19-gf65b2f3-dirty",
+  "git_head": "f65b2f397cc13aab3c6586b530d3059bf032c72c",
+  "event": "",
+  "ref": "",
+  "base": null,
+  "is_tag": false,
+  "equivalence_claimed": false,
+  "GITHUB_PRODUCTION_GOVERNANCE_GATE": "PASS",
+  "CONSENSUS_PROTECTION": "PASS",
+  "DATABASE_PROTECTION": "PASS",
+  "WALLET_BOUNDARY_PROTECTION": "PASS",
+  "ASSET_MODEL_PROTECTION": "PASS",
+  "MINING_BOUNDARY_PROTECTION": "PASS",
+  "EXPLORER_BOUNDARY_PROTECTION": "PASS",
+  "BITCOIN_LEGACY_PROTECTION": "PASS",
+  "DOCUMENTATION_ALIGNMENT_GATE": "PASS",
+  "DOCUMENT_ALIGNMENT_STATUS": "PASS",
+  "RELEASE_GUARDIAN_GATE": "PASS",
+  "FORMAL_VERIFICATION_PROTECTION": "PASS",
+  "SECURITY_AUDIT_GATE": "PASS",
+  "CONSENSUS_CODE_CHANGED": "FALSE",
+  "FINAL_VERDICT": "PASS",
+  "changed": {
+    "consensus_kernel": [],
+    "transaction_kernel": [],
+    "asset_model": [],
+    "database": [],
+    "wallet_format": [],
+    "wallet": [],
+    "mining": [
+      "miner/Makefile.am",
+      "miner/README_MINER.md",
+      "miner/cpu-miner.c",
+      "miner/example-cfg.json",
+      "miner/minerd.1",
+      "miner/opus_hash.cpp",
+      "miner/opus_hash.h",
+      "miner/rgrpow.c",
+      "miner/rgrpow.h",
+      "miner/sha2.c",
+      "miner/test_gbt_solo.c",
+      "pool/README.md",
+      "pool/config/example.toml",
+      "pool/pilot/Cargo.lock",
+      "pool/pilot/tests/e2e_simulation.rs",
+      "pool/rigor-miner-agent/Cargo.lock",
+      "pool/rigor-miner-agent/README.md",
+      "pool/rigor-miner-agent/src/pow/worker.rs",
+      "pool/rigor-miner-agent/src/stratum/client.rs",
+      "pool/rigor-miner-agent/src/stratum/mod.rs",
+      "pool/rigor-miner-agent/src/stratum/protocol.rs",
+      "pool/rigor-miner-agent/tests/integration.rs",
+      "pool/rigor-miner-agent/tests/opuhash.rs",
+      "pool/share-validator/Cargo.lock",
+      "pool/share-validator/Cargo.toml",
+      "pool/share-validator/src/lib.rs",
+      "pool/share-validator/src/rgrpow.rs",
+      "pool/share-validator/src/validator.rs",
+      "pool/share-validator/tests/integration.rs",
+      "pool/stratum-server/Cargo.lock",
+      "pool/stratum-server/src/orchestrator.rs",
+      "pool/stratum-server/src/protocol.rs",
+      "pool/stratum-server/src/session.rs",
+      "pool/stratum-server/tests/integration.rs"
+    ],
+    "explorer": [],
+    "formal": [],
+    "genesis": [],
+    "pow": []
+  },
+  "exception_honored": false,
+  "lint_results": {
+    "AUTHORITY_LOCK": "PASS",
+    "WALLET_SECURITY": "PASS",
+    "POW_BOUNDARY": "PASS",
+    "DUAL_ASSET": "PASS",
+    "COQ_CLAIM_STRENGTH": "PASS",
+    "CONNECTBLOCK_BOUNDARY": "PASS"
+  },
+  "fails": [],
+  "findings": [
+    {
+      "severity": "INFO",
+      "gate": "ASSET_MODEL",
+      "message": "issuance pack still separates ORU subsidy and RES schedule"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-consensus-authority.py=PASS"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-wallet-security.py=PASS"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-pow-boundary-authority.py=PASS"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-dual-asset-database-boundary.py=PASS"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-coq-claim-strength.py=PASS"
+    },
+    {
+      "severity": "INFO",
+      "gate": "SECURITY_AUDIT",
+      "message": "tools/lint-connectblock-kernel-boundary.py=PASS"
+    }
+  ]
+}

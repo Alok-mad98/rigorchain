@@ -21,7 +21,7 @@ const P2WPKH = "001409ba7bdc9a1c2f6114431e483f26c1de0271893c";
 const RES_NATIVE_V1 = "5120" + "11".repeat(32);
 
 describe("scriptPubKey address encoding", () => {
-  it("encodes AlphaPlus mainnet P2WPKH as rg1q…", () => {
+  it("encodes v0.1.3 mainnet P2WPKH as rg1q…", () => {
     const hex = P2WPKH;
     const cls = classifyScriptPubKey(hex, "rg");
     assert.equal(cls.assetKind, "ORU");
@@ -30,7 +30,7 @@ describe("scriptPubKey address encoding", () => {
     assert.equal(cls.address, "rg1qpxa8hhy6rshkz9zrreyr7fkpmcp8rzful9s3kn");
   });
 
-  it("encodes the same program on regtest as trg1q…", () => {
+  it("encodes the same program on testnet as trg1q…", () => {
     const hex = P2WPKH;
     const cls = classifyScriptPubKey(hex, "trg");
     assert.equal(cls.assetKind, "ORU");
@@ -39,7 +39,7 @@ describe("scriptPubKey address encoding", () => {
 });
 
 describe("OP_CONVERGE live classification", () => {
-  it("recognizes OP_CONVERGE as ORU burn / draw-entry, not a third asset", () => {
+  it("recognizes OP_CONVERGE as ORU burn, not a third asset", () => {
     const cls = classifyScriptPubKey(OP_CONVERGE_HEX, "rg");
     assert.equal(cls.assetKind, "ORU");
     assert.equal(cls.isConvergence, true);

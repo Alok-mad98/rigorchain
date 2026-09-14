@@ -1,0 +1,97 @@
+{
+  "case_id": "SV-A1_connectblock_double_spend",
+  "raw_block_hex": null,
+  "raw_tx_hex": "02000000000101e59410d6fcfb440d91fa709bd29e5a63284238ba37209dff112a9d6c6d549ac90000000000fdffffff016061754817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c0240fe6f65670924ab2b6b7a71c724aa7b2976116944c3a01a107b1a808131374c5c057b110aed22e1b8f55031bc9abe27a68f6a96d6f5c9c4cc82236355f6762a0620d8780d042894adbd85b6840cf44cc4742f2f1752c006ae363b56eb9404256f5d00000000",
+  "kind": "tx",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CTransaction",
+    "error": null,
+    "fields": {
+      "nVersion": 2,
+      "nLockTime": 0,
+      "vin": 1,
+      "vout": 1,
+      "has_witness": true,
+      "values": [
+        99999900000
+      ],
+      "script_lens": [
+        22
+      ]
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "reject",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "CheckTxInputs",
+    "function": "Consensus::CheckTxInputs",
+    "reject_reason": "bad-txns-inputs-missingorspent"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": false,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": null,
+    "ki_pow_ok": null,
+    "ki_asert_ok": null,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "no_double_spend",
+  "trace": {
+    "raw_bytes": {
+      "hex": "02000000000101e59410d6fcfb440d91fa709bd29e5a63284238ba37209dff112a9d6c6d549ac90000000000fdffffff016061754817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c0240fe6f65670924ab2b6b7a71c724aa7b2976116944c3a01a107b1a808131374c5c057b110aed22e1b8f55031bc9abe27a68f6a96d6f5c9c4cc82236355f6762a0620d8780d042894adbd85b6840cf44cc4742f2f1752c006ae363b56eb9404256f5d00000000",
+      "source": "attack_lab",
+      "entry_function": "UnserializeTransaction"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CTransaction",
+      "error": null,
+      "fields": {
+        "nVersion": 2,
+        "nLockTime": 0,
+        "vin": 1,
+        "vout": 1,
+        "has_witness": true,
+        "values": [
+          99999900000
+        ],
+        "script_lens": [
+          22
+        ]
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "CheckTxInputs",
+      "function": "Consensus::CheckTxInputs",
+      "reject_reason": "bad-txns-inputs-missingorspent"
+    },
+    "decision": "reject",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": false,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "no_double_spend"
+  }
+}

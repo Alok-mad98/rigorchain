@@ -25,10 +25,18 @@ if [[ -f "${linux_tar}" ]]; then
   ldir="${CLEAN}/linux"
   mkdir -p "${ldir}"
   tar -xzf "${linux_tar}" -C "${ldir}"
+  tar -tzf "${linux_tar}" | grep -qiE 'rigor-miner|minerd' && die "linux tar still contains miner"
   [[ -x "${ldir}/bin/rigord" ]] || die "linux tar missing bin/rigord"
   echo "== Linux rigord --version =="
   "${ldir}/bin/rigord" --version
-  "${ldir}/bin/rigord" --version | grep -q '^RIGOR version ' || die "linux banner missing"
+  "${ldir}/bin/rigord" --version | grep -q '^RIGOR version v0.1.3$' || die "linux banner is not v0.1.3"
+  "${ldir}/bin/rigord" --version | grep -qi alphaplus && die "linux banner still contains alphaplus"
+  "${ldir}/bin/rigord" --version | grep -qi 'wallet alpha' && die "linux banner still contains Wallet Alpha"
+  if [[ -x "${ldir}/bin/rigor-qt" || -x "${ldir}/bin/rigor-wallet" ]]; then
+    qtbin="${ldir}/bin/rigor-wallet"
+    [[ -x "${qtbin}" ]] || qtbin="${ldir}/bin/rigor-qt"
+    "${qtbin}" --version | grep -q 'v0.1.3' || die "linux qt banner is not v0.1.3"
+  fi
   linux_status=PASS
   echo "LINUX_INSTALL_TEST=PASS"
 else
@@ -50,12 +58,38 @@ with zipfile.ZipFile(zf) as z:
     print("ZIP_MEMBERS=" + ",".join(names))
     if any("alphaplus" in n.lower() for n in names):
         raise SystemExit("FAIL: zip contains forbidden alphaplus member")
+    if any(n.lower().endswith("rigor-miner.exe") or n.lower().endswith("minerd.exe") for n in names):
+        raise SystemExit("FAIL: zip contains mining binary")
     if "rigor-v0.1.3-windows-x86_64.exe" not in names:
         raise SystemExit("FAIL: zip missing official installer name")
     z.extractall(dest)
 PY
   magic="$(od -An -tx1 -N2 "${wdir}/rigor-v0.1.3-windows-x86_64.exe" | tr -d ' \n')"
   [[ "${magic}" == "4d5a" ]] || die "extracted windows exe is not MZ"
+  python3 - "${wdir}/rigor-v0.1.3-windows-x86_64.exe" <<'PY'
+import sys
+from pathlib import Path
+data = Path(sys.argv[1]).read_bytes()
+# NSIS Unicode installer stores UI strings as UTF-16LE.
+text = data.decode("latin-1", errors="ignore")
+utf16 = data.decode("utf-16le", errors="ignore")
+blob = text + "\n" + utf16
+if "Rigor Wallet Alpha" in blob:
+    raise SystemExit("FAIL: installer still branded Rigor Wallet Alpha")
+if "Rigor Alpha" in blob and "Rigor Wallet" not in blob:
+    raise SystemExit("FAIL: installer still branded Rigor Alpha")
+if "v0.1.2-alphaplus" in blob:
+    raise SystemExit("FAIL: installer still contains v0.1.2-alphaplus")
+if "Rigor Wallet" not in blob:
+    raise SystemExit("FAIL: installer missing Rigor Wallet product name")
+if "0.1.3" not in blob:
+    raise SystemExit("FAIL: installer missing 0.1.3")
+print("WINDOWS_INSTALLER_IDENTITY=PASS")
+PY
+  if [[ -f "${wdir}/rigord.exe" ]]; then
+    strings -a "${wdir}/rigord.exe" | grep -q 'v0.1.3' || die "windows rigord.exe missing v0.1.3 stamp"
+    strings -a "${wdir}/rigord.exe" | grep -q 'v0.1.2-alphaplus' && die "windows rigord.exe still stamped v0.1.2-alphaplus"
+  fi
   run_ok=0
   if command -v wine64 >/dev/null 2>&1 || command -v wine >/dev/null 2>&1; then
     winebin="$(command -v wine64 || command -v wine)"

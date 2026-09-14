@@ -1,12 +1,12 @@
 /**
  * Explorer identity helper — display / index storage only.
  *
- * UI name: Draw Fingerprint. Observational short ID for one RES draw.
+ * UI name: Observational fingerprint. Historical short ID; RFC-019 retired the draw.
  * Storage/API key remains `consensus_fingerprint` (frozen 104-byte layout).
  * Not a consensus rule, not a block-acceptance predicate, not an auto-reject signal.
  *
- * Does NOT recompute ConvergenceRoot, Sigma, or the winner. Those stay
- * node-authored RPC fields. This module either:
+ * Does NOT recompute ConvergenceRoot or issuance. Node-authored RPC fields stay
+ * the source. This module either:
  *   1. stores a node-published `consensus_fingerprint`, or
  *   2. applies the frozen Hash256 identity over those published fields
  *      (same layout as core/src/consensus/fingerprint.cpp).
@@ -15,9 +15,9 @@
 import { createHash } from "node:crypto";
 import { optionalHash, optionalString } from "./rpcFields";
 
-/** Hash256(C ‖ winner ‖ σ ‖ height ‖ parent nBits) — observational draw short ID. */
-export const DRAW_FINGERPRINT_LABEL = "Draw Fingerprint";
-export const DRAW_IDENTITY_HEADING = "Draw Identity";
+/** Hash256(C ‖ winner ‖ σ ‖ height ‖ parent nBits) — observational short ID. Draw retired. */
+export const DRAW_FINGERPRINT_LABEL = "Observational fingerprint";
+export const DRAW_IDENTITY_HEADING = "Block identity";
 export const FINGERPRINT_NOT_AVAILABLE = "Not available";
 export const FINGERPRINT_NA = "N/A";
 

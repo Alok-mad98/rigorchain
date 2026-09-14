@@ -37,7 +37,7 @@ cd "$COQ"
 
 echo "== coqc ExtractConsensusKernel.v =="
 t0=$(date +%s)
-coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ExtractConsensusKernel.v
+coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ExtractConsensusKernel.v
 t1=$(date +%s)
 echo "extract_coqc_seconds=$((t1 - t0))"
 

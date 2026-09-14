@@ -9,9 +9,7 @@ export type RpcMethod =
   | "getblockhash"
   | "getblock"
   | "getrawtransaction"
-  | "getconvergenceresult"
   | "getblockchaininfo"
-  | "getconvergencestats"
   | "getconvergencestatus"
   | "getruntimesupply"
   | "getnetworkinfo"
@@ -46,9 +44,6 @@ function formatCliParam(method: RpcMethod, p: string | number | boolean): string
   if (typeof p === "number") return String(p);
   if (typeof p === "boolean") return p ? "true" : "false";
   if (/^-?\d+$/.test(p)) return p;
-  if (method === "getconvergenceresult") {
-    return JSON.stringify(p);
-  }
   return p;
 }
 
@@ -59,6 +54,15 @@ function maybeParseJson(out: string): unknown {
     return JSON.parse(trimmed) as unknown;
   }
   return trimmed;
+}
+
+/** Errors that will not succeed on retry. Sleeping on these stalls /api/status. */
+export function isRpcNonRetryableError(err: unknown): boolean {
+  const s = String(err);
+  if (/Work queue depth exceeded/i.test(s)) return true;
+  if (/Method not found/i.test(s)) return true;
+  if (/-32601/.test(s)) return true;
+  return false;
 }
 
 export async function rpcCliCall(config: Config, method: RpcMethod, params: Array<string | number | boolean> = [], opts?: { attempts?: number}): Promise<any> {
@@ -76,8 +80,7 @@ export async function rpcCliCall(config: Config, method: RpcMethod, params: Arra
       return maybeParseJson(out);
     } catch (e) {
       lastErr = e;
-      // Retrying a full work queue adds more RPC load and can stall Explorer pages.
-      if (/Work queue depth exceeded/i.test(String(e))) {
+      if (isRpcNonRetryableError(e)) {
         throw e;
       }
       // Deterministic backoff: no randomness.
@@ -93,15 +96,7 @@ export const rpc = {
   getblockhash: (config: Config, height: number | string) => rpcCliCall(config, "getblockhash", [height]),
   getblock: (config: Config, hash: string, verbosity: number = 1) => rpcCliCall(config, "getblock", [hash, verbosity]),
   getrawtransaction: (config: Config, txid: string, verbose: boolean = true) => rpcCliCall(config, "getrawtransaction", [txid, verbose]),
-  getconvergenceresult: async (config: Config, hashOrHeight: string) => {
-    try {
-      return await rpcCliCall(config, "getconvergenceresult", [hashOrHeight]);
-    } catch {
-      return {};
-    }
-  },
   getblockchaininfo: (config: Config) => rpcCliCall(config, "getblockchaininfo", []),
-  getconvergencestats: (config: Config) => rpcCliCall(config, "getconvergencestats", []),
   getconvergencestatus: (config: Config) => rpcCliCall(config, "getconvergencestatus", []),
   getruntimesupply: (config: Config) => rpcCliCall(config, "getruntimesupply", []),
   getnetworkinfo: (config: Config) => rpcCliCall(config, "getnetworkinfo", []),

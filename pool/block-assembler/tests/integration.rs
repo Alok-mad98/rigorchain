@@ -18,7 +18,7 @@ fn fixture(longpoll: &str, conv_a: &str, conv_b: &str) -> (GbtTemplate, String) 
                     "hash": "{conv_b}"
                 }}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "1d00ffff",
@@ -26,9 +26,7 @@ fn fixture(longpoll: &str, conv_a: &str, conv_b: &str) -> (GbtTemplate, String) 
             "height": 150,
             "version": 536870912,
             "curtime": 1700000100,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{conv_a}", "{conv_b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
     );

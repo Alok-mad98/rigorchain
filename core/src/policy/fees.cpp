@@ -41,6 +41,7 @@ std::string StringForFeeEstimateHorizon(FeeEstimateHorizon horizon)
     case FeeEstimateHorizon::LONG_HALFLIFE: return "long";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return ""; // silence -Wreturn-type (assert may be compiled out)
 }
 
 namespace {
@@ -730,6 +731,7 @@ unsigned int CBlockPolicyEstimator::HighestTargetTracked(FeeEstimateHorizon hori
     }
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return 0; // silence -Wreturn-type (assert may be compiled out)
 }
 
 unsigned int CBlockPolicyEstimator::BlockSpan() const

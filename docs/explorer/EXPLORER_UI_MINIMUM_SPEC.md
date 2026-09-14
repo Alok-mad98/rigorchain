@@ -1,8 +1,8 @@
 # Explorer UI Minimum Specification
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
+**Document status:** Production documentation  
 **Audience:** Closed testnet operators — not public polish.  
-**Baseline:** `mainnet-freeze-rfc014-2026-05-25`.
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, body-tx mint).
 
 ---
 
@@ -23,7 +23,7 @@
 
 | Element | Data source |
 |---------|-------------|
-| Table columns | height, hash (truncated), time, tx count, `rigor_res_minted`, `rigor_winner` (short), `draw_candidate_root` (short) |
+| Table columns | height, hash (truncated), time, tx count, ORU subsidy, RES minted, Convergence destroy |
 | Row link | `/block/{height}` or `{hash}` |
 | Filters | RES minted only (toggle) |
 | Pagination | 50 per page, height DESC |
@@ -34,10 +34,10 @@
 
 | Section | Content |
 |---------|---------|
-| Header | All STABLE header fields including `res_probability_target`, `bits` (labeled PoW), `opus_hash` |
-| Convergence panel | `getconvergenceresult` summary: \|F\|, committed/computed roots, winner txid |
-| Transactions | txid list with badges: coinbase, convergence, res_mint, res_transfer |
-| Mismatch alert | If committed ≠ computed |
+| Header | All STABLE header fields including `bits` (labeled PoW), `opus_hash`, RFC-020 `destroy_cost(h)` |
+| Convergence panel | `OP_CONVERGE` destroys in this block; observer `getconvergenceresult` summary |
+| Transactions | txid list with badges: coinbase, convergence destroy, res_mint, res_transfer |
+| Mismatch alert | If committed ≠ computed (observer integrity only) |
 
 ---
 
@@ -47,9 +47,10 @@
 |---------|---------|
 | Header | txid (large), wtxid (small, labeled), block link, confirmations |
 | Inputs/outputs | Values with ORU/RES tags |
-| Witness panel | For v1 RES: 2-item key-path (the only RES spend path since A-7). For a RES mint's ORU funding input: 6-item PCORB table |
-| Convergence | If `OP_CONVERGE`: burn amount, Script `OP_CONVERGE`, Asset ORU, State unspendable burn / draw participation; link to convergence lineage |
-| Mint proof | If RES mint: replay binding sidebar |
+| Witness panel | For v1 RES: 2-item key-path (the only RES spend path since A-7) |
+| Convergence | If `OP_CONVERGE`: destroy amount, Script `OP_CONVERGE`, Asset ORU, State unspendable destroy; same tx MAY mint RES |
+| Kind notice | Plain destroy (`R = 0`): **ORU destroyed. No RES minted.** Mint (`R > 0`): **ORU destroyed. RES minted.** Do not use the same caption for both. |
+| Mint | If RES mint: RFC-020 body-tx destroy `B` + RES `R` at `destroy_cost(h)` |
 
 **Reject:** `/tx/{wtxid}` routes without redirect to txid.
 
@@ -71,6 +72,7 @@
 | Element | Source |
 |---------|--------|
 | Chain cumulative convergence | `getblockchaininfo.cumulative_convergence` |
+| Of which plain destroy | Indexed `OP_CONVERGE` with no RES mint (`R = 0`). Subset of Convergence destroyed — do not subtract from issued or circulating |
 | Recent subsidy | Last N coinbase vout[0] |
 | Note | “ORU committed to convergence — see convergence lineage” |
 
@@ -82,10 +84,11 @@ Not a wallet — no spend actions.
 
 | Element | Source |
 |---------|--------|
-| Total minted | Sum `listconvergencehistory` / chain stats |
-| Max supply | Static `MAX_RES_SUPPLY` |
-| Recent mints | Blocks with `rigor_res_minted` |
-| Decimals | 2 dp display |
+| Total minted | Sum indexed `res_mints` / chain stats |
+| Max supply | `RES_MAX_SUPPLY` (`2²²` RES = `4194304` RES) |
+| Current price | `destroy_cost(h)` at tip height (protocol destroy cost, not a market quote) |
+| Recent mints | Body-tx `OP_CONVERGE` + Witness v1 RES |
+| Decimals | 8 dp display (`RES_COIN = 100000000`) |
 
 ---
 
@@ -93,9 +96,9 @@ Not a wallet — no spend actions.
 
 | Element | Content |
 |---------|---------|
-| Graph/table | convergence_txid → block → winner? → mint_txid |
+| Graph/table | `OP_CONVERGE` txid → same-tx RES mint (RFC-020) |
 | Filters | By height range |
-| Candidate view | `draw_eligible` from indexed convergence |
+| Destroy vs mint | Plain destroy (`R = 0`) vs mint (`R > 0` at `destroy_cost(h)`) |
 
 ---
 
@@ -103,9 +106,9 @@ Not a wallet — no spend actions.
 
 | Element | Source |
 |---------|--------|
-| Per-block candidates | Table from `convergence_candidates` |
-| Constants | Show `res_probability_target` hex |
-| Ineligible reason | If not eligible: show \|F\|, amount, type (no invented math) |
+| Per-block destroys | Table from `convergence_events` (`OP_CONVERGE`) |
+| Mint amount | Indexed `res_mints` for the same txid |
+| Retired lottery fields | Do not treat `draw_eligible` / winner txid as issuance |
 
 ---
 

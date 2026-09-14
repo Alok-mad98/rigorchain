@@ -27,17 +27,16 @@ if ! command -v coqc >/dev/null; then
 fi
 
 echo "== coqc ConsensusKernelRefinement.v =="
-(cd "$COQ" && coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ConsensusKernelRefinement.v)
+(cd "$COQ" && coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ConsensusKernelRefinement.v)
 
 echo "== Print Assumptions =="
-ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
+ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R ../rigor_v01 RigorV01 <<'EOF'
 Require ConsensusKernelRefinement.
-Print Assumptions ConsensusKernelRefinement.issuance_refinement.
+Print Assumptions ConsensusKernelRefinement.cpp_flat_oru_pins.
 Print Assumptions ConsensusKernelRefinement.classification_refinement.
 Print Assumptions ConsensusKernelRefinement.draw_refinement.
 Print Assumptions ConsensusKernelRefinement.supply_delta_refinement.
 Print Assumptions ConsensusKernelRefinement.coinbase_boundary_refinement.
-Print Assumptions ConsensusKernelRefinement.oru_subsidy_constant_after_cap.
 EOF
 )"
 echo "$ASSUME"

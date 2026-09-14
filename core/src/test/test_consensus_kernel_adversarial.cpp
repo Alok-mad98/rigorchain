@@ -8,12 +8,9 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root_eligibility.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
-#include <consensus/rigor_math.h>
 #include <consensus/rigor_supply.h>
 #include <consensus/validation.h>
 #include <crypto/ed25519_provider.h>
@@ -33,15 +30,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
-#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace {
-
-constexpr CAmount kSaturatingWeight =
-    65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
 
 const int kAttackHeights[] = {0, 1, 99, 100, 101, 209999, 210000, 210001, 419999, 420000};
 
@@ -63,39 +56,11 @@ public:
     int GetSpendHeight() const override { return m_height; }
 };
 
-uint256 TxidByte(unsigned char b)
-{
-    uint256 id;
-    std::fill(id.begin(), id.end(), static_cast<unsigned char>(0));
-    *(id.begin() + 31) = b;
-    return id;
-}
-
-ConvergenceDrawSet MakeDrawSet(int source_height, const std::vector<std::pair<uint256, uint64_t>>& members)
-{
-    ConvergenceDrawSet set;
-    set.source_height = source_height;
-    set.source_nbits = 0x207fffff;
-    set.source_block_hash = uint256S("0xaa");
-    std::vector<uint256> txids;
-    for (const auto& m : members) {
-        ConvergenceDrawCandidate c;
-        c.txid = m.first;
-        c.weight = m.second;
-        set.candidates.push_back(c);
-        txids.push_back(m.first);
-    }
-    set.convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids(txids);
-    return set;
-}
-
 CAmount ExpectedOruSubsidy(int height, const Consensus::Params& c)
 {
-    if (height == 0) return 0;
-    if (height < 0) return GetBlockSubsidy(height, c);
-    const int epoch = height / Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    const int shifts = std::min(epoch, Consensus::ORU_SUBSIDY_MAX_SHIFTS);
-    return Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> shifts;
+    (void)c;
+    if (height <= 0) return 0;
+    return Consensus::ORU_FLAT_BLOCK_SUBSIDY;
 }
 
 } // namespace
@@ -105,18 +70,13 @@ BOOST_FIXTURE_TEST_SUITE(test_consensus_kernel_adversarial, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(issuance_adversarial_boundaries)
 {
     const auto& c = Params().GetConsensus();
-    BOOST_REQUIRE_EQUAL(c.nSubsidyHalvingInterval, Consensus::ORU_SUBSIDY_HALVING_INTERVAL);
-    BOOST_REQUIRE_EQUAL(Consensus::RES_REWARD_EPOCH, Consensus::ORU_SUBSIDY_HALVING_INTERVAL);
+    BOOST_REQUIRE_EQUAL(Consensus::RES_REWARD_EPOCH, 210000);
 
     for (int h : kAttackHeights) {
         const CAmount oru = GetBlockSubsidy(h, c);
-        const CAmount res = Consensus::GetResMintReward(h);
         const RigorIssuance pack = ComputeRigorIssuance(h, c);
         BOOST_REQUIRE_MESSAGE(oru == ExpectedOruSubsidy(h, c), "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-        BOOST_REQUIRE_MESSAGE(res == Consensus::ResRewardForEpoch(h / Consensus::RES_REWARD_EPOCH),
-            "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-        BOOST_REQUIRE_MESSAGE(pack.oru_subsidy == oru && pack.res_reward == res &&
-                                  pack.epoch == RigorIssuanceEpoch(h),
+        BOOST_REQUIRE_MESSAGE(pack.oru_subsidy == oru && pack.epoch == RigorIssuanceEpoch(h),
             "CONSENSUS_ISSUANCE_ATTACK_FOUND");
         BOOST_REQUIRE_MESSAGE(pack.epoch == h / Consensus::RES_REWARD_EPOCH, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
     }
@@ -124,11 +84,7 @@ BOOST_AUTO_TEST_CASE(issuance_adversarial_boundaries)
     BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(0, c) == 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
     BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(0, c) == Consensus::ORU_GENESIS_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(0) == Consensus::RES_REWARD_GENESIS,
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
     BOOST_REQUIRE_MESSAGE(ComputeRigorIssuance(0, c).oru_subsidy == 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(ComputeRigorIssuance(0, c).res_reward == Consensus::RES_REWARD_GENESIS,
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 
     RigorSupplyDeltaInput genesis;
     genesis.height = 0;
@@ -137,39 +93,27 @@ BOOST_AUTO_TEST_CASE(issuance_adversarial_boundaries)
     BOOST_REQUIRE_MESSAGE(RigorSupplyDelta(genesis, c, out, state), "CONSENSUS_ISSUANCE_ATTACK_FOUND");
     BOOST_REQUIRE_MESSAGE(out.oru_subsidy == 0 && out.oru_circulating_delta == 0 && out.res_delta == 0,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(out.res_reward_scheduled == Consensus::RES_REWARD_GENESIS,
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(209999, c) == Consensus::ORU_INITIAL_BLOCK_SUBSIDY,
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(209999, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(210000, c) == (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 1),
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(210000, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(419999, c) == (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 1),
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(419999, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(420000, c) == (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 2),
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(210000) < Consensus::GetResMintReward(209999),
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(210000) == 14142196,
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(420000, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 
     const CAmount max_h = GetBlockSubsidy(std::numeric_limits<int>::max(), c);
-    BOOST_REQUIRE_MESSAGE(max_h == (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> Consensus::ORU_SUBSIDY_MAX_SHIFTS),
-        "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(std::numeric_limits<int>::max()) == 0,
+    BOOST_REQUIRE_MESSAGE(max_h == Consensus::ORU_FLAT_BLOCK_SUBSIDY,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 
     const int as_uint_max = static_cast<int>(std::numeric_limits<uint32_t>::max());
     BOOST_REQUIRE_MESSAGE(as_uint_max < 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(as_uint_max) == 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(Consensus::GetResMintReward(-1) == 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(-1, c) == Consensus::ORU_INITIAL_BLOCK_SUBSIDY,
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(-1, c) == 0,
         "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 
-    const CAmount floor_shift = Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> Consensus::ORU_SUBSIDY_MAX_SHIFTS;
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(630000, c) == floor_shift, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(840000, c) == floor_shift, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(floor_shift > 0, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(630000, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
+    BOOST_REQUIRE_MESSAGE(GetBlockSubsidy(840000, c) == Consensus::ORU_FLAT_BLOCK_SUBSIDY, "CONSENSUS_ISSUANCE_ATTACK_FOUND");
 }
 
 BOOST_AUTO_TEST_CASE(maturity_adversarial_early_spend)
@@ -232,81 +176,6 @@ BOOST_AUTO_TEST_CASE(maturity_adversarial_early_spend)
         "MATURITY_BYPASS_FOUND");
 }
 
-BOOST_AUTO_TEST_CASE(draw_kernel_adversarial)
-{
-    const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
-    const uint64_t w = static_cast<uint64_t>(kSaturatingWeight);
-
-    ConvergenceDrawSet empty;
-    empty.source_height = 400;
-    empty.source_block_hash = uint256S("0x11");
-    const ConvergenceDrawOutcome none = ResolveConvergenceDraw(empty, T);
-    BOOST_REQUIRE_MESSAGE(!none.HasWinner(), "DRAW_NON_DETERMINISTIC");
-    BOOST_REQUIRE_MESSAGE(none.winner_index == -1, "DRAW_NON_DETERMINISTIC");
-
-    const uint256 a = TxidByte(0x11);
-    const uint256 b = TxidByte(0x22);
-    const uint256 d = TxidByte(0x33);
-    ConvergenceDrawSet single = MakeDrawSet(500, {{a, w}});
-    const ConvergenceDrawOutcome one = ResolveConvergenceDraw(single, T);
-    BOOST_REQUIRE_MESSAGE(one.HasWinner() && one.winner_index == 0, "DRAW_NON_DETERMINISTIC");
-    BOOST_REQUIRE_MESSAGE(single.candidates[static_cast<size_t>(one.winner_index)].txid == a,
-        "DRAW_NON_DETERMINISTIC");
-
-    ConvergenceDrawSet eq = MakeDrawSet(500, {{a, w}, {b, w}, {d, w}});
-    const ConvergenceDrawOutcome eq_out = ResolveConvergenceDraw(eq, T);
-    BOOST_REQUIRE_MESSAGE(eq_out.HasWinner(), "DRAW_TIE_BREAK_BYPASS");
-    const uint256 eq_winner = eq.candidates[static_cast<size_t>(eq_out.winner_index)].txid;
-
-    std::vector<int> order(3);
-    std::iota(order.begin(), order.end(), 0);
-    do {
-        ConvergenceDrawSet perm;
-        perm.source_height = eq.source_height;
-        perm.source_block_hash = eq.source_block_hash;
-        perm.convergence_root = eq.convergence_root;
-        for (int i : order) perm.candidates.push_back(eq.candidates[static_cast<size_t>(i)]);
-        const ConvergenceDrawOutcome got = ResolveConvergenceDraw(perm, T);
-        BOOST_REQUIRE_MESSAGE(got.HasWinner(), "DRAW_NON_DETERMINISTIC");
-        BOOST_REQUIRE_MESSAGE(perm.candidates[static_cast<size_t>(got.winner_index)].txid == eq_winner,
-            "DRAW_NON_DETERMINISTIC");
-    } while (std::next_permutation(order.begin(), order.end()));
-
-    BOOST_REQUIRE_MESSAGE(ConvergenceWinnerTieBreakCompare(a, b, eq.convergence_root) < 0,
-        "DRAW_TIE_BREAK_BYPASS");
-    BOOST_REQUIRE_MESSAGE(ConvergenceWinnerTieBreakCompare(b, a, eq.convergence_root) > 0,
-        "DRAW_TIE_BREAK_BYPASS");
-
-    ConvergenceDrawSet overflow = MakeDrawSet(500, {{a, std::numeric_limits<uint64_t>::max()}});
-    const ConvergenceDrawOutcome ov = ResolveConvergenceDraw(overflow, T);
-    BOOST_REQUIRE_MESSAGE(!ov.HasWinner(), "DRAW_TIE_BREAK_BYPASS");
-
-    ConvergenceDrawSet dup = MakeDrawSet(500, {{a, w}, {a, w}});
-    const ConvergenceDrawOutcome dup_out = ResolveConvergenceDraw(dup, T);
-    BOOST_REQUIRE_MESSAGE(dup_out.HasWinner(), "DRAW_TIE_BREAK_BYPASS");
-    BOOST_REQUIRE_MESSAGE(dup.candidates[static_cast<size_t>(dup_out.winner_index)].txid == a,
-        "DRAW_TIE_BREAK_BYPASS");
-    BOOST_REQUIRE_MESSAGE(dup_out.eligible.size() == 2 && dup_out.eligible[0] && dup_out.eligible[1],
-        "DRAW_TIE_BREAK_BYPASS");
-    const int first_winner = dup_out.winner_index;
-    std::swap(dup.candidates[0], dup.candidates[1]);
-    const ConvergenceDrawOutcome dup2 = ResolveConvergenceDraw(dup, T);
-    BOOST_REQUIRE_MESSAGE(dup.candidates[static_cast<size_t>(dup2.winner_index)].txid == a,
-        "DRAW_NON_DETERMINISTIC");
-    (void)first_winner;
-
-    ConvergenceDrawSet zero = MakeDrawSet(500, {{a, 0}});
-    BOOST_REQUIRE_MESSAGE(!ResolveConvergenceDraw(zero, T).HasWinner(), "DRAW_TIE_BREAK_BYPASS");
-
-    ConvergenceDrawSet t0 = MakeDrawSet(500, {{a, w}, {b, w}});
-    BOOST_REQUIRE_MESSAGE(!ResolveConvergenceDraw(t0, uint256()).HasWinner(), "DRAW_TIE_BREAK_BYPASS");
-
-    uint256 tmax;
-    std::fill(tmax.begin(), tmax.end(), static_cast<unsigned char>(0xff));
-    const ConvergenceDrawOutcome tmax_out = ResolveConvergenceDraw(MakeDrawSet(500, {{a, w}}), tmax);
-    BOOST_REQUIRE_MESSAGE(tmax_out.HasWinner(), "DRAW_NON_DETERMINISTIC");
-}
-
 BOOST_AUTO_TEST_CASE(classification_adversarial)
 {
     const CScript oru = OruP2wpkh();
@@ -354,7 +223,7 @@ BOOST_AUTO_TEST_CASE(supply_delta_adversarial)
     const auto& c = Params().GetConsensus();
     const int h = 1;
     const CAmount subsidy = GetBlockSubsidy(h, c);
-    const CAmount sched = Consensus::GetResMintReward(h);
+    const CAmount body_mint = 40 * Consensus::RES_COIN;
 
     auto run = [&](const RigorSupplyDeltaInput& in, bool expect_ok, const char* reject = nullptr) {
         BlockValidationState poisoned;
@@ -364,7 +233,6 @@ BOOST_AUTO_TEST_CASE(supply_delta_adversarial)
         if (expect_ok) {
             BOOST_REQUIRE_MESSAGE(ok, "SUPPLY_INFLATION_ATTACK_FOUND");
             BOOST_REQUIRE_MESSAGE(out.oru_subsidy == subsidy, "SUPPLY_INFLATION_ATTACK_FOUND");
-            BOOST_REQUIRE_MESSAGE(out.res_reward_scheduled == sched, "SUPPLY_INFLATION_ATTACK_FOUND");
             BOOST_REQUIRE_MESSAGE(out.oru_circulating_delta == subsidy - in.converge_sum,
                 "SUPPLY_INFLATION_ATTACK_FOUND");
             BOOST_REQUIRE_MESSAGE(out.res_delta == in.res_mint, "SUPPLY_INFLATION_ATTACK_FOUND");
@@ -383,29 +251,15 @@ BOOST_AUTO_TEST_CASE(supply_delta_adversarial)
     none.oru_coinbase = subsidy;
     run(none, true);
 
-    RigorSupplyDeltaInput winner_none_mint = none;
-    winner_none_mint.res_mint = sched;
-    winner_none_mint.res_coinbase = sched;
-    winner_none_mint.draw_cardinality = Consensus::CONVERGENCE_DRAW_MIN_TXS_FOR_RES;
-    run(winner_none_mint, false, "bad-rigor-res-without-winner");
-
-    RigorSupplyDeltaInput invalid_mint = none;
-    invalid_mint.res_mint = sched;
-    invalid_mint.res_coinbase = sched;
-    invalid_mint.draw_cardinality = 0;
-    run(invalid_mint, false, "bad-rigor-res-trigger-underflow");
-
-    RigorSupplyDeltaInput winner;
-    winner.height = h;
-    winner.has_winner = true;
-    winner.draw_cardinality = 3;
-    winner.res_mint = sched;
-    winner.res_coinbase = sched;
-    winner.oru_coinbase = subsidy;
-    const RigorSupplyDeltaResult once = run(winner, true);
-    const RigorSupplyDeltaResult twice = run(winner, true);
-    BOOST_REQUIRE_MESSAGE(once.res_delta == sched && twice.res_delta == sched, "SUPPLY_INFLATION_ATTACK_FOUND");
-    BOOST_REQUIRE_MESSAGE(once.res_delta != 2 * sched, "SUPPLY_INFLATION_ATTACK_FOUND");
+    RigorSupplyDeltaInput mint;
+    mint.height = h;
+    mint.res_mint = body_mint;
+    mint.oru_coinbase = subsidy;
+    const RigorSupplyDeltaResult once = run(mint, true);
+    const RigorSupplyDeltaResult twice = run(mint, true);
+    BOOST_REQUIRE_MESSAGE(once.res_delta == body_mint && twice.res_delta == body_mint,
+        "SUPPLY_INFLATION_ATTACK_FOUND");
+    BOOST_REQUIRE_MESSAGE(once.res_delta != 2 * body_mint, "SUPPLY_INFLATION_ATTACK_FOUND");
 
     RigorSupplyDeltaInput burn = none;
     burn.converge_sum = subsidy + COIN;
@@ -433,11 +287,6 @@ BOOST_AUTO_TEST_CASE(supply_delta_adversarial)
     burn_edge.fee_burn = 51 * COIN;
     burn_edge.oru_coinbase = subsidy;
     run(burn_edge, false, "bad-cb-amount");
-
-    RigorSupplyDeltaInput omit = none;
-    omit.has_winner = true;
-    omit.draw_cardinality = 1;
-    run(omit, false, "bad-rigor-res-winner-mismatch");
 }
 
 BOOST_AUTO_TEST_CASE(transaction_kernel_adversarial_fail_closed)

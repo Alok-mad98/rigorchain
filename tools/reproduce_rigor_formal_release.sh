@@ -29,9 +29,9 @@ if m.get("EQUIVALENCE_PROVED") is not False: errors.append("EQUIVALENCE_PROVED")
 auth = m.get("authority_map") or {}
 expect = {
     "issuance": "GetBlockSubsidy",
-    "res": "GetResMintReward",
+    "res": "CheckResMintArithmetic",
     "classification": "ClassifyRigorTxout",
-    "draw": "ResolveConvergenceDraw",
+    "draw": "retired",
     "supply": "RigorSupplyDelta",
     "spend": "VerifyRigorPredicate",
     "ledger": "LedgerApply",

@@ -37,15 +37,17 @@ bool BuildWalletInputView(const CWallet& wallet, const CWalletTx& wtx, CCoinsVie
 
 TxSemanticKind ClassifyTxSemanticFromOutputs(const CTransaction& tx)
 {
-    // Never infer ResMint here: a full-balance RES send of RES_REWARD_AMOUNT + ORU
-    // change has the same output shape as a body mint. ResMint (and maturity) require
-    // ClassifyTxSemantic with input prevouts. Incoming payments only need a UI label.
+    // RFC-019 mint is Convergence + RES in the same tx. A full-balance RES
+    // transfer has RES outputs but no OP_CONVERGE, so it stays ResTransfer.
     bool has_res{false};
     bool has_oru{false};
     for (const CTxOut& out : tx.vout) {
         const AssetType a = AssetTypeFromScriptPubKey(out.scriptPubKey);
         if (a == ASSET_RES) has_res = true;
         else if (a == ASSET_ORU) has_oru = true;
+    }
+    if (Consensus::IsConvergenceTx(tx) && has_res) {
+        return TxSemanticKind::ResMint;
     }
     if (has_res) {
         return TxSemanticKind::ResTransfer;
@@ -69,11 +71,13 @@ TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache&
 
     // Dual-pool RES spends (POOL-T RES + POOL-F ORU fee inputs) are normal: GetInputAsset
     // returns RES whenever any RES prevout is present. Do NOT treat that as MixedInputDomain.
-    if (Consensus::IsConvergenceTx(tx) && input_asset == Consensus::ASSET_ID_ORU) {
-        return TxSemanticKind::OruConvergence;
-    }
+    // RFC-019 mint is ORU-funded Convergence + RES: classify as ResMint (100-block reorg
+    // lock) rather than a plain OruConvergence burn.
     if (Consensus::IsRESMintTx(tx, inputs)) {
         return TxSemanticKind::ResMint;
+    }
+    if (Consensus::IsConvergenceTx(tx) && input_asset == Consensus::ASSET_ID_ORU) {
+        return TxSemanticKind::OruConvergence;
     }
     if (Consensus::IsRESSpendTx(tx, inputs)) {
         return TxSemanticKind::ResTransfer;

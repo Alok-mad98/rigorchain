@@ -7,8 +7,8 @@
     <link rel="stylesheet" href="/compliance.css" />
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
-      a { margin-right: 12px; color: #fff; }
-      table { border-collapse: collapse; width: 100%; max-width: 960px; }
+      a { color: #fff; }
+      table { border-collapse: collapse; width: 100%; }
       th, td { border: 1px solid #333; padding: 8px; font-size: 13px; vertical-align: top; }
       th { background: #111; text-align: left; }
       .muted { color: #bbb; font-size: 12px; }
@@ -19,13 +19,13 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
     <h1>RES events</h1>
-    <p class="muted">One row per convergence transaction. Draw is the 中签 block (σ hit). Mint is the A-8 payout block (height+1). Included is when the OP_CONVERGE burn entered the window — not the draw.</p>
+    <p class="muted">One row per OP_CONVERGE transaction. A mint is the same tx: destroy B ORU, create R RES when R · (2²⁵+h)² ≤ B ≪ 40. A plain destroy (R = 0) stays legal.</p>
     <div id="root">Loading...</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
@@ -51,9 +51,9 @@
         table.innerHTML = `
           <thead>
             <tr>
-              <th>draw</th>
+              <th>height</th>
+              <th>destroy</th>
               <th>mint</th>
-              <th>included</th>
               <th>event</th>
               <th>result</th>
             </tr>
@@ -63,17 +63,16 @@
         const tbody = document.createElement('tbody');
         if (events.length === 0) {
           const tr = document.createElement('tr');
-          tr.innerHTML = '<td colspan="5" class="muted">No convergence events indexed.</td>';
+          tr.innerHTML = '<td colspan="5" class="muted">No OP_CONVERGE transactions indexed yet.</td>';
           tbody.appendChild(tr);
         }
         for (const e of events) {
           const tr = document.createElement('tr');
-          const event = (e.lock_display ? esc(e.lock_display) + " locked · " : "") +
-            '<a href="' + ExplorerRoutes.txPath(e.convergence_txid) + '">' + esc(shortHash(e.convergence_txid)) + "</a>";
+          const event = '<a href="' + ExplorerRoutes.txPath(e.convergence_txid) + '">' + esc(shortHash(e.convergence_txid)) + "</a>";
           tr.innerHTML =
-            "<td>" + esc(e.award_height ?? e.height ?? "—") + "</td>" +
-            "<td>" + esc(e.mint_height ?? "—") + "</td>" +
-            "<td class=\"muted\">" + esc(e.included_height ?? "—") + "</td>" +
+            "<td>" + esc(e.height ?? e.included_height ?? "—") + "</td>" +
+            "<td>" + esc(e.lock_display ?? "—") + "</td>" +
+            "<td>" + esc(e.mint_amount ?? "—") + "</td>" +
             "<td>" + event + "</td>" +
             "<td>" + esc(e.result ?? "No RES") + "</td>";
           tbody.appendChild(tr);

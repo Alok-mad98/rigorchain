@@ -1,110 +1,75 @@
+# Note — Historical Mathematical Design Page
+
+Narrative Chapter 5 is now
+[`05-mathematical-fairness.md`](./05-mathematical-fairness.md)
+(Chinese: [`05-mathematical-fairness.zh.md`](./05-mathematical-fairness.zh.md)).
+What follows is a leftover design page. It is not the shipping fairness
+chapter.
+
 # Chapter 5 — Mathematical Design
 
-> **Historical RFC — not an active consensus parameter.** This draft chapter
-> explains the RFC-014 teaching identity `E = 240`, `2^240 / 2^256 = 1/65536`
-> (`C = 65536` ORU). Those figures are **not active consensus parameters**.
-> Deterministic Reserve Issuance uses `E = 246`, `C = 1024` ORU per RES mint, expected wins ≈ `n / 1024`.
-> Canonical text: bound protocol whitepaper §5.1.
-
-Two constants carry the public mathematics of RIGOR:
+Two numbers carry the public mathematics of **shipping** RIGOR:
 
 | Constant | Domain | Job |
 |----------|--------|-----|
-| **65536 = 2^16** | Convergence probability | Measurable, hardware-native chance |
-| **125 = 5³** | ORU tail subsidy | Permanent miner floor after three halvings |
+| **`destroy_cost(h)`** | RES mint cost (display) | `1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES |
+| **128 = 2⁷** | ORU block subsidy | Flat miner payment for every `h ≥ 1` |
 
-They belong together: one is the **probability boundary**, the other is the
-**convergence point of the subsidy sequence**. Both are integer, checkable,
-and independent of anyone’s discretion.
+Fairness is the published integer mint inequality, not a hash lottery.
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+R = 0  →  unconstrained
+```
+
+`destroy_cost(h)` is a **protocol cost**, not a market quote. From block 210000
+the destroy cost becomes 1036.85749152 ORU per RES.
 
 ---
 
-## Why 65536
-
-**65536 is 2^16.** It is one of the classic scales of computing: the number
-of distinct values in sixteen bits (0 through 65535), the familiar “64K”
-boundary of early CPUs, memory pages, and graphics systems. It appears as a
-default hash-table size, as the count of TCP/UDP ports, and as a natural
-power-of-two length for buffers and indices. Because it is a pure power of
-two, it is friendly to bit operations. It is a hardware-native number, not a
-round marketing figure.
-
-### Hash space
-
-SHA-256’s output space is `2^256` values. The teaching identity is:
+## Live math: `destroy_cost(h)`
 
 ```
-2^240 / 2^256  =  1 / 2^16  =  1 / 65536
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (>> 50)
+R · (2²⁵ + h)² ≤ B << 40                   consensus
 ```
 
-A 256-bit digest, restricted by a 240-bit threshold, is exactly a
-**sixteen-bit** fraction of the space. The protocol takes that fraction as
-the public probability boundary:
+Integer only. `RES_COIN = 100000000`. `RES_DESTROY_POLE = 2²⁵`.
+`RES_DESTROY_SHIFT = 40`. `destroy_cost(0) = 102400000000` (1024 ORU per 1 RES).
+Observational calendar `k = ⌊h / 210000⌋` is not a mint argument.
+
+| Height | destroy_cost (atoms) | destroy_cost (ORU per 1 RES) |
+|------:|-------------:|---------------------:|
+| 0 | 102400000000 | 1024 |
+| 210000 | 103685749152 | 1036.85749152 |
+| 420000 | 104979520049 | 1049.79520049 |
+| 630000 | 106281312688 | 1062.81312688 |
+
+The destroy cost never hits zero. There is no mint horizon.
+
+The cap is closed form `(S / P0) · H = 2⁷ / 2¹⁰ · 2²⁵ = 2²²` RES:
 
 ```
-p(n ORU)  =  min(1,  n / 65536)     (aggregate identity)
+RES_MAX_SUPPLY = 419430400000000 atoms = 4194304 RES
 ```
 
-One ORU of committed weight corresponds to a **1/65536** chance in that
-normalized model. Expected wins scale with committed ORU:
+Source: `CheckResMintArithmetic` in `core/src/consensus/res_issuance.h`.
 
-```
-expected wins  ≈  n / 65536
-```
-
-Under the frozen window (`W = 32`):
-
-```
-p_draw(n)  =  n / (65536 · 32)  =  n / 2,097,152
-```
-
-The window changes the per-draw chance. It does **not** change the
-aggregate `n / 65536` identity.
-
-Saturation at `n ≥ 65536` in the single-draw story means linear probability
-reaches 1. That is a probability bound, not a financial promise. Committing
-65536 ORU does not “guarantee profit”.
-
-### A note on Knuth
-
-Donald E. Knuth — Turing Award laureate and a founder of modern computer
-science — has a well-known affection for 65536. In 1967, stopped at a red
-light in Wisconsin, he saw the plate **H65536** on the car ahead and later
-wrote that he almost asked the driver whether the number’s meaning was
-understood. Decades later he returned to the story in *Mathematical Vanity
-Plates* and reconstructed the plate in a program.
-
-RIGOR does not need a celebrity to justify a power of two. The Knuth story
-is recorded because 65536 was already a serious constant in computing
-before this protocol existed. Choosing it is a decision to use a number
-that is **exact, historical, and checkable** — not a number that can be
-quietly moved.
-
-**There is no back-room rate. The published aggregate is 1/65536 per ORU
-of committed weight.**
+**There is no unpublished cost.** Same `(R, B, h)` ⇒ same admit or reject.
 
 ---
 
-## Why 125
+## Why 128
 
-ORU subsidy is a three-step halving, then a lock:
+ORU subsidy is flat:
 
 ```
-1000  →  500  →  250  →  125
+R(0) = 0
+R(h) = 128 ORU    for h ≥ 1
 ```
 
-| Step | Subsidy | Meaning |
-|------|---------|---------|
-| Genesis era | 1000 ORU | Initial miner payment |
-| First halving | 500 ORU | 1000 / 2 |
-| Second halving | 250 ORU | 500 / 2 |
-| Terminal floor | **125 ORU** | 250 / 2 — and then **stop** |
-
-Interval: 210,000 blocks. After the third halving, `R(h) = 125` forever.
-RFC-001: no further halving is allowed.
-
-**125 is the natural end of that sequence.** It is also a small integer
-with an unusually clean identity.
+`128 = 2⁷` is the numerator of the cap identity. The retired three-halving
+sequence `1000 → 500 → 250 → 125` (and the `125 = 5³` slogan) is historical.
 
 ### 125 = 5³
 
@@ -170,8 +135,41 @@ allowed to decay to zero without reopening Chapter 1.
 - the **security-budget** floor for ORU
 - a **symbol** of a value that remains whole after reduction
 
-It is not 65536. 65536 is the wide binary world — ports, pages, hash
-fractions. 125 is the small cube at which the subsidy is allowed to rest.
+It is not `destroy_cost(h)`. Live RES mint cost is `destroy_cost(h)` (RFC-020). Retired
+`RATE(k)` was the epoch table RFC-020 replaced. 125 is the small cube
+at which the historical ORU subsidy was allowed to rest.
 
-**Same commitment as 1/65536:** every step is a published integer rule.
-No hidden schedule. No discretionary last reward.
+**Same commitment as the mint inequality:** every step is a published
+integer rule. No hidden schedule. No discretionary last reward.
+
+---
+
+## Historical RFC only — RFC-014 `65536` / `p_draw` (not shipping)
+
+> **Historical RFC — not an active consensus parameter.** RFC-014 taught
+> `E = 240`, `2^240 / 2^256 = 1/65536` (`C = 65536` ORU) and a windowed
+> `p_draw`. Those figures are **not** shipping issuance. RFC-017’s later
+> `E = 246` / `C = 1024` / window 32 lottery is likewise **retired**.
+> Live issuance is RFC-020 `destroy_cost(h)` / `R · (2²⁵ + h)² ≤ B << 40`.
+
+The following is recorded so the historical RFC is not mistaken for
+current rules.
+
+**65536 is 2^16.** It is one of the classic scales of computing: the
+number of distinct values in sixteen bits. SHA-256’s output space is
+`2^256` values. The RFC-014 teaching identity was:
+
+```
+2^240 / 2^256  =  1 / 2^16  =  1 / 65536
+```
+
+```
+p(n ORU)  =  min(1,  n / 65536)     (historical aggregate identity)
+p_draw(n)  =  n / (65536 · 32)      (historical per-draw; not live)
+```
+
+Donald E. Knuth’s well-known affection for 65536 is a computing-history
+note, not a consensus justification. RIGOR does not ship a 1/65536
+lottery, a `p_draw` gate, or an `E = 246` hash-space mint.
+
+**Shipping fairness is `R · (2²⁵ + h)² ≤ B << 40`, not a hash lottery.**

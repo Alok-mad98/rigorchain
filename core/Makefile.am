@@ -152,7 +152,7 @@ $(OSX_APP)/Contents/MacOS/$(RIGOR_GUI_NAME): all-recursive
 
 $(OSX_APP)/Contents/Resources/Base.lproj/InfoPlist.strings:
 	$(MKDIR_P) $(@D)
-	echo '{	CFBundleDisplayName = "$(PACKAGE_NAME)"; CFBundleName = "$(PACKAGE_NAME)"; }' > $@
+	echo '{	CFBundleDisplayName = "Rigor Wallet"; CFBundleName = "Rigor Wallet"; }' > $@
 
 OSX_APP_BUILT=$(OSX_APP)/Contents/PkgInfo $(OSX_APP)/Contents/Resources/empty.lproj \
   $(OSX_APP)/Contents/Resources/rigor.icns $(OSX_APP)/Contents/Info.plist \

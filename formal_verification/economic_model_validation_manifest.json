@@ -1,17 +1,17 @@
 {
   "task": "TASK-RIGOR-ECONOMIC-MODEL-VALIDATION-PHASE-D-P0-076",
-  "date": "2026-08-31",
-  "note": "Simulation and validation only. Does not invent protocol values. Does not prove market price or external equilibrium.",
+  "date": "2026-09-12",
+  "note": "RFC-020 simulation and validation only. Flat 128 ORU, continuous destroy_cost(h), closed-form 2^22 RES cap. Does not invent protocol values. Does not prove market price or external equilibrium. refinement_proved remains false.",
   "consensus_formula_source": "RigorConsensusKernel",
   "economic_model": "simulation_only",
   "consensus_modified": false,
   "formula_duplicate": false,
   "issuance_modified": false,
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "authorities": {
     "issuance": "GetBlockSubsidy",
-    "res_schedule": "GetResMintReward",
+    "res_schedule": "CheckResMintArithmetic",
     "issuance_pack": "ComputeRigorIssuance",
     "supply": "RigorSupplyDelta"
   },
@@ -30,7 +30,7 @@
     "formula_reimplementation": false
   },
   "production_consensus_authority": "RigorConsensusKernel(C++)",
-  "formal_refinement_status": "PROVED",
+  "formal_refinement_status": "NOT_PROVED",
   "extracted_kernel_production": false,
   "compcert_binary_verified_kernel": false
 }

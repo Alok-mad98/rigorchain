@@ -8,7 +8,7 @@ stay aligned with the coverage-audit inventory:
   Phase4* / Phase5*     → phase_catalog
   Kernel/*              → kernel_harness
   ReplayReorgCore/*     → replay
-  fee-burn/*            → replay
+  FeeBurn/*             → replay
   ConnectBlock/*        → protocol_core  (not replay)
   Proofs/*              → proofs
   DrawBridgeProgress.v  → protocol_core  (root module only)
@@ -76,7 +76,7 @@ def slice_of(rel: str) -> str:
         return "phase_catalog"
     if posix.startswith("Kernel/"):
         return "kernel_harness"
-    if posix.startswith("ReplayReorgCore/") or posix.startswith("fee-burn/"):
+    if posix.startswith("ReplayReorgCore/") or posix.startswith("FeeBurn/"):
         return "replay"
     if posix.startswith("ConnectBlock/"):
         return "protocol_core"

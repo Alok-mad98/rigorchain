@@ -34,8 +34,13 @@ for f in "${assets[@]}"; do
   [[ -f "${f}" ]] || die "missing official artifact: ${f}"
   base="$(basename "${f}")"
   [[ "${base}" != *alphaplus* ]] || die "forbidden alphaplus name: ${base}"
+  [[ "${base}" != *identity* ]] || die "identity stub name is not Pipeline A: ${base}"
 done
 [[ -f "${MANIFEST}" ]]
+
+# Pipeline A only. Refuse CI-matrix / identity payloads (audit/15).
+python3 "${ROOT}/tools/release/check_official_publish_gate.py" --official-dir "${STAGE}" \
+  || die "OFFICIAL_PUBLISH_GATE failed; will not gh release upload"
 
 if ! git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
   die "local tag ${TAG} missing; create it on the release commit first"

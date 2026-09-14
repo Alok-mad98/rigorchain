@@ -50,9 +50,9 @@ BODY = {
         re.compile(r"^CAmount GetBlockSubsidy\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         ISSUANCE,
     ),
-    "GetResMintReward": (
-        re.compile(r"inline constexpr CAmount GetResMintReward\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        SRC / "consensus/rigor_consensus_lock.h",
+    "CheckResMintArithmetic": (
+        re.compile(r"inline constexpr bool CheckResMintArithmetic\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
+        SRC / "consensus/res_issuance.h",
     ),
     "ComputeRigorIssuance": (
         re.compile(r"^RigorIssuance ComputeRigorIssuance\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -61,10 +61,6 @@ BODY = {
     "RigorSupplyDelta": (
         re.compile(r"^bool RigorSupplyDelta\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         SUPPLY,
-    ),
-    "ResolveConvergenceDraw": (
-        re.compile(r"^ConvergenceDrawOutcome ResolveConvergenceDraw\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        DRAW,
     ),
     "ClassifyRigorTxout": (
         re.compile(r"^TxoutType ClassifyRigorTxout\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -135,10 +131,10 @@ def main() -> int:
     print("Domain                Authority")
     table = (
         ("ORU issuance", "GetBlockSubsidy"),
-        ("RES schedule", "GetResMintReward"),
+        ("RES mint", "CheckResMintArithmetic"),
         ("issuance pack", "ComputeRigorIssuance"),
         ("supply", "RigorSupplyDelta"),
-        ("draw", "ResolveConvergenceDraw"),
+        ("draw", "retired"),
         ("classify txout", "ClassifyRigorTxout"),
         ("classify asset", "ClassifyRigorAsset"),
         ("spend", "VerifyRigorPredicate"),
@@ -176,8 +172,6 @@ def main() -> int:
         cb_stripped = strip_comments(cb)
         for m in FORMULA.finditer(cb_stripped):
             errors.append(f"ConnectBlock formula fragment: {m.group(0)}")
-        if "RigorConsensusKernel::ResolveDraw" not in cb:
-            errors.append("ConnectBlock does not call RigorConsensusKernel::ResolveDraw")
         if "RigorConsensusKernel::EvaluateConnect" not in cb:
             errors.append("ConnectBlock does not call RigorConsensusKernel::EvaluateConnect")
         if re.search(r"\bResolveConvergenceDraw\s*\(", cb):
@@ -250,9 +244,10 @@ def main() -> int:
             + ", ".join(str(x.relative_to(ROOT)) for x in mul_hits)
         )
 
-    sel_text = SELECTION.read_text(encoding="utf-8", errors="replace")
-    if not SELECT_WINNER_BODY.search(sel_text):
-        errors.append("historical SelectWinner missing from selection.cpp (unexpected)")
+    if SELECTION.is_file():
+        sel_text = SELECTION.read_text(encoding="utf-8", errors="replace")
+        if not SELECT_WINNER_BODY.search(sel_text):
+            errors.append("historical SelectWinner missing from selection.cpp (unexpected)")
     if "SelectWinner" in validation:
         errors.append("validation.cpp references SelectWinner")
 

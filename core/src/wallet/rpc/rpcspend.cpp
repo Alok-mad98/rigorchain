@@ -5,6 +5,7 @@
 #include <chainparams.h>
 #include <chain.h>
 #include <consensus/convergenceres.h>
+#include <consensus/res_issuance.h>
 #include <consensus/validation.h>
 #include <crypto/common.h>
 #include <core_io.h>
@@ -24,7 +25,6 @@
 #include <wallet/fee_domain.h>
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
-#include <wallet/convergencestate.h>
 #include <wallet/asset_domain.h>
 #include <wallet/rpc/util.h>
 #include <wallet/spend.h>
@@ -68,7 +68,7 @@ static std::pair<int, AssetType> SendmanyAmountContextFromScript(const CScript& 
     std::vector<std::vector<unsigned char>> vSolutions;
     const TxoutType t = ClassifyRigorTxout(script_pub_key, vSolutions);
     if (t == TxoutType::WITNESS_V1_RES) {
-        return {2, ASSET_RES};
+        return {8, ASSET_RES};
     }
     if (t == TxoutType::WITNESS_V0_KEYHASH) {
         return {8, ASSET_ORU};
@@ -143,6 +143,31 @@ static void InterpretFeeEstimationInstructions(const UniValue& conf_target, cons
     }
 }
 
+/**
+ * Commit, then throw if the mempool rejected the broadcast.
+ *
+ * CWallet::CommitTransaction abandons a rejected transaction, so the inputs are
+ * spendable again by the time this throws. Never return a txid for a transaction
+ * that no node will ever mine: that is what silently hid the spent inputs from
+ * the balance in docs/audit/ORU_DESTROY_DUST_SPENDMAP_AUDIT.md.
+ */
+static void CommitBroadcastOrAbandon(CWallet& wallet, const CTransactionRef& tx, mapValue_t mapValue)
+{
+    std::string broadcast_error;
+    if (wallet.CommitTransaction(tx, std::move(mapValue), /*orderForm=*/{}, &broadcast_error)) {
+        return;
+    }
+    const uint256 txid = tx->GetHash();
+    if (wallet.TransactionCanBeAbandoned(txid) && !wallet.AbandonTransaction(txid)) {
+        throw JSONRPCError(RPC_WALLET_ERROR,
+            "Transaction not accepted by mempool (" + broadcast_error +
+            ") and could not be abandoned; its inputs stay unspendable until "
+            "abandontransaction succeeds: " + txid.ToString());
+    }
+    throw JSONRPCError(RPC_TRANSACTION_REJECTED,
+        "Transaction not accepted by mempool: " + broadcast_error);
+}
+
 static UniValue FinishTransaction(const std::shared_ptr<CWallet> pwallet, const UniValue& options, const CMutableTransaction& rawTx)
 {
     // Make a blank psbt
@@ -176,7 +201,7 @@ static UniValue FinishTransaction(const std::shared_ptr<CWallet> pwallet, const 
         CTransactionRef tx(MakeTransactionRef(std::move(mtx)));
         result.pushKV("txid", tx->GetHash().GetHex());
         if (add_to_wallet && !psbt_opt_in) {
-            pwallet->CommitTransaction(tx, {}, /*orderForm=*/{});
+            CommitBroadcastOrAbandon(*pwallet, tx, /*mapValue=*/{});
         } else {
             result.pushKV("hex", hex);
         }
@@ -229,7 +254,7 @@ UniValue SendMoney(CWallet& wallet, const CCoinControl &coin_control, std::vecto
             NormalizeWalletSpendError(util::ErrorString(res)).original);
     }
     const CTransactionRef& tx = res->tx;
-    wallet.CommitTransaction(tx, std::move(map_value), /*orderForm=*/{});
+    CommitBroadcastOrAbandon(wallet, tx, std::move(map_value));
     if (verbose) {
         UniValue entry(UniValue::VOBJ);
         entry.pushKV("txid", tx->GetHash().GetHex());
@@ -301,8 +326,7 @@ RPCHelpMan sendtoaddress()
                                          "Does not affect RES (witness v1 HD). If true, also enables avoidpartialspends for ORU."},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/vB."},
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return extra information about the transaction."},
-                    {"asset", RPCArg::Type::STR, RPCArg::Default{"ORU"}, "Native transfer asset (POOL-T): \"ORU\" (8 decimals) or \"RES\" (6 decimals). Network fee (POOL-F) is always ORU."},
-                    {"converge_amount", RPCArg::Type::AMOUNT, RPCArg::Optional::OMITTED, "Optional ORU amount to destroy into an RIGOR_MARKER_CONVERGE output on the same transaction (ORU sends only). Must be >= " + FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT) + ". Owner HASH160 is generated from a fresh RES key. createconvergence is sugar for a send with only this output."},
+                    {"asset", RPCArg::Type::STR, RPCArg::Default{"ORU"}, "Native transfer asset (POOL-T): \"ORU\" or \"RES\" (both 8 decimals). Network fee (POOL-F) is always ORU."},
                 },
                 {
                     RPCResult{"if verbose is not set or set to false",
@@ -333,7 +357,6 @@ RPCHelpMan sendtoaddress()
                     + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=0.5 fee_rate=25 subtractfeefromamount=false replaceable=true avoid_reuse=true comment=\"2 pizzas\" comment_to=\"jeremy\" verbose=true") +
                     "\nSend 2.50 RES (native second asset) to a witness-v1-RES address\n"
                     + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=2.50 asset=RES")
-                    + HelpExampleCli("-named sendtoaddress", "address=\"" + EXAMPLE_ADDRESS[0] + "\" amount=0.1 converge_amount=1.0")
                 },
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
 {
@@ -372,7 +395,7 @@ RPCHelpMan sendtoaddress()
     EnsureWalletIsUnlocked(*pwallet);
 
     const AssetType send_asset = ParseWalletSendAsset(request.params[11], "asset");
-    const int amount_decimals = send_asset == ASSET_RES ? 2 : 8;
+    const int amount_decimals = 8;
     const std::string address = request.params[0].get_str();
     CTxDestination dest = DecodeDestination(address);
     if (!IsValidDestination(dest)) {
@@ -406,21 +429,6 @@ RPCHelpMan sendtoaddress()
     const CAmount nAmount = AmountFromValue(request.params[1], amount_decimals);
     std::vector<CRecipient> recipients;
     recipients.push_back({script_pub_key, nAmount, fSubtractFeeFromAmount, send_asset});
-    if (!request.params[12].isNull()) {
-        if (send_asset != ASSET_ORU) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "converge_amount is only valid on ORU sends");
-        }
-        const CAmount converge_amount = AmountFromValue(request.params[12], /*decimals=*/8);
-        auto conv = wallet::MakeConvergenceRecipient(*pwallet, converge_amount, /*subtract_fee_from_convergence=*/false);
-        if (!conv) {
-            throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(conv).original);
-        }
-        if (!wallet::WalletStrictSendDestinationOk(conv->scriptPubKey, ASSET_ORU)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
-                "Destination native asset (witness script domain) does not match the selected asset parameter.");
-        }
-        recipients.push_back(*conv);
-    }
     const bool verbose{request.params[10].isNull() ? false : request.params[10].get_bool()};
 
     return SendMoney(*pwallet, coin_control_asset, recipients, mapValue, verbose);
@@ -432,11 +440,11 @@ RPCHelpMan sendres()
 {
     return RPCHelpMan{"sendres",
         "\nSend RES to a witness v1 RES (native) address. Equivalent to sendtoaddress with asset=RES, but the destination must be a witness v1 RES program (e.g. rg1p…). "
-        "Amount uses 2 decimal places. Key-path spends use Ed25519 signatures from res() descriptors; script-path (mint) flows use PSBT or custom signing with proof data." +
+        "Amount uses 8 decimal places. Key-path spends use Ed25519 signatures from res() descriptors; script-path (mint) flows use PSBT or custom signing with proof data." +
             HELP_REQUIRING_PASSPHRASE,
         {
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "Witness v1 RES address (native RES)."},
-            {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The amount in RES to send (2 decimal places)."},
+            {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The amount in RES to send (8 decimal places)."},
             {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment stored locally with the transaction."},
             {"comment_to", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment_to stored locally."},
             {"subtractfeefromamount", RPCArg::Type::BOOL, RPCArg::Default{false}, "Not supported for RES sends (ORU network fee is paid from ORU inputs)."},
@@ -510,7 +518,7 @@ RPCHelpMan sendres()
                     "sendres requires a witness v1 RES address (native RES / Bech32m rg1p…). For ORU use sendtoaddress.");
             }
 
-            constexpr int amount_decimals = 2;
+            constexpr int amount_decimals = 8;
             const CAmount nAmount = AmountFromValue(request.params[1], amount_decimals);
             const CScript script_pub_key = GetScriptForDestination(dest);
             std::vector<CRecipient> recipients;
@@ -522,39 +530,148 @@ RPCHelpMan sendres()
     };
 }
 
+RPCHelpMan destroyoru()
+{
+    return RPCHelpMan{"destroyoru",
+        "\nPermanently destroy ORU. This does not mint RES and is not Convergence.\n"
+        "Spends ORU inputs and writes exactly one OP_CONVERGE output of the given amount. "
+        "Nobody receives the ORU. The destruction cannot be undone. Network fee is paid separately "
+        "in ORU from change.\n"
+        "To destroy ORU and mint RES, use createconvergence." +
+            HELP_REQUIRING_PASSPHRASE,
+        {
+            {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "ORU amount to destroy (8 decimals). Minimum 1 atom (0.00000001 ORU)."},
+            {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment stored locally with the transaction."},
+            {"replaceable", RPCArg::Type::BOOL, RPCArg::DefaultHint{"wallet default"}, "BIP 125 replaceable signal"},
+            {"conf_target", RPCArg::Type::NUM, RPCArg::DefaultHint{"wallet -txconfirmtarget"}, "Confirmation target in blocks"},
+            {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
+                                                                          "\"" + FeeModes("\"\n\"") + "\""},
+            {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "Avoid spending from reused witness-v0 addresses (when wallet flag is set)."},
+            {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set"}, "Fee rate in " + CURRENCY_ATOM + "/vB."},
+            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, also return fee fields."},
+        },
+        {
+            RPCResult{RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                    {RPCResult::Type::NUM, "destroyed_atoms", "ORU atoms destroyed by the OP_CONVERGE output"},
+                    {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "ORU network fee paid (verbose)"},
+                    {RPCResult::Type::STR_AMOUNT, "fee_oru", /*optional=*/true, "Same as fee (verbose)"},
+                    {RPCResult::Type::STR, "fee_asset", /*optional=*/true, "Always ORU (verbose)"},
+                    {RPCResult::Type::STR, "fee_reason", /*optional=*/true, "Present when verbose=true"},
+                }},
+        },
+        RPCExamples{
+            HelpExampleCli("destroyoru", "1.0") +
+            HelpExampleCli("-named destroyoru", "amount=0.00000001 verbose=true")},
+        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
+            std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
+            if (!pwallet) return UniValue::VNULL;
+
+            pwallet->BlockUntilSyncedToCurrentChain();
+
+            LOCK(pwallet->cs_wallet);
+
+            if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Error: Private keys are disabled for this wallet");
+            }
+
+            mapValue_t mapValue;
+            if (!request.params[1].isNull() && !request.params[1].get_str().empty()) {
+                mapValue["comment"] = request.params[1].get_str();
+            }
+
+            CCoinControl coin_control;
+            if (!request.params[2].isNull()) {
+                coin_control.m_signal_bip125_rbf = request.params[2].get_bool();
+            }
+
+            coin_control.m_avoid_address_reuse = GetAvoidReuseFlag(*pwallet, request.params[5]);
+            coin_control.m_avoid_partial_spends |= coin_control.m_avoid_address_reuse;
+            coin_control.m_asset_type = ASSET_ORU;
+            if (!coin_control.m_change_type) {
+                coin_control.m_change_type = OutputType::BECH32;
+            }
+
+            SetFeeEstimateMode(*pwallet, coin_control, request.params[3], request.params[4], request.params[6], false);
+
+            EnsureWalletIsUnlocked(*pwallet);
+
+            const CAmount destroy_oru = AmountFromValue(request.params[0], /*decimals=*/8);
+            if (destroy_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(destroy_oru)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                    "Destroy amount must be a valid positive ORU amount");
+            }
+
+            auto conv = MakeConvergenceRecipient(*pwallet, destroy_oru, /*subtract_fee_from_convergence=*/false);
+            if (!conv) {
+                throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(conv).original);
+            }
+            if (!WalletStrictSendDestinationOk(conv->scriptPubKey, ASSET_ORU)) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Destroy output is not an ORU OP_CONVERGE lock");
+            }
+
+            std::vector<CRecipient> recipients{*conv};
+            constexpr int RANDOM_CHANGE_POSITION = -1;
+            auto res = CreateTransaction(*pwallet, recipients, RANDOM_CHANGE_POSITION, coin_control, /*sign=*/true);
+            if (!res) {
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS,
+                    NormalizeWalletSpendError(util::ErrorString(res)).original);
+            }
+
+            const CTransactionRef& tx = res->tx;
+            CommitBroadcastOrAbandon(*pwallet, tx, std::move(mapValue));
+
+            UniValue entry(UniValue::VOBJ);
+            entry.pushKV("txid", tx->GetHash().GetHex());
+            entry.pushKV("destroyed_atoms", destroy_oru);
+            const bool verbose{request.params[7].isNull() ? false : request.params[7].get_bool()};
+            if (verbose) {
+                PushRpcOruNetworkFeeFields(entry, "fee", res->fee);
+                entry.pushKV("fee_reason", StringForFeeReason(res->fee_calc.reason));
+            }
+            return entry;
+        },
+    };
+}
+
 RPCHelpMan createconvergence()
 {
     return RPCHelpMan{"createconvergence",
-        "\nCreate and broadcast a convergence transaction: spends ORU inputs and includes exactly one RIGOR_MARKER_CONVERGE burn "
-        "(HASH160 of a fresh RES program inside the lock). Equivalent to sendtoaddress with converge_amount and no extra payment. "
-        "The burn is not a UTXO; it participates in the draw. Network fee is paid in ORU. Tags the wallet transaction "
-        "(convergence_state=BROADCASTED). Convergence does not guarantee RES." +
+        "\nDestroy ORU to mint RES at the continuous destroy cost destroy_cost(h).\n"
+        "Spends ORU inputs, writes exactly one RIGOR_MARKER_CONVERGE output of B, and writes an explicit RES mint of "
+        "R = ResMintAtomsFromBurn(B, h). The destroyed ORU cannot be recovered. "
+        "Network fee is paid in ORU from change. This is destroy-to-mint, not a conversion, swap or exchange.\n"
+        "To destroy ORU without minting RES, use destroyoru." +
             HELP_REQUIRING_PASSPHRASE,
         {
-            {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "ORU amount to lock in the convergence output (8 decimals). Must be >= " + FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT) + "."},
+            {"amount", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "ORU amount to burn (8 decimals). Must be at least ResMinMintBurnAtoms(h). Display destroy_cost from res_mint_unit_cost is not the exact whole-RES burn; use min_whole_res_burn for 1 RES."},
             {"comment", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment stored locally with the transaction."},
             {"comment_to", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "A comment_to stored locally."},
-            {"subtractfeefromamount", RPCArg::Type::BOOL, RPCArg::Default{false}, "The fee will be deducted from the convergence output amount."},
+            {"subtractfeefromamount", RPCArg::Type::BOOL, RPCArg::Default{false}, "Unsupported for mint: fee is paid from ORU change. Must be false."},
             {"replaceable", RPCArg::Type::BOOL, RPCArg::DefaultHint{"wallet default"}, "BIP 125 replaceable signal"},
             {"conf_target", RPCArg::Type::NUM, RPCArg::DefaultHint{"wallet -txconfirmtarget"}, "Confirmation target in blocks"},
             {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
                                                                           "\"" + FeeModes("\"\n\"") + "\""},
             {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "ORU only: avoid spending from reused witness-v0 addresses (when wallet flag is set)."},
             {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set"}, "Fee rate in " + CURRENCY_ATOM + "/vB."},
-            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return txid and fee_reason."},
+            {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, also return fee_reason."},
         },
         {
-            RPCResult{"if verbose is not set or set to false",
-                RPCResult::Type::STR_HEX, "txid", "The transaction id."},
-            RPCResult{"if verbose is set to true",
-                RPCResult::Type::OBJ, "", "",
+            RPCResult{RPCResult::Type::OBJ, "", "",
                 {
-                    {RPCResult::Type::STR_HEX, "txid", "The transaction id."},
-                    {RPCResult::Type::STR, "fee_reason", "The transaction fee reason."},
+                    {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                    {RPCResult::Type::NUM, "burn_oru", "ORU atoms destroyed by the OP_CONVERGE output"},
+                    {RPCResult::Type::NUM, "res_out", "RES atoms minted (RFC-020 destroy-to-mint)"},
+                    {RPCResult::Type::NUM, "destroy_cost", "Display destroy_cost(confirm_height) in ORU atoms per whole RES"},
+                    {RPCResult::Type::NUM, "unlock_height", "Height at which the minted RES becomes spendable"},
+                    {RPCResult::Type::NUM, "confirm_height", "Expected confirming height (tip + 1)"},
+                    {RPCResult::Type::NUM, "destroy_cost_height", "Height whose destroy cost was used (always confirm_height)"},
+                    {RPCResult::Type::STR, "fee_reason", /*optional=*/true, "Present when verbose=true"},
                 }},
         },
         RPCExamples{
-            HelpExampleCli("createconvergence", "1.0") +
+            HelpExampleCli("createconvergence", "0.00001024") +
             HelpExampleCli("-named createconvergence", "amount=1.25 verbose=true")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
             std::shared_ptr<CWallet> const pwallet = GetWalletForJSONRPCRequest(request);
@@ -576,9 +693,9 @@ RPCHelpMan createconvergence()
                 mapValue["to"] = request.params[2].get_str();
             }
 
-            bool fSubtractFeeFromAmount = false;
-            if (!request.params[3].isNull()) {
-                fSubtractFeeFromAmount = request.params[3].get_bool();
+            if (!request.params[3].isNull() && request.params[3].get_bool()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                    "subtractfeefromamount is not supported for mint; the fee is paid from ORU change");
             }
 
             CCoinControl coin_control;
@@ -595,33 +712,34 @@ RPCHelpMan createconvergence()
             EnsureWalletIsUnlocked(*pwallet);
 
             constexpr int amount_decimals = 8;
-            const CAmount convergence_oru = AmountFromValue(request.params[0], amount_decimals);
-            if (convergence_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(convergence_oru)) {
+            const CAmount burn_oru = AmountFromValue(request.params[0], amount_decimals);
+            if (burn_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(burn_oru)) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER,
-                    strprintf("Convergence amount must be a valid ORU amount >= %s", FormatMoney(Consensus::MIN_CONVERGENCE_AMOUNT)));
+                    "Burn amount must be a valid positive ORU amount");
             }
 
             constexpr int RANDOM_CHANGE_POSITION = -1;
-            auto res = CreateConvergenceTransaction(*pwallet, convergence_oru, RANDOM_CHANGE_POSITION, coin_control, /*sign=*/true, fSubtractFeeFromAmount);
+            auto res = CreateMintTransaction(*pwallet, burn_oru, RANDOM_CHANGE_POSITION, coin_control, /*sign=*/true);
             if (!res) {
-                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, util::ErrorString(res).original);
+                throw JSONRPCError(RPC_WALLET_ERROR, util::ErrorString(res).original);
             }
 
-            ConvergenceRecord frec;
-            frec.state = ConvergenceState::BROADCASTED;
-            ApplyConvergenceRecordToMapValue(frec, mapValue);
+            const CTransactionRef& tx = res->txr.tx;
+            CommitBroadcastOrAbandon(*pwallet, tx, std::move(mapValue));
 
-            const CTransactionRef& tx = res->tx;
-            pwallet->CommitTransaction(tx, std::move(mapValue), /*orderForm=*/{});
-
+            UniValue entry(UniValue::VOBJ);
+            entry.pushKV("txid", tx->GetHash().GetHex());
+            entry.pushKV("burn_oru", res->burn_oru);
+            entry.pushKV("res_out", res->res_out);
+            entry.pushKV("destroy_cost", res->destroy_cost);
+            entry.pushKV("unlock_height", res->unlock_height);
+            entry.pushKV("confirm_height", res->confirm_height);
+            entry.pushKV("destroy_cost_height", res->destroy_cost_height);
             const bool verbose{request.params[9].isNull() ? false : request.params[9].get_bool()};
             if (verbose) {
-                UniValue entry(UniValue::VOBJ);
-                entry.pushKV("txid", tx->GetHash().GetHex());
-                entry.pushKV("fee_reason", StringForFeeReason(res->fee_calc.reason));
-                return entry;
+                entry.pushKV("fee_reason", StringForFeeReason(res->txr.fee_calc.reason));
             }
-            return tx->GetHash().GetHex();
+            return entry;
         },
     };
 }
@@ -630,7 +748,7 @@ RPCHelpMan sendmany()
 {
     return RPCHelpMan{"sendmany",
         "Send multiple times. Amount precision is inferred from each destination script (script-as-asset): "
-        "Bech32 P2WPKH (rg1q…) uses 8 decimal places (ORU); Bech32m witness v1 RES (rg1p…) uses 6 decimal places (RES). "
+        "Bech32 P2WPKH (rg1q…) and Bech32m witness v1 RES (rg1p…) both use 8 decimal places. "
         "All recipients in one call must be the same asset; P2WSH and other script types are not supported here." +
         HELP_REQUIRING_PASSPHRASE,
                 {
@@ -639,7 +757,7 @@ RPCHelpMan sendmany()
                          .oneline_description = "\"\"",
                      }},
                     {"amounts", RPCArg::Type::OBJ_USER_KEYS, RPCArg::Optional::NO, "A json object with addresses (keys) and numeric amounts (values). "
-                        "Amount scale follows the address type: ORU P2WPKH (" + CURRENCY_UNIT + ", 8 decimals) or RES witness v1 (6 decimals).",
+                        "Amount scale is 8 decimals for both ORU P2WPKH (" + CURRENCY_UNIT + ") and RES witness v1.",
                         {
                             {"address", RPCArg::Type::AMOUNT, RPCArg::Optional::NO, "The Rigor address is the key; the amount uses the decimals implied by that address type"},
                         },

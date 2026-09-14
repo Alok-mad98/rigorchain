@@ -34,7 +34,7 @@ fi
 mkdir -p "$OUT"
 cd "$COQ"
 echo "== coqc ExtractMakeKernelInput.v =="
-coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ExtractMakeKernelInput.v
+coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ExtractMakeKernelInput.v
 
 for f in makekernelinput_oracle.ml makekernelinput_oracle.mli; do
   if [[ -f "$COQ/$f" ]]; then

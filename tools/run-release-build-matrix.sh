@@ -21,7 +21,7 @@ LOG="$DUMP/local_linux_build.log"
 echo "== P092 release build matrix audit =="
 
 echo "== required artifacts =="
-for p in "$DOC" "$WORKFLOW" "$JOB" "$NAMES" "$ROOT/tools/release/rigor_release_identity.cpp"; do
+for p in "$DOC" "$WORKFLOW" "$JOB" "$NAMES" "$ROOT/tools/release/check_binary_identity.py"; do
   if [[ ! -f "$p" ]]; then
     echo "FAIL: missing $p"
     exit 1
@@ -206,13 +206,20 @@ windows_ok = (
 macos_intel_ok = (
     "target: macos-x86_64" in workflow
     and "macos-15-intel" in workflow
-    and "rigor-v0.1.3-macos-x86_64.dmg" in workflow
 )
 macos_arm_ok = (
     "target: macos-arm64" in workflow
     and "macos-15" in workflow
-    and "rigor-v0.1.3-macos-arm64.dmg" in workflow
 )
+wallet_wf = (root / ".github/workflows/release-wallet-macos.yml").read_text(encoding="utf-8")
+official_macos_ok = (
+    "rigor-v0.1.3-macos-x86_64.dmg" in wallet_wf
+    and "rigor-v0.1.3-macos-arm64.dmg" in wallet_wf
+)
+if not official_macos_ok:
+    errors.append("official macOS DMG names missing from release-wallet-macos.yml")
+if "rigor-v0.1.3-macos-x86_64.dmg" in workflow and "identity" not in workflow:
+    errors.append("release-build.yml still emits official wallet DMG names")
 naming_ok = all(is_official_name(n) for n in OFFICIAL_ARTIFACTS) and not any(
     is_forbidden_legacy_name(n) for n in OFFICIAL_ARTIFACTS
 )

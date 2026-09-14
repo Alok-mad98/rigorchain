@@ -1,6 +1,6 @@
 # Explorer RPC Compatibility Matrix
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
+**Document status:** Production documentation  
 **Baseline:** commit `4437597197aa713396a123673cc36606346ad523`, tag `mainnet-freeze-rfc014-2026-05-25`  
 **Source of truth:** `core/src/rpc/blockchain.cpp`, `core/src/rpc/rawtransaction.cpp`, `EXPLORER_RPC_STABILITY_MATRIX.md` (repo root).
 

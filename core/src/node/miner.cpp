@@ -6,17 +6,14 @@
 #include <node/miner.h>
 
 #include <node/devtest_res_bootstrap.h>
-#include <node/auto_res_mint.h>
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/amount.h>
-#include <consensus/convergence_commitment.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergenceres.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/rigor_consensus_lock.h>
+#include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <script/script.h>
@@ -103,33 +100,8 @@ bool RebuildTemplateCommitments(CBlock& block, ChainstateManager& chainman, std:
         err = "RebuildTemplateCommitments: prev block not found";
         return false;
     }
-    // C comes from the active chainstate's UTXO view, which is only the view at this
-    // block's entry while `prev` is still the tip. cs_main cannot express that, so the
-    // caller must hold it across template creation and this call.
-    if (prev != chainman.ActiveChain().Tip()) {
-        err = "RebuildTemplateCommitments: block does not build on the active tip";
-        return false;
-    }
-    const Consensus::Params& consensus = chainman.GetParams().GetConsensus();
-    const int height = prev->nHeight + 1;
-
-    std::optional<uint256> paid_winner;
-    if (!GetTemplatePaidWinner(block, prev, consensus, paid_winner)) {
-        err = "RebuildTemplateCommitments: cannot read parent draw set";
-        return false;
-    }
-
-    CCoinsViewCache view(&chainman.ActiveChainstate().CoinsTip());
-    const ConvergenceDrawSet committed = GetTemplateConvergenceDrawSet(block, prev, view, consensus);
-    if (!committed.IsSet()) {
-        err = strprintf("RebuildTemplateCommitments: cannot reconstruct convergence window at height=%d hash=%s",
-                        prev->nHeight, prev->GetBlockHash().ToString());
-        return false;
-    }
-
     CMutableTransaction mtx(*block.vtx[0]);
-    mtx.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-        height, committed.convergence_root, paid_winner.value_or(uint256{}));
+    mtx.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(prev->nHeight + 1);
     block.vtx[0] = MakeTransactionRef(std::move(mtx));
 
     RegenerateCommitments(block, chainman);
@@ -252,11 +224,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     const Consensus::Params& consensus = chainparams.GetConsensus();
     // RFC-018: do not claim the RES-transfer fee burn share.
     coinbaseTx.vout[0].nValue = (nFeesOru - nFeesOruResTransferBurn) + GetBlockSubsidy(nHeight, consensus);
-    // Placeholder scriptSig: ConvergenceRoot C is written AFTER optional coinbase mint
-    // append. FinalizeWindowedDrawSet excludes winners already paid by a mint in this block
-    // (BlockPaidWinner), so C computed before the carrier is appended disagrees with ConnectBlock
-    // and fails TestBlockValidity with bad-cb-convergence-root on payout blocks.
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << std::vector<unsigned char>(32, 0);
+    coinbaseTx.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(nHeight);
     const CScript res_fee_script = ResolveMiningResFeeScript(scriptPubKeyResFeeIn, m_options.res_bootstrap_script, chainparams);
     const CAmount res_wallet_bootstrap = DevTestResWalletBootstrap(chainparams);
     if (res_wallet_bootstrap > 0) {
@@ -270,69 +238,6 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         coinbaseTx.vout.push_back(res_boot_out);
     }
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
-
-    // Append the RES mint to the coinbase before the witness commitment, so
-    // BlockWitnessMerkleRoot matches ConnectBlock. There is no body mint and
-    // no funding input: the prize is fully determined by the parent, and the coinbase is
-    // authenticated by proof of work.
-    //
-    // While W(h) > 0, every template MUST carry the mint whenever the parent draw has a winner
-    // — otherwise TestBlockValidity fails with bad-rigor-res-winner-mismatch. After
-    // RES_REWARD_LAST_EPOCH, W(h) = 0: a winner does not authorize a mint (H-1). Omit without
-    // throwing so mining continues. Assembly is not gated on -miningresfeeaddr.
-    std::optional<uint256> template_paid_txid;
-    {
-        ConvergenceDrawSet parent_draw_set;
-        const bool have_parent_draw = GetConvergenceDrawSetForBlock(*pindexPrev, consensus, parent_draw_set);
-        if (!have_parent_draw && pindexPrev->nHeight > 0) {
-            LogPrintf("CreateNewBlock(): cannot read parent convergence draw set at height=%d hash=%s "
-                      "(template will omit any required RES mint and TestBlockValidity may fail)\n",
-                      pindexPrev->nHeight, pindexPrev->GetBlockHash().ToString());
-        }
-        const ConvergenceDrawOutcome parent_outcome =
-            have_parent_draw ? ResolveConvergenceDraw(parent_draw_set, consensus.RES_PROBABILITY_TARGET)
-                             : ConvergenceDrawOutcome{};
-        if (parent_outcome.HasWinner()) {
-            const CAmount res_reward = Consensus::GetResMintReward(nHeight);
-            if (res_reward <= 0) {
-                LogPrintf("CreateNewBlock(): RES schedule exhausted at height=%d; omitting mint despite draw winner\n",
-                          nHeight);
-            } else {
-                LogPrintf("CreateNewBlock(): parent draw has winner %s — appending coinbase RES mint for height %d\n",
-                          parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid.ToString(),
-                          nHeight);
-                CMutableTransaction mtx_cb(*pblock->vtx[0]);
-                if (!TryAppendCoinbaseResMint(mtx_cb, parent_draw_set, parent_outcome, nHeight)) {
-                    throw std::runtime_error(strprintf(
-                        "%s: automatic Convergence RES mint assembly failed (winner present)",
-                        __func__));
-                }
-                pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
-                template_paid_txid = parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid;
-            }
-        }
-    }
-
-    // Coinbase scriptSig: height || C || paid-winner txid (zeros if this block does not mint).
-    {
-        CCoinsViewCache view_convergence_root_at_entry(&m_chainstate.CoinsTip());
-        const ConvergenceDrawSet committed = GetTemplateConvergenceDrawSet(
-            *pblock, pindexPrev, view_convergence_root_at_entry, consensus);
-        if (!committed.IsSet()) {
-            if (m_options.test_block_validity) {
-                throw std::runtime_error(strprintf(
-                    "%s: cannot reconstruct convergence window at height=%d hash=%s",
-                    __func__, pindexPrev->nHeight, pindexPrev->GetBlockHash().ToString()));
-            }
-            // Header-only test chains have no window records on disk. Leave the
-            // placeholder scriptSig; do not write an all-zero C as if it were a root.
-        } else {
-            CMutableTransaction mtx_cb(*pblock->vtx[0]);
-            mtx_cb.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-                nHeight, committed.convergence_root, template_paid_txid.value_or(uint256{}));
-            pblock->vtx[0] = MakeTransactionRef(std::move(mtx_cb));
-        }
-    }
 
     pblocktemplate->vchCoinbaseCommitment = m_chainstate.m_chainman.GenerateCoinbaseCommitment(*pblock, pindexPrev);
     pblocktemplate->vTxFees[0] = -nFeesOru;

@@ -45,7 +45,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
                 {{"data": "{tx_hex}", "txid": "{a}", "hash": "{a}"}},
                 {{"data": "{tx_hex}", "txid": "{b}", "hash": "{b}"}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -53,9 +53,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             "height": 300,
             "version": 536870912,
             "curtime": 1700000300,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
         a = "aa".repeat(32),
@@ -81,7 +79,7 @@ fn full_pipeline_job_publish_and_stratum_subscribe() {
     assert_eq!(envelopes.len(), 1);
     assert!(!envelopes[0].mint_required);
 
-    let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#;
+    let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#;
     let out = pilot.orchestrator.handle_request(1, sub).unwrap();
     assert!(out[0].contains("\"result\""));
 
@@ -164,7 +162,7 @@ fn share_submit_pipeline() {
         .orchestrator
         .handle_request(
             1,
-            r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+            r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
         )
         .unwrap();
     pilot

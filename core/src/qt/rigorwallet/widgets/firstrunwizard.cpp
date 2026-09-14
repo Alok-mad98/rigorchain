@@ -5,7 +5,7 @@
 #include <qt/rigorwallet/widgets/firstrunwizard.h>
 
 #include <chainparams.h>
-#include <consensus/convergenceres.h>
+#include <consensus/res_issuance.h>
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
@@ -98,7 +98,7 @@ void FirstRunWizard::buildPages()
            "<li><b>Overview</b> — balances</li>"
            "<li><b>Send / Receive</b> — move ORU or RES</li>"
            "<li><b>Transactions</b> — history</li>"
-           "<li><b>Convergence</b> — commit ORU, wait for the Convergence period, view RES minted</li>"
+           "<li><b>Convergence</b> — destroy ORU to mint RES at the confirming-height protocol cost</li>"
            "</ul>"
            "<p>The script is the compliance layer.</p>"),
         ready);
@@ -177,9 +177,9 @@ void FirstRunWizard::refreshStatusPage()
         m_explorerStatus->setText(tr("<b>Explorer</b>: Not configured (optional)."));
     }
 
-    const QString minAmt = BitcoinUnits::format(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT);
+    const QString minAmt = BitcoinUnits::format(BitcoinUnit::ORU, Consensus::ResMinMintBurnAtoms(0));
     m_convergenceStatus->setText(
-        tr("<b>RES Convergence</b>: Available after ORU acquisition. Minimum %1 ORU. RES mint is not guaranteed.")
+        tr("<b>RES Convergence</b>: Available after ORU acquisition. Minimum to mint 1 RES atom is %1 ORU at genesis, then follows ResMinMintBurnAtoms(h).")
             .arg(minAmt));
 }
 

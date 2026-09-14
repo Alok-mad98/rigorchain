@@ -1,453 +1,218 @@
 # RIGOR System Execution Model
 
-**Task:** `TASK-ARCH-001` (deliverable)  
-**Version:** 1.0  
-**Date:** 2026-06-20  
-**Type:** Read-only analysis — **no code changes**
+**Issuance:** RFC-020  
+**Implementation:** `core/src/validation.cpp`, `core/src/consensus/`,
+`core/src/script/`, `core/src/node/miner.cpp` (realization)
 
-| Field | Value |
-|-------|-------|
-| Consensus Impact | **NONE** |
-| `equivalence_claimed` | **false** |
+```
+equivalence_claimed = false
+documentation_consensus_authority = false
+```
 
-This document defines how RIGOR executes work end-to-end: state transitions, process boundaries, and the forward/reverse data paths through the stack. All descriptions align with implemented code in `core/` and `pool/`.
+Protocol specifications are normative SSOT.
+Implementations realize the frozen protocol.
 
----
-
-## 1. Execution Philosophy
-
-RIGOR execution follows three rules:
-
-1. **UTXO-only state** — every asset movement is spend-old / create-new; no account table is authoritative.
-2. **Script law** — validation interprets `scriptPubKey` + witness; no parallel asset storage in `CTxOut`.
-3. **Single winner authority** — `GetBlockWinner` in `convergence_logic.cpp` is the only consensus draw API; pool replay is operational mirror only.
-
-Execution splits into **consensus execution** (Layer 1, inside `ConnectBlock`) and **operational execution** (Layer 2, mining/pool/orchestration). Observers (Layer 3) and lab systems (Layer 4) never participate in state transition.
+This document describes how production work runs: consensus connection,
+operational mining, and observers. Observers never participate in state
+transition.
 
 ---
 
-## 2. Consensus State Machine (Layer 1)
+## 1. Execution rules
 
-### 2.1 Block Connection (`ConnectBlock`)
+1. **UTXO-only state** — spend-old / create-new. No account table is
+   authoritative.
+2. **No Script VM** — `ClassifyRigorTxout` then `VerifyRigorPredicate`.
+   No parallel asset field on `CTxOut`.
+3. **Mint in the body** — `CheckResMintArithmetic` in `tx_verify.cpp`.
+   The pool does not mint RES.
+
+---
+
+## 2. Consensus (`ConnectBlock`)
 
 Authoritative path: `core/src/validation.cpp::ConnectBlock`.
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Header / PoW (OpuHash + ASERT)                               │
-├─────────────────────────────────────────────────────────────────┤
-│ 2. Build view_at_block_entry (UTXO at block entry)              │
-├─────────────────────────────────────────────────────────────────┤
-│ 3. F ← ListConvergenceRootCommitmentTxids(view)                 │
-│    weights[i] ← GetConvergenceAmount(tx_i)                      │
-├─────────────────────────────────────────────────────────────────┤
-│ 4. C ← ComputeConvergenceRootFromEligibilityTxids(F)            │
-├─────────────────────────────────────────────────────────────────┤
-│ 5. Validate coinbase scriptSig binds C (BIP34 height + root)    │
-├─────────────────────────────────────────────────────────────────┤
-│ 6. bind ← B_{h-10} or RFC000 bootstrap                          │
-│    target_prev ← pindexPrev->nBits                              │
-│    σ_i ← ComputeSigmaHash(txid_i, C, bind, target_prev, h)     │
-├─────────────────────────────────────────────────────────────────┤
-│ 7. eligible[i] ← σ_i < T · f_i   (T = Deterministic Reserve Issuance E=246 windowed)   │
-│    winner ← argmin eligible (uint512 + txid tie-break)          │
-├─────────────────────────────────────────────────────────────────┤
-│ 8. For each tx in block:                                        │
-│      CheckTxInputs · script verify · ConnectEvaluateResMintTx     │
-├─────────────────────────────────────────────────────────────────┤
-│ 9. EnforceResMintUnique · VerifyCoinbaseConvergenceAndResLayout │
-├─────────────────────────────────────────────────────────────────┤
-│ 10. Supply update:                                              │
-│       S_ORU += subsidy - Σconverge                              │
-│       S_RES += M(h) · GetResMintReward(h)                       │
-│       RES cap check                                             │
-├─────────────────────────────────────────────────────────────────┤
-│ 11. UpdateCoins (skip convergence CVG2 outputs)                │
-└─────────────────────────────────────────────────────────────────┘
+Header / OpuHash + ASERT
+        ↓
+view_at_block_entry (UTXO at block entry)
+        ↓
+Validate coinbase scriptSig:
+  <BIP34 height>
+        ↓
+For each tx:
+  CheckTxInputs · VerifyRigorPredicate · RFC-018 destroy share
+  body mint: CheckResMintArithmetic(R, B, h)
+        ↓
+UpdateCoins  (AddCoins skips Convergence; not a UTXO)
+        ↓
+Supply caches / RES cap / SetBestBlock
 ```
 
-Canonical ordering is enforced by `core/doc/rigor_consensus_pipeline.md`. Steps MUST NOT be reordered.
+### 2.1 Transaction classification
 
-### 2.2 Transaction Classification (StateTag)
+Live classification is `ClassifyRigorTxout` /
+`AssetTypeFromScriptPubKey`.
 
-Before script paths execute, `statetag.cpp` classifies each transaction:
+| Shape | Meaning | Domain |
+|-------|---------|--------|
+| Witness v0 / 20-byte | ORU spend / create | ORU |
+| `<HASH160> 0xbd` | Convergence destroy | ORU, not a UTXO |
+| Witness v1 / 32-byte | RES spend / mint output | RES |
+| `0x6a` + pushes, value 0 | NULL_DATA | NONE |
 
-| Tag | Meaning | Domain |
-|-----|---------|--------|
-| ORU transfer | Standard witness v0 spend/create | ORU |
-| Convergence | CVG2 burn | ORU |
-| RES mint | ORU inputs + RES output + PCORB | ORU → RES creation |
-| RES spend | RES inputs + PCORB claim | RES |
+### 2.2 UTXO update
 
-Classification is rule lookup, not EVM-style execution.
-
-### 2.3 UTXO Update Semantics
-
-| Output type | UTXO behavior |
-|-------------|---------------|
+| Output | UTXO |
+|--------|------|
 | Witness v0 ORU | Created on connect; removed on spend |
-| Witness v1 RES | Created on mint/spend path; standard UTXO |
-| `OP_CONVERGE` | **Never** inserted into UTXO set |
-| OP_RETURN | Never in UTXO set; value must be 0 |
+| Witness v1 RES | Standard UTXO after maturity 100 on mint outputs |
+| Convergence `0xbd` | Never inserted (`EntersUtxoSet` false) |
+| NULL_DATA | Never inserted; `nValue` must be 0 |
 
-### 2.4 Reorg Handling
+### 2.3 Reorg
 
-On disconnect (`DisconnectBlock`):
-
-- Per-block caches on `CBlockIndex` reset (`m_cumulative_convergence`, RES mint flags)
-- UTXO rolled back via undo data
-- Winner recomputed from ancestors on reconnect
-
-Pool Layer 2 mirrors reorg: `handle_tip_change` invalidates templates, jobs, winner provisional state, mint authorization.
+`DisconnectBlock` rolls UTXO via undo data and clears per-block caches
+on `CBlockIndex`. No extra-UTXO mint state.
 
 ---
 
-## 3. Operational Execution Model (Layer 2)
+## 3. Operational mining
 
-### 3.1 Process Topology
-
-```
-┌──────────────┐     RPC      ┌─────────────┐
-│   rigord     │◄────────────►│  rigor-gbt  │
-│  (C++ node)  │              │  (Rust)     │
-└──────┬───────┘              └──────┬──────┘
-       │                             │
-       │ GBT TemplateRecord          │
-       ▼                             ▼
-┌──────────────┐              ┌─────────────┐
-│   mempool    │              │block-assembl│
-│  (in-node)   │              │    er       │
-└──────────────┘              └──────┬──────┘
-                                     │ PublishedJobSnapshot
-                                     ▼
-                              ┌─────────────┐
-                              │  winner-    │
-                              │  engine     │
-                              └──────┬──────┘
-                                     │ preview + authorize
-                                     ▼
-                              ┌─────────────┐     Stratum    ┌──────────────┐
-                              │  stratum-   │◄────────────►│ rigor-miner- │
-                              │  server     │              │    agent     │
-                              └──────┬──────┘              └──────────────┘
-                                     │ block candidate
-                                     ▼
-                              ┌─────────────┐
-                              │ mint-engine │
-                              └──────┬──────┘
-                                     │ submitblock
-                                     ▼
-                              ┌──────────────┐
-                              │   rigord     │
-                              │ ConnectBlock │
-                              └──────────────┘
-```
-
-Orchestration entry: `pool/pilot/src/lib.rs` — `PoolPilot::poll_once`.
-
-### 3.2 rigord Block Template Production
-
-`BlockAssembler::CreateNewBlock` (`core/src/node/miner.cpp`):
-
-1. Compute ORU subsidy via `GetBlockSubsidy`
-2. Collect mempool txs (ORU-domain fees to coinbase)
-3. Build coinbase: ORU `vout[0]`, CVGE OP_RETURN commitment, witness commitment
-4. Embed convergence root placeholder in coinbase `scriptSig` (updated when body txs known)
-5. Expose via `getblocktemplate` with Rigor extensions:
-   - `default_witness_commitment`
-   - `default_convergence_commitment`
-   - `coinbasevalue` = ORU subsidy + ORU fees only
-
-### 3.3 GBT Adapter Cycle
-
-`rigor-gbt` (`pool/rigor-gbt/src/adapter.rs`):
-
-| Step | Action |
-|------|--------|
-| Poll | `getblockchaininfo` — skip if `initialblockdownload=true` |
-| Fetch | `getblocktemplate {"rules":["segwit"]}` |
-| Validate | V-01..V-10 structural checks |
-| Cache | Immutable `TemplateRecord` in `TemplateCache` |
-| Tip watch | `getbestblockhash` — invalidate on reorg |
-
-### 3.4 Block Assembler Job Publication
-
-`block-assembler` (`pool/block-assembler/src/publisher.rs`):
-
-1. Parse template convergence candidates into **F** mirror
-2. Compute C via `rigor-convergence-root` crate
-3. Assemble coinbase: BIP34 height, CVGE script, RIGOR draw-target tag + `prev_nbits`
-4. Reserve body-mint placeholder slot when `mint_required`
-5. Compute merkle branches → `PublishedJobSnapshot`
-6. Publish to stratum-server job cache
-
-### 3.5 Winner Engine Lifecycle
-
-`winner-engine` state machine:
+Production mining is **SOLO GBT**. The node assembles the coinbase. The
+miner copies bytes and grinds nonce.
 
 ```
-PROVISIONAL → AUTHORIZED → CONFIRMED
-     │              │
-     └─ invalidate ─┴─ revoke (reorg)
+wallet rg1q
+    ↓
+rigord  +  rigor-miner   getblocktemplate {"rules":["segwit"]}
+    ↓
+copy default_coinbase_tx / scriptSig
+    ↓
+OpuHash grind  →  submitblock  →  ConnectBlock
 ```
 
-| Phase | Function | Output |
-|-------|----------|--------|
-| Preview | `preview_winner` / `replay_convergence_draw` | Winner txid, eligibility vector |
-| Register | `register_published_job` | Job-bound draw context |
-| Authorize | `authorize_mint_for_block` | `MintAuthorizationToken` (AUTH-01..15) |
-| Confirm | `confirm_winner_for_block` | Post-submit validation |
-| Invalidate | `invalidate_jobs` on reorg | Revoke provisional/authorized |
+GBT fields the miner must copy (`core/src/rpc/mining.cpp`):
 
-Draw replay uses **identical** F, C, σ, inequality, and argmin logic as rigord (golden-tested 28/28 + 122/122).
+- `default_coinbase_tx`
+- `default_coinbase_scriptsig`
 
-### 3.6 Stratum Share → Block Path
+Mutable for SOLO: **time** only. `coinbasevalue` is ORU `vout[0]` only.
+RES mint is a body transaction, not a GBT coinbase prize.
 
-1. Miner receives `mining.notify` job (extranonce, merkle branch, nbits)
-2. Miner submits `mining.submit` (nonce, ntime, extranonce2)
-3. `share-validator` checks:
-   - OpuHash share/block target
-   - Replay guard (duplicate share rejection)
-   - Convergence root match vs template
-   - CVGE / RIGOR commitment integrity
-   - RES mint placeholder slot integrity
-4. On block target hit → `handle_block_candidate`
+**OpuHash** = SHA3-256(`"RGRPOW01" || header_80`). CLI: `-a rgrpow01`.
 
-### 3.7 Mint Engine Block Assembly
+### 3.1 Pool (ORU-only)
 
-When block found and winner authorized:
+`pool/pilot` is an ORU Stratum product:
 
-1. `mint_for_authorized_winner` builds Witness v1 RES tx (`GetResMintReward(h)`; genesis `W(0)` = 40.000000 RES)
-2. Inserts PCORB witness binding to winner convergence txid
-3. Assembles full block with mint in reserved slot
-4. `submitblock` to rigord
-5. rigord runs ConnectBlock — **final validity decision**
+```
+rigor-gbt → block-assembler → share-validator → stratum-server
+                                              → ORU PPLNS
+```
 
-Mint state: `Built → Submitted | Revoked | Orphaned`
-
-### 3.8 Mining Work Proof (OpuHash)
-
-PoW uses OpuHash (not SHA256d). Miner agent declares `opushash` capability at `mining.subscribe`. Share difficulty set via `mining.set_difficulty`.
+There is **no mint-engine**. The pool does not issue RES.
 
 ---
 
-## 4. Observer Execution Model (Layer 3)
+## 4. Observers
 
-Observers execute **read pipelines only**. No mutation of consensus or verification state.
+Observers are read pipelines. They must not sign, send, `generate`, or
+`submitblock`.
 
-### 4.1 Explorer Indexer Pipeline
+### 4.1 Explorer
 
-```
-rigord RPC                    PostgreSQL              HTTP clients
-    │                              │                      │
-    ├─ getblock ──────────────────►│ blocks table         │
-    ├─ getrawtransaction ─────────►│ txs table            │
-    ├─ getconvergenceresult ──────►│ convergence_panels   │
-    └─ periodic tip poll ─────────►│ chain_state          │
-                                   │                      │
-                                   └──── REST /api/* ────►│
-```
-
-Indexer: `explorer-indexer-mvp/` — Express server, import loop, rate limits.
-
-### 4.2 GUI / Website Read Pipeline
+Directory: `explorer/` (package name `rigor-explorer-indexer-mvp`).
 
 ```
-User browser
-    │
-    ├─► wallet-observer-mvp /api/observer/* ──► explorer API
-    │
-    ├─► rigor-qt-prototype ──► RPC + explorer HTTP
-    │
-    └─► web/rigorchain-site ──► VITE_RPC_PROXY + VITE_EXPLORER_API
-                                      │
-                                      ▼
-                               rigord (read-only allowlist)
-                               explorer-indexer-mvp
+rigord RPC  →  PostgreSQL  →  REST /api/*
 ```
 
-RPC allowlist (website): `getblockchaininfo`, `getnetworkinfo`, `getconvergencestatus`, `getconvergenceresult`, `getresmintstatus`.
+Not a ledger of record. Labels must follow
+`AssetTypeFromScriptPubKey`.
 
-**Forbidden RPCs for observers:** signing, wallet send, `generate`, `submitblock`, mining control.
+### 4.2 Website
 
-### 4.3 PROOF-034 Passive Observer
+`web/rigorchain-site` — `VITE_RPC_PROXY` + `VITE_EXPLORER_API`.
 
-`runtime/proof034/observer/` — Python process:
-
-- Polls `getblockcount`, `getconvergencestatus`
-- Runs golden vector harness against archive fixtures
-- Writes `.runtime/proof034/proof034_observation.json`
-- **Never** controls mining; fails silently on RPC loss
+Allowlist: `getblockchaininfo`, `getnetworkinfo`,
+`getconvergencestatus`, `getresmintstatus`.
 
 ---
 
-## 5. Experimental Execution Model (Layer 4)
+## 5. Forward path
 
-### 5.1 PROOF-034 Runtime Archive
+| Step | Component | Authority |
+|------|-----------|-----------|
+| 1 | rigord chain + mempool | Consensus |
+| 2 | `getblocktemplate` | Consensus |
+| 3 | rigor-miner copies GBT bytes, grinds OpuHash | Operational |
+| 4 | Optional pool: Stratum share / ORU payout | Operational |
+| 5 | `submitblock` → `ConnectBlock` | **Consensus** |
+| 6 | Explorer import | Observer |
+| 7 | Website display | Observer |
 
-Execution domain B — uses normal frozen consensus on designated regtest datadir:
-
-```
-rigord -regtest (archive datadir)
-    │
-    ▼
-golden_vector_materializer.sh  ──► mine to milestone heights
-    │
-    ▼
-golden_vector_verify.sh --require-full  ──► harness report
-    │
-    ▼
-archive/proof-034/  (SHA256 manifest, JSON artifacts)
-```
-
-Target: h ≥ **2,100,001** (2.1M+1). Current partial state: 9/12 vectors at h ≤ 501.
-
-### 5.2 Simulation Pipeline (SIM-004 → SIM-008)
-
-Execution domain C — **no live node connection**:
-
-```
-JSONL telemetry (pool metrics)
-    │
-    ▼
-sim/core ReplayKernel  (SIM-004)
-    │
-    ▼
-sim/emulator SystemEmulator  (SIM-005)
-    │
-    ▼
-sim/proof_validator  (SIM-006)  ← fixtures from archive
-    │
-    ▼
-ci/replay/pipeline.py  (SIM-008)  → pinned output hashes
-```
-
-SIM-006 validates milestone vectors offline (`live_execution_required: false`).
-
-### 5.3 GUI Replay Viewer (SIM-007)
-
-Loads SIM-004/005/006 output artifacts only. No rigord connection. Presentation domain.
+**Consensus boundary:** step 5. Earlier steps are candidate
+construction. rigord may reject.
 
 ---
 
-## 6. Forward Path Trace (Complete)
+## 6. Reverse path
 
-| Step | Component | Action | Authority |
-|------|-----------|--------|-----------|
-| 1 | rigord | Maintains chain + mempool | Consensus |
-| 2 | rigord | `getblocktemplate` | Consensus |
-| 3 | rigor-gbt | Poll, validate, cache template | Operational |
-| 4 | block-assembler | Build job, compute C, reserve mint slot | Operational |
-| 5 | winner-engine | Preview draw, attach to job envelope | Operational (mirror) |
-| 6 | stratum-server | Push `mining.notify` | Operational |
-| 7 | rigor-miner-agent | PoW scan, `mining.submit` | Operational |
-| 8 | share-validator | Validate share/block | Operational |
-| 9 | winner-engine | Confirm winner for block | Operational |
-| 10 | mint-engine | Build RES mint tx + block | Operational |
-| 11 | rigord | `submitblock` → ConnectBlock | **Consensus** |
-| 12 | rigord | Update UTXO, chain index, supply caches | Consensus |
-| 13 | explorer-indexer | Import block, index convergence | Observer |
-| 14 | GUI / website | Display block, winner, RES mint | Observer |
+| Step | Component | Authority |
+|------|-----------|-----------|
+| 1 | Browser / wallet UI | — |
+| 2 | Explorer API or RPC proxy | Observer |
+| 3 | rigord read RPC | Consensus (read) |
+| 4 | Render | Observer |
 
-**Consensus boundary:** Step 11. All prior steps are candidate construction; rigord may reject.
+Indexed data may lag the tip. Live RPC is authoritative for tip height
+and convergence status.
 
 ---
 
-## 7. Reverse Path Trace (Complete)
+## 7. Runtime stores
 
-| Step | Component | Action | Authority |
-|------|-----------|--------|-----------|
-| 1 | User | Opens GUI / website / wallet observer | — |
-| 2 | Presentation | HTTP request to observer API or RPC proxy | Observer |
-| 3 | Explorer API | Query PostgreSQL cache | Observer (derived) |
-| 3a | RPC proxy | Forward allowlisted method to rigord | Observer (live) |
-| 4 | rigord | Return chain tip, block, convergence result | Consensus (read) |
-| 5 | Explorer | Enrich with lineage, RES events, panels | Observer (derived) |
-| 6 | GUI | Render dashboard, convergence tab, inspector | Observer |
+### Consensus (rigord)
 
-**Staleness rule:** Indexed data may lag tip; live RPC is authoritative for tip height and convergence status. Presentation MUST label provenance per Execution Domain Model §5.6.
+| Store | Scope |
+|-------|-------|
+| UTXO (`CCoinsViewCache`) | Global chain |
+| Mempool | Node-local |
+| `CBlockIndex` caches | Per block (supply / converge sums) |
+| Chain tip | Atomic advance |
 
----
+### Pool (operational)
 
-## 8. Runtime State Stores
+Template / job / share caches. Invalidate on tip change. No RES mint
+store.
 
-### 8.1 Consensus (rigord)
+### Observer
 
-| Store | Mutability | Scope |
-|-------|------------|-------|
-| UTXO set (`CCoinsViewCache`) | Per ConnectBlock | Global chain |
-| Mempool | Pre-block | Node-local |
-| `CBlockIndex` caches | Per block | Convergence sum, RES flags |
-| Chain tip | Atomic advance | Global |
-
-No global mutable draw state — winner recomputed from block content + parent context.
-
-### 8.2 Pool (operational)
-
-| Store | Location | Reorg behavior |
-|-------|----------|----------------|
-| `TemplateCache` | rigor-gbt | Invalidate ACTIVE/STALE |
-| `JobCache` | block-assembler | Clear active list |
-| `WinnerRuntime` | winner-engine | `invalidate_jobs` |
-| `MintStateStore` | mint-engine | `revoke_for_jobs` |
-| `ReplayGuard` | share-validator | Reject stale job shares |
-| `SessionManager` | stratum-server | Per-connection |
-| PostgreSQL (optional) | rigor-pool-pg | Recovery persistence |
-
-### 8.3 Observer
-
-| Store | Location | Authority |
-|-------|----------|-----------|
-| PostgreSQL explorer DB | explorer-indexer-mvp | Derived index |
-| Browser session state | GUI / website | Ephemeral |
-| `.runtime/proof034/` | PROOF-034 observer | Verification artifacts |
+PostgreSQL explorer DB. Browser session. Not consensus.
 
 ---
 
-## 9. Failure Modes & Recovery
+## 8. Failure and invariants
 
-| Failure | Layer | Recovery |
-|---------|-------|----------|
-| Invalid block submit | 1 | rigord rejects; mint-engine marks Orphaned |
-| Reorg | 1+2 | DisconnectBlock + pool invalidate cascade |
-| GBT stale | 2 | rigor-gbt poll catches tip change |
-| Draw preview mismatch | 2 | Block rejected at share-validator; no submit |
-| RPC unavailable | 3 | Observer degrades; PROOF-034 observer silent fail |
-| Archive mining interrupt | 4 | Resume from datadir; materializer idempotent |
-
----
-
-## 10. Execution Invariants
+| Failure | Recovery |
+|---------|----------|
+| Invalid `submitblock` | rigord rejects |
+| Reorg | `DisconnectBlock` + pool cache invalidate |
+| Stale GBT | Miner / `rigor-gbt` refetch tip |
+| RPC down | Observer degrades |
 
 | ID | Invariant |
 |----|-----------|
-| EX-01 | ConnectBlock order fixed per rigor_consensus_pipeline.md |
-| EX-02 | Winner computed once via GetBlockWinner API |
-| EX-03 | Convergence outputs never enter UTXO |
-| EX-04 | Pool submitblock does not bypass validation |
-| EX-05 | Observers never call mutating RPC |
-| EX-06 | Simulation never connects to live consensus datadir |
-| EX-07 | PROOF-034 uses frozen consensus, not alternate rules |
-| EX-08 | `equivalence_claimed = false` at all execution boundaries |
-
----
-
-Explorer/indexer sit on the observer layer. They do not possess consensus
-authority.
+| EX-01 | ConnectBlock uses `CheckResMintArithmetic` for body mints |
+| EX-02 | Convergence outputs never enter UTXO |
+| EX-03 | Pool / miner cannot bypass validation |
+| EX-04 | Observers never call mutating RPC |
+| EX-05 | `equivalence_claimed = false` |
 
 ```
 Consensus defines reality.
-Explorer displays reality.
-Database stores derived representations.
+Explorer displays consensus-derived data.
 equivalence_claimed = false
 ```
-
-Boundary:
-[`../whitepaper/RIGOR_PROTOCOL_IDENTITY.md`](../whitepaper/RIGOR_PROTOCOL_IDENTITY.md)
-(what RIGOR is),
-[`../whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](../whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md)
-(how the mathematics runs),
-[`../whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md`](../whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md)
-(why those properties can be verified).
-
-*End of RIGOR System Execution Model*

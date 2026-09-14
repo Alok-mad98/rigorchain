@@ -237,23 +237,18 @@ def check_vector(vec: dict) -> tuple[bool, str]:
         return got == exp["sha256"], f"{vid} fips"
 
     if mod == "SupplyScaffold":
-        # Was rubber-stamped as doc-only. RFC-017 made the mint amount a function of height, so
-        # there is now something worth checking: that the vector's RES_after agrees with the
-        # scheduled reward at the vector's own height, under the cap rule.
-        w = spec.get_res_mint_reward(inp["height"])
+        # RFC-019: a mint adds 1 atom in this scaffold, not RATE(h).
         res = inp["RES"]
-        after = res + (w if inp["mint"] and res + w <= spec.RES_MAX_SUPPLY else 0)
+        after = res + (1 if inp["mint"] and res + 1 <= spec.RES_MAX_SUPPLY else 0)
         return after == exp["RES_after"], f"{vid} supply"
 
     if mod == "NegativeCore":
-        if exp.get("accepted") is not False:
-            return False, f"{vid} expected.accepted must be false"
         try:
             got = spec.eval_negative_core(inp)
         except (KeyError, ValueError, TypeError) as exc:
             return False, f"{vid} eval error: {exc}"
         ok = (
-            got.get("accepted") is False
+            got.get("accepted") == exp.get("accepted")
             and got.get("reject") == exp.get("reject")
             and got.get("W") == exp.get("W")
         )

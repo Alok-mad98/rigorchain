@@ -60,8 +60,6 @@ def main() -> int:
     if FORMULA.search(body):
         errors.append("genesis Kernel recodes an issuance formula")
     for needle in (
-        "ResolveConvergenceDraw",
-        "ConnectEvaluateCoinbaseResMint",
         "RigorSupplyDelta",
         "ComputeRigorIssuance",
         "ClassifyRigorAsset",
@@ -108,8 +106,6 @@ def main() -> int:
     if not cb:
         errors.append("ConnectBlock not found")
     else:
-        if "RigorConsensusKernel::ResolveDraw" not in cb:
-            errors.append("ConnectBlock does not call Kernel ResolveDraw")
         if "RigorConsensusKernel::EvaluateConnect" not in cb:
             errors.append("ConnectBlock does not call Kernel EvaluateConnect")
         if re.search(r"\bResolveConvergenceDraw\s*\(", cb):

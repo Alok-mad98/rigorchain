@@ -5,6 +5,7 @@
 #include <interfaces/wallet.h>
 
 #include <consensus/amount.h>
+#include <consensus/convergenceres.h>
 #include <interfaces/chain.h>
 #include <interfaces/handler.h>
 #include <policy/fees.h>
@@ -23,7 +24,6 @@
 #include <wallet/feebumper.h>
 #include <wallet/fees.h>
 #include <wallet/spend.h>
-#include <wallet/convergencestate.h>
 #include <wallet/types.h>
 #include <wallet/load.h>
 #include <wallet/receive.h>
@@ -50,7 +50,6 @@ using interfaces::WalletTx;
 using interfaces::WalletTxOut;
 using interfaces::WalletTxStatus;
 using interfaces::WalletValueMap;
-using interfaces::ConvergenceUiSnapshot;
 
 namespace wallet {
 // All members of the classes in this namespace are intentionally public, as the
@@ -305,12 +304,13 @@ public:
         LOCK(m_wallet->cs_wallet);
         return MakeConvergenceRecipient(*m_wallet, amount_oru, /*subtract_fee_from_convergence=*/false);
     }
-    void commitTransaction(CTransactionRef tx,
+    bool commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
-        WalletOrderForm order_form) override
+        WalletOrderForm order_form,
+        std::string& err_string) override
     {
         LOCK(m_wallet->cs_wallet);
-        m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form));
+        return m_wallet->CommitTransaction(std::move(tx), std::move(value_map), std::move(order_form), &err_string);
     }
     bool transactionCanBeAbandoned(const uint256& txid) override { return m_wallet->TransactionCanBeAbandoned(txid); }
     bool abandonTransaction(const uint256& txid) override
@@ -449,39 +449,6 @@ public:
         return result;
     }
     uint64_t getWalletStateRevision() const override { return m_wallet->GetWalletStateRevision(); }
-    bool tryGetConvergenceUiSnapshot(ConvergenceUiSnapshot& out) override
-    {
-        TRY_LOCK(m_wallet->cs_wallet, locked_wallet);
-        if (!locked_wallet) return false;
-        out = {};
-        // W1.1A.1 RULE-3 hardening: mapWallet is a salted unordered_map; iteration
-        // order is hash-salt-dependent and NOT replay-equivalent across wallets.
-        // When two records share nTimeReceived, break the tie by txid (lexicographic)
-        // so the chosen "best" record is a pure function of wallet state. Do not relax.
-        const CWalletTx* best = nullptr;
-        const uint256* best_txid = nullptr;
-        for (const auto& p : m_wallet->mapWallet) {
-            wallet::ConvergenceRecord rec;
-            if (!wallet::LoadConvergenceRecordFromMapValue(p.second, rec)) continue;
-            const bool strictly_newer = best && p.second.nTimeReceived > best->nTimeReceived;
-            const bool tie_break_wins = best && p.second.nTimeReceived == best->nTimeReceived && p.first < *best_txid;
-            if (!best || strictly_newer || tie_break_wins) {
-                best = &p.second;
-                best_txid = &p.first;
-            }
-        }
-        if (!best) return true;
-        wallet::ConvergenceRecord rec;
-        if (!wallet::LoadConvergenceRecordFromMapValue(*best, rec)) return true;
-        out.has_convergence = true;
-        const int h = m_wallet->GetLastBlockHeight();
-        const int depth = m_wallet->GetTxDepthInMainChain(*best);
-        out.status_text = wallet::ConvergenceRecordUiStatus(rec, h);
-        out.competition_progress = wallet::ConvergenceCompetitionProgressText(rec, depth);
-        out.maturity_progress = wallet::ConvergenceMaturityProgressText(rec, h);
-        out.maturity_countdown = wallet::ConvergenceMaturityCountdownText(rec, h);
-        return true;
-    }
     bool getConvergenceBlockResult(int height, interfaces::ConvergenceBlockResult& out) override
     {
         if (!m_wallet->HaveChain()) {
@@ -493,8 +460,7 @@ public:
         {
             LOCK(m_wallet->cs_wallet);
             for (const auto& entry : m_wallet->mapWallet) {
-                wallet::ConvergenceRecord rec;
-                if (!wallet::LoadConvergenceRecordFromMapValue(entry.second, rec)) continue;
+                if (!Consensus::IsConvergenceTx(*entry.second.tx)) continue;
                 wallet_convergence_txids.push_back(entry.first);
             }
         }

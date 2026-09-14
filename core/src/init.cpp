@@ -19,6 +19,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <consensus/trace/consensus_trace.h>
 #include <deploymentstatus.h>
 #include <hash.h>
 #include <httprpc.h>
@@ -570,6 +571,8 @@ void SetupServerArgs(ArgsManager& argsman)
                    ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-debugpowcompare", "Log header hash and OpuHash digest in CheckProofOfWork (for comparing with cpuminer --debug-pow)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-debugrigorpow", "Log comprehensive RIGOR PoW debug info in ConnectBlock and OpusHash (header, hash, target, coinbase, merkle, convergence)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-rigorconsensustrace", "Write consensus decision traces (JSON) for formal-bridge / attack regression. Default off. Does not change consensus.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
+    argsman.AddArg("-rigorconsensustracedir=<dir>", "Directory for -rigorconsensustrace JSON (default: <datadir>/consensus_trace)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-printpriority", strprintf("Log transaction fee rate in " + CURRENCY_UNIT + "/kvB when mining blocks (default: %u)", DEFAULT_PRINTPRIORITY), ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::DEBUG_TEST);
     argsman.AddArg("-uacomment=<cmt>", "Append comment to the user agent string", ArgsManager::ALLOW_ANY, OptionsCategory::DEBUG_TEST);
 
@@ -595,7 +598,7 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-blockmaxweight=<n>", strprintf("Set maximum BIP141 block weight (default: %d)", DEFAULT_BLOCK_MAX_WEIGHT), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockmintxfee=<amt>", strprintf("Set lowest fee rate (in %s/kvB) for transactions to be included in block creation. (default: %s)", CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-miningresfeeaddr=<addr>", "Mockable chains only. Witness-v1 RES address for -reswalletbootstrap coinbase RES (not the draw prize). Rejected on mainnet-shaped chains. Production mint pays the parent-draw winner and is not gated on this flag. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
-    argsman.AddArg("-reswalletbootstrap", "Mockable chains only (e.g. devtest/regtest): at chain construction, set Consensus::Params::res_wallet_bootstrap_coinbase to 1.000000 RES per coinbase (paid to -miningresfeeaddr). ConnectBlock does not read this flag. Default is false. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
+    argsman.AddArg("-reswalletbootstrap", "Mockable chains only (e.g. devtest/regtest): at chain construction, set Consensus::Params::res_wallet_bootstrap_coinbase to 1.00000000 RES per coinbase (paid to -miningresfeeaddr). ConnectBlock does not read this flag. Default is false. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-solomining", "Allow getblocktemplate with zero peers / during IBD on mainnet (local Alpha solo). RPC policy only; does not change consensus. Default false.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
 
@@ -1113,6 +1116,18 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     if (!init::StartLogging(args)) {
         // Detailed error printed inside StartLogging().
         return false;
+    }
+
+    {
+        const bool trace_on = args.GetBoolArg("-rigorconsensustrace", false);
+        fs::path trace_dir = args.GetDataDirNet() / "consensus_trace";
+        if (args.IsArgSet("-rigorconsensustracedir")) {
+            trace_dir = args.GetPathArg("-rigorconsensustracedir");
+        }
+        RigorConsensusTraceInit(trace_on, fs::PathToString(trace_dir));
+        if (trace_on) {
+            LogPrintf("RigorConsensusTrace enabled; dir=%s\n", fs::PathToString(trace_dir));
+        }
     }
 
     if (const auto ops_err = RunNodeOperationsDataDirectoryChecks(args)) {
@@ -1642,10 +1657,14 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
             const int64_t genesis_time = chainparams.GenesisBlock().GetBlockTime();
             const int64_t lag = now - genesis_time;
             if (lag > 2 * consensus.nPowASERTHalfLife) {
-                InitWarning(strprintf(_(
-                    "Genesis timestamp is %d seconds behind local time (ASERT half-life %d s). "
-                    "Refresh GenesisLockMainnet::TIMESTAMP before mainnet launch so MTP and locktime match wall-clock."
-                ), lag, consensus.nPowASERTHalfLife));
+                // Launch hygiene only. Do not refresh GenesisLockMainnet::TIMESTAMP
+                // (that changes the genesis hash). Do not modal-warn end users:
+                // height 0 is expected until the first mainnet block, and the
+                // message is not actionable from wallet settings.
+                LogPrintf("Genesis timestamp is %d seconds behind local time "
+                          "(ASERT half-life %d s). MTP/locktime floor is genesis; "
+                          "ASERT after height 1 is anchored to the first mined block.\n",
+                          lag, consensus.nPowASERTHalfLife);
             }
         }
     }

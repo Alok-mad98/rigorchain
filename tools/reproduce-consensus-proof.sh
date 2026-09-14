@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COQ="$ROOT/formal_verification/coq"
-FLAGS=(-q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01)
+FLAGS=(-q -R . Rigor -R ../rigor_v01 RigorV01)
 
 fail() {
   echo "CONSENSUS_FORMAL_BUILD_NOT_REPRODUCIBLE"
@@ -33,7 +33,7 @@ echo "== coqc P056-P059 =="
 echo "== Print Assumptions =="
 ASSUME="$(cd "$COQ" && coqtop "${FLAGS[@]}" <<'EOF'
 Require ConsensusSurfaceClosure.
-Print Assumptions ConsensusKernelRefinement.issuance_refinement.
+Print Assumptions ConsensusKernelRefinement.cpp_flat_oru_pins.
 Print Assumptions ConnectBlockKernelBoundary.connectblock_kernel_boundary.
 Print Assumptions TransactionKernelRefinement.predicate_theorem.
 Print Assumptions ConsensusSurfaceClosure.ConsensusSurfaceClosed.

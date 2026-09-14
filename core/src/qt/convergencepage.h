@@ -23,12 +23,7 @@ class ConvergencePage;
 
 namespace RigorWallet {
 class ConvergenceEducationPanel;
-class ConvergenceOverviewPanel;
-class ConvergenceLifecyclePanel;
-class ConvergenceStartPanel;
 class ConvergenceNetworkPanel;
-class ConvergenceResProbabilityPanel;
-class ConvergenceHistoryPanel;
 class WarningBanner;
 }
 
@@ -54,14 +49,15 @@ private:
     const PlatformStyle* m_platform_style{nullptr};
 
     RigorWallet::ConvergenceEducationPanel* m_educationPanel{nullptr};
-    RigorWallet::ConvergenceLifecyclePanel* m_lifecyclePanel{nullptr};
-    RigorWallet::ConvergenceStartPanel* m_startPanel{nullptr};
     RigorWallet::ConvergenceNetworkPanel* m_networkPanel{nullptr};
-    RigorWallet::ConvergenceOverviewPanel* m_overviewPanel{nullptr};
-    RigorWallet::ConvergenceResProbabilityPanel* m_resProbabilityPanel{nullptr};
     RigorWallet::WarningBanner* m_warningBanner{nullptr};
-    RigorWallet::ConvergenceHistoryPanel* m_historyPanel{nullptr};
     QTimer* m_refreshDebounce{nullptr};
+
+    bool m_mint_preview_ok{false};
+    bool m_mint_authorized{false};
+    int m_mint_preview_tip{-2};
+    /** Confirming height h for R · (2^25+h)^2 ≤ B << 40. Refreshed every tip. */
+    int m_mint_destroy_cost_height{0};
 
     void applyConvergenceTheme();
     /** Coalesce tip/wallet signals; no-op when page is not visible. */
@@ -73,14 +69,14 @@ private:
     void setMonospacedConvergenceFont(bool use_embedded_font);
     void updateContextPanels();
     void updateMarketPanel();
-    void updateQuadraticFeeHint();
+    void loadMintPreviewParams();
+    void updateMintedResPreview();
 
 private Q_SLOTS:
     void updateMinConvergenceDisplay();
     void onSendConvergenceClicked();
-    void updateConvergenceStatusDisplay();
     void updateConvergenceNetworkSafety();
-    /** Loads ConvergenceBlockResult for tip and tip-1 (one block = one settled convergence round). */
+    /** Loads ConvergenceBlockResult for tip and tip-1. */
     void updateConvergenceRoundPanels();
 };
 

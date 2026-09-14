@@ -24,6 +24,9 @@
 #include <stdexcept>
 #include <unordered_map>
 
+/** Body RES mint (RFC-019 Witness v1 output in a Convergence+RES transaction). */
+static constexpr uint32_t COIN_FLAG_RES_MINT = 1u;
+
 /**
  * CRC-32C (Castagnoli) over consensus-visible Coin fields. Domain tag "RGCI".
  *
@@ -32,9 +35,9 @@
  * DATABASE_CORRUPTION and must fail closed. Untrusted chainstate is rebuilt
  * from blk*.dat.
  *
- * Covers: nHeight, fCoinBase, nValue, scriptPubKey.
+ * Covers: nHeight, fCoinBase, nValue, scriptPubKey, nFlags.
  */
-uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out);
+uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out, uint32_t nFlags);
 
 /**
  * A UTXO entry.
@@ -42,6 +45,7 @@ uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& o
  * Canonical leaf layout (`Coin::Serialize`, MuHash / RIGOR/STATE_HASH/v4):
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
  * - TxOutCompression: VARINT(CompressAmount(nValue)) || VARINT(scriptLen) || script
+ * - VARINT(nFlags)  // always present; 0 for ordinary coins
  *
  * Disk / undo layout (`CoinDiskFormatter`): leaf bytes || uint32 CRC32C trailer.
  * Checksum is never part of Coin::Serialize. Do not add GetType() to DataStream
@@ -63,14 +67,18 @@ public:
     //! at which height this containing transaction was included in the active block chain
     uint32_t nHeight{0};
 
+    //! UTXO-only flags. Bit 0 is COIN_FLAG_RES_MINT.
+    uint32_t nFlags{0};
+
     //! construct a Coin from a CTxOut and height/coinbase information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)) {}
-    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn) : out(outIn), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)) {}
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, uint32_t nFlagsIn = 0) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)), nFlags(nFlagsIn) {}
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, uint32_t nFlagsIn = 0) : out(outIn), fCoinBase(fCoinBaseIn), nHeight(static_cast<uint32_t>(nHeightIn)), nFlags(nFlagsIn) {}
 
     void Clear() {
         out.SetNull();
         fCoinBase = false;
         nHeight = 0;
+        nFlags = 0;
     }
 
     //! empty constructor
@@ -80,12 +88,22 @@ public:
         return fCoinBase;
     }
 
+    bool IsResMint() const {
+        return (nFlags & COIN_FLAG_RES_MINT) != 0;
+    }
+
+    //! Coinbase ORU and body RES mint share nCoinbaseMaturity.
+    bool RequiresMaturity() const {
+        return fCoinBase || IsResMint();
+    }
+
     template<typename Stream>
     void Serialize(Stream &s) const {
         assert(!IsSpent());
         const uint64_t code = (uint64_t{nHeight} << 1) | (fCoinBase ? 1u : 0u);
         ::Serialize(s, VARINT(code));
         ::Serialize(s, Using<TxOutCompression>(out));
+        ::Serialize(s, VARINT(nFlags));
     }
 
     template<typename Stream>
@@ -98,6 +116,12 @@ public:
         nHeight = static_cast<uint32_t>(code >> 1);
         fCoinBase = (code & 1) != 0;
         ::Unserialize(s, Using<TxOutCompression>(out));
+        uint64_t flags = 0;
+        ::Unserialize(s, VARINT(flags));
+        if (flags > std::numeric_limits<uint32_t>::max()) {
+            throw std::ios_base::failure("Coin nFlags exceeds uint32 (DATABASE_CORRUPTION)");
+        }
+        nFlags = static_cast<uint32_t>(flags);
     }
 
     /** Either this coin never existed (see e.g. coinEmpty in coins.cpp), or it
@@ -121,7 +145,7 @@ struct CoinDiskFormatter
     template<typename Stream>
     void Ser(Stream& s, const Coin& coin) {
         ::Serialize(s, coin);
-        ::Serialize(s, CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out));
+        ::Serialize(s, CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out, coin.nFlags));
     }
 
     template<typename Stream>
@@ -129,11 +153,17 @@ struct CoinDiskFormatter
         ::Unserialize(s, coin);
         uint32_t stored = 0;
         ::Unserialize(s, stored);
-        if (stored != CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out)) {
+        if (stored != CoinIntegrityChecksum(coin.nHeight, coin.fCoinBase, coin.out, coin.nFlags)) {
             throw std::ios_base::failure("Coin integrity checksum mismatch (DATABASE_CORRUPTION)");
         }
     }
 };
+
+/** True iff vout[o] is a body RES mint payout (non-coinbase Witness v1 RES in a Convergence tx). */
+bool TxOutputIsBodyResMint(const CTransaction& tx, uint32_t o);
+
+/** Set COIN_FLAG_RES_MINT when TxOutputIsBodyResMint(tx, out_index). Never sets fCoinBase. */
+void ApplyBodyResMintFlag(Coin& coin, const CTransaction& tx, uint32_t out_index);
 
 /**
  * A Coin in one level of the coins database caching hierarchy.

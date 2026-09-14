@@ -19,10 +19,6 @@ use crate::protocol::{self, StratumResponse};
 use crate::session::{MinerSession, SessionManager};
 use crate::submit::{BlockSubmitter, UnconfiguredBlockSubmitter};
 use crate::telemetry::PoolJobTelemetry;
-use crate::winner::{self, WinnerPreview};
-use crate::winner_service::SharedWinnerService;
-use winner_engine::telemetry::WinnerTelemetry;
-use winner_engine::RevocationReason;
 
 /// ORU-only Stratum orchestrator (Option A / TASK-POOL-RES-BOUNDARY-IMPLEMENT-003).
 ///
@@ -37,8 +33,6 @@ pub struct StratumOrchestrator {
     pub payout: SharedPayoutEngine,
     pub metrics: SharedMetrics,
     pub audit: SharedAuditLog,
-    /// Optional draw preview for operator telemetry only — never gates mint construction.
-    pub winner: Arc<SharedWinnerService>,
     /// C-5: authoritative sink for found blocks.
     pub submitter: Arc<dyn BlockSubmitter>,
     /// Pushes fresh `mining.notify` lines to live connections after tip changes.
@@ -54,19 +48,13 @@ impl StratumOrchestrator {
         jobs: Arc<block_assembler::JobCache>,
         payout: SharedPayoutEngine,
     ) -> Self {
-        Self::with_services(
-            templates,
-            jobs,
-            payout,
-            Arc::new(SharedWinnerService::memory()),
-        )
+        Self::with_services(templates, jobs, payout)
     }
 
     pub fn with_services(
         templates: Arc<TemplateCache>,
         jobs: Arc<block_assembler::JobCache>,
         payout: SharedPayoutEngine,
-        winner: Arc<SharedWinnerService>,
     ) -> Self {
         let publisher = JobPublisher::with_defaults(jobs.clone());
         let validator = ShareValidator::with_defaults(jobs.clone(), templates.clone());
@@ -82,7 +70,6 @@ impl StratumOrchestrator {
             payout,
             metrics: Arc::new(PoolMetrics::default()),
             audit: Arc::new(AuditLog::new(10_000)),
-            winner,
             submitter: Arc::new(UnconfiguredBlockSubmitter),
             notify_hub: Arc::new(NotifyHub::new()),
             work_refresh: AtomicBool::new(false),
@@ -143,40 +130,11 @@ impl StratumOrchestrator {
             .publish_from_template(&active_tpl)
             .map_err(|e| StratumError::Internal(e.to_string()))?;
 
-        // Draw preview is operator telemetry only. Product surface is always ORU-only:
-        // mint_required forced false; no mint authorize / construction.
-        let preview = match self.winner.register_published_job(&active_tpl, job.as_ref()) {
-            Ok(()) => match winner::preview_winner(&self.winner, active_tpl.as_ref(), job.as_ref())
-            {
-                Ok(p) => p,
-                Err(e) => {
-                    self.audit
-                        .record("winner.preview.degraded", e.to_string());
-                    WinnerTelemetry::record_preview_degraded(
-                        job.as_ref(),
-                        active_tpl.as_ref(),
-                        &e.to_string(),
-                    );
-                    degraded_winner_preview(job.as_ref(), active_tpl.as_ref())
-                }
-            },
-            Err(e) => {
-                self.audit
-                    .record("winner.register.degraded", e.to_string());
-                WinnerTelemetry::record_preview_degraded(
-                    job.as_ref(),
-                    active_tpl.as_ref(),
-                    &e.to_string(),
-                );
-                degraded_winner_preview(job.as_ref(), active_tpl.as_ref())
-            }
-        };
-
         self.audit.record(
             "job.publish",
             format!(
-                "job_id={} record_id={} oru_only=true draw_winner={:?}",
-                job.job_id.0, job.record_id, preview.winner_txid
+                "job_id={} record_id={} oru_only=true",
+                job.job_id.0, job.record_id
             ),
         );
         self.metrics
@@ -187,13 +145,13 @@ impl StratumOrchestrator {
             active_tpl.as_ref(),
             job.as_ref(),
             true,
-            preview.winner_txid.as_deref(),
-            false, // never advertise mint_required on the mining product surface
+            None,
+            false, // RFC-020: mint_required is always false
         );
 
         let envelope = self.jobs.envelope_from_job_with_preview(
             job.as_ref(),
-            None, // do not surface RES winner as miner payout signal
+            None,
             false,
         )?;
 
@@ -252,13 +210,6 @@ impl StratumOrchestrator {
             }
         }
 
-        if let Err(e) = self
-            .winner
-            .invalidate_jobs(&orphaned_jobs, RevocationReason::Reorg)
-        {
-            self.audit.record("winner.invalidate.error", e.to_string());
-        }
-
         let _reverse = self.payout.reverse_finalized_for_jobs(&invalidated);
         self.payout.orphan_round_for_jobs(&invalidated);
         self.metrics
@@ -275,11 +226,18 @@ impl StratumOrchestrator {
     ) -> StratumResult<Vec<String>> {
         let params = protocol::params_as_strings(&req.params)?;
         let agent = params.first().map(|s| s.as_str()).unwrap_or("");
-        if !protocol::requires_opushash_agent(agent) {
+        if protocol::requires_opushash_agent(agent) {
             return Ok(vec![protocol::serialize_response(&StratumResponse::err(
                 req.id.clone(),
                 20,
-                "agent must declare opushash capability",
+                "OpuHash agents are rejected; agent must declare rgrpow01 (SHA3-256 RGRPOW01)",
+            ))?]);
+        }
+        if !protocol::requires_rgrpow01_agent(agent) {
+            return Ok(vec![protocol::serialize_response(&StratumResponse::err(
+                req.id.clone(),
+                20,
+                "agent must declare rgrpow01 capability (SHA3-256 RGRPOW01)",
             ))?]);
         }
 
@@ -626,14 +584,3 @@ impl StratumOrchestrator {
     }
 }
 
-fn degraded_winner_preview(
-    job: &block_assembler::PublishedJobSnapshot,
-    template: &rigor_gbt::TemplateRecord,
-) -> WinnerPreview {
-    WinnerPreview {
-        mint_required: false,
-        winner_txid: None,
-        convergence_root_hex: job.coinbase.convergence_root_hex.clone(),
-        draw_target_prev_nbits: template.gbt.prev_nbits.clone(),
-    }
-}

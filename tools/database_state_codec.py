@@ -11,6 +11,7 @@ failure boundary of malformed records.
 Leaf (Coin::Serialize, MuHash / RIGOR/STATE_HASH/v4):
     VARINT((coinbase ? 1 : 0) | (height << 1))
     VARINT(CompressAmount(nValue)) || VARINT(scriptLen) || script
+    VARINT(nFlags)
 
 Disk / undo (CoinDiskFormatter):
     leaf bytes || uint32 LE CRC-32C Castagnoli (domain "RGCI")
@@ -24,7 +25,8 @@ Canonical CoinsDB key:
 Undo encoding equals disk Coin. No Bitcoin dummy version byte.
 
 Asset identity is not a Coin field. It is inferred from scriptPubKey
-by ClassifyRigorTxout after the record is loaded.
+by ClassifyRigorTxout after the record is loaded. nFlags bit 0
+(COIN_FLAG_RES_MINT) is UTXO-only mint-maturity metadata.
 """
 
 from __future__ import annotations
@@ -78,6 +80,7 @@ def coin_integrity_checksum(coin: "Coin") -> int:
     raw.append(1 if coin.coinbase else 0)
     raw.extend(int(coin.n_value & ((1 << 64) - 1)).to_bytes(8, "little"))
     raw.extend(coin.script_pubkey)
+    raw.extend(int(coin.n_flags).to_bytes(4, "little"))
     return crc32c(bytes(raw))
 
 
@@ -184,6 +187,7 @@ class Coin:
     script_pubkey: bytes
     height: int
     coinbase: bool
+    n_flags: int = 0
 
     def is_spent(self) -> bool:
         return self.n_value == -1 and self.script_pubkey == b""
@@ -221,7 +225,7 @@ def encode_coin(coin: Coin) -> bytes:
     code = (coin.height << 1) | (1 if coin.coinbase else 0)
     payload = write_varint(code) + write_varint(compress_amount(coin.n_value)) + compress_script(
         coin.script_pubkey
-    )
+    ) + write_varint(coin.n_flags)
     return payload + coin_integrity_checksum(coin).to_bytes(4, "little")
 
 
@@ -237,11 +241,14 @@ def decode_coin(buf: bytes, require_consume_all: bool = True) -> Tuple[Coin, dic
     script, pos, snotes = decompress_script(buf, pos)
     notes["hidden_transform"] = snotes["hidden_transform"]
     notes["decompress_failed"] = snotes["decompress_failed"]
+    n_flags, pos = read_varint(buf, pos)
+    if n_flags > 0xFFFFFFFF:
+        raise CodecError("nFlags exceeds uint32 (DATABASE_CORRUPTION)")
     if pos + 4 > len(buf):
         raise TruncatedError("missing Coin integrity checksum")
     stored = int.from_bytes(buf[pos : pos + 4], "little")
     pos += 4
-    coin = Coin(n_value, script, height, coinbase)
+    coin = Coin(n_value, script, height, coinbase, int(n_flags))
     if stored != coin_integrity_checksum(coin):
         raise CodecError("Coin integrity checksum mismatch (DATABASE_CORRUPTION)")
     notes["leftover"] = len(buf) - pos
@@ -750,7 +757,7 @@ def build_vectors() -> dict:
         "task": "TASK-RIGOR-DATABASE-STATE-PERSISTENCE-SECURITY-AUDIT-P0-086",
         "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
         "canonical": {
-            "coin_layout": "leaf VARINT(code)||VARINT(CompressAmount)||VARINT(scriptLen)||script; disk adds CRC32C_RGCI",
+            "coin_layout": "leaf VARINT(code)||VARINT(CompressAmount)||VARINT(scriptLen)||script||VARINT(nFlags); disk adds CRC32C_RGCI",
             "key_layout": "0x43 || txid32 || VARINT(vout)",
             "undo_layout": "same as disk Coin (leaf + CRC32C); no dummy version byte",
             "asset_field_in_coin": False,
@@ -798,7 +805,7 @@ def build_vectors() -> dict:
             "malformed_value": "Read throws DESERIALIZATION_FAILURE; ErrorCatcher abort()",
             "database_failure_mapped_to_consensus_invalid": False,
             "database_fail_closed_for_value_corruption": True,
-            "coin_integrity": "CRC-32C Castagnoli over RGCI||height||coinbase||nValue||scriptPubKey; CoinDiskFormatter only",
+            "coin_integrity": "CRC-32C Castagnoli over RGCI||height||coinbase||nValue||scriptPubKey||nFlags; CoinDiskFormatter only",
             "pre_checksum_chainstate": "wipe / -reindex; no in-place migration",
         },
     }

@@ -1,12 +1,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  ALPHAPLUS_CODENAME,
-  ALPHAPLUS_GENESIS_HASH,
-  ALPHAPLUS_PRODUCT,
+  BECH32_HRP,
+  MAINNET_GENESIS_HASH,
+  RIGOR_CHAIN_NAME,
+  RIGOR_CODENAME,
+  RIGOR_PRODUCT,
+  RPC_CHAIN_ID,
   bech32HrpForNetwork,
   defaultRpcPort,
+  expectedGenesisForNetwork,
   parseExplorerNetwork,
+  requireExplorerNetwork,
   rigorCliChainArgs,
 } from "./network";
 import {
@@ -21,18 +26,32 @@ import {
   EMPTY_DRAW_ELIGIBLE_ROOT,
 } from "./rpcFields";
 
-describe("AlphaPlus network helpers", () => {
-  it("defaults mainnet HRP to rg and RPC to 8761", () => {
+describe("v0.1.3 network helpers", () => {
+  it("defaults the parse helper to mainnet but refuses unset network at startup", () => {
     assert.equal(parseExplorerNetwork(undefined), "mainnet");
     assert.equal(bech32HrpForNetwork("mainnet"), "rg");
     assert.equal(defaultRpcPort("mainnet"), 8761);
     assert.deepEqual(rigorCliChainArgs("mainnet"), []);
+    assert.throws(() => requireExplorerNetwork(undefined), /RIGOR_NETWORK is required/);
+    assert.throws(() => requireExplorerNetwork("bitcoin"), /Unknown RIGOR_NETWORK/);
   });
 
-  it("regtest HRP is trg; testnet HRP is configurable", () => {
-    assert.equal(bech32HrpForNetwork("regtest"), "trg");
+  it("maps HRP per node chainparams and rejects a non-canonical override", () => {
+    assert.equal(bech32HrpForNetwork("mainnet"), BECH32_HRP.mainnet);
     assert.equal(bech32HrpForNetwork("testnet"), "trg");
-    assert.equal(bech32HrpForNetwork("testnet", "custom"), "custom");
+    assert.equal(bech32HrpForNetwork("regtest"), "rgrt");
+    assert.equal(bech32HrpForNetwork("devtest"), "dvt");
+    assert.equal(bech32HrpForNetwork("testnet", "trg"), "trg");
+    assert.throws(() => bech32HrpForNetwork("testnet", "custom"), /canonical HRP/);
+  });
+
+  it("pins RPC chain ids and frozen genesis per network", () => {
+    assert.equal(RPC_CHAIN_ID.mainnet, "main");
+    assert.equal(RPC_CHAIN_ID.testnet, "test");
+    assert.equal(RPC_CHAIN_ID.regtest, "regtest");
+    assert.equal(expectedGenesisForNetwork("mainnet", {}), MAINNET_GENESIS_HASH);
+    assert.equal(expectedGenesisForNetwork("regtest", {}), null);
+    assert.equal(expectedGenesisForNetwork("regtest", { EXPECTED_GENESIS_HASH: "ab" }), "ab");
   });
 
   it("never uses Bitcoin 8332 as default", () => {
@@ -40,12 +59,13 @@ describe("AlphaPlus network helpers", () => {
     assert.notEqual(defaultRpcPort("testnet"), 8332);
   });
 
-  it("pins AlphaPlus identity and genesis", () => {
-    assert.equal(ALPHAPLUS_PRODUCT, "RIGOR v0.1.1-alphaplus");
-    assert.equal(ALPHAPLUS_CODENAME, "AlphaPlus Consensus Freeze");
+  it("pins v0.1.3 identity and live mainnet genesis", () => {
+    assert.equal(RIGOR_CHAIN_NAME, "RIGOR");
+    assert.equal(RIGOR_PRODUCT, "RIGOR v0.1.3");
+    assert.equal(RIGOR_CODENAME, "Production Release");
     assert.equal(
-      ALPHAPLUS_GENESIS_HASH,
-      "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758",
+      MAINNET_GENESIS_HASH,
+      "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
     );
   });
 });

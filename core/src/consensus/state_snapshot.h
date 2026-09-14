@@ -24,11 +24,11 @@ namespace Consensus {
  * RULE-3 no hidden order dependence, RULE-4 minimal consensus surface):
  *
  *   state_hash = SHA256d(
- *       "RIGOR/STATE_HASH/v4"        // 19 bytes ASCII domain tag
+ *       "RIGOR/STATE_HASH/v5"        // 19 bytes ASCII domain tag
  *    || LE32(pindex->nHeight)        //  4 bytes
  *    || pindex->GetBlockHash()       // 32 bytes (matches view.GetBestBlock())
  *    || utxo_muhash                  // 32 bytes (MuHash3072 over the UTXO set)
- *    || pindex_consensus_projection  // fixed 105 bytes (see below)
+ *    || pindex_consensus_projection  // fixed 73 bytes (see below)
  *    || utxo_aggregate_projection    // fixed  36 bytes (see below)
  *   )
  *
@@ -48,7 +48,6 @@ namespace Consensus {
  *                                as `ReplaySnapshot` / `ChainstateSummary`)
  *   - Selection state          : `CBlockIndex` fields written in fixed order:
  *                                ObservationalMetrics cumulative (LE64),
- *                                `m_draw_candidate_root` (32),
  *                                `has_res` (1),
  *                                `last_res_mint_block_hash` (32),
  *                                then per-block / chain mint + ORU supply
@@ -60,7 +59,7 @@ namespace Consensus {
  *                                plus explicit RES supply / classifier counts
  *                                in the 36-byte aggregate trailer
  *
- * The 36-byte aggregate trailer (after the 105-byte index projection) is:
+ * The 36-byte aggregate trailer (after the 73-byte index projection) is:
  *   LE64(utxo_count) || LE64(res_balance) || LE64(other_balance)
  *   || LE32(mint_count) || LE32(lock_count) || LE32(converge_count)
  * where counters are accumulated in a single cursor pass together with the
@@ -78,7 +77,7 @@ namespace Consensus {
  *   - Byte-identical output: 32 bytes.
  *
  * Versioning:
- *   The ASCII domain tag embeds the format version ("v3"). Any future
+ *   The ASCII domain tag embeds the format version ("v5"). Any future
  *   change to leaf layout, trailer layout, or preamble MUST bump the tag.
  *
  * Forbidden in this hash path (REQUIRED-2 INDIRECT/DIRECT consensus impact):
@@ -93,9 +92,10 @@ namespace Consensus {
  *   - `view.GetBestBlock()` MUST equal `pindex->GetBlockHash()` when
  *     `pindex != nullptr`; this is asserted (a skew would silently emit
  *     a mislabeled snapshot, the exact replay hazard this exists to prevent).
- *   - `pindex == nullptr` is permitted and yields a defined hash with the
- *     v2 preamble plus an all-zero 105-byte index projection and all-zero
- *     aggregate trailer (pre-genesis test harnesses).
+ *   - `pindex == nullptr` is permitted and yields a defined hash: the domain tag
+ *     followed by an all-zero preamble (height, tip hash, UTXO MuHash), an
+ *     all-zero 73-byte index projection and an all-zero 36-byte aggregate
+ *     trailer — 196 bytes total (pre-genesis test harnesses).
  *
  * @param view   The active coins view (UTXO set).
  * @param pindex The block index at which the snapshot is being taken, or

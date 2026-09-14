@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RIGOR v0.1.1-alphaplus Explorer</title>
+    <title>Rigor v0.1.3 Explorer</title>
     <link rel="stylesheet" href="/compliance.css" />
     <link rel="stylesheet" href="/convergence-panel.css" />
     <link rel="stylesheet" href="/status-dashboard.css" />
@@ -11,7 +11,7 @@
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .row { margin-top: 10px; }
       .muted { color: #bbb; font-size: 12px; }
-      a { margin-right: 12px; color: #fff; }
+      a { color: #fff; }
     </style>
     <script src="/explorer-routes.js"></script>
     <script src="/status.js"></script>
@@ -20,13 +20,12 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
-    <h1>RIGOR v0.1.1-alphaplus Explorer</h1>
-    <p class="muted">AlphaPlus Consensus Freeze</p>
+    <h1>Rigor v0.1.3 Explorer</h1>
     <div id="status-root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
@@ -37,7 +36,7 @@
           document.getElementById('status-root').textContent = 'Failed: ' + String(e);
         });
       }
-      setInterval(() => StatusDashboard.load().catch(() => {}), 30000);
+      setInterval(() => StatusDashboard.load().catch(() => {}), 5000);
     </script>
     <script src="/compliance.js"></script>
   </body>

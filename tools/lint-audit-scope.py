@@ -94,9 +94,9 @@ def main() -> int:
     auth = man.get("authorities") or {}
     expect = {
         "issuance": "GetBlockSubsidy",
-        "res_schedule": "GetResMintReward",
+        "res_schedule": "CheckResMintArithmetic",
         "supply": "RigorSupplyDelta",
-        "draw": "ResolveConvergenceDraw",
+        "draw": "retired",
         "classification": "ClassifyRigorTxout",
         "spend": "VerifyRigorPredicate",
         "pow": "PowBoundary",

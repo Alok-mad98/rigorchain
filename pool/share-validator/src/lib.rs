@@ -19,6 +19,7 @@ pub mod error;
 pub mod header;
 pub mod job_binding;
 pub mod opuhash;
+pub mod rgrpow;
 pub mod pg_adapter;
 pub mod replay;
 pub mod res_mint;
@@ -29,14 +30,15 @@ pub mod validator;
 pub use error::{ValidationErrorCode, ValidatorError, ValidatorResult};
 pub use pg_adapter::SharePgAdapter;
 pub use opuhash::{
-    expand_compact, expand_compact_bits, get_opus_hash_from_base_hash, verify_opuhash_block,
+    expand_compact, expand_compact_bits, get_opus_hash_from_base_hash, hash256, verify_opuhash_block,
     verify_opuhash_share, OPUS_POW_BUFFER_SIZE, OPUS_POW_MIX_ROUNDS,
 };
+pub use rgrpow::{rgrpow_hash80, verify_rgrpow_block, verify_rgrpow_share, RGRPOW_DOMAIN_TAG};
 pub use replay::{ReplayGuard, SharedReplayGuard};
 pub use types::{
     BlockSubmission, JobValidationState, ShareSubmission, ValidationKind, ValidationResult,
 };
 pub use convergence::{CommittedWindowSource, ParentWindow, WindowCandidate};
 pub use job_binding::validate_job_template_binding;
-pub use res_mint::{validate_node_supplied_automint, RES_REWARD_ATOMS};
+pub use res_mint::RES_REWARD_ATOMS;
 pub use validator::ShareValidator;

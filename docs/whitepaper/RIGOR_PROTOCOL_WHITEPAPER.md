@@ -4,15 +4,15 @@
 
 | Field | Value |
 |-------|-------|
-| Document | Official protocol whitepaper (architecture restructure) |
-| Task | `TASK-RIGOR-MINIMAL-SCRIPT-ARCHITECTURE-WHITEPAPER-001` (chapter insert; prior consistency audit retained) |
-| Product | RIGOR / AlphaPlus |
-| Date | 2026-08-18 |
-| Consensus impact | **NONE** |
-| `equivalence_claimed` | **false** |
+| Document status | Production specification |
+| Date | 2026-09-04 |
 
-This document is the professional protocol whitepaper. It reorganizes existing
-technical material. It does not change consensus, parameters, or RFCs.
+This document is the official protocol narrative. It covers purpose,
+consensus design, security assumptions, and implementation limits.
+
+Protocol SSOT: [`../protocol/RFC-020.md`](../protocol/RFC-020.md),
+[`../protocol/RFC-018.md`](../protocol/RFC-018.md).
+Implementation facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
 Normative engineering records of RFC texts are archived at `docs/archive/rfc/`.
 Public mathematics is `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`.
@@ -37,17 +37,17 @@ Visible Mining Participation
 RIGOR =
     2 Native Assets (ORU, RES)
   +
-    4 Core Monetary Script Families
+    Closed monetary script templates (v0 ORU, v1 RES, mint, converge)
   +
     UTXO Local Validation
   +
     Ed25519 Authentication
   +
-    OpuHash + ASERT PoW
+    OpuHash (SHA3-256 / RGRPOW01) + ASERT PoW
   +
     Deterministic Reserve Issuance
   +
-    Deflationary Fee Burn
+    Deflationary Fee Destroy
   +
     Formal Verification Model
   +
@@ -64,7 +64,7 @@ It combines:
 - deterministic reserve issuance
 - deflationary transaction economics
 - Ed25519 authentication
-- OpuHash adaptive Proof-of-Work
+- OpuHash (SHA3-256 / `RGRPOW01`) Proof-of-Work
 - UTXO-local validation
 
 without:
@@ -77,42 +77,38 @@ without:
 The formal system verifies protocol models and finite vectors.
 The production C++ implementation is not claimed to be formally equivalent.
 
-```
-equivalence_claimed = false
-```
-
 ---
 
 ## Abstract
 
-Public proof-of-work chains usually ask **one** native asset to do three
-jobs at once: circulate as a medium of exchange, remain scarce as a store
-of value, and pay miners for security. Those jobs conflict. Cheap
-transactions want circulation. Scarcity wants withdrawal from circulation.
-Security wants a sustainable miner budget. A single ticker cannot optimize
-all three without a structural tension — the **security-budget problem**.
+RIGOR exists to exit a structural defect of single-asset proof-of-work
+chains. Those chains ask **one** native asset to do three jobs at once:
+circulate as a medium of exchange, remain scarce as a store of value, and
+pay miners for security. The jobs conflict. Cheap transfers want
+circulation. Scarcity wants withdrawal from circulation. Security wants a
+miner budget that does not vanish when holders stop transacting. A single
+finite-supply ticker cannot occupy all three vertices — the
+**security-budget problem**. The dual-asset split is not an optional
+optimisation. It is the existence reason for the protocol.
 
 **RIGOR** separates the jobs at consensus.
 
 - **ORU** is the utility asset: fees, miner subsidy, and Convergence entry
-  weight. It has a predictable subsidy and a permanent tail of **125 ORU**
-  per block so miner payment does not depend on inflating the reserve.
-- **RES** is the scarce asset: maximum supply **21,000,000**. It is not
-  created by mining subsidy, not by governance, and not by a 1:1 swap.
-  New RES appears only after **ORU Convergence** and a deterministic draw.
-  RES is **deterministically issued** after protocol-defined conditions.
-  It is not mined.
+  weight. It has a flat subsidy of **128 ORU** per block so miner payment
+  does not depend on inflating the reserve.
+- **RES** is the scarce asset. Its maximum supply is **derived**:
+  `RES_MAX_SUPPLY = 419430400000000` atoms (`4194304 RES`).
+  It is not created by mining subsidy, not by governance, and not by a
+  1:1 swap. New RES appears only in a **body transaction** that destroys
+  ORU (`OP_CONVERGE`) and mints Witness v1 RES in the **same
+  transaction** at protocol cost `destroy_cost(h)`. RES is **deterministically
+  issued** after protocol-defined conditions. It is not mined.
 
-**Convergence** is the core mechanism. Eligible economic actions (ORU
-committed into an unspendable Convergence burn) form a public candidate set. Two roots bind that set:
-**Convergence Root** and **Draw Candidate Root**. Every honest node
-computes the same winner from the same public bytes. Fairness is a hash
-inequality over a `2^256` space. **Deterministic Reserve Issuance** uses
-shipping numbers **`E = 246`**, mint cost **`C = 1024` ORU per RES mint**,
-expected wins per committed ORU ≈ `n / 1024`. Historical RFC-014 / retired
-design: `2^240 / 2^256 = 1/65536` (`C = 65536` ORU). **Not an active
-consensus parameter.** That identity is **not** the shipping target. Selection is
-not a committee decision.
+**Convergence** is the core mechanism. A user destroys ORU in an
+`OP_CONVERGE` output. The same transaction MAY mint RES atoms `R` when
+`R · (2²⁵ + h)² ≤ B << 40` at the confirming height.
+`destroy_cost(0) = 102400000000` (1024 ORU per 1 RES).
+`destroy_cost(h)` is a **protocol cost**, not a market quote.
 
 **Zero Trust** means a stranger does not accept a website or explorer
 verdict. Public data is recomputed locally. Equal bytes are accepted.
@@ -123,33 +119,31 @@ miners participate (including the **Windows** path), and how verification
 is layered. It does not claim protocol-to-binary equivalence or mainnet
 completion.
 
-```
-equivalence_claimed = false
-```
-
 ---
 
 ## Contents
 
-1. The Security Budget Problem of Single-Asset Blockchains
-2. Dual-Asset Economic Architecture
-3. Minimal Script Architecture
-4. Convergence Consensus Architecture
-5. Mathematical Fairness
-6. Mining Architecture
-7. Self-Proving Blockchain
-8. Formal Verification Architecture
-9. Ecosystem and Roadmap
+1. Why Two Assets Must Exist (ORU and RES)
+2. The Rules That Implement the Split
+3. Native UTXO Identities
+4. Convergence: The One-Way Bridge
+5. Checkable Mathematics
+6. Proof-of-Work: Shared Height, Paid in ORU
+7. Recompute Locally
+8. The Formal Boundary
+9. Product Surfaces: A Display Remains a Display
 10. Appendix
 
 ---
 
-# Chapter 1 — The Security Budget Problem of Single-Asset Blockchains
+# Chapter 1 — Why Two Assets Must Exist
 
 This chapter states **why RIGOR exists** before later chapters state how
-it works.
+it works. The claim is architectural, not a market forecast. The expanded
+form is [`chapters/01-single-asset-problem.md`](./chapters/01-single-asset-problem.md)
+(Chinese: [`chapters/01-single-asset-problem.zh.md`](./chapters/01-single-asset-problem.zh.md)).
 
-A typical public chain forces **one** asset to perform three roles:
+A public proof-of-work chain must do three jobs at once:
 
 ```
 Medium of Exchange
@@ -159,1508 +153,853 @@ Store of Value
 Security Incentive
 ```
 
-Those roles are not the same job.
+A typical single-asset design, especially one with a declared finite
+supply, asks **one** native unit to perform all three. Those jobs are not
+the same job. Their users do not share a time horizon, a fee tolerance, or
+a reason to transact. The result is the **security-budget problem**: after
+the subsidy ends, nobody who benefits from long-run security is the party
+who generates the fees that are supposed to pay for it.
 
-## 1.1 Medium of Exchange
+## 1.1 Two users, two motives
 
-A medium of exchange is the unit people use to move value.
+A **medium of exchange** is the unit people use to move value. MoE users
+treat the network as a peer-to-peer transfer system. They care about fee
+cost in an external unit and confirmation. Exposure to network-security
+risk is often momentary. Payment services can buy, send, and sell in one
+motion. For them, the asset must **circulate**. They will not voluntarily
+fund a security budget whose benefit they barely consume.
 
-Users in this role require:
+A **store of value** is the unit people hold because it is scarce and the
+rules are stable. SoV users treat the network as the protocol that
+protects a scarce native stock across time. Transfer is only the on-ramp
+and off-ramp. They care about long-term security and decentralisation.
+Transaction costs can be amortised over long holding periods. These users
+**would** pay for continuous protection — but they almost never transact.
 
-- low transaction cost
-- usability
-- liquidity
+| Role | Time horizon | What they want | What they contribute to miner payment |
+|------|--------------|----------------|---------------------------------------|
+| Medium of exchange | Minutes to hours | Cheap, frequent transfers | Fees — and they resist high fees |
+| Store of value | Years | Scarcity and permanent protection | Almost no transactions, so almost no fees |
+| Miners | Every block, forever | Predictable payment for hashpower | Protection of the *entire* history, not only the current block |
 
-They treat the network as a transfer system. Exposure is often momentary.
-Many acquire the unit just in time to pay a fee or a transfer and do not
-hold it as a long-term reserve. For them, the asset must **circulate**.
+A single unit is asked to be, at once: the thing people spend, the thing
+people hold, and the thing that pays for hashpower. Making it “something
+people are willing to spend” fights making it “something people are
+willing to hold and pay to secure.”
 
-## 1.2 Store of Value
+## 1.2 Finite supply locks the store-of-value story
 
-A store of value is the unit people hold because it is scarce and the
-rules are stable.
+A declared hard cap does not merely limit issuance. It **selects a
+narrative**. Once the market treats the unit as a scarce reserve, rational
+holders prefer to accumulate rather than spend. Velocity falls. The fee
+market that was supposed to replace the subsidy never appears at the scale
+the security budget requires.
 
-Users in this role require:
+The mechanism is not classical Gresham (which needs a legally fixed
+exchange rate between two monies). Here there is one unit. Circulation is
+suppressed by an **appreciation expectation**: the same object is more
+valuable held than spent.
 
-- scarcity
-- long-term security
-- predictable monetary policy
+The deeper mismatch is temporal. Miner hashpower protects the
+immutability of every prior block, not only today’s. A store-of-value
+user consumes that protection for as long as they hold. A one-shot
+inclusion fee cannot cover a perpetual service. Asking SoV users to pay
+for continuous security with a payment that only occurs when they *stop*
+holding is incentive-incompatible.
 
-Transaction costs can be amortized over long holding periods. Circulation
-is secondary. The asset must **remain scarce**.
+## 1.3 Two paths, one constraint
 
-## 1.3 Security incentive
+Bitcoin is the canonical single-asset, finite-supply design. It has been
+asked to become a medium of exchange and, separately, a store of value.
+Both paths fail for complementary reasons. They are two faces of the same
+constraint.
 
-Proof-of-work security is paid in the native asset. Miners require
-**sustainable rewards**. Early security is usually paid by a block
-subsidy. If that subsidy declines toward zero, security is expected to be
-paid by fees alone.
+**Path A — Bitcoin as MoE.** Users need not hold the asset; they price
+the external cost of the fee. Fixed block time and size make successful
+adoption raise fees and lose MoE competitiveness. Faster or larger blocks
+buy cheaper inclusion at the cost of security and decentralisation.
 
-## 1.4 Why one asset creates tension
+**Path B — Bitcoin as SoV.** Holders will tolerate fees. They will not
+tolerate an insecure or captured chain. After the last subsidy, miners
+are paid only by fees. A successful SoV culture is exactly a culture that
+does not transact. Whether fees replace issuance is an open question. It
+is not a protocol rule. It is a hope.
 
-| Role | What they want | What they contribute to security |
-|------|----------------|----------------------------------|
-| Medium-of-exchange users | Cheap, frequent transfers | Fees — but they resist high fees |
-| Store-of-value users | Scarcity and permanent protection | Few transactions, so few fees |
-| Miners | Predictable payment for hashpower | Security of the chain |
+The large-block attempt to force Path A does not escape Path B. Supply is
+still finite, so the market still attaches some reserve premium. The
+result is empty extra block space, a valuation discount relative to the
+scarce-reserve story, and the same unpaid security budget.
 
-A store-of-value culture **discourages** frequent spending. A
-medium-of-exchange culture **needs** spending. Miner security needs a
-budget that does not disappear when holders stop transacting.
+```
+finite supply + one asset
+        │
+        ├─ emphasise scarcity  →  hoarding  →  thin fees  →  post-subsidy security gap
+        │
+        └─ emphasise throughput →  weaker SoV premium
+                                   + still-finite supply
+                                   →  neither a working fee market
+                                   nor a clean reserve
+```
 
-A single asset is asked to be, at once:
+A single finite-supply asset cannot simultaneously make people willing to
+spend it and willing to hold it for decades.
 
-1. the thing people spend
-2. the thing people hold
-3. the thing that pays for hashpower
+## 1.4 Who pays the miners
 
-If issuance continues forever, the reserve story weakens.  
-If issuance ends, the miner budget must be carried by fees that
-store-of-value holders have little reason to generate.  
-If the same unit is both fee-fuel and digital reserve, holders are
-punished for using the network.
+Network security is a **flow** (continuous protection of history). A fee
+is a **spot** payment for inclusion. Funding the first with the second is
+a category error.
 
-Relying on perpetual price appreciation to enlarge a shrinking subsidy is
-not a protocol rule. It is a hope. That is the security-budget problem of
-single-asset proof-of-work systems.
+Inflation-based block reward is the incentive-compatible instrument for a
+store-of-value network: holders pay, in proportion to duration, by
+accepting dilution. Placed on the **same** unit that is supposed to be
+the store of value, that instrument destroys the reserve story. Placed on
+no unit at all, it leaves miners unpaid after the subsidy.
+
+```
+            cheap circulation
+                 / \
+                /   \
+               /     \
+        finite      perpetual
+        scarcity    miner budget
+```
+
+Pick two. Bitcoin picks finite scarcity and hopes the third vertex
+appears as fees. Perpetual issuance on the same ticker picks the miner
+budget and gives up the reserve. RIGOR refuses to pick two on one ticker.
+It assigns the vertices to two assets and couples them.
+
+## 1.5 The split — RFC-020
+
+**ORU** is the medium of exchange and the miner-payment asset. Flat
+subsidy: `subsidy(0) = 0`, `subsidy(h ≥ 1) = 128` ORU. No halvings. No
+declared ORU cap. Inflation *rate* decays as `1/t`. Residual inflation
+*level* is `1 − ρ`, where `ρ` is the fraction of emitted ORU ever
+destroyed to create RES. Hardness is a function of demand, not of a
+number written at genesis. Users can spend ORU without sacrificing a
+reserved position.
+
+**RES** is the store of value. It is not mined. There is no reverse
+conversion. It is created only in a body transaction that destroys ORU
+(`OP_CONVERGE`) and mints Witness v1 RES when
+`R > 0 → R · (2²⁵ + h)² ≤ B << 40`. Display form:
+`destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES. The cost
+is strictly increasing, so an earlier mint pays less per RES for a longer
+remaining span of protection — duration-proportional payment, encoded as
+a height function. The ceiling `2²² = 4 194 304` RES is the closed-form
+integral of the per-block mint ceiling. It needs **no consensus
+counter**: any delay yields strictly less RES. Realised stock is
+`ρ · 2²²`.
+
+```
+work                      →  ORU subsidy (128 / block)
+RES demand at the ceiling →  ORU destroy          (RFC-020)
+RES transfers             →  ORU fee destroy      (RFC-018)
+ρ                         →  realised RES stock and residual ORU inflation
+```
+
+`destroy_cost(h)` is a protocol destroy requirement, not a market quote.
+
+## 1.6 After the split
+
+Hoarding is isolated on RES. ORU can develop a fee market without
+competing with a reserve narrative on the same unit. The miner budget has
+a protocol floor — 128 ORU every block — that does not depend on SoV
+holders transacting. When RES demand exists at the ceiling, that demand
+is an ORU sink. The protocol does not invent the demand. It converts
+demand, when it exists, into destroyed ORU and a paid miner.
+
+ORU alone is a work-payment asset with no scarce stock. RES alone is a
+capped stock with no way to pay hashpower. The pair is not an optional
+optimisation. It is the exit from the defect.
+
+This chapter does not target an external price, does not assert that `ρ`
+will be high, and does not claim C++ equivalence to the kernel model.
+Year-1 RES issuance is at most about 6 564 even at `ρ = 100%`. A market
+too thin to discover any ratio cannot transmit demand into destroy. That
+is an adoption risk, not a consensus hole.
 
 **RIGOR’s answer is not a market promise. It is an asset split at
-consensus.** ORU takes utility and miner payment, including a permanent
-tail. RES takes scarcity, and is created only through Convergence.
+consensus.** Chapter 2 states the rules that implement the split.
 
 ---
 
-# Chapter 2 — Dual-Asset Economic Architecture
+# Chapter 2 — The Rules That Implement the Split
+
+Chapter 1 assigned the three vertices to two assets. This chapter writes
+that split as frozen rules. The claim is still architectural: the protocol
+fixes a **transform**, not a price and not a participation rate. The
+expanded form is [`chapters/02-two-assets.md`](./chapters/02-two-assets.md)
+(Chinese: [`chapters/02-two-assets.zh.md`](./chapters/02-two-assets.zh.md)).
 
 ```
-PoW  →  ORU  →  Convergence  →  RES
+PoW discovers and orders
+        ↓
+ORU enters circulation (coinbase, 128 per block)
+        ↓
+ORU is destroyed (OP_CONVERGE)
+        ↓
+the same body transaction MAY mint RES
 ```
 
-Proof-of-work discovers blocks and orders history. Proof-of-work **does
-not** create RES.
+Proof-of-work discovers blocks and gives irreversible height order. It
+**does not** create RES. No Convergence → no new RES.
 
-| Role | Asset | Design target |
-|------|-------|----------------|
-| Medium of exchange | **ORU** | Usage, fees, miner budget |
-| Store of value | **RES** | Scarcity; designed to provide long-term monetary separation between transactional liquidity and a capped reserve |
+## 2.1 One mechanism, not two isolated tickers
 
-## 2.1 ORU — Medium of Exchange Asset
-
-**ORU** is optimized for **usage**.
-
-Role:
-
-- transaction medium
-- fee payment
-- miner security budget
-- Convergence entry weight
-
-| Property | Frozen rule |
-|----------|-------------|
-| Script path | Witness v0 |
-| Unit | `1 ORU = 100,000,000` base units |
-| Initial subsidy | **1000 ORU** per block |
-| Halving interval | **210,000** blocks |
-| Sequence | **1000 → 500 → 250 → 125** |
-| Tail emission | **125 ORU** per block forever |
-| Supply law | `S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)` |
-| Minimum Convergence | **1 ORU** |
-
-Issuance is **predictable**: a height-indexed function, integer-only, no
-discretionary last reward. After three halvings the subsidy **locks**.
-That permanent tail is the protocol’s answer to miner sustainability:
-security is paid in the **utility** asset, not by inflating RES.
-
-ORU is meant to move. Committed ORU leaves circulating supply (`C(h)`)
-and becomes draw weight. It does not convert 1:1 into RES.
-
-## 2.2 RES — Store of Value Asset
-
-**RES** is optimized for **scarcity**.
-
-Role:
-
-- scarce value storage
-- designed to provide long-term monetary separation between transactional
-  liquidity (ORU) and a capped reserve (RES)
-
-RES is **not** created by:
-
-- mining subsidy
-- governance decision
-- arbitrary issuance
-- a 1:1 ORU swap
-- coinbase
-
-RES creation requires economic cost:
+Free convertibility would re-merge the pair into one asset. No coupling
+at all would again detach the miner budget from the scarce stock. The
+protocol admits only this path:
 
 ```
-ORU Convergence
-        |
-        |
-Economic cost (ORU leaves supply)
-        |
-        |
-deterministic draw
-        |
-        |
-RES creation (body mint, if a winner)
+work → ORU
+ORU destroy → (may) RES
+RES → ORU    illegal
 ```
 
-Public relation (not a 1:1 mint function):
+`destroy_cost(h)` is a protocol destroy requirement, not a market quote.
+Users **mine ORU**. Users **destroy ORU**. The same transaction **may**
+mint RES. That sentence must not be shortened to “mine RES”.
+
+## 2.2 ORU — rules for the flow
 
 ```
-New RES  =  f(ORU Converged)
+subsidy(0) = 0
+subsidy(h) = 128 ORU          for every h ≥ 1
+S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 ```
 
-`f` is the frozen draw: committed ORU is weight `f_i`; a successful
-selection mints **exactly `W(h)` RES** (`GetResMintReward`); otherwise
-the block mints **0**. `W(0) = 40.000000 RES` and decays on the
-Deterministic Reserve Issuance height schedule; issuance of a non-zero
-`W` stops after epoch 250.
-Whether a given block mints is **not** calendar-guaranteed — that still
-depends on Convergence. The amount paid **if** a mint occurs is a
-height-indexed protocol function.
+No halvings. No declared ORU cap. The inflation **rate** decays as
+`1/t`. Residual inflation **level** is `1 − ρ`. Under `ρ = 100%`,
+circulating ORU is exactly constant. No fixed cap can express that. That
+is why ORU does not get one.
 
-| Property | Frozen rule |
-|----------|-------------|
-| Script path | Witness v1 (not CVG2) |
-| Unit | `1 RES = 1,000,000` atoms (six decimal places) |
-| Maximum supply | **21,000,000 RES** |
-| Per successful mint | **`W(h)`** (40.000000 RES at genesis) |
-| Per block | `M(h) ∈ {0,1}` |
-| Ledger origin | Non-coinbase mint in the **block body** |
-| Receiver | Winner’s declared RES program — **not** the miner |
+The 128 is the miner-budget floor in the utility asset. It does not
+depend on RES demand or on fees. Spending ORU is not spending the scarce
+stock. A positive atom is a legal plain destroy. The destroy that mints
+one RES atom at genesis is 1 024 ORU atoms.
+
+## 2.3 RES — rules for the stock
+
+RES is not mined, not issued by governance, not swapped 1:1, and not
+convertible back. Consensus evaluates
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+R = 0  →  B unconstrained
+```
+
+Display form: `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰`,
+`destroy_cost(0) = 1024` ORU per whole RES. The cost is strictly
+increasing. An earlier mint pays less per RES for a longer remaining
+span of protection. Receiver is the minting transaction’s RES outputs,
+**not** the miner. Mint maturity 100 is reorg protection. There is no
+per-block mint cap.
 
 ```
 S_RES(0) = 0
-S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
-S_RES(h) ≤ 21,000,000
+S_RES(h+1) = S_RES(h) + body_mint_atoms(h+1)
+S_RES(h) ≤ 419430400000000
 ```
 
-There is no premine and no administrative mint.
+Whether a mint occurs is demand-driven. The cost **if** it occurs is a
+pure function of height.
 
-### Where each asset is born
+## 2.4 Where the parameters come from
 
-| | **ORU** | **RES** |
-|--|---------|---------|
-| Role | PoW security budget + fees + Convergence weight | Independent scarce asset |
-| Classification | Witness v0 | Witness v1 (not CVG2) |
-| Ledger origin | Coinbase subsidy `R(h)` | One non-coinbase body mint |
-| Per block | 1000 → 500 → 250 → 125 forever | `W(h)` RES or 0 |
-| Who receives it | Miner (coinbase script) | Draw winner — not the miner |
-| Cap | No hard cap (tail inflation) | 21,000,000 RES (schedule cannot exhaust the cap even if every block mints) |
-| Calendar | Height-indexed subsidy | Amount `W(h)` is height-indexed; occurrence of a mint is not |
-
-**ORU is created in coinbase. RES is created in the block body after
-Convergence.**
-
-Protocol-enforced: `S_RES ≤ 21,000,000`, and a winner **must** be paid
-`W(h)` RES or the block is invalid.  
-Not guaranteed: a mint in every block, or that 21 million fills on a date.
-
-**RES has a maximum supply of 21,000,000. Actual circulating supply depends on
-Convergence participation.** Do not read the cap as a calendar promise that
-21 million will necessarily be reached.
-
-### Deterministic Reserve Issuance — formal summary
-
-RES is **not** created by Proof-of-Work. RES is deterministically issued
-after protocol-defined conditions:
-
-- fixed issuance schedule
-- bounded maximum supply
-- Convergence-triggered authorization
-- deterministic mint amount calculation
-
-RES issuance is:
-
-- **demand-driven in occurrence** — a mint happens only if Convergence produces a winner;
-- **deterministic in amount** — if a mint occurs, the amount is exactly `W(h) = GetResMintReward(h)`;
-- **cost-escalating** — with constant draw target `T`, the protocol cost floor `C / W(k)` weakly rises as `W(k)` decays;
-- **mathematically bounded** — even if every block from genesis through epoch 250 mints, issuance stays strictly below 21M (`210000 × 99450437` atoms).
+Every issuance parameter is a power of two. The cap is the product of
+three of them:
 
 ```
-k = height / 210000
-W(k) = floor(40·RES_COIN · (k+1)^(-3/2))   for 0 ≤ k ≤ 250
-W(k) = 0                                   for k > 250
+RES_MAX_SUPPLY = (S / P0) · H = 2⁷ / 2¹⁰ · 2²⁵ = 2²² = 4 194 304 RES
 ```
 
-Formally verified **monetary invariants** live in `ResSchedule.v` (cap finite sum,
-termination, reward / cost-floor monotonicity). This is **not** a claim of
-C++↔Coq refinement (`equivalence_claimed = false`).
+`RES_DESTROY_SHIFT = 40` is forced: `40 = 50 − log₂(1024)`. Because
+`destroy_cost` is strictly increasing, the closed-form integral is an
+upper bound that **needs no consensus counter**. Delaying a destroy
+yields strictly less RES. Realised stock is `ρ · 2²²`. Cumulative
+through height `h` is `cap · h / (h + 2²⁵)`. The pole `h = 2²⁵` is the
+median of the `ρ = 100%` distribution (year 638; about 4 096 ORU per
+RES).
 
-**No Convergence → No RES.**
+The `ρ = 100%` year-1 ceiling is about 6 564 RES. Thin early float pins
+any working secondary ratio to the mint ceiling. A market too thin to
+discover any ratio cannot transmit demand into destroy.
 
-The following is **economic analysis**, not a consensus guarantee:
-more Convergence demand increases the number of public candidates in `F`,
-which increases competition for the single winner slot. Individual
-eligibility still depends only on the published hash-space inequality
-and weight `f_i`.
+## 2.5 The second sink — RFC-018
 
-## 2.3 RIGOR Monetary Architecture
+RFC-020 prices RES creation. RFC-018 destroys `floor(fee / 2)` of the
+ORU fee on RES **transfers**. Pure ORU spends and Convergence itself do
+not take this half. Four ORU quantities must stay separate: ledger
+supply (issued minus `C(h)`), circulating UTXO, Convergence destroy, and
+fee destroy. Consensus does not keep a global supply table.
 
-RIGOR separates monetary functions. The two native assets do different
-jobs, and four ORU quantities must not be collapsed into one “supply”
-number.
+## 2.6 Enforced vs not guaranteed
 
-### ORU
+**Enforced:** the mint predicate; no RES→ORU; `S_RES` at or below the
+derived ceiling. **Not guaranteed:** that anyone destroys ORU, that the
+ceiling is filled, that a secondary market exists, or that `ρ` lands in
+any band.
 
-ORU is the PoW security asset and the transaction-fee asset. It is:
-
-- issued by height-indexed coinbase subsidy (`1000 → 500 → 250 → 125` forever)
-- destroyed through Convergence (unspendable burn / draw participation)
-- affected by **Deflationary Fee Burn**
-
-ORU has no absolute cap. The 125 ORU tail is permanent miner payment in
-the utility asset. That is not an “unlimited reserve.” It is a locked
-subsidy floor.
-
-### RES
-
-RES is the reserve asset. It has:
-
-- deterministic issuance (not mining)
-- capped supply (**21,000,000 RES**)
-- creation only through protocol-defined mint authorization
-
-Script classification alone does not create RES. A mint requires
-block-level authorization, the Deterministic Reserve Issuance schedule,
-and Convergence conditions.
-
-### Deflationary Fee Burn
-
-**Deflationary Fee Burn** is a protocol-level ORU destruction mechanism.
-Eligible transaction-fee components are permanently removed from
-circulation. It is:
-
-- not stored as global consensus supply state
-- not a wallet balance
-- not a UTXO
-- not a miner-controlled parameter
-- independently observable through explorer/indexer statistics
-
-Eligible share: `floor(fee / 2)` of **RES-transfer** ORU fees is not
-claimable in coinbase. That share never becomes a UTXO. Convergence
-destruction and fee-burn destruction are **two distinct sinks**.
-
-### Four quantities that must stay separate
-
-| Quantity | What it is | What it is not |
-|----------|------------|----------------|
-| ORU supply ledger | RFC-002 path: issued subsidy minus Convergence `C(h)` | Circulating UTXO, fee burn, or a wallet balance |
-| Circulating UTXO supply | Spendable Witness v0 ORU still in the UTXO set | The ledger path, Convergence burned, or fee burned |
-| Convergence destruction | ORU committed to an unspendable Convergence burn | Deflationary Fee Burn |
-| Deflationary Fee Burn | Unclaimed RES-transfer ORU fee share | Convergence `C(h)` or a burn UTXO |
-
-Do not mix these four. Explorer statistics may display each separately.
-None of them is a consensus global asset-state table.
-
-## 2.4 Why two assets are rare
-
-Most public chains launched as one ticker. That design is easier:
-
-- smaller wallet surface
-- simpler listings
-- simpler consensus accounting
-- shorter user vocabulary
-
-A dual-asset design adds:
-
-- engineering complexity (two script paths, two supply laws)
-- harder economic balancing (tail inflation on ORU vs hard cap on RES)
-- additional consensus requirements (Convergence set, roots, body mint,
-  fail-closed winner payment)
-
-RIGOR **intentionally accepts** that complexity so medium of exchange and
-store of value are not the same consensus object.
-
-1. ORU can keep a tail subsidy without claiming that the reserve inflates.
-2. RES can keep a 21 million cap without starving miner payment.
-3. RES entry is costly and public — ORU Convergence, not an admin mint.
-
-This is an architectural choice. It is not a price forecast.
-
-How those two identities exist on the ledger — as native UTXO scripts,
-not as tokens or overlays — is Chapter 3.
+**The rules fix the transform. Whether demand arrives is not a rule.**
+How the two identities exist on the ledger as native UTXO scripts — not
+as a registry, and not as an overlay — is Chapter 3.
 
 ---
 
-# Chapter 3 — Minimal Script Architecture
+# Chapter 3 — Native UTXO: How the Two Identities Exist on the Ledger
 
-Standalone chapter file:
-`docs/whitepaper/chapters/RIGOR_MINIMAL_SCRIPT_ARCHITECTURE.md`.
+Chapter 2 wrote the three vertices as frozen rules. This chapter states
+how those two identities exist as ledger objects. The protocol fixes
+**objects and classification**, not an off-chain registry and not a
+colour on a single UTXO. The expanded form is
+[`chapters/03-native-utxo.md`](./chapters/03-native-utxo.md)
+(Chinese: [`chapters/03-native-utxo.zh.md`](./chapters/03-native-utxo.zh.md)).
+Engineering audit:
+[`chapters/RIGOR_MINIMAL_SCRIPT_ARCHITECTURE.md`](./chapters/RIGOR_MINIMAL_SCRIPT_ARCHITECTURE.md).
 
-RIGOR inherits the battle-tested Bitcoin UTXO architecture while reducing
-execution complexity, limiting script capability, enforcing strict asset
-isolation, and minimizing consensus attack surface.
+If ORU and RES were only annotations on one output, Chapter 1’s split
+would not have happened. A registry can credit RES without a destroy. An
+inscription can stick a store-of-value story back onto the medium of
+exchange. The split must be the same classification every full node
+reads from the same bytes.
 
-## 3.1 Why minimal script architecture
-
-RIGOR does not attempt to compete with programmable blockchain platforms.
-
-Instead, RIGOR focuses on:
-
-- monetary integrity
-- deterministic consensus
-- verifiable asset ownership
-- minimized attack surface
-
-A blockchain securing monetary value does not necessarily require
-unlimited programmability. More code paths create more possible
-failures. A smaller execution surface creates stronger verification
-capability.
-
-The goal is not maximum programmability. The goal is maximum
-verifiability.
-
-RIGOR minimizes script complexity rather than eliminating scripts. The protocol intentionally restricts execution semantics to preserve deterministic verification and reduce consensus attack surface.
-
-RIGOR is a Bitcoin-derived UTXO architecture, a native dual-asset system,
-a restricted script environment, and a deterministic validation system.
-It is not a general-purpose programmable blockchain, a smart contract
-platform, an EVM-compatible chain, a Taproot extension, a token layer,
-a colored coin system, or an inscription/Rune system.
-
-Official registry: `docs/security/RIGOR_SCRIPT_TYPE_REGISTRY.md`.
-
-```
-Less capability
-       ↓
-Less complexity
-       ↓
-Smaller attack surface
-       ↓
-Stronger mathematical verification
-```
-
-## 3.2 Bitcoin UTXO foundation
-
-RIGOR is based on the Bitcoin UTXO model.
+## 3.1 The ledger object is still a UTXO
 
 ```
 TxOut = (nValue, scriptPubKey)
 ```
 
-**Explicit ownership.** Each asset exists as an unspent transaction
-output.
+No account model as consensus truth. No parallel `asset` field. No
+`(asset, value, script)` triple. Ownership changes only by spending
+previous outputs and creating new ones. The same accepted block bytes
+must produce the same validity decision.
+
+## 3.2 Script classifies; consensus legitimates
+
+`AssetTypeFromScriptPubKey` reads witness version and program shape:
 
 ```
-Previous UTXO
-      |
-      |
-Transaction Validation
-      |
-      |
-New UTXO Owner
+script shape → ORU | RES | NONE | INVALID
 ```
 
-No hidden balances. No global mutable account state.
+**Script defines identity; consensus defines legitimacy.** Parsing
+Witness v1 is not a legal mint. Birth of RES still requires
+`OP_CONVERGE` in the same transaction and
+`R > 0 → R · (2²⁵ + h)² ≤ B << 40`. Script alone does not authorize
+asset creation.
 
-**Deterministic validation.** Every node independently verifies
-transaction inputs, outputs, signatures, asset rules, and consensus
-conditions. The same input must produce the same validation result.
+## 3.3 Closed templates
 
-**Proven security model.** Bitcoin’s UTXO architecture has operated at
-global scale for many years. RIGOR preserves this proven foundation
-while reducing unnecessary complexity.
+Production has **no Script VM**. Bytes are classified. Spends go through
+`VerifyRigorPredicate`.
 
-## 3.3 Script defines asset identity
+| Shape | Asset | Spendable |
+|-------|-------|-----------|
+| Witness v0, 20-byte | ORU | Yes |
+| Witness v1, 32-byte | RES | Yes |
+| `<HASH160> 0xbd` | ORU (destroy) | No — not a UTXO |
+| Zero-value `0x6a` | NONE | No |
+| Anything else | INVALID | — |
 
-In RIGOR, asset identity is not stored as external metadata. The script
-structure itself defines the asset domain.
+Coinbase `0xbb` is not the RFC-020 mint path. P2PKH, P2SH, P2WSH,
+Taproot, and secp256k1 spends are consensus-invalid. **Witness v1 is
+not Bitcoin Taproot.**
 
-```
-Script Structure
-        |
-        |
-Asset Classification
-        |
-        |
-Validation Rules
-```
+Conservation is per asset pool: ORU inputs cannot fund RES outputs;
+RES inputs cannot fund ORU outputs. The only one-way exception is
+Chapter 2’s destroy-to-mint. The new RES is a new UTXO, not a colour
+on the old output.
 
-This avoids hidden asset metadata, external indexing dependency, and
-inconsistent interpretation. **Script is the compliance/classification
-layer.** Asset class is inferred from `scriptPubKey`. Asset ownership
-and transfer are enforced through UTXO consumption, script validation,
-signature verification, and consensus predicates.
+## 3.4 Not a registry, not an overlay
 
-Script alone does not authorize asset creation. RES creation requires
-block-level authorization, the Deterministic Reserve Issuance schedule,
-and Convergence conditions.
-
-## 3.4 Dual native asset architecture
-
-ORU and RES are **not** colored coins, Bitcoin inscriptions, Ordinals,
-Runes, smart contract tokens, wrapped assets, or external accounting
-layers.
-
-They are **native UTXO assets**. Both are first-class protocol-native
-assets.
-
-> ORU and RES are two native asset identities inside the RIGOR UTXO system. Neither asset is a secondary representation of another asset.
-
-Both exist at the same protocol layer. There is no parent-child asset
-relationship.
-
-**ORU** — Medium of Exchange. Transactional asset, mining reward,
-network utility, liquidity layer. Spendable path: Witness v0.
-Convergence commitment: Witness v1 CVG2 (ORU-domain, unspendable).
-
-**RES** — Store of Value. Scarcity asset, capped supply,
-convergence-based creation, long-term holding asset. Witness v1
-(not CVG2).
-
-## 3.5 Script restrictions and attack surface reduction
-
-RIGOR intentionally limits script functionality.
-
-RIGOR does **not** provide a general-purpose VM, arbitrary smart
-contracts, a programmable execution layer, Turing-complete execution,
-or unrestricted programmable state.
-
-RIGOR **does** provide constrained transaction validation,
-asset-specific script rules, and deterministic verification logic.
-
-RIGOR minimizes script complexity rather than eliminating scripts. The protocol intentionally restricts execution semantics to preserve deterministic verification and reduce consensus attack surface.
-
-Security benefits — reduced execution complexity, consensus bugs,
-unexpected state transitions, and verification burden.
-
-> Every additional execution capability creates additional consensus responsibility.
-
-## 3.6 RIGOR script model
-
-Scripts exist. A general-purpose VM does not. RIGOR minimizes script
-complexity rather than eliminating scripts.
-
-Actual execution surfaces: Witness v0 (ORU P2WPKH / native Ed25519),
-**P2WSH** (largest inherited inner-script surface), Witness v1 RES
-key-path, Ed25519 signature verification, and CVG2 structural
-validation.
-
-**Witness v0** is used for Bitcoin-compatible UTXO spending and the
-compatibility layer (ORU: P2WPKH and P2WSH). P2WSH remains the largest
-inherited execution surface; inner-script CHECKSIG is Ed25519 only.
-
-**Witness v1 reserved usage:** Convergence outputs, native asset
-programs, Ed25519 ownership model.
-
-**Witness v1 is not Bitcoin Taproot.** RIGOR does not inherit BIP341
-Taproot execution semantics. Control blocks, annex, and tapscript are
-absent from the consensus path.
-
-Allowed chain outputs: witness v0 (20- or 32-byte program), witness v1
-with a 32-byte program, and zero-value `OP_RETURN`. New P2PKH / P2SH /
-bare outputs are consensus-invalid. secp256k1 CHECKSIG hard-fails.
-
-## 3.7 Convergence script architecture
-
-Convergence is not a smart contract. It is a deterministic consensus
-mechanism.
+ORU and RES are not colored coins, inscriptions, Ordinals, Runes,
+contract units, or wrapped assets. Neither is a secondary representation
+of the other. The split happens in consensus, not in the explorer.
 
 ```
-Eligible ORU Transactions
-
-
-        |
-
-
-Convergence Root
-
-
-        |
-
-
-Winner Selection
-
-
-        |
-
-
-RES Creation
+Less capability → less complexity → smaller attack surface
+→ more feasible mathematical verification
 ```
 
-Convergence outputs are protocol-controlled objects (CVG2, ORU-domain,
-unspendable, not inserted into the UTXO set). They do not introduce
-arbitrary execution.
+The goal is maximum verifiability, not maximum programmability.
 
-## 3.8 Why RIGOR rejects complex script systems
-
-Complex scripting creates a larger audit scope, more edge cases, and
-more formal verification difficulty.
-
-RIGOR approach:
-
-```
-Less capability
-
-
-       ↓
-
-
-Less complexity
-
-
-       ↓
-
-
-Smaller attack surface
-
-
-       ↓
-
-
-Stronger mathematical verification
-```
-
-## 3.9 Formal verification relationship
-
-Formal verification becomes more realistic when state transitions are
-limited, execution paths are restricted, and rules are deterministic.
-
-RIGOR's minimal script design is not a limitation.
-
-It is a prerequisite for stronger mathematical assurance.
-
-```
-equivalence_claimed = false
-```
-
-Website: `/documentation/security/minimal-script-architecture`.  
-GitHub: `docs/security/minimal-script-architecture.md`.  
-Audit: `docs/security/RIGOR_MINIMAL_SCRIPT_CONSISTENCY_AUDIT.md`.  
-Registry: `docs/security/RIGOR_SCRIPT_TYPE_REGISTRY.md`.
+**Identity lives in the script. Legitimacy lives in consensus.**
+How Convergence is verified as that one-way bridge is Chapter 4.
 
 ---
 
-# Chapter 4 — Convergence Consensus Architecture
+# Chapter 4 — Convergence: How the One-Way Bridge Is Verified
 
-Convergence is the **core innovation**. Dual assets without a public,
-deterministic bridge would only be two tickers. Convergence is that bridge.
+Chapter 3 gave two native identities. Without a public, deterministic
+bridge they are two unrelated ledger objects. This chapter states how
+every full node verifies that bridge. The expanded form is
+[`chapters/04-convergence.md`](./chapters/04-convergence.md)
+(Chinese: [`chapters/04-convergence.zh.md`](./chapters/04-convergence.zh.md)).
 
-## 4.1 What is Convergence?
-
-**Convergence is not:**
-
-- a lottery UI
-- a random reward assigned by an operator
-- a centralized selection
-- mining
-- a 1:1 exchange counter
-
-**Convergence is:**
-
-> A deterministic cryptographic selection process over eligible economic
-> actions.
-
-The economic action is: commit **≥ 1 ORU** into a **CVG2** output. That
-output is unspendable. The ORU leaves circulating supply and becomes
-weight `f_i` in candidate set **F**. If the commitment is eligible and
-selected, the paying block must mint **`W(h)` RES** in its **body** to
-the winner’s declared Witness v1 program.
+The protocol fixes **one visible destroy, and an integer predicate in
+the same transaction**. It does not fix that anyone will destroy.
 
 ```
-ORU committed (CVG2, unspendable)
+ORU inputs
         ↓
-weight f_i in candidate set F
+exactly one OP_CONVERGE output, amount B (destroyed, not a UTXO)
         ↓
-deterministic draw
+Witness v1 RES outputs summing to R, same body transaction
         ↓
-maybe a RES mint — never a 1:1 swap
+at confirming height h: R > 0 → R · (2²⁵ + h)² ≤ B << 40
 ```
 
-## 4.2 Convergence Root
+No Convergence → no new RES.
 
-**Convergence Root** is the **deterministic commitment to eligible
-convergence transactions.**
+## 4.1 Three requirements that do not come apart
 
-It is not a user-ordered list, not a miner-chosen winner, and not a
-hidden random beacon.
+If destroy and mint sit in different transactions, the ledger has a
+window of credit. If destroy is inferred from
+`inputs − outputs − fee`, it collapses into the fee remainder. If a
+miner writes RES into coinbase, the bridge becomes miner discretion.
 
-```
-eligible transactions
-        ↓
-sort
-        ↓
-concat
-        ↓
-Hash256
-        ↓
-Convergence Root
-```
+1. **Destroy is visible** — `<HASH160> 0xbd`, value `B`, not inserted
+   into the UTXO set, ORU inputs only, at most one positive Convergence
+   output per transaction.
+2. **Mint is same-transaction** — `R` is the sum of Witness v1 outputs
+   in that body transaction. The miner who includes it receives no RES.
+3. **The predicate is integer** — same `R`, `B`, `h` ⇒ same
+   admit-or-reject. No unpublished rate.
 
-```
-Convergence_Root =
-Hash256(
-    concat(
-        sort(
-            eligible txids
-        )
-    )
-)
-```
+`R = 0` is a legal plain destroy. Ordinary RES transfers cannot create
+RES (`res_in ≥ res_out`). RES cannot convert back to ORU.
 
-Canonical form (same rule):
+## 4.2 Not a 1:1 counter, not a draw
 
-```
-C = Hash256( concat( sort_memcmp( txid_i ) ) )
-```
+A 1:1 swap would rename flow into stock and collapse Chapter 1’s
+triangle. The protocol cost rises with height. The new RES is a new
+UTXO, not a colour on the old output.
 
-| Rule | Meaning |
-|------|---------|
-| Input | Native 32-byte txids of eligible convergence transactions |
-| Order | Unsigned byte-wise sort — not arrival order, not miner preference |
-| Concatenation | Sorted bytes, no delimiters, no per-leaf Merkle tree |
-| Hash | Hash256 = SHA-256(SHA-256(·)) |
-| Boundary | If \|F\| < 2 → **C = 32 zero bytes** (no hashing). RFC-015 still allows a singleton `F` to compete for RES; the root short-circuit is unchanged. |
+A draw would hand “who receives RES” to a hash. Convergence has no
+random term. Pool policy cannot allocate RES. Changing a miner payout
+address cannot create RES. Fairness is the same public inequality, the
+same decision.
 
-**Eligible** here means the consensus membership of `F`, not mempool
-gossip order. Public predicates include: CVG2 commitment, `f_i ≥ 1 ORU`,
-a declared RES owner program, valid inputs at block entry, and a
-positive fee. Under `W = 32`, `F` is the sliding window of those
-commitments (already-paid winners in the window are excluded). Users
-and miners do not choose the sort key.
+`destroy_cost(h)` is a protocol destroy requirement, not a market quote.
+Display form is `1024 · (2²⁵ + h)² / 2⁵⁰`. Consensus never evaluates
+it. There is no per-block mint cap.
 
-**Determinism.** Same eligible set ⇒ same root ⇒ same later σ inputs ⇒
-same winner (given the same parent hash and height).
+## 4.3 When verification fails
 
-**Unpredictability.** Before the parent hash and the committed set exist,
-no participant assigns `C` or the result. This is a hash-space property,
-not hidden randomness.
+`bad-txns-res-mint-underpaid` — destroy does not cover `R`.
+`bad-txns-res-mint-no-burn` — RES output, no `OP_CONVERGE`.
+`illegal-res-to-oru-conversion` — wrong direction, or spending the
+destroy. Underpayment invalidates the whole transaction.
 
-**Anti-manipulation.** Changing the transaction set, the candidate data,
-or (if someone tried) the order of hashing inputs changes `C`, because
-the official sort is canonical. A quiet edit that favors one transaction
-while leaving `C` intact is not available. Invalid modifications are
-detectable by deterministic validation.
+Mint maturity 100 is reorg protection, the same depth as coinbase. It
+is not a wait for a draw.
 
-`C` is a function of the **set**, not of gossip order. Explorers may
-display `convergence_root`. That display is not a verdict. A verifier
-recomputes `C` from the public txid list.
-
-## 4.3 Draw Candidate Root
-
-**Draw Candidate Root** is the **deterministic commitment used for
-candidate selection after convergence eligibility is established.**
-
-**`draw_candidate_root`** is an independent object. It is not another
-name for `C`. The two roots must not be merged.
-
-After `F` and `C` are fixed, each candidate is tested against
-`H_i < T · f_i`. Draw Candidate Root commits the **inequality-eligible
-subset** — those that satisfied that filter — for the active height /
-window (`W = 32`). Winner selection (argmin) then runs only over that
-subset.
-
-| Name | Field | Commits |
-|------|-------|---------|
-| Convergence Root | `convergence_root` / `C` | Eligible convergence transactions (`F`) used as the σ set commitment |
-| Draw Candidate Root | `draw_candidate_root` | Inequality-eligible candidates after `F` is established |
-
-```
-draw_candidate_root =
-Hash256(
-    concat(
-        sort(
-            inequality-eligible txids
-        )
-    )
-)
-```
-
-Unlike Convergence Root, this digest does **not** use the `|F| < 2 → 0`
-short-circuit. An empty eligible subset hashes the empty concatenation.
-
-Purpose:
-
-- prevent silent candidate injection after the universe is bound
-- prevent ordering manipulation of the draw set
-- provide reproducible verification of *who passed the inequality*
-
-`C` anchors the committed set used by σ.  
-`draw_candidate_root` lets a reader check the post-eligibility draw
-universe independently of UI labels.
-
-RPC and explorers may show `draw_candidate_root_committed` (bound by the
-block) and `draw_candidate_root_computed` (recomputed). If they differ,
-the published identity does not match the bytes.
-
-Neither root mints RES. They make the candidate set checkable. They are
-not a Merkle tree.
-
-## 4.4 Winner determinism
-
-Every honest node independently calculates:
-
-```
-Candidate Data
-       |
-       |
-Convergence Root
-       |
-       |
-Draw Candidate Root
-       |
-       |
-σ and inequality
-       |
-       |
-Winner
-       |
-       |
-Block Validation
-```
-
-Selection (Sigma-PoW-01):
-
-```
-σ_i  =  Hash256( txid_i  ||  C  ||  B_{h-1}  ||  LE32(h) )
-f_i  =  converge_amount(tx_i)
-```
-
-- `B_{h-1}` is the parent block hash, taken verbatim.
-- Height `h` pays the set committed by block `h-1`.
-- The σ preimage is exactly **100 bytes**.
-- `T` is frozen `RES_PROBABILITY_TARGET`. It does **not** follow mining
-  difficulty.
-
-Eligibility:
-
-```
-eligible  ⇔  |F| ≥ 1  ∧  f_i ≥ 1  ∧  H_i < T · f_i
-```
-
-Winner (integer cross-multiplication):
-
-```
-i ≺ j   iff   H_i · f_j  <  H_j · f_i
-winner  =  minimal element under ≺
-```
-
-Ties break on txid, byte-wise. The teaching form is
-`winner = argmin(H_i / f_i)`. There is no `amount^{7/5}` term.
-
-`W = 32` exists so the block producer cannot monopolize the whole
-candidate set for a period (SECURITY-001-A9-C).
-
-The draw is not a random-number oracle. It is a frozen inequality
-(RFC-000 / RFC-014) plus a deterministic total order.
-
-If a miner changes the eligible set, `C` changes, and **every**
-candidate’s σ changes.
-
-### Closed economic loop
-
-```
-ORU (PoW, medium of exchange)
-        ↓
-Convergence (ORU committed)
-        ↓
-Selection (σ)
-        ↓
-RES (scarce, window W = 32)
-        ↓
-Market demand
-        ↓
-(back to ORU utility)
-```
-
-### Full RES path
-
-```
-User locks ≥ 1 ORU in CVG2
-        ↓
-Enters candidate set F (window W = 32; already-paid winners excluded)
-        ↓
-Parent block h−1 commits F (Convergence Root in coinbase)
-        ↓
-Child block h draws with σ
-        ↓
-Exactly one winner, or none
-        ↓
-If winner: block h body contains exactly one RES mint
-        ↓
-New W(h) RES Witness v1 UTXO → winner’s program
-```
-
-Miners and pools cannot issue RES. A payout-address change cannot mint
-RES. A winner without a mint is invalid. A mint without a winner is
-invalid. Assembling the mint only **settles** a user who already won.
-
-Over-issuance is consensus-invalid. Ordinary RES transfers cannot create
-RES (`res_in ≥ res_out`). Destroying RES (`res_in > res_out`) only
-tightens supply.
+**Destroy is visible. Mint is an integer predicate in the same
+transaction.** Chapter 5 unfolds that predicate as checkable
+mathematics.
 
 ---
 
-# Chapter 5 — Mathematical Fairness
+# Chapter 5 — Checkable Mathematics
 
-Fairness in RIGOR is a published integer rule over a hash space. This
-chapter states the mathematics. It does not use personal anecdotes or
-external personality association.
+Chapter 4 fixed the verification act. This chapter unfolds the
+predicate: display and consensus are one identity; the ceiling is an
+integral; fairness is the same public inputs yielding the same
+decision. The expanded form is
+[`chapters/05-mathematical-fairness.md`](./chapters/05-mathematical-fairness.md)
+(Chinese: [`chapters/05-mathematical-fairness.zh.md`](./chapters/05-mathematical-fairness.zh.md)).
 
-## 5.1 Hash probability and shipping `E = 246`
-
-A cryptographic hash such as SHA-256 maps arbitrary input to a fixed
-256-bit output. The output space has
-
-```
-2^256
-```
-
-possible values (about `1.16 × 10^77`). Absent a break of SHA-256, no
-participant assigns the digest.
-
-**Deterministic Reserve Issuance.** The unwindowed exponent is **`E = 246`**.
-Mint cost is **`C = 2^(256-E) = 1024` ORU per RES mint**. With draw window
-`W = 32`:
+## 5.1 Fairness is a public decision function
 
 ```
-p(n ORU)         =  min(1, n / 1024)           (aggregate identity)
-p_draw(n)        =  n / (1024 · 32)            (per draw)
-expected wins    =  n / 1024
+same (R, B, h)  →  same admit or reject
 ```
 
-These identities are a **probability component derived from a hash-space
-condition**, not a guaranteed winning probability, a fixed mining
-probability, or a marketing round number. The window changes the per-draw
-chance. It does **not** change the aggregate `n / 1024` identity.
+No fourth hidden parameter. No unpublished rate. No random term. Anyone
+who re-evaluates a confirmed transaction must get the same yes or no as
+the network. That is not “outcomes look even.” It is that the decision
+function is public, deterministic, and exact.
 
-Saturation at `n ≥ 1024` in the single-draw story means linear probability
-reaches 1. That is a probability bound, not a financial promise.
+## 5.2 The shift is forced
 
-**There is no unpublished rate.** The published aggregate identity is
-`1/1024` per ORU of committed weight (`C = 1024` ORU per mint).
-
-**Historical RFC-014 parameter.** An earlier draft used `E = 240`:
+Display: `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰`. Consensus never
+divides. Clearing the division is an identity:
 
 ```
-2^240 / 2^256  =  1 / 2^16  =  1 / 65536
+R · 1024 · (2²⁵+h)²  ≤  B · 2⁵⁰
+R · (2²⁵+h)²         ≤  B · 2⁴⁰
 ```
 
-That implied `C = 65536` ORU per mint. **65536 = 2^16** remains a valid
-description of a 16-bit slice of a 256-bit hash space. **Not an active
-consensus parameter.** It is **not** the
-shipping cost or shipping probability. Do not use `1/65536` as the live
-aggregate identity.
+so `RES_DESTROY_SHIFT = 50 − log₂(1024) = 40`. Change genesis cost and
+leave the shift, and the predicate no longer expresses that curve.
+Consensus evaluates one multiplication, one squaring, one shift. No
+rounding direction: `check_mint` is exact. `destroy_cost(0)` is exactly
+1024. No free mint is representable.
 
-## 5.2 Why 125 appears in the subsidy sequence
+## 5.3 The ceiling is derived
 
-**125 is not presented as the reason the protocol exists.** It is
-**mathematical design symbolism** and a **convergence-sequence
-interpretation**. **125 represents the terminal value of the defined
-reduction sequence.** It is not a protocol security guarantee, not a
-consensus fairness proof, and it does not “create fairness.”
+`S = 2⁷`, `P0 = 2¹⁰`, `H = 2²⁵`. The exponent 2 makes
 
 ```
-1000  →  500  →  250  →  125
+∫_0^∞ S / destroy_cost(h) dh = (S / P0) · H = 2²²
 ```
 
-| Step | Subsidy | Meaning |
-|------|---------|---------|
-| Genesis era | 1000 ORU | Initial miner payment |
-| First halving | 500 ORU | 1000 / 2 |
-| Second halving | 250 ORU | 500 / 2 |
-| Terminal floor | **125 ORU** | 250 / 2 — then **lock** |
+with no residual. Checking the cap is checking exponents.
+`cumulative(h) = 2²² · h / (h + 2²⁵)`. Because cost is strictly
+increasing, the exchange argument says any delay yields less RES: the
+cap needs no consensus counter. Realised stock is `ρ · 2²²`.
 
-Interval: 210,000 blocks. After the third halving, `R(h) = 125` forever.
-RFC-001 forbids further halving. The sequence stops so the medium of
-exchange that pays miners does not decay to zero (Chapter 1).
+`128 = 2⁷` is the numerator of that identity, not an independent lucky
+number. It is the miner-budget floor and the cap numerator in the same
+list of powers of two.
 
-**125 = 5³** (`5 × 5 × 5`). It is a perfect cube — structural simplicity:
-the cube root is the integer 5. Among the small cubes
-`1, 8, 27, 64, 125`, it is the value this sequence actually reaches.
+## 5.4 Four checkable layers
 
-125 is also known as the positive integer whose proper divisors
-(`1`, `5`, `25`) all appear as contiguous substrings of its decimal
-digits (`1`, `5`, `25` inside `125`). That is a number-theoretic
-curiosity, **not** a consensus justification.
+| Layer | What is public |
+|-------|----------------|
+| Predicate | `(R, B, h)` — no hash, no hidden rate |
+| Identity | Display form ↔ `<< 40` — shift forced by genesis cost |
+| Ceiling | `(S / P0) · H = 2²²` — read off the integral |
+| Exchange | Strictly increasing cost — delay yields less |
 
-Secondary identities (not consensus):
+Earlier minters pay a lower unit cost. That is duration-proportional
+payment, not a hole. Fairness is that later arrivals face the same
+public curve. Height `h` is the order proof-of-work produces.
 
-```
-10² + 5²  =  125
-11² + 2²  =  125
-5^(1+2)   =  125
-121 = 11² ,  125 = 5³ ,  128 = 2⁷
-```
-
-**Protocol meaning of 125:** arithmetic end of three halvings of 1000;
-ORU subsidy floor after the sequence locks; a parameter that remains
-whole after reduction. **1024** is the shipping mint-cost identity (`E = 246`).
-**65536** is a Historical RFC-014 parameter (16-bit teaching slice), not the
-live aggregate. **125** is the locked tail of the utility asset. Fairness is the
-published integer draw rule, not the numeral 125.
+**The decision is public. The ceiling is derived. The shift is
+forced.** Chapter 6 states how mining supplies that shared height —
+it pays ORU and does not mint RES.
 
 ---
 
-# Chapter 6 — Mining Architecture
+# Chapter 6 — Proof-of-Work: The Shared Height, Paid in ORU
 
-Mining discovers valid headers (OpuHash) and orders blocks (ASERT
-difficulty). Mining **pays ORU**. Mining **does not mint RES**.
+Chapter 5’s predicate contains `h`. If nodes disagree on height, the
+same destroy is judged differently. This chapter states how that height
+becomes shared, and what the finder is paid. The expanded form is
+[`chapters/06-mining.md`](./chapters/06-mining.md)
+(Chinese: [`chapters/06-mining.zh.md`](./chapters/06-mining.zh.md)).
+Product path: [`chapters/07-mining-windows.md`](./chapters/07-mining-windows.md).
 
-## 6.1 Miner participation
-
-At the protocol / node layer, a miner:
-
-```
-Miner
- |
- |
-Receive transactions
- |
- |
-Validate candidates
- |
- |
-Perform mining (OpuHash)
- |
- |
-Produce block
- |
- |
-Receive rewards (ORU coinbase)
-```
-
-- Transactions enter the mempool and, if they are valid convergence
-  commitments, the candidate universe.
-- The miner (or pool assembler) builds a template that binds
-  Convergence Root / draw-candidate commitment in the coinbase payload.
-- Proof-of-work finds a header that meets the current target.
-- On acceptance, coinbase pays **ORU** to the miner’s script.
-- If the deferred draw has a winner, the **block body** must include the
-  RES mint to the **winner**, not to the miner.
-
-Pool policy cannot allocate RES. Changing a miner payout address cannot
-create RES.
-
-## 6.2 Windows miner experience
-
-The public ecosystem path is **visible Windows miner participation**,
-not hidden background / SOAP / soak mining.
-
-Primary user path:
+Mining **pays ORU**. Mining **does not mint RES**.
 
 ```
-Windows miner
-      |
-Wallet
-      |
-ORU convergence
-      |
-RES generation
-      |
-Pool participation
+hashpower → valid header → shared height h
+        ↓
+predicate at that h; coinbase 128 ORU at that h
 ```
 
-Expanded product flow:
+## 6.1 The predicate needs a clock
+
+`destroy_cost(h)` is strictly increasing. Height cannot be a local
+clock or a wallet guess. Proof-of-work supplies an order that is not
+cheap to rewrite. Confirming height is the block that includes the
+transaction. Without that clock, “same `(R, B, h)`” has no public
+third component.
+
+## 6.2 What is paid, and where
+
+Genesis subsidy is 0. Every later block pays 128 ORU to the Witness v0
+coinbase script. RES, if it appears, appears only in a body
+Convergence transaction. Paying RES as a mining reward would inflate
+the stock to buy security and undo Chapter 1.
 
 ```
-Windows user
-    ↓
-Windows miner software
-    ↓
-Connect wallet
-    ↓
-Connect pool
-    ↓
-Mine ORU (visible shares, height, maturity)
-    ↓
-Converge ORU (wallet)
-    ↓
-Observe Convergence / RES
-    ↓
-Pool dashboard + Explorer + Zero Trust
+OpuHash(header) = SHA3-256("RGRPOW01" || header_80)
+valid           ⇔  OpuHash(header) ≤ target
 ```
 
-| Step | What the user sees |
-|------|--------------------|
-| Download miner | Windows miner package; checksum when published |
-| Wallet connection | Receive / payout address (`rg1q…`) |
-| Pool | Stratum connection; workers and shares on a dashboard |
-| Mine ORU | Immature coinbase → trusted ORU |
-| ORU Convergence | Wallet convergence transaction (≥ 1 ORU) |
-| RES generation | Waiting / selected; `W(h)` RES only if the draw wins |
-| Verify | Block hash in Zero Trust — not “trust the pool UI” |
+Block identity remains SHA256d of the header. Coinbase states this
+block’s height and pays ORU only. Pool policy cannot allocate RES. Changing a payout
+address cannot create RES. Finding a header does not legalise an
+underpaid mint.
 
-Mining should be understandable **visually**: lifecycle, shares,
-maturity, convergence state, RES result. Operator logs are not the
-primary UX.
+## 6.3 Difficulty is not mint cost
 
-Windows scenario (product, not SOAP):
+Target spacing 600 s. ASERT half-life 43 200 s, clamp ±12.5%, parent
+time/height only. ASERT lets `h` advance with wall time so
+`destroy_cost(h)` moves slowly. It does not enter the predicate.
 
-1. Start Windows Wallet (`installer/windows/start-wallet.cmd`)
-2. Start Windows Miner (`installer/windows/rigor-miner.cmd` or pool agent)
-3. Connect the miner to the pool
-4. Observe shares and height
-5. Observe ORU maturity
-6. Observe Convergence
-7. Observe RES
-8. Verify a block hash independently
+The kernel models most-work finite-tip selection on `GetBlockProof`.
+It does not prove `ActivateBestChain`.
+
+**Height is shared. Payment is ORU. RES does not come from mining.**
+Validity is not a pool dashboard. Public data can be recomputed —
+Chapter 7.
 
 ---
 
-# Chapter 7 — Self-Proving Blockchain
+# Chapter 7 — Recompute Locally: Do Not Trust a Pool or Explorer Verdict
 
-Traditional observer habit:
+Chapter 6 said a pool dashboard is not a source of validity. This
+chapter states the substitute: public bytes recomputed locally. The
+expanded form is
+[`chapters/07-self-proving.md`](./chapters/07-self-proving.md)
+(Chinese: [`chapters/07-self-proving.zh.md`](./chapters/07-self-proving.zh.md)).
 
-```
-Trust software
-        |
-        |
-Accept result
-```
-
-RIGOR Zero Trust:
+The protocol does not claim that cheating is impossible. It claims that
+unequal bytes fail the published checks.
 
 ```
-Public Data
-       |
-       |
-Independent Calculation
-       |
-       |
-Verification
-       |
-       |
-Accept / Reject
+public data → independent calculation → compare → accept / reject
 ```
 
-> You do not need to trust a node. You can independently verify the
-> result yourself.
+A pool, explorer, wallet, or website may **display** a conclusion. None
+of them may **be** that conclusion.
 
-Zero Trust is public verification, deterministic validation, and
-independent node (or browser) recomputation. There is no trust
-assumption that a website, explorer, wallet, or pool is correct.
-Invalid modifications are detectable by deterministic validation.
-The protocol does not claim that cheating is “impossible”; it claims
-that unequal bytes fail the published checks.
+## 7.1 A display is not a decision
 
-## 7.1 Self-Proving Block Commitment
+Outsourcing validity to a screen reintroduces the counterparty Chapter
+1 refused. The substitute is not a more trustworthy website. It is:
+take the public bytes, run the same function, compare.
 
-```
-Convergence tx
-    → CVG2 commitment
-    → Convergence Root / Draw Candidate Root
-    → coinbase commitment
-    → coinbase txid
-    → merkle root
-    → block header
-    → OpuHash
-```
+The node `rigord` does this for every accepted block. A browser Zero
+Trust page does it for selected fields. Paper evaluation of
+`(R, B, h)` is the same standard: equal passes, unequal fails.
 
-If any step fails to match, the block is invalid. Validity is equality
-of commitment and recomputation, not an explorer flag.
+## 7.2 The commitment chain
 
-## 7.2 Consensus Fingerprint
-
-The **Consensus Fingerprint** is a **verification identity layer**.
-It is **not** a consensus-rule replacement.
-
-The Consensus Fingerprint Library publishes a deterministic identity
-over already-public fields. It is **observational**. It does not accept
-or reject blocks. A wrong fingerprint cannot make an invalid block
-valid, and a matching fingerprint is not a substitute for full-node
-validation.
+Destroy `B`, mint `R`, height `h`, coinbase, Merkle root, OpuHash, and
+block identity (SHA256d) are all in broadcast data. There is no
+internal transaction path.
 
 ```
-ConsensusFingerprint =
-  Hash256(ConvergenceRoot || winner_txid || Sigma || height || target_prev)
+body tx → OP_CONVERGE B → Witness v1 sum R
+        → R > 0 → R · (2²⁵ + h)² ≤ B << 40
+        → coinbase (this block’s height; ORU only)
+        → merkle root → header
+        → OpuHash = SHA3-256("RGRPOW01" || header_80)
 ```
 
-An explorer may display a fingerprint. A verifier recomputes it.
+If any step fails to match, the block is invalid. An underpaid mint
+that a pool already shows as credited is still invalid.
 
-## 7.3 Explorer, public vectors, and surfaces
+A fingerprint over public fields is observational. It does not accept
+or reject blocks. A match is not a substitute for a full node.
 
-| Surface | Role |
-|---------|------|
-| Full node (`rigord`) | Applies consensus rules |
-| Website Zero Trust portal | Recomputes TX / block fields in the browser |
-| Explorer | Viewer / indexer; outbound “Verify independently” |
-| Wallet | Spending tool, not an oracle |
-| Pool dashboard | Operator observer |
-
-Public vectors for the fingerprint library live in
-`test_vectors/fingerprint_vectors.json`. Golden-vector families for
-runtime archive work are listed in the Appendix.
-
-Live site (keep): `/zero-trust-verification`,
-`/zero-trust-verification/what-is-zero-trust`.
-
-```
-equivalence_claimed = false
-```
+**A conclusion may be displayed. Validity must be recomputed.**
+Chapter 8 draws the boundary of formal proof.
 
 ---
 
-# Chapter 8 — Formal Verification Architecture
+# Chapter 8 — The Formal Boundary: The Model Is Not the Running Binary
 
-Formally verified protocol invariants with explicit verification boundaries.
-Three layers. They must not be collapsed into one “fully verified”,
-“formally proven blockchain”, “bug free”, or “zero risk” claim.
-
-## 8.1 Why verification boundaries matter
-
-A proof about a mathematical model is not automatically a proof about every
-line of a shipping node, every network path, or every wallet. RIGOR therefore
-publishes **what is inside the verified cone** and **what is outside it**.
-Boundaries prevent silent over-claiming: green Coq builds and green
-differential gates strengthen confidence in named invariants; they do not
-license `equivalence_claimed = true`.
-
-Public map for external reviewers: `verification/README.md`.
-Reproduce: `docs/security/HOW_TO_VERIFY_RIGOR.md`.
-Claim table: `docs/security/RIGOR_FORMAL_CLAIM_TRACEABILITY.md`.
-
-## 8.2 What is formally verified
-
-In the Coq *model* and/or the finite differential gate (living lock **422 /
-215**):
-
-1. **Deterministic Reserve Issuance schedule** — deterministic `W(k)`, termination after epoch
-   250, nonincreasing pins, cost-floor behavior along the schedule.
-2. **RES supply cap** — finite-sum max issuance within 21,000,000 RES;
-   overshoot rejected.
-3. **Convergence consensus model** — σ layout, order-independent Convergence
-   root, selection determinism, A-9-C window exclusion, draw-candidate-root
-   pipeline (eligible-list digest).
-4. **UTXO asset / dual-pool invariants** — ordinary RES conservation; mint
-   increases RES by the schedule term only (model).
-5. **Script shape restrictions** — disallowed created templates, spend-CVG2,
-   and PCORB field-size shape on accepted model transactions / blocks.
-
-Honesty flags:
+Chapter 7 requires local recomputation. This chapter states the
+current final formal conclusion: one public sentence; “yes” stops
+inside the model. The expanded form is
+[`chapters/08-formal-boundary.md`](./chapters/08-formal-boundary.md)
+(Chinese: [`chapters/08-formal-boundary.zh.md`](./chapters/08-formal-boundary.zh.md)).
 
 ```
-equivalence_claimed = false
-hash_kernel_shared_binary_with_cpp = false
-refinement_proved = false
+formal verification of the protocol model
+        ≠
+C++ equivalence
+        ≠
+running-binary proof
 ```
 
-## 8.3 What remains outside the proof boundary
+## 8.1 Three layers that must not collapse
 
-- Complete C++ ↔ Coq ↔ Python equivalence
-- Cryptographic primitive security theorems (beyond an executable hash model
-  and FIPS / tripartite vector checks)
-- Hardware / side-channel security
-- Network availability, P2P honesty, mempool resistance
-- Mining templates, difficulty retarget / PoW hardness, wallet assumptions
-- Owner / PCORB mint authorization as identical to abstract `cm_draw_won`
-- Coinbase / Merkle / header bind of `draw_candidate_root`
-
-## 8.4 How executable vectors connect specification and implementation
-
-| Layer | Artifact | Role |
-|-------|----------|------|
-| Spec | RFCs + `formal_verification/spec/rigor_consensus_spec.py` | Normative byte / predicate SSOT |
-| Model | `formal_verification/coq/` | Machine-checked properties of the model |
-| Vectors | `phase3_golden_vectors.json` + `golden_lock.json` | Finite shared cases |
-| Gate | `scripts/run_differential_gate.sh` | Python ↔ harness ↔ portable hash ↔ σ/root CLI |
-
-Vectors do **not** prove universal equivalence. They fail the build or gate
-when a locked case regresses. That is how specification and implementation
-stay connected without claiming a refinement proof.
-
-## Formal Verification Status (freeze 2026-08-18)
-
-Authoritative correspondence page:
-`docs/verification/FORMAL-VERIFICATION-STATUS.md`
-(checklist: `docs/verification/FORMAL-VERIFICATION-FREEZE.md`).
-Verdict (what the Coq *model* proves):
-`docs/verification/FORMAL-VERIFICATION-VERDICT.md`.
-
-RIGOR follows a three-layer verification approach:
-
-1. **Protocol specification layer** — frozen RFC / SPEC.
-2. **Scientific model layer** — strongly verified Coq model.
-3. **Runtime verification layer** — differential / golden-vector verification
-   (Python oracle, tripartite hash, production σ/root CLI). PROOF-034 is a
-   separate empirical archive campaign on this layer.
-
-**Current milestone (honest):** the Coq model is strongly verified; the
-correspondence boundary is tighter than the original 57-vector bridge
-(**422** shared golden vectors, **215** Coq-enforced, tripartite hash,
-σ/root CLI in the gate; living lock in `formal_verification/golden_lock.json`).
-Formally verified protocol invariants with explicit verification boundaries.
-This **does not claim full refinement**.
-
-```
-equivalence_claimed = false
-hash_kernel_shared_binary_with_cpp = false
-refinement_proved = false
-```
-
-Public site page: `/documentation/formal-verification`.
-
-## Layer 1 — Frozen Protocol Specification
-
-Rules are deterministic, consensus-defined, and treated as immutable
-under the freeze declaration (RFC-000 … RFC-015,
-`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`).
-
-This layer **is** the protocol. A website, archive, or model does not
-rewrite it.
-
-## Layer 2 — Scientific / Mathematical Model
-
-Mathematical modeling and state-machine representation (specifications,
-Coq model, science / lab narrative). The model can prove properties of
-**the model**. It does not automatically prove that a shipping binary is
-identical to that model.
-
-See `docs/verification/FORMAL-VERIFICATION-VERDICT.md`.
-
-## Layer 3 — Runtime Verification
-
-Empirical execution traces **and** differential correspondence checks.
-
-**Differential gate (living lock).** Shared JSON golden vectors (422),
-Coq-enforced harness subset (215), portable CSHA256 × hashlib × extracted
-Coq hash, production σ/root CLI. Finite. Not a shared production hash
-binary. Not a refinement proof. (Historical operator freeze recorded 324/117;
-RC0 FV freeze 414/207.)
-
-### PROOF-034
-
-**PROOF-034 is a runtime archive — an empirical execution trace.**
-
-It materializes a contiguous execution through catalogued golden-vector
-heights, including:
-
-| Height | Vector | Phenomenon |
-|--------|--------|------------|
-| 630,000 | GV-ORU-0003 | ORU halving / floor region |
-| 2,100,000 | GV-RES-0003 | RES cap boundary |
-| 2,100,001 | GV-DRAW-0003 | DRAW reject fixture |
-
-**PROOF-034 is not:**
-
-- a protocol equivalence proof
-- a completion claim
-- a mainnet readiness proof
-- a license to set `equivalence_claimed = true`
-- a substitute for RFC / SPEC
-
-```
-equivalence_claimed = false
-```
-
-| Grade | What it is | What it is not |
+| Layer | What it is | What it is not |
 |-------|------------|----------------|
-| RFC / SPEC | Frozen rules | A running chain |
-| Formal model (Coq) | Properties of the model (strongly verified) | A C++ refinement proof |
-| Differential gate | Golden vectors, hash CLI, σ/root CLI | Shared production hash; Coq = C++ |
-| Runtime archive | What a specific execution produced | Equivalence or mainnet completion |
-| Observer UI | Display | Authority |
+| Running consensus | C++ `core/src/` realization of RFC-020 / RFC-018 | RFC / Coq rewriting running rules |
+| Coq kernel model | Machine-checked properties of the model | A C++ refinement; `ConnectBlock` |
+| Differential / extraction | Finite golden vectors; declared runtime path | Universal equivalence |
+
+## 8.2 Snapshot of results (not a protocol parameter)
+
+Kernel: `formal_verification/rigor_kernel/`. Living inventory:
+`release/FinalProofInventory.md`. Coq 8.15.0. Classified theorems
+**254** (Category A **119**, B **102**, C **33**). `Print Assumptions`
+Closed. Maturity **4.9**. Mutation isolation list **127**. Six
+extracted names are definitionally the Coq validators. Codec
+differential: three declared divergences against production
+`CDataStream`. These figures move. They are not consensus parameters.
+They are not “254 theorems cover the running node.”
+
+## 8.3 Side-by-side reading is not refinement
+
+The names that receive “yes” in §8.5 share names with this paper.
+Side-by-side reading is not a refinement proof. Hash in the model is
+uninterpreted `H`. Ed25519 / SHA3 **security** is not proved.
+Abstract `sig_ok` is not unforgeability. Those “yes” answers do not
+skip Chapter 7.
+
+## 8.4 Outside the boundary
+
+Not proved: C++ ↔ Coq equivalence; `ConnectBlock` refinement;
+extracted code computing the Coq function; compiler correctness;
+k-deep / honest majority; ASERT envelope; primitive security;
+network, hardware, wallet. Finite golden vectors catch regressions.
+They do not rewrite agreement at locked points as universal
+equivalence. Testing is not proof.
+
+## 8.5 The final formal conclusion
+
+The only public sentence:
+
+> Inside the Coq consensus kernel model, critical consensus
+> invariants have been machine-checked, with explicit extraction
+> and runtime trust boundaries.
+
+**Yes:** selected invariants inside this Coq model hold — kernel
+soundness, ORU conservation, the RES ceiling, classifier partition,
+chain induction. `Print Assumptions` is Closed on the public
+classification.
+
+**Not yes:** the running C++ node equals the model.
+
+**What is proved is the model. What runs is C++.** Product surfaces
+must not read this chapter as “the chain has been proved” — Chapter 9.
 
 ---
 
-# Chapter 9 — Ecosystem and Roadmap
+# Chapter 9 — Product Surfaces: A Display Remains a Display
 
-RIGOR is a protocol plus a set of **observer and participation**
-surfaces. None of the surfaces below is a consensus authority.
+Chapter 8 drew the line between the model and the running binary.
+This chapter states how wallets, explorers, pools, documentation, and
+the website live with those rules. The expanded form is
+[`chapters/09-product-surfaces.md`](./chapters/09-product-surfaces.md)
+(Chinese: [`chapters/09-product-surfaces.zh.md`](./chapters/09-product-surfaces.zh.md)).
 
-| Surface | Role today | Notes |
-|---------|------------|-------|
-| Website | `www.rigorchain.com` | Product portal; dark technical theme |
-| Documentation | `/documentation` | Architecture, RFC, security, formal verification |
-| Whitepaper | `/documentation/whitepaper` | Long-form bind of this document |
-| Security Architecture | `/documentation/security` | Security hub; minimal script, Zero Trust, verification |
-| Minimal Script Architecture | `/documentation/security/minimal-script-architecture` | UTXO / script-minimization chapter |
-| Formal Verification | `/documentation/formal-verification` | Freeze status; `equivalence_claimed = false` |
-| Wallet | `/wallet` | Qt / Windows packages; ORU, maturity, Convergence, RES |
-| Mining | `/mining` | Windows miner + installer scripts; nested guides may be placeholders |
-| Explorer | `/explorer` | Block / ORU / RES / fingerprint viewer; nested pages may be placeholders |
-| Zero Trust | `/zero-trust-verification` | Browser verifier; TXID and block hash |
-| Lab | `/protocol` `/science` `/lab` `/status` `/experiment` | PROOF-034 observer — keep |
+A surface may **display** a conclusion. It may not **be** that
+conclusion. A green Chapter 8 is not “the chain has been proved.”
+Product completeness is not consensus completeness.
 
-**Roadmap (documentation and product surfaces only — not consensus
-changes):**
+```
+rules accepted or rejected in the node
+        ↓
+a surface displays public facts
+        ≠
+the surface becomes a source of validity
+        ≠
+a formal-verification page becomes an equivalence proof
+```
 
-1. Bind this whitepaper at `/documentation/whitepaper` (readable
-   long-form; **live**; dark theme: black background, white text, gray cards).
-   Keep Zero Trust, Explorer, Mining, Lab, and Experiment. Formal verification
-   freeze: `/documentation/formal-verification`. Minimal script
-   architecture: `/documentation/security/minimal-script-architecture`.
-2. Complete Windows miner guide, checksummed downloads, pool dashboard
-   link.
-3. Keep Zero Trust, Explorer, Mining placeholders, Lab, and Experiment.
-4. Publish chapter HTML from `docs/whitepaper/` without claiming
-   equivalence or mainnet completion.
+## 9.1 Why coexistence must be stated
 
-No investment yield is promised. No date is given for filling 21 million
-RES.
+Products exist so people can see balances, shares, height, and
+explanation. Sight is a condition of use. Sight is not decision.
+If products become authority, the counterparty Chapter 1 refused
+moves from the pool dashboard to the homepage copy.
+
+Formal documentation is the most dangerous surface. What it says is
+true: the model contains machine-checked invariants. Readers then
+supply the unwritten half-sentence — “so the chain has been proved.”
+Chapter 8 does not issue that half-sentence. Product copy may not
+issue it on Chapter 8’s behalf. Shortening the allowed sentence
+rewrites the honesty flags.
+
+## 9.2 What a surface may do
+
+| Surface | It may | It may not |
+|---------|--------|------------|
+| `rigord` | Accept or reject blocks | Be overridden by a website opinion |
+| Wallet | Construct, spend, show balances | Be a validity oracle |
+| Pool / mining | Show shares, height, ORU pay | Allocate RES; legalise an underpaid mint |
+| Explorer | Retrieve; show fingerprints | Accept or reject blocks |
+| Zero Trust | Recompute selected fields | Replace `ConnectBlock` |
+| Docs / this paper | Bind the argument | Rewrite `core/src/` |
+| Formal verification page | Publish the boundary | Write `equivalence_claimed = true` |
+| Lab / experiment | Observe | Act as a refinement proof |
+| Website | Entry and explanation | Consensus authority; “bug free” |
+
+Use paths such as [`chapters/07-mining-windows.md`](./chapters/07-mining-windows.md)
+are how to click, not another consensus. Living tools:
+`/zero-trust-verification`, `/documentation/formal-verification`.
+Noun list (not this chapter): [`chapters/09-glossary.md`](./chapters/09-glossary.md).
+
+## 9.3 Three compressions that rewrite Chapter 8
+
+1. Drop the word “model” from a Coq-green badge.
+2. Write finite golden vectors as “C++ equals Coq.”
+3. Write “do not trust the pool” as “do not run a node.”
+
+Product copy may repeat the one public sentence in Chapter 8. It may
+not shorten it.
+
+## 9.4 Documentation work is not a consensus change
+
+Completing guides, checksums, placeholders, and chapter HTML does not
+change the predicate, the 128 ORU subsidy, the classifier, or the
+derived ceiling. A product “next step” can only mean clearer surfaces,
+not a dated rewrite of the rules. No investment yield is promised. No
+date is given for filling the derived RES ceiling.
+
+**A display remains a display. The rules remain in the node.** Frozen
+parameters and the engineering index follow in the appendix. The
+expanded form is
+[`chapters/10-appendix.md`](./chapters/10-appendix.md)
+(Chinese: [`chapters/10-appendix.zh.md`](./chapters/10-appendix.zh.md)).
 
 ---
 
-# Appendix
+# Appendix — Frozen Parameters and Engineering Index
 
-Technical pointers. The chapters above are the public argument. This
-appendix keeps the engineering index.
+Chapters 1–9 are the public argument. This appendix is lookup. It
+does not add a claim. The expanded form is
+[`chapters/10-appendix.md`](./chapters/10-appendix.md)
+(Chinese: [`chapters/10-appendix.zh.md`](./chapters/10-appendix.zh.md)).
 
-## A. RFC and specification index
+Realization lock files: `core/src/consensus/params.h`,
+`core/src/consensus/rigor_consensus_lock.h`. The one public sentence
+is Chapter 8 §8.5. This appendix does not repeat it.
 
-| Document | Role |
-|----------|------|
-| RFC-000 | Consensus constitution |
-| RFC-001 | Deterministic selection; ORU schedule; RES mint amount and cap |
-| RFC-002 | Supply evolution |
-| RFC-008 | Canonical mathematics (σ, integer inequality) |
-| RFC-014 | Frozen / windowed `RES_PROBABILITY_TARGET`; `W = 32` |
-| RFC-015 | Occam economics (\|F\| ≥ 1, 21M cap; mint amount superseded by Deterministic Reserve Issuance) |
-| RFC-017 | Internal specification for **Deterministic Reserve Issuance** (`W(h)` under constant `T`) |
-| RFC-018 | Internal specification for **Deflationary Fee Burn** (RES-transfer ORU fee share) |
-| SPEC-002 | Authoritative ORU / RES recurrences |
-| `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` | Freeze authority |
-| `docs/mining/CONVERGENCE_ROOT_CANONICAL_SPEC.md` | Convergence Root encoding |
-| `docs/architecture/CONSENSUS_FINGERPRINT_LIBRARY.md` | Fingerprint library |
-
-RFCs were **not** edited by this whitepaper task.
-
-## B. Frozen parameters (public)
+## A. Frozen public parameters
 
 | Symbol | Value |
 |--------|-------|
-| ORU subsidy sequence | 1000 → 500 → 250 → 125 |
-| `ORU_MIN_BLOCK_SUBSIDY` | 125 ORU |
-| Halving interval | 210,000 blocks |
-| `MIN_CONVERGENCE_AMOUNT` | 1 ORU |
-| `RES_REWARD_GENESIS` / `W(h)` | 40.000000 RES at genesis; `GetResMintReward(h)` thereafter |
-| `RES_REWARD_LAST_EPOCH` | 250 (`W(k) = 0` beyond) |
-| `RES_MAX_SUPPLY` | 21,000,000 RES |
-| `CONVERGENCE_DRAW_WINDOW` | 32 |
-| Expected wins per committed ORU | `n / 1024` (`E = 246`, `C = 1024` ORU) |
-| Per-draw probability | `n / (1024 · 32)` |
-| σ preimage | `txid \|\| C \|\| B_{h-1} \|\| LE32(h)` (100 bytes) |
-| Convergence Root boundary | \|F\| < 2 → C = 32 zero bytes |
-| Draw gate | \|F\| ≥ 1 (`CONVERGENCE_DRAW_MIN_TXS_FOR_RES`) |
+| ORU subsidy | `R(0) = 0`; 128 ORU per block for `h ≥ 1`; no halving |
+| Mint predicate | `R > 0 → R · (2²⁵ + h)² ≤ B << 40` |
+| Display form | `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` |
+| Genesis whole-coin cost | 1024 ORU / 1 RES |
+| Pole / shift | `2²⁵` ; `40 = 50 − log₂(1024)` |
+| Derived ceiling | `2²²` RES (`419430400000000` atoms) |
+| Cumulative ceiling | `2²² · h / (h + 2²⁵)` |
+| Mint locus | Body tx: `OP_CONVERGE` + same-tx Witness v1 RES |
+| Mint maturity | 100 |
+| RFC-018 | Half of RES-transfer ORU fees unclaimable |
+| Reverse | RES → ORU forbidden |
+| PoW | OpuHash = SHA3-256(`"RGRPOW01" \|\| header_80`) |
+| Block identity | SHA256d of the same 80-byte header |
+| ASERT | 600 s spacing; 43200 s half-life; ±12.5% clamp |
 
-Code SSOT: `core/src/consensus/params.h`,
-`core/src/consensus/rigor_consensus_lock.h`. This paper does not modify
-those files.
+Probes: `destroy_cost(0) = 102400000000`;
+`destroy_cost(210000) = 103685749152`;
+`destroy_cost(420000) = 104979520049`.
 
-## C. Consensus reject conditions (RES mint)
+## B. Mint reject conditions
 
-Public form of fail-closed mint rules:
+- `bad-txns-res-mint-underpaid` — `R · (2²⁵ + h)² > B << 40`
+- `bad-txns-res-mint-no-burn` — RES output, no `OP_CONVERGE`
+- `bad-txns-res-mint-cap-overshoot` — would exceed `419430400000000` atoms
 
-- `bad-rigor-res-owner-mismatch` — payee is not the winner’s program
-- `bad-rigor-res-winner-mismatch` — winner exists but mint is missing or
-  wrong
-- `bad-rigor-res-without-winner` — mint present with no winner
-- `bad-rigor-res-max-supply` — would exceed 21,000,000
+## C. Scripts
 
-## D. Golden vectors (PROOF-034 archive targets)
+Witness v0 / 20 bytes = ORU. Witness v1 / 32 bytes = RES (not
+Taproot). `<HASH160> 0xbd` = unspendable Convergence. Coinbase states
+this block’s height and pays ORU only. Spend signatures: Ed25519.
 
-| Height | Vector | Phenomenon |
-|--------|--------|------------|
-| 630,000 | GV-ORU-0003 | ORU halving / floor |
-| 2,100,000 | GV-RES-0003 | RES cap |
-| 2,100,001 | GV-DRAW-0003 | DRAW reject |
+## D. Engineering index
 
-Catalog and procedure:
-`docs/archive/proof/PROOF-034-FULL-RUNTIME-ARCHIVE-VERIFICATION.md`.
+`core/src/` is the running consensus. Kernel inventory:
+`formal_verification/rigor_kernel/release/FinalProofInventory.md`.
+Verdict: `docs/verification/FORMAL-VERIFICATION-VERDICT.md`.
+Reproduce: `docs/security/HOW_TO_VERIFY_RIGOR.md`. Live issuance
+docs: RFC-020, RFC-018. Noun list:
+[`chapters/09-glossary.md`](./chapters/09-glossary.md).
 
-## E. Mathematical notes
-
-- Hash256 = SHA-256(SHA-256(·))
-- Inequality arithmetic is ≥512-bit integer; no floating point
-- Shipping: `E = 246`, `C = 1024` ORU per RES mint, expected wins `n / 1024`
-  (Deterministic Reserve Issuance). Historical RFC-014 / retired design:
-  `2^240 / 2^256 = 1/65536` (`C = 65536` ORU) — teaching slice only, not the
-  live target.
-- 125 = 5³ is symbolic interpretation of the locked tail, not a
-  selection rationale
-
-## F. Verification reports (pointers)
-
-| Document | Role |
-|----------|------|
-| `docs/verification/FORMAL-VERIFICATION-STATUS.md` | Single current correspondence status (freeze) |
-| `docs/verification/FORMAL-VERIFICATION-FREEZE.md` | Operator freeze checklist |
-| `docs/verification/FORMAL-VERIFICATION-VERDICT.md` | What the Coq model proves |
-| `docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md` | Intentional vector-set splits |
-| `docs/verification/README.md` | Formal-verification index |
-| `docs/architecture/CONSENSUS_FINGERPRINT_LIBRARY.md` | Fingerprint contract |
-| `docs/archive/rfc/RFC_HISTORY.md` | Archived RFC names / retired design |
-
-## G. Prior public narratives (kept, not deleted)
-
-- `docs/WHITEPAPER.md`
-- `docs/release/WHITEPAPER_PUBLIC_VERSION.md`
-- `docs/release/RIGOR_WHITEPAPER_V1_FINAL.md`
-- `docs/whitepaper/chapters/` (pre-restructure chapter files)
-- `docs/archive/rfc/RFC_HISTORY.md` (retired-design map)
-
-## H. Website publishing note
-
-Long-form route **`/documentation/whitepaper`** is live on
-`web/rigorchain-site/`. Formal verification freeze:
-**`/documentation/formal-verification`**. Security architecture:
-**`/documentation/security`**. Minimal script architecture:
-**`/documentation/security/minimal-script-architecture`**.
-
-Live routes that this paper may cite (do not treat placeholders as
-finished product copy):
-
-| Route | Status in `App.tsx` |
-|-------|---------------------|
-| `/documentation` | Live hub |
-| `/documentation/whitepaper` | Live long-form |
-| `/documentation/formal-verification` | Live freeze status |
-| `/documentation/security` | Live security architecture hub |
-| `/documentation/security/minimal-script-architecture` | Live minimal-script chapter |
-| `/mining` | Live overview |
-| `/wallet` | Live |
-| `/explorer` | Live portal |
-| `/zero-trust-verification` | Live verifier |
-
-Visual requirements (implementation later): dark technical theme; black
-background; white text; gray input/card style; readable long-form
-layout. Do not delete Zero Trust, Explorer, Mining, Lab, or Experiment
-pages.
-
-## I. Terminology
+## E. Terms
 
 | Term | Official meaning |
 |------|------------------|
-| ORU | Medium of exchange asset (fees, subsidy, Convergence weight) |
-| RES | Store of value asset (capped; deterministically issued after Convergence — not mined) |
-| Deterministic Reserve Issuance | Protocol RES issuance: fixed schedule, 21M cap, Convergence authorization, deterministic `W(h)` |
-| Deflationary Fee Burn | Protocol ORU destruction of eligible RES-transfer fee components; not a UTXO or global supply state |
-| Convergence | ORU consumption mechanism creating RES eligibility |
-| Convergence Root | Deterministic commitment to eligible convergence transactions |
-| Draw Candidate Root | Deterministic commitment used for candidate selection after convergence eligibility is established |
-| Fingerprint | Verification identity layer (not a consensus-rule replacement) |
-| PROOF-034 | Runtime archive campaign (Layer 3). `equivalence_claimed = false` |
+| ORU | Medium-of-exchange asset. Subsidy 128 after genesis |
+| RES | Store-of-value asset. Derived ceiling `2²²`; not mined |
+| Convergence | Same-tx destroy that MAY mint RES under the predicate |
+| `destroy_cost(h)` | Display cost. Consensus uses the inequality |
+| OpuHash | Live proof-of-work hash |
+| Fingerprint | Observational identity. Does not accept or reject blocks |
 
----
-
-## Closing
-
-RIGOR exists because one asset cannot honestly be medium of exchange,
-store of value, and security budget at once.
-
-It works because **Convergence** turns costly ORU commitments into a
-public, deterministic RES allocation.
-
-It is checkable because every node, and any browser verifier, recomputes
-the same function from public data.
-
-RIGOR is a two-asset UTXO protocol with a closed script-compliance
-surface. Script is the compliance/classification layer. RES is
-deterministically issued after protocol-defined conditions — not mined.
-Deflationary Fee Burn removes eligible ORU fee components from
-circulation without creating a burn UTXO or a global supply table.
-
-RIGOR is not a programmable blockchain attempting unlimited
-functionality. RIGOR is a mathematically focused monetary protocol built
-on Bitcoin's proven UTXO foundation, strengthened through native dual
-assets, strict asset isolation, minimal scripting, and a formal
-verification **model**. The production C++ implementation is not claimed
-to be formally equivalent.
-
-```
-equivalence_claimed = false
-```
+Lookup ends here. The claims are in Chapters 1–9.

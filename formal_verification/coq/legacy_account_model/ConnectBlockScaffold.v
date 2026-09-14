@@ -19,7 +19,7 @@ Require Import ConvergeRoot.
 Require Import Execution.
 Require Import ResSchedule.
 
-Definition legacy_RES_MINT_AMOUNT (height : Z) : Z := get_res_mint_reward height.
+Definition legacy_RES_MINT_AMOUNT (height : Z) : Z := 0.
 Definition legacy_MAX_RES_SUPPLY : Z := RES_MAX_SUPPLY.
 
 Record DrawTrace := {

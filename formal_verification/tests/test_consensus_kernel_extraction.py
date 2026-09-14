@@ -66,19 +66,19 @@ def main() -> int:
     expect(OCAML, ["oru", "0"], "0", "genesis oru")
     expect(OCAML, ["res-issued", "0"], "0", "genesis res actual")
     sched0 = run(OCAML, "res-schedule", "0")
-    if sched0 != "40000000":
-        errors.append(f"GetResMintReward(0) schedule drifted: {sched0}")
+    if sched0 != "102400000000":
+        errors.append(f"ResDestroyCostAtHeight(0) drifted: {sched0}")
     if sched0 == "0":
-        errors.append("FORBIDDEN: schedule at 0 collapsed to actual 0")
-    expect(OCAML, ["oru", "1"], "100000000000", "height1 oru")
+        errors.append("FORBIDDEN: RATE at 0 collapsed to actual 0")
+    expect(OCAML, ["oru", "1"], "12800000000", "height1 oru")
 
     t1 = time.perf_counter()
     s209999 = run(OCAML, "sum-oru", "1", "209999")
     s210000 = run(OCAML, "sum-oru", "1", "210000")
     print(f"sum_oru_seconds={time.perf_counter() - t1:.3f}")
-    if s209999 != "20999900000000000":
+    if s209999 != "2687987200000000":
         errors.append(f"Σ 1..209999 = {s209999}")
-    if s210000 != "20999950000000000":
+    if s210000 != "2688000000000000":
         errors.append(f"Σ 1..210000 = {s210000}")
     expect(OCAML, ["sum-oru", "0", "0"], "0", "genesis sum")
 
@@ -105,25 +105,21 @@ def main() -> int:
     expect(CPP, ["classify", "0020" + ("00" * 32)], "INVALID", "cpp v0/32")
 
     # --- supply / coinbase predicate ---
-    expect(OCAML, ["res-coinbase", "0", "0", "40000000"], "40000000", "res cb")
-    expect(CPP, ["res-coinbase", "0", "0", "40000000"], "40000000", "cpp res cb")
+    expect(OCAML, ["res-coinbase", "0", "0"], "0", "res cb")
+    expect(CPP, ["res-coinbase", "0", "0"], "0", "cpp res cb")
+    expect(OCAML, ["res-coinbase", "5", "40"], "45", "res cb fees+bootstrap")
+    expect(CPP, ["res-coinbase", "5", "40"], "45", "cpp res cb fees+bootstrap")
     sub1 = run(OCAML, "oru", "1")
     expect(OCAML, ["claimable", "100", "10", sub1], str(100 - 10 + int(sub1)), "claimable")
     expect(CPP, ["claimable", "100", "10", "1"], str(100 - 10 + int(sub1)), "cpp claimable")
     expect(OCAML, ["ledger-delta", sub1, "2"], str(int(sub1) - 2), "ledger delta")
     expect(CPP, ["ledger-delta", "1", "2"], str(int(sub1) - 2), "cpp ledger")
 
-    # genesis apply-delta zero vector
-    expect(OCAML, ["apply-delta", "0", "0", "0", "0", "0", "1", "0", "0"], "0 0 0 0", "genesis delta")
-    expect(OCAML, ["apply-delta", "0", "0", "0", "0", "0", "1", "0", "1"], "REJECT", "invalid reject")
-    expect(OCAML, ["apply-delta", "1", "0", "1", "0", "0", "1", "0", "0"], "REJECT", "ordinary mint")
-    expect(OCAML, ["draw-empty"], "NONE", "empty F")
-
-    # P049 vector file still distinguishes schedule vs actual
+    # P049 vector file still distinguishes RATE vs actual issuance
     av = json.loads(ALIGN_VEC.read_text(encoding="utf-8"))
     by_id = {v["id"]: v for v in av.get("vectors", [])}
-    if by_id["P049-G0-RES-SCHEDULE"]["get_res_mint_reward"] != 40000000:
-        errors.append("alignment vector schedule drifted")
+    if by_id["P049-G0-RES-SCHEDULE"]["get_res_mint_reward"] != 102400000000:
+        errors.append("alignment vector RATE drifted")
     if by_id["P049-G0-RES-SCHEDULE"]["res_issued"] != 0:
         errors.append("alignment vector actual drifted")
 

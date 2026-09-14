@@ -15,15 +15,15 @@ IMPORTANT: WALLET DESIGN LOCK V1
 - Change output MUST match input asset
 - Network fees are always ORU (POOL-F); transfer asset is separate (POOL-T)
 
-CONVERGENCE RULES:
-- Convergence consumes ORU ONLY
-- Convergence does NOT guarantee RES
-- Wallet MUST NOT calculate or display probability
-- Wallet MUST NOT simulate consensus outcome
+CONVERGENCE (MINT) RULES:
+- Mint inputs are ORU ONLY; the burn is one explicit OP_CONVERGE output of value B
+- R RES is minted when R · (2^25+h)^2 <= B << 40 at the CONFIRMING height; R = 0 is a legal plain burn
+- Wallet MUST take destroy_cost(h) from the node, never hardcode or re-derive it
+- No outcome state exists: no draw, no winner, no maturity
 
 ARCHITECTURE:
 - Wallet constructs transactions ONLY
-- Consensus decides RES outcome
+- Consensus defines destroy_cost(h) and mint authorization
 - No policy logic inside wallet
 
 WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
@@ -38,7 +38,6 @@ WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 #include <qt/forms/ui_sendcoinsdialog.h>
 
 #include <qt/addresstablemodel.h>
-#include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>
 #include <qt/clientmodel.h>
 #include <qt/coincontroldialog.h>
@@ -51,7 +50,6 @@ WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 #include <wallet/psbt_domain.h>
 
 #include <chainparams.h>
-#include <consensus/rigor_consensus_lock.h>
 #include <interfaces/node.h>
 #include <key_io.h>
 #include <node/interface_ui.h>
@@ -74,8 +72,6 @@ WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 
 #include <QCheckBox>
 #include <QFontMetrics>
-#include <QFrame>
-#include <QHBoxLayout>
 #include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSettings>
@@ -135,32 +131,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
         refreshBalance();
         updateCoinControlState();
         persistSendAssetToOptions();
-        updateConvergeControls();
     });
-
-    m_frameConverge = new QFrame(this);
-    m_frameConverge->setObjectName(QStringLiteral("frameConverge"));
-    auto* converge_layout = new QHBoxLayout(m_frameConverge);
-    converge_layout->setContentsMargins(10, 6, 10, 6);
-    m_checkConverge = new QCheckBox(tr("Destroy ORU (Convergence)"), m_frameConverge);
-    m_checkConverge->setObjectName(QStringLiteral("checkConverge"));
-    m_checkConverge->setToolTip(tr("Destroy ORU into RIGOR_MARKER_CONVERGE, same as the Convergence page. Pay To may be empty (destroy only) or filled (pay and destroy in one transaction). The owner HASH160 is a fresh RES key in this wallet. Minimum %1.")
-                                    .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT)));
-    m_convergeAmount = new BitcoinAmountField(m_frameConverge);
-    m_convergeAmount->setObjectName(QStringLiteral("convergeAmount"));
-    m_convergeAmount->SetMinValue(Consensus::MIN_CONVERGENCE_AMOUNT);
-    m_convergeAmount->setValue(Consensus::MIN_CONVERGENCE_AMOUNT);
-    m_convergeAmount->setEnabled(false);
-    converge_layout->addWidget(m_checkConverge);
-    converge_layout->addWidget(m_convergeAmount, 1);
-    const int fee_idx = ui->verticalLayout->indexOf(ui->frameFee);
-    ui->verticalLayout->insertWidget(fee_idx < 0 ? ui->verticalLayout->count() : fee_idx, m_frameConverge);
-    connect(m_checkConverge, &QCheckBox::toggled, this, [this](bool on) {
-        if (m_convergeAmount) m_convergeAmount->setEnabled(on);
-        coinControlUpdateLabels();
-    });
-    connect(m_convergeAmount, &BitcoinAmountField::valueChanged, this, &SendCoinsDialog::coinControlUpdateLabels);
-    updateConvergeControls();
 
     addEntry();
 
@@ -316,10 +287,6 @@ void SendCoinsDialog::setModel(WalletModel *_model)
             ui->confTargetSelector->setCurrentIndex(getIndexForConfTarget(settings.value("nConfTarget").toInt()));
 
         connect(_model, &WalletModel::walletStateRevisionChanged, this, &SendCoinsDialog::updateExtremeSafetyControls);
-        if (m_convergeAmount) {
-            m_convergeAmount->setDisplayUnit(_model->getOptionsModel()->getDisplayUnit());
-        }
-        updateConvergeControls();
     }
     updateExtremeSafetyControls();
 }
@@ -378,23 +345,12 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     }
 
     const AssetType send_asset = static_cast<AssetType>(ui->comboSendAsset->currentData().toInt());
-    const bool converge_checked = m_checkConverge && m_checkConverge->isChecked();
-    const CAmount burn_preview = converge_checked ? selectedConvergeAmount() : 0;
-    const bool destroy_only = valid && recipients.isEmpty() && converge_checked
-        && send_asset == ASSET_ORU
-        && burn_preview >= Consensus::MIN_CONVERGENCE_AMOUNT;
 
     if (!valid) {
         return false;
     }
-    if (recipients.isEmpty() && !destroy_only) {
-        if (converge_checked && send_asset != ASSET_ORU) {
-            processSendCoinsReturn(WalletModel::ConvergeRequiresOru);
-        } else if (converge_checked && burn_preview < Consensus::MIN_CONVERGENCE_AMOUNT) {
-            processSendCoinsReturn(WalletModel::InvalidConvergeAmount);
-        } else {
-            processSendCoinsReturn(WalletModel::InvalidAddress);
-        }
+    if (recipients.isEmpty()) {
+        processSendCoinsReturn(WalletModel::InvalidAddress);
         return false;
     }
 
@@ -414,20 +370,6 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
 
     // prepare transaction for getting txFee earlier
     m_current_transaction = std::make_unique<WalletModelTransaction>(recipients);
-    if (m_checkConverge && m_checkConverge->isChecked()) {
-        if (send_asset != ASSET_ORU) {
-            processSendCoinsReturn(WalletModel::ConvergeRequiresOru);
-            fNewRecipientAllowed = true;
-            return false;
-        }
-        const CAmount burn = selectedConvergeAmount();
-        if (burn < Consensus::MIN_CONVERGENCE_AMOUNT) {
-            processSendCoinsReturn(WalletModel::InvalidConvergeAmount);
-            fNewRecipientAllowed = true;
-            return false;
-        }
-        m_current_transaction->setConvergeAmount(burn);
-    }
     WalletModel::SendCoinsReturn prepareStatus;
 
     updateCoinControlState();
@@ -455,8 +397,7 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
     {
         const BitcoinUnit disp = model->getOptionsModel()->getDisplayUnit();
         const CAmount paid_total = m_current_transaction->getTotalTransactionAmount();
-        const CAmount burn = m_current_transaction->getConvergeAmount();
-        const CAmount send_only = paid_total - burn;
+        const CAmount send_only = paid_total;
         CAmount change_amt = 0;
         if (const CTransactionRef& built = m_current_transaction->getWtx()) {
             CAmount asset_out_sum = 0;
@@ -473,11 +414,6 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
             question_string.append(QStringLiteral("<b>%1</b>: %2<br />")
                 .arg(tr("Send"),
                      BitcoinUnits::formatAmountHtmlForAsset(send_asset, send_only, disp)));
-        }
-        if (burn > 0) {
-            question_string.append(QStringLiteral("<b>%1</b>: %2<br />")
-                .arg(tr("Destroy (Convergence)"),
-                     BitcoinUnits::formatAmountHtmlForAsset(ASSET_ORU, burn, disp)));
         }
         if (txFee > 0) {
             question_string.append(QStringLiteral("<b>%1</b>: %2<br />")
@@ -544,12 +480,6 @@ bool SendCoinsDialog::PrepareSendText(QString& question_string, QString& informa
         recipientElement.append(QStringLiteral("<br/><span style='font-size:9pt;'>%1</span>")
             .arg(GUIUtil::HtmlEscape(GUIUtil::FormatRecipientAssetDomainSummary(rcp.address))));
         formatted.append(recipientElement);
-    }
-    if (m_current_transaction->getConvergeAmount() > 0) {
-        const QString burn_amt = BitcoinUnits::formatAmountForAsset(
-            ASSET_ORU, m_current_transaction->getConvergeAmount(), model->getOptionsModel()->getDisplayUnit(), false,
-            BitcoinUnits::SeparatorStyle::STANDARD, true);
-        formatted.append(tr("%1 destroyed into RIGOR_MARKER_CONVERGE (owner HASH160 is a fresh RES key in this wallet).").arg(burn_amt));
     }
 
     if (sends_full_available_balance) {
@@ -789,8 +719,14 @@ void SendCoinsDialog::sendButtonClicked([[maybe_unused]] bool checked)
         // failed, or more signatures are needed.
         if (broadcast) {
             // now send the prepared transaction
-            model->sendCoins(*m_current_transaction);
-            Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            const WalletModel::SendCoinsReturn sendStatus = model->sendCoins(*m_current_transaction);
+            if (sendStatus.status == WalletModel::OK) {
+                Q_EMIT coinsSent(m_current_transaction->getWtx()->GetHash());
+            } else {
+                // Keep the dialog open with the entries intact so the send can be retried.
+                processSendCoinsReturn(sendStatus);
+                send_failure = true;
+            }
         }
     }
     if (!send_failure) {
@@ -810,14 +746,6 @@ void SendCoinsDialog::clear()
 
     applyDefaultSendAssetFromOptions();
     syncAssetCoinControl();
-    if (m_checkConverge) {
-        m_checkConverge->setChecked(false);
-    }
-    if (m_convergeAmount) {
-        m_convergeAmount->setValue(Consensus::MIN_CONVERGENCE_AMOUNT);
-        m_convergeAmount->setEnabled(false);
-    }
-    updateConvergeControls();
 
     // Clear coin control settings
     m_coin_control->UnSelectAll();
@@ -859,7 +787,6 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
         const QSignalBlocker b(ui->comboSendAsset);
         ui->comboSendAsset->setCurrentIndex(idx);
         syncAssetCoinControl();
-        updateConvergeControls();
         updateTabsAndLabels();
     });
     connect(entry, &SendCoinsEntry::uriPasted, this, [this, entry](const SendCoinsRecipient& rcp) {
@@ -868,7 +795,6 @@ SendCoinsEntry *SendCoinsDialog::addEntry()
             const QSignalBlocker b(ui->comboSendAsset);
             ui->comboSendAsset->setCurrentIndex(idx);
             syncAssetCoinControl();
-            updateConvergeControls();
         }
         entry->setValue(rcp);
         updateTabsAndLabels();
@@ -955,7 +881,6 @@ void SendCoinsDialog::setAddress(const QString &address)
         const QSignalBlocker b(ui->comboSendAsset);
         ui->comboSendAsset->setCurrentIndex(idx);
         syncAssetCoinControl();
-        updateConvergeControls();
     }
 }
 
@@ -969,7 +894,6 @@ void SendCoinsDialog::pasteEntry(const SendCoinsRecipient &rv)
         const QSignalBlocker b(ui->comboSendAsset);
         ui->comboSendAsset->setCurrentIndex(idx);
         syncAssetCoinControl();
-        updateConvergeControls();
     }
 
     SendCoinsEntry *entry = nullptr;
@@ -1052,7 +976,6 @@ void SendCoinsDialog::applyDefaultSendAssetFromOptions()
     const QSignalBlocker b(ui->comboSendAsset);
     ui->comboSendAsset->setCurrentIndex(idx);
     syncAssetCoinControl();
-    updateConvergeControls();
 }
 
 void SendCoinsDialog::persistSendAssetToOptions()
@@ -1078,40 +1001,10 @@ void SendCoinsDialog::syncAssetCoinControl()
     }
 }
 
-void SendCoinsDialog::updateConvergeControls()
-{
-    const AssetType send_asset = static_cast<AssetType>(ui->comboSendAsset->currentData().toInt());
-    const bool oru = send_asset == ASSET_ORU;
-    if (m_frameConverge) {
-        m_frameConverge->setVisible(oru);
-    }
-    if (!oru && m_checkConverge) {
-        m_checkConverge->setChecked(false);
-    }
-    if (m_convergeAmount) {
-        m_convergeAmount->setEnabled(oru && m_checkConverge && m_checkConverge->isChecked());
-    }
-}
-
-CAmount SendCoinsDialog::selectedConvergeAmount() const
-{
-    if (!m_checkConverge || !m_checkConverge->isChecked() || !m_convergeAmount) {
-        return 0;
-    }
-    const AssetType send_asset = static_cast<AssetType>(ui->comboSendAsset->currentData().toInt());
-    if (send_asset != ASSET_ORU) {
-        return 0;
-    }
-    return m_convergeAmount->value();
-}
-
 void SendCoinsDialog::refreshBalance()
 {
     setBalance(model->getCachedBalance());
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-    if (m_convergeAmount) {
-        m_convergeAmount->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
-    }
     updateSmartFeeLabel();
     updateExtremeSafetyControls();
 }
@@ -1123,7 +1016,8 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
     msgParams.second = CClientUIInterface::MSG_WARNING;
 
     // This comment is specific to SendCoinsDialog usage of WalletModel::SendCoinsReturn.
-    // All status values are used only in WalletModel::prepareTransaction()
+    // All status values come from WalletModel::prepareTransaction(), except
+    // TransactionCommitFailed, which comes from WalletModel::sendCoins().
     switch(sendCoinsReturn.status)
     {
     case WalletModel::InvalidAddress:
@@ -1145,6 +1039,10 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.first = tr("Transaction creation failed. Reason: the wallet could not build a valid transaction (limits, fees, or coin selection). Suggestion: check coin control selections, fee settings, and try again.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
+    case WalletModel::TransactionCommitFailed:
+        msgParams.first = tr("The transaction was rejected by the node and has not been sent. Reason: %1. Nothing was spent and the coins are still available, so you can adjust the fee or amount and try again.").arg(sendCoinsReturn.reasonCommitFailed);
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
     case WalletModel::AbsurdFee:
         msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->wallet().getDefaultMaxTxFee()));
         break;
@@ -1159,7 +1057,7 @@ void SendCoinsDialog::processSendCoinsReturn(const WalletModel::SendCoinsReturn 
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
     case WalletModel::InvalidConvergeAmount:
-        msgParams.first = tr("The Convergence destroy amount must be at least %1.")
+        msgParams.first = tr("The Convergence destroy amount must be a positive ORU amount (at least %1).")
             .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT));
         break;
     case WalletModel::ConvergeRequiresOru:
@@ -1214,7 +1112,6 @@ void SendCoinsDialog::useAvailableBalance(SendCoinsEntry* entry)
             amount -= e->getValue().amount;
         }
     }
-    amount -= selectedConvergeAmount();
 
     if (amount > 0) {
       entry->checkSubtractFeeFromAmount();
@@ -1515,9 +1412,6 @@ void SendCoinsDialog::coinControlUpdateLabels()
             if (rcp.fSubtractFeeFromAmount)
                 CoinControlDialog::fSubtractFeeFromAmount = true;
         }
-    }
-    if (const CAmount burn = selectedConvergeAmount(); burn > 0) {
-        CoinControlDialog::payAmounts.append(burn);
     }
 
     if (m_coin_control->HasSelected())

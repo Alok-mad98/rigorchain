@@ -48,7 +48,7 @@
     const byId = Object.fromEntries((graph.nodes || []).map((n) => [n.id, n]));
     const candidates = (graph.nodes || []).filter((n) => n.kind === "candidate");
     const winner = (graph.nodes || []).find((n) => n.kind === "winner");
-    const chainKinds = ["convergence_root", "sigma_digest", "pcorb", "res_mint"];
+    const chainKinds = ["res_mint"];
     const chain = chainKinds.map((k) => (graph.nodes || []).find((n) => n.kind === k)).filter(Boolean);
 
     let html = '<div class="lineage-graph-canvas">';
@@ -75,12 +75,9 @@
 
   function renderSummary(graph) {
     const rows = [
-      ["|F|", String(graph.f_set_size ?? 0)],
-      ["winner_txid", graph.winner?.txid ?? "—"],
-      ["C (convergence_root)", graph.convergence_root ?? "—"],
-      ["selection_digest_h", graph.sigma?.selection_digest_h ?? "—"],
-      ["mint_txid", graph.mint?.mint_txid ?? "—"],
-      ["mint_height", graph.mint?.mint_height != null ? String(graph.mint.mint_height) : "—"],
+      ["OP_CONVERGE destroys", String(graph.f_set_size ?? 0)],
+      ["mint txid", graph.mint?.mint_txid ?? graph.winner?.txid ?? "—"],
+      ["confirming height", graph.mint?.mint_height != null ? String(graph.mint.mint_height) : "—"],
     ];
     return `<dl class="lineage-graph-summary">${rows
       .map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`)
@@ -92,7 +89,7 @@
     return `<div class="lineage-graph-legend"><strong>Legend</strong><ul>${items
       .map((i) => `<li><strong>${escapeHtml(i.kind)}</strong> — ${escapeHtml(i.description)}</li>`)
       .join("")}</ul>
-      <p class="muted">Visual states: Candidate, Winner, Minted, Confirmed, Orphaned (indexed mismatch), Revoked (reserved).</p>
+      <p class="muted">Same-tx destroy-to-mint. ORU destroyed. RES minted. Observational graph only.</p>
     </div>`;
   }
 

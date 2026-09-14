@@ -1,0 +1,128 @@
+# Formal claim-boundary gate. One workflow. No Coq, mutation, fuzz, C++, VST, or CompCert.
+# Pass: FORMAL_INTEGRITY_GATE_PASS
+# Fail: FORMAL_CLAIM_BOUNDARY_VIOLATION
+name: formal-integrity-gate
+
+on:
+  pull_request:
+    paths:
+      - "release/**"
+      - "audit/formal_bridge/**"
+      - "formal_verification/**"
+      - "docs/formal/**"
+      - ".github/workflows/formal-integrity-gate.yml"
+
+jobs:
+  formal-integrity-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Formal claim boundary checks
+        run: |
+          python3 <<'PY'
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          root = Path(".")
+          fail = []
+
+          def die(msg):
+              print("FORMAL_CLAIM_BOUNDARY_VIOLATION")
+              print(msg)
+              sys.exit(1)
+
+          # --- CHECK 2: source of truth ---
+          sot = root / "audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md"
+          if not sot.is_file():
+              die("missing audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md")
+          sot_text = sot.read_text(encoding="utf-8", errors="replace")
+          for needle in (
+              "MATURITY_LEVEL=4.9",
+              "REFINEMENT_PROVED=false",
+              "CPP_KERNELINPUT_EQUIVALENCE=false",
+              "LEVEL_5_CLAIMED=false",
+              "CPP_VERIFIED=false",
+          ):
+              if needle not in sot_text:
+                  fail.append("CHECK 2 missing %s in %s" % (needle, sot))
+
+          # Public formal docs + formal release pack only. No .v, no coqc.
+          # Not docs/release (historical product notes). Not audit/formal_bridge
+          # (those files document the bans and would false-positive).
+          scan_roots = [
+              root / "docs" / "formal",
+              root / "formal_verification" / "rigor_kernel" / "release",
+              root / "release",
+          ]
+          md_files = []
+          for base in scan_roots:
+              if not base.exists():
+                  continue
+              if base.is_file() and base.suffix == ".md":
+                  md_files.append(base)
+                  continue
+              md_files.extend(p for p in base.rglob("*.md") if p.is_file())
+
+          FLAG_TRUE = (
+              "CPP_VERIFIED=true",
+              "REFINEMENT_PROVED=true",
+              "LEVEL_5_CLAIMED=true",
+          )
+          SLOGANS = (
+              "production c++ node verified",
+              "level 5 achieved",
+              "connectblock refinement proved",
+          )
+          CHECK3 = (
+              "verified c++",
+              "fully verified node",
+              "compiler correctness",
+          )
+          ALLOWED = "coq consensus kernel model has formally verified invariants"
+          NEG = re.compile(
+              r"not |no |false|never|forbid|prohibit|without|unproved|"
+              r"do not|don't|must not|not claimed|not proved|remains false|"
+              r"✗|unless|fail if|\u7981\u6b62|\u4e0d\u5f97|\u4e0d\u5141\u8bb8|not allowed|open:|depends on|"
+              r"path c|replacement|non-gap",
+              re.I,
+          )
+
+          def lines_of(path):
+              try:
+                  return path.read_text(encoding="utf-8", errors="replace").splitlines()
+              except OSError:
+                  return []
+
+          for path in md_files:
+              rel = str(path).replace(os.sep, "/")
+              in_kernel_release = "formal_verification/rigor_kernel/release/" in rel
+              for i, raw in enumerate(lines_of(path), 1):
+                  line = raw.strip()
+                  low = line.lower()
+                  if ALLOWED in low:
+                      continue
+                  for flag in FLAG_TRUE:
+                      if flag.lower() in low and not NEG.search(line):
+                          fail.append("%s:%d CHECK 1 %s" % (rel, i, flag))
+                  for s in SLOGANS:
+                      if s in low and not NEG.search(line):
+                          fail.append("%s:%d CHECK 1 slogan: %s" % (rel, i, s))
+                  if not in_kernel_release:
+                      for s in CHECK3:
+                          if s in low and not NEG.search(line):
+                              fail.append("%s:%d CHECK 3 %s" % (rel, i, s))
+                  else:
+                      # kernel release may discuss compiler correctness as a non-claim.
+                      if "verified c++" in low or "fully verified node" in low:
+                          if not NEG.search(line):
+                              fail.append("%s:%d CHECK 3 leak" % (rel, i))
+                      if re.search(r"compiler correctness\s+proved", low) and not NEG.search(line):
+                          fail.append("%s:%d CHECK 3 compiler correctness proved" % (rel, i))
+
+          if fail:
+              die("\n".join(fail[:80]))
+          print("FORMAL_INTEGRITY_GATE_PASS")
+          PY

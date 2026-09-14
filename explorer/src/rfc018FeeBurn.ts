@@ -8,8 +8,9 @@
  * equivalence_claimed = false
  */
 
-export const ORU_COIN = 100000000n;
-export const RES_COIN = 1000000n;
+import { ORU_COIN, RES_COIN } from "./amount";
+
+export { ORU_COIN, RES_COIN };
 export const ORU_RES_TRANSFER_FEE_BURN_NUM = 1n;
 export const ORU_RES_TRANSFER_FEE_BURN_DEN = 2n;
 

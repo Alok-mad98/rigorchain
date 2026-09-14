@@ -7,8 +7,8 @@ echo --------------------------------
 echo RIGOR Miner launcher
 echo --------------------------------
 echo Start Rigor Wallet first so RPC is up, then run this miner.
-echo ORU payout only ^(rg1q...^). Coinbase scriptSig / RES mint / paid-winner
-echo are copied from getblocktemplate; the miner only searches OpuHash nonces.
+echo ORU payout only ^(rg1q...^). Coinbase is copied from getblocktemplate;
+echo the miner only searches SHA3-256 RGRPOW01 nonces. RES is not mined.
 echo Tip: set COINBASE_ADDR=rg1q... to skip the prompt.
 echo.
 
@@ -24,6 +24,8 @@ if exist "%~dp0RIGOR Alpha\chainstate" set "DATADIR=%~dp0RIGOR Alpha"
 if not defined DATADIR if exist "%~dp0datadir\chainstate" set "DATADIR=%~dp0datadir"
 if not defined DATADIR if exist "%APPDATA%\RIGOR\chainstate" set "DATADIR=%APPDATA%\RIGOR"
 if not defined DATADIR set "DATADIR=%APPDATA%\RIGOR"
+if not exist "%APPDATA%\RIGOR" mkdir "%APPDATA%\RIGOR"
+set "RIGOR_MINER_STATUS_FILE=%APPDATA%\RIGOR\miner-status.json"
 if exist "%~dp0load-rpc-auth.cmd" (
   call "%~dp0load-rpc-auth.cmd"
   if errorlevel 1 (
@@ -56,7 +58,7 @@ echo %COINBASE_ADDR% | findstr /i /b /c:"rg1p" >nul 2>&1
 if not errorlevel 1 (
   echo.
   echo WARNING: that looks like a RES address ^(rg1p...^).
-  echo Miner payout must be ORU ^(rg1q...^). Convergence RES goes to the draw winner.
+  echo Miner payout must be ORU ^(rg1q...^). RES is not created by mining.
   echo.
 )
 
@@ -79,7 +81,7 @@ echo ORU payout: %COINBASE_ADDR%
 echo Starting miner...
 echo.
 
-rigor-miner.exe -a sha256d -q -t %MINER_THREADS% --no-getwork --coinbase-addr="%COINBASE_ADDR%" -o "%RPC_URL%" -u "%RPC_USER%" -p "%RPC_PASS%"
+rigor-miner.exe -a rgrpow01 -q -t %MINER_THREADS% --no-getwork --coinbase-addr="%COINBASE_ADDR%" -o "%RPC_URL%" -u "%RPC_USER%" -p "%RPC_PASS%"
 set "EC=%ERRORLEVEL%"
 
 echo.
@@ -90,7 +92,8 @@ if not "%EC%"=="0" (
   echo  - Node/RPC down or wrong user/pass
   echo  - Missing solomining=1 while Peers=0
   echo  - Invalid ORU --coinbase-addr
-  echo  - Stale node: coinbase scriptSig must be height + C + paid-winner (copy default_coinbase_scriptsig)
+  echo  - Stale miner: copy default_coinbase_tx; do not rebuild coinbase
+  echo  - rigor.conf still has miningresfeeaddr= ^(node will not start on mainnet^)
 )
 echo.
 pause

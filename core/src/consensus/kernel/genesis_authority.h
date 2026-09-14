@@ -4,7 +4,7 @@
 //
 // Genesis-time canonical Consensus Kernel authority (P073).
 // ConnectBlock prepares inputs, calls this Kernel, and consumes results.
-// Unique formula bodies remain in issuance / RES / draw / classify / supply.
+// Unique formula bodies remain in issuance / classify / supply.
 // No OCaml runtime. C ABI stays verify-only. EQUIVALENCE_PROVED = FALSE.
 //
 // Status is four independent facts. Do not reintroduce PRODUCTION_KERNEL_SWITCHED:
@@ -20,7 +20,6 @@
 #define BITCOIN_CONSENSUS_KERNEL_GENESIS_AUTHORITY_H
 
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -44,24 +43,18 @@ inline constexpr bool GENESIS_EQUIVALENCE_PROVED = false;
 struct RigorConsensusKernelConnectInput {
     int height{0};
     const CTransaction* coinbase{nullptr};
-    ConvergenceDrawSet parent_draw;
-    ConvergenceDrawOutcome parent_draw_outcome;
     RigorSupplyDeltaInput supply;
     const Consensus::Params* params{nullptr};
 };
 
 struct RigorConsensusKernelConnectResult {
     bool accept{false};
-    CAmount res_mint{0};
     RigorSupplyDeltaResult supply;
 };
 
 class RigorConsensusKernel
 {
 public:
-    /** Unique production draw entry. Body remains ResolveConvergenceDraw. */
-    static ConvergenceDrawOutcome ResolveDraw(const ConvergenceDrawSet& F, const uint256& T);
-
     /** Unique production issuance pack. Body remains ComputeRigorIssuance. */
     static RigorIssuance Issuance(int height, const Consensus::Params& params);
 
@@ -72,7 +65,8 @@ public:
     static bool CoinbaseMature(int spend_height, int coin_height, int64_t maturity);
 
     /**
-     * Connect-time Kernel: RES mint gate then supply delta.
+     * Connect-time Kernel: coinbase budgets and the supply delta. RFC-019 left no
+     * block-level issuance gate — RES is minted and priced per transaction.
      * Does not mutate UTXO / chainstate. ConnectBlock applies state after accept.
      */
     static bool EvaluateConnect(const RigorConsensusKernelConnectInput& in,

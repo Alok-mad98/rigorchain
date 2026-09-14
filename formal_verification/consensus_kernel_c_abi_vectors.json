@@ -19,55 +19,55 @@
       "height": 0,
       "epoch": 0,
       "oru_subsidy": 0,
-      "res_reward_schedule": 40000000
+      "res_destroy_cost": 102400000000
     },
     {
       "height": 1,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_reward_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 102400006103
     },
     {
       "height": 99,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_reward_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 102400604248
     },
     {
       "height": 100,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_reward_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 102400610352
     },
     {
       "height": 101,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_reward_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 102400616456
     },
     {
       "height": 209999,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_reward_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 103685743011
     },
     {
       "height": 210000,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_reward_schedule": 14142196
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 103685749152
     },
     {
       "height": 419999,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_reward_schedule": 14142196
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 104979513869
     },
     {
       "height": 420000,
       "epoch": 2,
-      "oru_subsidy": 25000000000,
-      "res_reward_schedule": 7698004
+      "oru_subsidy": 12800000000,
+      "res_destroy_cost": 104979520049
     }
   ],
   "maturity": [
@@ -203,9 +203,9 @@
       "fees": 0,
       "burn": 0,
       "converge": 0,
-      "mint": 40000000,
-      "has_winner": 1,
-      "card": 1,
+      "mint": 1,
+      "has_winner": 0,
+      "card": 0,
       "oru_cb": 0,
       "ok": true
     },
@@ -215,10 +215,10 @@
       "fees": 0,
       "burn": 0,
       "converge": 0,
-      "mint": 40000000,
+      "mint": 0,
       "has_winner": 0,
-      "card": 1,
-      "oru_cb": 0,
+      "card": 0,
+      "oru_cb": 200000000000,
       "ok": false
     },
     {

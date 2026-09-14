@@ -153,7 +153,7 @@ mod tests {
                 bind_hash: [0x22; 32],
                 height: 200,
                 target_prev: 0x207fffff,
-                convergence_root: [0x33; 32],
+                convergence_root: [0u8; 32],
             },
             res_payout_script: witness_v1_res_script(&program),
             oru_change_script: bootstrap_p2wsh_scriptpubkey(),

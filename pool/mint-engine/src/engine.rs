@@ -195,13 +195,11 @@ impl MintEngine {
             .max(crate::types::MIN_CONVERGENCE_AMOUNT_SAT as i64) as u64;
 
         let mint_job = MintJobRef {
-            winner_job_id: template.winner_job_id.clone().or_else(|| {
-                template
-                    .job_id
-                    .as_ref()
-                    .map(|j| j.0.clone())
-                    .or_else(|| Some(job.job_id.0.clone()))
-            }),
+            winner_job_id: template
+                .job_id
+                .as_ref()
+                .map(|j| j.0.clone())
+                .or_else(|| Some(job.job_id.0.clone())),
             job_id: job.job_id.0.clone(),
             record_id: job.record_id,
             winner_txid: winner_hex.clone(),
@@ -508,7 +506,7 @@ mod tests {
     }
 
     fn golden_win002_fixtures() -> (TemplateRecord, PublishedJobSnapshot, winner_engine::DrawReplayResult) {
-        use rigor_gbt::{ConvergenceDraw, ConvergenceDrawCandidate};
+        use rigor_gbt::legacy::{ConvergenceDraw, ConvergenceDrawCandidate};
         use winner_engine::{
             draw_input_from_golden, replay_convergence_draw, GOLDEN_PREV_NBITS,
         };
@@ -518,7 +516,7 @@ mod tests {
         let root_hex = block_assembler::native_to_hash_hex(
             &block_assembler::compute_convergence_root(&[txid.clone()]),
         );
-        let draw_obj = ConvergenceDraw {
+        let _draw_obj = ConvergenceDraw {
             source_blockhash: prev.clone(),
             source_height: 299,
             sigma_seed: prev.clone(),
@@ -534,7 +532,7 @@ mod tests {
                 sigma: None,
                 eligible: true,
             }],
-            winner: Some(rigor_gbt::ConvergenceDrawWinner {
+            winner: Some(rigor_gbt::legacy::ConvergenceDrawWinner {
                 index: 0,
                 txid: txid.clone(),
                 weight: 1,
@@ -564,17 +562,17 @@ mod tests {
                     sigops: None,
                     weight: None,
                 }],
-                convergence_txids: vec![txid.clone()],
-                convergence_root: None,
-                convergence_draw: Some(draw_obj),
                 default_witness_commitment: None,
-                default_convergence_commitment: None,
-                default_res_mint: None,
-                default_pcorb_carrier: None,
                 weightlimit: None,
                 version: None,
                 gbt_payload_hash: [0u8; 32],
                 raw_json: "{}".into(),
+                default_coinbase_scriptsig: None,
+                default_coinbase_tx: None,
+                default_coinbase_txid: None,
+                merkleroot: None,
+                rigor_coinbase_immutable: None,
+                coinbase_address: None,
             },
             None,
             TemplateVersion::INITIAL,

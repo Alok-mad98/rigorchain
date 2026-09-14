@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""P1-3: FrozenKernelParams literals must match C++ ORU_* constants."""
+"""P1-3: FrozenKernelParams literals must match C++ ORU_FLAT_* constants."""
 
 from __future__ import annotations
 
@@ -15,10 +15,6 @@ COQ = ROOT / "formal_verification/coq/ConsensusKernelRefinement.v"
 LOCK = ROOT / "core/src/consensus/rigor_consensus_lock.h"
 AMOUNT = ROOT / "core/src/consensus/amount.h"
 CHAIN = ROOT / "core/src/kernel/chainparams.cpp"
-
-REGTEST_INTERVAL_RE = re.compile(
-    r"nSubsidyHalvingInterval\s*=\s*150\s*;"
-)
 
 
 def cpp_int(path: Path, name: str) -> int:
@@ -70,48 +66,34 @@ def genesis_const(path: Path) -> int:
 def main() -> int:
     errors: list[str] = []
     base, interval, shifts = coq_frozen(COQ)
-    cpp_base = cpp_int(LOCK, "ORU_INITIAL_BLOCK_SUBSIDY")
-    cpp_interval = cpp_int(LOCK, "ORU_SUBSIDY_HALVING_INTERVAL")
-    cpp_shifts = cpp_int(LOCK, "ORU_SUBSIDY_MAX_SHIFTS")
+    cpp_base = cpp_int(LOCK, "ORU_FLAT_BLOCK_SUBSIDY")
+    cpp_interval = cpp_int(LOCK, "RES_REWARD_EPOCH")
     cpp_genesis = cpp_int(LOCK, "ORU_GENESIS_BLOCK_SUBSIDY")
     coq_genesis = genesis_const(COQ)
+    coq_text = COQ.read_text(encoding="utf-8")
 
     if base != cpp_base:
-        errors.append(f"cpp_base {base} != ORU_INITIAL_BLOCK_SUBSIDY {cpp_base}")
+        errors.append(f"cpp_base {base} != ORU_FLAT_BLOCK_SUBSIDY {cpp_base}")
     if interval != cpp_interval:
-        errors.append(f"cpp_interval {interval} != ORU_SUBSIDY_HALVING_INTERVAL {cpp_interval}")
-    if shifts != cpp_shifts:
-        errors.append(f"cpp_max_shifts {shifts} != ORU_SUBSIDY_MAX_SHIFTS {cpp_shifts}")
+        errors.append(f"cpp_interval {interval} != RES_REWARD_EPOCH {cpp_interval}")
+    if shifts != 0:
+        errors.append(f"cpp_max_shifts {shifts} != 0 (RFC-020 has no halvings)")
     if coq_genesis != cpp_genesis:
         errors.append(
             f"ORU_GENESIS_BLOCK_SUBSIDY_Z {coq_genesis} != C++ {cpp_genesis}"
         )
-
-    cpp_min = cpp_base >> cpp_shifts
-    lock_text = LOCK.read_text(encoding="utf-8")
-    if "ORU_MIN_BLOCK_SUBSIDY = (ORU_INITIAL_BLOCK_SUBSIDY >> ORU_SUBSIDY_MAX_SHIFTS)" not in lock_text.replace(" ", ""):
-        # allow whitespace variants
-        if not re.search(
-            r"ORU_MIN_BLOCK_SUBSIDY\s*=\s*\(\s*ORU_INITIAL_BLOCK_SUBSIDY\s*>>\s*ORU_SUBSIDY_MAX_SHIFTS\s*\)",
-            lock_text,
-        ):
-            errors.append("C++ ORU_MIN_BLOCK_SUBSIDY is not derived from base >> max_shifts")
-    coq_text = COQ.read_text(encoding="utf-8")
-    if "Z.shiftr (cpp_base FrozenKernelParams) (cpp_max_shifts FrozenKernelParams)" not in coq_text:
-        errors.append("ORU_MIN_BLOCK_SUBSIDY_Z must be Z.shiftr of FrozenKernelParams")
-    if "cpp_interval FrozenKernelParams * cpp_max_shifts FrozenKernelParams" not in coq_text:
-        errors.append("ORU_SUBSIDY_CAP_HEIGHT must be interval * max_shifts")
-    expected_cap = cpp_interval * cpp_shifts
-    if expected_cap != 630000:
-        errors.append(f"cap height {expected_cap} != 210000*3")
-    if cpp_min != 12500000000:
-        errors.append(f"ORU_MIN {cpp_min} drifted")
+    if "if h <=? 0 then ORU_GENESIS_BLOCK_SUBSIDY_Z" not in coq_text:
+        errors.append("cpp_GetBlockSubsidy must be genesis-0 / flat base")
+    if "Definition refinement_proved : bool := false" not in coq_text:
+        errors.append("RFC-020 requires refinement_proved = false; do not flip the kernel-wide flag")
 
     chain = CHAIN.read_text(encoding="utf-8")
-    if not REGTEST_INTERVAL_RE.search(chain):
-        errors.append("regtest interval=150 marker missing; update out-of-scope note")
-    if "FrozenKernelParams does not apply to regtest" not in COQ.read_text(encoding="utf-8"):
-        errors.append("Coq must declare regtest interval out of FrozenKernelParams scope")
+    if "nSubsidyHalvingInterval" in chain or "nBlockSubsidyBase" in chain:
+        errors.append("chainparams still assigns retired RFC-019 subsidy Params fields")
+    if "nSubsidyHalvingInterval" in LOCK.read_text(encoding="utf-8"):
+        errors.append("lock header still names nSubsidyHalvingInterval")
+    if "FrozenKernelParams does not apply to regtest" not in coq_text:
+        errors.append("Coq must declare regtest observational calendar out of FrozenKernelParams scope")
 
     if errors:
         print("FAIL: FrozenKernelParams drifted from C++ constants")
@@ -121,7 +103,7 @@ def main() -> int:
 
     print("FROZEN_KERNEL_PARAMS=PASS")
     print(f"base={base} interval={interval} max_shifts={shifts} genesis={coq_genesis}")
-    print("regtest interval=150 is outside FrozenKernelParams")
+    print("observational calendar RES_REWARD_EPOCH is outside GetBlockSubsidy")
     return 0
 
 

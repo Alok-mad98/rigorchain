@@ -51,7 +51,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 let cache = Arc::new(TemplateCache::new());
-let rpc = RigordRpc::new("http://127.0.0.1:8332")
+let rpc = RigordRpc::new("http://127.0.0.1:8761")
     .with_auth("rpcuser", "rpcpass");
 let mut adapter = GbtAdapter::new(rpc, cache.clone());
 

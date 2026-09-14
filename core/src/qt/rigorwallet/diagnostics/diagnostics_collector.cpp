@@ -4,7 +4,6 @@
 
 #include <qt/rigorwallet/diagnostics/diagnostics_collector.h>
 
-#include <qt/rigorwallet/convergence/convergence_wallet_data.h>
 #include <qt/rigorwallet/explorer/explorerclient.h>
 #include <qt/rigorwallet/walletidentity.h>
 
@@ -149,28 +148,9 @@ ExplorerStatusSnapshot DiagnosticsCollector::collectExplorer(ClientModel* client
     return snap;
 }
 
-ConvergenceDiagnosticsSnapshot DiagnosticsCollector::collectConvergence(ClientModel* clientModel,
-                                                                        WalletModel* walletModel)
+ConvergenceDiagnosticsSnapshot DiagnosticsCollector::collectConvergence(ClientModel* clientModel)
 {
     ConvergenceDiagnosticsSnapshot snap;
-    if (walletModel) {
-        const auto rows = ConvergenceWalletData::buildHistory(walletModel);
-        if (const auto* pending = ConvergenceWalletData::pendingRow(rows)) {
-            snap.pending = true;
-            snap.pending_txid = pending->txid;
-        }
-        for (const ConvergenceHistoryRow& row : rows) {
-            if (row.status == ConvergenceUserStatus::Completed ||
-                row.status == ConvergenceUserStatus::Minted ||
-                row.status == ConvergenceUserStatus::Included) {
-                if (snap.latest_completed_txid.isEmpty()) snap.latest_completed_txid = row.txid;
-            }
-            if (row.status == ConvergenceUserStatus::Minted && !row.linked_mint_txid.isEmpty()) {
-                snap.latest_mint_txid = row.linked_mint_txid;
-            }
-        }
-    }
-
     if (clientModel) {
         try {
             UniValue r = clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
@@ -183,9 +163,7 @@ ConvergenceDiagnosticsSnapshot DiagnosticsCollector::collectConvergence(ClientMo
         }
     }
 
-    if (snap.pending) {
-        snap.overall = StatusBadgeColor::Yellow;
-    } else if (snap.mint_lag > 100) {
+    if (snap.mint_lag > 100) {
         snap.overall = StatusBadgeColor::Yellow;
     } else {
         snap.overall = StatusBadgeColor::Green;
@@ -261,10 +239,6 @@ QString DiagnosticsCollector::convergenceStatusJson(const ConvergenceDiagnostics
 {
     QJsonObject obj;
     obj.insert(QStringLiteral("authority"), QStringLiteral("node"));
-    obj.insert(QStringLiteral("pending"), snap.pending);
-    obj.insert(QStringLiteral("pending_txid"), snap.pending_txid);
-    obj.insert(QStringLiteral("latest_completed_txid"), snap.latest_completed_txid);
-    obj.insert(QStringLiteral("latest_mint_txid"), snap.latest_mint_txid);
     obj.insert(QStringLiteral("mint_lag"), snap.mint_lag);
     obj.insert(QStringLiteral("overall"), StatusBadge::labelForColor(snap.overall));
     return jsonString(obj);

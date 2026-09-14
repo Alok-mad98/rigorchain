@@ -2,11 +2,11 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""P0-076 economic model simulator.
+"""P0-076 economic model simulator (RFC-020).
 
-Simulation only. Reads frozen consensus vectors. Does not reimplement
-GetBlockSubsidy / GetResMintReward / RigorSupplyDelta. Does not modify
-consensus rules, issuance, RES schedule, PoW / ASERT, or the Kernel.
+Simulation only. Reads frozen consensus vectors for ORU pins and uses the
+numeric SSOT for continuous display destroy_cost(h). Does not modify consensus
+rules, PoW / ASERT, or the Kernel.
 """
 
 from __future__ import annotations
@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+from res_continuous_price_schedule import destroy_cost_atoms  # noqa: E402
+
 RELEASE_VECTORS = ROOT / "formal_verification/release_consensus_vectors.json"
 GENESIS_VECTORS = ROOT / "formal_verification/genesis_consensus_vectors.json"
 BOUNDARY_VECTORS = ROOT / "core/src/test/data/issuance_height_boundary_p0_040.json"
@@ -33,9 +36,9 @@ BLOCKS_PER_YEAR = int(365.25 * 24 * 3600 / TARGET_BLOCK_TIME_S)
 LONG_HORIZON_YEARS = 50
 LONG_HORIZON_HEIGHT = BLOCKS_PER_YEAR * LONG_HORIZON_YEARS
 
-# RFC-018 baseline for this simulation: no convergence burns, no RES-transfer fee burns.
+# RFC-018 baseline: no convergence burns, no RES-transfer fee burns.
 BASELINE_BURNED = 0
-# Actual RES mint requires a draw winner. Baseline chain has empty F → no mint.
+# RFC-020: no automatic per-block RES grant. Baseline burns nothing → minted RES is 0.
 BASELINE_MINTED_RES = 0
 
 
@@ -49,15 +52,15 @@ class FrozenPin:
 
 @dataclass(frozen=True)
 class FrozenSchedule:
-    """Piecewise-constant rates taken from frozen vector tables. Not a formula body."""
+    """Frozen ORU pins plus exact-height display-price pins. Not a C++ formula body."""
 
     interval: int
     maturity: int
     genesis_oru: int
-    genesis_res_schedule: int
-    # epoch -> per-block ORU (height >= 1). Epoch 0 includes height 0 as a special 0 pin.
+    genesis_res_destroy_cost: int
+    # observational calendar bucket -> per-block ORU (height >= 1). Flat 128 under RFC-020.
     oru_by_epoch: dict[int, int]
-    res_by_epoch: dict[int, int]
+    res_by_height: dict[int, int]
     pins: tuple[FrozenPin, ...]
 
 
@@ -101,27 +104,38 @@ def _collect_pins() -> list[FrozenPin]:
         res_v = res if res is not None else (prev.res_schedule if prev else None)
         pins[height] = FrozenPin(height=height, epoch=epoch_v, oru=int(oru), res_schedule=res_v)
 
+    def rate_of(row: dict[str, Any], *keys: str) -> int | None:
+        for key in keys:
+            if key in row and row[key] is not None:
+                return _as_int(row[key])
+        return None
+
     release = _load_json(RELEASE_VECTORS)
     genesis_block = release.get("genesis") or {}
     add(
         int(genesis_block.get("height", 0)),
         0,
         _as_int(genesis_block.get("oru_actual")),
-        _as_int(genesis_block.get("res_schedule")),
+        None,
     )
     for row in release.get("epoch") or []:
-        add(int(row["height"]), _as_int(row.get("epoch")), _as_int(row.get("oru")), _as_int(row.get("res_schedule")))
+        add(int(row["height"]), _as_int(row.get("epoch")), _as_int(row.get("oru")), None)
 
     if GENESIS_VECTORS.is_file():
         genesis = _load_json(GENESIS_VECTORS)
         g0 = genesis.get("genesis") or {}
-        add(int(g0.get("height", 0)), 0, _as_int(g0.get("oru_issuance")), _as_int(g0.get("GetResMintReward")))
+        add(
+            int(g0.get("height", 0)),
+            0,
+            _as_int(g0.get("oru_issuance")),
+            rate_of(g0, "ResDestroyCost", "res_destroy_cost"),
+        )
         for row in genesis.get("height") or []:
             add(
                 int(row["height"]),
                 _as_int(row.get("epoch")),
                 _as_int(row.get("oru")),
-                _as_int(row.get("res_schedule")),
+                rate_of(row, "res_destroy_cost", "ResDestroyCost", "res_schedule"),
             )
 
     if BOUNDARY_VECTORS.is_file():
@@ -131,7 +145,7 @@ def _collect_pins() -> list[FrozenPin]:
                 int(row["height"]),
                 _as_int(row.get("epoch")),
                 _as_int(row.get("oru_reward")),
-                _as_int(row.get("res_reward")),
+                None,
             )
 
     if not pins:
@@ -151,7 +165,7 @@ def load_frozen_schedule() -> FrozenSchedule:
             interval = pin.height
             break
     if interval <= 0:
-        raise RuntimeError("halving interval not present in frozen vectors")
+        raise RuntimeError("calendar interval not present in frozen vectors")
 
     maturity = 100
     if GENESIS_VECTORS.is_file():
@@ -159,13 +173,13 @@ def load_frozen_schedule() -> FrozenSchedule:
 
     genesis = next(p for p in pins if p.height == 0)
     oru_by_epoch: dict[int, int] = {}
-    res_by_epoch: dict[int, int] = {}
+    res_by_height: dict[int, int] = {}
     for pin in pins:
+        if pin.res_schedule is not None:
+            res_by_height[pin.height] = pin.res_schedule
         if pin.height == 0:
             continue
         oru_by_epoch[pin.epoch] = pin.oru
-        if pin.res_schedule is not None:
-            res_by_epoch[pin.epoch] = pin.res_schedule
 
     if not oru_by_epoch:
         raise RuntimeError("frozen vectors have no height>=1 ORU pins")
@@ -174,9 +188,9 @@ def load_frozen_schedule() -> FrozenSchedule:
         interval=interval,
         maturity=maturity,
         genesis_oru=genesis.oru,
-        genesis_res_schedule=int(genesis.res_schedule or 0),
+        genesis_res_destroy_cost=int(genesis.res_schedule or destroy_cost_atoms(0)),
         oru_by_epoch=oru_by_epoch,
-        res_by_epoch=res_by_epoch,
+        res_by_height=res_by_height,
         pins=tuple(pins),
     )
 
@@ -199,13 +213,14 @@ def oru_reward_at(height: int, sched: FrozenSchedule) -> int:
 
 
 def res_schedule_at(height: int, sched: FrozenSchedule) -> int | None:
-    """Per-block RES schedule from frozen pins only. None if that epoch was never pinned."""
+    """Display destroy_cost(h). Prefer an exact frozen pin; otherwise the numeric SSOT."""
     if height < 0:
         return 0
-    epoch = _epoch_of(height, sched)
+    if height in sched.res_by_height:
+        return sched.res_by_height[height]
     if height == 0:
-        return sched.genesis_res_schedule
-    return sched.res_by_epoch.get(epoch)
+        return sched.genesis_res_destroy_cost
+    return destroy_cost_atoms(height)
 
 
 def _era_bounds(epoch: int, sched: FrozenSchedule, last_epoch: int) -> tuple[int, int]:
@@ -234,26 +249,11 @@ def issued_oru(height: int, sched: FrozenSchedule) -> int:
 
 
 def scheduled_res_cumulative(height: int, sched: FrozenSchedule) -> int | None:
-    """Sum of pinned RES schedule over 1..height. None if any covered epoch is unpinned."""
+    """Automatic per-block RES mint is retired. Baseline scheduled mint is 0."""
+    del sched
     if height < 0:
         return 0
-    if height == 0:
-        return 0
-    total = 0
-    max_pinned = max(sched.res_by_epoch)
-    last_needed = _epoch_of(height, sched)
-    if last_needed > max_pinned:
-        return None
-    for epoch in range(0, last_needed + 1):
-        if epoch not in sched.res_by_epoch:
-            return None
-        rate = sched.res_by_epoch[epoch]
-        start, end = _era_bounds(epoch, sched, last_needed)
-        lo = max(start, 1)
-        hi = min(end, height)
-        if lo <= hi:
-            total += (hi - lo + 1) * rate
-    return total
+    return 0
 
 
 def locked_oru(height: int, sched: FrozenSchedule) -> int:
@@ -331,9 +331,9 @@ def build_supply_model(sched: FrozenSchedule) -> dict[str, Any]:
         "genesis": snapshot_at(0, sched),
         "early_mining": snapshot_at(1, sched),
         "maturity_release": snapshot_at(101, sched),
-        "halving_epoch_1": snapshot_at(210000, sched),
-        "halving_epoch_2": snapshot_at(420000, sched),
-        "halving_epoch_4": snapshot_at(840000, sched),
+        "calendar_210000": snapshot_at(210000, sched),
+        "calendar_420000": snapshot_at(420000, sched),
+        "calendar_840000": snapshot_at(840000, sched),
         "long_horizon_50y": snapshot_at(LONG_HORIZON_HEIGHT, sched),
     }
     heights = {h: snapshot_at(h, sched) for h in REQUIRED_HEIGHTS}
@@ -349,10 +349,12 @@ def build_supply_model(sched: FrozenSchedule) -> dict[str, Any]:
         "consensus_formula_source": "RigorConsensusKernel",
         "vector_source": str(RELEASE_VECTORS.relative_to(ROOT)),
         "parameters": {
-            "halving_interval": sched.interval,
+            "calendar_interval": sched.interval,
             "maturity": sched.maturity,
             "target_block_time_s": TARGET_BLOCK_TIME_S,
             "blocks_per_year": BLOCKS_PER_YEAR,
+            "oru_flat_block_subsidy": 12800000000,
+            "res_max_supply": 419430400000000,
         },
         "total_supply": rep.total_supply,
         "circulating_supply": rep.circulating_supply,
@@ -399,10 +401,10 @@ def simulate(height: int | None = None) -> int:
     errors: list[str] = []
 
     print("FROZEN_VECTOR_SOURCE", RELEASE_VECTORS.relative_to(ROOT))
-    print("HALVING_INTERVAL", sched.interval)
+    print("CALENDAR_INTERVAL", sched.interval)
     print("MATURITY", sched.maturity)
     print("PINNED_EPOCHS_ORU", ",".join(str(e) for e in sorted(sched.oru_by_epoch)))
-    print("PINNED_EPOCHS_RES", ",".join(str(e) for e in sorted(sched.res_by_epoch)))
+    print("PINNED_PRICE_HEIGHTS", ",".join(str(h) for h in sorted(sched.res_by_height)))
     print()
 
     cover = list(REQUIRED_HEIGHTS) + [LONG_HORIZON_HEIGHT]

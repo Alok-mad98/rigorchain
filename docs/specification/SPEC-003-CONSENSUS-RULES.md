@@ -1,12 +1,12 @@
 # SPEC-003: RIGOR Consensus Rules
 
-**Task:** `TASK-SPEC-004`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, flat 128 ORU)  
 **Parents:** [SPEC-000](./SPEC-000-CONSENSUS-SPECIFICATION.md), [SPEC-001](./SPEC-001-STATE-MODEL.md), [SPEC-002](./SPEC-002-ECONOMIC-MODEL.md)  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-009`, `RFC-014`, `RFC-015`  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-009`, `RFC-020`  
+**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`
 
 ---
 
@@ -54,14 +54,14 @@ before the next layer is evaluated. Reordering layers is a specification violati
 | **2** | Chain Context Validation | Height, parent linkage, frozen parameters, protocol version |
 | **3** | Transaction Validation | UTXO spends, conservation, script, coinbase |
 | **4** | ORU Supply Validation | Subsidy, converge sum, ORU recurrence (see SPEC-002) |
-| **5** | RES Draw Validation | Candidate set, eligibility, winner, mint authorization (RFC-015) |
+| **5** | RES Mint Validation | Body-tx destroy-to-mint, `CheckResMintArithmetic`, closed-form cap (RFC-020) |
 | **6** | State Transition Validation | Deterministic successor, UTXO and supply recurrence (see SPEC-001) |
 | **7** | Commit Validation | Persist successor state, update chain tip, replay/reorg consistency |
 
 **Normative evaluation order:**
 
 ```
-Commit ∘ StateTransition ∘ RESDraw ∘ ORUSupply ∘ Transactions ∘ ChainContext ∘ Header
+Commit ∘ StateTransition ∘ RESMint ∘ ORUSupply ∘ Transactions ∘ ChainContext ∘ Header
 ```
 
 Invalidity at any layer aborts validation immediately. No partial successor state
@@ -163,26 +163,21 @@ selection rules; or cumulative chainwork does not strictly increase upon extensi
 **Purpose:** Ensure validation uses only the immutable constitutional constant set.
 
 **Failure condition:** Any predicate references a non-frozen parameter value,
-including but not limited to:
+including a PoW-derived mint price (`nBits` as a mint price) or a non-genesis
+activation bridge.
 
-- PoW-derived convergence inequality RHS (variable-T)
-- Deprecated symbols for convergence target
-- Pre-RFC-015 economics (`|F| ≥ 2`, 1 RES per draw, superseded cap)
-- Non-genesis activation bridges or dual-rule coexistence
-
-Frozen parameters include at minimum: `RES_PROBABILITY_TARGET` at RFC-017
-shipping `E = 246` (windowed; mint cost `C = 1024` ORU; Historical RFC-014
-parameter `2^240`), `CONVERGENCE_DRAW_WINDOW = 32`,
-RFC-017 `W(k)` / `GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`,
-Sigma-PoW-01 σ seed `B_{h-1}` (SECURITY-001-A8; `bind_commit` / bind depth `k`
-are superseded), and genesis-only activation.
+Frozen parameters include at minimum: `RES_COIN = 100000000`,
+`ORU_FLAT_BLOCK_SUBSIDY = 12800000000`, `RES_DESTROY_COST_GENESIS = 102400000000`,
+`RES_DESTROY_POLE = 33554432`, `RES_DESTROY_SHIFT = 40`,
+closed-form `RES_MAX_SUPPLY = 419430400000000`,
+mint predicate `R > 0 → R · (2^25 + h)^2 ≤ B << 40`, and genesis-only activation.
 
 ---
 
 ### CR-013: Protocol Version Consistency
 
 **Purpose:** Ensure block and transaction formats conform to the frozen post-freeze
-rule bundle (RFC-014 + RFC-015 mainnet semantics).
+rule bundle (RFC-020 mainnet semantics).
 
 **Failure condition:** Block validity depends on superseded rule sets, unsupported
 witness versions, or protocol features outside the frozen scope (e.g., Taproot
@@ -240,8 +235,8 @@ rules for its asset class, including witness canonicality.
 
 **Failure condition:** Script verification fails; witness encoding is non-canonical
 where canonicality is required; Converge proof leaf violates Leaf-Freeze-01;
-RES mint proof fields do not match canonical serialized form; or signature
-verification fails over committed fields.
+Witness v1 RES mint outputs fail classification; or signature verification
+fails over committed fields.
 
 ---
 
@@ -270,13 +265,14 @@ violates any minimum tail subsidy constraint defined by the frozen schedule.
 
 ---
 
-### CR-031: Converge Burn Valid
+### CR-031: Converge Destroy Valid
 
 **Purpose:** ORU destroyed by Converge transactions MUST be fully and exactly accounted.
 
 **Failure condition:** `C(h+1)` does not equal the sum of ORU amounts destroyed by
 all valid Converge transactions in the block; or a Converge transaction destroys
-less than `MIN_CONVERGENCE_AMOUNT` (1 ORU).
+a non-positive amount (`nValue ≤ 0`). Minting `R ≥ 1` is rejected separately when
+`R · (2^25 + h)^2 > B << 40`.
 
 ---
 
@@ -286,7 +282,7 @@ less than `MIN_CONVERGENCE_AMOUNT` (1 ORU).
 with spendable UTXO ORU.
 
 **Failure condition:** Using an extra-UTXO ORU scalar as a ConnectBlock reject.
-Circulating ORU is the UTXO projection. RFC-018 burns and unclaimed coinbase
+Circulating ORU is the UTXO projection. RFC-018 destroys and unclaimed coinbase
 are destruction channels that the issued-minus-converge identity does not list.
 
 ---
@@ -298,7 +294,7 @@ or exceed `MAX_MONEY`. This is an overflow sanity bound (`10_000_000_000 * COIN`
 **not** an ORU issuance cap.
 
 The value is bounded on both sides. Upward, cumulative issuance must stay under
-it for the life of the chain (~1500 years at the 125 ORU/block tail). Downward,
+it for the life of the chain (~1485 years at the 128 ORU/block subsidy). Downward,
 it must leave room to *add* two in-range amounts without leaving `int64`:
 `MAX_MONEY ≤ INT64_MAX / 4` is asserted at compile time. A bound near `INT64_MAX`
 would make two individually valid amounts unsummable, and every accumulator that
@@ -311,115 +307,84 @@ input sums / accumulators). Observational `S_ORU < 0` is not a consensus reason.
 
 ---
 
-## 7. RES Draw Rules
+## 7. RES Mint Rules
 
-These rules implement the frozen convergence draw semantics (RFC-015 economics
-within RFC-014 probability law).
+These rules implement RFC-020 body-tx destroy-to-mint. Consensus evaluates
+`CheckResMintArithmetic`, not the display destroy cost.
 
-### CR-040: Draw Eligibility
+### CR-040: Mint Predicate
 
-**Purpose:** Define which convergence candidates participate in the draw and which
-may be selected.
+**Purpose:** A body transaction that creates RES MUST pay the confirming height’s
+destroy cost.
 
-Let `F` be the finite set of convergence-ticket transaction identities in the
-sliding window of `CONVERGENCE_DRAW_WINDOW` blocks ending at the parent
-(SECURITY-001-A9-C). Height `h` pays the set committed by block `h-1`
-(SECURITY-001-A8 / Sigma-PoW-01). For each candidate `i` with weight `f_i ≥ 1`:
-
-```
-σ_i = Hash256(txid_i ‖ C ‖ B_{h-1} ‖ LE32(h))    // 100 bytes exact
-H_i = uint256 interpretation of σ_i
-```
-
-Slot `[64..95]` is the **parent block hash** verbatim. Historical Sigma-CR-01
-`bind_commit = Hash256(B_{h-k} ‖ LE32(target_prev))` with `k = 10` is
-**superseded** and MUST NOT be used.
-
-**Eligibility predicate:**
+Let `B` be the ORU amount of the transaction’s single `OP_CONVERGE` destroy and
+`R` the sum of its Witness v1 RES outputs. Consensus never evaluates the
+display destroy cost. It evaluates:
 
 ```
-eligible_i ⟺ |F| ≥ 1  ∧  f_i ≥ 1  ∧  H_i < RES_PROBABILITY_TARGET · f_i
+R > 0  →  R · (2^25 + h)^2 ≤ B << 40
+R = 0  →  unconstrained
 ```
 
-where `RES_PROBABILITY_TARGET` is the RFC-017 shipping windowed constant
-(`E = 246`; mint cost `C = 1024` ORU per mint; Historical RFC-014 parameter
-`2^240`) and comparison uses exact integer arithmetic
-(cross-multiplication permitted; floating-point forbidden).
+evaluated by `CheckResMintArithmetic(R, B, h)`. Integer only; 128-bit
+intermediate. Mint-output maturity 100 is reorg protection.
 
-**Failure condition:** Eligibility evaluated with `|F| < 1` as sufficient; `f_i < 1`;
-σ preimage length ≠ 100 bytes; σ uses `bind_commit` / `target_prev` / wrong height
-slot; reconstructed `C` differs from the parent coinbase commitment; or
-inequality uses any source other than `RES_PROBABILITY_TARGET` for the RHS.
+**Failure condition:** A body mint fails the predicate, or RES is created without
+an `OP_CONVERGE` destroy.
 
 ---
 
-### CR-041: Draw Determinism
+### CR-041: Mint Determinism
 
-**Purpose:** Given identical `State(h)` and `Block(h+1)`, draw outputs MUST be unique.
+**Purpose:** Given identical `State(h)` and `Block(h+1)`, mint accept/reject MUST
+be unique.
 
-Draw outputs include: sorted candidate set `F`, convergence root `C`, digests
-`H_i`, eligibility flags, and winner selection outcome.
+The same body transactions at the same height MUST produce the same
+`CheckResMintArithmetic` verdict and the same `body_mint_atoms` on every
+correct validator.
 
-**Failure condition:** Two correct validators produce different `C`, different
-`H_i`, different eligibility sets, or different winners for the same inputs.
-
----
-
-### CR-042: Single Winner
-
-**Purpose:** At most one winner is selected by deterministic argmin under the
-cross-multiply order.
-
-**Winner order:** `i` precedes `j` iff `H_i · f_j < H_j · f_i` using exact
-integer multiplication. Tie-break: smaller `txid` (unsigned byte-wise order).
-
-**Failure condition:** Multiple winners selected; winner is not the unique argmin;
-or tie-break does not use txid order.
+**Failure condition:** Two correct validators accept one mint and reject the
+same mint for the same `(R, B, h)`.
 
 ---
 
-### CR-043: Single Mint
+### CR-042: Price Independent of PoW
 
-**Purpose:** At most one successful RES mint per block height.
+**Purpose:** `destroy_cost(h)` and the mint predicate are pure height functions. PoW /
+`nBits` / ASERT MUST NOT define the destroy cost.
 
-**Failure condition:** Block contains two or more successful RES mints; or `M(h+1) ∉ {0,1}`.
+**Failure condition:** Any mint predicate uses `nBits`, ASERT output, tip target,
+time, or any header-derived quantity in place of height `h`.
 
 ---
 
-### CR-044: Mint Amount Exact
+### CR-043: Plain Destroy and Non-Zero Price
 
-**Purpose:** A successful RES mint MUST credit exactly `GetResMintReward(h)`.
+**Purpose:** `R = 0` is a legal plain destroy. The display destroy cost never hits zero,
+so there is no horizon that disables mint by a zero sentinel.
 
-**Failure condition:** RES mint exists but credited amount ≠ `GetResMintReward(h)`
-(RFC-017 `W(k)`; genesis `RES_REWARD_GENESIS` = 40.000000 RES). Historical RFC-015
-used a constant 100 RES.
+**Failure condition:** A plain destroy (`R = 0`) is rejected as a mint failure; or
+a zero / negative destroy is read as authorizing unbounded RES.
+
+---
+
+### CR-044: Mint Amount Bounded by Inequality
+
+**Purpose:** A successful mint MAY credit any `R ≥ 0` admitted by
+`R · (2^25 + h)^2 ≤ B << 40` (or `R = 0`).
+
+**Failure condition:** A mint is accepted when `R > 0` and
+`R · (2^25 + h)^2 > B << 40`.
 
 ---
 
 ### CR-045: RES Cap Preserved
 
-**Purpose:** RES supply MUST not exceed the constitutional maximum.
+**Purpose:** RES supply MUST not exceed the closed-form constitutional maximum
+`419430400000000` atoms (`2^22` RES).
 
-Authority is the compile-time identity
-`RES_REWARD_EPOCH * ResScheduleSum() ≤ RES_MAX_SUPPLY` together with at most
-one mint per block of size `GetResMintReward(h)`. ConnectBlock does **not**
-maintain a running `S_RES` reject (`bad-rigor-res-max-supply` was removed).
-Observational mint totals are not consensus predicates.
-
-**Failure condition:** A block mints more than one `OP_RES_MINT`, mints an
-amount other than `GetResMintReward(h)`, or mints when `GetResMintReward(h) = 0`.
-A reachable chain cannot approach `RES_MAX_SUPPLY` under those local rules.
-
----
-
-### CR-046: Draw Not Derived From PoW
-
-**Purpose:** PoW difficulty MUST NOT define convergence probability.
-
-**Failure condition:** Any draw eligibility or winner predicate uses `nBits`, ASERT
-output, tip target, time, or any header-derived quantity as the inequality RHS
-in place of `RES_PROBABILITY_TARGET`. Parent `nBits` is **not** a σ input
-(Sigma-PoW-01). Historical `target_prev` inside `bind_commit` is superseded.
+**Failure condition:** `S_RES(h) > 419430400000000`; or a mint is accepted when
+the cap is already reached.
 
 ---
 
@@ -459,7 +424,7 @@ S_ORU(h+1) ≠ S_ORU(h) + R(h+1) − C(h+1)
 ```
 or
 ```
-S_RES(h+1) ≠ S_RES(h) + GetResMintReward(h+1) · M(h+1)
+S_RES(h+1) ≠ S_RES(h) + body_mint_atoms(h+1)
 ```
 
 ---
@@ -471,7 +436,7 @@ MUST hold at `h+1` if they held at `h` and the block is valid.
 
 **Failure condition:** Any SI invariant violated at `State(h+1)` that is implied
 by valid transition from `State(h)` (e.g., chain continuity, script-as-compliance,
-identity domain, draw–mint coherence).
+identity domain, mint-arithmetic coherence).
 
 ---
 
@@ -483,7 +448,7 @@ identity domain, draw–mint coherence).
 `State(h+1)` MUST be atomically committed.
 
 **Failure condition:** Partial commit visible to validation (e.g., UTXO updated but
-supply counters not, or draw outcome committed without corresponding mint rule check).
+supply counters not, or mint outputs committed without `CheckResMintArithmetic`).
 
 ---
 
@@ -588,7 +553,7 @@ does not introduce new ones.
 | No protocol-freeze modifications | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -611,4 +576,6 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-004` — initial consensus rules specification |
+| 0.3 | 2026-09-12 | RFC-020: continuous destroy_cost(h), flat 128 ORU, cap `2^22`; CR-040..045 rewritten |
+| 0.2 | 2026-09-12 | RFC-020: RES Mint Validation; CR-040..045 |
+| 0.1 | 2026-06-05 | `historical verification record` — initial consensus rules specification |

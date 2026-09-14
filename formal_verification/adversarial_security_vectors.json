@@ -1,7 +1,7 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-ADVERSARIAL-SECURITY-P0-063",
   "note": "Adversarial security baseline. Does not modify golden vectors or production consensus.",
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "production_consensus_modified": false,
   "protocol_parameters_modified": false,
@@ -23,7 +23,7 @@
       "height": 0,
       "epoch": 0,
       "oru_subsidy": 0,
-      "res_schedule": 40000000,
+      "res_schedule": 102400000000,
       "res_issued": 0,
       "schedule_is_not_issuance": true
     },
@@ -31,64 +31,64 @@
       "id": "P063-ISS-1",
       "height": 1,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400006103
     },
     {
       "id": "P063-ISS-99",
       "height": 99,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400604248
     },
     {
       "id": "P063-ISS-100",
       "height": 100,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400610352
     },
     {
       "id": "P063-ISS-101",
       "height": 101,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400616456
     },
     {
       "id": "P063-ISS-209999",
       "height": 209999,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685743011
     },
     {
       "id": "P063-ISS-210000",
       "height": 210000,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685749152
     },
     {
       "id": "P063-ISS-210001",
       "height": 210001,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685755294
     },
     {
       "id": "P063-ISS-419999",
       "height": 419999,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 104979513869
     },
     {
       "id": "P063-ISS-420000",
       "height": 420000,
       "epoch": 2,
-      "oru_subsidy": 25000000000,
-      "res_schedule": 7698004
+      "oru_subsidy": 12800000000,
+      "res_schedule": 104979520049
     }
   ],
   "maturity": [

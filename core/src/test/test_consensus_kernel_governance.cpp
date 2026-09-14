@@ -3,12 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 // P060: Consensus Kernel governance. Standalone.
-// Does not switch production. Does not recode issuance / RES / draw / supply / PoW.
+// Does not switch production. Does not recode issuance / RES / supply / PoW.
+// RFC-019: RATE pins. Draw authority is retired.
 
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -30,26 +31,8 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
-}
-
-static uint256 uint256_from_hex(const char* hex)
-{
-    uint256 out;
-    std::vector<unsigned char> raw;
-    const std::string s(hex);
-    for (size_t i = 0; i < s.size(); i += 2) {
-        unsigned v = 0;
-        std::sscanf(s.c_str() + static_cast<int>(i), "%2x", &v);
-        raw.push_back(static_cast<unsigned char>(v));
-    }
-    if (raw.size() != 32) std::exit(2);
-    std::memcpy(out.begin(), raw.data(), 32);
-    return out;
 }
 
 static int fail(const char* msg)
@@ -128,36 +111,36 @@ int main(int argc, char** argv)
     if (frozen.empty()) return fail("golden vectors unreadable");
 
     if (!has_kv_string(manifest, "issuance_authority", "GetBlockSubsidy")) return fail("manifest issuance");
-    if (!has_kv_string(manifest, "res_authority", "GetResMintReward")) return fail("manifest res");
+    if (!has_kv_string(manifest, "res_authority", "CheckResMintArithmetic")) return fail("manifest res");
     if (!has_kv_string(manifest, "supply_authority", "RigorSupplyDelta")) return fail("manifest supply");
-    if (!has_kv_string(manifest, "draw_authority", "ResolveConvergenceDraw")) return fail("manifest draw");
+    if (!has_kv_string(manifest, "draw_authority", "retired")) return fail("manifest draw retired");
     if (!has_kv_string(manifest, "classify_authority", "ClassifyRigorTxout")) return fail("manifest classify");
     if (!has_kv_string(manifest, "spend_authority", "VerifyRigorPredicate")) return fail("manifest spend");
-    if (!has_kv_bool(manifest, "refinement", true)) return fail("manifest refinement");
+    if (!has_kv_bool(manifest, "refinement", false)) return fail("manifest refinement");
     if (!has_kv_bool(manifest, "equivalence", false)) return fail("manifest equivalence");
 
     if (!has_kv_int(frozen, "coq_admitted", 0)) return fail("frozen COQ_ADMITTED");
     if (!has_kv_int(frozen, "coq_axioms", 0)) return fail("frozen COQ_AXIOMS");
     if (!has_kv_int(frozen, "coq_parameters", 0)) return fail("frozen COQ_PARAMETERS");
-    if (!has_kv_bool(frozen, "refinement_proved", true)) return fail("frozen refinement");
+    if (!has_kv_bool(frozen, "refinement_proved", false)) return fail("frozen refinement");
     if (!has_kv_bool(frozen, "equivalence_proved", false)) return fail("frozen equivalence");
     if (!has_kv_bool(frozen, "p053_vector_refinement_proved", false)) return fail("P053 honesty");
 
     if (!has_kv_int(frozen, "height", 0)) return fail("genesis height freeze");
     if (!has_kv_int(frozen, "oru_actual", 0)) return fail("genesis ORU actual freeze");
     if (!has_kv_int(frozen, "res_actual", 0)) return fail("genesis RES actual freeze");
-    if (!has_kv_int(frozen, "res_schedule", 40000000)) return fail("genesis RES schedule freeze");
-    if (frozen.find("\"draw\": \"none\"") == std::string::npos) return fail("genesis draw freeze");
+    if (!has_kv_int(frozen, "res_destroy_cost", 102400000000LL)) return fail("genesis RATE freeze");
 
     const Consensus::Params p = FrozenParams();
 
     {
         const RigorIssuance g = ComputeRigorIssuance(0, p);
         if (g.oru_subsidy != 0) return fail("genesis ORU actual");
-        if (g.res_reward != 40000000) return fail("genesis RES schedule");
         if (g.epoch != 0) return fail("genesis epoch");
         if (g.oru_subsidy != GetBlockSubsidy(0, p)) return fail("pack != GetBlockSubsidy");
-        if (g.res_reward != Consensus::GetResMintReward(0)) return fail("pack != GetResMintReward");
+        if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS) {
+            return fail("genesis RATE");
+        }
         RigorSupplyDeltaInput in;
         in.height = 0;
         BlockValidationState st;
@@ -165,38 +148,31 @@ int main(int argc, char** argv)
         if (!RigorSupplyDelta(in, p, out, st)) return fail("genesis supply");
         if (out.oru_circulating_delta != 0) return fail("genesis circulating");
         if (out.res_delta != 0) return fail("genesis RES actual");
-        if (out.res_reward_scheduled != 40000000) return fail("genesis RES schedule field");
-        ConvergenceDrawSet empty;
-        empty.source_height = 0;
-        if (ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("genesis draw must be none");
-        }
     }
 
     struct Pin {
         int height;
         int epoch;
         int64_t oru;
-        int64_t res;
+        int64_t rate;
     };
     const Pin pins[] = {
-        {0, 0, 0, 40000000},
-        {1, 0, 100000000000LL, 40000000},
-        {99, 0, 100000000000LL, 40000000},
-        {100, 0, 100000000000LL, 40000000},
-        {101, 0, 100000000000LL, 40000000},
-        {209999, 0, 100000000000LL, 40000000},
-        {210000, 1, 50000000000LL, 14142196},
-        {419999, 1, 50000000000LL, 14142196},
+        {0, 0, 0, 102400000000LL},
+        {1, 0, 12800000000LL, 102400006103LL},
+        {99, 0, 12800000000LL, 102400604248LL},
+        {100, 0, 12800000000LL, 102400610352LL},
+        {101, 0, 12800000000LL, 102400616456LL},
+        {209999, 0, 12800000000LL, 103685743011LL},
+        {210000, 1, 12800000000LL, 103685749152LL},
+        {419999, 1, 12800000000LL, 104979513869LL},
     };
     for (const Pin& pin : pins) {
         const RigorIssuance g = ComputeRigorIssuance(pin.height, p);
         if (g.epoch != pin.epoch) return fail("epoch pin");
         if (g.oru_subsidy != pin.oru) return fail("ORU pin");
-        if (g.res_reward != pin.res) return fail("RES pin");
         if (RigorIssuanceEpoch(pin.height) != pin.epoch) return fail("epoch function");
         if (GetBlockSubsidy(pin.height, p) != pin.oru) return fail("GetBlockSubsidy pin");
-        if (Consensus::GetResMintReward(pin.height) != pin.res) return fail("GetResMintReward pin");
+        if (Consensus::ResDestroyCostAtHeight(pin.height) != pin.rate) return fail("RATE pin");
         if (!has_kv_int(frozen, "height", pin.height)) return fail("frozen height missing");
     }
 
@@ -256,52 +232,6 @@ int main(int argc, char** argv)
         in.keyhash_match = true;
         in.crypto_accept = true;
         if (VerifyRigorPredicateBoundary(in)) return fail("spend malformed witness");
-    }
-
-    {
-        const uint64_t sat = 209715200000000ULL;
-        ConvergenceDrawSet empty;
-        empty.source_height = 0;
-        if (ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("draw empty");
-        }
-        ConvergenceDrawSet one;
-        one.source_height = 100;
-        one.convergence_root = uint256_from_hex(
-            "1111111111111111111111111111111111111111111111111111111111111111");
-        one.source_block_hash = uint256_from_hex(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        ConvergenceDrawCandidate a, b, z;
-        a.txid = uint256_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000001");
-        a.weight = sat;
-        b.txid = uint256_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000002");
-        b.weight = sat;
-        z.txid = uint256_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000003");
-        z.weight = 0;
-        one.candidates = {a};
-        if (!ResolveConvergenceDraw(one, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("draw single");
-        }
-        ConvergenceDrawSet two = one;
-        two.candidates = {a, b};
-        ConvergenceDrawSet swap = one;
-        swap.candidates = {b, a};
-        const auto w2 = ResolveConvergenceDraw(two, Consensus::RES_PROBABILITY_TARGET_CONST);
-        const auto w3 = ResolveConvergenceDraw(swap, Consensus::RES_PROBABILITY_TARGET_CONST);
-        if (!w2.HasWinner() || !w3.HasWinner()) return fail("draw tie winner");
-        if (two.candidates[static_cast<size_t>(w2.winner_index)].txid !=
-            swap.candidates[static_cast<size_t>(w3.winner_index)].txid) {
-            return fail("draw tie order");
-        }
-        ConvergenceDrawSet zero = one;
-        zero.candidates = {z};
-        if (ResolveConvergenceDraw(zero, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("draw weight zero");
-        }
-        if (ResolveConvergenceDraw(one, uint256()).HasWinner()) return fail("draw T=0");
     }
 
     std::printf("PASS: consensus kernel governance\n");

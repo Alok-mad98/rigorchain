@@ -2,7 +2,7 @@ import path from "node:path";
 import {
   bech32HrpForNetwork,
   defaultRpcPort,
-  parseExplorerNetwork,
+  requireExplorerNetwork,
   type ExplorerNetwork,
 } from "./network";
 
@@ -35,12 +35,12 @@ export type Config = {
 };
 
 export function loadConfigFromEnv(): Config {
-  const network = parseExplorerNetwork(process.env.RIGOR_NETWORK);
+  const network = requireExplorerNetwork(process.env.RIGOR_NETWORK);
   const bech32Hrp = bech32HrpForNetwork(network, process.env.BECH32_HRP);
   const rpcPort = defaultRpcPort(network, process.env.RIGOR_RPC_PORT);
   const rpcUser = process.env.RIGOR_RPC_USER?.trim() || null;
   const rpcPassword = process.env.RIGOR_RPC_PASSWORD?.trim() || null;
-  const rigorDatadir = process.env.RIGOR_DATADIR ?? "/var/lib/rigor/testnet";
+  const rigorDatadir = process.env.RIGOR_DATADIR ?? "/var/lib/rigor/mainnet";
   const rigorCliBin = process.env.RIGOR_CLI_BIN ?? "rigor-cli";
 
   const pollIntervalMs = parseInt(process.env.POLL_INTERVAL_MS ?? "30000", 10);
@@ -55,7 +55,7 @@ export function loadConfigFromEnv(): Config {
   const importBatchMaxHeight = parseInt(process.env.IMPORT_BATCH_MAX_HEIGHT ?? "20", 10);
   const reorgSafetyWindow = parseInt(process.env.REORG_SAFETY_WINDOW ?? "10", 10);
   const maxSupportedReorgDepth = parseInt(process.env.MAX_SUPPORTED_REORG_DEPTH ?? "200", 10);
-  const stopOnRootMismatch = (process.env.STOP_ON_ROOT_MISMATCH ?? "false") === "true";
+  const stopOnRootMismatch = (process.env.STOP_ON_ROOT_MISMATCH ?? "true") === "true";
   const mismatchRetryIntervalMs = parseInt(process.env.MISMATCH_RETRY_INTERVAL_MS ?? "60000", 10);
 
   const rateLimitEnabled = (process.env.RATE_LIMIT_ENABLED ?? "true") === "true";

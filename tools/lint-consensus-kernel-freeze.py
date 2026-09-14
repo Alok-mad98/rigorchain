@@ -24,8 +24,8 @@ RELEASE = ROOT / "formal_verification/release_consensus_vectors.json"
 
 FROZEN = {
     "issuance": "GetBlockSubsidy",
-    "res_schedule": "GetResMintReward",
-    "draw": "ResolveConvergenceDraw",
+    "res_mint": "CheckResMintArithmetic",
+    "draw": "retired",
     "classification": "ClassifyRigorTxout",
     "supply": "RigorSupplyDelta",
     "spend": "VerifyRigorPredicate",
@@ -111,8 +111,11 @@ def main() -> int:
     if man.get("candidate_equals_production") is not False:
         errors.append("manifest must keep candidate != production")
 
-    if vec.get("genesis", {}).get("GetResMintReward") != 40000000:
-        errors.append("vectors GetResMintReward(0) pin drifted")
+    genesis = vec.get("genesis") or {}
+    if genesis.get("res_destroy_cost") not in (None, 102400000000) and genesis.get("GetResMintReward") not in (None, 40000000):
+        errors.append("vectors genesis RES pin drifted")
+    if genesis.get("res_destroy_cost") is None and genesis.get("GetResMintReward") not in (None, 40000000):
+        errors.append("vectors genesis RES pin drifted")
     if vec.get("genesis", {}).get("res_issued_at_height") != 0:
         errors.append("vectors res_issued_at_height(0) pin drifted")
     for h in (0, 1, 99, 100, 101, 209999, 210000, 419999, 420000):

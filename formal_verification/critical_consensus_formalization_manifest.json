@@ -1,0 +1,440 @@
+{
+  "scope": "critical_consensus_kernel",
+  "full_chain_equivalence": false,
+  "cpp_equivalence": false,
+  "target_public_claim": "formally verified critical consensus invariants",
+
+  "task_id": "TASK-RIGOR-CRITICAL-CONSENSUS-KERNEL-FORMAL-VERIFICATION-ARCHITECTURE-P0-106-R3",
+  "document": "docs/formal_verification/RIGOR_CRITICAL_CONSENSUS_FORMALIZATION_PLAN_P0_106.md",
+  "input_baseline": {
+    "audit_document": "docs/formal_verification/RIGOR_FORMAL_VERIFICATION_STATUS_AUDIT_P0_105.md",
+    "audit_manifest": "formal_verification/formal_verification_status_manifest.json"
+  },
+  "artifact_kind": "architecture_design_only",
+  "proofs_implemented_in_this_task": 0,
+
+  "change_surface": {
+    "consensus_code_changed": false,
+    "database_format_changed": false,
+    "wallet_format_changed": false,
+    "protocol_parameters_changed": false,
+    "genesis_changed": false,
+    "pow_algorithm_changed": false,
+    "network_parameters_changed": false,
+    "existing_coq_project_files_changed": false,
+    "golden_lock_changed": false
+  },
+
+  "toolchain": {
+    "prover": "Coq",
+    "version": "8.15.0",
+    "project_file": "formal_verification/rigor_kernel/_CoqProject.kernel-critical",
+    "logical_prefixes": {
+      ".": "RigorKernel",
+      "../coq": "Rigor"
+    },
+    "external_axioms_allowed": false,
+    "plugins_allowed": false
+  },
+
+  "claim_discipline": {
+    "required_wording": "formally verified critical consensus invariants",
+    "required_scope_qualifier": "consensus kernel only",
+    "forbidden_claims": [
+      "fully formally verified blockchain",
+      "formally verified implementation",
+      "C++ implementation equivalence",
+      "the C++ node is proven correct",
+      "golden vector match constitutes a refinement proof"
+    ],
+    "umbrella_claim": "RIGOR has formally verified critical consensus invariants - UTXO transition soundness, ORU conservation, RES issuance soundness, script classification correctness, and PoW/ASERT rule correctness - in Coq, at the consensus-kernel level. RIGOR does not claim a fully formally verified blockchain, and does not claim C++ implementation equivalence."
+  },
+
+  "deliverable_tree": {
+    "root": "formal_verification/rigor_kernel/",
+    "models": {
+      "UTXO_Model": ["KOutpoint.v", "KTxOut.v", "KTransaction.v", "KUtxoSet.v", "KApply.v"],
+      "Asset_Model": ["KAsset.v", "KPools.v", "KFeeBurn.v", "KResSchedule.v"],
+      "Script_Model": ["KScriptBytes.v", "KScriptShapes.v", "KClassify.v"],
+      "Pow_Model": ["KHeader.v", "KPowDigest.v", "KTarget.v"],
+      "ASERT_Model": ["KUint256.v", "KCompact.v", "KAsertExponent.v", "KAsertTransition.v"]
+    },
+    "proofs": {
+      "UTXO_Soundness": ["proofs/UTXO_Soundness/UTXOSoundness.v"],
+      "ORU_Conservation": ["proofs/ORU_Conservation/ORUConservation.v"],
+      "RES_Issuance": ["proofs/RES_Issuance/RESIssuance.v"],
+      "Script_Correctness": ["proofs/Script_Correctness/ScriptCorrectness.v"],
+      "Pow_Correctness": ["proofs/Pow_Correctness/PowCorrectness.v", "proofs/Pow_Correctness/ASERTCorrectness.v"]
+    },
+    "audit": ["Audit/KernelNonClaims.v", "Audit/KernelAssumptions.v"],
+    "vectors": ["vectors/kernel_critical_vectors.json"],
+    "structural_deviation_from_task_sketch": {
+      "deviation": "proofs/ is nested under rigor_kernel/ instead of being a sibling under formal_verification/",
+      "reason": "logical namespace Rigor.Proofs.* is already occupied by formal_verification/coq/Proofs/; nesting yields RigorKernel.proofs.* and avoids a module path collision"
+    }
+  },
+
+  "property_families": [
+    {
+      "id": 1,
+      "name": "UTXO Transition Soundness",
+      "formal_statement": "ValidTransaction(tx) implies the UTXO transition preserves validity",
+      "sub_properties": ["no double spend", "no invalid input", "output correctness", "state transition safety"],
+      "proof_file": "proofs/UTXO_Soundness/UTXOSoundness.v",
+      "theorem_ids": ["K-U-1", "K-U-2", "K-U-3", "K-U-4", "K-U-5", "K-U-6", "K-U-7", "K-U-8", "K-U-9", "K-U-10", "K-U-11", "K-U-12", "K-U-13"],
+      "top_theorem": "utxo_soundness"
+    },
+    {
+      "id": 2,
+      "name": "ORU Conservation Theorem",
+      "formal_statement": "ORU_input = ORU_output + fee, and fee = claimable + burn",
+      "sub_properties": ["no unauthorized ORU creation", "no hidden inflation", "deterministic accounting"],
+      "proof_file": "proofs/ORU_Conservation/ORUConservation.v",
+      "theorem_ids": ["K-O-1", "K-O-2", "K-O-3", "K-O-4", "K-O-5", "K-O-6", "K-O-7", "K-O-8", "K-O-9", "K-O-10", "K-O-11"],
+      "top_theorem": "no_hidden_inflation"
+    },
+    {
+      "id": 3,
+      "name": "RES Issuance Soundness",
+      "formal_statement": "RES creation is only possible through valid coinbase mint rules",
+      "sub_properties": ["normal transaction cannot create RES", "PoW does not create RES", "invalid mint rejected"],
+      "proof_file": "proofs/RES_Issuance/RESIssuance.v",
+      "theorem_ids": ["K-R-1", "K-R-2", "K-R-3", "K-R-4", "K-R-5", "K-R-6", "K-R-7", "K-R-8", "K-R-9", "K-R-10", "K-R-11"],
+      "top_theorem": "res_issuance_soundness"
+    },
+    {
+      "id": 4,
+      "name": "Script Classification Correctness",
+      "formal_statement": "classification(script) = consensus_asset_type; deterministic, consensus enforced, authority free",
+      "sub_properties": ["total", "deterministic", "authority free", "recognizers pairwise disjoint", "no script interpreter"],
+      "proof_file": "proofs/Script_Correctness/ScriptCorrectness.v",
+      "theorem_ids": ["K-S-1", "K-S-2", "K-S-3", "K-S-4", "K-S-5", "K-S-6", "K-S-7", "K-S-8", "K-S-9", "K-S-10", "K-S-11"],
+      "top_theorem": "script_correctness"
+    },
+    {
+      "id": 5,
+      "name": "PoW / ASERT Rule Correctness",
+      "formal_statement": "SHA3-256(\"RGRPOW01\" || header80) and the ASERT difficulty transition are total deterministic integer functions",
+      "sub_properties": ["deterministic evaluation", "same input same result", "invalid blocks rejected"],
+      "proof_file": ["proofs/Pow_Correctness/PowCorrectness.v", "proofs/Pow_Correctness/ASERTCorrectness.v"],
+      "theorem_ids": ["K-P-1", "K-P-2", "K-P-3", "K-P-4", "K-P-5", "K-P-6", "K-P-7", "K-P-8", "K-P-9", "K-P-10", "K-A-1", "K-A-2", "K-A-3", "K-A-4", "K-A-5", "K-A-6", "K-A-7", "K-A-8", "K-A-9", "K-A-10", "K-A-11", "K-A-12"],
+      "top_theorem": ["pow_valid_deterministic", "pow_asert_correctness"]
+    }
+  ],
+
+  "theorems": [
+    {"id": "K-U-1", "name": "utxo_lookup_remove_neq", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T1", "order": 12},
+    {"id": "K-U-2", "name": "utxo_remove_all_spent", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T2", "order": 12},
+    {"id": "K-U-3", "name": "apply_tx_preserves_wf", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12},
+    {"id": "K-U-4", "name": "apply_tx_no_double_spend_intra", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T1", "order": 12},
+    {"id": "K-U-5", "name": "apply_tx_inputs_existed", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T2", "order": 12},
+    {"id": "K-U-6", "name": "apply_tx_inputs_consumed", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12},
+    {"id": "K-U-7", "name": "apply_tx_outputs_created", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12},
+    {"id": "K-U-8", "name": "apply_tx_frame", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12},
+    {"id": "K-U-9", "name": "apply_tx_deterministic", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T1", "order": 12},
+    {"id": "K-U-10", "name": "apply_tx_rejects_invalid", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T2", "order": 12},
+    {"id": "K-U-11", "name": "apply_block_preserves_wf", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12},
+    {"id": "K-U-12", "name": "apply_block_no_double_spend", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T4", "order": 12},
+    {"id": "K-U-13", "name": "utxo_soundness", "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T3", "order": 12, "top_level": true},
+
+    {"id": "K-O-1", "name": "fee_nonneg", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T2", "order": 14},
+    {"id": "K-O-2", "name": "oru_conservation_tx", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T2", "order": 14, "top_level": true},
+    {"id": "K-O-3", "name": "burn_share_bounds", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T1", "order": 14},
+    {"id": "K-O-4", "name": "fee_split", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T2", "order": 14},
+    {"id": "K-O-5", "name": "oru_conservation_with_burn", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T2", "order": 14},
+    {"id": "K-O-6", "name": "no_unauthorized_oru_creation", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T2", "order": 14},
+    {"id": "K-O-7", "name": "oru_supply_monotone_nonmint", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T4", "order": 14},
+    {"id": "K-O-8", "name": "block_oru_conservation", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T4", "order": 14},
+    {"id": "K-O-9", "name": "coinbase_claim_bound", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T3", "order": 14},
+    {"id": "K-O-10", "name": "no_hidden_inflation", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T5", "order": 14, "top_level": true},
+    {"id": "K-O-11", "name": "oru_accounting_deterministic", "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T1", "order": 14},
+
+    {"id": "K-R-1", "name": "res_transfer_conservation", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T2", "order": 16},
+    {"id": "K-R-2", "name": "non_coinbase_cannot_create_res", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T2", "order": 16},
+    {"id": "K-R-3", "name": "oru_domain_res_out_zero", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T2", "order": 16},
+    {"id": "K-R-4", "name": "cross_asset_input_rejected", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T2", "order": 16},
+    {"id": "K-R-5", "name": "res_mint_requires_coinbase", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T3", "order": 16},
+    {"id": "K-R-6", "name": "res_mint_structure_unique", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T3", "order": 16},
+    {"id": "K-R-7", "name": "res_mint_amount_bounded", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T3", "order": 16},
+    {"id": "K-R-8", "name": "invalid_mint_rejected", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T4", "order": 16},
+    {"id": "K-R-9", "name": "pow_creates_no_res", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T3", "order": 16},
+    {"id": "K-R-10", "name": "res_cumulative_cap", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T3", "order": 16},
+    {"id": "K-R-11", "name": "res_issuance_soundness", "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T4", "order": 16, "top_level": true},
+
+    {"id": "K-S-1", "name": "classify_total", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T1", "order": 4},
+    {"id": "K-S-2", "name": "classify_deterministic", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T1", "order": 4},
+    {"id": "K-S-3", "name": "classify_type_total", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T1", "order": 4},
+    {"id": "K-S-4", "name": "classify_type_disjoint", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T4", "order": 4},
+    {"id": "K-S-5", "name": "witness_ladder_terminal", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T3", "order": 4},
+    {"id": "K-S-6", "name": "classify_asset_sound", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T2", "order": 4},
+    {"id": "K-S-7", "name": "classify_no_interpreter", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T2", "order": 4},
+    {"id": "K-S-8", "name": "classify_authority_free", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T1", "order": 4},
+    {"id": "K-S-9", "name": "classify_prefix_stability", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T4", "order": 4},
+    {"id": "K-S-10", "name": "classify_invalid_output_rejected", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T2", "order": 12},
+    {"id": "K-S-11", "name": "script_correctness", "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T2", "order": 4, "top_level": true},
+
+    {"id": "K-P-1", "name": "serialize_header80_length", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T2", "order": 19},
+    {"id": "K-P-2", "name": "pow_preimage_length", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T1", "order": 19},
+    {"id": "K-P-3", "name": "pow_preimage_tag_prefix", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T1", "order": 19},
+    {"id": "K-P-4", "name": "serialize_header80_injective", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T3", "order": 19},
+    {"id": "K-P-5", "name": "pow_hash_deterministic", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T1", "order": 19},
+    {"id": "K-P-6", "name": "pow_valid_deterministic", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T2", "order": 19, "top_level": true},
+    {"id": "K-P-7", "name": "pow_valid_rejects_above_target", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T2", "order": 19},
+    {"id": "K-P-8", "name": "pow_valid_rejects_zero_target", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T1", "order": 19},
+    {"id": "K-P-9", "name": "pow_nonce_sensitivity", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T3", "order": 19},
+    {"id": "K-P-10", "name": "pow_golden_vectors", "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T3", "order": 19},
+
+    {"id": "K-A-1", "name": "compact_roundtrip_bound", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T4", "order": 24},
+    {"id": "K-A-2", "name": "exp_q_clamped", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T2", "order": 24},
+    {"id": "K-A-3", "name": "exp_rem_range", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T3", "order": 24},
+    {"id": "K-A-4", "name": "factor_range", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T4", "order": 24},
+    {"id": "K-A-5", "name": "asert_next_wf", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T4", "order": 24},
+    {"id": "K-A-6", "name": "clamp_to_prev_bounds", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T3", "order": 24},
+    {"id": "K-A-7", "name": "asert_next_bits_deterministic", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T1", "order": 24},
+    {"id": "K-A-8", "name": "asert_monotone_in_time_error", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T5", "order": 24},
+    {"id": "K-A-9", "name": "asert_child_time_irrelevant", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T2", "order": 24},
+    {"id": "K-A-10", "name": "asert_target_positive", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T2", "order": 24},
+    {"id": "K-A-11", "name": "asert_golden_vectors", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T4", "order": 24},
+    {"id": "K-A-12", "name": "pow_asert_correctness", "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T5", "order": 24, "top_level": true}
+  ],
+
+  "non_claims": [
+    {"id": "K-N-1", "name": "we_do_not_claim_cpp_equivalence", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-2", "name": "we_do_not_claim_full_chain_validity", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-3", "name": "we_do_not_claim_hash_collision_resistance", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-4", "name": "we_do_not_claim_ed25519_soundness", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-5", "name": "we_do_not_claim_classifier_refines_rigor_classify_cpp", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-6", "name": "we_do_not_claim_running_res_supply_connect_reject", "file": "Audit/KernelNonClaims.v"},
+    {"id": "K-N-7", "name": "we_do_not_claim_draw_won_implies_owner", "file": "Audit/KernelNonClaims.v"}
+  ],
+
+  "dependency_graph": {
+    "edges": [
+      ["Rigor.RigorBytes", "Script_Model/KScriptBytes.v"],
+      ["Script_Model/KScriptBytes.v", "Script_Model/KScriptShapes.v"],
+      ["Script_Model/KScriptShapes.v", "Script_Model/KClassify.v"],
+      ["Script_Model/KClassify.v", "proofs/Script_Correctness/ScriptCorrectness.v"],
+      ["Script_Model/KClassify.v", "Asset_Model/KAsset.v"],
+      ["UTXO_Model/KOutpoint.v", "UTXO_Model/KTransaction.v"],
+      ["UTXO_Model/KTxOut.v", "UTXO_Model/KTransaction.v"],
+      ["UTXO_Model/KTransaction.v", "UTXO_Model/KUtxoSet.v"],
+      ["UTXO_Model/KUtxoSet.v", "UTXO_Model/KApply.v"],
+      ["Asset_Model/KAsset.v", "Asset_Model/KPools.v"],
+      ["Asset_Model/KPools.v", "UTXO_Model/KApply.v"],
+      ["Asset_Model/KPools.v", "Asset_Model/KFeeBurn.v"],
+      ["UTXO_Model/KApply.v", "proofs/UTXO_Soundness/UTXOSoundness.v"],
+      ["proofs/UTXO_Soundness/UTXOSoundness.v", "proofs/ORU_Conservation/ORUConservation.v"],
+      ["Asset_Model/KFeeBurn.v", "proofs/ORU_Conservation/ORUConservation.v"],
+      ["proofs/UTXO_Soundness/UTXOSoundness.v", "proofs/RES_Issuance/RESIssuance.v"],
+      ["Asset_Model/KResSchedule.v", "proofs/RES_Issuance/RESIssuance.v"],
+      ["Rigor.ResSchedule", "Asset_Model/KResSchedule.v"],
+      ["Rigor.RigorKeccak", "Pow_Model/KPowDigest.v"],
+      ["Rigor.PowDigest", "Pow_Model/KPowDigest.v"],
+      ["Pow_Model/KHeader.v", "Pow_Model/KPowDigest.v"],
+      ["Pow_Model/KPowDigest.v", "Pow_Model/KTarget.v"],
+      ["Pow_Model/KTarget.v", "proofs/Pow_Correctness/PowCorrectness.v"],
+      ["ASERT_Model/KUint256.v", "ASERT_Model/KCompact.v"],
+      ["ASERT_Model/KCompact.v", "ASERT_Model/KAsertTransition.v"],
+      ["ASERT_Model/KAsertExponent.v", "ASERT_Model/KAsertTransition.v"],
+      ["ASERT_Model/KAsertTransition.v", "proofs/Pow_Correctness/ASERTCorrectness.v"]
+    ],
+    "acyclic": true,
+    "critical_path": [
+      "KScriptBytes", "KClassify", "K-S-4 classify_type_disjoint", "KAsset/KPools",
+      "K-U-13 utxo_soundness", "K-O-2 oru_conservation_tx", "K-O-4 fee_split",
+      "K-O-9 coinbase_claim_bound", "K-O-10 no_hidden_inflation"
+    ],
+    "parallel_branches": {
+      "A": "Script_Model -> Script_Correctness",
+      "B": "Pow_Model -> Pow_Correctness",
+      "C": "ASERT_Model -> ASERT_Correctness",
+      "D": "UTXO_Model -> Asset_Model -> ORU/RES (gated on branch A)"
+    }
+  },
+
+  "implementation_sequence": [
+    {"order": 1, "file": "Script_Model/KScriptBytes.v", "difficulty": "T1", "tranche": 1},
+    {"order": 2, "file": "Script_Model/KScriptShapes.v", "difficulty": "T3", "tranche": 1},
+    {"order": 3, "file": "Script_Model/KClassify.v", "difficulty": "T3", "tranche": 1},
+    {"order": 4, "file": "proofs/Script_Correctness/ScriptCorrectness.v", "difficulty": "T4", "tranche": 1},
+    {"order": 5, "file": "UTXO_Model/KOutpoint.v", "difficulty": "T1", "tranche": 1},
+    {"order": 6, "file": "UTXO_Model/KTxOut.v", "difficulty": "T1", "tranche": 1},
+    {"order": 7, "file": "UTXO_Model/KTransaction.v", "difficulty": "T1", "tranche": 1},
+    {"order": 8, "file": "UTXO_Model/KUtxoSet.v", "difficulty": "T3", "tranche": 1},
+    {"order": 9, "file": "Asset_Model/KAsset.v", "difficulty": "T1", "tranche": 2},
+    {"order": 10, "file": "Asset_Model/KPools.v", "difficulty": "T3", "tranche": 2},
+    {"order": 11, "file": "UTXO_Model/KApply.v", "difficulty": "T4", "tranche": 2, "gating": "valid_tx_b_reflect blocks tranches 2-3"},
+    {"order": 12, "file": "proofs/UTXO_Soundness/UTXOSoundness.v", "difficulty": "T4", "tranche": 2},
+    {"order": 13, "file": "Asset_Model/KFeeBurn.v", "difficulty": "T3", "tranche": 3},
+    {"order": 14, "file": "proofs/ORU_Conservation/ORUConservation.v", "difficulty": "T4", "tranche": 3},
+    {"order": 15, "file": "Asset_Model/KResSchedule.v", "difficulty": "T2", "tranche": 3},
+    {"order": 16, "file": "proofs/RES_Issuance/RESIssuance.v", "difficulty": "T4", "tranche": 3},
+    {"order": 17, "file": "Pow_Model/KHeader.v", "difficulty": "T3", "tranche": 4},
+    {"order": 18, "file": "Pow_Model/KPowDigest.v + Pow_Model/KTarget.v", "difficulty": "T2", "tranche": 4},
+    {"order": 19, "file": "proofs/Pow_Correctness/PowCorrectness.v", "difficulty": "T4", "tranche": 4},
+    {"order": 20, "file": "ASERT_Model/KUint256.v", "difficulty": "T4", "tranche": 5},
+    {"order": 21, "file": "ASERT_Model/KCompact.v", "difficulty": "T4", "tranche": 5},
+    {"order": 22, "file": "ASERT_Model/KAsertExponent.v", "difficulty": "T4", "tranche": 5},
+    {"order": 23, "file": "ASERT_Model/KAsertTransition.v", "difficulty": "T5", "tranche": 5},
+    {"order": 24, "file": "proofs/Pow_Correctness/ASERTCorrectness.v", "difficulty": "T5", "tranche": 5},
+    {"order": 25, "file": "Audit/KernelNonClaims.v", "difficulty": "T2", "tranche": 6},
+    {"order": 26, "file": "Audit/KernelAssumptions.v", "difficulty": "T2", "tranche": 6}
+  ],
+
+  "difficulty_scale": {
+    "T1": "<= 0.5 day",
+    "T2": "0.5 - 1 day",
+    "T3": "2 - 4 days",
+    "T4": "1 - 2 weeks",
+    "T5": ">= 3 weeks"
+  },
+
+  "effort_estimate": {
+    "single_engineer_weeks": 24,
+    "three_engineers_branched_weeks": 13,
+    "schedule_driver": "Tranche 5 (ASERT_Model + ASERTCorrectness)"
+  },
+
+  "mirrored_constants": [
+    {"name": "ORU_RES_TRANSFER_FEE_BURN_NUM", "value": 1, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "ORU_RES_TRANSFER_FEE_BURN_DEN", "value": 2, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "MAINNET_POW_ASERT_HALF_LIFE", "value": 43200, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "ASERT_ANCHOR_HEIGHT", "value": 1, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "ASERT_RATIO_UNIT_PPM", "value": 1000000, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "MIN_ADJUSTMENT_FACTOR_PPM", "value": 875000, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "MAX_ADJUSTMENT_FACTOR_PPM", "value": 1125000, "source": "core/src/consensus/rigor_consensus_lock.h"},
+    {"name": "ASERT_RADIX", "value": 65536, "source": "core/src/pow.cpp"},
+    {"name": "ASERT_EXP_CLAMP", "value": 4194304, "source": "core/src/pow.cpp"},
+    {"name": "ASERT_POLY_P1", "value": 195766423245049, "source": "core/src/pow.cpp"},
+    {"name": "ASERT_POLY_P2", "value": 971821376, "source": "core/src/pow.cpp"},
+    {"name": "ASERT_POLY_P3", "value": 5127, "source": "core/src/pow.cpp"},
+    {"name": "ASERT_POLY_BIAS", "value": 140737488355328, "source": "core/src/pow.cpp"},
+    {"name": "RIGOR_MARKER_RETURN", "value": 106, "source": "core/src/script/rigor_classify.h"},
+    {"name": "RIGOR_MARKER_RES_MINT", "value": 187, "source": "core/src/script/rigor_classify.h"},
+    {"name": "RIGOR_MARKER_CONVERGE", "value": 189, "source": "core/src/script/rigor_classify.h"},
+    {"name": "WITNESS_V0_KEYHASH_SIZE", "value": 20, "source": "core/src/script/rigor_classify.h"},
+    {"name": "WITNESS_V1_RES_SIZE", "value": 32, "source": "core/src/script/rigor_classify.h"},
+    {"name": "POW_TAG", "value": "RGRPOW01", "source": "core/src/rigor_kernel/pow_digest.cpp"},
+    {"name": "oru_claimable", "value": "(fees_oru - fee_burn) + oru_subsidy", "source": "core/src/consensus/rigor_supply.cpp:45"}
+  ],
+
+  "inherited_constraints": [
+    {"id": "C-1", "constraint": "Keccak does not reduce symbolically in Coq 8.15; PoW theorems must use an abstract digest section or concrete vm_compute vectors", "impact": "Pow_Model, PowCorrectness.v"},
+    {"id": "C-2", "constraint": "No ASERT Coq model exists; requires greenfield fixed-width integer and compact codec layers", "impact": "ASERT_Model"},
+    {"id": "C-3", "constraint": "RES cap: Coq valid_res_cap rejects overshoot but C++ ConnectBlock does not reject on a running S_RES scalar; state theorems over W(h) and the finite-sum identity only", "impact": "RESIssuance.v, K-N-6"},
+    {"id": "C-4", "constraint": "Convergence draw ownership is abstract (OpaqueBoundary.v); draw eligibility must be a hypothesis", "impact": "RESIssuance.v, K-N-7"},
+    {"id": "C-5", "constraint": "Existing refinement_proved := true flags are local Coq-to-Coq; no such boolean may be defined in this cone", "impact": "all files, gate G-5"},
+    {"id": "C-6", "constraint": "Phase-4F/4G/5 catalog style (Definition x := true) is banned in this cone", "impact": "all files, gate G-6"},
+    {"id": "C-7", "constraint": "classifier_refinement_proved = false; Script family proves model-internal properties only", "impact": "ScriptCorrectness.v, K-N-5"}
+  ],
+
+  "acceptance_gates": [
+    {"id": "G-1", "requirement": "closes with Qed; no Admitted, admit, Axiom, or Parameter in the proof cone"},
+    {"id": "G-2", "requirement": "Print Assumptions reports 'Closed under the global context'"},
+    {"id": "G-3", "requirement": "module is listed in _CoqProject.kernel-critical"},
+    {"id": "G-4", "requirement": "non-vacuity: mutation test recorded per top-level theorem"},
+    {"id": "G-5", "requirement": "no refinement_proved / equivalence_proved boolean defined in the cone"},
+    {"id": "G-6", "requirement": "no catalog-style vacuous definitions"},
+    {"id": "G-7", "requirement": "every mirrored C++ constant carries a source comment and a vector"}
+  ],
+
+  "ci_gate": {
+    "script": "formal_verification/rigor_kernel/run_kernel_critical.sh",
+    "builds": "coq_makefile -f _CoqProject.kernel-critical",
+    "fails_on": ["Admitted", "open assumptions", "manifest theorem missing from built .vo"],
+    "vector_file": "formal_verification/rigor_kernel/vectors/kernel_critical_vectors.json",
+    "golden_lock_untouched": true,
+    "golden_lock_baseline": {"shared": 433, "coq_enforced": 226}
+  },
+
+  "public_claims": [
+    {
+      "id": "CLAIM-1",
+      "claim": "RIGOR formally verifies UTXO transition soundness: every valid transaction produces a well-formed successor state in which inputs are consumed exactly once, outputs are created exactly as specified, and no unrelated entry is disturbed.",
+      "evidence": ["utxo_soundness", "apply_tx_preserves_wf", "apply_tx_inputs_consumed", "apply_block_no_double_spend", "apply_tx_frame"],
+      "scope": "Consensus kernel only. Single-block application over an abstract UTXO set.",
+      "does_not_claim": ["chain reorganization safety", "database durability", "C++ equivalence"],
+      "publishable_when": "K-U-3, K-U-6, K-U-8, K-U-12, K-U-13 all pass gates G-1..G-7"
+    },
+    {
+      "id": "CLAIM-2",
+      "claim": "RIGOR formally verifies ORU conservation under valid UTXO transitions: for every valid transition, ORU_input = ORU_output + fee, and the fee decomposes exactly into the coinbase-claimable share and the protocol burn share.",
+      "evidence": ["oru_conservation_tx", "fee_split", "oru_conservation_with_burn", "no_unauthorized_oru_creation", "no_hidden_inflation", "oru_accounting_deterministic"],
+      "scope": "Consensus kernel only.",
+      "does_not_claim": ["that the deployed C++ node computes these sums identically"],
+      "publishable_when": "K-O-2, K-O-4, K-O-5, K-O-6, K-O-10, K-O-11 all pass gates G-1..G-7"
+    },
+    {
+      "id": "CLAIM-3",
+      "claim": "RIGOR formally verifies RES issuance soundness: RES can be created only by a valid coinbase mint bounded by the per-height schedule. No ordinary transaction and no proof-of-work evaluation can create RES.",
+      "evidence": ["res_issuance_soundness", "non_coinbase_cannot_create_res", "res_mint_requires_coinbase", "res_mint_amount_bounded", "invalid_mint_rejected", "pow_creates_no_res", "res_cumulative_cap"],
+      "scope": "Consensus kernel only. Draw eligibility is an explicit hypothesis, not a proven property.",
+      "does_not_claim": ["that a draw winner is the legitimate owner"],
+      "publishable_when": "K-R-2, K-R-5, K-R-7, K-R-8, K-R-9, K-R-10, K-R-11 all pass gates G-1..G-7"
+    },
+    {
+      "id": "CLAIM-4",
+      "claim": "RIGOR formally verifies script classification correctness: asset classification is a total, deterministic, authority-free function of scriptPubKey bytes, with pairwise-disjoint recognizers and no script interpreter in the consensus path.",
+      "evidence": ["script_correctness", "classify_total", "classify_deterministic", "classify_type_disjoint", "witness_ladder_terminal", "classify_authority_free", "classify_no_interpreter"],
+      "scope": "Consensus kernel only. Model-internal.",
+      "does_not_claim": ["that the Coq classifier agrees with core/src/script/rigor_classify.cpp"],
+      "publishable_when": "K-S-1, K-S-2, K-S-4, K-S-5, K-S-7, K-S-8, K-S-11 all pass gates G-1..G-7"
+    },
+    {
+      "id": "CLAIM-5",
+      "claim": "RIGOR formally verifies PoW rule correctness: the proof-of-work predicate over SHA3-256(\"RGRPOW01\" || header80) is a total deterministic function of the 88-byte tagged preimage, the header serialization is injective, and headers above target are rejected.",
+      "evidence": ["pow_preimage_length", "pow_preimage_tag_prefix", "serialize_header80_injective", "pow_hash_deterministic", "pow_valid_rejects_above_target", "pow_golden_vectors"],
+      "scope": "Consensus kernel only. The digest is treated as a function; cryptographic hardness is assumed.",
+      "does_not_claim": ["collision or preimage resistance of SHA3-256"],
+      "publishable_when": "K-P-2, K-P-3, K-P-4, K-P-5, K-P-7, K-P-10 all pass gates G-1..G-7"
+    },
+    {
+      "id": "CLAIM-6",
+      "claim": "RIGOR formally verifies ASERT difficulty-transition correctness: the transition is a total deterministic integer function of the anchor and parent headers, bounded by an explicit +/-12.5% per-block clamp and the proof-of-work limit, and independent of the child header's timestamp.",
+      "evidence": ["pow_asert_correctness", "asert_next_bits_deterministic", "clamp_to_prev_bounds", "asert_child_time_irrelevant", "factor_range", "asert_golden_vectors"],
+      "scope": "Consensus kernel only. Integer model; no floating point anywhere.",
+      "does_not_claim": ["long-run convergence of the difficulty control loop to the target spacing"],
+      "publishable_when": "K-A-4, K-A-6, K-A-7, K-A-9, K-A-11, K-A-12 all pass gates G-1..G-7"
+    }
+  ],
+
+  "carve_outs": [
+    {"id": "CO-1", "carve_out": "C++ to Coq refinement", "recorded_as": "K-N-1 / manifest cpp_equivalence=false"},
+    {"id": "CO-2", "carve_out": "full chain / reorg validity", "recorded_as": "K-N-2 / manifest full_chain_equivalence=false"},
+    {"id": "CO-3", "carve_out": "hash collision resistance", "recorded_as": "K-N-3"},
+    {"id": "CO-4", "carve_out": "Ed25519 soundness", "recorded_as": "K-N-4"},
+    {"id": "CO-5", "carve_out": "classifier vs rigor_classify.cpp", "recorded_as": "K-N-5"},
+    {"id": "CO-6", "carve_out": "running S_RES connect rejection", "recorded_as": "K-N-6"},
+    {"id": "CO-7", "carve_out": "draw winner implies owner", "recorded_as": "K-N-7"},
+    {"id": "CO-8", "carve_out": "Keccak symbolic reduction", "recorded_as": "abstract-digest section in PowCorrectness.v"}
+  ],
+
+  "risks": [
+    {"id": "R-1", "risk": "Keccak symbolic reduction attempted anyway", "impact": "Tranche 4 stalls indefinitely", "mitigation": "abstract-digest section mandatory; reject any forall-header theorem that unfolds sha3_256"},
+    {"id": "R-2", "risk": "Z.quot vs Z.div confusion in ASERT", "impact": "silent divergence from C++ for negative time_error", "mitigation": "dedicated separation lemma at order 22; negative time_error vectors required in K-A-11"},
+    {"id": "R-3", "risk": "384-bit wide arithmetic modelling", "impact": "K-A-5 / K-A-12 blow up", "mitigation": "model as Z with an explicit < 2^384 window predicate rather than limb arrays"},
+    {"id": "R-4", "risk": "valid_tx_b_reflect is a single point of failure", "impact": "tranches 2-3 blocked", "mitigation": "front-load; split valid_tx into 8 independently-reflected conjuncts if needed"},
+    {"id": "R-5", "risk": "association-list UTXO makes K-U-12 painful", "impact": "tranche 2 overruns", "mitigation": "swap KUtxoSet.v to FMapAVL; interface designed to permit the swap"},
+    {"id": "R-6", "risk": "scope creep toward 'verified blockchain'", "impact": "claim violation", "mitigation": "claim discipline is binding; KernelNonClaims.v is a build-gated artifact"}
+  ],
+
+  "counts": {
+    "property_families": 5,
+    "proof_files": 6,
+    "theorems": 68,
+    "top_level_theorems": 7,
+    "non_claims": 7,
+    "model_files": 19,
+    "implementation_steps": 26,
+    "public_claims": 6
+  },
+
+  "final_status": {
+    "FORMAL_SCOPE_DEFINED": "PASS",
+    "CRITICAL_KERNEL_SELECTED": true,
+    "PUBLIC_CLAIM_DEFINED": true,
+    "IMPLEMENTATION_ROADMAP_READY": true,
+    "FULL_CHAIN_PROOF_NOT_CLAIMED": true,
+    "CPP_EQUIVALENCE_NOT_CLAIMED": true
+  }
+}

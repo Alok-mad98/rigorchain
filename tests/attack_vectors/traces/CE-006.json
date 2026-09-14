@@ -1,0 +1,12 @@
+{
+  "expected_rejection_point": "VerifyWitnessProgram / CheckInputScripts",
+  "before": null,
+  "after": "see CE-006a / CE-006b",
+  "kernel_candidate_difference": {
+    "ki_script_ok": {
+      "before": true,
+      "after": false
+    }
+  },
+  "future_refinement_target": "WitnessValidation.sound"
+}

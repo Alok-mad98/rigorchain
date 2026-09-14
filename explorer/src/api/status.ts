@@ -2,14 +2,22 @@ import type { Pool } from "pg";
 import type { Config } from "../config";
 import { buildCompliancePayload, EQUIVALENCE_CLAIMED } from "../compliance";
 import { getOrCreateChainState } from "../db";
-import { CIRCULATING_ORU_SQL_PREDICATE } from "../circulating";
+import { CIRCULATING_ORU_SQL_PREDICATE, COINBASE_MATURITY_DISPLAY, matureSpendableOruSql, opConvergeScriptSql, plainDestroyOruSql, unlockedOruSql } from "../circulating";
+import { atomsFromSql, reconcileOruSupplySplit } from "../accounting";
 import { atomsToOruDisplay, atomsToResDisplay } from "../amount";
 import { rpc } from "../rpcCli";
-import { getRfc018FeeBurnTip } from "../rfc018FeeBurnStore";
 import { rfc018FeeBurnView } from "../rfc018FeeBurn";
+import {
+  confirmHeightForTip,
+  formatDerivedMaxSupply,
+  formatRateOruPerRes,
+  RES_DERIVED_MAX_SUPPLY,
+  resDestroyCostForHeight,
+} from "../resIssuanceSchedule";
+import { backfillMissingRfc018FeeBurn, getRfc018FeeBurnAtHeight } from "../rfc018FeeBurnStore";
 
 /** FVR-M compliance display — read-only, never computed at runtime. */
-export const DRAW_STATUS_DISPLAY = "DRAW: PERMANENTLY IMPOSSIBLE (FVR-M)";
+export const DRAW_STATUS_DISPLAY = "ORU destroyed. RES minted.";
 
 export const RPC_AUTHORITY_DISCLAIMER =
   "All values are authoritative from rigord RPC. No local consensus computation is performed.";
@@ -25,7 +33,7 @@ export type StatusDashboard = {
   system_integrity: Record<string, unknown>;
 };
 
-/** getblockchaininfo amounts are ValueFromAmount decimals; getconvergencestats ORU is integer atoms. */
+/** getblockchaininfo / getruntimesupply amounts are ValueFromAmount decimals; asAtoms treats the value as integer atoms. */
 function formatOruAmount(value: unknown, asAtoms = false): string | null {
   if (value == null || value === "") return null;
   if (asAtoms) {
@@ -40,17 +48,8 @@ function formatOruAmount(value: unknown, asAtoms = false): string | null {
   return `${n.toFixed(8)} ORU`;
 }
 
-function formatResAtoms(value: unknown): string | null {
-  if (value == null || value === "") return null;
-  try {
-    return atomsToResDisplay(String(Math.trunc(Number(value))));
-  } catch {
-    return null;
-  }
-}
-
 /** Display-only copy of consensus coinbase maturity. Not a consensus rule. */
-export const COINBASE_MATURITY_DISPLAY = 100;
+export { COINBASE_MATURITY_DISPLAY };
 
 /** Coinbase is transferable when confirmations >= COINBASE_MATURITY (tip - height + 1). */
 export function isCoinbaseMature(tipHeight: number, outputHeight: number, maturity = COINBASE_MATURITY_DISPLAY): boolean {
@@ -121,24 +120,21 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
 
   let blockchainInfo: Record<string, unknown> = {};
   let networkInfo: Record<string, unknown> = {};
-  let convStats: Record<string, unknown> = {};
   let convStatus: Record<string, unknown> = {};
   let runtimeSupply: Record<string, unknown> = {};
   let mempoolTxids: string[] = [];
   let rpcError: string | null = null;
 
   try {
-    const [bci, net, mempool, stats, status, supply] = await Promise.all([
+    const [bci, net, mempool, status, supply] = await Promise.all([
       rpc.getblockchaininfo(config),
       rpc.getnetworkinfo(config),
       rpc.getrawmempool(config),
-      rpc.getconvergencestats(config).catch(() => ({})),
       rpc.getconvergencestatus(config).catch(() => ({})),
       rpc.getruntimesupply(config).catch(() => ({})),
     ]);
     blockchainInfo = (bci ?? {}) as Record<string, unknown>;
     networkInfo = (net ?? {}) as Record<string, unknown>;
-    convStats = (stats ?? {}) as Record<string, unknown>;
     convStatus = (status ?? {}) as Record<string, unknown>;
     runtimeSupply = (supply ?? {}) as Record<string, unknown>;
     if (Array.isArray(mempool)) mempoolTxids = mempool as string[];
@@ -150,39 +146,10 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   const nodeHeight = Number(blockchainInfo.blocks ?? -1);
   const indexerHeight = Number(chainState.last_height);
 
-  let drawRemaining: { remaining: number | null; completesAt: number | null } = {
-    remaining: null,
-    completesAt: null,
-  };
-  let tipCRoot: string | null = null;
-  let tipDrawCommitted: string | null = null;
-  let tipDrawComputed: string | null = null;
-  try {
-    const tipKey = nodeHeight >= 0 ? String(nodeHeight) : "";
-    const draw = tipKey ? await rpc.getconvergenceresult(config, tipKey) : {};
-    const cands = Array.isArray(draw?.candidates) ? draw.candidates : [];
-    tipCRoot = typeof draw?.convergence_root === "string" ? draw.convergence_root : null;
-    tipDrawCommitted =
-      typeof draw?.draw_candidate_root_committed === "string"
-        ? draw.draw_candidate_root_committed
-        : null;
-    tipDrawComputed =
-      typeof draw?.draw_candidate_root_computed === "string"
-        ? draw.draw_candidate_root_computed
-        : null;
-    drawRemaining = drawWindowRemaining({
-      tipHeight: Number(draw?.height ?? nodeHeight),
-      windowSize: Number(draw?.window_size ?? 0),
-      sourceHeights: cands.map((c: { source_height?: number }) => Number(c.source_height)).filter((n: number) => Number.isFinite(n)),
-    });
-  } catch {
-    /* leave null — page shows — */
-  }
-
   const blockWindow = await pool.query(
     `
       SELECT height, time, bits, opus_hash, rigor_winner, rigor_res_minted,
-             committed_root, computed_root, mismatch, draw_candidate_root
+             committed_root, computed_root, mismatch, draw_candidate_root, c_root
       FROM blocks
       ORDER BY height DESC
       LIMIT 100
@@ -194,6 +161,7 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   const avgBlockTime = averageBlockTimeSeconds(times);
 
   const tipBlock = blocks[0] ?? null;
+  const tipCRoot = typeof tipBlock?.c_root === "string" ? tipBlock.c_root : null;
 
   const fCounts = await pool.query(
     `
@@ -206,45 +174,40 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
     `,
   );
   const fSizes = fCounts.rows.map((r) => Number(r.f_size ?? 0));
-  const winnerBlocks = blocks.filter((b) => String(b.rigor_winner ?? "").trim() !== "").length;
+  const mintBlocks = blocks.filter((b) => Number(b.rigor_res_minted ?? 0) > 0).length;
   const rootChanges = new Set(blocks.map((b) => String(b.committed_root ?? ""))).size;
   const mismatchBlocks = blocks.filter((b) => b.mismatch).length;
 
   const economic = await pool.query(
     `
       SELECT
-        (SELECT COALESCE(SUM(amount_atoms), 0) FROM oru_utxos WHERE ${CIRCULATING_ORU_SQL_PREDICATE}) AS oru_utxo_atoms,
-        (SELECT COUNT(*)::int FROM oru_utxos WHERE ${CIRCULATING_ORU_SQL_PREDICATE}) AS oru_utxo_count,
+        (SELECT COALESCE(SUM(amount_atoms), 0) FROM oru_utxos WHERE ${CIRCULATING_ORU_SQL_PREDICATE}) AS oru_unspent_unlocked_atoms,
         (SELECT COALESCE(SUM(u.amount_atoms), 0)
            FROM oru_utxos u
-           JOIN outputs o ON o.txid = u.txid AND o.vout_index = u.vout_index
            JOIN transactions t ON t.txid = u.txid
-          WHERE u.spent = FALSE
-            AND COALESCE(o.witness_version, 0) = 0
-            AND (
-              t.block_tx_index <> 0
-              OR ((SELECT COALESCE(MAX(height), 0) FROM blocks) - u.height + 1) >= 100
-            )
+          WHERE ${matureSpendableOruSql()}
+        ) AS oru_utxo_atoms,
+        (SELECT COUNT(*)::int
+           FROM oru_utxos u
+           JOIN transactions t ON t.txid = u.txid
+          WHERE ${matureSpendableOruSql()}
+        ) AS oru_utxo_count,
+        (SELECT COALESCE(SUM(u.amount_atoms), 0)
+           FROM oru_utxos u
+           JOIN transactions t ON t.txid = u.txid
+          WHERE ${matureSpendableOruSql()}
         ) AS oru_mature_transferable_atoms,
         (SELECT COUNT(*)::int
            FROM oru_utxos u
-           JOIN outputs o ON o.txid = u.txid AND o.vout_index = u.vout_index
            JOIN transactions t ON t.txid = u.txid
-          WHERE u.spent = FALSE
-            AND COALESCE(o.witness_version, 0) = 0
-            AND (
-              t.block_tx_index <> 0
-              OR ((SELECT COALESCE(MAX(height), 0) FROM blocks) - u.height + 1) >= 100
-            )
+          WHERE ${matureSpendableOruSql()}
         ) AS oru_mature_transferable_count,
         (SELECT COALESCE(SUM(u.amount_atoms), 0)
            FROM oru_utxos u
-           JOIN outputs o ON o.txid = u.txid AND o.vout_index = u.vout_index
            JOIN transactions t ON t.txid = u.txid
-          WHERE u.spent = FALSE
-            AND COALESCE(o.witness_version, 0) = 0
-            AND t.block_tx_index = 0
-            AND ((SELECT COALESCE(MAX(height), 0) FROM blocks) - u.height + 1) < 100
+          WHERE ${unlockedOruSql("u")}
+            AND COALESCE(t.is_coinbase, FALSE) = TRUE
+            AND ((SELECT COALESCE(MAX(height), 0) FROM blocks) - u.height + 1) < ${COINBASE_MATURITY_DISPLAY}
         ) AS oru_immature_coinbase_atoms,
         (SELECT COALESCE(SUM(o.value_atoms), 0)
            FROM transactions t
@@ -256,8 +219,13 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
           WHERE t.block_tx_index = 0
             AND t.block_hash = (SELECT block_hash FROM blocks ORDER BY height DESC LIMIT 1)
         ) AS oru_subsidy_tip_atoms,
-        (SELECT COUNT(*)::int FROM convergence_events) AS convergence_event_count,
-        (SELECT COUNT(*)::int FROM convergence_events WHERE draw_eligible) AS convergence_eligible_count,
+        (SELECT COUNT(DISTINCT o.txid)::int
+           FROM outputs o
+          WHERE o.asset_kind = 'ORU'
+            AND ${opConvergeScriptSql("o.script_pubkey")}
+            AND o.value_atoms > 0
+        ) AS convergence_event_count,
+        (SELECT COUNT(*)::int FROM convergence_events) AS convergence_eligible_count,
         (SELECT COALESCE(SUM(mint_amount), 0) FROM res_mints) AS res_mint_total_atoms,
         (SELECT COUNT(*)::int FROM res_mints) AS res_mint_count,
         (SELECT COALESCE(SUM(rm.mint_amount), 0)
@@ -267,30 +235,77 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
         ) AS res_mint_last_100_atoms,
         (SELECT MAX(block_height) FROM res_mints) AS last_res_mint_height,
         (SELECT mint_txid FROM res_mints ORDER BY block_height DESC, mint_vout_index ASC LIMIT 1) AS last_res_mint_txid,
-        (SELECT winner_convergence_txid FROM res_mints ORDER BY block_height DESC, mint_vout_index ASC LIMIT 1) AS last_winner_convergence_txid
+        (SELECT COUNT(*)::int
+           FROM res_mints rm
+           JOIN blocks b ON b.block_hash = rm.block_hash
+          WHERE b.height > GREATEST(0, (SELECT COALESCE(MAX(height), 0) FROM blocks) - 100)
+        ) AS res_mint_count_last_100,
+        (SELECT COUNT(DISTINCT o.txid)::int
+           FROM outputs o
+           JOIN transactions t ON t.txid = o.txid
+          WHERE o.asset_kind = 'ORU'
+            AND ${opConvergeScriptSql("o.script_pubkey")}
+            AND o.value_atoms > 0
+            AND t.block_height > GREATEST(0, (SELECT COALESCE(MAX(height), 0) FROM blocks) - 100)
+        ) AS convergence_burns_last_100,
+        (SELECT COALESCE(SUM(o.value_atoms), 0)
+           FROM outputs o
+          WHERE ${plainDestroyOruSql("o")}
+        ) AS oru_plain_destroy_atoms
     `,
   );
   const eco = economic.rows[0] ?? {};
-  let feeBurnTip: Awaited<ReturnType<typeof getRfc018FeeBurnTip>> = null;
+  const oruSupplyAccounting = reconcileOruSupplySplit({
+    matureAtoms: atomsFromSql(eco.oru_mature_transferable_atoms),
+    immatureAtoms: atomsFromSql(eco.oru_immature_coinbase_atoms),
+    unspentUnlockedAtoms: atomsFromSql(eco.oru_unspent_unlocked_atoms),
+  });
+  if (!oruSupplyAccounting.consistent) {
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        component: "oru-supply-accounting",
+        indexer_height: indexerHeight,
+        errors: oruSupplyAccounting.errors,
+      }),
+    );
+  }
+  const tipForRate = nodeHeight >= 0 ? nodeHeight : indexerHeight;
+  const rpcConfirm = Number(convStatus.confirm_height);
+  const confirmHeight =
+    Number.isFinite(rpcConfirm) && rpcConfirm >= 0
+      ? rpcConfirm
+      : confirmHeightForTip(Number.isFinite(tipForRate) ? tipForRate : 0);
+  const resRateAtoms = resDestroyCostForHeight(confirmHeight);
+  let feeBurnAtTip: Awaited<ReturnType<typeof getRfc018FeeBurnAtHeight>> = null;
   try {
-    feeBurnTip = await getRfc018FeeBurnTip(pool);
+    if (indexerHeight >= 0) {
+      feeBurnAtTip = await getRfc018FeeBurnAtHeight(pool, indexerHeight);
+      if (feeBurnAtTip == null) {
+        await backfillMissingRfc018FeeBurn(pool, 600);
+        feeBurnAtTip = await getRfc018FeeBurnAtHeight(pool, indexerHeight);
+      }
+    }
   } catch {
-    feeBurnTip = null;
+    feeBurnAtTip = null;
   }
   const rfc018FeeBurn = {
     ...rfc018FeeBurnView(
-      feeBurnTip?.burned_oru ?? 0n,
-      feeBurnTip?.cumulative_burned_oru ?? 0n,
+      feeBurnAtTip?.burned_oru ?? 0n,
+      feeBurnAtTip?.cumulative_burned_oru ?? 0n,
       atomsToOruDisplay,
     ),
-    indexed: feeBurnTip != null,
-    height: feeBurnTip != null ? feeBurnTip.height.toString() : null,
+    indexed: feeBurnAtTip != null,
+    height: feeBurnAtTip != null && indexerHeight >= 0 ? String(indexerHeight) : null,
   };
   const totalIssuedDisplay =
     formatOruAmount(runtimeSupply.oru_subsidy_cumulative_derived) ??
     formatOruAmount(runtimeSupply.oru_supply_cumulative);
   const circulatingDisplay = atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0"));
   const convergenceDestroyedDisplay = formatOruAmount(blockchainInfo.cumulative_convergence);
+  const plainDestroyAtoms = atomsFromSql(eco.oru_plain_destroy_atoms);
+  const plainDestroyDisplay = atomsToOruDisplay(plainDestroyAtoms);
+  const oruSubsidyScheduleDisplay = "Genesis 0 ORU; then 128 ORU/block forever";
 
   const reorgWindow = await pool.query(
     `
@@ -302,7 +317,12 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   );
 
   const indexerUpdatedAt = chainState.updated_at instanceof Date ? chainState.updated_at.getTime() : Date.now();
-  const indexerLagSeconds = Math.max(0, Math.floor((Date.now() - indexerUpdatedAt) / 1000));
+  const indexerLagBlocks =
+    nodeHeight >= 0 && indexerHeight >= 0 ? Math.max(0, nodeHeight - indexerHeight) : null;
+  const indexerLagSeconds =
+    indexerLagBlocks === 0
+      ? 0
+      : Math.max(0, Math.floor((Date.now() - indexerUpdatedAt) / 1000));
 
   const walletObserver = await fetchWalletObserverStatus();
 
@@ -338,6 +358,7 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
       difficulty_label: "ASERT / OpuHash (node-reported)",
       bits: tipBlock?.bits ?? null,
       opus_hash: tipBlock?.opus_hash ?? null,
+      pow_hash: tipBlock?.opus_hash ?? null,
       orphan_rate: null,
       orphan_rate_note: "Orphan blocks are not persisted in indexer schema",
       reorg_signal_blocks_mismatch_last_1000: reorgWindow.rows[0]?.mismatch_blocks ?? 0,
@@ -347,29 +368,31 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
       verificationprogress: blockchainInfo.verificationprogress ?? null,
     },
     convergence_health: {
-      draw_status: DRAW_STATUS_DISPLAY,
+      issuance_status: DRAW_STATUS_DISPLAY,
       c_root: tipCRoot,
-      draw_candidate_root_committed: tipDrawCommitted,
-      draw_candidate_root_computed: tipDrawComputed,
-      draw_candidate_root: tipDrawCommitted,
-      f_set_distribution_last_100_blocks: fSetDistribution(fSizes),
-      winner_blocks_last_100: winnerBlocks,
-      winner_frequency_last_100: blocks.length > 0 ? winnerBlocks / blocks.length : null,
+      mint_blocks_last_100: mintBlocks,
+      convergence_burns_last_100: fSizes.filter((n) => n > 0).length,
       convergence_root_stability: {
         distinct_committed_roots_last_100: rootChanges,
         mismatch_blocks_last_100: mismatchBlocks,
         stable: mismatchBlocks === 0,
       },
-      active_convergences: convStats.active_convergences ?? null,
-      pending_windows: convStats.pending_windows ?? null,
-      source: "indexed convergence_events + getconvergencestats",
+      source: "indexed convergence_events + getconvergencestatus",
     },
     economic_snapshot: {
       tip_height: nodeHeight >= 0 ? nodeHeight : indexerHeight,
-      network_res_minted_display:
-        formatResAtoms(convStats.total_res_minted) ?? atomsToResDisplay(String(eco.res_mint_total_atoms ?? "0")),
+      confirm_height: confirmHeight,
+      res_destroy_cost_atoms: resRateAtoms.toString(),
+      res_destroy_cost_display: formatRateOruPerRes(resRateAtoms),
+      res_derived_max_supply_atoms: RES_DERIVED_MAX_SUPPLY.toString(),
+      res_derived_max_supply_display: formatDerivedMaxSupply(),
+      res_mint_count_last_100: eco.res_mint_count_last_100 ?? 0,
+      convergence_burns_last_100: eco.convergence_burns_last_100 ?? 0,
+      network_res_minted_display: atomsToResDisplay(String(eco.res_mint_total_atoms ?? "0")),
       oru_burned_lifetime_display: convergenceDestroyedDisplay,
       cumulative_convergence_display: convergenceDestroyedDisplay,
+      oru_plain_destroy_atoms: plainDestroyAtoms.toString(),
+      oru_plain_destroy_display: plainDestroyDisplay,
       rfc018_fee_burn: rfc018FeeBurn,
       supply_chart: {
         total_issued_oru: {
@@ -381,6 +404,11 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
           rpc: blockchainInfo.cumulative_convergence ?? null,
           source: "getblockchaininfo.cumulative_convergence (Convergence destroyed ORU)",
         },
+        plain_destroy: {
+          atoms: plainDestroyAtoms.toString(),
+          display: plainDestroyDisplay,
+          source: "indexed OP_CONVERGE with no RES mint; subset of Convergence destroyed, not a fifth series",
+        },
         rfc018_fee_burn: {
           block_burned_oru: rfc018FeeBurn.block_burned_oru,
           cumulative_burned_oru: rfc018FeeBurn.cumulative_burned_oru,
@@ -391,13 +419,13 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
         oru_circulating_spendable: {
           atoms: String(eco.oru_utxo_atoms ?? "0"),
           display: circulatingDisplay,
-          source: "indexed oru_utxos with CIRCULATING_ORU_SQL_PREDICATE (OP_CONVERGE excluded)",
+          source:
+            "indexed oru_utxos: unspent, not OP_CONVERGE, not retired CVG2, coinbase mature (indexer height)",
         },
         never_merged: true,
-        note: "Total issued, Convergence destroyed, Deflationary Fee Burn, and circulating spendable are four separate series. Do not add or subtract them into one explorer figure.",
+        note: "Total issued, Convergence destroyed, fees destroyed, and circulating spendable are four separate series. Do not add or subtract them into one explorer figure.",
         equivalence_claimed: EQUIVALENCE_CLAIMED,
       },
-      oru_in_current_window_display: formatOruAmount(convStats.active_oru, true),
       oru_since_last_mint_display: formatOruAmount(blockchainInfo.current_convergence_sum),
       oru_indexed_utxo_total_display: atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0")),
       oru_circulating_spendable_display: atomsToOruDisplay(String(eco.oru_utxo_atoms ?? "0")),
@@ -408,31 +436,33 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
       oru_coinbase_total_display: atomsToOruDisplay(String(eco.oru_coinbase_total_atoms ?? "0")),
       oru_subsidy_tip_display:
         formatOruAmount(runtimeSupply.oru_subsidy_block) ?? atomsToOruDisplay(String(eco.oru_subsidy_tip_atoms ?? "0")),
+      oru_subsidy_schedule_display: oruSubsidyScheduleDisplay,
+      accounting: {
+        indexer_height: indexerHeight >= 0 ? indexerHeight : null,
+        node_height: nodeHeight >= 0 ? nodeHeight : null,
+        issued_source: "node getruntimesupply at node height",
+        circulating_source: "indexer UTXO set at indexer height; mature only",
+        oru_supply_consistent: oruSupplyAccounting.consistent,
+        oru_supply_errors: oruSupplyAccounting.errors,
+      },
       oru_supply_cumulative_display: formatOruAmount(runtimeSupply.oru_supply_cumulative),
       oru_supply_parent_display: formatOruAmount(runtimeSupply.oru_supply_parent),
       oru_burn_block_display: formatOruAmount(runtimeSupply.oru_converge_burn_block),
       convergence_event_count: eco.convergence_event_count ?? 0,
-      convergence_eligible_count: eco.convergence_eligible_count ?? 0,
-      active_convergences: convStats.active_convergences ?? null,
-      pending_windows: convStats.pending_windows ?? null,
+      convergence_burn_count: eco.convergence_eligible_count ?? 0,
       res_mint_rate_last_100_blocks_display: atomsToResDisplay(String(eco.res_mint_last_100_atoms ?? "0")),
       res_mint_count: eco.res_mint_count ?? 0,
       last_res_height: convStatus.last_res_height ?? eco.last_res_mint_height ?? null,
       last_res_mint_txid: eco.last_res_mint_txid ?? null,
-      last_winner_txid: convStatus.last_winner_txid ?? eco.last_winner_convergence_txid ?? null,
-      window_progress: convStatus.window_progress ?? null,
-      window_progress_percent: convStatus.window_progress_percent ?? null,
-      draw_blocks_remaining: drawRemaining.remaining,
-      draw_completes_at_height: drawRemaining.completesAt,
       oru_indexed_utxo_total_atoms: String(eco.oru_utxo_atoms ?? "0"),
       oru_cumulative_convergence_rpc: blockchainInfo.cumulative_convergence ?? null,
-      convergence_fee_absorption_window_rpc: blockchainInfo.current_convergence_sum ?? null,
       res_minted_total_atoms: String(eco.res_mint_total_atoms ?? "0"),
       res_minted_total_display: atomsToResDisplay(String(eco.res_mint_total_atoms ?? "0")),
       res_mint_rate_last_100_blocks_atoms: String(eco.res_mint_last_100_atoms ?? "0"),
     },
     mining_activity: {
       mempool_tx_count: mempoolTxids.length,
+      connections: networkInfo.connections ?? null,
       active_miners: null,
       pending_blocks_active_jobs: null,
       stale_job_count: null,
@@ -442,9 +472,12 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
     system_integrity: {
       rpc_authority: "rigord: authoritative",
       rpc_error: rpcError,
-      indexer_sync_lag_blocks: nodeHeight >= 0 && indexerHeight >= 0 ? Math.max(0, nodeHeight - indexerHeight) : null,
+      indexer_sync_lag_blocks: indexerLagBlocks,
       indexer_sync_lag_seconds: indexerLagSeconds,
-      indexer_last_updated_at: chainState.updated_at,
+      indexer_last_updated_at:
+        chainState.updated_at instanceof Date
+          ? chainState.updated_at.toISOString()
+          : chainState.updated_at,
       wallet_observer: walletObserver,
       explorer_compliance: {
         frozen: true,

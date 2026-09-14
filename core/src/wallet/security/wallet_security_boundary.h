@@ -10,8 +10,8 @@
 //
 // This module is a wallet firewall. It does not:
 //   - modify UTXO / ledger state
-//   - call GetBlockSubsidy / GetResMintReward / ResolveConvergenceDraw /
-//     RigorSupplyDelta / LedgerApply
+//   - call GetBlockSubsidy / ResolveConvergenceDraw / RigorSupplyDelta /
+//     LedgerApply
 //   - implement ClassifyRigorTxout or VerifyRigorPredicate
 //   - emit ConsensusKernelInput
 //   - decide spend validity or asset classification

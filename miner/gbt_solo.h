@@ -5,8 +5,11 @@
  * RIGOR SOLO GBT copy-bytes assembler (TASK-RIGOR-MINER-GBT-COPY-BYTES-SOLO-P0-041).
  *
  * Node is the only consensus authority. This module copies
- * default_coinbase_tx and the GBT transaction set. It must not rebuild
- * mint, winner, C, subsidy, or script semantics.
+ * default_coinbase_tx and the GBT transaction set. RFC-020: coinbase
+ * scriptSig is BIP34 height plus OP_0 padding; coinbase pays ORU only
+ * (genesis 0; every h ≥ 1 is 128 ORU plus claimable fees; no halving)
+ * and does not mint RES. Lottery fields (paid_winner, convergence_root,
+ * default_res_mint) are refused.
  */
 
 #include <jansson.h>
@@ -52,7 +55,8 @@ bool gbt_solo_payout_is_oru_v0(const uint8_t *spk, int len);
 /*
  * Assemble SOLO work from a GBT result object (not the JSON-RPC envelope).
  * payout_spk must be ORU witness v0/20. On failure, err is populated and
- * out->txs_hex is NULL. Fail closed: no legacy 2-push / getwork / RIGR path.
+ * out->txs_hex is NULL. Fail closed: no lottery-era GBT fields, no coinbase
+ * RES mint, no subsidy reconstruction, no getwork / RIGR path.
  */
 bool gbt_solo_assemble(const json_t *gbt,
 		       const uint8_t *payout_spk, int payout_len,

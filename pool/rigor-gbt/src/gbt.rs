@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 
 /// Raw GBT transaction entry from `getblocktemplate`.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, serde::Serialize, Deserialize, PartialEq)]
 pub struct GbtTransaction {
     pub data: String,
     pub txid: String,
@@ -13,69 +13,12 @@ pub struct GbtTransaction {
     pub weight: Option<u32>,
 }
 
-/// One member of the parent block's convergence set.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ConvergenceDrawCandidate {
-    /// Display-order txid, as `uint256::GetHex` writes it.
-    pub txid: String,
-    /// Draw weight f_i — the convergence amount in Tharns.
-    pub weight: u64,
-    /// The 32-byte witness v1 RES program this convergence declared (A-5 R1).
-    pub res_program: String,
-    /// σ_i as the node computed it; display order.
-    #[serde(default)]
-    pub sigma: Option<String>,
-    /// Whether σ_i < T·f_i.
-    #[serde(default)]
-    pub eligible: bool,
-}
-
-/// The candidate the node resolved as winner. Absent when nobody was eligible.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ConvergenceDrawWinner {
-    pub index: u32,
-    pub txid: String,
-    pub weight: u64,
-    pub res_program: String,
-}
-
-/// The draw a template PAYS, resolved over the set its parent committed (SECURITY-001-A8).
+/// Parsed shipping `getblocktemplate` response (RFC-020 ORU-only).
 ///
-/// Distinct from [`GbtTemplate::convergence_txids`], which is the set the template *commits*
-/// for the next block to draw. Every field here is a function of the parent block alone, so
-/// nothing the pool does while assembling can change any of it.
-///
-/// All uint256 values are RPC display order and must be reversed before entering the σ
-/// preimage; use `rigor_convergence_root::display_hex_to_native`.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ConvergenceDraw {
-    pub source_blockhash: String,
-    pub source_height: u64,
-    /// The σ seed — the parent block hash. Identical to `source_blockhash`; named for the role.
-    pub sigma_seed: String,
-    /// Height fed to σ and the height of this template: `source_height + 1`.
-    pub payout_height: u64,
-    pub convergence_root: String,
-    /// Compact nBits of the parent header; the value a RES mint proof must report.
-    pub target_prev: String,
-    pub res_probability_target: String,
-    /// Commitment over the eligible subset; this template's CVGE coinbase output carries it.
-    pub eligible_root: String,
-    #[serde(default)]
-    pub candidates: Vec<ConvergenceDrawCandidate>,
-    #[serde(default)]
-    pub winner: Option<ConvergenceDrawWinner>,
-}
-
-/// Coinbase OP_RES_MINT output published by the node when this template pays a winner.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct GbtResMint {
-    pub value: i64,
-    #[serde(rename = "scriptPubKey")]
-    pub script_pubkey: String,
-}
-
-/// Parsed `getblocktemplate` response (RIGOR-extended fields).
+/// Lottery keys (`paid_winner_txid`, `default_res_mint`, `default_pcorb_carrier`,
+/// `convergence_root`, `convergence_draw`, `convergence_txids`,
+/// `default_convergence_commitment`) are **not** fields here. If the node emits
+/// any of them non-null, validation V-06 rejects the raw JSON.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct GbtTemplate {
     pub version: Option<u32>,
@@ -95,30 +38,22 @@ pub struct GbtTemplate {
     pub bits: String,
     pub height: u64,
     pub default_witness_commitment: Option<String>,
-    /// The set this template COMMITS for the next block to draw — not the set it pays.
-    ///
-    /// A-9-C: spans the whole draw window, so most members are transactions of earlier blocks
-    /// and are absent from `transactions`.
-    #[serde(default)]
-    pub convergence_txids: Vec<String>,
-    /// C over `convergence_txids` — the exact root the coinbase scriptSig must carry.
-    ///
-    /// Served by the node because the window makes C unrecoverable from this template's body
-    /// alone. Optional only so that pre-A9C fixtures still parse.
-    #[serde(default)]
-    pub convergence_root: Option<String>,
-    /// The resolved parent draw this template PAYS. Optional only so that pre-A8 fixtures
-    /// still parse; every consumer on the mint path must refuse to proceed without it.
-    #[serde(default)]
-    pub convergence_draw: Option<ConvergenceDraw>,
-    pub default_convergence_commitment: Option<String>,
-    /// Coinbase OP_RES_MINT. Absent when the parent awarded nobody. Not a body transaction.
-    #[serde(default)]
-    pub default_res_mint: Option<GbtResMint>,
-    /// Canonical tagged PCORB OP_RETURN scriptPubKey (hex). Absent iff `default_res_mint` is.
-    #[serde(default)]
-    pub default_pcorb_carrier: Option<String>,
+    /// Compact nBits of the parent header (node still emits this).
     pub prev_nbits: String,
+    /// Exact coinbase vin[0].scriptSig bytes (BIP34 height + OP_0). Always emitted by shipping rigord.
+    #[serde(default)]
+    pub default_coinbase_scriptsig: Option<String>,
+    /// Full coinbase tx hex when `coinbase_address` was given to GBT.
+    #[serde(default)]
+    pub default_coinbase_tx: Option<String>,
+    #[serde(default)]
+    pub default_coinbase_txid: Option<String>,
+    #[serde(default)]
+    pub merkleroot: Option<String>,
+    #[serde(default)]
+    pub rigor_coinbase_immutable: Option<bool>,
+    #[serde(default)]
+    pub coinbase_address: Option<String>,
 }
 
 impl GbtTemplate {

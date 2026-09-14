@@ -54,7 +54,6 @@ struct WalletBalances;
 struct WalletTx;
 struct WalletTxOut;
 struct WalletTxStatus;
-struct ConvergenceUiSnapshot;
 
 using WalletOrderForm = std::vector<std::pair<std::string, std::string>>;
 using WalletValueMap = std::map<std::string, std::string>;
@@ -161,10 +160,13 @@ public:
     //! RIGOR_MARKER_CONVERGE burn recipient (HASH160 of a fresh RES program). ORU only.
     virtual util::Result<wallet::CRecipient> makeConvergenceRecipient(CAmount amount_oru) = 0;
 
-    //! Commit transaction.
-    virtual void commitTransaction(CTransactionRef tx,
+    //! Commit transaction. Returns false and sets err_string when the mempool
+    //! rejected the broadcast; the wallet then abandons the transaction, so its
+    //! inputs stay spendable and the caller must not report the send as done.
+    virtual bool commitTransaction(CTransactionRef tx,
         WalletValueMap value_map,
-        WalletOrderForm order_form) = 0;
+        WalletOrderForm order_form,
+        std::string& err_string) = 0;
 
     //! Return whether transaction can be abandoned.
     virtual bool transactionCanBeAbandoned(const uint256& txid) = 0;
@@ -231,10 +233,7 @@ public:
     //! Get balances if possible without blocking.
     virtual bool tryGetBalances(WalletBalances& balances, uint256& block_hash) = 0;
 
-    //! Most recent convergence transaction display (competition + maturity progress).
-    virtual bool tryGetConvergenceUiSnapshot(ConvergenceUiSnapshot& out) = 0;
-
-    //! Convergence draw / ConvergenceRoot summary for a block on the active chain (wallet txids used for is_mine).
+    //! ConvergenceRoot summary for a block on the active chain (wallet txids used for is_mine).
     virtual bool getConvergenceBlockResult(int height, ConvergenceBlockResult& out) = 0;
 
     //! Get balance.
@@ -431,16 +430,6 @@ struct WalletBalances
                res_unconfirmed_watch_only_balance != prev.res_unconfirmed_watch_only_balance ||
                res_immature_watch_only_balance != prev.res_immature_watch_only_balance;
     }
-};
-
-/** Latest convergence transaction for UI — see wallet/convergencestate.h */
-struct ConvergenceUiSnapshot
-{
-    bool has_convergence{false};
-    std::string status_text;
-    std::string competition_progress;
-    std::string maturity_progress;
-    std::string maturity_countdown;
 };
 
 // Wallet transaction information.

@@ -509,14 +509,15 @@ BOOST_AUTO_TEST_CASE(rfc018_res_transfer_fee_burn_share)
     BOOST_CHECK_LT(claimable, total_fees);
 }
 
-BOOST_AUTO_TEST_CASE(res_display_six_decimals)
+BOOST_AUTO_TEST_CASE(res_display_eight_decimals)
 {
-    BOOST_CHECK_EQUAL(RES_COIN, 1000000);
+    BOOST_CHECK_EQUAL(RES_COIN, 100000000);
+    BOOST_CHECK_EQUAL(RES_COIN, COIN);
     BOOST_CHECK_NE(RES_COIN, 100);
-    BOOST_CHECK_EQUAL(FormatResAmount(0), "0.000000");
-    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN), "1.000000");
-    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN / 10), "0.100000");
-    BOOST_CHECK_EQUAL(FormatResAmount(RES_ATOMIC_UNIT), "0.000001");
+    BOOST_CHECK_EQUAL(FormatResAmount(0), "0.00000000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN), "1.00000000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_COIN / 10), "0.10000000");
+    BOOST_CHECK_EQUAL(FormatResAmount(RES_ATOMIC_UNIT), "0.00000001");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

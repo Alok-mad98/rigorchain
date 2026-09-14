@@ -1949,9 +1949,17 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     FlatSigningProvider provider;
     provider.keys = GetKeys();
 
+    // Ed25519 descriptors are hardened-only (SLIP-0010): each of the ~1000
+    // keypool slots is a private derive + a SQLite cache write. Without a
+    // transaction, SQLite autocommits (and fsyncs) every write — about a
+    // minute on Windows. One txn keeps the same records; the destructor
+    // aborts if we return or throw before commit.
     WalletBatch batch(m_storage.GetDatabase());
+    const bool began = batch.TxnBegin();
+    const auto topup_start{SteadyClock::now()};
     uint256 id = GetID();
-    for (int32_t i = m_max_cached_index + 1; i < new_range_end; ++i) {
+    const int32_t expand_from = m_max_cached_index + 1;
+    for (int32_t i = expand_from; i < new_range_end; ++i) {
         FlatSigningProvider out_keys;
         std::vector<CScript> scripts_temp;
         DescriptorCache temp_cache;
@@ -1980,10 +1988,20 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
         m_max_cached_index++;
     }
     m_wallet_descriptor.range_end = new_range_end;
-    batch.WriteDescriptor(GetID(), m_wallet_descriptor);
+    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
+        throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+    }
+    if (began && !batch.TxnCommit()) {
+        throw std::runtime_error(std::string(__func__) + ": committing descriptor top-up failed");
+    }
 
     // By this point, the cache size should be the size of the entire range
     assert(m_wallet_descriptor.range_end - 1 == m_max_cached_index);
+
+    WalletLogPrintf("TopUp expanded %d keys in %dms (txn=%s)\n",
+                    new_range_end - expand_from,
+                    Ticks<std::chrono::milliseconds>(SteadyClock::now() - topup_start),
+                    began ? "yes" : "no");
 
     NotifyCanGetAddressesChanged();
     return true;

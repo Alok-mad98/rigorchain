@@ -1,0 +1,9 @@
+{
+  "network": "private_regtest",
+  "public": false,
+  "nodes": [
+    {"id": "node-001", "role": "bootstrap", "host": "127.0.0.1", "rpc": 38811, "rpcuser": "evidence", "rpcpassword": "evidence-local"},
+    {"id": "node-002", "role": "miner", "host": "127.0.0.1", "rpc": 38821, "rpcuser": "evidence", "rpcpassword": "evidence-local"},
+    {"id": "node-003", "role": "validator", "host": "127.0.0.1", "rpc": 38831, "rpcuser": "evidence", "rpcpassword": "evidence-local"}
+  ]
+}

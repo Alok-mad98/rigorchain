@@ -1,23 +1,44 @@
 import { Link } from "react-router-dom";
+import { Rfc020LivePanel } from "../components/Rfc020LivePanel";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
+import {
+  CUMULATIVE_ISSUANCE_CAPTION,
+  RES_COIN,
+  RES_DERIVED_MAX_SUPPLY,
+  UNIT_PRICE_CURVE_CAPTION,
+  resDestroyCostForHeight,
+} from "../lib/resIssuanceSchedule";
 
 /**
- * Public Documentation → Deterministic Reserve Issuance.
+ * Public Documentation → Continuous Reserve Issuance (RFC-020).
  * Keep equivalence_claimed = false. Do not claim “complete monetary correctness.”
  */
+
+const HEIGHT_PINS = [0, 210000, 420000, 630000] as const;
+
+function formatUnits(atoms: bigint, coin: bigint): string {
+  const whole = atoms / coin;
+  const frac = atoms % coin;
+  if (frac === 0n) return whole.toString();
+  return `${whole}.${frac.toString().padStart(8, "0").replace(/0+$/, "")}`;
+}
+
 export function MonetaryPolicyPage() {
+  const derivedRes = formatUnits(RES_DERIVED_MAX_SUPPLY, RES_COIN);
+
   return (
     <div className="page">
       <SubNav />
       <header className="page-header">
-        <p className="tag">Deterministic Reserve Issuance</p>
-        <h1>Deterministic Reserve Issuance</h1>
+        <p className="tag">Continuous Reserve Issuance</p>
+        <h1>Continuous Reserve Issuance</h1>
         <p className="muted">
-          RES is not mined. Dual-asset issuance rules. Formally verified monetary invariants — not a
-          refinement proof.
+          RES is minted in a body transaction at the confirming-height protocol cost. ORU is flat 128 per block after
+          genesis. Formally verified monetary invariants — not a refinement proof.
         </p>
       </header>
+      <Rfc020LivePanel title="This node (regtest / RPC)" />
 
       <aside className="whitepaper-banner card" role="note">
         <p>
@@ -32,93 +53,84 @@ export function MonetaryPolicyPage() {
       <SectionTitle>1. Two assets</SectionTitle>
       <section className="card prose-section">
         <p>
-          <strong>ORU</strong> is the PoW / fee / Convergence-weight asset (subsidy 1000 → 500 → 250 →
-          125 ORU/block; no hard cap). <strong>RES</strong> is the scarce settlement asset with a{" "}
-          <strong>maximum</strong> supply of 21,000,000.
+          <strong>ORU</strong> is the PoW / fee / Convergence-destroy asset (
+          <code>R(0) = 0</code>; then <code>128</code> ORU/block forever; no hard cap).{" "}
+          <strong>RES</strong> is the scarce settlement asset. Its maximum supply is the closed form{" "}
+          <code>2²²</code> RES: <code>{RES_DERIVED_MAX_SUPPLY.toString()}</code> atoms (
+          {derivedRes} RES).
         </p>
         <p>
-          RES has a maximum supply of 21,000,000. Actual circulating supply depends on Convergence
-          participation. The 21M figure is a hard ceiling — not a promise that the cap will be
-          filled.
+          Actual circulating supply equals participation times that ceiling. The cap is a hard bound
+          — not a promise that the ceiling will be filled.
         </p>
       </section>
 
-      <SectionTitle>2. Deterministic Reserve Issuance equation</SectionTitle>
+      <SectionTitle>2. Continuous destroy cost</SectionTitle>
       <section className="card prose-section">
-        <p className="math-block">k = height / 210000</p>
+        <p className="math-block">destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰</p>
         <p>
-          For <code>0 ≤ k ≤ 250</code>:
+          Convergence destroys ORU to mint RES. Display <code>destroy_cost(h)</code> is ORU destroyed to
+          mint 1 RES (C++ <code>&gt;&gt; 50</code>). Consensus never evaluates the price. It
+          evaluates one inequality:
         </p>
-        <p className="math-block">W(k) = floor(40 · RES_COIN · (k+1)^(-3/2))</p>
+        <p className="math-block">R · (2²⁵ + h)² ≤ B &lt;&lt; 40</p>
         <p>
-          For <code>k &gt; 250</code>: <code>W(k) = 0</code>. <code>RES_COIN = 1_000_000</code> (six
-          decimals). A successful Convergence draw mints exactly <code>W(h)</code> RES (at most one
-          mint per block). Draw target <code>T</code> is constant (Deterministic Reserve Issuance);
-          the expected ORU cost
-          per mint is the protocol constant <code>C</code>, so the cost floor{" "}
-          <code>C / W(k)</code> weakly rises as rewards decay.
+          <code>R = 0</code> is a legal plain destroy. The price never hits zero, so there is no mint
+          horizon. <code>RES_COIN = {RES_COIN.toString()}</code> (eight decimals).{" "}
+          <code>destroy_cost(0) = 102400000000</code> (1024 ORU destroyed to mint 1 RES). The cost
+          hardens every height. There is no epoch step.
         </p>
+        <p className="muted">{UNIT_PRICE_CURVE_CAPTION}</p>
       </section>
 
-      <SectionTitle>3. Epoch schedule (selected pins)</SectionTitle>
+      <SectionTitle>3. Selected height pins</SectionTitle>
       <section className="card prose-section">
         <table className="doc-table">
           <thead>
             <tr>
-              <th>Epoch k</th>
-              <th>W(k) RES</th>
+              <th>Height</th>
+              <th>destroy_cost(h) atoms</th>
+              <th>destroy_cost(h) ORU per 1 RES</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>0</td>
-              <td>40.000000</td>
-            </tr>
-            <tr>
-              <td>1</td>
-              <td>14.142196</td>
-            </tr>
-            <tr>
-              <td>10</td>
-              <td>1.096405</td>
-            </tr>
-            <tr>
-              <td>100</td>
-              <td>0.039407</td>
-            </tr>
-            <tr>
-              <td>250</td>
-              <td>0.010058</td>
-            </tr>
-            <tr>
-              <td>251+</td>
-              <td>0</td>
-            </tr>
+            {HEIGHT_PINS.map((h) => {
+              const atoms = resDestroyCostForHeight(h);
+              return (
+                <tr key={h}>
+                  <td>{h}</td>
+                  <td>{atoms.toString()}</td>
+                  <td>{formatUnits(atoms, RES_COIN)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         <p className="muted">
-          Full table <code>k = 0..251</code> is differential-checked (C++ ≡ Python ≡ Coq pins).
+          Mint-output maturity 100 is reorg protection. Shipping issuance uses continuous{" "}
+          <code>destroy_cost(h)</code>.
         </p>
       </section>
 
-      <SectionTitle>4. Supply proof (bounded emission)</SectionTitle>
+      <SectionTitle>4. Closed-form cap</SectionTitle>
       <section className="card prose-section">
         <p>
-          Even if every block from genesis through epoch 250 mints, maximum conceivable issuance is
+          <code>RES_MAX_SUPPLY = (S / P0) · H = 2⁷ / 2¹⁰ · 2²⁵ = 2²²</code> RES. Cumulative ceiling
+          through height <code>h</code> is <code>cap · h / (h + 2²⁵)</code>.
         </p>
-        <p className="math-block">210000 × 99450437 atoms = 20,884,591.770000 RES &lt; 21,000,000</p>
-        <p>
-          That finite-sum identity is a C++ <code>static_assert</code> and a Coq theorem (
-          <code>max_issuance_within_cap</code>). Demand cannot push issuance past this bound under
-          the one-mint-per-block rule.
+        <p className="math-block">
+          {RES_DERIVED_MAX_SUPPLY.toString()} atoms = {derivedRes} RES
         </p>
+        <p className="muted">{CUMULATIVE_ISSUANCE_CAPTION}</p>
       </section>
 
       <SectionTitle>5. Formal verification status</SectionTitle>
       <section className="card prose-section">
         <ul>
-          <li>Cap finite sum, termination, reward / cost-floor monotonicity: model theorems in Coq</li>
-          <li>Cross-implementation parity gate for all epochs</li>
+          <li>
+            Shipping issuance is Convergence: destroy ORU to mint RES at{" "}
+            <code>R · (2²⁵+h)² ≤ B &lt;&lt; 40</code>
+          </li>
           <li>
             <code>equivalence_claimed = false</code> — shipping C++ is not proved equivalent to the
             Coq model
@@ -126,8 +138,8 @@ export function MonetaryPolicyPage() {
         </ul>
         <p>
           Details:{" "}
-          <Link to="/documentation/formal-verification">Formal Verification</Link> · audit reports
-          under <code>docs/security/RES_MONETARY_*</code>.
+          <Link to="/documentation/formal-verification">Formal Verification</Link> · adoption record
+          under the economics adoption record.
         </p>
       </section>
     </div>

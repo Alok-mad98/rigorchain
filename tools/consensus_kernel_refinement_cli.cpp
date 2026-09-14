@@ -25,9 +25,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -163,7 +160,7 @@ int main(int argc, char** argv)
         ConvergenceDrawSet set;
         set.source_height = 0;
         const ConvergenceDrawOutcome o =
-            ResolveConvergenceDraw(set, Consensus::RES_PROBABILITY_TARGET_CONST);
+            ResolveConvergenceDraw(set, uint256S("5555555555555555555555555555555555555555555555555555555555555555"));
         std::printf("{\"draw\":\"%s\"}\n", o.HasWinner() ? "WINNER" : "NONE");
     } else if ((cmd == "draw" || cmd == "draw-t0") && argc == 6) {
         const int payout_h = std::atoi(argv[2]);
@@ -190,7 +187,8 @@ int main(int argc, char** argv)
             if (comma == std::string::npos) break;
             pos = comma + 1;
         }
-        const uint256 T = (cmd == "draw-t0") ? uint256() : Consensus::RES_PROBABILITY_TARGET_CONST;
+        const uint256 T = (cmd == "draw-t0") ? uint256() :
+            uint256S("5555555555555555555555555555555555555555555555555555555555555555");
         const ConvergenceDrawOutcome o = ResolveConvergenceDraw(set, T);
         if (!o.HasWinner()) {
             std::printf("{\"draw\":\"NONE\"}\n");

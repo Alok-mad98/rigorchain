@@ -98,12 +98,7 @@ QT_MOC_CPP = \
   qt/rigorwallet/widgets/moc_resbalancepanel.cpp \
   qt/rigorwallet/widgets/moc_convergencestatuspanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_educationpanel.cpp \
-  qt/rigorwallet/widgets/moc_convergence_overviewpanel.cpp \
-  qt/rigorwallet/widgets/moc_convergence_lifecyclepanel.cpp \
-  qt/rigorwallet/widgets/moc_convergence_startpanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_networkpanel.cpp \
-  qt/rigorwallet/widgets/moc_convergence_resprobabilitypanel.cpp \
-  qt/rigorwallet/widgets/moc_convergence_historypanel.cpp \
   qt/rigorwallet/widgets/moc_convergence_explorerhooks.cpp \
   qt/rigorwallet/widgets/moc_convergence_wizard.cpp \
   qt/rigorwallet/widgets/moc_statusbadge.cpp \
@@ -197,6 +192,7 @@ BITCOIN_QT_H = \
   qt/walletmodeltransaction.h \
   qt/walletview.h \
   qt/winshutdownmonitor.h \
+  qt/rigorwallet/WALLET_DESIGN_LOCK_V2.h \
   qt/rigorwallet/ui_readiness.h \
   qt/rigorwallet/walletidentity.h \
   qt/rigorwallet/rigortheme.h \
@@ -208,14 +204,8 @@ BITCOIN_QT_H = \
   qt/rigorwallet/widgets/resbalancepanel.h \
   qt/rigorwallet/widgets/convergencestatuspanel.h \
   qt/rigorwallet/convergence/convergence_education.h \
-  qt/rigorwallet/convergence/convergence_wallet_data.h \
   qt/rigorwallet/widgets/convergence_educationpanel.h \
-  qt/rigorwallet/widgets/convergence_overviewpanel.h \
-  qt/rigorwallet/widgets/convergence_lifecyclepanel.h \
-  qt/rigorwallet/widgets/convergence_startpanel.h \
   qt/rigorwallet/widgets/convergence_networkpanel.h \
-  qt/rigorwallet/widgets/convergence_resprobabilitypanel.h \
-  qt/rigorwallet/widgets/convergence_historypanel.h \
   qt/rigorwallet/widgets/convergence_explorerhooks.h \
   qt/rigorwallet/widgets/convergence_wizard.h \
   qt/rigorwallet/widgets/statusbadge.h \
@@ -356,14 +346,8 @@ BITCOIN_QT_WALLET_CPP = \
   qt/rigorwallet/widgets/resbalancepanel.cpp \
   qt/rigorwallet/widgets/convergencestatuspanel.cpp \
   qt/rigorwallet/convergence/convergence_education.cpp \
-  qt/rigorwallet/convergence/convergence_wallet_data.cpp \
   qt/rigorwallet/widgets/convergence_educationpanel.cpp \
-  qt/rigorwallet/widgets/convergence_overviewpanel.cpp \
-  qt/rigorwallet/widgets/convergence_lifecyclepanel.cpp \
-  qt/rigorwallet/widgets/convergence_startpanel.cpp \
   qt/rigorwallet/widgets/convergence_networkpanel.cpp \
-  qt/rigorwallet/widgets/convergence_resprobabilitypanel.cpp \
-  qt/rigorwallet/widgets/convergence_historypanel.cpp \
   qt/rigorwallet/widgets/convergence_explorerhooks.cpp \
   qt/rigorwallet/widgets/convergence_wizard.cpp \
   qt/rigorwallet/widgets/statusbadge.cpp \

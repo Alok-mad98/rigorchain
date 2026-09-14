@@ -147,6 +147,12 @@ BOOST_AUTO_TEST_CASE(script_standard_Solver_success)
         BOOST_CHECK_EQUAL(solutions[0].size(), 20U);
         BOOST_CHECK(IsConvergeScript(conv));
         BOOST_CHECK_EQUAL(GetTxnOutputType(TxoutType::CONVERGE), std::string("converge"));
+        // Burn lock: classified as ORU, but not an address and not a UTXO.
+        BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(conv), ASSET_ORU);
+        CTxDestination dest;
+        BOOST_CHECK(!ExtractDestination(conv, dest));
+        BOOST_CHECK(!EntersUtxoSet(conv));
+        BOOST_CHECK(!conv.IsUnspendable());
 
         // The retired OP_CVG_CLAIM shape (see script.h on 0xbc) has no classifier branch left.
         const CScript retired = CScript() << ToByteVector(pkh) << static_cast<opcodetype>(0xbc);

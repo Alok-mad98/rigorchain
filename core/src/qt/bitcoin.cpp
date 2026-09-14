@@ -843,6 +843,9 @@ int GuiMain(int argc, char* argv[])
     try
     {
         app.createWindow(networkStyle.data());
+        // Qt GUI now owns ThreadSafeMessageBox. Drop the early boot handler so
+        // InitWarning is not shown twice (native MessageBox + Qt dialog).
+        handler_message_box.disconnect();
         // Perform base initialization before spinning up initialization/shutdown thread
         // This is acceptable because this function only contains steps that are quick to execute,
         // so the GUI thread won't be held up.

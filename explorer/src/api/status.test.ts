@@ -19,9 +19,8 @@ describe("status dashboard helpers", () => {
     assert.deepEqual(dist, { "0": 1, "2": 2, "4": 1 });
   });
 
-  it("exposes FVR-M draw status constant", () => {
-    assert.match(DRAW_STATUS_DISPLAY, /PERMANENTLY IMPOSSIBLE/);
-    assert.match(DRAW_STATUS_DISPLAY, /FVR-M/);
+  it("exposes issuance status constant", () => {
+    assert.equal(DRAW_STATUS_DISPLAY, "ORU destroyed. RES minted.");
   });
 
   it("treats coinbase as transferable only after 100 confirmations", () => {

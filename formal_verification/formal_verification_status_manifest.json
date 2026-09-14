@@ -1,0 +1,2673 @@
+{
+  "task": "TASK-RIGOR-FORMAL-VERIFICATION-STATUS-AUDIT-P0-105-R2",
+  "date": "2026-09-05",
+  "nature": "Knowledge extraction and verification gap analysis. No proofs implemented. No consensus/database/wallet/protocol/genesis/PoW/network changes.",
+  "audit_outputs": {
+    "markdown": "docs/formal_verification/RIGOR_FORMAL_VERIFICATION_STATUS_AUDIT_P0_105.md",
+    "manifest": "formal_verification/formal_verification_status_manifest.json"
+  },
+  "honesty_flags": {
+    "equivalence_claimed": false,
+    "hash_kernel_shared_binary_with_cpp": false,
+    "refinement_proved": false,
+    "note": "Global flags remain false. Five protocol-core files set a LOCAL refinement_proved := true for C++-shaped Coq input records. That is not a C++ source correspondence theorem."
+  },
+  "constraint_flags": {
+    "CONSENSUS_CODE_CHANGED": false,
+    "DATABASE_FORMAT_CHANGED": false,
+    "WALLET_FORMAT_CHANGED": false
+  },
+  "languages_found": {
+    "Coq": true,
+    "Lean": false,
+    "Isabelle": false,
+    "TLA_plus": false,
+    "SMT": false,
+    "Python_executable_spec": true
+  },
+  "counts": {
+    "coqproject_full_modules": 272,
+    "coqproject_protocol_core_modules": 113,
+    "disk_formal_verification_coq_v": 245,
+    "disk_rigor_v01_v": 32,
+    "disk_research_v": 1,
+    "verification_coq_v": 0,
+    "named_theorem_lemma_corollary": 3867,
+    "named_by_kind": {
+      "Lemma": 2673,
+      "Theorem": 1189,
+      "Corollary": 5
+    },
+    "named_by_slice": {
+      "protocol_core": 1221,
+      "kernel_harness": 258,
+      "proofs": 13,
+      "replay": 625,
+      "phase_catalog": 1750
+    },
+    "phase_catalog_named_results": 1750,
+    "golden_lock_shared_vectors": 433,
+    "golden_lock_coq_enforced_lemmas": 226,
+    "golden_lock_tag": "script-asset-classifier-2026-08-25",
+    "axiom_parameter_admitted_in_coqproject": 0,
+    "local_refinement_proved_true_files": [
+      "formal_verification/coq/ConsensusKernelRefinement.v",
+      "formal_verification/coq/TransactionKernelRefinement.v",
+      "formal_verification/coq/ConsensusSurfaceClosure.v",
+      "formal_verification/coq/LedgerTransitionRefinement.v",
+      "formal_verification/coq/UTXOStateTransitionRefinement.v"
+    ],
+    "disk_extract_v_not_in_coqproject": 5,
+    "archive_v": 1
+  },
+  "living_lock_vs_stale_docs": {
+    "living_source": "formal_verification/golden_lock.json",
+    "living": {
+      "shared": 433,
+      "coq_enforced": 226,
+      "tag": "script-asset-classifier-2026-08-25"
+    },
+    "stale_422_215_documents": [
+      "docs/verification/FORMAL-VERIFICATION-STATUS.md",
+      "docs/formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md",
+      "verification/README.md"
+    ],
+    "stale_414_207_documents": [
+      "docs/formal/RIGOR_L2_L3_REFINEMENT_FEASIBILITY.md"
+    ],
+    "historical_verdict_324_117": "docs/verification/FORMAL-VERIFICATION-VERDICT.md",
+    "historical_verdict_module_count": "196 modules / 167 theorems (historical; do not cite as current)"
+  },
+  "property_status": {
+    "block_header_structure": "MODELED_ONLY",
+    "timestamp_rules": "SPECIFIED_ONLY",
+    "difficulty_asert": "SPECIFIED_ONLY",
+    "pow_sha3_rgrpow01_definition": "PARTIALLY_PROVED",
+    "pow_target_comparison": "PARTIALLY_PROVED",
+    "pow_asert_algorithm": "SPECIFIED_ONLY",
+    "chain_selection": "SPECIFIED_ONLY",
+    "reorganization_rules": "PARTIALLY_PROVED",
+    "tx_input_output_validation": "PARTIALLY_PROVED",
+    "signature_verification_rfc8032": "MODELED_ONLY",
+    "utxo_consumption": "PARTIALLY_PROVED",
+    "double_spend_prevention": "PARTIALLY_PROVED",
+    "fee_rules_rfc018": "PARTIALLY_PROVED",
+    "utxo_state_transition_correctness": "PARTIALLY_PROVED",
+    "oru_no_inflation_outside_rules": "PARTIALLY_PROVED",
+    "oru_absolute_cap": "NOT_EXISTS",
+    "res_issuance_schedule": "PARTIALLY_PROVED",
+    "res_hard_cap": "PARTIALLY_PROVED",
+    "res_hard_cap_note": "Coq valid_res_cap rejects overshoot on apply_block. C++ ConnectBlock does not reject on a running S_RES scalar; cap is compile-time ResScheduleSum plus per-mint W(h). GetChainResMintTotal is observational.",
+    "res_maturity": "MODELED_ONLY",
+    "pow_cannot_create_res": "PARTIALLY_PROVED",
+    "tx_cannot_create_res": "PARTIALLY_PROVED",
+    "oru_cannot_convert_to_res": "PARTIALLY_PROVED",
+    "script_classifier_model": "PARTIALLY_PROVED",
+    "script_classifier_cpp_refinement": "NOT_EXISTS",
+    "script_vm": "NOT_EXISTS",
+    "wallet_consensus_authority": "NOT_EXISTS",
+    "explorer_consensus_authority": "NOT_EXISTS",
+    "miner_consensus_authority": "NOT_EXISTS",
+    "pool_consensus_authority": "NOT_EXISTS",
+    "coq_cpp_source_refinement": "NOT_EXISTS",
+    "compcert_binary_equivalence": "NOT_EXISTS",
+    "note": "PARTIALLY_PROVED means Qed about a Coq model and/or finite vectors. It does not mean C++ correspondence."
+  },
+  "refinement_arrows": {
+    "mathematical_specification_to_formal_model": "PARTIAL",
+    "formal_model_to_executable_specification": "PARTIAL",
+    "executable_specification_to_cpp_consensus": "PARTIAL",
+    "cpp_consensus_to_production_binary": "MISSING"
+  },
+  "boundaries": {
+    "wallet": {
+      "inside_consensus": "NONE",
+      "class": "NON_CONSENSUS",
+      "authority_count": 0,
+      "storage": "SQLite rigor-wallet.sqlite",
+      "evidence": "formal_verification/wallet_sqlite_audit_manifest.json"
+    },
+    "explorer": {
+      "class": "OBSERVATION_ONLY",
+      "consensus_authority": false
+    },
+    "miner": {
+      "class": "NON_CONSENSUS",
+      "role": "block construction and PoW grind; node CheckProofOfWork is SSOT"
+    },
+    "pool": {
+      "class": "NON_CONSENSUS",
+      "role": "template/share/payout; node validates submitted blocks"
+    }
+  },
+  "recommended_strategy": {
+    "PRIMARY_FORMALIZATION_STRATEGY": "GOAL_B_CRITICAL_CONSENSUS_REFINEMENT",
+    "RATIONALE": "Goal A (Coq specification to C++ kernel to binary equivalence) is architecturally blocked: Gallina/OCaml TCB vs C++ SIMD AutoDetect, no CompCert C++ pipeline, Phase-5 DCS_Impossible, and L3 surfaces with no matching L2 types. Goal B isolates consensus-critical C++ (GetRigorPowHash, AssetTypeFromScriptPubKey, VerifyRigorPredicate, W(k), dual-pool CheckTxInputs) and funds local correspondence plus remaining model holes (ASERT, IsResScript vs tag, cm_draw_won, coinbase bind). Keep Path A finite differential gate. Do not flip global honesty flags until a real correspondence theorem exists."
+  },
+  "artifacts": [
+    {
+      "file": "formal_verification/coq/RigorBytes.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/RigorBytesOrder.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/RigorSha256.v",
+      "language": "Coq",
+      "purpose": "executable SHA-256 / SHA-256d",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorBytes",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/RigorKeccak.v",
+      "language": "Coq",
+      "purpose": "SHA3-256 RGRPOW01 PoW digest model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorBytes, RigorKeccak",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/PowDigest.v",
+      "language": "Coq",
+      "purpose": "SHA3-256 RGRPOW01 PoW digest model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorBytes, RigorKeccak",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/RigorHash.v",
+      "language": "Coq",
+      "purpose": "executable SHA-256 / SHA-256d",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorBytes",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/legacy_account_model/Types.v",
+      "language": "Coq",
+      "purpose": "legacy account-model residue (historical, still compiled)",
+      "status": "listed_in_coqproject",
+      "dependency": "legacy account types",
+      "proof_level": "legacy_model",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ResSchedule.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConvergeRoot.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/SigmaPoW01.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Sigma.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/legacy_account_model/Selection.v",
+      "language": "Coq",
+      "purpose": "legacy account-model residue (historical, still compiled)",
+      "status": "listed_in_coqproject",
+      "dependency": "legacy account types",
+      "proof_level": "legacy_model",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/OrderIndependence.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/DrawCandidateRoot.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/InvalidCvg.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ScriptMintWitness.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/WindowExclusion.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/CanonicalDrawEncoder.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/CanonicalHashKernel.v",
+      "language": "Coq",
+      "purpose": "executable SHA-256 / SHA-256d",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorBytes",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/COQ_SELECTION_CLOSURE.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Execution.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/KernelSelection.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/KernelRoot.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/KernelSigma.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/KernelEligibility.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/KernelClosure.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/GoldenHarness.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Kernel/NegativeCoreHarness.v",
+      "language": "Coq",
+      "purpose": "kernel wrappers / golden harness",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Root / Sigma / vectors",
+      "proof_level": "model_plus_finite_vectors",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/legacy_account_model/State.v",
+      "language": "Coq",
+      "purpose": "legacy account-model residue (historical, still compiled)",
+      "status": "listed_in_coqproject",
+      "dependency": "legacy account types",
+      "proof_level": "legacy_model",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/legacy_account_model/ConnectBlockScaffold.v",
+      "language": "Coq",
+      "purpose": "legacy account-model residue (historical, still compiled)",
+      "status": "listed_in_coqproject",
+      "dependency": "legacy account types",
+      "proof_level": "legacy_model",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/legacy_account_model/Transition.v",
+      "language": "Coq",
+      "purpose": "legacy account-model residue (historical, still compiled)",
+      "status": "listed_in_coqproject",
+      "dependency": "legacy account types",
+      "proof_level": "legacy_model",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Serialization.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Properties.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConnectBlock.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/Determinism.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/Safety.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/Correctness.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/Fairness.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/FairnessIdealized.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Proofs/SplitInvariance.v",
+      "language": "Coq",
+      "purpose": "structural / idealized proofs",
+      "status": "listed_in_coqproject",
+      "dependency": "Selection / Execute",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Extraction.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/Hash32Order.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ReplayState.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/CvgCovenant.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ScriptShape.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ConnectBlockMint.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/StateTransition.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/AssetFromScript.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ResMintObligation.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ReorgRules.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ReplayDeterminism.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ReplayInvariants.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/DualPoolConservation.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/Accounting.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/AssetDomain.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/ReplaySafety.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/Precision.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/BlockSupply.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/CirculatingSemantics.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/FeeBurn/Properties.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/OpaqueBoundary.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/ScriptShapeLift.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/SupplyConservation.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConnectBlock/ConnectBlockSupply.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ReplayReorgCore/SupplyReplayBridge.v",
+      "language": "Coq",
+      "purpose": "replay / supply / connect model",
+      "status": "listed_in_coqproject",
+      "dependency": "ReplayReorgCore",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/AssetClassification.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ScriptAssetBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/Ed25519Ownership.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/SignatureDomainSeparation.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/VectorAgreement.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ResMintCorrectness.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/NoInterpreterConsensus.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/AssetStateTransition.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorUpgradeNamespace.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorByteNamespace.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorOpcodeNamespace.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorPredicateRegistry.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorWalletOwnership.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/RigorUpgradeBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/NetworkCapabilityBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/NetworkSecurityBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/WindowGeneric.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/WindowTarget.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/WindowSpecialization.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/W32ReorgStability.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/MintSupplyConservation.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ConnectBlockSupply.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/CanonicalMintEncoding.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ClassifierRefinementBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ClassifierGate.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/ReorgIssuanceBound.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/GenesisZeroIssuance.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/IssuanceHeightBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/CanonicalIssuance.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConsensusKernelAlignment.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConsensusKernelBridge.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/SupplyDeltaBridge.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/DrawResolverBridge.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ClassificationBridge.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/CoinbaseLayoutBridge.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConsensusKernelRefinement.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConnectBlockInputPreparation.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/KernelResultApplication.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConnectBlockKernelBoundary.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/SignatureBoundary.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/TransactionKernelRefinement.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/MakeKernelInput.v",
+      "language": "Coq",
+      "purpose": "protocol-core model",
+      "status": "listed_in_coqproject",
+      "dependency": "Rigor protocol-core",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/ConsensusSurfaceClosure.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/LedgerTransitionRefinement.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/UTXOStateTransitionRefinement.v",
+      "language": "Coq",
+      "purpose": "C++-shaped input-record boundary (local refinement_proved may be true)",
+      "status": "listed_in_coqproject",
+      "dependency": "kernel / rigor_v01",
+      "proof_level": "model_shaped_boundary_not_cpp_source",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/AmountBoundary.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/SighashByteCorrespondence.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/rigor_v01/SighashPreimage.v",
+      "language": "Coq",
+      "purpose": "RIGOR v0.1 live spend/monetary/window model",
+      "status": "listed_in_coqproject",
+      "dependency": "RigorV01 + selected Rigor modules",
+      "proof_level": "model_only",
+      "cone": "protocol_core"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusMachine.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusTrace.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusDeterminism.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusGoldenTrace.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusDrawProjection.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusGoldenVectorsData.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusDrawAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusRuntimeEvidence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusOracleBridge.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/RuntimeEvidenceBridge.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/RuntimeEvidenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/RuntimeObservationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/TraceObservationBridge.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/TraceObservationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/TraceAgreementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/DrawRepresentationBridge.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/DrawRepresentationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/DrawRepresentationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppOracle.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppAgreement.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppAgreementCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppAgreementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/LiveRuntimeTraceIntegration.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppTraceComparison.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppTraceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/FrozenCppTraceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticObservationDerivation.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticObservationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticObservationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsFrozenComparison.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsFrozenCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsFrozenAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsLiveRuntimeComparison.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsLiveRuntimeCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/SemanticVsLiveRuntimeAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/Phase4FEndToEndComparison.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/Phase4FEndToEndCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/Phase4FEndToEndAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementGapCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementGapAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementProjection.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementProjectionCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementProjectionAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4GRefinementClosure.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4GRefinementCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4GRefinementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4FEndToEndReadiness.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4FEndToEndReadinessCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/Phase4FEndToEndReadinessAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/RefinementClosureAnalysis.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/EquivalenceObligationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/EquivalenceObligationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/DrawHashProjectionTheorem.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/ReplayStateEncodingTheorem.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/ReorgStateEncodingTheorem.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/ConnectBlockStateEncodingTheorem.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/SupplyEligibilityProjection.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/SupplyEligibilityCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/SupplyEligibilityAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/EndToEndClosureCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/EndToEndClosureAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/FinalReadinessCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/FinalReadinessVerdict.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/FinalReadinessAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4GRefinement/FormalVerificationCertification.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/EquivalenceFramework.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/EquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/EquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawEquivalence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReplayEquivalence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReplayEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReplayEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReorgEquivalence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReorgEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ReorgEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ConnectBlockEquivalence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ConnectBlockEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ConnectBlockEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/SupplyEligibilityEquivalence.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/SupplyEligibilityEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/SupplyEligibilityEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/E2EEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/E2EEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalStateEncoding.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalStateEncodingAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalBytesProjection.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalBytesProjectionAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalStateHashModel.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalStateHashAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalHashAlignmentBridge.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalHashAlignmentAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/AntiEquivalenceSafety.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/AntiEquivalenceSafetyAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeHashMappingCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeHashMappingAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeHashMappingResolution.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeHashMappingResolutionAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeArtifactReconstructionCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeArtifactReconstructionAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeSufficiencyGapCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeSufficiencyGapAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeWitnessRequirementCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeWitnessRequirementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeAlignmentCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeAlignmentAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeWitnessIntegrationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeWitnessIntegrationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeAlignmentIntegrationCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeAlignmentIntegrationAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalRuntimeHashAlignmentCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CanonicalRuntimeHashAlignmentAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeEquivalenceCandidateCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/RuntimeEquivalenceCandidateAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/GlobalCandidateEquivalenceCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/GlobalCandidateEquivalenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/EquivalenceClosureCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/EquivalenceClosureAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawClosureImpossibilityCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawClosureImpossibilityAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/DrawBridgeProgress.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/DrawBridgeProgress.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5SummaryCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5SummaryAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ProofObligationDependencyCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/ProofObligationDependencyAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/SigmaIntegerRefinement.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/SigmaIntegerRefinementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/UInt512OverflowRefinement.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/UInt512OverflowRefinementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/FSetMembershipRefinement.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/FSetMembershipRefinementAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FOB02Readiness.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FOB02ReadinessAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01ClosureModel.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01ClosureAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CandidateEquivalenceEvidenceModel.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CandidateEquivalenceEvidenceAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CandidateEquivalenceRuntimeModel.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/CandidateEquivalenceRuntimeAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5SummaryFinalCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5SummaryFinalAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5FinalConsistencyCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5FinalConsistencyAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5FreezeCandidateCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5FreezeCandidateAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01RoadmapCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01RoadmapAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5MainnetFreezeCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5MainnetFreezeAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5TerminalStatusCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/Phase5TerminalStatusAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01NonClosableCatalog.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase5Equivalence/PD4FCPP01NonClosableAudit.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusVectorRegistry.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/coq/Phase4FConsensus/ConsensusTraceExecution.v",
+      "language": "Coq",
+      "purpose": "Phase-4F/4G/5 catalog, audit, or status record. Not a C++ correspondence theorem.",
+      "status": "listed_in_coqproject",
+      "dependency": "Phase catalogs",
+      "proof_level": "catalog_bookkeeping",
+      "cone": "phase_catalog"
+    },
+    {
+      "file": "formal_verification/research/CAPrototype.v",
+      "language": "Coq",
+      "purpose": "Isolated CA research prototype. Not a consensus object.",
+      "status": "not_in_coqproject",
+      "dependency": "none",
+      "proof_level": "research_only",
+      "cone": "research"
+    },
+    {
+      "file": "formal_verification/coq/ExtractHashKernel.v",
+      "language": "Coq",
+      "purpose": "OCaml extract of SHA-256d; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    },
+    {
+      "file": "formal_verification/coq/ExtractClassifySupply.v",
+      "language": "Coq",
+      "purpose": "Extract classify/supply; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    },
+    {
+      "file": "formal_verification/coq/ExtractConsensusKernel.v",
+      "language": "Coq",
+      "purpose": "Extract consensus kernel; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    },
+    {
+      "file": "formal_verification/coq/ExtractConsensusKernelC.v",
+      "language": "Coq",
+      "purpose": "C ABI extract; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    },
+    {
+      "file": "formal_verification/coq/ExtractMakeKernelInput.v",
+      "language": "Coq",
+      "purpose": "Extract MakeKernelInput; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    },
+    {
+      "file": "formal_verification/archive/coq/CvgCovenant.v",
+      "language": "Coq",
+      "purpose": "Archived covenant; not in _CoqProject",
+      "status": "not_in_coqproject",
+      "dependency": "extract / archive",
+      "proof_level": "extract_or_archive",
+      "cone": "extract_or_archive"
+    }
+  ],
+  "verdict": {
+    "FORMAL_STATUS_AUDIT": "PASS",
+    "FORMAL_ASSETS_INVENTORY_COMPLETE": true,
+    "PROOF_STATUS_CLASSIFICATION_COMPLETE": true,
+    "CONSENSUS_FORMALIZATION_AUDITED": true,
+    "ASSET_MODEL_AUDITED": true,
+    "REFINEMENT_GAP_IDENTIFIED": true,
+    "ROADMAP_INPUT_READY": true,
+    "CONSENSUS_CODE_CHANGED": false,
+    "DATABASE_FORMAT_CHANGED": false,
+    "WALLET_FORMAT_CHANGED": false,
+    "FINAL_VERDICT": "PASS"
+  }
+}

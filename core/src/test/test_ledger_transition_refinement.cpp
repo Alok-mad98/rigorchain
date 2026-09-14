@@ -9,6 +9,7 @@
 #include <consensus/ledger/ledger_transition.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 
 #include <cstdint>
@@ -23,9 +24,6 @@ static int fail(const char* msg)
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -61,7 +59,7 @@ int main()
     // --- Genesis ---
     {
         if (GetBlockSubsidy(0, p) != 0) return fail("genesis ORU actual");
-        if (Consensus::GetResMintReward(0) != 40000000) return fail("genesis RES schedule");
+        if (Consensus::ResDestroyCostAtHeight(0) != 102400000000LL) return fail("genesis RES destroy cost");
         LedgerKernelInput in = Base();
         in.height = 0;
         const LedgerKernelOutput o = LedgerApply(in);

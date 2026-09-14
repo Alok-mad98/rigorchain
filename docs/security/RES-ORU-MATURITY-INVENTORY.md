@@ -1,10 +1,18 @@
 # Inventory: ORU coinbase maturity vs RES mint spendability
 
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
 **Date:** 2026-08-18  
-**Tree:** `~/rigor-official-tree`  
+**Tree:** this repository
 **Scope:** Solo mining. Consensus spendability of created UTXOs — not issuance rate.
 
-**RES origin (normative):** RES is created only as a **non-coinbase body mint** UTXO when a convergence draw has a winner. It is **not** mined, **not** 1:1 ORU exchange, and **not** a coinbase output. Burned ORU is weight only.
+**RES origin (normative):** RES is created only as a **non-coinbase body mint** when the same transaction destroys ORU (`OP_CONVERGE`, amount `B`) and MAY create Witness v1 RES summing to `R` under `CheckResMintArithmetic`. It is **not** mined, **not** 1:1 ORU exchange, and **not** a coinbase output.
 
 ---
 
@@ -29,17 +37,15 @@
 
 | Item | Location |
 |------|----------|
-| Connect evaluation | `rigor::ConnectEvaluateResMintTx` `core/src/consensus/rigor_res.cpp:70` |
-| Witness v1 output | `IsResScript` `core/src/script/standard.cpp:40` (non-CVG2 witness v1 / 32-byte program) |
-| Amount | exactly one RES output, `GetResMintReward(nBlockHeight)` (RFC-017 `W(k)`; genesis `W(0)` = 40.000000 RES = 40 000 000 atoms) `rigor_res.cpp`; `Consensus::GetResMintReward` `rigor_consensus_lock.h`. Historical RFC-015: constant `RES_REWARD_AMOUNT` 100.00 RES. |
-| Shape (mempool + block) | `CheckOruFundedResMintShape` `core/src/consensus/tx_verify.cpp:325-350` |
-| Per-block once | `EnforceResMintUnique` + ConnectBlock `bad-rigor-multiple-res` / `bad-rigor-res-winner-mismatch` `validation.cpp:3063-3085` |
-| Cap | `bad-rigor-res-max-supply` `validation.cpp:3106-3109`; `RES_MAX_SUPPLY` |
-| Owner | `CheckResRewardOwner` → `bad-rigor-res-owner-mismatch` `rigor_res.cpp:161-163` |
-| Automint assembly | `core/src/node/auto_res_mint.cpp` (payout is winner RESO, not miner-redirectable) |
-| UTXO insert | `UpdateCoins` → `AddCoins` (`validation.cpp`, `coins.cpp`). Mint tx is **not** coinbase ⇒ `fCoinBase == false`. Witness v1 `GetResMintReward(h)` payout is marked `COIN_FLAG_RES_MINT` via `ApplyBodyResMintFlag`. |
+| Mint predicate | `CheckResMintArithmetic(R, B, h)` in `CheckTxInputs` (`core/src/consensus/tx_verify.cpp`); header `res_issuance.h` |
+| Display destroy cost | `ResDestroyCostAtHeight(h)` — not a consensus input |
+| Witness v1 output | `IsResScript` (`core/src/script/standard.cpp`) — non-CVG2 witness v1 / 32-byte program |
+| Amount | Chosen `R`; legal iff `R > 0 → R · (2²⁵+h)² ≤ B << 40`. Cap `419430400000000` atoms (`2²²` RES) |
+| Shape (mempool + block) | Body-tx `OP_CONVERGE` destroy MAY mint Witness v1 RES |
+| Cap | `RES_MAX_SUPPLY` / `ResDerivedMaxSupply` |
+| UTXO insert | `UpdateCoins` → `AddCoins`. Mint tx is **not** coinbase ⇒ `fCoinBase == false`. Witness v1 payout is marked `COIN_FLAG_RES_MINT` via `ApplyBodyResMintFlag`. |
 
-Fail-closed mint authorization is unchanged: winner ⇒ exactly one `GetResMintReward(h)` mint; no winner ⇒ no mint.
+A plain burn that mints nothing stays legal. Coinbase cannot create RES.
 
 ---
 

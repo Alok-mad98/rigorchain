@@ -21,7 +21,7 @@
       "height": 0,
       "epoch": 0,
       "oru_subsidy": 0,
-      "res_schedule": 40000000,
+      "res_schedule": 102400000000,
       "res_issued": 0,
       "schedule_is_not_actual": true
     },
@@ -40,7 +40,7 @@
       "id": "P052-H1",
       "height": 1,
       "epoch": 0,
-      "oru_subsidy": 100000000000
+      "oru_subsidy": 12800000000
     },
     {
       "id": "P052-H99",

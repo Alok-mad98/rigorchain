@@ -77,7 +77,7 @@ function hexByteLength(hex: string): number {
 }
 
 /**
- * Historical 6-field PCORB stack shape. Live issuance is coinbase OP_RES_MINT;
+ * Historical 6-field PCORB stack shape. Live issuance is RFC-020 body-tx mint;
  * this matcher is display-only and is not a mint detector.
  */
 export function hasPcorbProofFields(stack: string[] | null): boolean {

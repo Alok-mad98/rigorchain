@@ -1,0 +1,10 @@
+{
+  "id": "V10",
+  "domain": "pow",
+  "expect": "INVALID",
+  "theorem": "checker_rejects_invalid_kernel_state",
+  "failure_reason": "invalid checker input: compact_t < 0",
+  "digest": 1,
+  "target": 100,
+  "compact_t": -1
+}

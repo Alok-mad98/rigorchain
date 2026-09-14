@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <chainparams.h>
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
+#include <consensus/res_issuance.h>
 #include <consensus_rigor/fee.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
@@ -186,8 +188,9 @@ static OutputType GetOutputType(TxoutType type, bool is_from_p2sh)
     switch (type) {
         case TxoutType::WITNESS_V1_RES:
         case TxoutType::RES_MINT:
-        case TxoutType::CONVERGE:
             return OutputType::BECH32M;
+        case TxoutType::CONVERGE:
+            return OutputType::UNKNOWN;
         case TxoutType::WITNESS_V0_KEYHASH:
             return OutputType::BECH32;
         default:
@@ -339,6 +342,12 @@ CoinsResult AvailableCoins(const CWallet& wallet,
         for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
             const CTxOut& output = wtx.tx->vout[i];
             const COutPoint outpoint(wtxid, i);
+
+            // OP_CONVERGE / OP_RETURN are destroyed, not coins. InferDescriptor
+            // must not see them (solvable-without-SPKM used to Assert).
+            if (!EntersUtxoSet(output.scriptPubKey)) {
+                continue;
+            }
 
             if (params.m_asset_type.has_value() && AssetTypeFromScriptPubKey(output.scriptPubKey) != *params.m_asset_type) {
                 continue;
@@ -1108,7 +1117,7 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternalResDualPo
     for (const auto& recipient : vecSend) {
         CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
         transfer_params.tx_noinputs_size += ::GetSerializeSize(txout, PROTOCOL_VERSION);
-        if (IsDust(txout, wallet.chain().relayDustFee())) {
+        if (!IsConvergenceScript(txout.scriptPubKey) && IsDust(txout, wallet.chain().relayDustFee())) {
             return util::Error{_("Transaction amount too small")};
         }
         txNew.vout.push_back(txout);
@@ -1289,15 +1298,25 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         const std::vector<CRecipient>& vecSend,
         int change_pos,
         const CCoinControl& coin_control,
-        bool sign) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+        bool sign,
+        const CRecipient* extra_res_mint = nullptr) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
 {
     AssertLockHeld(wallet.cs_wallet);
+
+    if (extra_res_mint) {
+        if (extra_res_mint->asset != ASSET_RES || extra_res_mint->nAmount <= 0) {
+            return util::Error{_("Mint RES output is invalid")};
+        }
+    }
 
     const AssetType tx_asset = vecSend.empty() ? ASSET_ORU : vecSend[0].asset;
     for (const auto& recipient : vecSend) {
         if (recipient.asset != tx_asset) {
             return util::Error{_("Cannot mix ORU and Res in one transaction")};
         }
+    }
+    if (extra_res_mint && tx_asset != ASSET_ORU) {
+        return util::Error{_("A RES mint must be funded by an ORU burn")};
     }
     if (coin_control.m_asset_type.has_value() && *coin_control.m_asset_type != tx_asset) {
         return util::Error{_("Coin control asset does not match transaction asset")};
@@ -1426,7 +1445,8 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     coin_selection_params.min_viable_change = std::max(change_spend_fee + 1, dust);
 
     // Static vsize overhead + outputs vsize. 4 nVersion, 4 nLocktime, 1 input count, 1 witness overhead (dummy, flag, stack size)
-    coin_selection_params.tx_noinputs_size = 10 + GetSizeOfCompactSize(vecSend.size()); // bytes for output count
+    const size_t declared_outputs = vecSend.size() + (extra_res_mint ? 1 : 0);
+    coin_selection_params.tx_noinputs_size = 10 + GetSizeOfCompactSize(declared_outputs); // bytes for output count
 
     // vouts to the payees
     for (const auto& recipient : vecSend)
@@ -1436,10 +1456,15 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
         // Include the fee cost for outputs.
         coin_selection_params.tx_noinputs_size += ::GetSerializeSize(txout, PROTOCOL_VERSION);
 
-        if (IsDust(txout, wallet.chain().relayDustFee())) {
+        if (!IsConvergenceScript(txout.scriptPubKey) && IsDust(txout, wallet.chain().relayDustFee())) {
             return util::Error{_("Transaction amount too small")};
         }
         txNew.vout.push_back(txout);
+    }
+    if (extra_res_mint) {
+        CTxOut mint_out(extra_res_mint->nAmount, extra_res_mint->scriptPubKey);
+        coin_selection_params.tx_noinputs_size += ::GetSerializeSize(mint_out, PROTOCOL_VERSION);
+        txNew.vout.push_back(mint_out);
     }
 
     // Include the fees for things that aren't inputs, excluding the change output
@@ -1516,7 +1541,11 @@ static util::Result<CreatedTransactionResult> CreateTransactionInternal(
     // When SFFO is set, pass subtract_fee_from_outputs so underpay is left for
     // recipient reduction below (Bitcoin Core CreateTransaction order).
     const CAmount oru_in = result.GetSelectedValue();
-    Assume(recipients_sum + change_amount == CalculateOutputValue(txNew));
+    {
+        CAmount expected_out = recipients_sum + change_amount;
+        if (extra_res_mint) expected_out += extra_res_mint->nAmount;
+        Assume(expected_out == CalculateOutputValue(txNew));
+    }
 
     auto fee_fin = FinalizeOruNetworkFeeAndChange(
             wallet, txNew, coin_control, nChangePosInOut, coin_selection_params.m_effective_feerate, oru_in,
@@ -1787,7 +1816,7 @@ bool FundTransaction(CWallet& wallet, CMutableTransaction& tx, CAmount& nFeeRet,
 util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amount_oru, bool subtract_fee_from_convergence)
 {
     if (amount_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(amount_oru)) {
-        return util::Error{_("Convergence amount must be at least 1 ORU")};
+        return util::Error{_("Convergence amount must be a positive ORU amount")};
     }
     auto res_dest = wallet.GetNewDestination(OutputType::BECH32M, "");
     if (!res_dest) {
@@ -1803,6 +1832,128 @@ util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amoun
     return CRecipient{burn, amount_oru, subtract_fee_from_convergence, ASSET_ORU};
 }
 
+namespace {
+int MintConfirmHeight(const CWallet& wallet) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    return wallet.GetLastBlockHeight() + 1;
+}
+
+struct MintScripts {
+    CRecipient burn;
+    CScript res_spk;
+};
+
+util::Result<MintScripts> MakeMintBurnAndOwner(CWallet& wallet, CAmount amount_oru)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    if (amount_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(amount_oru)) {
+        return util::Error{_("Burn amount must be a positive ORU amount")};
+    }
+    auto res_dest = wallet.GetNewDestination(OutputType::BECH32M, "");
+    if (!res_dest) {
+        return util::Error{_("Cannot generate a RES payout address for the mint")};
+    }
+    const auto* res_key = std::get_if<WitnessV1Res>(&*res_dest);
+    if (res_key == nullptr) {
+        return util::Error{_("Generated payout address is not a RES address")};
+    }
+    // Body mint under RFC-020 is a native witness-v1 RES output, not
+    // GetResMintScript: CheckTransaction still rejects a mint script on a
+    // non-coinbase tx (bad-txns-res-mint-noncoinbase). Maturity is confirmation
+    // depth (RES_MINT_MATURITY), reported to the user as unlock_height.
+    const std::vector<unsigned char> pk32(res_key->begin(), res_key->end());
+    MintScripts out;
+    out.burn = CRecipient{GetConvergeScript(Hash160(pk32)), amount_oru, /*fSubtractFeeFromAmount=*/false, ASSET_ORU};
+    out.res_spk = GetScriptForDestination(*res_dest);
+    return out;
+}
+} // namespace
+
+util::Result<CreatedMintTransactionResult> CreateMintTransaction(
+    CWallet& wallet,
+    CAmount amount_oru,
+    int change_pos,
+    const CCoinControl& coin_control,
+    bool sign)
+{
+    AssertLockHeld(wallet.cs_wallet);
+
+    if (amount_oru < Consensus::MIN_CONVERGENCE_AMOUNT || !MoneyRange(amount_oru)) {
+        return util::Error{_("Burn amount must be a positive ORU amount")};
+    }
+
+    CCoinControl cc = coin_control;
+    if (!cc.m_asset_type.has_value()) {
+        cc.m_asset_type = ASSET_ORU;
+    } else if (*cc.m_asset_type != ASSET_ORU) {
+        return util::Error{_("Minting requires ORU")};
+    }
+    cc.m_change_type = OutputType::BECH32;
+    if (!cc.m_feerate) {
+        cc.m_feerate = std::max(GetRequiredFeeRate(wallet), wallet.chain().mempoolMinFee());
+    }
+
+    const int confirm_height = MintConfirmHeight(wallet);
+    if (confirm_height < 0 || !Consensus::ResMintAuthorizedAtHeight(confirm_height)) {
+        return util::Error{_("mint height must be non-negative")};
+    }
+
+    // RFC-020: destroy_cost(h) at the confirming height.
+    const int destroy_cost_height = confirm_height;
+    const CAmount destroy_cost = Consensus::ResDestroyCostAtHeight(destroy_cost_height);
+    if (destroy_cost <= 0) {
+        return util::Error{_("unable to price this mint at the confirming height")};
+    }
+    const CAmount min_mint_burn = Consensus::ResMinMintBurnAtoms(destroy_cost_height);
+    if (min_mint_burn <= 0 || amount_oru < min_mint_burn) {
+        return util::Error{strprintf(_("Burn amount must be at least %s ORU to mint 1 RES atom"), FormatMoney(min_mint_burn))};
+    }
+    const CAmount res_out = Consensus::ResMintAtomsFromBurn(amount_oru, destroy_cost_height);
+    if (res_out <= 0) {
+        return util::Error{strprintf(_("Burn amount must be at least %s ORU to mint 1 RES atom"), FormatMoney(min_mint_burn))};
+    }
+    const int unlock_height = confirm_height + RES_MINT_MATURITY;
+
+    auto prepared = MakeMintBurnAndOwner(wallet, amount_oru);
+    if (!prepared) return util::Error{util::ErrorString(prepared)};
+    const CRecipient burn = prepared->burn;
+
+    std::optional<CRecipient> mint;
+    if (res_out > 0) {
+        mint = CRecipient{prepared->res_spk, res_out, /*fSubtractFeeFromAmount=*/false, ASSET_RES};
+    }
+
+    if (wallet.m_avoid_partial_spends) {
+        cc.m_avoid_partial_spends = true;
+    }
+
+    {
+        WalletTransactionRequest wreq;
+        wreq.kind = WalletTxKind::TRANSFER;
+        WalletOutputSpec o;
+        o.amount = burn.nAmount;
+        o.asset = WalletAssetFromProduction(static_cast<uint8_t>(ASSET_ORU));
+        o.destination.assign(burn.scriptPubKey.begin(), burn.scriptPubKey.end());
+        wreq.outputs.push_back(std::move(o));
+        const WalletSecurityResult ev = WalletSecurityBoundary::Evaluate(wreq);
+        if (ev.IsReject()) {
+            return util::Error{Untranslated(ev.reason ? ev.reason : "wallet-security-reject")};
+        }
+    }
+
+    auto built = CreateTransactionInternal(wallet, {burn}, change_pos, cc, sign, mint ? &*mint : nullptr);
+    if (!built) return util::Error{util::ErrorString(built)};
+
+    CreatedMintTransactionResult out{std::move(*built)};
+    out.burn_oru = amount_oru;
+    out.res_out = res_out;
+    out.destroy_cost = destroy_cost;
+    out.confirm_height = confirm_height;
+    out.destroy_cost_height = destroy_cost_height;
+    out.unlock_height = unlock_height;
+    return out;
+}
+
 util::Result<CreatedTransactionResult> CreateConvergenceTransaction(
     CWallet& wallet,
     CAmount amount_oru,
@@ -1811,18 +1962,11 @@ util::Result<CreatedTransactionResult> CreateConvergenceTransaction(
     bool sign,
     bool subtract_fee_from_convergence)
 {
-    CCoinControl cc = coin_control;
-    if (!cc.m_asset_type.has_value()) {
-        cc.m_asset_type = ASSET_ORU;
-    } else if (*cc.m_asset_type != ASSET_ORU) {
-        return util::Error{_("Convergence requires ORU")};
+    if (subtract_fee_from_convergence) {
+        return util::Error{_("subtractfeefromamount is not supported for mint; the fee is paid from ORU change")};
     }
-    cc.m_change_type = OutputType::BECH32;
-    if (!cc.m_feerate) {
-        cc.m_feerate = std::max(GetRequiredFeeRate(wallet), wallet.chain().mempoolMinFee());
-    }
-    auto rec = MakeConvergenceRecipient(wallet, amount_oru, subtract_fee_from_convergence);
-    if (!rec) return util::Error{util::ErrorString(rec)};
-    return CreateTransaction(wallet, {*rec}, change_pos, cc, sign);
+    auto minted = CreateMintTransaction(wallet, amount_oru, change_pos, coin_control, sign);
+    if (!minted) return util::Error{util::ErrorString(minted)};
+    return minted->txr;
 }
 } // namespace wallet

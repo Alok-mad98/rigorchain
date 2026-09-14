@@ -1,7 +1,8 @@
 # Pre-mainnet checklist (operator entry)
 
-**Date:** 2026-08-18  
-**Tree:** `~/rigor-official-tree`  
+**Date:** 2026-09-14 (aligned to RFC-020; original operator cut 2026-09-10)  
+**Issuance:** RFC-020 body-tx destroy-to-mint at `destroy_cost(h)`. ORU subsidy is 0 at genesis and **128 ORU** forever after. `mainnet_launched = false`.
+**Tree:** this repository
 **This page** is the single operator entry for pre-mainnet **security gates**.  
 It does not add protocol work. Detailed results live in the linked reports.
 
@@ -39,51 +40,66 @@ Optional `COQ=1` / full Coq rebuild is **not** part of the functional runner bel
 
 ---
 
-## C. Consensus / economic security suites
+## C. Consensus / economic security suites (RFC-020)
 
-**One command** (wallet-enabled `rigord`/`bitcoind` build; from `core/` or via the script’s `cd`):
+The retired `res_security/` window / reorg / solo-draw runner is **not** a
+shipping gate. RFC-020 mint is a body-tx destroy-to-mint at `destroy_cost(h)`;
+those suites expect σ, a 32-block window, and a coinbase prize and must
+not be treated as live.
+
+**Functional (wallet-enabled `rigord`; from `core/`):**
 
 ```bash
-cd ~/rigor-official-tree/core
-./test/functional/res_security/run_pre_mainnet.sh
+cd core
+test/functional/test_runner.py \
+  feature_createconvergence_mint.py \
+  feature_res_destroy_cost_mint.py \
+  feature_rigor_convergence_rpc_status_history.py
 ```
 
-Fail-fast. Extra args are forwarded to each Python test (tests already pass `--descriptors`). Help: `./test/functional/res_security/run_pre_mainnet.sh --help`.
+| Order | Suite | Script |
+|-------|-------|--------|
+| 1 | Wallet mint path | `feature_createconvergence_mint.py` |
+| 2 | Mint predicate | `feature_res_destroy_cost_mint.py` |
+| 3 | Convergence RPC status | `feature_rigor_convergence_rpc_status_history.py` |
 
-| Order | Suite | Script | Report |
-|-------|-------|--------|--------|
-| 1 | Window / reorg / RES monopoly | `feature_res_window_reorg_res_attacks.py` | [PRE-MAINNET-WINDOW-REORG-RES-ATTACKS.md](./PRE-MAINNET-WINDOW-REORG-RES-ATTACKS.md) |
-| 2 | Solo-mining path (no pool) | `feature_res_solo_security.py` | [PRE-MAINNET-SOLO-SECURITY.md](./PRE-MAINNET-SOLO-SECURITY.md) |
-| 3 | RES mint + ORU coinbase maturity | `feature_res_maturity.py` | [RES-ORU-MATURITY.md](./RES-ORU-MATURITY.md) |
+**Required build:** configure Core with wallet, `make` so the functional
+framework can start `rigord`. Chain is **devtest** (mockable PoW). No public
+network.
 
-Harness notes: `core/test/functional/res_security/README.md`. Matrix fragments: [SECURITY_TEST_MATRIX.md](./SECURITY_TEST_MATRIX.md).
+Do **not** add pool tests. Do **not** treat a red `res_security/` draw suite
+as a release blocker.
 
-**Required build:** configure Core with wallet, `make` so the functional framework can start `rigord`. Chain is **devtest** (mockable PoW). No public network.
+Also from repo root:
 
-Do **not** add pool tests to this runner.
+```bash
+./scripts/refactor_guard.sh
+```
+
+Expected: L1–L7 PASS. `--full` is optional and is not this checklist’s gate.
 
 ---
 
 ## D. Unit / build (security gates — not the FV gate)
 
-From `core/` (after `make`). The suite list is `SECURITY_UNIT_SUITES` in
-`core/test/functional/res_security/run_pre_mainnet.sh` — do not maintain a
-second copy here.
+From `core/` (after `make`). Use the Boost filter below. The retired
+`res_security/run_pre_mainnet.sh` `SECURITY_UNIT_SUITES` list is not this gate.
 
 ```bash
-./test/functional/res_security/run_pre_mainnet.sh
-# or, units only:
-./src/test/test_rigor --run_test=res_orum_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests,res_proof_math_tests,convergence_root_tests
+./src/test/test_rigor --run_test=res_issuance_tests,rigor_fee_tests,res_single_spend_path_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests
 ```
 
 | Suite | Why it is a security gate |
 |-------|---------------------------|
+| `res_issuance_tests` | RFC-020 `destroy_cost(h)` pins, `CheckResMintArithmetic`, cap `2²²` RES, flat 128 ORU. |
+| `rigor_fee_tests` | RFC-018 half-fee burn. Unchanged ORU arithmetic. |
+| `res_single_spend_path_tests` | RES spend path after a body mint. |
 | `pow_tests` | ASERT / `CheckProofOfWork`. **NOT VERIFIED** in Coq (no PoW module). |
 | `sighash_tests` | P0-018 Ed25519 domain + `rigor_sighash_p0_018.json`. Not a Coq theorem. |
 | `script_asset_ownership_freeze_tests` | Script-as-asset classifier. Shared JSON `rigor_script_asset_classifier.json` ≡ Coq `ScriptAsset` harness. |
-| `res_proof_math_tests` | Mint evaluator: owner / extra mint / omit (evaluator allows omit) / no winner / W=0. Coq `winner_must_mint` is **not** CI-033. ConnectBlock `bad-rigor-res-winner-mismatch` is `feature_rigor_convergence_rng_consensus.py`. |
-| `convergence_root_tests` | Coin-view wrapper ≡ eligibility-list root (including N=0). |
-| `res_orum_tests` | Dual-pool + mint maturity. |
+
+Retired draw-unit suites (`res_proof_math_tests` winner/omit, `convergence_root_tests`
+eligibility root) are **not** this gate.
 
 Related (maturity undo flag): `--run_test=coins_tests/txundo_formatter_res_mint_flag_roundtrip`.
 
@@ -102,8 +118,8 @@ Do not treat these as PASS because the suites above are green:
 | Residual | Notes |
 |----------|--------|
 | P2P eclipse / network-level withholding | Out of suite scope |
-| Hashrate share α with matching burns over long windows | A-9-C removes exclusivity, not proportional share |
-| Live path to exact RES cap (21e6) | Cap is unit / ConnectBlock pinned; cannot fund cap in a functional test |
+| Hashrate share α with matching burns | Out of suite scope; RFC-020 has no draw window |
+| Live path to exact cap (`419430400000000` atoms) | Cap is a compile-time identity; cannot fund it in a functional test |
 | Network / mempool beyond covered cases | Consensus cannot prove censorship of a never-received tx |
 
 Theme reports list further residuals (stale GBT sibling submit, wallet vs consensus confirmation off-by-one). **Pool is out of scope**, not a residual of a shipped component.
@@ -114,8 +130,8 @@ Theme reports list further residuals (stale GBT sibling submit, wallet vs consen
 
 Not automated. Record notes before a mainnet declaration:
 
-- [ ] Solo mine; confirm convergence participation (tickets in F / GBT).
-- [ ] On a real mint: reject RES spend at depth `< nCoinbaseMaturity`; accept at maturity (same SSOT as coinbase, typically 100). Do not rely on wallet `res.trusted` alone.
+- [ ] Solo mine; confirm a body-tx mint (`createconvergence` / `OP_CONVERGE` + Witness v1 RES).
+- [ ] On a real mint: reject RES spend at depth `< nCoinbaseMaturity`; accept at maturity (typically 100; reorg protection, not a draw wait). Do not rely on wallet `res.trusted` alone.
 - [ ] Restart node; short reorg smoke (`invalidateblock` / competing tip as available).
 
 ---
@@ -126,14 +142,15 @@ Not automated. Record notes before a mainnet declaration:
 
 - [ ] A — scope is solo; pool not shipped.
 - [ ] B — differential gate PASS; honesty flags false.
-- [ ] C — `run_pre_mainnet.sh` PASS (window + solo + maturity).
-- [ ] D — `run_pre_mainnet.sh` unit step PASS (`SECURITY_UNIT_SUITES`), or the same Boost filter run by hand.
+- [ ] C — RFC-020 functional trio PASS (`feature_createconvergence_mint.py`, `feature_res_destroy_cost_mint.py`, `feature_rigor_convergence_rpc_status_history.py`).
+- [ ] D — unit filter PASS (`res_issuance_tests`, `rigor_fee_tests`, `res_single_spend_path_tests`, plus PoW / sighash / classifier). `refactor_guard.sh` L1–L7 PASS.
 - [ ] E — residuals acknowledged, not treated as closed.
 - [ ] F — testnet notes attached.
 
-**Solo Go** only if A–F are complete for this cut. Theme Go statements: window [report](./PRE-MAINNET-WINDOW-REORG-RES-ATTACKS.md), solo [report](./PRE-MAINNET-SOLO-SECURITY.md), maturity [report](./RES-ORU-MATURITY.md).
+**Solo Go** only if A–F are complete for this cut. This page does **not**
+authorize a “refactor complete” or mainnet flag day.
 
-**Full mainnet declaration:** requires this checklist complete **plus** testnet notes (F) and whatever ops/release items live outside this security page (seeds, signed binaries, soak). This checklist does **not** by itself authorize a mainnet flag day.
+**Full mainnet declaration:** requires this checklist complete **plus** testnet notes (F) and whatever ops/release items live outside this security page (seeds, signed binaries, soak). This checklist does **not** by itself authorize a mainnet flag day. `mainnet_launched` stays false until that declaration.
 
 ---
 
@@ -142,11 +159,9 @@ Not automated. Record notes before a mainnet declaration:
 | Path | Role |
 |------|------|
 | `docs/security/PRE-MAINNET-CHECKLIST.md` | **This file** — operator checklist |
-| `core/test/functional/res_security/run_pre_mainnet.sh` | Primary functional runner (window + solo + maturity) |
-| `core/test/functional/res_security/run_suite.sh` | Window suite only |
-| `core/test/functional/res_security/run_solo_suite.sh` | Solo suite only |
-| `core/test/functional/feature_res_window_reorg_res_attacks.py` | Window / reorg / monopoly |
-| `core/test/functional/feature_res_solo_security.py` | Solo security |
-| `core/test/functional/feature_res_maturity.py` | Maturity |
-| `./src/test/test_rigor --run_test=res_orum_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests,res_proof_math_tests,convergence_root_tests` | Security unit gates (PoW / sighash / mint-auth / classifier / root wrapper). Not the FV gate. |
+| `core/test/functional/feature_createconvergence_mint.py` | Wallet body-tx mint |
+| `core/test/functional/feature_res_destroy_cost_mint.py` | `CheckResMintArithmetic` |
+| `core/test/functional/feature_rigor_convergence_rpc_status_history.py` | Convergence RPC status |
+| `./scripts/refactor_guard.sh` | L1–L7 RES-boundary guard |
+| `./src/test/test_rigor --run_test=res_issuance_tests,rigor_fee_tests,res_single_spend_path_tests,pow_tests,sighash_tests,script_asset_ownership_freeze_tests` | Security unit gates. Not the FV gate. |
 | `formal_verification/scripts/run_differential_gate.sh` | FV maintenance gate (not in the functional runner) |

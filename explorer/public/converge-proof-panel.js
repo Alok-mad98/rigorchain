@@ -33,33 +33,13 @@
     const link = panel;
     const steps = [];
 
-    const winnerBody = link.winner_txid
-      ? `<a href="${escapeHtml(txPath(link.winner_txid))}" class="converge-proof-hex">${escapeHtml(link.winner_txid)}</a>`
+    const burnTxid = link.winner_txid || link.mint_txid;
+    const burnBody = burnTxid
+      ? `<a href="${escapeHtml(txPath(burnTxid))}" class="converge-proof-hex">${escapeHtml(burnTxid)}</a>`
       : '<span class="muted">—</span>';
-    steps.push(flowStep("Winner Transaction", winnerBody));
-
+    steps.push(flowStep("OP_CONVERGE destroy", burnBody));
     steps.push(flowArrow());
-    steps.push(
-      flowStep(
-        "C (convergence_root)",
-        `${fmtHex(link.convergence_root)} ${link.convergence_root ? copyBtn(link.convergence_root) : ""}`,
-      ),
-    );
-
-    steps.push(flowArrow());
-    const sigma = link.sigma_digest || {};
-    steps.push(
-      flowStep(
-        "Sigma Digest",
-        `${fmtHex(sigma.hex)}<div class="converge-proof-meta">length: ${sigma.hex_byte_length != null ? sigma.hex_byte_length + " bytes" : "—"} ${sigma.hex ? copyBtn(sigma.hex) : ""}</div>`,
-      ),
-    );
-
-    if (panel.pcorb_witness && panel.pcorb_witness.length > 0) {
-      steps.push(flowArrow());
-      steps.push(flowStep("PCORB Witness", `<span class="muted">${panel.pcorb_witness.length} indexed stack items (table below)</span>`));
-    }
-
+    steps.push(flowStep("Same body transaction", '<span class="muted">Destroy ORU to mint RES at confirming height h</span>'));
     steps.push(flowArrow());
     const outputs = link.res_mint_outputs || [];
     let mintOutBody = '<span class="muted">—</span>';
@@ -105,7 +85,7 @@
     const blockPath = routes.blockPath.bind(routes);
     return `<dl class="converge-proof-meta">
       <dt>mint txid</dt><dd>${linkage.mint_txid ? `<a href="${escapeHtml(txPath(linkage.mint_txid))}">${escapeHtml(linkage.mint_txid)}</a>` : "—"}</dd>
-      <dt>winner txid</dt><dd>${linkage.winner_txid ? `<a href="${escapeHtml(txPath(linkage.winner_txid))}">${escapeHtml(linkage.winner_txid)}</a>` : "—"}</dd>
+      <dt>destroy txid</dt><dd>${linkage.winner_txid ? `<a href="${escapeHtml(txPath(linkage.winner_txid))}">${escapeHtml(linkage.winner_txid)}</a>` : "—"}</dd>
       <dt>block height</dt><dd>${linkage.block_height != null ? linkage.block_height : "—"}</dd>
       <dt>confirmations (indexed tip)</dt><dd>${linkage.confirmations != null ? linkage.confirmations : "—"}</dd>
       <dt>block</dt><dd>${linkage.block_hash ? `<a href="${escapeHtml(blockPath(linkage.block_hash))}">${escapeHtml(linkage.block_hash)}</a>` : "—"}</dd>
@@ -124,7 +104,7 @@
     if (panel.pcorb_witness && panel.pcorb_witness.length > 0) {
       html += renderPcorbTable(panel.pcorb_witness, routes);
     } else {
-      html += `<p class="muted">Live mint is coinbase OP_RES_MINT. Body PCORB witness is not required.</p>`;
+      html += `<p class="muted">Issuance is the same body transaction: OP_CONVERGE destroy plus optional Witness v1 RES. ORU destroyed. RES minted.</p>`;
     }
 
     html += `<h3>RES mint linkage</h3>${renderLinkage(panel.res_mint_linkage || {}, routes)}

@@ -1,0 +1,12 @@
+This sidecar installs public CompCert 3.13.1 under the INRIA
+Non-Commercial License Agreement.
+
+Use is limited to educational, research, personal, or evaluation
+purposes. Commercial use requires a Software Usage Agreement from
+AbsInt Angewandte Informatik GmbH.
+
+Decision: L-RESEARCH-SIDECAR-2026-09-12
+Document: formal_verification/rigor_kernel/release/CertiCoqToolchain.md
+
+This repository does not vendor CompCert sources or ccomp.
+Do not publish the built compiler as a product of this tree.

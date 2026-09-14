@@ -1,0 +1,8 @@
+{
+  "domain": "asert",
+  "expect": "VALID",
+  "theorem": "negative_time_error_preserved",
+  "te": -1,
+  "tau": 43200,
+  "expected_q": -1
+}

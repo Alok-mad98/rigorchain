@@ -6,11 +6,10 @@
 #   Cannot find a physical path bound to logical path ResSchedule with prefix Rigor
 # Local developer trees hide this because .vo already exist.
 #
-# Coq 8.15 coqdep does not emit a usable graph here: overlapping -R roots
-# (. vs fee-burn) plus a clean tree leave Require-later modules (example:
-# ScriptMintWitness.v -> Rigor.ReplayReorgCore.CvgCovenant) without .vo
-# prerequisites. make -j races; make -j1 follows _CoqProject order, which
-# is not topological.
+# Coq 8.15 coqdep does not emit a usable graph here: a clean tree leaves
+# Require-later modules (example: ScriptMintWitness.v ->
+# Rigor.ReplayReorgCore.CvgCovenant) without .vo prerequisites. make -j
+# races; make -j1 follows _CoqProject order, which is not topological.
 #
 # This script compiles with coqc until a fixed point: each pass builds every
 # remaining .v whose imports already have .vo. Missing-path errors are
@@ -22,7 +21,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 COQ_DIR="$ROOT/formal_verification/coq"
 PROJECT="$COQ_DIR/_CoqProject.protocol-core"
-COQLIBS=(-q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01)
+COQLIBS=(-q -R . Rigor -R ../rigor_v01 RigorV01)
 
 missing_path_error() {
   grep -Eq 'Cannot find a physical path bound to logical path|Cannot find library|Unable to locate library' "$1"

@@ -4,23 +4,43 @@ const POW10 = (n: number): bigint => {
   return r;
 };
 
-/** ORU: 1 ORU = 1e8 atoms (unchanged). */
+/** ORU: 1 ORU = 1e8 atoms. */
 export const ORU_DISPLAY_DECIMALS = 8;
 export const ORU_COIN = 100000000n;
 
-/** RES: 1 RES = 1e6 atoms (shipping lock; not the historical RFC-001 scale of 100). */
-export const RES_DISPLAY_DECIMALS = 6;
-export const RES_COIN = 1000000n;
+/** RES: 1 RES = 1e8 atoms. Same eight-decimal scale as ORU; identity is the asset name. */
+export const RES_DISPLAY_DECIMALS = 8;
+export const RES_COIN = 100000000n;
+
+/**
+ * Expand JSON/RPC scientific amounts (`1e-8`, `1.024e-5`) into fixed decimals.
+ * Does not use IEEE floats — UniValue ValueFromAmount may emit this form for tiny outputs.
+ */
+export function expandScientificDecimal(value: string): string {
+  const s = value.trim();
+  const m = s.match(/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  if (!m) return s;
+  const sign = m[1] === "-" ? "-" : "";
+  const intDigits = m[2];
+  const fracDigits = m[3] ?? "";
+  const exp = Number(m[4]);
+  if (!Number.isSafeInteger(exp)) throw new Error(`invalid exponent: ${value}`);
+  const digits = intDigits + fracDigits;
+  const point = intDigits.length + exp;
+  if (point <= 0) return `${sign}0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return `${sign}${digits}${"0".repeat(point - digits.length)}`;
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+}
 
 /**
  * Parse a fixed-decimal string into integer atoms deterministically.
  *
  * Expected shapes from RPC:
  * - ORU: 8 dp max (e.g. "1.00000000")
- * - RES: 6 dp max (e.g. "1.000000")
+ * - RES: 8 dp max (e.g. "1.00000000" or "1e-8")
  */
 export function fixedDecimalToAtoms(value: string, decimals: number): bigint {
-  const s = value.trim();
+  const s = expandScientificDecimal(value.trim());
   if (!s) throw new Error("empty decimal string");
 
   const negative = s.startsWith("-");
@@ -36,7 +56,6 @@ export function fixedDecimalToAtoms(value: string, decimals: number): bigint {
   if (!/^[0-9]*$/.test(fracPartRaw)) throw new Error(`invalid fractional part: ${value}`);
 
   if (fracPartRaw.length > decimals) {
-    // Deterministic rejection: RPC should not emit extra dp beyond policy.
     throw new Error(`too many decimals for ${value}, max=${decimals}`);
   }
 

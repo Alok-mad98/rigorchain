@@ -103,6 +103,8 @@ def main() -> int:
         errors.append("dummy two-state CppStateTransitionST must be removed")
     if "equivalence_proved : bool := false" not in coq:
         errors.append("Coq equivalence flag drifted")
+    if "Definition refinement_proved : bool := false" not in coq:
+        errors.append("composition refinement_proved must stay false until issuance proofs match RFC-020 C++")
     if "CppStateTransition" not in coq or "CoqStateTransition" not in coq:
         errors.append("state-transition equivalence names missing")
     if "Theorem state_transition_refinement" not in coq:

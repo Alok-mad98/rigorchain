@@ -1,6 +1,6 @@
 # Explorer Security Boundaries
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
+**Document status:** Production documentation  
 **Principle:** Explorer is **non-authoritative** for consensus and replay.
 
 ---

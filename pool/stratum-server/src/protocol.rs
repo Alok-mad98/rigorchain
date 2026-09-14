@@ -112,8 +112,14 @@ pub fn params_as_strings(params: &Value) -> StratumResult<Vec<String>> {
     }
 }
 
+/// Production Stratum agents must declare SHA3-256 RGRPOW01.
+pub fn requires_rgrpow01_agent(agent: &str) -> bool {
+    agent.to_ascii_lowercase().contains("rgrpow01")
+}
+
+/// Historical OpuHash agent gate. Production rejects these (wrong algorithm).
 pub fn requires_opushash_agent(agent: &str) -> bool {
-    agent.contains("opushash")
+    agent.to_ascii_lowercase().contains("opushash")
 }
 
 #[cfg(test)]
@@ -122,14 +128,16 @@ mod tests {
 
     #[test]
     fn parses_subscribe_request() {
-        let line = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#;
+        let line = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#;
         let req = parse_request(line).unwrap();
         assert_eq!(req.method, "mining.subscribe");
     }
 
     #[test]
     fn agent_gate() {
+        assert!(requires_rgrpow01_agent("rigor-miner/1.0-rgrpow01"));
+        assert!(!requires_rgrpow01_agent("legacy-miner"));
+        assert!(!requires_rgrpow01_agent("rigor-miner/1.0-opushash"));
         assert!(requires_opushash_agent("rigor-miner/1.0-opushash"));
-        assert!(!requires_opushash_agent("legacy-miner"));
     }
 }

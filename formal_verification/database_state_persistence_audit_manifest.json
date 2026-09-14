@@ -243,7 +243,7 @@
     "CORRUPTED_PERSISTENT_STATE": "Malformed value or checksum mismatch → abort / DISCONNECT_FAILED"
   },
   "canonical_coin": {
-    "layout": "leaf VARINT((coinbase?1:0)|(height<<1)) || VARINT(CompressAmount) || VARINT(scriptLen) || script; disk/undo adds CRC32C_RGCI",
+    "layout": "leaf VARINT((coinbase?1:0)|(height<<1)) || VARINT(CompressAmount) || VARINT(scriptLen) || script || VARINT(nFlags); disk/undo adds CRC32C_RGCI",
     "txout_compression": "VARINT(CompressAmount(nValue)) || ScriptPlainFormatter",
     "asset_persisted": false,
     "issuance_persisted_in_coin": false,

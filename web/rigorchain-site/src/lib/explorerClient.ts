@@ -12,9 +12,11 @@ export type ExplorerFetchResult<T> = {
 
 const EXPLORER_TIMEOUT_MS = 10000;
 
+const DEFAULT_EXPLORER_URL = "https://explorer.rigorchain.com";
+
 function baseUrl(): string | null {
-  const url = import.meta.env.VITE_EXPLORER_API_URL?.trim();
-  return url ? url.replace(/\/$/, "") : null;
+  const url = import.meta.env.VITE_EXPLORER_API_URL?.trim() || DEFAULT_EXPLORER_URL;
+  return url.replace(/\/$/, "");
 }
 
 async function explorerGet<T>(path: string): Promise<ExplorerFetchResult<T>> {

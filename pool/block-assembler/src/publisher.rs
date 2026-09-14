@@ -123,7 +123,7 @@ mod tests {
                     "hash": "{txb}"
                 }}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "lp/asm/1",
             "weightlimit": 1000000,
             "bits": "1d00ffff",
@@ -131,15 +131,11 @@ mod tests {
             "height": 120,
             "version": 536870912,
             "curtime": 1700000000,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
             prev = "00".repeat(32),
             txa = "aa".repeat(32),
             txb = "bb".repeat(32),
-            a = "aa".repeat(32),
-            b = "bb".repeat(32),
         );
         let gbt_tpl: GbtTemplate = serde_json::from_str(&raw).unwrap();
         let tip = TipHash("ff".repeat(32));

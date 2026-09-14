@@ -73,29 +73,30 @@ describe("lineageGraph", () => {
     const candidateNodes = graph.nodes.filter((n) => n.kind === "candidate");
     assert.equal(candidateNodes.length, 4);
     assert.ok(graph.edges.some((e) => e.from === "candidate:cand2" && e.to === "winner:winner"));
-    assert.ok(graph.nodes.some((n) => n.kind === "sigma_digest"));
+    assert.equal(graph.nodes.some((n) => n.kind === "sigma_digest"), false);
     assert.ok(graph.nodes.some((n) => n.kind === "res_mint"));
+    assert.ok(graph.nodes.some((n) => n.label === "Destroy transaction"));
     assert.equal(graph.pcorb.present, false);
   });
 
-  it("links sigma to coinbase OP_RES_MINT without a PCORB hop", () => {
+  it("links burn to RFC-020 body mint without a PCORB hop", () => {
     const txid = "minttx";
     const convPanel = buildTxConvergencePanel([]);
     const witness = buildTxWitnessPanel(
       txid,
-      [{ vin_index: 0, coinbase: true, txinwitness: [] }],
+      [{ vin_index: 0, coinbase: false, txinwitness: ["aa", "bb"] }],
       [
         {
           mint_vout_index: 1,
           mint_amount: "10000",
-          winner_convergence_txid: "winner",
+          winner_convergence_txid: "minttx",
           block_hash: "bh",
           block_height: 20,
           convergence_root: "c".repeat(64),
-          proof_items: { source: "coinbase_op_res_mint" },
+          proof_items: { source: "rfc020_body_mint" },
         },
       ],
-      { block_hash: "bh", height: 20, rigor_winner: "winner", rigor_res_minted: 1 },
+      { block_hash: "bh", height: 20, rigor_winner: "", rigor_res_minted: 1 },
       convPanel,
       [],
     );
@@ -107,11 +108,11 @@ describe("lineageGraph", () => {
         {
           mint_vout_index: 0,
           mint_amount: "10000",
-          winner_convergence_txid: "winner",
+          winner_convergence_txid: "minttx",
           block_hash: "bh",
           block_height: 20,
           convergence_root: "c".repeat(64),
-          proof_items: { source: "coinbase_op_res_mint" },
+          proof_items: { source: "rfc020_body_mint" },
         },
       ],
       linkedMintRows: [],
@@ -123,12 +124,12 @@ describe("lineageGraph", () => {
 
     const graph = buildLineageGraph({
       anchorTxid: txid,
-      blockPanel: buildBlockConvergencePanel({ rigor_winner: "winner", committed_root: "draw", c_root: "c".repeat(64) }, [
-        { convergence_txid: "winner", draw_eligible: true, convergence_root: "c".repeat(64) },
+      blockPanel: buildBlockConvergencePanel({ rigor_winner: "minttx", committed_root: "draw", c_root: "c".repeat(64) }, [
+        { convergence_txid: "minttx", draw_eligible: true, convergence_root: "c".repeat(64) },
       ]),
-      candidates: [{ convergence_txid: "winner", draw_eligible: true, convergence_root: "c".repeat(64) }],
+      candidates: [{ convergence_txid: "minttx", draw_eligible: true, convergence_root: "c".repeat(64) }],
       convergeProof,
-      block: { block_hash: "bh", height: 20, rigor_winner: "winner", rigor_res_minted: 1 },
+      block: { block_hash: "bh", height: 20, rigor_winner: "minttx", rigor_res_minted: 1 },
       winnerConvergenceRow: null,
       mintResOutputs: [],
     });
@@ -136,8 +137,7 @@ describe("lineageGraph", () => {
     assert.equal(graph.visible, true);
     assert.equal(graph.pcorb.present, false);
     assert.equal(graph.mint.state, "Confirmed");
-    assert.ok(graph.nodes.some((n) => n.kind === "res_mint"));
-    assert.ok(graph.edges.some((e) => e.from === "sigma_digest" && e.to === `mint:${txid}`));
+    assert.ok(graph.nodes.some((n) => n.kind === "res_mint" && n.label === "RES mint"));
     assert.equal(graph.nodes.some((n) => n.kind === "pcorb"), false);
   });
 

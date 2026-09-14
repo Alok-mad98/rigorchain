@@ -16,7 +16,7 @@ class QLineEdit;
 class QPlainTextEdit;
 class QTabWidget;
 
-/** Wallet → Advanced → Key Management / Security: descriptor import/export and address key export. */
+/** Wallet → Settings → Advanced → Key Management: descriptor import/export and address key export. */
 class KeyManagementDialog : public QDialog
 {
     Q_OBJECT
@@ -24,9 +24,9 @@ class KeyManagementDialog : public QDialog
 public:
     enum class Tab {
         ImportPrivateKey = 0,
-        ImportDescriptor = 1,
-        ExportDescriptor = 2,
-        ExportPrivateKey = 3,
+        ExportPrivateKey = 1,
+        ImportDescriptor = 2,
+        ExportDescriptor = 3,
     };
 
     explicit KeyManagementDialog(const PlatformStyle* platformStyle, QWidget* parent = nullptr);

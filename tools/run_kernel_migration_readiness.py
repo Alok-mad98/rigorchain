@@ -56,8 +56,6 @@ def compile_migration_test(cxx: str, out: Path) -> None:
         str(SRC / "script/script.cpp"),
         str(SRC / "uint256.cpp"),
         str(SRC / "util/strencodings.cpp"),
-        str(SRC / "consensus/convergence_logic.cpp"),
-        str(SRC / "consensus_rigor/sigma_hash.cpp"),
         str(SRC / "crypto/sha256.cpp"),
         str(SRC / "arith_uint256.cpp"),
         "-Wl,--gc-sections",
@@ -68,7 +66,7 @@ def compile_migration_test(cxx: str, out: Path) -> None:
 def print_assumptions() -> None:
     req = """
 Require ConsensusKernelRefinement.
-Print Assumptions ConsensusKernelRefinement.issuance_refinement.
+Print Assumptions ConsensusKernelRefinement.cpp_flat_oru_pins.
 """
     if (COQ / "UTXOStateTransitionRefinement.v").is_file():
         req += """
@@ -82,9 +80,6 @@ Print Assumptions UTXOStateTransitionRefinement.state_transition_refinement.
             "-R",
             ".",
             "Rigor",
-            "-R",
-            "fee-burn",
-            "Rigor.FeeBurn",
             "-R",
             "../rigor_v01",
             "RigorV01",
@@ -134,9 +129,6 @@ def main() -> int:
                 "-R",
                 ".",
                 "Rigor",
-                "-R",
-                "fee-burn",
-                "Rigor.FeeBurn",
                 "-R",
                 "../rigor_v01",
                 "RigorV01",

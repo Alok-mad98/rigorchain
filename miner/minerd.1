@@ -47,8 +47,8 @@ authenticating with username "rpcuser" and password "rpcpass":
 .PP
 .nf
 .RS
-minerd \-a sha256d \-o http://localhost:18332 \-O rpcuser:rpcpass \\
-	\-\-coinbase\-addr=mpXwg4jMtRhuSpVq4xS3HFHmCmWp9NyGKt
+minerd \-a rgrpow01 \-o http://127.0.0.1:8761 \-O rpcuser:rpcpass \\
+	\-\-coinbase\-addr=rg1q...
 .RE
 .fi
 .PP
@@ -65,18 +65,18 @@ minerd \-BSq \-o http://my.server:9327
 .TP
 \fB\-a\fR, \fB\-\-algo\fR=\fIALGORITHM\fR
 Set the hashing algorithm to use.
-Default is scrypt.
+Default is rgrpow01 (SHA3-256 RGRPOW01).
 Possible values are:
 .RS 11
 .TP 10
-.B scrypt
-scrypt(1024, 1, 1) (used by Litecoin)
-.TP
-.B scrypt:\fIN\fR
-scrypt(\fIN\fR, 1, 1) (\fIN\fR must be a power of 2 greater than 1)
+.B rgrpow01
+SHA3-256("RGRPOW01" || 80-byte header). Production RIGOR PoW.
 .TP
 .B sha256d
-SHA-256d (used by Bitcoin)
+Alias for rgrpow01.
+.TP
+.B scrypt
+Disabled for RIGOR SOLO.
 .RE
 .TP
 \fB\-\-benchmark\fR

@@ -1,5 +1,13 @@
 # RES and ORU UTXO maturity (consensus)
 
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
 **Date:** 2026-08-18  
 **Consensus impact: yes**  
 **Inventory:** [RES-ORU-MATURITY-INVENTORY.md](./RES-ORU-MATURITY-INVENTORY.md)  
@@ -8,8 +16,8 @@
 ## What RES is / is not
 
 - **RES** is an independent scarce asset. It is **not mined**, **not** a 1:1 ORU exchange, and **not** created in coinbase.
-- The only issuance path is a **non-coinbase body mint**: when the parent block’s convergence draw has a winner, ConnectBlock requires exactly one Witness v1 UTXO of **`W(h)` RES** (`GetResMintReward`; 40.000000 RES at genesis). No winner ⇒ no mint. Hard cap **21,000,000 RES**. Recipient is the winner-declared RESO program (`bad-rigor-res-owner-mismatch` if redirected).
-- Burned ORU is draw **weight** only; it does not become RES.
+- The only issuance path is a **non-coinbase body mint**: the same transaction destroys ORU (`OP_CONVERGE`, amount `B`) and MAY create Witness v1 RES summing to `R` when `R > 0 → R · (2²⁵+h)² ≤ B << 40`. Cap **419430400000000** atoms (`2²²` RES). Coinbase `0xbb` is not this path.
+- Destroyed ORU is the mint **payment** in Convergence (ORU destroyed to mint 1 RES), not a lottery ticket.
 - `ComputeResReward` returns 0; coinbase-derived RES helper APIs abort. Production coinbase RES is `bad-cb-res-amount` (except mockable `-reswalletbootstrap`).
 - Issuance is **not** calendar-guaranteed. This document is only about **spendability of UTXOs that already exist**.
 

@@ -1,24 +1,45 @@
 # RIGOR Formal Verification Design
 
-**Task:** `TASK-RIGOR-FORMAL-VERIFICATION-DESIGN-P0-009`  
-**Date:** 2026-08-22  
-**Type:** Formal verification architecture documentation  
-**Scope:** Whitepaper / protocol verification / mathematical security documentation  
-**Code changes:** **NONE**  
-**Consensus changes:** **NONE**
+**Document status:** Design specification (not the live claim SSOT)  
+**Date:** 2026-09-14  
+**Aligned to:** formal governance freeze (`MATURITY_LEVEL=4.9`)
+
+This paper states security assumptions, verification **targets**, and
+implementation limitations. Formal results are properties of the Coq
+consensus-kernel **model**, not a C++ equivalence proof.
+
+Live claim status (single source of truth):
+[`../../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`](../../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md).
+Classified theorems:
+[`../../formal_verification/rigor_kernel/release/FinalProofInventory.md`](../../formal_verification/rigor_kernel/release/FinalProofInventory.md).
+Public narrative:
+[`chapters/08-formal-boundary.md`](./chapters/08-formal-boundary.md).
 
 ```
+MATURITY_LEVEL=4.9
+REFINEMENT_PROVED=false
+CPP_KERNELINPUT_EQUIVALENCE=false
+LEVEL_5_CLAIMED=false
+CPP_VERIFIED=false
 equivalence_claimed = false
 hash_kernel_shared_binary_with_cpp = false
 refinement_proved = false
 mathematical_documentation_is_code_proof = false
-formal_verification_is_protocol_property_proof = true
 ```
 
-This is the **unique public document** for “Why is RIGOR trustworthy?”
+`formal_verification_means_model_property_proof` (wording): in this
+project, “formal verification” **means** machine-checked properties of
+the protocol **model**. It does **not** mean the deployed system is
+proved, and it is **not** `CPP_VERIFIED`.
 
-It explains the state model, invariants, theorem targets, proof
-boundary, and what is **not** proved.
+This paper is the **design** document for “what the model is for and
+where proof stops.” It is **not** the unique public document for “Why
+is RIGOR trustworthy?” That sentence, if used at all, is the ALLOWED
+claim in the source of truth:
+
+> Formally verified critical consensus invariants inside a Coq
+> consensus kernel model, with explicit extraction and runtime trust
+> boundaries.
 
 It is independent of the identity paper and of the mathematical design
 paper. It does not replace either.
@@ -34,7 +55,13 @@ RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md
         v
 RIGOR_FORMAL_VERIFICATION_DESIGN.md
         |
-        |  Why is it trustworthy?
+        |  What is the model, and where does proof stop?
+        v
+FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md
++ FinalProofInventory.md
++ chapters/08-formal-boundary.md
+        |
+        |  What may be said today (4.9)?
 ```
 
 ---
@@ -64,11 +91,15 @@ Complete System Verification
 ```
 equivalence_claimed = false
 refinement_proved = false
+LEVEL_5_CLAIMED=false
+CPP_VERIFIED=false
 ```
 
 This paper defines **verification targets** and **verification
-boundaries**. It does not invent completed proofs. Theorem inventories
-and operator gates live in [`../verification/`](../verification/).
+boundaries**. It does not invent new proofs. What is already Closed in
+the current kernel cone is listed in `FinalProofInventory.md`
+(Inventory Category A). Historical L2 notes under
+[`../verification/`](../verification/) do not override that inventory.
 
 ---
 
@@ -79,6 +110,11 @@ explicit model: state, transitions, and invariants that can be stated
 without referring to a website, an explorer database, or a production
 binary.
 
+The **current** machine-checked cone is
+`formal_verification/rigor_kernel/` (`_CoqProject.kernel-critical`).
+Older L2 files under `formal_verification/coq/` are
+`HISTORICAL_ONLY` for public claims.
+
 What the model is for:
 
 | Surface | Role in the model |
@@ -88,7 +124,7 @@ What the model is for:
 | Monetary rules | Issuance, destruction, conservation |
 | Asset conservation | Unauthorized creation is rejected |
 | Issuance constraints | Amounts are functions of consensus inputs |
-| Selection properties | Eligibility and winner order are deterministic |
+| Mint-arithmetic properties | Authorization and `R · (2²⁵ + h)² ≤ B << 40` are deterministic |
 | Security invariants | Invalid history cannot be accepted |
 
 ```
@@ -101,29 +137,34 @@ Transition Rules
 +
 Monetary Invariants
 +
-Selection Properties
+Mint-Arithmetic Properties
 +
 Security Properties
 ```
 
-```
-formal_verification_is_protocol_property_proof = true
-```
-
-That flag means: formal verification, in RIGOR, is proof (or attempted
-proof) of **properties of the protocol model**. It does not mean the
-entire deployed system is proved. It does not mean C++ is a refinement
-of the model.
+That identity is **model-side**. It does not mean C++ is a refinement
+of the model (`TRUE_CPP_REFINEMENT_EXISTS = false`).
 
 ---
 
 ## 2. Formal state model
 
-Consensus state is the UTXO set together with the validation rules that
-accept or reject a candidate transition.
+**Protocol** consensus state (what the node must remember) is the UTXO
+set together with the validation rules that accept or reject a
+candidate transition.
 
 ```
-Consensus State = UTXO Set + Validation Rules
+Protocol consensus state  =  UTXO set + validation rules
+```
+
+This is **not** a Coq type name. Same English, different objects
+([`../../audit/formal_bridge/ObjectCollisionReport_v1.md`](../../audit/formal_bridge/ObjectCollisionReport_v1.md)):
+
+```
+CCoinsViewCache
+  ≠ ConsensusModel.UTXOState          (list map; MODEL_PROVED_ONLY)
+  ≠ UnifiedState.UTXOState            ({ utxo_wf_flag : bool })
+  ≠ UTXOValidator.UTXOState           (alias of tx)
 ```
 
 Not:
@@ -152,6 +193,7 @@ authority: recognizing a script family does not create ORU or RES.
 
 ```
 classification ≠ issuance authority
+classifier_refinement = false
 ```
 
 Authorized issuance is a separate, constrained transition (ORU subsidy
@@ -163,12 +205,19 @@ into the UTXO set.
 
 ## 3. Core formal properties
 
-These are the major properties **suitable for verification**. They are
-targets. Stating them here does not claim each one is already proved of
-C++, of a production binary, or of the complete system.
-
-Equations match
+These are the major properties **suitable for verification**. Equations
+match
 [`RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](./RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md).
+
+**None** of them is proved of C++, of a production binary, or of the
+complete system. Some **are** Inventory Category A facts **inside** the
+Coq kernel model. Status words:
+
+| Word | Means |
+|------|--------|
+| **MODEL_PROVED** | Qed in `rigor_kernel`; not C++ |
+| **OPEN** | Not a Closed kernel theorem of this statement |
+| **NOT C++** | Must not be advertised as implementation refinement |
 
 ---
 
@@ -190,8 +239,12 @@ Unauthorized asset creation is impossible
 
 Ordinary transfers preserve conservation. Only authorized mint paths
 may create RES. ORU subsidy is the authorized coinbase issuance
-function `R(h)`, not an arbitrary credit. Fee-burn never becomes a
+function `R(h)`, not an arbitrary credit. Fee-destroy never becomes a
 UTXO.
+
+**Status:** **MODEL_PROVED** — `economic_no_hidden_creation`, ORU
+conservation cluster, `kernel_step_preserves_invariants`. **NOT C++**
+(`CCoinsViewCache` inhabit **BLOCKED**).
 
 ---
 
@@ -209,6 +262,11 @@ Verification goal: every accepted output is classified by
 `f(scriptPubKey)` alone. A model that required a parallel global asset
 map would not be this protocol.
 
+**Status:** **MODEL_PROVED** — `classify_total`,
+`recognizer_pairwise_disjoint`, spend-by-class (abstract `sig_ok`).
+**NOT C++** — `classifier_refinement = false`; not the Script VM;
+not Ed25519 EUF-CMA.
+
 ---
 
 ### 3.3 Deterministic issuance property
@@ -222,10 +280,19 @@ R(h)
 RES:
 
 ```
-W(k)
+destroy_cost(h)
 ```
 
-with `k = ⌊h / 210000⌋`.
+and the mint predicate
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+```
+
+(`CheckResMintArithmetic`). `destroy_cost(h)` is a protocol cost, not a market
+price. Pins: `destroy_cost(0) = 102400000000`, `destroy_cost(210000) = 103685749152`,
+`destroy_cost(420000) = 104979520049`.
+`RES_DESTROY_POLE = 2²⁵`. `RES_COIN = 100000000`.
 
 Verification goal:
 
@@ -233,6 +300,8 @@ Verification goal:
 Same consensus state
 +
 Same height
++
+Same destroy B and mint R
 +
 Same parameters
 
@@ -242,48 +311,62 @@ Same issuance result
 ```
 
 Issuance is a function of consensus inputs. It is not a miner-chosen
-amount, not an explorer balance, and not a floating-point policy.
+amount, not an explorer balance, not a floating-point policy, and not
+a hash lottery.
+
+**Status:** **MODEL_PROVED** — supply schedule / mint-amount bounds in
+the kernel model (`oru_subsidy_fold_closed` as `n · 128`, RES mint
+bounds). **NOT C++** — not `EvaluateConnect` inhabit; not
+`CPP_KERNELINPUT_EQUIVALENCE`.
 
 ---
 
 ### 3.4 RES supply bound property
 
 ```
-S_RES(h) ≤ 21_000_000 RES
+S_RES(h) ≤ 419430400000000 atoms
 ```
 
-Verification goal: the issuance schedule cannot exceed the defined
-maximum supply. A non-zero mint occurs only if authorization and
-`W(h) > 0` both hold. Amount, if minted, is exactly `W(h)`.
+Verification goal: realised issuance cannot exceed the **closed-form** cap
+`RES_MAX_SUPPLY = 419430400000000` (`4194304 RES`). The bound is
+`(S / P0) · H = 2²²` RES. It is not a declared 21,000,000.
+
+A non-zero mint occurs only if `h ≥ 0` and
+`R · (2²⁵ + h)² ≤ B << 40`. `R = 0` is a legal plain destroy.
+The display destroy cost never hits zero; there is no mint horizon.
 
 There is no corresponding absolute ORU cap. `MAX_MONEY` is a per-value
 sanity bound, not an ORU supply ceiling.
 
+**Status:** **MODEL_PROVED** — `res_schedule_finite`,
+`res_total_issuance_capped` (schedule / aggregate cap). **NOT C++** —
+not runtime `S_RES` ConnectBlock rejection (OP-D1).
+
 ---
 
-### 3.5 Convergence selection determinism
+### 3.5 Convergence mint determinism (no draw selection)
 
-Eligibility:
-
-```
-σ_i < T · f_i
-```
-
-Winner comparator (the only legal consensus form):
+Live rule: same-tx destroy-to-mint. There is no draw selection, no σ as a
+mint input, no window 32, and no winner comparator.
 
 ```
-i ≺ j   iff   H_i · f_j  <  H_j · f_i
+CheckResMintArithmetic(R, B, h)
 ```
 
 Verification goals:
 
-- deterministic winner selection
+- deterministic admit / reject from `(R, B, h)`
 - no floating-point dependency
-- deterministic tie resolution (`txid_i < txid_j`, unsigned byte-wise)
+- no lottery / `p_draw` / `W(k)` as shipping issuance
 - identical inputs produce identical result
 
-`T` is the frozen windowed probability target. `T` is not the ASERT /
-`nBits` Proof-of-Work target.
+Coinbase `OP_RES_MINT` is not the RFC-019 path. The lottery cone is
+archived `HISTORICAL_ONLY`; it is not a live verification target for
+issuance.
+
+**Status:** **MODEL_PROVED** as the current kernel issuance identity
+(no lottery in the shipping model). **NOT C++** inhabit of
+`CheckResMintArithmetic`.
 
 ---
 
@@ -293,37 +376,45 @@ Verification goals:
 pow ≤ target
 ```
 
-Verification goal: invalid Proof-of-Work states cannot enter consensus
-history. Header acceptance is a predicate on the mix-hash and the
-ASERT target, not on explorer metadata.
+Verification goal: invalid Proof-of-Work states cannot enter **model**
+history. Production header acceptance uses **OpuHash**
+(`SHA3-256("RGRPOW01" || header_80)`) and ASERT nBits.
+
+In the Coq kernel, the digest is an **uninterpreted** `H`. Integer
+ASERT width theorems are Closed. SHA3 / keccak **implementation**
+refinement is not proved (`crypto_security = false`).
+
+**Status:** **MODEL_PROVED** — `pow_valid_rejects_above_target`,
+`asert_poly_pos` / `asert_poly_fits_uint64` (Coq `Z`). **OPEN** as C++
+nBits / OpuHash inhabit. **NOT C++**.
 
 ---
 
 ## 4. Monetary safety invariants
 
-| Invariant | Statement |
-|-----------|-----------|
-| **Supply safety** | Unauthorized mint = impossible |
-| **Conservation safety** | Valid transition preserves monetary rules |
-| **Determinism** | Same input state produces same validation result |
-| **Rejection safety** | Invalid transition = rejected |
+| Invariant | Statement | Public claim |
+|-----------|-----------|----------------|
+| **Supply safety** | Unauthorized mint = impossible | MODEL_PROVED in kernel; NOT C++ |
+| **Conservation safety** | Valid transition preserves monetary rules | MODEL_PROVED in kernel; NOT C++ |
+| **Determinism** | Same input state produces same validation result | MODEL_PROVED for `kernel_step` / checkers; not `ConnectBlock` |
+| **Rejection safety** | Invalid transition = rejected | MODEL_PROVED for model accept/reject; not node / P2P |
 
-These invariants are why a closed UTXO model plus deterministic
-functions is amenable to formal reasoning. They are protocol-property
-targets, not a claim that wallets, P2P, or miners are proved.
+These invariants are why a closed UTXO **protocol** plus deterministic
+functions is amenable to formal reasoning. They are not a claim that
+wallets, P2P, or miners are proved.
 
 ---
 
 ## 5. Verification boundary
 
-Formal verification does **not** automatically prove:
+Formal verification does **not** prove:
 
-- C++ implementation equivalence
-- production binary equivalence
-- compiler correctness
-- wallet implementation correctness
-- P2P implementation correctness
-- miner implementation correctness
+- C++ implementation equivalence (`cpp_equivalence = false`)
+- production binary equivalence (`CPP_VERIFIED=false`)
+- `ConnectBlock` refinement (`REFINEMENT_PROVED=false`)
+- compiler correctness (`compiler_correctness = false`)
+- Level 5 (`LEVEL_5_CLAIMED=false`)
+- wallet / P2P / miner implementation correctness
 - complete blockchain system correctness
 
 ```
@@ -331,12 +422,14 @@ hash_kernel_shared_binary_with_cpp = false
 refinement_proved = false
 equivalence_claimed = false
 mathematical_documentation_is_code_proof = false
+REFINEMENT_PROVED=false
+CPP_KERNELINPUT_EQUIVALENCE=false
+LEVEL_5_CLAIMED=false
+CPP_VERIFIED=false
 ```
 
 A proved property of the **model** is a proved property of the model.
 Correspondence to C++ is a separate, currently unproved obligation.
-Operator status of that boundary:
-[`../verification/FORMAL-VERIFICATION-VERDICT.md`](../verification/FORMAL-VERIFICATION-VERDICT.md).
 
 ---
 
@@ -365,6 +458,10 @@ Forbidden statements:
 - Whitepaper proves C++
 - Formal model guarantees implementation correctness
 - Mathematical documentation is a code proof
+- production C++ node verified
+- ConnectBlock refinement proved
+- compiler correctness proved
+- Level 5 achieved
 
 The mathematical design paper extracts consensus equations. This paper
 states which of those equations are verification targets and where the
@@ -396,7 +493,7 @@ That combination is a **protocol trust layer**:
 
 - two native assets with closed script families
 - local UTXO state instead of a global account ledger
-- issuance and selection as deterministic functions
+- issuance and mint arithmetic as deterministic functions
 - invariants written so they can be modeled
 
 The trust layer is the *existence and explicitness* of those properties.
@@ -408,10 +505,13 @@ It is not a certificate that the production binary matches the model.
 
 | Document | Purpose |
 |----------|---------|
+| [`../../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`](../../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md) | **Live claims and flags** (4.9) |
+| [`../../formal_verification/rigor_kernel/release/FinalProofInventory.md`](../../formal_verification/rigor_kernel/release/FinalProofInventory.md) | Classified theorems; only emitter of `MATURITY_LEVEL=` |
+| [`chapters/08-formal-boundary.md`](./chapters/08-formal-boundary.md) | Public narrative of the boundary |
 | [`RIGOR_PROTOCOL_IDENTITY.md`](./RIGOR_PROTOCOL_IDENTITY.md) | Project identity — what RIGOR is |
 | [`RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](./RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md) | Mathematical extraction — equations and consensus functions |
 | [`../architecture/RIGOR_EXECUTION_MODEL.md`](../architecture/RIGOR_EXECUTION_MODEL.md) | Runtime and execution boundaries |
-| [`../verification/FORMAL-VERIFICATION-VERDICT.md`](../verification/FORMAL-VERIFICATION-VERDICT.md) | What is (and is not) currently proved in the Coq model |
+| [`../verification/FORMAL-VERIFICATION-VERDICT.md`](../verification/FORMAL-VERIFICATION-VERDICT.md) | Historical L2 verdict; **does not** override the kernel inventory |
 | [`../explorer/EXPLORER_ARCHITECTURE.md`](../explorer/EXPLORER_ARCHITECTURE.md) | Explorer implementation — observation, not consensus |
 
 Explorer remains an independent product. Formal verification does not
@@ -427,21 +527,34 @@ RIGOR Security Identity
 =
 Mathematical Consensus Design
 +
-Formal Protocol Properties
+Formal Protocol Properties (Coq model)
 +
 Explicit Verification Boundaries
 ```
 
+ALLOWED:
+
 ```
+Coq consensus kernel model has formally verified invariants.
+```
+
+NOT ALLOWED:
+
+```
+production C++ node verified
+ConnectBlock refinement proved
+compiler correctness proved
+Level 5 achieved
+```
+
+```
+MATURITY_LEVEL=4.9
 equivalence_claimed = false
-
 hash_kernel_shared_binary_with_cpp = false
-
 refinement_proved = false
-
+REFINEMENT_PROVED=false
+CPP_KERNELINPUT_EQUIVALENCE=false
+LEVEL_5_CLAIMED=false
+CPP_VERIFIED=false
 mathematical_documentation_is_code_proof = false
-
-formal_verification_is_protocol_property_proof = true
 ```
-
-**Consensus impact: NONE**

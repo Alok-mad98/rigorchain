@@ -17,7 +17,7 @@ dist_man_MANS	= minerd.1
 minerd_SOURCES	= elist.h miner.h rigor_net.h compat.h \
 		  cpu-miner.c util.c \
 		  sha2.c scrypt.c \
-		  opus_hash.cpp opus_hash.h \
+		  rgrpow.c rgrpow.h \
 		  arith_uint256.c arith_uint256.h \
 		  gbt_solo.c gbt_solo.h
 if USE_ASM
@@ -45,13 +45,12 @@ TEST_EXTENSIONS	= .sh
 AM_TESTS_ENVIRONMENT = FUZZ_CORPUS='$(srcdir)/fuzz_corpus/gbt_solo'; export FUZZ_CORPUS;
 
 test_gbt_solo_SOURCES	= test_gbt_solo.c gbt_solo.c sha256d_only.c \
-			  opus_hash.cpp arith_uint256.c
+			  rgrpow.c arith_uint256.c
 test_gbt_solo_LDADD	= @JANSSON_LIBS@ @PTHREAD_LIBS@
 test_gbt_solo_CPPFLAGS	= $(JANSSON_INCLUDES) $(PTHREAD_FLAGS)
 test_gbt_solo_CFLAGS	= -fno-strict-aliasing
-test_gbt_solo_CXXFLAGS	= -fno-strict-aliasing
 
-fuzz_gbt_solo_SOURCES	= fuzz_gbt_solo.c gbt_solo.c sha256d_only.c arith_uint256.c
+fuzz_gbt_solo_SOURCES	= fuzz_gbt_solo.c gbt_solo.c sha256d_only.c rgrpow.c arith_uint256.c
 fuzz_gbt_solo_LDADD	= @JANSSON_LIBS@
 fuzz_gbt_solo_CPPFLAGS	= $(JANSSON_INCLUDES)
 fuzz_gbt_solo_CFLAGS	= -fno-strict-aliasing

@@ -77,7 +77,7 @@ public:
     static QString formatHtmlWithUnit(Unit unit, const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD);
     //! Format as string (with unit) of fixed length to preserve privacy, if it is set.
     static QString formatWithPrivacy(Unit unit, const CAmount& amount, SeparatorStyle separators, bool privacy);
-    /** Res native amounts: internal scale RES_COIN=1e6 per 1.000000 RES (6 decimal places). */
+    /** Res native amounts: internal scale RES_COIN=1e8 per 1.00000000 RES (8 decimal places). */
     static QString formatRes(const CAmount& amount, bool plussign = false, SeparatorStyle separators = SeparatorStyle::STANDARD, bool justify = false);
     static bool parseRes(const QString& value, CAmount* val_out);
     static QString formatResWithPrivacy(const CAmount& amount, SeparatorStyle separators, bool privacy);

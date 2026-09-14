@@ -1,3 +1,11 @@
+# Note — Mining (Windows Workflow)
+
+Narrative Chapter 6 is now
+[`06-mining.md`](./06-mining.md)
+(Chinese: [`06-mining.zh.md`](./06-mining.zh.md)).
+This file keeps the public Windows product path. It does not change
+consensus.
+
 # Chapter 7 — Mining (Windows Workflow)
 
 Mining in the official public story is the **Windows miner workflow**.
@@ -9,8 +17,9 @@ This chapter does **not** document SOAP background mining, soak archives, or
 
 ## What mining does
 
-OpuHash proof-of-work discovers valid headers and orders blocks. ASERT
-adjusts difficulty so block time stays on the frozen target spacing.
+SHA3-256 (`RGRPOW01`) proof-of-work discovers valid headers and orders
+blocks. ASERT adjusts difficulty so block time stays on the frozen target
+spacing.
 
 Mining **pays ORU**. Mining **does not mint RES**. A pool cannot allocate
 RES by policy.
@@ -32,7 +41,7 @@ Mine ORU
     ↓
 Converge ORU
     ↓
-Generate RES
+Same tx mints RES at destroy_cost(h)
 ```
 
 | Step | Action | Result |
@@ -41,8 +50,8 @@ Generate RES
 | 2 | Connect wallet | Start Windows wallet; set receive / payout address |
 | 3 | Connect pool | Point the miner at stratum |
 | 4 | Mine ORU | Shares → valid blocks → ORU coinbase (immature, then trusted) |
-| 5 | Converge ORU | Wallet creates a convergence transaction (commit ≥ 1 ORU) |
-| 6 | Generate RES | If the deterministic draw selects the commitment and mint predicates pass, **`W(h)` RES** is minted |
+| 5 | Converge ORU | Wallet creates a convergence transaction (destroy `B` ORU) |
+| 6 | Generate RES | The **same transaction** MAY mint Witness v1 RES at `destroy_cost(h)` when `R > 0 → R · (2²⁵ + h)² ≤ B << 40` |
 
 ---
 
@@ -53,7 +62,7 @@ Generate RES
 3. Connect the miner to the pool
 4. Observe shares and height
 5. Observe ORU maturity (immature coinbase vs trusted ORU)
-6. Observe Convergence (waiting / selected)
+6. Converge ORU; the same transaction mints RES at `destroy_cost(h)` when authorized (no waiting / selected draw)
 7. Observe RES
 8. Verify a block hash independently (Zero Trust), not by trusting the pool UI
 

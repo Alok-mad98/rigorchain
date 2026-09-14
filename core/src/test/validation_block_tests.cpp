@@ -8,8 +8,8 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <key.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <node/miner.h>
 #include <pow.h>
@@ -104,14 +104,7 @@ std::shared_ptr<CBlock> MinerTestingSetup::Block(const uint256& prev_hash)
     txCoinbase.vin[0].scriptWitness.SetNull();
     const CBlockIndex* const prev_index{WITH_LOCK(::cs_main, return m_node.chainman->m_blockman.LookupBlockIndex(prev_hash))};
     const int prev_height{prev_index->nHeight};
-    // A-9-C: the committed C spans the draw window, not this block alone.
-    const uint256 convergence_root = GetTemplateConvergenceRoot(
-        *pblock,
-        prev_index,
-        m_node.chainman->ActiveChainstate().CoinsTip(),
-        m_node.chainman->GetConsensus());
-    txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-        prev_height + 1, convergence_root, uint256{});
+    txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(prev_height + 1);
     txCoinbase.nLockTime = static_cast<uint32_t>(prev_height);
     pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
 

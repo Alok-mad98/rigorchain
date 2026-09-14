@@ -1,6 +1,14 @@
 # RIGOR Data Flow & Determinism Map
 
-**Task:** `TASK-ARCH-001` (deliverable)  
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
+**Document status:** Production specification  
 **Version:** 1.0  
 **Date:** 2026-06-20  
 **Type:** Read-only analysis — **no code changes**
@@ -316,7 +324,7 @@ Any change to preimage byte layout is a **hard-forking** change (guarded by `RIG
 
 ```
 S_ORU(h) = 1000·COIN·Σ halvings - Σ all convergence burns
-S_RES(h) = Σ_{i=1..h} GetResMintReward(i) · M(i)
+S_RES(h) ≤ ResCumulativeMaxAtHeight(h)  (body-tx destroy-to-mint under CheckResMintArithmetic)
 S_RES(h) ≤ RES_MAX_SUPPLY
 ```
 

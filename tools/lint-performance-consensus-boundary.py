@@ -137,8 +137,6 @@ def main() -> int:
     kernel = Path(KERNEL).read_text(encoding="utf-8", errors="replace")
     if "return ComputeRigorIssuance" not in kernel:
         errors.append("RigorConsensusKernel::Issuance is no longer the unique wrapper")
-    if "return ResolveConvergenceDraw" not in kernel:
-        errors.append("RigorConsensusKernel::ResolveDraw is no longer the unique wrapper")
     if "return ClassifyRigorAsset" not in kernel:
         errors.append("RigorConsensusKernel::Classify is no longer the unique wrapper")
 

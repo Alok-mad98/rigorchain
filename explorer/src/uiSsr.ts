@@ -5,13 +5,12 @@
 
 import { readFileSync } from "node:fs";
 import { DRAW_FINGERPRINT_LABEL, DRAW_IDENTITY_HEADING } from "./consensusFingerprint";
-import { emptyEligibleRootNote } from "./convergencePanel";
-import {
-  CONVERGENCE_OUTPUT_STATE,
-  OP_CONVERGE_SCRIPT_NAME,
-  isConvergenceScriptPubKey,
-} from "./script";
-import { destinationLabel } from "./txSummary";
+import { displayBlockConvergenceStatus, displayTxConvergenceRole } from "./convergencePanel";
+import { isConvergenceScriptPubKey } from "./script";
+import { convergeOutputNote, destinationLabel } from "./txSummary";
+import { atomsToResDisplay, formatFixedAtoms } from "./amount";
+import { renderResIssuanceChartsHtml } from "./resIssuanceCharts";
+import { BLOCKS_PER_YEAR, buildRfc020Curve } from "./resIssuanceSchedule";
 
 export function escapeHtml(s: unknown): string {
   return String(s ?? "")
@@ -79,38 +78,28 @@ export function readPublicTemplate(publicDir: string, file: string): string {
 
 function renderBlockConvergence(panel: Record<string, unknown> | null | undefined): string {
   if (!panel) return "";
-  const status = escapeHtml(panel.status ?? "");
-  const cRoot = escapeHtml(panel.c_root ?? panel.convergence_root ?? "—");
-  const committed = String(
-    panel.draw_candidate_root_committed ?? panel.draw_candidate_root ?? "",
+  const status = escapeHtml(
+    displayBlockConvergenceStatus(
+      (panel.status as "No Convergence Activity" | "Convergence Candidate Block" | "Convergence Winner Block") ??
+        "No Convergence Activity",
+    ),
   );
-  const computed = String(panel.draw_candidate_root_computed ?? "");
+  const cRoot = escapeHtml(panel.c_root ?? panel.convergence_root ?? "—");
   const fSize = escapeHtml(panel.candidate_set_size ?? 0);
-  const eligible = escapeHtml(panel.eligible_count ?? 0);
-  const winner = panel.winner_txid
-    ? `<a href="/tx/${encodeURIComponent(String(panel.winner_txid))}">${escapeHtml(panel.winner_txid)}</a>`
-    : '<span class="muted">—</span>';
   const ids = Array.isArray(panel.candidate_txids) ? panel.candidate_txids : [];
   const list =
     ids.length > 0
       ? ids
           .map((id) => `<li><a href="/tx/${encodeURIComponent(String(id))}">${escapeHtml(id)}</a></li>`)
           .join("")
-      : '<li class="muted">No candidates indexed for this block.</li>';
-  const committedNote = emptyEligibleRootNote(committed);
-  const computedNote = emptyEligibleRootNote(computed);
-  const committedHint = committedNote ? ` · ${committedNote}` : "";
-  const computedHint = computedNote ? ` · ${computedNote}` : "";
+      : '<li class="muted">No OP_CONVERGE destroys indexed for this block.</li>';
   return `<section class="convergence-panel" id="convergence-panel">
     <h2>Convergence</h2>
     <dl>
       <dt>Convergence Status</dt><dd><span class="convergence-status">${status}</span></dd>
-      <dt>Candidate Set Size |F|</dt><dd>|F|=${fSize}</dd>
-      <dt>C (convergence_root)</dt><dd><span class="convergence-root-value">${cRoot}</span> <span class="muted">|F|=${fSize}</span></dd>
-      <dt>draw_candidate_root_committed</dt><dd><span class="convergence-root-value">${escapeHtml(committed || "—")}</span> <span class="muted">pays parent draw${committedHint}</span></dd>
-      <dt>draw_candidate_root_computed</dt><dd><span class="convergence-root-value">${escapeHtml(computed || "—")}</span> <span class="muted">this block awards · eligible=${eligible}${computedHint}</span></dd>
-      <dt>winner_txid</dt><dd>${winner}</dd>
-      <dt>candidate_txids</dt><dd><ul class="convergence-candidate-list">${list}</ul></dd>
+      <dt>Convergence destroys</dt><dd>${fSize}</dd>
+      <dt>C (convergence_root)</dt><dd><span class="convergence-root-value">${cRoot}</span></dd>
+      <dt>convergence_txids</dt><dd><ul class="convergence-candidate-list">${list}</ul></dd>
     </dl>
   </section>`;
 }
@@ -155,30 +144,27 @@ export function renderBlockRoot(data: Record<string, unknown>, hash: string): st
     <table><tbody>
       <tr><th>Height</th><td>${escapeHtml(height)}</td></tr>
       <tr><th>Hash</th><td class="mono">${escapeHtml(blockHash)}</td></tr>
+      <tr><th>nBits</th><td class="mono">${escapeHtml(s.bits ?? b.bits ?? "N/A")}</td></tr>
+      <tr><th>OpuHash</th><td class="mono">${escapeHtml(s.opus_hash ?? b.opus_hash ?? b.pow_hash ?? "N/A")}</td></tr>
       <tr><th>Time</th><td>${escapeHtml(timeAgo(t))}${abs ? ` <span class="muted">(${escapeHtml(abs)})</span>` : ""}</td></tr>
       <tr><th>Coinbase</th><td class="mono">${s.coinbase_txid ? `<a href="/tx/${encodeURIComponent(String(s.coinbase_txid))}">${escapeHtml(s.coinbase_txid)}</a>` : ""}</td></tr>
       <tr><th>ORU subsidy</th><td>${escapeHtml(s.oru_subsidy_display ?? "N/A")}</td></tr>
-      <tr><th>Deflationary Fee Burn (this block)</th><td>${escapeHtml(
+      <tr><th>Fees destroyed (this block)</th><td>${escapeHtml(
         nestedField(data.rfc018_fee_burn, "block_burned_oru_display") ?? "—",
       )}</td></tr>
-      <tr><th>Deflationary Fee Burn (cumulative)</th><td>${escapeHtml(
+      <tr><th>Fees destroyed (cumulative)</th><td>${escapeHtml(
         nestedField(data.rfc018_fee_burn, "cumulative_burned_oru_display") ?? "—",
       )}</td></tr>
       <tr><th>RES minted</th><td>${escapeHtml(s.res_minted_display ?? "0")}</td></tr>
       ${
-        s.res_award_note
-          ? `<tr><th>RES award</th><td>${escapeHtml(s.res_award_note)}${
-              s.res_payout_block_hash
-                ? ` (<a href="/block/${encodeURIComponent(String(s.res_payout_block_hash))}">payout block</a>)`
-                : ""
-            }</td></tr>`
+        s.res_destroy_cost_display
+          ? `<tr><th>ORU destroyed to mint 1 RES</th><td>${escapeHtml(s.res_destroy_cost_display)}</td></tr>`
           : ""
       }
-      <tr><th>RES probability target</th><td class="mono">${escapeHtml(s.res_probability_target_display ?? "N/A")}</td></tr>
       <tr><th>bind_height</th><td>${escapeHtml(s.bind_height_display ?? "Not available")}</td></tr>
     </tbody></table>
     <h2>Header</h2>
-    <pre class="mono">${escapeHtml(JSON.stringify(b, null, 2))}</pre>
+    <pre class="mono">${escapeHtml(JSON.stringify(publicBlockHeader(b), null, 2))}</pre>
     <h2>Transactions</h2>
     <table>
       <thead><tr><th>#</th><th>kind</th><th>amount</th><th>asset</th><th>txid</th></tr></thead>
@@ -194,20 +180,17 @@ function renderTxConvergence(panel: Record<string, unknown> | null | undefined):
     if (panel.block_hash) {
       heightHtml += ` (<a href="/block/${encodeURIComponent(String(panel.block_hash))}">block</a>)`;
     }
-    if (
-      panel.window_last_height != null &&
-      Number(panel.window_last_height) > Number(panel.block_height) &&
-      panel.role === "Candidate"
-    ) {
-      heightHtml += ` <span class="muted">— pending in F through height ${escapeHtml(panel.window_last_height)}</span>`;
-    }
+    // RFC-020: no sliding candidate window. Inclusion height is the confirming height.
   }
   return `<section class="convergence-panel" id="convergence-panel">
     <h2>Convergence</h2>
     <dl>
-      <dt>Convergence Role</dt><dd><span class="convergence-status">${escapeHtml(panel.role)}</span></dd>
-      <dt>Convergence Block Height</dt><dd>${heightHtml}</dd>
-      <dt>Winner Reference</dt><dd><span class="muted">—</span></dd>
+      <dt>Convergence Role</dt><dd><span class="convergence-status">${escapeHtml(
+        displayTxConvergenceRole(
+          (panel.role as "Candidate" | "Winner" | "Not Participating") ?? "Not Participating",
+        ),
+      )}</span></dd>
+      <dt>Confirming height</dt><dd>${heightHtml}</dd>
     </dl>
   </section>`;
 }
@@ -224,6 +207,19 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
     !sum.is_coinbase && sum.amount_total_display && sum.amount_total_display !== sum.amount_display
       ? ` <span class="muted">(outputs total ${escapeHtml(sum.amount_total_display)})</span>`
       : "";
+  const txKind = typeof sum.tx_kind === "string" ? sum.tx_kind : "";
+  const outputNote =
+    typeof sum.converge_output_note === "string" && sum.converge_output_note
+      ? String(sum.converge_output_note)
+      : convergeOutputNote(txKind === "oru_destroy" || txKind === "res_mint" ? txKind : "convergence_lock");
+  const notice =
+    typeof sum.kind_notice === "string" && sum.kind_notice
+      ? `<p class="tx-kind-notice${txKind === "res_mint" ? " mint" : ""}">${escapeHtml(sum.kind_notice)}</p>`
+      : "";
+  const typeRow =
+    typeof sum.tx_kind_label === "string" && sum.tx_kind_label
+      ? `<tr><th>Type</th><td>${escapeHtml(sum.tx_kind_label)}</td></tr>`
+      : "";
   const voutRows = vout
     .map((o) => {
       const kind = String(o.asset_kind ?? "");
@@ -231,11 +227,9 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
       let valueStr = atoms;
       try {
         if (kind === "ORU") {
-          const a = BigInt(atoms);
-          valueStr = `${a / 100000000n}.${(a % 100000000n).toString().padStart(8, "0")}`;
+          valueStr = formatFixedAtoms(BigInt(atoms), 8);
         } else if (kind === "RES") {
-          const a = BigInt(atoms);
-          valueStr = `${a / 1000000n}.${(a % 1000000n).toString().padStart(6, "0")}`;
+          valueStr = formatFixedAtoms(BigInt(atoms), 8);
         }
       } catch {
         /* keep raw */
@@ -243,13 +237,11 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
       const isConverge =
         Boolean(o.is_convergence) ||
         (typeof o.script_pubkey === "string" && isConvergenceScriptPubKey(o.script_pubkey));
-      const convergeNote = isConverge
-        ? ` <span class="muted">${OP_CONVERGE_SCRIPT_NAME} / ${CONVERGENCE_OUTPUT_STATE}</span>`
-        : "";
+      const convergeNote = isConverge ? ` <span class="muted">${escapeHtml(outputNote)}</span>` : "";
       const addr = o.address
         ? `<a href="/address/${encodeURIComponent(String(o.address))}">${escapeHtml(o.address)}</a>${convergeNote}`
         : isConverge
-          ? `<span class="muted">${OP_CONVERGE_SCRIPT_NAME}</span> · Asset: ORU · ${escapeHtml(CONVERGENCE_OUTPUT_STATE)}`
+          ? `<span class="muted">${escapeHtml(outputNote)}</span>`
           : "";
       return `<tr><td>${escapeHtml(o.vout_index)}</td><td>${escapeHtml(kind)}</td><td>${escapeHtml(valueStr)}</td><td>${addr}</td></tr>`;
     })
@@ -259,9 +251,11 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
       <p class="mono">TXID: ${escapeHtml(txid)}</p>
       <p class="muted">${DRAW_FINGERPRINT_LABEL}: see the including block (observational short ID, not a consensus check).</p>
     </section>
+    ${notice}
     ${renderTxConvergence(panel)}
     <h2>Summary</h2>
     <table><tbody>
+      ${typeRow}
       <tr><th>Sender</th><td class="mono">${escapeHtml(sum.sender ?? "N/A")}</td></tr>
       <tr><th>${escapeHtml(destLabel)}</th><td class="mono">${sum.receiver ? `<a href="/address/${encodeURIComponent(String(sum.receiver))}">${escapeHtml(sum.receiver)}</a>` : "N/A"}</td></tr>
       <tr><th>${escapeHtml(amountLabel)}</th><td>${escapeHtml(amount ?? "N/A")}${extra}</td></tr>
@@ -274,7 +268,10 @@ export function renderTxRoot(data: Record<string, unknown>, txid: string): strin
     </table>`;
 }
 
-export function renderBlocksRoot(blocks: Array<Record<string, unknown>>): string {
+export function renderBlocksRoot(
+  blocks: Array<Record<string, unknown>>,
+  page?: { page: number; pages: number; total: number; has_prev: boolean; has_next: boolean },
+): string {
   const rows = blocks
     .map(
       (b) => `<tr>
@@ -283,24 +280,31 @@ export function renderBlocksRoot(blocks: Array<Record<string, unknown>>): string
         <td>${escapeHtml(timeAgo(b.time))}</td>
         <td>${escapeHtml(b.tx_count)}</td>
         <td>${escapeHtml(b.oru_minted_display ?? b.oru_minted ?? "—")}</td>
-        <td>${escapeHtml(b.candidate_set_size ?? 0)}</td>
-        <td>${escapeHtml(shortHash(b.rigor_winner))}</td>
-        <td class="fp-col muted">${escapeHtml(b.consensus_fingerprint_short ?? "N/A")}</td>
-        <td class="muted">${escapeHtml(shortHash(b.c_root))}</td>
-        <td class="muted">${escapeHtml(shortHash(b.committed_root ?? b.draw_candidate_root))}</td>
-        <td class="muted">${escapeHtml(shortHash(b.computed_root))}</td>
+        <td>${escapeHtml(b.res_minted_display ?? "—")}</td>
+        <td>${escapeHtml(b.converge_burn_display ?? b.candidate_set_size ?? 0)}</td>
       </tr>`,
     )
     .join("");
-  return `<table>
-    <thead><tr><th>height</th><th>hash</th><th>time</th><th>tx_count</th><th>oru_minted</th><th>|F|</th><th>winner</th><th class="fp-col">${DRAW_FINGERPRINT_LABEL}</th><th>C (convergence_root)</th><th>committed</th><th>computed</th></tr></thead>
+  const pager = page
+    ? `<p class="muted blocks-pager">Page ${page.page} / ${page.pages} · ${page.total} blocks${
+        page.has_prev ? ` · <a href="/blocks?page=${page.page - 1}">Newer</a>` : ""
+      }${page.has_next ? ` · <a href="/blocks?page=${page.page + 1}">Older</a>` : ""}</p>`
+    : "";
+  return `${pager}<table>
+    <thead><tr><th>height</th><th>hash</th><th>time</th><th>tx_count</th><th>oru_minted</th><th>res_minted</th><th>converge_destroy</th></tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table>${pager}`;
 }
 
 function statusFmt(v: unknown): string {
   if (v === null || v === undefined || v === "") return "—";
   return escapeHtml(v);
+}
+
+function statusMonoHash(h: unknown): string {
+  const s = String(h ?? "");
+  if (!s) return "—";
+  return `<span class="status-mono" title="${escapeHtml(s)}">${escapeHtml(shortHash(s))}</span>`;
 }
 
 function statusDl(label: string, valueHtml: string): string {
@@ -311,76 +315,159 @@ function statusSection(title: string, rows: string[]): string {
   return `<section class="status-card"><h2>${escapeHtml(title)}</h2><dl>${rows.join("")}</dl></section>`;
 }
 
-/** Same S1–S4 fields as public/status.js renderDashboard. */
+const BLOCK_HEADER_PUBLIC = new Set([
+  "height",
+  "block_hash",
+  "previous_block_hash",
+  "version",
+  "time",
+  "bits",
+  "nonce",
+  "merkleroot",
+  "opus_hash",
+  "pow_hash",
+  "tx_count",
+  "c_root",
+  "consensus_fingerprint",
+  "consensus_fingerprint_display",
+  "consensus_fingerprint_status",
+  "rigor_res_minted",
+]);
+
+function publicBlockHeader(block: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(block)) {
+    if (BLOCK_HEADER_PUBLIC.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+/** Same homepage cards as public/status.js renderDashboard. Each fact appears once. */
 export function renderStatusRoot(data: Record<string, unknown>): string {
   const id = (data.chain_identity as Record<string, unknown>) || {};
   const bh = (data.block_health as Record<string, unknown>) || {};
-  const ch = (data.convergence_health as Record<string, unknown>) || {};
   const eco = (data.economic_snapshot as Record<string, unknown>) || {};
   const mine = (data.mining_activity as Record<string, unknown>) || {};
   const sys = (data.system_integrity as Record<string, unknown>) || {};
   const comp = (sys.explorer_compliance as Record<string, unknown>) || {};
-  const genesisFull = id.genesis_hash ?? "";
-  const genesisRow = genesisFull
-    ? `<span class="status-mono">${statusFmt(genesisFull)}</span>`
-    : "—";
+  const issued =
+    nestedField(eco.supply_chart, "total_issued_oru", "display") ?? eco.oru_supply_cumulative_display;
   const avg =
     bh.avg_block_time_seconds_last_100 != null
       ? `${Number(bh.avg_block_time_seconds_last_100).toFixed(1)} s`
       : "—";
-  const freq =
-    ch.winner_frequency_last_100 != null
-      ? `${(Number(ch.winner_frequency_last_100) * 100).toFixed(1)}%`
-      : "—";
+
+  const indexerRows = [
+    statusDl("Height (indexer)", statusFmt(bh.current_height_indexer)),
+    statusDl("Indexer lag (blocks)", statusFmt(sys.indexer_sync_lag_blocks)),
+    statusDl("Indexer lag (seconds)", statusFmt(sys.indexer_sync_lag_seconds)),
+    statusDl("Mismatch active", comp.mismatch_active ? "yes" : "no"),
+    statusDl(
+      "Reorg signal",
+      `${statusFmt(bh.reorg_signal_blocks_mismatch_last_1000)} mismatch blocks / 1000`,
+    ),
+    statusDl("IBD", statusFmt(bh.initialblockdownload)),
+  ];
+  if (sys.rpc_error) {
+    indexerRows.push(statusDl("RPC", statusFmt(sys.rpc_error)));
+  }
 
   const sections = [
-    statusSection("S1 — Chain identity", [
+    statusSection("Chain identity", [
       statusDl("Product", statusFmt(id.product ?? id.chain_name)),
-      statusDl("Codename", statusFmt(id.codename ?? id.network_type)),
-      statusDl("Chain", statusFmt(id.chain_name)),
-      statusDl("Network", statusFmt(id.network)),
-      statusDl("Network type", statusFmt(id.network_type)),
-      statusDl("Genesis hash", genesisRow),
+      statusDl("Network", statusFmt(id.network ?? id.network_type)),
+      statusDl("Genesis hash", statusMonoHash(id.genesis_hash)),
       statusDl("Node version", statusFmt(id.node_subversion ?? id.node_version)),
       statusDl("Explorer version", statusFmt(id.explorer_version)),
+      statusDl("Best block", statusMonoHash(bh.best_block_hash)),
     ]),
-    statusSection("S2 — Block production health", [
+    statusSection("Block production", [
       statusDl("Height (node)", statusFmt(bh.current_height_node)),
-      statusDl("Height (indexer)", statusFmt(bh.current_height_indexer)),
       statusDl("Avg block time (100)", avg),
       statusDl("Difficulty", statusFmt(bh.difficulty)),
-      statusDl("PoW display", `${statusFmt(bh.bits)} / ${statusFmt(bh.opus_hash)}`),
-      statusDl(
-        "Reorg signal",
-        `${statusFmt(bh.reorg_signal_blocks_mismatch_last_1000)} mismatch blocks / 1000`,
-      ),
-      statusDl("IBD", statusFmt(bh.initialblockdownload)),
+      statusDl("nBits", statusFmt(bh.bits)),
+      statusDl("OpuHash", statusMonoHash(bh.opus_hash ?? bh.pow_hash)),
       statusDl("Mempool tx count", statusFmt(mine.mempool_tx_count)),
     ]),
-    statusSection("S3 — Convergence & integrity", [
-      statusDl("Winner blocks / 100", statusFmt(ch.winner_blocks_last_100)),
-      statusDl("Winner frequency", freq),
-      statusDl("Active convergences", statusFmt(ch.active_convergences)),
-      statusDl("Pending in F", statusFmt(ch.pending_windows)),
-      statusDl("Indexer lag (blocks)", statusFmt(sys.indexer_sync_lag_blocks)),
-      statusDl("Indexer lag (seconds)", statusFmt(sys.indexer_sync_lag_seconds)),
-      statusDl("Mismatch active", comp.mismatch_active ? "yes" : "no"),
-      statusDl("Draw roots & |F|", '<a href="/res.html">RES amount</a>'),
-    ]),
-    statusSection("S4 — Network RES / ORU", [
-      statusDl("Network RES minted", statusFmt(eco.network_res_minted_display)),
-      statusDl("Total issued ORU", statusFmt(nestedField(eco, "supply_chart", "total_issued_oru", "display") ?? eco.oru_supply_cumulative_display)),
+    statusSection("Indexer integrity", indexerRows),
+    statusSection("Issuance", [
+      statusDl("Issued ORU", statusFmt(issued)),
+      statusDl("RES minted", statusFmt(eco.network_res_minted_display)),
       statusDl("Convergence destroyed ORU", statusFmt(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
-      statusDl("Deflationary Fee Burn ORU", statusFmt(nestedField(eco, "rfc018_fee_burn", "cumulative_burned_oru_display"))),
-      statusDl("Circulating spendable ORU", statusFmt(eco.oru_circulating_spendable_display)),
-      statusDl("ORU in current window", statusFmt(eco.oru_in_current_window_display)),
-      statusDl("ORU since last mint", statusFmt(eco.oru_since_last_mint_display)),
-      statusDl("Mature transferable ORU", statusFmt(eco.oru_mature_transferable_display)),
-      statusDl("Immature coinbase ORU", statusFmt(eco.oru_immature_coinbase_display)),
-      statusDl("RES minted (last 100)", statusFmt(eco.res_mint_rate_last_100_blocks_display)),
+      statusDl("ORU destroyed to mint 1 RES", statusFmt(eco.res_destroy_cost_display)),
+      statusDl("Confirming height", statusFmt(eco.confirm_height ?? eco.tip_height)),
+      statusDl("ORU subsidy", statusFmt(eco.oru_subsidy_tip_display)),
+      statusDl("Last mint height", statusFmt(eco.last_res_height)),
     ]),
   ];
 
-  return `<div class="status-grid">${sections.join("")}</div>
-  <p class="status-updated">Snapshot: ${escapeHtml(data.generated_at ?? "")}</p>`;
+  return `<div class="status-grid status-grid--pair">${sections.join("")}</div>`;
+}
+
+export function injectSsrResPage(templateHtml: string, curvesHtml: string, rootHtml: string): string {
+  return templateHtml
+    .replace(
+      /<div id="curves"[^>]*>Loading schedule…<\/div>/,
+      `<div id="curves" class="status-dashboard" data-ssr="1">${curvesHtml}</div>`,
+    )
+    .replace(
+      /<div id="root"[^>]*>Loading…<\/div>/,
+      `<div id="root" class="status-dashboard" data-ssr="1">${rootHtml}</div>`,
+    );
+}
+
+function resTxLink(txid: unknown): string {
+  const s = String(txid ?? "");
+  if (!s || /^0+$/.test(s)) return "—";
+  const label = s.length < 20 ? s : `${s.slice(0, 12)}…${s.slice(-6)}`;
+  return `<a class="mono" href="/tx/${encodeURIComponent(s)}" title="${escapeHtml(s)}">${escapeHtml(label)}</a>`;
+}
+
+export function renderResDetailsHtml(
+  eco: Record<string, unknown>,
+  mints: Array<Record<string, unknown>>,
+): string {
+  const schedule = `<section class="status-card"><h2>RES schedule</h2><dl>
+    <dt>ORU destroyed to mint 1 RES</dt><dd>${escapeHtml(eco.res_destroy_cost_display ?? "—")}</dd>
+    <dt>Confirming height</dt><dd>${escapeHtml(eco.confirm_height ?? eco.tip_height ?? eco.height ?? "—")}</dd>
+    <dt>RES mint ceiling</dt><dd>${escapeHtml(eco.res_derived_max_supply_display ?? "—")}</dd>
+    <dt>Network RES minted</dt><dd>${escapeHtml(eco.network_res_minted_display ?? "—")}</dd>
+  </dl></section>`;
+  const activity = `<section class="status-card"><h2>RES activity</h2><dl>
+    <dt>RES minted (last 100)</dt><dd>${escapeHtml(eco.res_mint_rate_last_100_blocks_display ?? "—")}</dd>
+    <dt>Mint count</dt><dd>${escapeHtml(eco.res_mint_count ?? "—")}</dd>
+    <dt>Last mint height</dt><dd>${escapeHtml(eco.last_res_height ?? "—")}</dd>
+    <dt>Last mint tx</dt><dd>${resTxLink(eco.last_res_mint_txid)}</dd>
+  </dl></section>`;
+  const rows = mints
+    .map((m) => {
+      const amount =
+        m.mint_amount != null
+          ? atomsToResDisplay(String(m.mint_amount))
+          : "—";
+      return `<tr><td>${escapeHtml(m.block_height)}</td><td><a class="mono" href="/tx/${encodeURIComponent(String(m.mint_txid ?? ""))}">${escapeHtml(m.mint_txid)}</a></td><td>${escapeHtml(amount)}</td></tr>`;
+    })
+    .join("");
+  return (
+    `<div class="status-grid status-grid--pair">${schedule}${activity}</div>` +
+    `<div class="res-history"><h2>RES mint history</h2>` +
+    `<table><thead><tr><th>height</th><th>mint txid</th><th>amount</th></tr></thead><tbody>` +
+    (rows || '<tr><td colspan="3" class="muted">No RES mints on this chain yet.</td></tr>') +
+    `</tbody></table></div>`
+  );
+}
+
+export function renderResPageSsr(args: {
+  confirmHeight: number | null;
+  eco: Record<string, unknown>;
+  mints: Array<Record<string, unknown>>;
+}): { curvesHtml: string; rootHtml: string } {
+  const currentYear =
+    args.confirmHeight != null && Number.isFinite(args.confirmHeight)
+      ? args.confirmHeight / BLOCKS_PER_YEAR
+      : null;
+  return {
+    curvesHtml: renderResIssuanceChartsHtml(buildRfc020Curve(), currentYear),
+    rootHtml: renderResDetailsHtml(args.eco, args.mints),
+  };
 }

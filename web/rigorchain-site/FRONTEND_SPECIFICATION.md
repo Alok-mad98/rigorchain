@@ -56,9 +56,9 @@ Bindings: `getblockchaininfo`, `/api/status` — see [API_BINDING_LAYER.md](./AP
 | Section | Component |
 |---------|-----------|
 | Overview | `ProtocolCard` variant `overview` |
-| ORU | Conservation + subsidy decay |
+| ORU | Conservation + flat subsidy 128 (`h ≥ 1`; no halving) |
 | RES | Conservation + mint cap |
-| FORGE | MTH burn threshold → RES eligibility path |
+| FORGE | Destroy-to-mint at `destroy_cost(h)` → RES path |
 | Consensus | DurinHash PoW, 80-byte header |
 | UTXO | Script-as-compliance |
 

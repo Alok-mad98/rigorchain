@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { circulatingOruAtoms, isCirculatingSpendableOruRow } from "./circulating";
+import { circulatingOruAtoms, isCirculatingSpendableOruRow, matureSpendableOruSql, plainDestroyOruSql } from "./circulating";
 import { isConvergenceScriptPubKey, isRetiredCvg2WitnessV1 } from "./script";
 
 const SPENDABLE_V0 = "001409ba7bdc9a1c2f6114431e483f26c1de0271893c";
@@ -34,5 +34,24 @@ describe("circulating ORU excludes OP_CONVERGE and spent rows", () => {
     ];
     assert.equal(isCirculatingSpendableOruRow(rows[1]), false);
     assert.equal(circulatingOruAtoms(rows), 100000000n);
+  });
+});
+
+describe("plain destroy SQL", () => {
+  it("selects OP_CONVERGE ORU with no RES mint", () => {
+    const sql = plainDestroyOruSql("o");
+    assert.match(sql, /o\.asset_kind = 'ORU'/);
+    assert.match(sql, /res_mints/);
+    assert.match(sql, /asset_kind = 'RES'/);
+    assert.match(sql, /14\[0-9a-f\]\{40\}bd/);
+  });
+});
+
+describe("mature spendable SQL", () => {
+  it("requires coinbase maturity against indexer tip", () => {
+    const sql = matureSpendableOruSql();
+    assert.match(sql, /is_coinbase/);
+    assert.match(sql, />= 100/);
+    assert.match(sql, /spent = FALSE/);
   });
 });

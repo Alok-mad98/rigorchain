@@ -186,19 +186,17 @@ def main() -> None:
             )
         )
 
-    # RFC-017: the mint amount is now W(height), so each case carries the height it mints at.
-    # SUP-002 sits in epoch 1 to exercise a decayed reward; SUP-004 sits one reward short of the
-    # cap so the cap rejection path is covered.
+    # RFC-020: a mint adds an explicit atom count; destroy_cost(h) is not a grant.
+    # SUP-004 sits one atom short of the cap so the cap rejection path is covered.
     sup_cases = [
         (1000, 0, False, 0),
-        (900, spec.RES_REWARD_GENESIS, True, 0),
+        (900, 1, True, 0),
         (500, 1_000_000, True, spec.RES_REWARD_EPOCH),
         (0, spec.RES_MAX_SUPPLY, False, 0),
         (100, spec.RES_MAX_SUPPLY - 100, True, 0),
     ]
     for i, (oru, res, mint, height) in enumerate(sup_cases):
-        w = spec.get_res_mint_reward(height)
-        after = res + (w if mint and res + w <= spec.RES_MAX_SUPPLY else 0)
+        after = res + (1 if mint and res + 1 <= spec.RES_MAX_SUPPLY else 0)
         vectors.append(
             v(
                 f"SUP-{i:03d}",
@@ -1431,18 +1429,31 @@ def main() -> None:
     def mk_tx(tid: int, spends: List[Dict[str, Any]], creates: List[Dict[str, Any]]) -> Dict[str, Any]:
         return {"id": tid, "spends": spends, "creates": creates}
 
-    def add_neg(vid: str, name: str, inp: Dict[str, Any], note: str) -> None:
+    def add_neg(vid: str, name: str, inp: Dict[str, Any], note: str, *, allow_accept: bool = False) -> None:
         exp = spec.eval_negative_core(inp)
-        if exp["accepted"]:
+        if exp["accepted"] and not allow_accept:
             raise SystemExit(f"{vid} unexpectedly accepted by L1 oracle")
+        if allow_accept and not exp["accepted"]:
+            raise SystemExit(f"{vid} expected accept (legal mint polarity) but oracle rejected")
         add(v(vid, name, "NegativeCore", inp, exp, note=note), coq_enforce=True)
 
-    w0 = spec.get_res_mint_reward(1)
-    w_epoch1 = spec.get_res_mint_reward(spec.RES_REWARD_EPOCH)
-    h_after_sched = (spec.RES_REWARD_LAST_EPOCH + 1) * spec.RES_REWARD_EPOCH
-    assert w0 == spec.RES_REWARD_GENESIS
-    assert w_epoch1 != w0 and w_epoch1 > 0
-    assert spec.get_res_mint_reward(h_after_sched) == 0
+    w0 = spec.get_res_mint_reward(0)
+    w1 = spec.get_res_mint_reward(1)
+    w_cal1 = spec.get_res_mint_reward(spec.RES_REWARD_EPOCH)
+    # Observational calendar k=251. Not a mint horizon; price is never 0.
+    h_cal251 = (spec.RES_REWARD_LAST_EPOCH + 1) * spec.RES_REWARD_EPOCH
+    # Genesis-exact burn for 1 RES atom: R · (2^25)^2 <= B << 40 ⇒ B >= 1024.
+    burn_one = 1024
+    burn_one_h1 = 1025
+    assert w0 == spec.RES_DESTROY_COST_GENESIS
+    assert w1 > w0
+    assert w_cal1 > w1
+    assert spec.get_res_mint_reward(h_cal251) > 0
+    assert spec.res_mint_authorized(h_cal251)
+    assert spec.check_res_mint_arith(1, burn_one, 0)
+    assert not spec.check_res_mint_arith(1, burn_one, 1)
+    assert spec.check_res_mint_arith(1, burn_one_h1, 1)
+    assert not spec.check_res_mint_arith(1, burn_one - 1, 0)
 
     add_neg(
         "NEG-000",
@@ -1472,10 +1483,11 @@ def main() -> None:
         {
             "kind": "dual_pool_tx",
             "height": 1,
-            "utxo": [coin(2, 0, 50, "ORU")],
+            "utxo": [coin(2, 0, burn_one, "ORU")],
             "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
         },
-        "ORU-only inputs cannot create RES except via mint-shape of W(h)",
+        "RFC-020: 1024 ORU is genesis-exact for 1 RES atom; at height 1 the "
+        "continuous price has already moved, so this burn is insufficient",
     )
     add_neg(
         "NEG-003",
@@ -1494,10 +1506,10 @@ def main() -> None:
         {
             "kind": "mint_shape",
             "height": 1,
-            "utxo": [coin(2, 0, 50, "ORU")],
-            "tx": mk_tx(10, [spend(2)], [out(w0 + 1, "RES")]),
+            "utxo": [coin(2, 0, burn_one, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(2, "RES")]),
         },
-        "ORU-funded mint of W(h)+1",
+        "exact epoch-0 burn covers 1 RES atom, not 2 (burn_insufficient)",
     )
     add_neg(
         "NEG-005",
@@ -1505,10 +1517,10 @@ def main() -> None:
         {
             "kind": "mint_shape",
             "height": 1,
-            "utxo": [coin(2, 0, 50, "ORU")],
-            "tx": mk_tx(10, [spend(2)], [out(w0 - 1, "RES")]),
+            "utxo": [coin(2, 0, burn_one - 1, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
         },
-        "ORU-funded mint of W(h)-1",
+        "one ORU atom short of the genesis-exact burn for a 1-atom mint",
     )
     add_neg(
         "NEG-006",
@@ -1516,10 +1528,10 @@ def main() -> None:
         {
             "kind": "mint_shape",
             "height": 1,
-            "utxo": [coin(2, 0, 50, "ORU")],
-            "tx": mk_tx(10, [spend(2)], [out(w0 // 2, "RES"), out(w0 - w0 // 2, "RES")]),
+            "utxo": [coin(2, 0, burn_one * 2, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(1, "RES"), out(1, "RES")]),
         },
-        "mint-shape requires exactly one RES output; two outputs summing to W(h) still fail",
+        "mint-shape requires exactly one RES output; two outputs still fail",
     )
     add_neg(
         "NEG-007",
@@ -1527,32 +1539,32 @@ def main() -> None:
         {
             "kind": "mint_shape",
             "height": spec.RES_REWARD_EPOCH,
-            "utxo": [coin(2, 0, 50, "ORU")],
-            "tx": mk_tx(10, [spend(2)], [out(w0, "RES")]),
+            "utxo": [coin(2, 0, burn_one, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
         },
-        "epoch-1 mint of W(0) rather than W(k=1)",
+        "calendar k=1 mint: genesis-exact 1024 ORU does not cover destroy_cost(210000)",
     )
     add_neg(
         "NEG-008",
         "winner_mint_count_two",
         {
-            "kind": "connect_obligation",
-            "height": 1,
-            "draw_won": True,
-            "mint_count": 2,
+            "kind": "mint_shape",
+            "height": h_cal251,
+            "utxo": [coin(2, 0, burn_one, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
         },
-        "H-1 / winner-mismatch: scored mint count is 2, not 1",
+        "observational k=251: genesis-exact burn still fails the continuous price",
     )
     add_neg(
         "NEG-009",
         "winner_omits_mint",
         {
-            "kind": "connect_obligation",
+            "kind": "mint_shape",
             "height": 1,
-            "draw_won": True,
-            "mint_count": 0,
+            "utxo": [coin(2, 0, burn_one, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(burn_one, "ORU"), out(1, "RES")]),
         },
-        "H-1: winner with W(h)>0 and mint_count=0",
+        "H-1 omit has no referent; zero-burn ORU-to-RES is still illegal",
     )
     add_neg(
         "NEG-010",
@@ -1560,11 +1572,11 @@ def main() -> None:
         {
             "kind": "connect_cap",
             "height": 1,
-            "res_supply": spec.RES_MAX_SUPPLY - w0 + 1,
+            "res_supply": spec.RES_MAX_SUPPLY - 1,
             "draw_won": True,
-            "mint_count": 1,
+            "mint_count": 2,
         },
-        "supply + W(h) = cap + 1; equal-to-cap is admitted, one atom over is not",
+        "supply + 2 atoms = cap + 1; equal-to-cap is admitted, one atom over is not",
     )
     add_neg(
         "NEG-011",
@@ -1576,29 +1588,30 @@ def main() -> None:
             "draw_won": True,
             "mint_count": 1,
         },
-        "exactly at the hard cap, then mint W(h)",
+        "exactly at the hard cap, then mint 1 atom",
     )
     add_neg(
         "NEG-012",
         "schedule_exhausted_mint",
         {
             "kind": "connect_obligation",
-            "height": h_after_sched,
-            "draw_won": True,
+            "height": h_cal251,
+            "draw_won": False,
             "mint_count": 1,
         },
-        "epoch 251: W(h)=0 so a mint is unauthorized, not winner-mismatch",
+        "leftover H-1 pin: observational k=251 still authorizes mints; "
+        "draw_won=false + mint_count=1 is without_winner, not RATE=0",
     )
     add_neg(
         "NEG-013",
         "without_winner_mint",
         {
-            "kind": "connect_obligation",
+            "kind": "mint_shape",
             "height": 1,
-            "draw_won": False,
-            "mint_count": 1,
+            "utxo": [coin(2, 0, burn_one - 1, "ORU")],
+            "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
         },
-        "no draw winner, but a mint is present",
+        "without_winner has no referent; replaced by burn-insufficiency (1023 ORU for 1 RES)",
     )
     add_neg(
         "NEG-014",
@@ -1609,13 +1622,13 @@ def main() -> None:
             "res_supply": 0,
             "draw_won": True,
             "mint_count": 1,
-            "utxo": [coin(1, 0, 100, "RES"), coin(2, 0, 50, "ORU")],
+            "utxo": [coin(1, 0, 100, "RES"), coin(2, 0, burn_one, "ORU")],
             "txs": [
                 mk_tx(10, [spend(1)], [out(90, "RES")]),
-                mk_tx(11, [spend(2)], [out(w0 + 1, "RES")]),
+                mk_tx(11, [spend(2)], [out(2, "RES")]),
             ],
         },
-        "valid ordinary transfer plus W(h)+1 mint in the same body; apply_block = None",
+        "valid ordinary transfer plus burn-insufficient mint in the same body",
     )
     add_neg(
         "NEG-015",
@@ -1626,13 +1639,13 @@ def main() -> None:
             "res_supply": 0,
             "draw_won": True,
             "mint_count": 1,
-            "utxo": [coin(1, 0, 100, "RES"), coin(2, 0, 50, "ORU")],
+            "utxo": [coin(1, 0, 100, "RES"), coin(2, 0, burn_one_h1, "ORU")],
             "txs": [
                 mk_tx(10, [spend(1)], [out(101, "RES")]),
-                mk_tx(11, [spend(2)], [out(w0, "RES")]),
+                mk_tx(11, [spend(2)], [out(1, "RES")]),
             ],
         },
-        "ordinary inflation plus a well-shaped mint; body still rejected",
+        "ordinary inflation plus a well-shaped height-1 mint (1025 ORU); body still rejected",
     )
 
     # -------------------------------------------------------------------------
@@ -1954,7 +1967,7 @@ def main() -> None:
             "kind": "mint_witness_cross",
             "height": 1,
             "utxo": [coin(2, 0, 50, "ORU")],
-            "tx": mk_tx(10, [spend(2)], [out(w0, "RES")]),
+            "tx": mk_tx(10, [spend(2)], [out(spec.SCRIPT_MINT_NEG_LOCKED_W, "RES")]),
             "stack_hex": [x.hex() for x in pcorb_ok[:5]],
         },
         "CROSS mint-shape: body is W(h) mint-shape (would pass dual-pool) but PCORB has 5 items. "
@@ -2002,10 +2015,14 @@ def main() -> None:
     h_last_pay = (spec.RES_REWARD_LAST_EPOCH + 1) * spec.RES_REWARD_EPOCH - 1
     w_epoch_last = spec.get_res_mint_reward(h_epoch_last)
     w_last_pay = spec.get_res_mint_reward(h_last_pay)
-    assert w_epoch_last == w0
-    assert w_epoch1 != w0 and w_epoch1 > 0
+    assert w_epoch_last != w0 and w_epoch_last > 0
+    assert w_cal1 != w0 and w_cal1 > 0
     assert w_last_pay > 0
-    assert spec.get_res_mint_reward(h_after_sched) == 0
+    assert spec.get_res_mint_reward(h_cal251) > 0
+    assert spec.get_res_mint_reward(h_epoch_last) != spec.get_res_mint_reward(
+        spec.RES_REWARD_EPOCH
+    )
+    assert spec.get_res_mint_reward(h_cal251) != spec.get_res_mint_reward(h_last_pay)
 
     add_xfam(
         "XFAM-000",
@@ -2064,11 +2081,11 @@ def main() -> None:
                 "kind": "mint_shape",
                 "height": 1,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w0 + 1, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(2, "RES")]),
             },
         },
         "CROSS root+mint: committed C bitflip (ICVG-006 family) and ORU-funded "
-        "mint of W(h)+1 (NEG-004 family). Both halves reject.",
+        "2-atom mint on a 50-ORU input (burn_insufficient). Both halves reject.",
     )
     add_xfam(
         "XFAM-004",
@@ -2084,13 +2101,13 @@ def main() -> None:
             "mint": {
                 "kind": "connect_cap",
                 "height": 1,
-                "res_supply": spec.RES_MAX_SUPPLY - w0 + 1,
+                "res_supply": spec.RES_MAX_SUPPLY,
                 "draw_won": True,
                 "mint_count": 1,
             },
         },
         "CROSS root+cap: claimed C length 31 (ICVG-009) and one-atom hard-cap "
-        "overshoot (NEG-010). Both halves reject.",
+        "overshoot (NEG-011). Both halves reject.",
     )
     add_xfam(
         "XFAM-005",
@@ -2184,28 +2201,28 @@ def main() -> None:
                 "kind": "mint_shape",
                 "height": h_epoch_last,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w_epoch1, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
             },
         },
-        "CROSS schedule+mint-shape: last height of epoch 0 mints W(k=1) "
-        "instead of W(0). W jumps at the next height.",
+        "CROSS schedule+mint-shape: last height of observational calendar 0 "
+        "with a 50-ORU input cannot cover 1 RES atom. destroy_cost(h) moves at the next height.",
     )
     add_xfam(
         "XFAM-010",
         "W_zero_mint_last_epoch_amount",
         {
             "kind": "schedule_mint",
-            "height": h_after_sched,
+            "height": h_cal251,
             "neighbour_height": h_last_pay,
             "mint": {
                 "kind": "mint_shape",
-                "height": h_after_sched,
+                "height": h_cal251,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w_last_pay, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(1, "RES")]),
             },
         },
-        "CROSS schedule+mint-shape: first W(h)=0 height mints the last "
-        "positive-epoch amount. Unauthorized, not winner-mismatch.",
+        "CROSS schedule+mint-shape: observational k=251 still has destroy_cost(h)>0; "
+        "50 ORU cannot cover 1 RES atom (burn_insufficient, not unauthorized).",
     )
     add_xfam(
         "XFAM-011",
@@ -2217,18 +2234,18 @@ def main() -> None:
                 "kind": "mint_shape",
                 "height": h_last_pay,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w_last_pay + 1, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(2, "RES")]),
             },
             "cap": {
                 "kind": "connect_cap",
                 "height": h_last_pay,
-                "res_supply": spec.RES_MAX_SUPPLY - w_last_pay + 1,
+                "res_supply": spec.RES_MAX_SUPPLY,
                 "draw_won": True,
                 "mint_count": 1,
             },
         },
-        "CROSS schedule+mint+cap: last height with W(h)>0, mint of W(h)+1 "
-        "and one-atom cap overshoot together.",
+        "CROSS schedule+mint+cap: last height of the old 251-epoch calendar, "
+        "burn-insufficient mint and one-atom cap overshoot together.",
     )
 
     # TASK-FV-VECTOR-SELECTIVE-DENSIFY-001: eight high-value residual crosses.
@@ -2339,17 +2356,17 @@ def main() -> None:
                 "kind": "mint_shape",
                 "height": h_epoch_last,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w_epoch_last + 1, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(2, "RES")]),
             },
             "cap": {
                 "kind": "connect_cap",
                 "height": h_epoch_last,
-                "res_supply": spec.RES_MAX_SUPPLY - w_epoch_last + 1,
+                "res_supply": spec.RES_MAX_SUPPLY,
                 "draw_won": True,
                 "mint_count": 1,
             },
         },
-        "CROSS first-epoch-last+cap: last height of epoch 0, mint of W(0)+1 "
+        "CROSS first-epoch-last+cap: last height of epoch 0, burn-insufficient mint "
         "and one-atom cap overshoot. Complements XFAM-011 (last paying height).",
     )
     add_xfam(
@@ -2362,18 +2379,18 @@ def main() -> None:
                 "kind": "mint_shape",
                 "height": spec.RES_REWARD_EPOCH,
                 "utxo": [coin(2, 0, 50, "ORU")],
-                "tx": mk_tx(10, [spend(2)], [out(w_epoch1 + 1, "RES")]),
+                "tx": mk_tx(10, [spend(2)], [out(2, "RES")]),
             },
             "cap": {
                 "kind": "connect_cap",
                 "height": spec.RES_REWARD_EPOCH,
-                "res_supply": spec.RES_MAX_SUPPLY - w_epoch1 + 1,
+                "res_supply": spec.RES_MAX_SUPPLY,
                 "draw_won": True,
                 "mint_count": 1,
             },
         },
-        "CROSS first-epoch-start+cap: first height of epoch 1, mint of W(1)+1 "
-        "and one-atom cap overshoot. Complements NEG-007 (wrong-epoch amount only).",
+        "CROSS first-epoch-start+cap: first height of epoch 1, burn-insufficient mint "
+        "and one-atom cap overshoot. Complements NEG-007 (wrong-epoch price).",
     )
 
     assert len(vectors) >= 50

@@ -1,0 +1,11 @@
+{
+  "id": "INVALID-001",
+  "domain": "utxo",
+  "expect": "INVALID",
+  "theorem": "utxo_soundness",
+  "failure_reason": "UTXO overflow: single output value MAX_MONEY+1 is outside money_range",
+  "tx_id": [1],
+  "inputs": [{"txid": [2], "index": 0}],
+  "outputs": [{"value": 1000000000000000001, "spk": []}],
+  "coinbase": false
+}

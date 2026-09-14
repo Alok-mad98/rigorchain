@@ -1,225 +1,102 @@
-# Mining: `getblocktemplate`, coinbase, and RES
+# Mining: `getblocktemplate` and coinbase
 
-This document describes how **Rigor Core** exposes block templates and how
-**coinbase outputs** relate to **ORU** (subsidy + ORU-domain fees), **RES draw
-mint**, and the **Segwit witness commitment**.
+How **Rigor Core** exposes block templates. Coinbase pays **ORU** (subsidy +
+claimable ORU-domain fees) and may carry a Segwit witness commitment. It does
+**not** mint RES.
 
 **Supported path: SOLO mining** against a local full node (`generatetoaddress`,
-GBT + local hasher, or `submitblock`). RIGOR does **not** require Bitcoin pool
-or Stratum compatibility. Do not add a compatibility layer to make extranonce
-fit in the coinbase `scriptSig` — that field is a consensus commitment of C
-and has **zero free bytes**.
+GBT + local hasher, or `submitblock`). Do not write extranonce into the
+coinbase `scriptSig` — that field is the BIP34 height push and has **zero free
+bytes**.
 
-**Normative draw and emission rules** remain in [convergence-consensus-v1.md](./convergence-consensus-v1.md). The **kernel is unchanged** by the path cleanup (only C and the mint commitment were uniquified):
-
-| Kernel | Lock |
-|--------|------|
-| Draw | `σ_i = Hash256(txid_i ‖ C ‖ B_{h-1} ‖ LE32(h))`, eligible iff `σ_i < T · f_i`. `T` is frozen (`RES_PROBABILITY_TARGET`), not parent `nBits`. `f_i` is the burn `nValue`. |
-| Window | `W = 32`. The draw paid at height `h` uses unpaid tickets in `[h-32, h-1]`. |
-| Lag | **1 block.** This template **pays** the parent's committed set and **commits** C for the next block. |
-| Owner | Burn lock is `<20-byte HASH160(RES program)> <0xbd CONVERGE marker>`. The RES mint template must pay that hash (`res_payout_hash` on GBT). |
-
-Here we focus on **wire layout** and **RPC fields**.
+Normative burn / mint rules: [convergence-consensus-v1.md](./convergence-consensus-v1.md).
 
 ---
 
 ## 1. RPC: `getblocktemplate`
 
-- **Call shape:** Bitcoin-compatible. You **must** pass **`{"rules": ["segwit"]}`** (and **`"signet"`** on signet chains). See `src/rpc/mining.cpp`.
-- **Connection / sync:** On mainnet-like chains the node refuses GBT if it has **zero** peer connections or is in **initial block download** (test chains may skip this).
+- **Call shape:** pass `{"rules": ["segwit"]}` (and `"signet"` on signet).
+- On mainnet-like chains the node refuses GBT with zero peers or during IBD.
 
 ### 1.1 Rigor-specific JSON fields
 
 | Field | Meaning |
 |--------|---------|
-| `default_witness_commitment` | Hex script of the **Segwit witness commitment** output the template expects (BIP 141), if present. |
-| `default_coinbase_scriptsig` | Exact `vin[0].scriptSig` bytes (height ‖ C ‖ paid-winner). **Copy these bytes.** |
-| `paid_winner_txid` | Third push as RPC hex. All zeros when this template does not mint. |
-| `rigor_coinbase_immutable` | Always `true`. Do not mutate coinbase scriptSig / mint / C; request a new template. |
+| `default_witness_commitment` | Hex script of the BIP 141 witness commitment, if present. |
+| `default_coinbase_scriptsig` | Exact `vin[0].scriptSig` bytes: BIP34 height only. **Copy these bytes.** |
+| `rigor_coinbase_immutable` | Always `true`. Do not mutate the coinbase; request a new template. |
 | `mutable` | SOLO: **`["time"]` only**. `nNonce` is the grind. |
-| `default_res_mint` | When the parent draw named a winner: `{value, scriptPubKey}` for the coinbase `OP_RES_MINT` output. Copy it. Omitted when there is no mint. |
-| `convergence_root` | Window **C** (RPC hex). The second scriptSig push is those 32 bytes in memory order. Prefer `default_coinbase_scriptsig`. |
-| `convergence_draw` | The draw this template **pays** (parent set, winner, T). Candidate field is **`res_payout_hash`** (HASH160 of the declared RES program), not a program blob. |
+| `default_coinbase_tx` | Witness-serialized canonical coinbase. Only when `coinbase_address` was given. |
+| `default_coinbase_txid` | txid of that coinbase. |
+| `merkleroot` | Header merkle root of the unmodified template. |
+| `coinbase_address` | Echo of the request payout address. |
 
-There is **no** `default_pcorb_carrier` and **no** `default_convergence_commitment`. Leftover `OP_RETURN` tags (CVGE / RIGR / PCORB) are not template fields and are not consensus.
+There is no `default_res_mint`, no paid-winner field, and no convergence-root
+push. Leftover `OP_RETURN` tags (CVGE / RIGR / PCORB) are not template fields.
 
-Standard fields (`transactions`, `previousblockhash`, `bits`, `height`, `curtime`, `coinbasevalue`, …) follow BIP 22 / 145 behavior with Rigor’s dual-asset coinbase (see §2).
+### 1.2 `coinbasevalue`
 
-### 1.2 `coinbasevalue` (important)
-
-`coinbasevalue` is set from **only the first coinbase output** (`vout[0]`): **ORU block subsidy + claimable ORU-domain fees** collected from the template's non-coinbase transactions (RFC-018: the RES-transfer fee burn share is **not** claimed).
-
-It does **not** include:
-
-- RES draw issuance (`OP_RES_MINT` / `default_res_mint` — new RES, not taken from fees),
-- any historical RES-fee output (`nFeesRes` is **0** on production paths),
-- witness commitment (zero-value for ORU accounting).
-
-Pools that pay miners from **`coinbasevalue`** should treat it as **ORU** per `amount.h` / RPC conventions—not as "total block reward in all assets."
+`coinbasevalue` is the **ORU** value of coinbase `vout[0]`: block subsidy +
+claimable ORU-domain fees (RFC-018: the RES-transfer fee burn share is **not**
+claimed). RFC-020 subsidy is **0** at height 0 and **128 ORU**
+(`12 800 000 000` atoms) for every height ≥ 1. There is no ORU halving and
+no 1000 / 50 / 6.25 fallback. A fee-less height-1 template therefore has
+`coinbasevalue = 12800000000`.
 
 ---
 
-## 2. Coinbase construction order (`BlockAssembler::CreateNewBlock`)
+## 2. Coinbase layout
 
-Implementation: `src/node/miner.cpp`.
+1. **`vin[0]`** — null prevout; **`scriptSig`** = BIP34 height push.
+2. **`vout[0]`** — ORU payout:
+   `(nFeesOru - nFeesOruResTransferBurn) + GetBlockSubsidy(height)`.
+3. **Witness commitment** — BIP 141 `OP_RETURN`, appended when needed.
 
-### 2.0 Coinbase `vin[0].scriptSig` (BIP34 + ConvergenceRoot) — **consensus-critical**
+The coinbase must not carry a `0xbb` mint output. New RES is created only by
+body transactions that burn ORU and satisfy `CheckResMintArithmetic`.
 
-After **BIP34 / height-in-coinbase** is active on the chain (Rigor regtest/main-like deployments), the coinbase **`scriptSig` must match exactly** what the node builds:
+**Header grind:**
 
-- **Exactly three data pushes**, in order:
-  1. **BIP34 block height** — same encoding rules as Bitcoin Core (`CScript() << nHeight`: `OP_1`…`OP_16` for heights `1`…`16`, otherwise a minimal push of `CScriptNum`).
-  2. **32-byte ConvergenceRoot** — `uint256` equal to **`GetTemplateConvergenceRoot(block, parent, utxo_view_at_block_entry, consensus)`** (`src/validation.cpp`). That is the **windowed** C over unpaid tickets in the last **W=32** blocks ending at this height (this block's body plus the parent window tail). A **Hash256** over the concatenation of witness-stripped txids, sorted by `uint256` ascending (`ComputeConvergenceRootFromEligibilityTxids`).
+| Field | Mutable? |
+|--------|----------|
+| `nNonce` | **Yes — primary** |
+| `nTime` | **Yes**, within MTP / future-time rules. `mutable` lists only `time`. |
+| `nVersion` | Optional. Do not clobber consensus version bits. |
+| coinbase `scriptSig` | **Never** |
+| coinbase witness reserved value | **Never** — 32 zero bytes. |
 
-     Do **not** call `ComputeConvergenceRootFromConvergenceSet` from a producer: that helper is **block-local** (this body's tickets only) and is correct only for coinbase-only empty-F fixtures. Using it on a live window is `bad-cb-convergence-root`.
+A Bitcoin-style pool that writes `extranonce1 ‖ extranonce2` into `scriptSig`
+will have every block rejected.
 
-  3. **32-byte paid-winner txid** — the parent-draw winner this coinbase's `OP_RES_MINT` pays, or **32 zero bytes** when this block does not mint. GBT fields `default_coinbase_scriptsig` and `paid_winner_txid` are the copy-bytes / RPC-hex forms of this push.
-
-**F membership** (`ListConvergenceRootCommitmentTxids`): non-coinbase txs that are CONVERGE-marker-shaped, meet **MIN_CONVERGENCE_AMOUNT**, declare a RES payout owner (HASH160 in that lock), and pass **`CheckTxInputs`** against **UTXO at block entry**. This C is the **window** set (unpaid tickets in the last **W=32** blocks ending at this height), not “only this block’s body.” **Fee is relay policy, not F membership:** a zero-fee burn that otherwise verifies still enters F (`DEFAULT_MIN_RELAY_TX_FEE` keeps spam off the mempool; consensus does not require `fee > 0`).
-
-**C from F:**
-
-- **Empty F** (`n == 0`): all-zero `uint256()` (no hash).
-- **Any nonempty F** (`n >= 1`): `C = Hash256(concat(sort(txids)))`. A **singleton hashes** `Hash256(txid)`. There is **no** `|F| < 2 → zeros` shortcut.
-
-- **No fourth push**, no `OP_0` placeholder, and **no extranonce in `scriptSig`**. Trailing bytes fail as `convergence-root-cb-trailing-script-data`. Legacy `height + OP_0` coinbases fail `bad-cb-convergence-root`. A two-push `height ‖ C` coinbase fails `convergence-root-cb-missing-paid-winner-push`.
-
-- **Total `scriptSig` length** must still satisfy the global coinbase `scriptSig` size bounds (`CheckTransaction` in `src/consensus/tx_check.cpp`: **2–100 bytes**). The canonical height+C+paid-winner encoding is well inside that bound.
-
-The node compares **`scriptSig` byte-for-byte** to `BuildCoinbaseCommitmentScriptSig(nHeight, C, paid_winner)`; non-canonical encodings of the same height or root **fail**. Copy `default_coinbase_scriptsig` from GBT instead of re-encoding.
-
-### 2.0.1 SOLO search space (do not use Stratum extranonce)
-
-| Field | Use for hashing? | Notes |
-|--------|------------------|--------|
-| `nNonce` | **Yes — primary** | 32-bit header nonce. This is the native SOLO grind. |
-| `nTime` | **Yes** | Roll within median-time / MTP rules. GBT `mutable` lists only `time`. |
-| `nVersion` | Optional | Version rolling is allowed; do not clobber consensus version bits. |
-| coinbase `scriptSig` | **Never** | Occupied by BIP34 height + C + paid-winner. Extra bytes are consensus-invalid. |
-| coinbase witness reserved value | **Never** | Must be **32 zero bytes** (P0-014 L-1). The node writes zeros. Non-zero with a matching commitment is `bad-witness-reserved-nonce`. |
-
-A Bitcoin-style pool that writes `extranonce1 ‖ extranonce2` into the coinbase
-`scriptSig` will have **every** block rejected. That is intentional. Do not add
-a RIGOR "compatibility" push to make it work.
-
-**Fail-fast:** if `getblocktemplate` is used, copy `default_coinbase_scriptsig` and
-`default_res_mint` exactly. Do not invent a second mint output. Do not redirect
-the mint HASH160. `ConnectBlock` re-derives the winner from the parent.
-
----
-
-The built coinbase transaction is assembled in this **logical order**:
-
-1. **`vin[0]`** — null prevout; **`scriptSig`** as in §2.0 (height + 32-byte C + 32-byte paid-winner).
-
-2. **`vout[0]` — always**
-   - **Asset:** `ASSET_ORU`
-   - **Value:** `(nFeesOru - nFeesOruResTransferBurn) + GetBlockSubsidy(height)` (RFC-018: do not claim the RES-transfer ORU fee burn share)
-   - **`scriptPubKey`:** pool / miner payout (the `scriptPubKeyIn` passed into `CreateNewBlock`).
-
-3. **Optional — RES draw mint** (when the parent draw named a winner and `W(h) > 0`)
-   - **Asset:** `ASSET_RES`
-   - **Amount:** `GetResMintReward(height)`
-   - **`scriptPubKey`:** `OP_RES_MINT` paying the winner's declared HASH160.
-   - Inserted **before** the witness commitment. There is no PCORB restatement and no body-tx mint.
-
-4. **Witness commitment** — `ChainstateManager::GenerateCoinbaseCommitment` may **append** the standard **BIP 141** `OP_RETURN` witness commitment output (`src/validation.cpp`).
-
-**External miners:** copy `vout[0]` plus `default_res_mint` when present, plus the witness commitment. Copy `default_coinbase_scriptsig` into `vin[0].scriptSig`.
+**Fail-fast:** copy `default_coinbase_scriptsig`. Prefer `default_coinbase_tx`
+when present. Do not invent a RES mint output.
 
 ---
 
 ## 3. Leftover OP_RETURN tags (not consensus)
 
-**CVGE / RIGR / PCORB are not required.** Extra `OP_RETURN` outputs are allowed and ignored.
-
-What **is** consensus:
-
-- The unique window **C** lives in the coinbase **`scriptSig`** (§2.0).
-- New RES issuance is a coinbase **`OP_RES_MINT`** output (§4).
-- Parent **nBits** live in the **block header** (`prev_nbits` on GBT is informational).
-
-Historical CVGE / RIGR / PCORB encodings may still appear as leftover `OP_RETURN` bytes in old software. `ConnectBlock` does **not** require them, match them, or pair a mint with a PCORB carrier. Do not copy those outputs from archived templates.
-
-`convergence_draw.eligible_root` on GBT is the flat hash of the **inequality-eligible** subset (same concat-then-Hash256 shape as C). It is **not** a coinbase commitment.
-
-**Inspection RPC:** `getblockconvergence <hash|height>` and **`getconvergenceresult`** remain useful for debugging committed vs recomputed window C / draw fields. Some `getblock` JSON keys remain **wire-stable** historical spellings (e.g. `arda_target`, `arda_winner`); integrators should treat them as opaque RPC keys, not product names.
+CVGE / RIGR / PCORB are not required. Extra `OP_RETURN` outputs are allowed
+and ignored.
 
 ---
 
-## 4. RES mint (coinbase `OP_RES_MINT`)
-
-Design summary (mint vs user transfer): see [protocol_design.md](./protocol_design.md).
-
-**Constants:** `src/consensus/rigor_consensus_lock.h`, `src/consensus/res_amount.h`
-
-- **RES amounts:** Integer **atomic units** with **`RES_COIN`** scaling per **1.00 RES** (two decimal places). **`RES_REWARD_AMOUNT`** documents the nominal draw unit when applicable.
-
-**Consensus (normative):** New RES issuance is validated only via **`rigor::ConnectEvaluateCoinbaseResMint`** (`src/consensus/rigor_res.cpp`) over the coinbase **`OP_RES_MINT`** output. When the parent draw named a winner and `W(h) > 0`, GBT **`default_res_mint`** must be copied into the reconstructed coinbase. There is no PCORB carrier and no body-tx mint.
-
-**Removed / forbidden:** Coinbase-derived program APIs (`GetOruOnlyCoinbaseTxId`, `ResMintWitnessProgram`, …) remain as **hard-failing stubs** so accidental use aborts at runtime.
-
-Native **user** RES outputs (transfers, not issuance) remain **witness version 1** with a **32-byte program** per `script/standard.cpp`. The mint lock itself is **`OP_RES_MINT`**.
-
----
-
-## 5. Recommended integration patterns
-
-### A. Node-assembles coinbase (simplest)
+## 4. Recommended integration
 
 1. `getblocktemplate '{"rules":["segwit"]}'`
-2. Take **`transactions`**, **`previousblockhash`**, **`bits`**, **`height`**, **`curtime`**, and the hex coinbase from the **serialized block** if your stack reconstructs the full block from the node — or run a **local** `generatetoaddress` / internal miner for testing.
+2. Copy `default_coinbase_scriptsig` (or `default_coinbase_tx` when present).
+3. Grind `nNonce`. The only advertised mutable header field is `time`.
+4. `submitblock`.
 
-3. For production SOLO, **copy `default_coinbase_scriptsig`**. Do not re-encode CScriptNum / pushes.
-   Prefer `generatetoaddress` / the node's assembler, or `submitblock` of a block whose
-   coinbase the node already validated. The only advertised mutable header field is
-   `time`. Grind `nNonce`. There is no supported extranonce in `scriptSig`. The witness
-   reserved value must stay 32 zero bytes.
-
-**Rigor constraint:** Any custom coinbase must replicate **ORU `vout[0]` + optional `OP_RES_MINT` + witness commitment** ordering and formulas above, with **height ‖ C ‖ paid-winner** in `scriptSig`.
-
-### B. `-miningresfeeaddr` (mockable chains only)
-
-Network fees remain **ORU-only**. Production has no RES fee accumulator. This flag is **rejected at startup on non-mockable chains** and is **not** a RES-fee destination or mint arming switch.
-
-On mockable chains (devtest / regtest) it is the bootstrap sink for `-reswalletbootstrap`:
-
-```text
--miningresfeeaddr=<bech32 witness-v1-RES address>
-```
-
-The prize still pays the draw winner via `OP_RES_MINT`, not this address.
-
-### C. Inspection and debugging
-
-| RPC | Purpose |
-|-----|---------|
-| `getblockconvergence` | Parsed convergence fields from a mined block |
-| `getconvergenceresult` | Draw bind, target, candidates, committed vs computed |
-| `getconvergenceinfo` / `getconvergencerank` | Additional convergence / ranking helpers |
+`-miningresfeeaddr` is rejected on non-mockable chains. It is not a mint switch.
 
 ---
 
-## 6. Code map
+## 5. Code map
 
 | Topic | Location |
 |--------|-----------|
-| GBT + `default_coinbase_scriptsig` / `paid_winner_txid` / `default_res_mint` / `convergence_root` / `convergence_draw` | `src/rpc/mining.cpp` |
-| Coinbase assembly, ORU fees, RFC-018 burn, `OP_RES_MINT` | `src/node/miner.cpp` |
-| ConvergenceRoot (body txid set + coinbase `scriptSig` check) | `src/consensus/convergence_root.{h,cpp}`, `convergence_root_eligibility.cpp`, `ContextualCheckBlock` in `src/validation.cpp` |
-| RES mint (coinbase only) | `src/consensus/rigor_res.cpp` (`ConnectEvaluateCoinbaseResMint`) |
-| RES units | `src/consensus/res_amount.h` |
-| `ConnectBlock` coinbase checks | `src/validation.cpp`, `src/connect_block_rigor_checks.cpp` |
-| Draw / reward rules | [convergence-consensus-v1.md](./convergence-consensus-v1.md) |
-
----
-
-## 7. Testing (RES mint randomness)
-
-- **Functional (weak):** `test/functional/feature_rigor_convergence_rng_consensus.py` mines **≥2** convergence txs in one block on **devtest** and asserts **deterministic** inspection RPCs (`getconvergenceresult`, `getblockconvergence`), **without** asserting whether a RES draw mint appears (draw can be probabilistic).
-- **Unit:** `test/res_orum_tests.cpp`, `test/rigor_witness_tx_tests.cpp` (witness path + RES classification).
-
-## 8. See also
-
-- [convergence-consensus-v1.md](./convergence-consensus-v1.md) — convergence draw, RES mint predicates, supply cap, retarget
-- `convergence-integration-directive.md` — fee layer vs draw layer
+| GBT | `src/rpc/mining.cpp` |
+| Coinbase assembly, ORU fees, RFC-018 burn | `src/node/miner.cpp` |
+| Coinbase layout lock | `src/consensus/rigor_coinbase_layout.h` |
+| RES mint (body tx) | `src/consensus/res_issuance.h`, `src/consensus/tx_verify.cpp` |
+| `ConnectBlock` | `src/validation.cpp` |

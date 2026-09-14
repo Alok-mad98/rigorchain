@@ -10,7 +10,7 @@
 
     Not a full-node, LevelDB, network, wallet, CompCert, or VST proof.
 
-      refinement_proved                    = true   (this composition)
+      refinement_proved                    = false  (composition; issuance kernel withdrawn; mint-equals-schedule is not C++)
       equivalence_proved                   = false
       extracted_kernel_production          = false
       compcert_binary_verified_kernel      = false
@@ -35,14 +35,14 @@ Module T := TransactionKernelRefinement.
 
 (** * Honesty *)
 
-Definition refinement_proved : bool := true.
+Definition refinement_proved : bool := false.
 Definition equivalence_proved : bool := false.
 Definition extracted_kernel_production : bool := false.
 Definition extracted_kernel_linked : bool := extracted_kernel_production.
 Definition compcert_binary_verified_kernel : bool := false.
 Definition full_node_refinement : bool := false.
 
-Theorem composition_refinement_proved : refinement_proved = true.
+Theorem composition_refinement_proved : refinement_proved = false.
 Proof. reflexivity. Qed.
 
 Theorem node_equivalence_not_proved : equivalence_proved = false.
@@ -88,9 +88,9 @@ Definition valid_input (i : UTXOStateTransitionInput) : Prop :=
   0 <= sti_height i /\
   sti_issuance i =
     C.cpp_GetBlockSubsidy (sti_height i) C.FrozenKernelParams /\
-  sti_res_schedule i = C.cpp_GetResMintReward (sti_height i) /\
+  sti_res_schedule i = C.cpp_ResDestroyCostAtHeight (sti_height i) /\
   (sti_res_mint i = 0 \/
-   sti_res_mint i = C.cpp_GetResMintReward (sti_height i)) /\
+   sti_res_mint i = C.cpp_ResDestroyCostAtHeight (sti_height i)) /\
   (sti_height i = 0 ->
      sti_issuance i = 0 /\ sti_res_mint i = 0 /\ sti_draw_none i = true) /\
   L.lki_height (sti_ledger i) = sti_height i.
@@ -129,7 +129,7 @@ Definition cpp_issuance_ok (i : UTXOStateTransitionInput) : bool :=
   (iss =? 0) || (iss =? sub).
 
 Definition cpp_res_mint_ok (i : UTXOStateTransitionInput) : bool :=
-  let sched := C.cpp_GetResMintReward (sti_height i) in
+  let sched := C.cpp_ResDestroyCostAtHeight (sti_height i) in
   let mint := sti_res_mint i in
   (mint =? 0) || (mint =? sched).
 
@@ -143,7 +143,7 @@ Definition cpp_assemble (i : UTXOStateTransitionInput) : L.LedgerKernelInput :=
        {| L.ckr_accept := true;
           L.ckr_oru_issuance := if sti_height i =? 0 then 0 else sti_issuance i;
           L.ckr_res_mint := if sti_height i =? 0 then 0 else sti_res_mint i;
-          L.ckr_res_schedule := C.cpp_GetResMintReward (sti_height i) |};
+          L.ckr_res_schedule := C.cpp_ResDestroyCostAtHeight (sti_height i) |};
      L.lki_fee := L.lki_fee (sti_ledger i);
      L.lki_burn := L.lki_burn (sti_ledger i);
      L.lki_converge := L.lki_converge (sti_ledger i);
@@ -176,7 +176,7 @@ Theorem consensus_gate :
     L.ckr_accept (L.lki_ck (assemble_ledger i)) = true /\
     sti_issuance i =
       C.cpp_GetBlockSubsidy (sti_height i) C.FrozenKernelParams /\
-    sti_res_schedule i = C.cpp_GetResMintReward (sti_height i).
+    sti_res_schedule i = C.cpp_ResDestroyCostAtHeight (sti_height i).
 Proof.
   intros i Hv Ha.
   unfold valid_input in Hv.
@@ -264,11 +264,14 @@ Theorem state_transition_refinement_id :
     CppStateTransition i = CoqStateTransition i.
 Proof. exact state_transition_refinement. Qed.
 
+(** Model-internal: mint must be 0 or GetResMintReward. That is not the
+    RFC-020 C++ pole predicate (any R the burn admits). Do not read this
+    as ConnectBlock. refinement_proved stays false until that gap closes. *)
 Theorem cpp_rejects_unscheduled_res_mint :
   forall i,
     0 <= sti_height i ->
     sti_res_mint i <> 0 ->
-    sti_res_mint i <> C.cpp_GetResMintReward (sti_height i) ->
+    sti_res_mint i <> C.cpp_ResDestroyCostAtHeight (sti_height i) ->
     L.lko_accept (CppStateTransition i) = false.
 Proof.
   intros i Hh Hnz Hne.
@@ -279,7 +282,7 @@ Proof.
   unfold cpp_res_mint_ok.
   destruct (sti_res_mint i =? 0) eqn:Z0.
   { apply Z.eqb_eq in Z0. contradiction. }
-  destruct (sti_res_mint i =? C.cpp_GetResMintReward (sti_height i)) eqn:Zs.
+  destruct (sti_res_mint i =? C.cpp_ResDestroyCostAtHeight (sti_height i)) eqn:Zs.
   { apply Z.eqb_eq in Zs. contradiction. }
   reflexivity.
 Qed.
@@ -288,8 +291,8 @@ Theorem prior_tx_kernel_still_true :
   T.refinement_proved = true.
 Proof. reflexivity. Qed.
 
-Theorem prior_consensus_kernel_still_true :
-  C.refinement_proved = true.
+Theorem prior_consensus_kernel_withdrawn :
+  C.refinement_proved = false.
 Proof. reflexivity. Qed.
 
 Theorem prior_ledger_kernel_still_true :
@@ -298,5 +301,5 @@ Proof. reflexivity. Qed.
 
 Theorem genesis_issuance_predicates :
   C.cpp_GetBlockSubsidy 0 C.FrozenKernelParams = 0 /\
-  C.cpp_GetResMintReward 0 = 40000000.
+  C.cpp_ResDestroyCostAtHeight 0 = 102400000000.
 Proof. split; vm_compute; reflexivity. Qed.

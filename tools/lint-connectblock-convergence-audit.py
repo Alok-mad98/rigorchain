@@ -26,9 +26,6 @@ MANIFEST = ROOT / "formal_verification/connectblock_convergence_audit_manifest.j
 REQUIRED_GATES = (
     "CheckBlock(",
     "bad-txns-BIP30",
-    "GetConvergenceDrawSetForBlock",
-    "RigorConsensusKernel::ResolveDraw",
-    "ValidateCoinbaseConvergenceRootScriptSig",
     "CheckTxInputs",
     "CheckInputScripts",
     "UpdateCoins(",
@@ -118,9 +115,10 @@ def main() -> int:
         else:
             print("NOTE: RollforwardBlock applies coins without consensus (crash recovery only)")
 
-    rigor = CONNECT_RIGOR.read_text(encoding="utf-8", errors="replace")
-    if "VerifyCoinbaseConvergenceAndResLayout" not in rigor:
-        errors.append("missing dead helper file used as unused-duplicate evidence")
+    if CONNECT_RIGOR.is_file():
+        rigor = CONNECT_RIGOR.read_text(encoding="utf-8", errors="replace")
+        if "VerifyCoinbaseConvergenceAndResLayout" not in rigor:
+            errors.append("missing dead helper file used as unused-duplicate evidence")
     if "VerifyCoinbaseConvergenceAndResLayout" in cb:
         errors.append("dead ConnectBlockRigor helper became wired — second RES authority")
 

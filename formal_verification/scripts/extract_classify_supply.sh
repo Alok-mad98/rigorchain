@@ -18,7 +18,7 @@ fi
 
 mkdir -p "$OUT"
 cd "$COQ"
-coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ExtractClassifySupply.v
+coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ExtractClassifySupply.v
 
 for f in classify_kernel.ml classify_kernel.mli supply_kernel.ml supply_kernel.mli \
          sighash_kernel.ml sighash_kernel.mli; do

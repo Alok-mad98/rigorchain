@@ -22,10 +22,10 @@ From Rigor Require Import ResSchedule.
 
 Open Scope Z_scope.
 
-(* Z-height H-1 / without-winner pins for EdgeCross window_obligation rows.
-   Same forms as NegativeCoreHarness; not a claim that cm_draw_won is the
+(* Z-height leftover H-1 / without-winner pins for EdgeCross window_obligation.
+   RFC-020 authorizes every h >= 0. Not a claim that cm_draw_won is the
    Selection winner (P1-2 remains open). *)
-Definition res_mint_authorized_at (h : Z) : bool := Z.gtb (get_res_mint_reward h) 0.
+Definition res_mint_authorized_at (h : Z) : bool := 0 <=? h.
 Definition winner_mismatch_at (h : Z) (won : bool) (n : nat) : bool :=
   andb (res_mint_authorized_at h) (andb won (negb (Nat.eqb n 1%nat))).
 Definition without_winner_at (won : bool) (n : nat) : bool :=
@@ -885,16 +885,16 @@ Proof. vm_cast_no_check (eq_refl true). Qed.
 Definition chk_189 : bool := andb (smw_asset_eqb (asset_from_script [81;20;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) SmwInvalid) (andb (negb (is_allowed_script [81;20;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat)) (negb (is_res_script [81;20;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat))).
 Lemma golden_SASS_010 : chk_189 = true.
 Proof. vm_cast_no_check (eq_refl true). Qed.
-(* XFAM-003 EdgeCross kind=root_mint reject=c_mismatch+mint_wrong_amount *)
-Definition chk_190 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes [[140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185]%nat;[65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat]) [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat) (andb (Nat.eqb (length [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;93]%nat) 32) (negb (blist_eq [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;93]%nat [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat)))) (negb (Z.eqb (40000001) (get_res_mint_reward 1))).
+(* XFAM-003 EdgeCross kind=root_mint reject=c_mismatch+burn_insufficient *)
+Definition chk_190 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes [[140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185]%nat;[65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat]) [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat) (andb (Nat.eqb (length [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;93]%nat) 32) (negb (blist_eq [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;93]%nat [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat)))) (negb (Z.eqb (2) (res_destroy_cost_at_height 1))).
 Lemma golden_XFAM_003 : chk_190 = true.
 Proof. vm_cast_no_check (eq_refl true). Qed.
 (* XFAM-004 EdgeCross kind=root_cap reject=malformed_length+cap_overshoot *)
-Definition chk_191 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes []) [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) (andb (Nat.eqb (length [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) 32) (negb (Nat.eqb (length [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) 32)))) (negb (Z.leb (20999960000001 + (get_res_mint_reward 1)) RES_MAX_SUPPLY)).
+Definition chk_191 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes []) [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) (andb (Nat.eqb (length [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) 32) (negb (Nat.eqb (length [0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0]%nat) 32)))) (negb (Z.leb (419430400000000 + 1) RES_MAX_SUPPLY)).
 Lemma golden_XFAM_004 : chk_191 = true.
 Proof. vm_cast_no_check (eq_refl true). Qed.
 (* XFAM-005 EdgeCross kind=root_cap reject=unsorted+cap_overshoot *)
-Definition chk_192 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes [[140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185]%nat;[65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat]) [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat) (andb (blist_eq (hash256_bytes [140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185;65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat) [195;14;110;101;21;48;15;116;12;207;6;167;134;41;188;177;114;187;112;44;28;22;186;189;5;81;187;36;150;132;148;54]%nat) (negb (blist_eq [195;14;110;101;21;48;15;116;12;207;6;167;134;41;188;177;114;187;112;44;28;22;186;189;5;81;187;36;150;132;148;54]%nat [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat)))) (negb (Z.leb (21000000000000 + (get_res_mint_reward 1)) RES_MAX_SUPPLY)).
+Definition chk_192 : bool := andb (andb (blist_eq (convergence_root_from_txid_bytes [[140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185]%nat;[65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat]) [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat) (andb (blist_eq (hash256_bytes [140;185;1;37;23;200;23;254;173;101;2;135;214;27;221;156;104;128;59;107;249;198;65;51;220;171;62;101;181;165;12;185;65;247;88;242;229;204;7;141;55;149;180;252;12;182;12;45;115;95;169;44;192;32;87;43;220;152;45;210;213;100;209;27]%nat) [195;14;110;101;21;48;15;116;12;207;6;167;134;41;188;177;114;187;112;44;28;22;186;189;5;81;187;36;150;132;148;54]%nat) (negb (blist_eq [195;14;110;101;21;48;15;116;12;207;6;167;134;41;188;177;114;187;112;44;28;22;186;189;5;81;187;36;150;132;148;54]%nat [43;109;147;93;159;94;53;166;75;14;244;144;122;235;131;92;78;111;37;221;240;49;169;111;128;120;82;53;80;126;211;92]%nat)))) (negb (Z.leb (419430400000000 + 1) RES_MAX_SUPPLY)).
 Lemma golden_XFAM_005 : chk_192 = true.
 Proof. vm_cast_no_check (eq_refl true). Qed.
 (* XFAM-006 EdgeCross kind=window_dcr_sel reject=empty_after_pay *)

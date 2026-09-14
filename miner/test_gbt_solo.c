@@ -1,6 +1,8 @@
 #include "gbt_solo.h"
-#include "opus_hash.h"
+#include "rgrpow.h"
+#include "arith_uint256.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,24 +22,25 @@ static void expect(int cond, const char *name)
 	}
 }
 
+/* RFC-020: height ≥ 1 coinbase subsidy is 128 ORU = 12_800_000_000 atoms.
+ * Height-1 GBT fixtures use this so they cannot be read as the retired
+ * 1000 ORU / three-halving schedule. */
+#define ORU_FLAT_BLOCK_SUBSIDY_ATOMS 12800000000LL
+
 static const uint8_t kPayoutV0[22] = {
 	0x00, 0x14,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-/* Height 1 = OP_1, C = 0x11*32, paid-winner = 0. */
-static const char *kScriptSigH1ZeroWinner =
-	"51201111111111111111111111111111111111111111111111111111111111111111"
-	"200000000000000000000000000000000000000000000000000000000000000000";
+/* Height 1 = OP_1 plus OP_0 padding (BuildCoinbaseScriptSig). */
+static const char *kScriptSigH1 = "5100";
 
 static const char *kEmptyWitnessCommitment =
 	"6a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9";
 
 static const char *kRegtestTarget =
 	"7fffff0000000000000000000000000000000000000000000000000000000000";
-static const char *kRoot11 =
-	"1111111111111111111111111111111111111111111111111111111111111111";
 static const char *kZeroTxid =
 	"0000000000000000000000000000000000000000000000000000000000000000";
 static const char *kOneTxid =
@@ -122,7 +125,7 @@ static void bin2hex_disp(char *out, const uint8_t *p, int len, bool reverse)
 /*
  * Knobs for building malformed coinbases. Defaults reproduce exactly what
  * CreateNewBlock emits: nVersion 2, final sequence, nLockTime 0, witness
- * serialization, and outputs ordered payout, optional RES mint, commitment.
+ * serialization, and outputs ordered payout then witness commitment.
  */
 struct cb_opts {
 	int64_t value;
@@ -144,7 +147,7 @@ static struct cb_opts cb_defaults(void)
 	struct cb_opts o;
 
 	memset(&o, 0, sizeof(o));
-	o.value = 1000000000LL;
+	o.value = ORU_FLAT_BLOCK_SUBSIDY_ATOMS;
 	o.version = 2;
 	o.sequence = 0xffffffffu;
 	return o;
@@ -274,15 +277,12 @@ static bool make_default_coinbase_tx(struct cb_fixture *fx,
 	return make_coinbase_tx(fx, scriptsig_hex, &o);
 }
 
-static char *gbt_json(const char *scriptsig, const char *paid_winner,
-		      const char *mint_obj, const char *mint_spk_hex,
-		      int64_t mint_value)
+static char *gbt_json(const char *scriptsig)
 {
 	static char buf[8192];
 	struct cb_fixture fx;
 
-	if (!make_default_coinbase_tx(&fx, scriptsig, 1000000000LL,
-				      mint_spk_hex, mint_value)) {
+	if (!make_default_coinbase_tx(&fx, scriptsig, ORU_FLAT_BLOCK_SUBSIDY_ATOMS, NULL, 0)) {
 		expect(0, "coinbase fixture");
 		return "{}";
 	}
@@ -292,7 +292,7 @@ static char *gbt_json(const char *scriptsig, const char *paid_winner,
 		 "\"rules\":[\"segwit\"],"
 		 "\"previousblockhash\":\"11%062d\","
 		 "\"transactions\":[],"
-		 "\"coinbasevalue\":1000000000,"
+		 "\"coinbasevalue\":%lld,"
 		 "\"curtime\":1700000000,"
 		 "\"mintime\":1,"
 		 "\"maxtime\":2000000000,"
@@ -305,15 +305,11 @@ static char *gbt_json(const char *scriptsig, const char *paid_winner,
 		 "\"default_coinbase_tx\":\"%s\","
 		 "\"default_coinbase_txid\":\"%s\","
 		 "\"merkleroot\":\"%s\","
-		 "\"paid_winner_txid\":\"%s\","
-		 "\"convergence_root\":\"%s\","
-		 "\"default_witness_commitment\":\"%s\"%s%s"
+		 "\"default_witness_commitment\":\"%s\""
 		 "}",
-		 0, kRegtestTarget, scriptsig, fx.tx_hex, fx.txid_display,
-		 fx.txid_display, paid_winner, kRoot11,
-		 kEmptyWitnessCommitment,
-		 mint_obj ? "," : "",
-		 mint_obj ? mint_obj : "");
+		 0, (long long)ORU_FLAT_BLOCK_SUBSIDY_ATOMS, kRegtestTarget,
+		 scriptsig, fx.tx_hex, fx.txid_display,
+		 fx.txid_display, kEmptyWitnessCommitment);
 	return buf;
 }
 
@@ -322,18 +318,17 @@ static void test_valid_copy_bytes(void)
 	char err[256];
 	struct gbt_solo_out out;
 	const char *cb_hex;
-	json_t *gbt = load_obj(gbt_json(kScriptSigH1ZeroWinner, "0000000000000000000000000000000000000000000000000000000000000000", NULL, NULL, 0));
+	json_t *gbt = load_obj(gbt_json(kScriptSigH1));
 	if (!gbt)
 		return;
 	cb_hex = json_string_value(json_object_get(gbt, "default_coinbase_tx"));
 	expect(gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)), "valid GBT assembles");
 	expect(out.height == 1, "height 1");
-	expect(out.coinbasevalue == 1000000000LL, "coinbasevalue copied");
-	expect(out.scriptsig_len == 1 + 1 + 32 + 1 + 32, "scriptSig 3-push length");
+	expect(out.coinbasevalue == ORU_FLAT_BLOCK_SUBSIDY_ATOMS, "coinbasevalue is 128 ORU");
+	expect(out.scriptsig_len == 2, "scriptSig BIP34 height + OP_0 padding");
 	expect(out.scriptsig[0] == 0x51, "height OP_1");
-	expect(out.scriptsig[1] == 0x20, "C OP_PUSHBYTES_32");
-	expect(out.scriptsig[34] == 0x20, "paid-winner OP_PUSHBYTES_32");
-	expect(out.has_mint == 0, "no mint when winner is zero");
+	expect(out.scriptsig[1] == 0x00, "padding OP_0");
+	expect(out.has_mint == 0, "RFC-020 coinbase does not mint RES");
 	expect(memcmp(out.witness_commitment, (const uint8_t[]){
 		0x6a, 0x24, 0xaa, 0x21, 0xa9, 0xed
 	}, 6) == 0, "witness commitment header copied");
@@ -367,7 +362,7 @@ static void test_valid_copy_bytes(void)
 			ss_hex[2 * i + 1] = hex[out.scriptsig[i] & 0xf];
 		}
 		ss_hex[2 * out.scriptsig_len] = 0;
-		expect(strcmp(ss_hex, kScriptSigH1ZeroWinner) == 0, "scriptSig byte-identical to GBT");
+		expect(strcmp(ss_hex, kScriptSigH1) == 0, "scriptSig byte-identical to GBT");
 	}
 	{
 		char cb_got[4096];
@@ -399,102 +394,82 @@ static void test_valid_copy_bytes(void)
 	json_decref(gbt);
 }
 
-static void test_res_mint_pushbytes_1_05(void)
+static void test_reject_lottery_gbt_fields(void)
 {
 	char err[256];
 	struct gbt_solo_out out;
-	const char *mint =
-		"\"default_res_mint\":{\"value\":40000000,"
-		"\"scriptPubKey\":\"0105141111111111111111111111111111111111111111bb\"}";
-	const char *ss =
-		"51201111111111111111111111111111111111111111111111111111111111111111"
-		"201111111111111111111111111111111111111111111111111111111111111111";
-	/* paid_winner display = reverse of native 0x11*32 */
-	char paid[65];
-	int i;
-	for (i = 0; i < 32; i++) {
-		paid[2 * i] = '1';
-		paid[2 * i + 1] = '1';
+	json_t *gbt;
+
+	gbt = load_obj(gbt_json(kScriptSigH1));
+	if (!gbt)
+		return;
+	json_object_set_new(gbt, "paid_winner_txid", json_string(kZeroTxid));
+	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
+	       "paid_winner_txid refused");
+	expect(strstr(err, "paid_winner_txid") != NULL, "error names paid_winner_txid");
+	gbt_solo_out_free(&out);
+	json_decref(gbt);
+
+	gbt = load_obj(gbt_json(kScriptSigH1));
+	if (!gbt)
+		return;
+	json_object_set_new(gbt, "convergence_root", json_string(kZeroTxid));
+	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
+	       "convergence_root refused");
+	expect(strstr(err, "convergence_root") != NULL, "error names convergence_root");
+	gbt_solo_out_free(&out);
+	json_decref(gbt);
+
+	gbt = load_obj(gbt_json(kScriptSigH1));
+	if (!gbt)
+		return;
+	json_t *mint = json_object();
+	json_object_set_new(mint, "value", json_integer(40000000));
+	json_object_set_new(mint, "scriptPubKey",
+			    json_string("0105141111111111111111111111111111111111111111bb"));
+	json_object_set_new(gbt, "default_res_mint", mint);
+	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
+	       "default_res_mint refused");
+	expect(strstr(err, "default_res_mint") != NULL, "error names default_res_mint");
+	gbt_solo_out_free(&out);
+	json_decref(gbt);
+}
+
+static void test_reject_coinbase_res_mint(void)
+{
+	char err[256];
+	struct gbt_solo_out out;
+	struct cb_fixture fx;
+	char buf[8192];
+
+	if (!make_default_coinbase_tx(&fx, kScriptSigH1, ORU_FLAT_BLOCK_SUBSIDY_ATOMS,
+				      "0105141111111111111111111111111111111111111111bb",
+				      40000000LL)) {
+		expect(0, "mint coinbase fixture");
+		return;
 	}
-	paid[64] = 0;
-	json_t *gbt = load_obj(gbt_json(ss, paid, mint,
-		"0105141111111111111111111111111111111111111111bb", 40000000LL));
-	if (!gbt)
-		return;
-	expect(gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)), "mint GBT assembles");
-	expect(out.has_mint == 1, "mint present");
-	expect(out.mint_spk_len == 24, "canonical mint script length");
-	expect(out.mint_spk[0] == 0x01 && out.mint_spk[1] == 0x05, "OP_PUSHBYTES_1 0x05");
-	expect(out.mint_spk[0] != 0x55, "not OP_5");
-	expect(out.mint_spk[23] == 0xbb, "OP_RES_MINT");
-	{
-		int i, found = 0;
-		for (i = 0; i + out.mint_spk_len <= out.coinbase_wit_len; i++) {
-			if (memcmp(out.coinbase_wit + i, out.mint_spk, (size_t)out.mint_spk_len) == 0)
-				found = 1;
-		}
-		expect(found, "copied coinbase retains default_res_mint");
-	}
-	gbt_solo_out_free(&out);
-	json_decref(gbt);
-}
-
-static void test_reject_op5_mint(void)
-{
-	char err[256];
-	struct gbt_solo_out out;
-	const char *mint =
-		"\"default_res_mint\":{\"value\":40000000,"
-		"\"scriptPubKey\":\"55141111111111111111111111111111111111111111bb\"}";
-	const char *ss =
-		"51201111111111111111111111111111111111111111111111111111111111111111"
-		"201111111111111111111111111111111111111111111111111111111111111111";
-	char paid[65];
-	int i;
-	for (i = 0; i < 64; i++)
-		paid[i] = '1';
-	paid[64] = 0;
-	json_t *gbt = load_obj(gbt_json(ss, paid, mint, NULL, 0));
-	if (!gbt)
-		return;
-	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)), "OP_5 mint refused");
-	expect(strstr(err, "OP_PUSHBYTES") != NULL, "OP_5 error names PUSHBYTES");
-	gbt_solo_out_free(&out);
-	json_decref(gbt);
-}
-
-static void test_reject_two_push(void)
-{
-	char err[256];
-	struct gbt_solo_out out;
-	const char *ss =
-		"51201111111111111111111111111111111111111111111111111111111111111111";
-	json_t *gbt = load_obj(gbt_json(ss, "0000000000000000000000000000000000000000000000000000000000000000", NULL, NULL, 0));
-	if (!gbt)
-		return;
-	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)), "2-push scriptSig refused");
-	gbt_solo_out_free(&out);
-	json_decref(gbt);
-}
-
-static void test_reject_missing_paid_winner(void)
-{
-	char err[256];
-	struct gbt_solo_out out;
-	char buf[4096];
 	snprintf(buf, sizeof(buf),
-		 "{\"version\":536870912,\"rules\":[\"segwit\"],"
-		 "\"previousblockhash\":\"%064d\",\"transactions\":[],"
-		 "\"coinbasevalue\":1,\"curtime\":1,\"mintime\":1,\"maxtime\":2000000000,"
-		 "\"bits\":\"207fffff\",\"height\":1,"
+		 "{"
+		 "\"version\":536870912,\"rules\":[\"segwit\"],"
+		 "\"previousblockhash\":\"11%062d\",\"transactions\":[],"
+		 "\"coinbasevalue\":%lld,\"curtime\":1700000000,"
+		 "\"mintime\":1,\"maxtime\":2000000000,\"mutable\":[\"time\"],"
+		 "\"bits\":\"207fffff\",\"target\":\"%s\",\"height\":1,"
 		 "\"rigor_coinbase_immutable\":true,"
 		 "\"default_coinbase_scriptsig\":\"%s\","
+		 "\"default_coinbase_tx\":\"%s\","
+		 "\"default_coinbase_txid\":\"%s\","
+		 "\"merkleroot\":\"%s\","
 		 "\"default_witness_commitment\":\"%s\"}",
-		 0, kScriptSigH1ZeroWinner, kEmptyWitnessCommitment);
+		 0, (long long)ORU_FLAT_BLOCK_SUBSIDY_ATOMS, kRegtestTarget,
+		 kScriptSigH1, fx.tx_hex, fx.txid_display,
+		 fx.txid_display, kEmptyWitnessCommitment);
 	json_t *gbt = load_obj(buf);
 	if (!gbt)
 		return;
-	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)), "missing paid_winner refused");
+	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
+	       "coinbase 0xbb mint refused");
+	expect(strstr(err, "must not mint RES") != NULL, "error names coinbase mint ban");
 	gbt_solo_out_free(&out);
 	json_decref(gbt);
 }
@@ -504,7 +479,7 @@ static void test_reject_p2pkh_payout(void)
 	char err[256];
 	struct gbt_solo_out out;
 	uint8_t p2pkh[25];
-	json_t *gbt = load_obj(gbt_json(kScriptSigH1ZeroWinner, "0000000000000000000000000000000000000000000000000000000000000000", NULL, NULL, 0));
+	json_t *gbt = load_obj(gbt_json(kScriptSigH1));
 	memset(p2pkh, 0x76, sizeof(p2pkh));
 	if (!gbt)
 		return;
@@ -522,69 +497,155 @@ static void test_reject_height0(void)
 	snprintf(buf, sizeof(buf),
 		 "{\"version\":536870912,\"rules\":[\"segwit\"],"
 		 "\"previousblockhash\":\"%064d\",\"transactions\":[],"
-		 "\"coinbasevalue\":0,\"curtime\":1,\"bits\":\"207fffff\","
+		 "\"coinbasevalue\":0,\"curtime\":1,\"mintime\":1,\"maxtime\":2000000000,"
+		 "\"bits\":\"207fffff\","
 		 "\"target\":\"%s\",\"height\":0,"
 		 "\"rigor_coinbase_immutable\":true,"
 		 "\"default_coinbase_scriptsig\":\"%s\","
-		 "\"paid_winner_txid\":\"%064d\","
-		 "\"convergence_root\":\"%s\","
 		 "\"default_witness_commitment\":\"%s\"}",
-		 0, kRegtestTarget, kScriptSigH1ZeroWinner, 0, kRoot11,
-		 kEmptyWitnessCommitment);
+		 0, kRegtestTarget, kScriptSigH1, kEmptyWitnessCommitment);
 	gbt = load_obj(buf);
 	if (!gbt)
 		return;
 	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
-	       "height 0 GBT refused (no genesis mining / no 1000 ORU fallback)");
+	       "height 0 GBT refused (genesis subsidy 0; no 1000 ORU fallback)");
 	gbt_solo_out_free(&out);
 	json_decref(gbt);
 }
 
-static void test_reject_missing_mint(void)
+static int rgrpow_meets_nbits(const uint8_t digest[32], uint32_t nbits)
 {
-	char err[256];
-	struct gbt_solo_out out;
-	const char *ss =
-		"51201111111111111111111111111111111111111111111111111111111111111111"
-		"201111111111111111111111111111111111111111111111111111111111111111";
-	json_t *gbt = load_obj(gbt_json(ss, kRoot11, NULL, NULL, 0));
-	if (!gbt)
-		return;
-	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
-	       "nonzero paid_winner without default_res_mint refused");
-	gbt_solo_out_free(&out);
-	json_decref(gbt);
+	arith_uint256 hash, target;
+	bool neg = false, over = false;
+	int i;
+
+	memset(&hash, 0, sizeof(hash));
+	for (i = 0; i < 8; i++)
+		hash.data[i] = (uint32_t)digest[4 * i]
+			     | ((uint32_t)digest[4 * i + 1] << 8)
+			     | ((uint32_t)digest[4 * i + 2] << 16)
+			     | ((uint32_t)digest[4 * i + 3] << 24);
+	arith_uint256_set_compact(&target, nbits, &neg, &over);
+	if (over || neg || nbits == 0)
+		return 0;
+	return arith_uint256_compare(&hash, &target) <= 0;
 }
 
-static void test_opuhash_vectors(void)
+static void test_sha3_fips202_abc(void)
 {
-	static const uint8_t base0[32] = {
-		0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-	};
-	static const uint8_t expect0[32] = {
-		0x80, 0x57, 0x26, 0x6c, 0x60, 0x4b, 0xe4, 0xfb,
-		0x54, 0x15, 0x5e, 0xfd, 0x9b, 0x79, 0xe8, 0xab,
-		0xc6, 0xb7, 0xcd, 0x06, 0xbd, 0x97, 0x9b, 0x68,
-		0x19, 0x8a, 0x59, 0xb1, 0x55, 0xff, 0xc4, 0x0c
-	};
-	static const uint8_t base1[32] = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-	};
-	static const uint8_t expect1[32] = {
-		0xf7, 0xd4, 0x24, 0x71, 0x43, 0xde, 0x2f, 0x1a,
-		0xd7, 0x93, 0x10, 0x85, 0x41, 0xfc, 0xcb, 0x25,
-		0x7e, 0x1b, 0x26, 0x3a, 0x23, 0xa3, 0x51, 0x30,
-		0x48, 0xb3, 0x48, 0x72, 0xde, 0xac, 0x96, 0x4e
+	static const uint8_t abc[3] = { 'a', 'b', 'c' };
+	static const uint8_t want[32] = {
+		0x3a, 0x98, 0x5d, 0xa7, 0x4f, 0xe2, 0x25, 0xb2,
+		0x04, 0x5c, 0x17, 0x2d, 0x6b, 0xd3, 0x90, 0xbd,
+		0x85, 0x5f, 0x08, 0x6e, 0x3e, 0x9d, 0x52, 0x5b,
+		0x46, 0xbf, 0xe2, 0x45, 0x11, 0x43, 0x15, 0x32
 	};
 	uint8_t got[32];
-	opus_hash_from_base_hash(base0, got);
-	expect(memcmp(got, expect0, 32) == 0, "OpuHash vector base=0x01");
-	opus_hash_from_base_hash(base1, got);
-	expect(memcmp(got, expect1, 32) == 0, "OpuHash vector base=0xff..ff");
+	rgrpow_sha3_256_short(abc, 3, got);
+	expect(memcmp(got, want, 32) == 0, "SHA3_POW_VECTOR FIPS 202 SHA3-256('abc')");
+}
+
+static void test_rgrpow_zero_header_matches_node(void)
+{
+	static const uint8_t want[32] = {
+		0xdd, 0x05, 0x7f, 0xc1, 0xdf, 0x8f, 0x5b, 0x94, 0x66, 0xe8, 0x34,
+		0xcc, 0x9d, 0x7b, 0x81, 0x9e, 0x2d, 0x51, 0x1c, 0x75, 0xb4, 0x36,
+		0x75, 0xb5, 0x77, 0xf6, 0xd9, 0xf5, 0xd6, 0xde, 0x04, 0xfc
+	};
+	uint8_t header[80];
+	uint8_t got[32];
+	memset(header, 0, sizeof(header));
+	rgrpow_hash80(header, got);
+	expect(memcmp(got, want, 32) == 0,
+	       "SHA3_POW_VECTOR zero header matches GetRigorPowHash");
+	expect(got[0] == 0xdd, "digest byte0 is LSB (UintToArith256)");
+}
+
+static void test_rgrpow_typed_header_matches_node(void)
+{
+	uint8_t header[80];
+	uint8_t got[32];
+	static const uint8_t want[32] = {
+		0x8b, 0x35, 0x71, 0x82, 0x9a, 0xd2, 0x02, 0x10,
+		0x5c, 0xc7, 0xfc, 0x4b, 0x1c, 0x8b, 0xee, 0xf1,
+		0xf7, 0x19, 0x0e, 0x6b, 0xfd, 0xbf, 0x2f, 0x0a,
+		0xc5, 0x43, 0x55, 0xe7, 0xb4, 0xf0, 0x41, 0xf0
+	};
+	static const uint8_t prev[32] = {
+		0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11,
+		0x10, 0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x89,
+		0xf7, 0xe6, 0xd5, 0xc4, 0xb3, 0xa2, 0x01, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	};
+	static const uint8_t merkle[32] = {
+		0xdd, 0x15, 0x35, 0x8b, 0xf3, 0xbc, 0xa0, 0xe8,
+		0x92, 0x65, 0x95, 0x9d, 0x05, 0xbf, 0x13, 0x59,
+		0x84, 0xd5, 0xd8, 0x75, 0xe9, 0x57, 0x2c, 0x8e,
+		0xfc, 0x27, 0xf9, 0x7a, 0x20, 0xbd, 0x3f, 0x9d
+	};
+	uint32_t ver = 0x20000000, ntime = 1786125600, nbits = 0x1d008000, nonce = 0x89abcdef;
+	memset(header, 0, sizeof(header));
+	header[0] = (uint8_t)ver;
+	header[1] = (uint8_t)(ver >> 8);
+	header[2] = (uint8_t)(ver >> 16);
+	header[3] = (uint8_t)(ver >> 24);
+	memcpy(header + 4, prev, 32);
+	memcpy(header + 36, merkle, 32);
+	header[68] = (uint8_t)ntime;
+	header[69] = (uint8_t)(ntime >> 8);
+	header[70] = (uint8_t)(ntime >> 16);
+	header[71] = (uint8_t)(ntime >> 24);
+	header[72] = (uint8_t)nbits;
+	header[73] = (uint8_t)(nbits >> 8);
+	header[74] = (uint8_t)(nbits >> 16);
+	header[75] = (uint8_t)(nbits >> 24);
+	header[76] = (uint8_t)nonce;
+	header[77] = (uint8_t)(nonce >> 8);
+	header[78] = (uint8_t)(nonce >> 16);
+	header[79] = (uint8_t)(nonce >> 24);
+	rgrpow_hash80(header, got);
+	expect(memcmp(got, want, 32) == 0,
+	       "SHA3_POW_VECTOR typed header matches GetRigorPowHash");
+}
+
+static void test_opuhash_digest_rejected_by_sha3_pow(void)
+{
+	static const uint8_t opuhash_zero[32] = {
+		0x75, 0x3c, 0x70, 0x2a, 0xd1, 0x24, 0xc2, 0xf3,
+		0x86, 0xf9, 0xf3, 0x99, 0x4c, 0xd2, 0x38, 0x95,
+		0xd9, 0x77, 0x4c, 0xc1, 0xa8, 0x1a, 0xf9, 0x2e,
+		0xd1, 0x4a, 0x4f, 0x30, 0x37, 0x19, 0xbe, 0x19
+	};
+	uint8_t header[80];
+	uint8_t sha3[32];
+	memset(header, 0, sizeof(header));
+	rgrpow_hash80(header, sha3);
+	expect(memcmp(sha3, opuhash_zero, 32) != 0,
+	       "OpuHash(zero header) != SHA3-256(RGRPOW01||zero header)");
+	expect(!rgrpow_meets_nbits(sha3, 0x03000001u),
+	       "OpuHash-era header fails SHA3 CheckProofOfWork vs tight nBits");
+}
+
+static void test_miner_header_sha3_checkproofofwork_pass(void)
+{
+	uint8_t header[80];
+	uint8_t digest[32];
+	uint32_t n;
+	int found = 0;
+	memset(header, 0, sizeof(header));
+	header[0] = 1;
+	for (n = 0; n < 400000u; n++) {
+		header[76] = (uint8_t)n;
+		header[77] = (uint8_t)(n >> 8);
+		header[78] = (uint8_t)(n >> 16);
+		header[79] = (uint8_t)(n >> 24);
+		rgrpow_hash80(header, digest);
+		if (rgrpow_meets_nbits(digest, 0x207fffffu)) {
+			found = 1;
+			break;
+		}
+	}
+	expect(found, "SOLO_BLOCK_TEMPLATE miner-generated header meets SHA3 CheckProofOfWork");
 }
 
 static void test_reject_ntime_below_mintime(void)
@@ -600,11 +661,8 @@ static void test_reject_ntime_below_mintime(void)
 		 "\"bits\":\"207fffff\",\"target\":\"%s\",\"height\":1,"
 		 "\"rigor_coinbase_immutable\":true,"
 		 "\"default_coinbase_scriptsig\":\"%s\","
-		 "\"paid_winner_txid\":\"%064d\","
-		 "\"convergence_root\":\"%s\","
 		 "\"default_witness_commitment\":\"%s\"}",
-		 0, kRegtestTarget, kScriptSigH1ZeroWinner, 0, kRoot11,
-		 kEmptyWitnessCommitment);
+		 0, kRegtestTarget, kScriptSigH1, kEmptyWitnessCommitment);
 	gbt = load_obj(buf);
 	if (!gbt)
 		return;
@@ -628,11 +686,8 @@ static void test_reject_mutable_coinbase(void)
 		 "\"bits\":\"207fffff\",\"target\":\"%s\",\"height\":1,"
 		 "\"rigor_coinbase_immutable\":true,"
 		 "\"default_coinbase_scriptsig\":\"%s\","
-		 "\"paid_winner_txid\":\"%064d\","
-		 "\"convergence_root\":\"%s\","
 		 "\"default_witness_commitment\":\"%s\"}",
-		 0, kRegtestTarget, kScriptSigH1ZeroWinner, 0, kRoot11,
-		 kEmptyWitnessCommitment);
+		 0, kRegtestTarget, kScriptSigH1, kEmptyWitnessCommitment);
 	gbt = load_obj(buf);
 	if (!gbt)
 		return;
@@ -642,12 +697,11 @@ static void test_reject_mutable_coinbase(void)
 	json_decref(gbt);
 }
 
-static void test_header_80_opuhash_stable(void)
+static void test_header_80_rgrpow_stable(void)
 {
 	char err[256];
 	struct gbt_solo_out out;
-	json_t *gbt = load_obj(gbt_json(kScriptSigH1ZeroWinner,
-		"0000000000000000000000000000000000000000000000000000000000000000", NULL, NULL, 0));
+	json_t *gbt = load_obj(gbt_json(kScriptSigH1));
 	uint8_t wire[80];
 	uint8_t h1[32], h2[32];
 	int i;
@@ -665,12 +719,12 @@ static void test_header_80_opuhash_stable(void)
 		wire[4 * i + 2] = (uint8_t)(w >> 16);
 		wire[4 * i + 3] = (uint8_t)(w >> 24);
 	}
-	opus_hash(wire, h1);
-	opus_hash(wire, h2);
-	expect(memcmp(h1, h2, 32) == 0, "POW-01 same 80-byte header => same OpuHash");
-	wire[76] = 1; /* nonce byte */
-	opus_hash(wire, h2);
-	expect(memcmp(h1, h2, 32) != 0, "nonce change changes OpuHash");
+	rgrpow_hash80(wire, h1);
+	rgrpow_hash80(wire, h2);
+	expect(memcmp(h1, h2, 32) == 0, "POW-01 same 80-byte header => same RGRPOW01");
+	wire[76] = (uint8_t)(wire[76] + 1);
+	rgrpow_hash80(wire, h2);
+	expect(memcmp(h1, h2, 32) != 0, "nonce change changes RGRPOW01 digest");
 	gbt_solo_out_free(&out);
 	json_decref(gbt);
 }
@@ -684,15 +738,12 @@ static void test_reject_missing_coinbase_tx(void)
 	snprintf(buf, sizeof(buf),
 		 "{\"version\":536870912,\"rules\":[\"segwit\"],"
 		 "\"previousblockhash\":\"11%062d\",\"transactions\":[],"
-		 "\"coinbasevalue\":1000000000,\"curtime\":1700000000,\"mintime\":1,\"maxtime\":2000000000,"
+		 "\"coinbasevalue\":12800000000,\"curtime\":1700000000,\"mintime\":1,\"maxtime\":2000000000,"
 		 "\"mutable\":[\"time\"],\"bits\":\"207fffff\",\"target\":\"%s\",\"height\":1,"
 		 "\"rigor_coinbase_immutable\":true,"
 		 "\"default_coinbase_scriptsig\":\"%s\","
-		 "\"paid_winner_txid\":\"%064d\","
-		 "\"convergence_root\":\"%s\","
 		 "\"default_witness_commitment\":\"%s\"}",
-		 0, kRegtestTarget, kScriptSigH1ZeroWinner, 0, kRoot11,
-		 kEmptyWitnessCommitment);
+		 0, kRegtestTarget, kScriptSigH1, kEmptyWitnessCommitment);
 	gbt = load_obj(buf);
 	if (!gbt)
 		return;
@@ -703,66 +754,15 @@ static void test_reject_missing_coinbase_tx(void)
 	json_decref(gbt);
 }
 
-static void test_reject_mint_dropped_from_coinbase_tx(void)
-{
-	char err[256];
-	struct gbt_solo_out out;
-	const char *mint =
-		"\"default_res_mint\":{\"value\":40000000,"
-		"\"scriptPubKey\":\"0105141111111111111111111111111111111111111111bb\"}";
-	const char *ss =
-		"51201111111111111111111111111111111111111111111111111111111111111111"
-		"201111111111111111111111111111111111111111111111111111111111111111";
-	struct cb_fixture no_mint;
-	char buf[8192];
-	char paid[65];
-	int i;
-	json_t *gbt;
-	for (i = 0; i < 32; i++) {
-		paid[2 * i] = '1';
-		paid[2 * i + 1] = '1';
-	}
-	paid[64] = 0;
-	if (!make_default_coinbase_tx(&no_mint, ss, 1000000000LL, NULL, 0)) {
-		expect(0, "drop-mint fixture");
-		return;
-	}
-	snprintf(buf, sizeof(buf),
-		 "{"
-		 "\"version\":536870912,\"rules\":[\"segwit\"],"
-		 "\"previousblockhash\":\"11%062d\",\"transactions\":[],"
-		 "\"coinbasevalue\":1000000000,\"curtime\":1700000000,\"mintime\":1,\"maxtime\":2000000000,"
-		 "\"mutable\":[\"time\"],\"bits\":\"207fffff\",\"target\":\"%s\",\"height\":1,"
-		 "\"rigor_coinbase_immutable\":true,"
-		 "\"default_coinbase_scriptsig\":\"%s\","
-		 "\"default_coinbase_tx\":\"%s\","
-		 "\"default_coinbase_txid\":\"%s\","
-		 "\"merkleroot\":\"%s\","
-		 "\"paid_winner_txid\":\"%s\","
-		 "\"convergence_root\":\"%s\","
-		 "\"default_witness_commitment\":\"%s\",%s}",
-		 0, kRegtestTarget, ss, no_mint.tx_hex, no_mint.txid_display,
-		 no_mint.txid_display, paid, kRoot11,
-		 kEmptyWitnessCommitment, mint);
-	gbt = load_obj(buf);
-	if (!gbt)
-		return;
-	expect(!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err)),
-	       "coinbase that dropped default_res_mint refused");
-	expect(strstr(err, "default_res_mint") != NULL, "drop-mint error names default_res_mint");
-	gbt_solo_out_free(&out);
-	json_decref(gbt);
-}
-
 /* Valid height-1 GBT whose coinbase is rebuilt from o, keeping txid/merkleroot consistent. */
 static json_t *gbt_with_coinbase(const struct cb_opts *o)
 {
 	struct cb_fixture fx;
-	json_t *gbt = load_obj(gbt_json(kScriptSigH1ZeroWinner, kZeroTxid, NULL, NULL, 0));
+	json_t *gbt = load_obj(gbt_json(kScriptSigH1));
 
 	if (!gbt)
 		return NULL;
-	if (!make_coinbase_tx(&fx, kScriptSigH1ZeroWinner, o)) {
+	if (!make_coinbase_tx(&fx, kScriptSigH1, o)) {
 		json_decref(gbt);
 		return NULL;
 	}
@@ -871,65 +871,52 @@ static void test_reject_coinbase_txid_and_merkleroot(void)
 }
 
 /*
- * Verbatim getblocktemplate response from a fresh regtest rigord at height 1,
- * requested with coinbase_address=rgrt1qaawlmsqkv79d02e389a9gll2zrv6mzj97cyfv2.
- * Guards against the hand-built fixtures above drifting from real node output.
+ * RFC-020 height-1 GBT: BIP34 height + OP_0, 128 ORU payout, witness
+ * commitment, no lottery fields, no coinbase RES mint. Coinbase bytes come
+ * from the same encoder the other fixtures use so the copy-bytes check
+ * stays exact.
  */
-static const char *kGoldenPayoutSpk =
-	"0014ef5dfdc016678ad7ab31397a547fea10d9ad8a45";
-static const char *kGoldenCoinbaseTx =
-	"020000000001010000000000000000000000000000000000000000000000000000000000"
-	"000000ffffffff4351200000000000000000000000000000000000000000000000000000"
-	"000000000000200000000000000000000000000000000000000000000000000000000000"
-	"000000ffffffff0200e8764817000000160014ef5dfdc016678ad7ab31397a547fea10d9"
-	"ad8a450000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c69"
-	"0689799962b48bebd836974e8cf901200000000000000000000000000000000000000000"
-	"00000000000000000000000000000000";
-static const char *kGoldenGbt =
-	"{"
-	"\"version\":536870912,"
-	"\"rules\":[\"csv\",\"!segwit\"],"
-	"\"mutable\":[\"time\"],"
-	"\"previousblockhash\":\"3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63\","
-	"\"transactions\":[],"
-	"\"coinbasevalue\":100000000000,"
-	"\"target\":\"7fffff0000000000000000000000000000000000000000000000000000000000\","
-	"\"mintime\":1778224716,"
-	"\"maxtime\":1788058420,"
-	"\"curtime\":1788051220,"
-	"\"bits\":\"207fffff\","
-	"\"height\":1,"
-	"\"default_witness_commitment\":\"6a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf9\","
-	"\"default_coinbase_scriptsig\":\""
-	"512000000000000000000000000000000000000000000000000000000000000000002000"
-	"00000000000000000000000000000000000000000000000000000000000000\","
-	"\"default_coinbase_txid\":\"af111c00bf7209e3ad5b67cc264354e27e666da1b1ad6d1e079ce25ff57cdb72\","
-	"\"merkleroot\":\"af111c00bf7209e3ad5b67cc264354e27e666da1b1ad6d1e079ce25ff57cdb72\","
-	"\"coinbase_address\":\"rgrt1qaawlmsqkv79d02e389a9gll2zrv6mzj97cyfv2\","
-	"\"paid_winner_txid\":\"0000000000000000000000000000000000000000000000000000000000000000\","
-	"\"rigor_coinbase_immutable\":true,"
-	"\"convergence_root\":\"0000000000000000000000000000000000000000000000000000000000000000\"";
-
 static void test_golden_vector_regtest_height1(void)
 {
 	char err[256] = "";
 	char buf[8192];
 	char cb_got[4096];
-	uint8_t spk[32];
 	struct gbt_solo_out out;
+	struct cb_fixture fx;
 	json_t *gbt;
 
-	snprintf(buf, sizeof(buf), "%s,\"default_coinbase_tx\":\"%s\"}",
-		 kGoldenGbt, kGoldenCoinbaseTx);
+	if (!make_default_coinbase_tx(&fx, kScriptSigH1, ORU_FLAT_BLOCK_SUBSIDY_ATOMS, NULL, 0)) {
+		expect(0, "golden fixture");
+		return;
+	}
+	snprintf(buf, sizeof(buf),
+		 "{"
+		 "\"version\":536870912,"
+		 "\"rules\":[\"csv\",\"!segwit\"],"
+		 "\"mutable\":[\"time\"],"
+		 "\"previousblockhash\":\"3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63\","
+		 "\"transactions\":[],"
+		 "\"coinbasevalue\":%lld,"
+		 "\"target\":\"%s\","
+		 "\"mintime\":1778224716,"
+		 "\"maxtime\":1788058420,"
+		 "\"curtime\":1788051220,"
+		 "\"bits\":\"207fffff\","
+		 "\"height\":1,"
+		 "\"default_witness_commitment\":\"%s\","
+		 "\"default_coinbase_scriptsig\":\"%s\","
+		 "\"default_coinbase_tx\":\"%s\","
+		 "\"default_coinbase_txid\":\"%s\","
+		 "\"merkleroot\":\"%s\","
+		 "\"rigor_coinbase_immutable\":true"
+		 "}",
+		 (long long)ORU_FLAT_BLOCK_SUBSIDY_ATOMS, kRegtestTarget,
+		 kEmptyWitnessCommitment, kScriptSigH1,
+		 fx.tx_hex, fx.txid_display, fx.txid_display);
 	gbt = load_obj(buf);
 	if (!gbt)
 		return;
-	if (hex_decode_local(spk, (int)sizeof(spk), kGoldenPayoutSpk) != 22) {
-		expect(0, "golden payout spk decodes");
-		json_decref(gbt);
-		return;
-	}
-	if (!gbt_solo_assemble(gbt, spk, 22, &out, err, sizeof(err))) {
+	if (!gbt_solo_assemble(gbt, kPayoutV0, 22, &out, err, sizeof(err))) {
 		printf("     %s\n", err);
 		expect(0, "golden regtest GBT assembles");
 		json_decref(gbt);
@@ -937,17 +924,19 @@ static void test_golden_vector_regtest_height1(void)
 	}
 	expect(1, "golden regtest GBT assembles");
 	expect(out.height == 1, "golden height 1");
-	expect(out.coinbasevalue == 100000000000LL, "golden coinbasevalue");
+	expect(out.coinbasevalue == ORU_FLAT_BLOCK_SUBSIDY_ATOMS, "golden coinbasevalue is 128 ORU");
 	expect(out.has_mint == 0, "golden has no RES mint");
+	expect(out.scriptsig_len == 2 && out.scriptsig[0] == 0x51 && out.scriptsig[1] == 0x00,
+	       "golden scriptSig is height + OP_0");
 	expect(out.header_words[18] == 0x207fffff, "golden nBits");
 	expect(out.header_words[17] == 1788051220u, "golden nTime");
 	bin2hex_disp(cb_got, out.coinbase_wit, out.coinbase_wit_len, false);
-	expect(strcmp(cb_got, kGoldenCoinbaseTx) == 0,
+	expect(strcmp(cb_got, fx.tx_hex) == 0,
 	       "golden coinbase bytes copied verbatim");
 	{
 		char mr[65];
 		bin2hex_disp(mr, out.merkle_root, 32, true);
-		expect(strcmp(mr, "af111c00bf7209e3ad5b67cc264354e27e666da1b1ad6d1e079ce25ff57cdb72") == 0,
+		expect(strcmp(mr, fx.txid_display) == 0,
 		       "golden merkle root derived from node bytes");
 	}
 	gbt_solo_out_free(&out);
@@ -957,22 +946,22 @@ static void test_golden_vector_regtest_height1(void)
 int main(void)
 {
 	test_valid_copy_bytes();
-	test_res_mint_pushbytes_1_05();
-	test_reject_op5_mint();
-	test_reject_two_push();
-	test_reject_missing_paid_winner();
+	test_reject_lottery_gbt_fields();
+	test_reject_coinbase_res_mint();
 	test_reject_p2pkh_payout();
 	test_reject_height0();
-	test_reject_missing_mint();
 	test_reject_missing_coinbase_tx();
-	test_reject_mint_dropped_from_coinbase_tx();
 	test_reject_coinbase_structure();
 	test_reject_coinbase_txid_and_merkleroot();
 	test_golden_vector_regtest_height1();
 	test_reject_ntime_below_mintime();
 	test_reject_mutable_coinbase();
-	test_header_80_opuhash_stable();
-	test_opuhash_vectors();
+	test_header_80_rgrpow_stable();
+	test_sha3_fips202_abc();
+	test_rgrpow_zero_header_matches_node();
+	test_rgrpow_typed_header_matches_node();
+	test_opuhash_digest_rejected_by_sha3_pow();
+	test_miner_header_sha3_checkproofofwork_pass();
 	printf("%s (%d failures)\n", failures ? "FAILED" : "ALL PASS", failures);
 	return failures ? 1 : 0;
 }

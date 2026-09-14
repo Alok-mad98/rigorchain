@@ -1,0 +1,53 @@
+{
+  "case_id": "SV-SUPERFLUOUS-WITNESS-RECORD",
+  "raw_block_hex": null,
+  "raw_tx_hex": "010000000001000000000000",
+  "kind": "tx",
+  "source": "constructed",
+  "decode_result": {
+    "status": "fail",
+    "cpp_type": null,
+    "error": "Superfluous witness record",
+    "fields": {},
+    "leftover_bytes": 0,
+    "roundtrip_equal": null
+  },
+  "consensus_result": "decode_fail",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "serialization",
+    "function": "UnserializeTransaction",
+    "reject_reason": "Superfluous witness record"
+  },
+  "kernel_candidate": {
+    "status": "not_reached",
+    "note": "DecodeHexBlk / UnserializeTransaction failed; no KernelInput candidate."
+  },
+  "future_theorem": "no_empty_witness_marker",
+  "trace": {
+    "raw_bytes": {
+      "hex": "010000000001000000000000",
+      "source": "constructed",
+      "entry_function": "UnserializeTransaction"
+    },
+    "decoded_object": {
+      "status": "fail",
+      "cpp_type": null,
+      "error": "Superfluous witness record",
+      "fields": {},
+      "leftover_bytes": 0,
+      "roundtrip_equal": null
+    },
+    "validation_rule": {
+      "layer": "serialization",
+      "function": "UnserializeTransaction",
+      "reject_reason": "Superfluous witness record"
+    },
+    "decision": "decode_fail",
+    "kernel_candidate": {
+      "status": "not_reached",
+      "note": "DecodeHexBlk / UnserializeTransaction failed; no KernelInput candidate."
+    },
+    "future_theorem": "no_empty_witness_marker"
+  }
+}

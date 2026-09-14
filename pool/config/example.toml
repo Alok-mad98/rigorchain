@@ -15,14 +15,16 @@
 # (useful for secrets in production).
 
 [node]
-# rigord JSON-RPC endpoint
+# rigord JSON-RPC endpoint (v0.1.3 mainnet). Never Bitcoin 8332.
+# Bech32 HRP is rg (protocol lock). "rgr" is not a live HRP.
+network = "mainnet"
 rpc_host = "127.0.0.1"
-rpc_port = 8332
+rpc_port = 8761
 rpc_user = "rigor"
 rpc_password = "change-me"
 
 [stratum]
-# Bind address for Stratum v1 (opushash)
+# Bind address for Stratum v1 (rgrpow01 / SHA3-256 RGRPOW01)
 listen_address = "0.0.0.0"
 listen_port = 3333
 

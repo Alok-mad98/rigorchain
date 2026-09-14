@@ -35,135 +35,18 @@ fn authenticator_devtest(workers: &[&str]) -> Arc<SessionManager> {
     Arc::new(SessionManager::with_authenticator_and_vardiff(Arc::new(auth), vd))
 }
 
-/// Owner program the fixture convergence transactions declare.
-const OWNER_PROGRAM: [u8; 32] = [0xa1; 32];
-
-/// Inline RESO declaration (mirrors consensus layout; no mint-engine dependency).
-fn res_owner_declaration_script(program32: &[u8; 32]) -> Vec<u8> {
-    let mut script = Vec::with_capacity(1 + 1 + 4 + 1 + 32);
-    script.push(0x6a); // OP_RETURN
-    script.push(37); // payload size
-    script.extend_from_slice(b"RESO");
-    script.push(1); // version
-    script.extend_from_slice(program32);
-    script
-}
-
-/// SECURITY-001-A / A-5: a convergence tx enters the draw only if it declares its RES payout
-/// owner. Fixtures carry declaring transactions for GBT realism; the pool does not mint RES.
-fn convergence_tx_declaring(program32: &[u8; 32]) -> String {
-    let mut cvg2_script = vec![0x51u8, 0x20, 0x43, 0x56, 0x47, 0x32]; // OP_1 <32> "CVG2"
-    cvg2_script.extend_from_slice(&[0x00; 28]);
-    let declaration = res_owner_declaration_script(program32);
-
-    let mut raw = Vec::new();
-    raw.extend_from_slice(&2i32.to_le_bytes());
-    raw.push(0x01);
-    raw.extend_from_slice(&[0x11; 32]);
-    raw.extend_from_slice(&0u32.to_le_bytes());
-    raw.push(0x00);
-    raw.extend_from_slice(&0xffff_ffffu32.to_le_bytes());
-    raw.push(0x02);
-    for (value, script) in [(100_000_000i64, cvg2_script), (0i64, declaration)] {
-        raw.extend_from_slice(&value.to_le_bytes());
-        raw.push(script.len() as u8);
-        raw.extend_from_slice(&script);
-    }
-    raw.extend_from_slice(&0u32.to_le_bytes());
-    hex::encode(raw)
-}
-
-
-/// Parent-draw JSON whose winner/eligible flags match pool A-8 replay (not hardcoded index 0).
-fn parent_draw_json(prev: &str, height: u64, candidates: &[(&str, u64)]) -> String {
-    use winner_engine::{
-        display_hex_to_native, native_to_display_hex, replay_convergence_draw, DrawReplayInput,
-        RES_PROBABILITY_TARGET,
-    };
-    let candidate_txids: Vec<[u8; 32]> = candidates
-        .iter()
-        .map(|(txid, _)| display_hex_to_native(txid).unwrap())
-        .collect();
-    let weights: Vec<u64> = candidates.iter().map(|(_, w)| *w).collect();
-    let replay = replay_convergence_draw(&DrawReplayInput {
-        candidate_txids,
-        weights: weights.clone(),
-        prev_block_hash: display_hex_to_native(prev).unwrap(),
-        payout_height: height as u32,
-        res_probability_target: RES_PROBABILITY_TARGET,
-    });
-    let cand_json: Vec<String> = candidates
-        .iter()
-        .enumerate()
-        .map(|(i, (txid, w))| {
-            format!(
-                r#"{{"txid":"{txid}","weight":{w},"res_program":"{prog}","eligible":{elig}}}"#,
-                txid = txid,
-                w = w,
-                prog = "11".repeat(32),
-                elig = if replay.candidates[i].draw_eligible {
-                    "true"
-                } else {
-                    "false"
-                },
-            )
-        })
-        .collect();
-    let winner = if replay.winner_index >= 0 {
-        let i = replay.winner_index as usize;
-        let (txid, w) = candidates[i];
-        format!(
-            r#"{{"index":{i},"txid":"{txid}","weight":{w},"res_program":"{prog}"}}"#,
-            i = i,
-            txid = txid,
-            w = w,
-            prog = "11".repeat(32),
-        )
-    } else {
-        "null".into()
-    };
-    format!(
-        r#"{{
-            "source_blockhash": "{prev}",
-            "source_height": {source_height},
-            "sigma_seed": "{prev}",
-            "payout_height": {height},
-            "convergence_root": "{root}",
-            "target_prev": "1c00ff00",
-            "res_probability_target": "{t}",
-            "eligible_root": "{elig}",
-            "candidates": [{cands}],
-            "winner": {winner}
-        }}"#,
-        prev = prev,
-        source_height = height.saturating_sub(1),
-        height = height,
-        root = native_to_display_hex(&replay.convergence_root),
-        t = hex::encode(RES_PROBABILITY_TARGET),
-        elig = "dd".repeat(32),
-        cands = cand_json.join(","),
-        winner = winner,
-    )
-}
-
 fn fixture(longpoll: &str) -> (GbtTemplate, String) {
-    let tx_hex = convergence_tx_declaring(&OWNER_PROGRAM);
     let prev = "ab".repeat(32);
     let a = "aa".repeat(32);
     let b = "bb".repeat(32);
-    let draw = parent_draw_json(
-        &prev,
-        300,
-        &[(&a, 100_000_000 * 65536), (&b, 100_000_000 * 65536)],
-    );
     let raw = format!(
         r#"{{
             "previousblockhash": "{prev}",
             "transactions": [
-                {{"data": "{tx_hex}", "txid": "{a}", "hash": "{a}"}},
-                {{"data": "{tx_hex}", "txid": "{b}", "hash": "{b}"}}
+                {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}"}},
+                {{"data": "0100000000020000000001", "txid": "{b}", "hash": "{b}"}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -171,17 +54,12 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             "height": 300,
             "version": 536870912,
             "curtime": 1700000300,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"],
-            "convergence_draw": {draw}
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = prev,
         a = a,
         b = b,
-        tx_hex = tx_hex,
         longpoll = longpoll,
-        draw = draw,
     );
     (serde_json::from_str(&raw).unwrap(), raw)
 }
@@ -202,7 +80,7 @@ fn stack() -> StratumOrchestrator {
 #[test]
 fn subscribe_authorize_flow() {
     let orch = stack();
-    let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#;
+    let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#;
     let out = orch.handle_request(1, sub).unwrap();
     assert!(!out.is_empty());
     assert!(out[0].contains("\"result\""));
@@ -225,7 +103,7 @@ fn hardcoded_x_password_is_refused() {
     let orch = stack();
     orch.handle_request(
         1,
-        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
     )
     .unwrap();
     let out = orch
@@ -252,7 +130,7 @@ fn share_cannot_be_attributed_to_another_worker() {
 
     orch.handle_request(
         1,
-        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
     )
     .unwrap();
     orch.handle_request(
@@ -278,7 +156,7 @@ fn unauthorized_session_cannot_submit() {
     let orch = stack();
     orch.handle_request(
         1,
-        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
     )
     .unwrap();
     let out = orch
@@ -296,6 +174,15 @@ fn rejects_non_opushash_agent() {
     let sub = r#"{"id":1,"method":"mining.subscribe","params":["bad-miner",null]}"#;
     let out = orch.handle_request(1, sub).unwrap();
     assert!(out[0].contains("error"));
+}
+
+#[test]
+fn rejects_legacy_opushash_agent() {
+    let orch = stack();
+    let sub = r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#;
+    let out = orch.handle_request(1, sub).unwrap();
+    assert!(out[0].contains("error"));
+    assert!(out[0].contains("OpuHash") || out[0].contains("rgrpow01"));
 }
 
 #[test]
@@ -321,7 +208,7 @@ fn full_pipeline_publish_notify_submit() {
 
     orch.handle_request(
         1,
-        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
     )
     .unwrap();
     orch.handle_request(
@@ -425,7 +312,7 @@ fn c5_block_is_submitted_and_credit_follows_node_acceptance() {
             .with_sessions(authenticator_devtest(&["bob.worker"]))
             .with_submitter(submitter.clone());
 
-        let (t, raw) = devtest_fixture("c5/submit");
+        let (t, raw) = pow_only_fixture("c5/submit");
         templates.ingest(t, raw, tip(0xc5)).unwrap();
         let envelopes = orch.publish_jobs_from_active_template().unwrap();
         let job_id = envelopes[0].job_id.clone();
@@ -440,7 +327,7 @@ fn c5_block_is_submitted_and_credit_follows_node_acceptance() {
 
         orch.handle_request(
             1,
-            r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+            r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
         )
         .unwrap();
         orch.handle_request(
@@ -450,7 +337,7 @@ fn c5_block_is_submitted_and_credit_follows_node_acceptance() {
         .unwrap();
 
         let mut found = false;
-        for nonce in 0u32..64 {
+        for nonce in 0u32..4096 {
             let submit = format!(
                 r#"{{"id":3,"method":"mining.submit","params":["bob.worker","{job_id}","00000000","{ntime}","{nonce:08x}"]}}"#
             );
@@ -499,14 +386,14 @@ fn c5_unconfigured_submitter_never_credits() {
     let orch = StratumOrchestrator::new(templates.clone(), jobs, payout.clone())
         .with_sessions(authenticator_devtest(&["bob.worker"]));
 
-    let (t, raw) = devtest_fixture("c5/unconfigured");
+    let (t, raw) = pow_only_fixture("c5/unconfigured");
     templates.ingest(t, raw, tip(0xc6)).unwrap();
     let envelopes = orch.publish_jobs_from_active_template().unwrap();
     let job_id = envelopes[0].job_id.clone();
 
     orch.handle_request(
         1,
-        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-opushash",null]}"#,
+        r#"{"id":1,"method":"mining.subscribe","params":["rigor-miner/1.0-rgrpow01",null]}"#,
     )
     .unwrap();
     orch.handle_request(
@@ -523,7 +410,7 @@ fn c5_unconfigured_submitter_never_credits() {
         .and_then(|v| v.as_str())
         .unwrap_or("00000000")
         .to_string();
-    for nonce in 0u32..64 {
+    for nonce in 0u32..4096 {
         let submit = format!(
             r#"{{"id":3,"method":"mining.submit","params":["bob.worker","{job_id}","00000000","{ntime}","{nonce:08x}"]}}"#
         );
@@ -540,17 +427,14 @@ fn c5_unconfigured_submitter_never_credits() {
     assert!(payout.rounds().is_empty(), "finalized a round without submission");
 }
 
-fn devtest_fixture(longpoll: &str) -> (GbtTemplate, String) {
-    let prev = "ab".repeat(32);
-    let a = "aa".repeat(32);
-    let draw = parent_draw_json(&prev, 11, &[(&a, 100_000_000 * 65536)]);
+fn pow_only_fixture(longpoll: &str) -> (GbtTemplate, String) {
+    // No convergence_draw winner, so share validation reaches RGRPOW01
+    // (C-5 is submit/credit, not RES mint).
     let raw = format!(
         r#"{{
             "previousblockhash": "{prev}",
-            "transactions": [
-                {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}"}}
-            ],
-            "coinbasevalue": 5000000000,
+            "transactions": [],
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -558,15 +442,36 @@ fn devtest_fixture(longpoll: &str) -> (GbtTemplate, String) {
             "height": 11,
             "version": 536870912,
             "curtime": 1700000300,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}"],
-            "convergence_draw": {draw}
+            "default_witness_commitment": "6a24aa21a9ed"
+        }}"#,
+        prev = "ab".repeat(32),
+        longpoll = longpoll,
+    );
+    (serde_json::from_str(&raw).unwrap(), raw)
+}
+
+fn devtest_fixture(longpoll: &str) -> (GbtTemplate, String) {
+    let prev = "ab".repeat(32);
+    let a = "aa".repeat(32);
+    let raw = format!(
+        r#"{{
+            "previousblockhash": "{prev}",
+            "transactions": [
+                {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}"}}
+            ],
+            "coinbasevalue": 12800000000,
+            "longpollid": "{longpoll}",
+            "weightlimit": 1000000,
+            "bits": "207fffff",
+            "prev_nbits": "207fffff",
+            "height": 11,
+            "version": 536870912,
+            "curtime": 1700000300,
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = prev,
         a = a,
         longpoll = longpoll,
-        draw = draw,
     );
     (serde_json::from_str(&raw).unwrap(), raw)
 }

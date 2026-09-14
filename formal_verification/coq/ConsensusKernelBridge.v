@@ -31,8 +31,8 @@ Definition cpp_epoch_bridge : Z -> Z := issuance_epoch.
 (** C++ [GetBlockSubsidy] / [ComputeRigorIssuance.oru_subsidy]. *)
 Definition cpp_oru_subsidy_bridge : Z -> Z := oru_subsidy.
 
-(** C++ [GetResMintReward] — schedule, including height 0 = W(0). *)
-Definition cpp_res_schedule_bridge : Z -> Z := get_res_mint_reward.
+(** C++ [ResDestroyCostAtHeight] — display destroy_cost(h), including height 0 = P0. *)
+Definition cpp_res_schedule_bridge : Z -> Z := res_destroy_cost_at_height.
 
 (** Actual RES issuance model; height 0 is 0. Not the schedule. *)
 Definition cpp_res_actual_issuance_bridge : Z -> Z :=
@@ -40,7 +40,7 @@ Definition cpp_res_actual_issuance_bridge : Z -> Z :=
 
 (** C++ [ComputeRigorIssuance] packaging of the three schedules. *)
 Definition cpp_compute_issuance_bridge (h : Z) : Z * Z * Z :=
-  (issuance_epoch h, oru_subsidy h, get_res_mint_reward h).
+  (issuance_epoch h, oru_subsidy h, res_destroy_cost_at_height h).
 
 Theorem cpp_epoch_bridge_is_canonical :
   cpp_epoch_bridge = issuance_epoch.
@@ -51,7 +51,7 @@ Theorem cpp_oru_subsidy_bridge_is_canonical :
 Proof. reflexivity. Qed.
 
 Theorem cpp_res_schedule_bridge_is_canonical :
-  cpp_res_schedule_bridge = get_res_mint_reward.
+  cpp_res_schedule_bridge = res_destroy_cost_at_height.
 Proof. reflexivity. Qed.
 
 Theorem cpp_epoch_bridge_formula :
@@ -75,9 +75,9 @@ Theorem cpp_oru_genesis_actual_zero :
   cpp_oru_subsidy_bridge 0 = 0.
 Proof. reflexivity. Qed.
 
-Theorem cpp_res_schedule_at_genesis_is_w0 :
-  cpp_res_schedule_bridge 0 = RES_REWARD_GENESIS.
-Proof. exact reward_at_height_zero. Qed.
+Theorem cpp_res_destroy_cost_at_genesis_is_p0 :
+  cpp_res_schedule_bridge 0 = RES_DESTROY_COST_GENESIS.
+Proof. exact destroy_cost_at_height_zero. Qed.
 
 Theorem cpp_res_actual_at_genesis_is_zero :
   cpp_res_actual_issuance_bridge 0 = 0.
@@ -86,9 +86,9 @@ Proof. exact CanonicalIssuance.res_issued_zero. Qed.
 Theorem genesis_schedule_value_ne_actual_issuance :
   cpp_res_schedule_bridge 0 <> cpp_res_actual_issuance_bridge 0.
 Proof.
-  rewrite cpp_res_schedule_at_genesis_is_w0.
+  rewrite cpp_res_destroy_cost_at_genesis_is_p0.
   rewrite cpp_res_actual_at_genesis_is_zero.
-  unfold RES_REWARD_GENESIS, RES_COIN.
+  unfold RES_DESTROY_COST_GENESIS, RES_COIN.
   discriminate.
 Qed.
 

@@ -1,0 +1,8 @@
+{
+  "domain": "pow",
+  "expect": "INVALID",
+  "theorem": "pow_valid_rejects_above_target",
+  "digest": 200,
+  "target": 100,
+  "compact_t": 100
+}

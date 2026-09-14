@@ -52,7 +52,7 @@ pub struct PoolPilotConfig {
 impl Default for PoolPilotConfig {
     fn default() -> Self {
         Self {
-            rpc_url: "http://127.0.0.1:8332/".into(),
+            rpc_url: "http://127.0.0.1:8761/".into(),
             rpc_user: None,
             rpc_password: None,
             stratum_listen: "127.0.0.1:3333".into(),

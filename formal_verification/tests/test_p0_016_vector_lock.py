@@ -86,7 +86,8 @@ def test_gbt_layout() -> None:
     assert len(rows) == 1
     row = rows[0]
     assert row["height"] == 1
-    assert row["coinbasevalue"] == 100000000000
+    # RFC-020 flat ORU subsidy: 128 ORU = 12_800_000_000 Tharns (empty mempool, no fees).
+    assert row["coinbasevalue"] == 12800000000
     assert row["mint_present"] is False
     assert row["mint_scriptPubKey"] == ""
     assert row["witness_commitment_index"] == 1
@@ -98,11 +99,9 @@ def test_gbt_layout() -> None:
     mint = bytes.fromhex(row["canonical_mint_script"])
     assert mint[-1] == 0xBB
     assert row["canonical_mint_maturity_height"] == 2
-    assert row["coinbase_scriptSig"] == (
-        "51200000000000000000000000000000000000000000000000000000000000000000"
-        "200000000000000000000000000000000000000000000000000000000000000000"
-    )
-    assert row["merkle_root"] == "5611125cdfa11ba859cdaf698c6160e161915ef7139a1e3f48458ca87b0b1446"
+    # Coinbase scriptSig: BIP34 height push (OP_1) + one OP_0 padding byte.
+    assert row["coinbase_scriptSig"] == "5100"
+    assert row["merkle_root"] == "0b1c6d00facf32c1dc7c7c70e41de14e7c7ff9a4903ad76e24a41bbd488b96ce"
     assert row["prevhash"] == "3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63"
     assert row["bits"] == "207fffff"
     assert row["nTime"] == 1778224815

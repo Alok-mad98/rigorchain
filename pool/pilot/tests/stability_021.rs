@@ -11,7 +11,7 @@ fn fixture(longpoll: &str, height: u64) -> (GbtTemplate, String) {
                 {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}", "fee": 100000000}},
                 {{"data": "0100000000020000000001", "txid": "{b}", "hash": "{b}", "fee": 100000000}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -19,9 +19,7 @@ fn fixture(longpoll: &str, height: u64) -> (GbtTemplate, String) {
             "height": {height},
             "version": 536870912,
             "curtime": 1700000300,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
         a = "aa".repeat(32),

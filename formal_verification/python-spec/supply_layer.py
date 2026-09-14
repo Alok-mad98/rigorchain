@@ -15,8 +15,8 @@ from __future__ import annotations
 from typing import Any, Dict, List, Mapping, Sequence
 
 ORU_COIN = 100_000_000
-RES_COIN = 1_000_000
-RES_DISPLAY_DECIMALS = 6
+RES_COIN = 100_000_000
+RES_DISPLAY_DECIMALS = 8
 RES_ATOMIC_UNIT = 1
 
 CVG2_V1_SCRIPT_PREFIX_HEX = "512043564732"
@@ -116,12 +116,12 @@ def golden_vectors() -> Dict[str, Any]:
                 "contributes_to_circulating": cvg2_contributes_to_circulating(cvg2_locked),
             }
         ],
-        "res_six_decimal_display": [
-            {"id": "RES-DISP-0", "atoms": 0, "display": "0.000000"},
-            {"id": "RES-DISP-1", "atoms": RES_COIN, "display": "1.000000"},
-            {"id": "RES-DISP-TENTH", "atoms": RES_COIN // 10, "display": "0.100000"},
-            {"id": "RES-DISP-ATOM", "atoms": RES_ATOMIC_UNIT, "display": "0.000001"},
-            {"id": "RES-DISP-W0", "atoms": 40 * RES_COIN, "display": "40.000000"},
+        "res_eight_decimal_display": [
+            {"id": "RES-DISP-0", "atoms": 0, "display": "0.00000000"},
+            {"id": "RES-DISP-1", "atoms": RES_COIN, "display": "1.00000000"},
+            {"id": "RES-DISP-TENTH", "atoms": RES_COIN // 10, "display": "0.10000000"},
+            {"id": "RES-DISP-ATOM", "atoms": RES_ATOMIC_UNIT, "display": "0.00000001"},
+            {"id": "RES-DISP-W0", "atoms": 40 * RES_COIN, "display": "40.00000000"},
         ],
         "circulating_supply": [
             {
@@ -161,9 +161,10 @@ def golden_vectors() -> Dict[str, Any]:
     }
 
 
-assert RES_COIN == 1_000_000
+assert RES_COIN == 100_000_000
 assert RES_COIN != 100
-assert format_res_amount(RES_COIN) == "1.000000"
+assert RES_COIN != 1_000_000
+assert format_res_amount(RES_COIN) == "1.00000000"
 assert cvg2_contributes_to_circulating(ORU_COIN) == 0
 assert fee_burn_contributes_to_circulating(500) == 0
 assert circulating_spendable_oru(1000, 100, 50, 0) == 850

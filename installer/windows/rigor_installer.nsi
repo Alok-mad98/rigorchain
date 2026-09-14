@@ -28,7 +28,7 @@ XPStyle on
 !define REGKEY "SOFTWARE\Rigor Wallet"
 !define COMPANY "Rigor Protocol"
 !define URL "https://rigorchain.com"
-!define PRODUCT_VERSION "0.1.2-alphaplus"
+!define PRODUCT_VERSION "0.1.3"
 
 !define MUI_ICON "${REPO_ROOT}/core/share/icons/rigor/rigor.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "${REPO_ROOT}/core/share/pixmaps/nsis-wizard.bmp"

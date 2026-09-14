@@ -9,16 +9,13 @@
 > can be checked; if a claim here cannot be located in the source, treat the
 > claim as a documentation bug and file it.
 
-**Authority rule** (see `docs/proof/PROOF034_CANONICAL_AUTHORITY.md`): when this
-document conflicts with the code, **the code wins**. This README was rewritten
-under SECURITY-001-F to remove claims that the code does not support.
+**Authority rule:** Protocol specifications are normative SSOT.
+This directory is a formal **model**, not C++ authority. If this README
+disagrees with RFC-020 / RFC-018, the RFC is correct.
 
-**Current freeze:** [`docs/verification/FORMAL-VERIFICATION-STATUS.md`](../docs/verification/FORMAL-VERIFICATION-STATUS.md)
-(pre-release: [`FV-RELEASE-CHECKLIST.md`](../docs/verification/FV-RELEASE-CHECKLIST.md);
-operator freeze: [`FORMAL-VERIFICATION-FREEZE.md`](../docs/verification/FORMAL-VERIFICATION-FREEZE.md)).
-Architecture snapshot (Classification + guaranteed/not-guaranteed):
-[`docs/formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md`](../docs/formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md).
-Public site: `/documentation/formal-verification`.
+**Current public status:** [`docs/formal/VerificationStatus.md`](../docs/formal/VerificationStatus.md).
+Claim boundary: [`docs/formal/Claims.md`](../docs/formal/Claims.md).
+Machine SSOT: [`audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`](../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md).
 
 ```
 equivalence_claimed = false
@@ -36,11 +33,11 @@ HISTORICAL Bitcoin Core PR URLs in comments stay as citations of past work.
 
 | Public document | Path |
 |-----------------|------|
-| Formal Verification Status | [`docs/verification/FORMAL-VERIFICATION-STATUS.md`](../docs/verification/FORMAL-VERIFICATION-STATUS.md) |
+| Formal verification status | [`docs/formal/VerificationStatus.md`](../docs/formal/VerificationStatus.md) |
+| Claims | [`docs/formal/Claims.md`](../docs/formal/Claims.md) |
+| Status SSOT | [`audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`](../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md) |
+| How to verify | [`docs/security/HOW_TO_VERIFY_RIGOR.md`](../docs/security/HOW_TO_VERIFY_RIGOR.md) |
 | FV release checklist | [`docs/verification/FV-RELEASE-CHECKLIST.md`](../docs/verification/FV-RELEASE-CHECKLIST.md) |
-| Freeze checklist | [`docs/verification/FORMAL-VERIFICATION-FREEZE.md`](../docs/verification/FORMAL-VERIFICATION-FREEZE.md) |
-| Verdict | [`docs/verification/FORMAL-VERIFICATION-VERDICT.md`](../docs/verification/FORMAL-VERIFICATION-VERDICT.md) |
-| Golden-vector documentation | [`docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md`](../docs/verification/GOLDEN-VECTOR-DISCREPANCIES.md) |
 
 ---
 
@@ -48,9 +45,9 @@ HISTORICAL Bitcoin Core PR URLs in comments stay as citations of past work.
 
 | Layer | Artifact | Status |
 |---|---|---|
-| L1 — Executable spec | `spec/rigor_consensus_spec.py` | Single source of truth (SSOT). Normative. |
-| L2 — Coq model | `coq/**` (~218 files) | Machine-checked. Independently re-derives L1 byte semantics. |
-| L3 — C++ production | `core/src/**` | Validated against L1 by golden vectors and harnesses, **not** by proof. |
+| L1 — Executable spec | `spec/rigor_consensus_spec.py` | Model / numeric oracle for differential gates. Not protocol SSOT. |
+| L2 — Coq model | `coq/**` (~218 files) | Machine-checked model properties. Not C++ equivalence. |
+| L3 — C++ production | `core/src/**` | Realization of RFC-020 / RFC-018. Tests are evidence, not a proof. |
 
 Connections that actually exist:
 

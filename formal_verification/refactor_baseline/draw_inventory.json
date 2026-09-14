@@ -1,0 +1,203 @@
+{
+  "deliberately_kept": {
+    "CountConvergenceOutputs": "structural rule: at most one burn output per tx",
+    "GetConvergenceAmount": "same, the consensus-facing spelling",
+    "GetTransactionConvergenceAmount": "the burn amount; RFC-019 prices against it",
+    "IsConvergenceScript": "the OP_CONVERGE classifier; the opcode survives",
+    "IsConvergenceTx": "still how a burn is recognised",
+    "MIN_CONVERGENCE_AMOUNT": "floor on a burn, independent of what it buys",
+    "RIGOR_MARKER_CONVERGE": "the opcode itself"
+  },
+  "files_present": {
+    "core/src/consensus/bridge/draw_bridge.cpp": true,
+    "core/src/consensus/convergence_commitment.cpp": true,
+    "core/src/consensus/convergence_commitment.h": true,
+    "core/src/consensus/convergence_logic.cpp": true,
+    "core/src/consensus/convergence_logic.h": true,
+    "core/src/consensus/convergence_root.cpp": true,
+    "core/src/consensus/convergence_root.h": true,
+    "core/src/consensus/convergence_root_eligibility.cpp": true,
+    "core/src/consensus/convergence_root_eligibility.h": true,
+    "core/src/consensus/draw_digest.h": true,
+    "core/src/consensus/rigor_res.cpp": true,
+    "core/src/consensus/rigor_res.h": true
+  },
+  "group_totals": {
+    "candidate_set": 299,
+    "coinbase_mint": 261,
+    "memo_fields": 52,
+    "roots": 256,
+    "selection": 270,
+    "sigma": 45,
+    "window": 173
+  },
+  "groups": {
+    "candidate_set": {
+      "BuildBlockConvergenceCandidatesFromUndo": {
+        "files": 5,
+        "total": 8
+      },
+      "BuildConvergenceDrawSet": {
+        "files": 4,
+        "total": 25
+      },
+      "BuildConvergenceDrawSetFromUndo": {
+        "files": 4,
+        "total": 10
+      },
+      "BuildConvergenceSelectionContextView": {
+        "files": 4,
+        "total": 5
+      },
+      "ConvergenceDrawCandidate": {
+        "files": 30,
+        "total": 68
+      },
+      "ConvergenceDrawSet": {
+        "files": 41,
+        "total": 176
+      },
+      "IsConvergenceDrawMember": {
+        "files": 5,
+        "total": 7
+      }
+    },
+    "coinbase_mint": {
+      "CoinbaseHasResMint": {
+        "files": 6,
+        "total": 11
+      },
+      "FindBlockPaidConvergenceTxids": {
+        "files": 4,
+        "total": 10
+      },
+      "GetResMintReward": {
+        "files": 43,
+        "total": 96
+      },
+      "IsResMintScript": {
+        "files": 17,
+        "total": 20
+      },
+      "ParseResMintScript": {
+        "files": 13,
+        "total": 27
+      },
+      "RES_REWARD_GENESIS": {
+        "files": 21,
+        "total": 71
+      },
+      "ResRewardForEpoch": {
+        "files": 6,
+        "total": 18
+      },
+      "ResScheduleSum": {
+        "files": 3,
+        "total": 8
+      }
+    },
+    "memo_fields": {
+      "m_draw_set": {
+        "files": 5,
+        "total": 38
+      },
+      "m_paid_winner_txid": {
+        "files": 5,
+        "total": 14
+      }
+    },
+    "roots": {
+      "ComputeConvergenceDrawCandidateRoot": {
+        "files": 4,
+        "total": 4
+      },
+      "ComputeConvergenceDrawCandidateRootFromBlockUndo": {
+        "files": 2,
+        "total": 2
+      },
+      "ComputeConvergenceDrawMerkleRoot": {
+        "files": 3,
+        "total": 3
+      },
+      "ConvergenceDrawEligibleRoot": {
+        "files": 5,
+        "total": 6
+      },
+      "convergence_root": {
+        "files": 61,
+        "total": 241
+      }
+    },
+    "selection": {
+      "CONVERGENCE_DRAW_MIN_TXS_FOR_RES": {
+        "files": 7,
+        "total": 11
+      },
+      "ConvergenceDrawOutcome": {
+        "files": 26,
+        "total": 60
+      },
+      "ConvergenceWinnerTieBreakCompare": {
+        "files": 4,
+        "total": 13
+      },
+      "GetBlockWinner": {
+        "files": 4,
+        "total": 9
+      },
+      "GetBlockWinnerFromBlockUndo": {
+        "files": 4,
+        "total": 4
+      },
+      "RES_PROBABILITY_TARGET": {
+        "files": 19,
+        "total": 58
+      },
+      "ResolveConvergenceDraw": {
+        "files": 31,
+        "total": 104
+      },
+      "ResolveDraw": {
+        "files": 4,
+        "total": 11
+      }
+    },
+    "sigma": {
+      "ComputeConvergenceHash": {
+        "files": 3,
+        "total": 3
+      },
+      "ComputeSigmaHash": {
+        "files": 7,
+        "total": 11
+      },
+      "SelectionDigest": {
+        "files": 5,
+        "total": 28
+      },
+      "SelectionDigestHash": {
+        "files": 2,
+        "total": 3
+      }
+    },
+    "window": {
+      "CONVERGENCE_DRAW_WINDOW": {
+        "files": 36,
+        "total": 99
+      },
+      "CONVERGENCE_DRAW_WINDOW_LOG2": {
+        "files": 4,
+        "total": 8
+      },
+      "ConvergenceWindowTail": {
+        "files": 7,
+        "total": 57
+      },
+      "TailFromParentDrawSet": {
+        "files": 5,
+        "total": 9
+      }
+    }
+  },
+  "total": 1356
+}

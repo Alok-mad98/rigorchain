@@ -1,9 +1,6 @@
 # RIGOR Minimal Script Architecture
 
-**Task:** `TASK-RIGOR-MINIMAL-SCRIPT-ARCHITECTURE-WHITEPAPER-001`  
-**Layer:** Protocol whitepaper chapter (architecture explanation)  
-**Consensus impact:** **NONE**  
-**`equivalence_claimed`:** `false`
+**Document status:** Production specification
 
 This chapter explains a core design principle of RIGOR:
 
@@ -127,7 +124,7 @@ Validation Rules
 
 `scriptPubKey` is parsed as a witness program. Witness version and program shape classify the output as ORU, RES, or (for zero-value `OP_RETURN`) none. Classification is consensus-visible. A full node does not require an indexer, inscription parser, or off-chain color database to know which asset pool an output belongs to.
 
-Script is the **compliance/classification layer**: it states the conditions under which an output may exist and later be spent. Asset **class** is inferred from `scriptPubKey`. Asset ownership and transfer are enforced through UTXO consumption, script validation, signature verification, and consensus predicates. Script alone does not authorize asset creation. RES creation requires block-level authorization, Deterministic Reserve Issuance, and Convergence conditions. Parsing a script is not a substitute for those proofs.
+Script is the **compliance/classification layer**: it states the conditions under which an output may exist and later be spent. Asset **class** is inferred from `scriptPubKey`. Asset ownership and transfer are enforced through UTXO consumption, script validation, signature verification, and consensus predicates. Script alone does not authorize asset creation. RES creation requires Deterministic Reserve Issuance (`destroy_cost(h)`) and a same-tx `OP_CONVERGE` destroy. Parsing a script is not a substitute for those proofs.
 
 This avoids:
 
@@ -172,7 +169,9 @@ Both exist at the same protocol layer. There is no parent-child asset relationsh
 
 **Script path (spendable):** Witness v0 (`P2WPKH` 20-byte program, or `P2WSH` 32-byte program).
 
-**Convergence commitment:** Witness v1 CVG2 — still ORU-domain, unspendable, not a RES output.
+**Convergence destroy:** `OP_CONVERGE` / `RIGOR_MARKER_CONVERGE` (`0xbd`) —
+ORU-domain, unspendable, not a RES output. The same transaction MAY mint
+Witness v1 RES at `destroy_cost(h)`.
 
 ORU pays fees, miner subsidy, and Convergence entry weight. Coinbase creates ORU. Convergence consumes ORU.
 
@@ -183,13 +182,16 @@ ORU pays fees, miner subsidy, and Convergence entry weight. Coinbase creates ORU
 **Characteristics:**
 
 - scarcity asset
-- capped supply (**21,000,000 RES**)
-- convergence-based creation
+- derived cap (**419430400000000** atoms = **4194304 RES**)
+- same-tx body mint at `destroy_cost(h)`
 - long-term holding asset
 
 **Script path:** Witness v1, 32-byte program, **not** CVG2.
 
-RES is minted in the **block body** after a successful Convergence draw. Proof-of-work does not create RES. `No Convergence → No RES`.
+RES is minted in the **block body** of the same transaction that destroys
+ORU (`OP_CONVERGE`) when `R > 0 → R · (2²⁵ + h)² ≤ B << 40`.
+Proof-of-work does not create RES. Coinbase `OP_RES_MINT` is not the
+RFC-019 path. `No Convergence → No RES`.
 
 | | **ORU** | **RES** |
 |--|---------|---------|
@@ -197,7 +199,7 @@ RES is minted in the **block body** after a successful Convergence draw. Proof-o
 | Spendable classification | Witness v0 | Witness v1 (not CVG2) |
 | Other native object | CVG2: Witness v1, ORU-domain, unspendable | — |
 | Role | Medium of exchange | Store of value |
-| Origin | Coinbase subsidy | Body mint after Convergence |
+| Origin | Coinbase subsidy | Same-tx body mint at `destroy_cost(h)` |
 | Relationship | Peer asset | Peer asset |
 
 Conservation is enforced **per asset pool**. An ORU input cannot fund a RES output. A RES input cannot fund an ORU output. Isolation is a consensus rule, not a wallet convention.
@@ -305,7 +307,7 @@ A 36-byte “claim program” size exists in headers for historical wallet/seman
 
 **RIGOR does not inherit BIP341 Taproot execution semantics.**
 
-Witness v1 on Bitcoin is Taproot: output key, annex, merkle script paths, tapscript, control blocks. RIGOR removed that path from consensus validation. Comments in `validation.cpp` and `script/interpreter.cpp` record the deletion: no control blocks, no annex, no script-path spends.
+Witness v1 on Bitcoin is Taproot: output key, annex, merkle script paths, tapscript, control blocks. RIGOR removed that path from consensus validation. Comments in `validation.cpp` and `predicate_verify.cpp` record the deletion: no control blocks, no annex, no script-path spends. There is no `interpreter.cpp`.
 
 Witness v1 here is a **BIP141-shaped** version byte reused as a native asset and Convergence container. Sharing a version number with Bitcoin Taproot is not sharing Taproot’s VM.
 
@@ -325,52 +327,42 @@ A second historical v1 spend path (an 11-item “PCORB script path”) was remov
 
 Convergence is not a smart contract.
 
-It is a deterministic consensus mechanism.
+It is a deterministic consensus mechanism: destroy ORU in `OP_CONVERGE`;
+the same body transaction MAY mint Witness v1 RES at `destroy_cost(h)`.
 
 ```
-Eligible ORU Transactions
-
-
-        |
-
-
-Convergence Root
-
-
-        |
-
-
-Winner Selection
-
-
-        |
-
-
-RES Creation
+ORU destroyed (OP_CONVERGE, amount B)
+        ↓
+same body transaction
+        ↓
+Witness v1 RES (sum R) if R > 0 → R · (2²⁵ + h)² ≤ B << 40
 ```
 
-A user commits **≥ 1 ORU** into a **CVG2** witness v1 output. That output is protocol-controlled:
+A user destroys ORU into an **`OP_CONVERGE`** / `RIGOR_MARKER_CONVERGE`
+(`0xbd`) output. That output is protocol-controlled:
 
 - classified as ORU-domain (not RES)
 - unspendable
 - excluded from the UTXO set after in-block validation
 
-Committed ORU becomes weight `f_i` in candidate set **F**. Honest nodes recompute Convergence Root, Draw Candidate Root, σ, and the winner from public bytes. If a winner exists, the paying block must mint **`W(h)` RES** (`GetResMintReward`; 40.000000 RES at genesis) in its body to the winner’s declared Witness v1 RES program.
+Honest nodes check `CheckResMintArithmetic`: `R · (2²⁵ + h)² ≤ B << 40`
+at the confirming height. The derived cap is `419430400000000` atoms.
+Mint-output maturity 100 is reorg protection.
 
 Convergence outputs are protocol-controlled objects.
 
 They do not introduce arbitrary execution.
 
-There is no Convergence VM, no user-deployed Convergence bytecode, and no discretionary mint. The script bytes are a commitment container. Selection is integer hash-space mathematics published in RFC-000 / RFC-008 / RFC-014 / RFC-015.
+There is no Convergence VM, no user-deployed Convergence bytecode, and
+no discretionary mint. The script bytes are a destroy container. Live
+issuance is RFC-020 integer cost `destroy_cost(h)`.
 
 ```
-ORU committed (CVG2, unspendable)
+ORU destroyed (OP_CONVERGE, unspendable)
         ↓
-weight f_i in candidate set F
+same body transaction
         ↓
-deterministic draw
-        ↓
-maybe a RES mint — never a 1:1 swap
+maybe a RES mint at destroy_cost(h) — never a 1:1 swap
 ```
 
 ---
@@ -392,21 +384,15 @@ RIGOR approach:
 ```
 Less capability
 
-
        ↓
-
 
 Less complexity
 
-
        ↓
-
 
 Smaller attack surface
 
-
        ↓
-
 
 Stronger mathematical verification
 ```
@@ -423,17 +409,13 @@ Formal verification becomes more realistic when:
 - execution paths are restricted
 - rules are deterministic
 
-A general-purpose VM makes “prove the chain” a moving target: every new contract class is a new theorem obligation. A closed script family makes the obligation finite. Dual-asset conservation, CVG2 eligibility, and fail-closed RES mint are predicates over UTXOs and hashes — not over arbitrary memory.
+A general-purpose VM makes “prove the chain” a moving target: every new contract class is a new theorem obligation. A closed script family makes the obligation finite. Dual-asset conservation, `OP_CONVERGE` destroys, and fail-closed RES mint at `destroy_cost(h)` are predicates over UTXOs and amounts — not over arbitrary memory.
 
 RIGOR's minimal script design is not a limitation.
 
 It is a prerequisite for stronger mathematical assurance.
 
-The Coq development (`formal_verification/coq`) proves properties of **the model**. Golden-vector and differential gates check finite correspondence with production helpers. They do not collapse into a claim that the shipping binary is a refinement of the model.
-
-```
-equivalence_claimed = false
-```
+The Coq development (`formal_verification/coq`) proves properties of **the model**. Golden-vector and differential gates check finite correspondence with production helpers. They do not collapse into a claim that the running binary is a refinement of the model.
 
 Minimal scripts make that honesty cheaper to maintain: fewer paths to specify, fewer paths to model, fewer paths to diverge.
 
@@ -457,10 +439,10 @@ Public surfaces:
 | `core/src/consensus/tx_check.cpp` | `IsAllowedScript`: v0/20, native v1/32 (not CVG2/RES2), `OP_RES_MINT`, `OP_CONVERGE`; `OP_RETURN` at nValue 0 |
 | `core/src/script/rigor_classify.cpp` | `AssetTypeFromScriptPubKey`: v0/20 → ORU; native v1/32 → RES; `OP_CONVERGE` → ORU; `OP_RES_MINT` → RES; unknown → `ASSET_INVALID` |
 | `core/src/script/standard.cpp` | `IsConvergenceScript` / `IsResScript` (thin wrappers over the classifier) |
-| `core/src/script/interpreter.cpp` | v0 P2WPKH Ed25519; v1 RES `pk == program` then Ed25519; no BIP341 |
+| `core/src/script/predicate_verify.cpp` | v0 P2WPKH Ed25519; v1 RES `pk == program` then Ed25519; no BIP341; no Script VM |
 | `core/src/validation.cpp` | Taproot/BIP341 validation path removed; v1 is Ed25519 key-path |
 | `core/src/coins.cpp` | CVG2 outputs are not a consensus type (rejected at CheckTransaction) |
-| `docs/architecture/ARCHITECTURE.md` | Script is the compliance layer |
+| `docs/developer/Architecture.md` | Script is the compliance layer |
 | RFC-015 Alpha1 §5–6 | Dual-asset witness binding |
 
 No file in `core/src/kernel/`, `core/src/consensus/`, `pow.cpp`, `validation.cpp`, the script interpreter, wallet, or miner was modified for this chapter.

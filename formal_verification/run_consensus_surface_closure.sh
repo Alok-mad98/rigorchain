@@ -27,10 +27,10 @@ if ! command -v coqc >/dev/null; then
 fi
 
 echo "== coqc ConsensusSurfaceClosure.v =="
-(cd "$COQ" && coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ConsensusSurfaceClosure.v)
+(cd "$COQ" && coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ConsensusSurfaceClosure.v)
 
 echo "== Print Assumptions ConsensusSurfaceClosed =="
-ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
+ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R ../rigor_v01 RigorV01 <<'EOF'
 Require ConsensusSurfaceClosure.
 Print Assumptions ConsensusSurfaceClosure.ConsensusSurfaceClosed.
 Print Assumptions ConsensusSurfaceClosure.every_decision_has_a_boundary.
@@ -61,8 +61,6 @@ echo "== g++ test_consensus_surface_closure =="
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
   "$SRC/util/strencodings.cpp" \
-  "$SRC/consensus/convergence_logic.cpp" \
-  "$SRC/consensus_rigor/sigma_hash.cpp" \
   "$SRC/crypto/sha256.cpp" \
   "$SRC/arith_uint256.cpp" \
   "$SRC/rigor_kernel/pow_digest.cpp" \

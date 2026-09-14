@@ -4,23 +4,11 @@
 //
 // P0-076: economic model validation. Standalone.
 // Calls frozen Kernel authorities. Does not recode GetBlockSubsidy /
-// GetResMintReward / RigorSupplyDelta. Does not enter ConnectBlock.
-// Does not add a second economic-model authority.
-//
-// Build (from repo root):
-//   g++ -O2 -std=c++17 -Icore/src \
-//     -o formal_verification/extracted/test_economic_model_validation \
-//     core/src/test/test_economic_model_validation.cpp \
-//     core/src/consensus/rigor_issuance.cpp \
-//     core/src/consensus/rigor_supply.cpp \
-//     tools/consensus_kernel_refinement_log_stub.cpp \
-//     core/src/uint256.cpp \
-//     core/src/util/strencodings.cpp \
-//     -Wl,--gc-sections
-//   formal_verification/extracted/test_economic_model_validation
+// CheckResMintArithmetic / RigorSupplyDelta. Does not enter ConnectBlock.
 
 #include <consensus/amount.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -33,9 +21,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -63,13 +48,11 @@ static bool CoinbaseMature(int spend_height, int coin_height, int64_t maturity)
     return static_cast<int64_t>(spend_height) - static_cast<int64_t>(coin_height) >= maturity;
 }
 
-static bool PinIssuance(const Consensus::Params& p, int h, CAmount oru, CAmount res_sched)
+static bool PinIssuance(const Consensus::Params& p, int h, CAmount oru)
 {
     const RigorIssuance g = ComputeRigorIssuance(h, p);
     if (g.oru_subsidy != oru) return false;
     if (GetBlockSubsidy(h, p) != oru) return false;
-    if (Consensus::GetResMintReward(h) != res_sched) return false;
-    if (g.res_reward != res_sched) return false;
     if (g.epoch != RigorIssuanceEpoch(h)) return false;
 
     RigorSupplyDeltaInput in;
@@ -78,7 +61,6 @@ static bool PinIssuance(const Consensus::Params& p, int h, CAmount oru, CAmount 
     RigorSupplyDeltaResult out;
     if (!RigorSupplyDelta(in, p, out, st)) return false;
     if (out.oru_subsidy != oru) return false;
-    if (out.res_reward_scheduled != res_sched) return false;
     if (out.res_delta != 0) return false;
     if (out.oru_circulating_delta != oru) return false;
     return true;
@@ -88,20 +70,17 @@ int main()
 {
     const Consensus::Params p = FrozenParams();
 
-    // --- genesis supply (release_consensus_vectors.json) ---
-    if (!PinIssuance(p, 0, 0, 40000000)) return fail("genesis supply");
+    if (!PinIssuance(p, 0, 0)) return fail("genesis supply");
     if (GetBlockSubsidy(0, p) != Consensus::ORU_GENESIS_BLOCK_SUBSIDY) {
         return fail("genesis ORU pin");
     }
     if (SumSubsidy(0, 0, p) != 0) return fail("genesis cumulative");
 
-    // --- early mining / required heights ---
-    if (!PinIssuance(p, 1, 100000000000LL, 40000000)) return fail("height 1");
-    if (!PinIssuance(p, 99, 100000000000LL, 40000000)) return fail("height 99");
-    if (!PinIssuance(p, 100, 100000000000LL, 40000000)) return fail("height 100");
-    if (!PinIssuance(p, 101, 100000000000LL, 40000000)) return fail("height 101");
+    if (!PinIssuance(p, 1, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 1");
+    if (!PinIssuance(p, 99, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 99");
+    if (!PinIssuance(p, 100, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 100");
+    if (!PinIssuance(p, 101, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 101");
 
-    // --- maturity transition (nCoinbaseMaturity = 100; coin created at height 1) ---
     if (CoinbaseMature(1, 1, p.nCoinbaseMaturity)) return fail("maturity 1");
     if (CoinbaseMature(99, 1, p.nCoinbaseMaturity)) return fail("maturity 99");
     if (CoinbaseMature(100, 1, p.nCoinbaseMaturity)) return fail("maturity 100");
@@ -109,47 +88,46 @@ int main()
     {
         const CAmount issued_100 = SumSubsidy(0, 100, p);
         const CAmount issued_101 = SumSubsidy(0, 101, p);
-        const CAmount locked_100 = SumSubsidy(1, 100, p); // all post-genesis coins still locked
+        const CAmount locked_100 = SumSubsidy(1, 100, p);
         const CAmount locked_101 = SumSubsidy(2, 101, p);
         const CAmount matured_101 = issued_101 - locked_101;
-        if (issued_100 != 100000000000LL * 100) return fail("issued at 100");
-        if (issued_101 != 100000000000LL * 101) return fail("issued at 101");
+        if (issued_100 != Consensus::ORU_FLAT_BLOCK_SUBSIDY * 100) return fail("issued at 100");
+        if (issued_101 != Consensus::ORU_FLAT_BLOCK_SUBSIDY * 101) return fail("issued at 101");
         if (locked_100 != issued_100) return fail("all locked at 100");
-        if (matured_101 != 100000000000LL) return fail("first coin matures at 101");
+        if (matured_101 != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("first coin matures at 101");
         if (locked_101 + matured_101 != issued_101) return fail("locked+matured at 101");
     }
 
-    // --- halving transition (frozen vectors 209999/210000/420000) ---
-    if (!PinIssuance(p, 209999, 100000000000LL, 40000000)) return fail("height 209999");
-    if (!PinIssuance(p, 210000, 50000000000LL, 14142196)) return fail("height 210000");
-    if (GetBlockSubsidy(209999, p) == GetBlockSubsidy(210000, p)) {
-        return fail("halving did not change ORU");
+    if (!PinIssuance(p, 209999, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 209999");
+    if (!PinIssuance(p, 210000, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 210000");
+    if (GetBlockSubsidy(209999, p) != GetBlockSubsidy(210000, p)) {
+        return fail("flat ORU changed at observational epoch boundary");
     }
-    if (Consensus::GetResMintReward(209999) == Consensus::GetResMintReward(210000)) {
-        return fail("halving did not change RES schedule");
+    if (Consensus::ResDestroyCostAtHeight(210000) <= Consensus::ResDestroyCostAtHeight(209999)) {
+        return fail("RES display destroy cost did not harden");
     }
-    if (!PinIssuance(p, 419999, 50000000000LL, 14142196)) return fail("height 419999");
-    if (!PinIssuance(p, 420000, 25000000000LL, 7698004)) return fail("height 420000");
+    if (!PinIssuance(p, 419999, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 419999");
+    if (!PinIssuance(p, 420000, Consensus::ORU_FLAT_BLOCK_SUBSIDY)) return fail("height 420000");
 
-    // 840000 is past the last frozen RES-schedule pin. ORU is the last pinned
-    // floor (same authority value as height 630000). RES is GetResMintReward.
     {
         const CAmount floor_oru = GetBlockSubsidy(630000, p);
-        if (floor_oru != 12500000000LL) return fail("ORU floor pin 630000");
-        if (GetBlockSubsidy(840000, p) != floor_oru) return fail("ORU floor at 840000");
-        const CAmount res_840000 = Consensus::GetResMintReward(840000);
-        if (res_840000 != Consensus::ResRewardForEpoch(RigorIssuanceEpoch(840000))) {
-            return fail("RES 840000 is not the Kernel schedule");
+        if (floor_oru != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU flat pin 630000");
+        if (GetBlockSubsidy(840000, p) != floor_oru) return fail("ORU flat at 840000");
+        if (Consensus::ResDestroyCostAtHeight(840000) <= Consensus::ResDestroyCostAtHeight(630000)) {
+            return fail("RES price did not rise");
         }
-        if (res_840000 <= 0) return fail("RES 840000 vanished");
-        if (res_840000 >= Consensus::GetResMintReward(630000)) {
-            return fail("RES 840000 did not decay vs epoch 3");
-        }
-        if (!PinIssuance(p, 840000, floor_oru, res_840000)) return fail("height 840000");
+        if (!PinIssuance(p, 840000, floor_oru)) return fail("height 840000");
     }
 
-    // --- RES schedule (schedule is not actual issuance) ---
-    if (Consensus::GetResMintReward(0) != 40000000) return fail("RES schedule genesis");
+    if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS) {
+        return fail("RES destroy cost genesis");
+    }
+    if (!Consensus::CheckResMintArithmetic(Consensus::RES_COIN, Consensus::RES_DESTROY_COST_GENESIS, 0)) {
+        return fail("exact genesis mint");
+    }
+    if (Consensus::CheckResMintArithmetic(Consensus::RES_COIN, Consensus::RES_DESTROY_COST_GENESIS - 1, 0)) {
+        return fail("underpaid genesis mint");
+    }
     {
         RigorSupplyDeltaInput in;
         in.height = 1;
@@ -157,12 +135,9 @@ int main()
         BlockValidationState st;
         RigorSupplyDeltaResult out;
         if (!RigorSupplyDelta(in, p, out, st)) return fail("RES no-mint supply");
-        if (out.res_reward_scheduled != 40000000) return fail("RES schedule field");
-        if (out.res_delta != 0) return fail("RES actual mint without winner");
-        if (out.res_mint_authorized != true) return fail("RES schedule authorized");
+        if (out.res_delta != 0) return fail("RES actual mint without burn");
     }
 
-    // --- circulating calculation (observer delta from RigorSupplyDelta) ---
     {
         RigorSupplyDeltaInput in;
         in.height = 1;
@@ -192,7 +167,6 @@ int main()
         if (locked + circulating + burned != issued) return fail("locked+circulating+burned");
     }
 
-    // --- overflow boundary ---
     {
         RigorSupplyDeltaInput overflow;
         overflow.height = 1;
@@ -205,8 +179,8 @@ int main()
     std::printf("PASS: economic model validation\n");
     std::printf("GENESIS_SUPPLY=PASS\n");
     std::printf("MATURITY_TRANSITION=PASS\n");
-    std::printf("HALVING_TRANSITION=PASS\n");
-    std::printf("RES_SCHEDULE=PASS\n");
+    std::printf("FLAT_ORU_TRANSITION=PASS\n");
+    std::printf("RES_DESTROY_COST=PASS\n");
     std::printf("CIRCULATING_CALCULATION=PASS\n");
     std::printf("OVERFLOW_BOUNDARY=PASS\n");
     std::printf("FORMULA_DUPLICATION=FALSE\n");

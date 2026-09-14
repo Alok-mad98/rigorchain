@@ -14,7 +14,7 @@ Classification freeze snapshot (citable RC0 declaration §0):
 
 ## Freeze date
 
-2026-08-18 (operator scope freeze). Living RC0 FV freeze: 2026-08-20 (`TASK-FV-FREEZE-RC0-READINESS-001`).
+2026-08-18 (operator scope freeze). Living RC0 FV freeze: 2026-08-20 (historical verification record).
 
 ## Honesty (must stay false)
 
@@ -29,10 +29,10 @@ Lock: `formal_verification/coq/DrawBridgeProgress.v`
 
 ## Baseline commands
 
-From `~/rigor-official-tree` (primary operator entry):
+From this repository (primary operator entry):
 
 ```bash
-cd ~/rigor-official-tree
+# from repository root
 bash formal_verification/scripts/run_fv_release_checklist.sh
 ```
 
@@ -63,7 +63,7 @@ bash formal_verification/scripts/build_cpp_sigma_root_cli.sh
 
 ## Frozen baseline (what a green gate means)
 
-The 2026-08-18 operator freeze recorded **324** shared / **117** Coq-enforced. Living lock (`TASK-FV-VECTOR-SELECTIVE-DENSIFY-001`, 2026-08-20): **422** shared / **215** Coq-enforced. RC0 FV freeze (`TASK-FV-FREEZE-RC0-READINESS-001`) recorded **414 / 207**. Lineage: docs freeze `TASK-FV-DOCS-FREEZE-SYNC-001` was then **376 / 169**; InvalidCvg **390 / 183**; ScriptMintNeg **402 / 195**; EdgeCross **414 / 207**; densify **422 / 215**. Honesty flags were not flipped.
+The 2026-08-18 operator freeze recorded **324** shared / **117** Coq-enforced. Living lock (historical verification record, 2026-08-20): **422** shared / **215** Coq-enforced. RC0 FV freeze (historical verification record) recorded **414 / 207**. Lineage: docs freeze historical verification record was then **376 / 169**; InvalidCvg **390 / 183**; ScriptMintNeg **402 / 195**; EdgeCross **414 / 207**; densify **422 / 215**. Honesty flags were not flipped.
 
 | Check | In gate |
 |-------|---------|

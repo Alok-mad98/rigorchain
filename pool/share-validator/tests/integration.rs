@@ -1,8 +1,8 @@
 use block_assembler::{JobPublisher, JobSnapshotApi};
 use rigor_gbt::{GbtTemplate, TemplateCache, TemplateState};
 use share_validator::{
-    get_opus_hash_from_base_hash, ShareSubmission, ShareValidator, ValidationErrorCode,
-    ValidationKind,
+    get_opus_hash_from_base_hash, rgrpow_hash80, ShareSubmission, ShareValidator,
+    ValidationErrorCode, ValidationKind,
 };
 use std::sync::Arc;
 
@@ -14,7 +14,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
                 {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}"}},
                 {{"data": "0100000000020000000001", "txid": "{b}", "hash": "{b}"}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -22,9 +22,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             "height": 200,
             "version": 536870912,
             "curtime": 1700000200,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
         a = "aa".repeat(32),
@@ -51,9 +49,9 @@ fn assembler_validator_convergence_consistency() {
     assert_eq!(record.template_state, TemplateState::Active);
     let job = publisher.publish_from_template(&record).unwrap();
 
-    let computed = block_assembler::compute_convergence_root(&record.gbt.convergence_txids);
-    let committed = hex::decode(&job.coinbase.convergence_root_hex).unwrap();
-    assert_eq!(committed, computed);
+    let expected_ss = block_assembler::script::build_coinbase_scriptsig(record.height);
+    assert_eq!(hex::decode(&job.coinbase.scriptsig_hex).unwrap(), expected_ss);
+    assert_eq!(hex::decode(&job.coinbase.convergence_root_hex).unwrap(), vec![0u8; 32]);
     assert!(job.body_mint.body_mint_txid.is_none());
     assert!(!job.body_mint.reserved);
     assert!(!job.body_mint.mint_required);
@@ -123,7 +121,7 @@ fn rejects_replay_share_id() {
 }
 
 #[test]
-fn opuhash_golden_vectors_match_rigord() {
+fn opuhash_golden_vectors_are_historical_not_node_pow() {
     let mut base = [0u8; 32];
     base[0] = 1;
     let pow = get_opus_hash_from_base_hash(&base);
@@ -131,6 +129,15 @@ fn opuhash_golden_vectors_match_rigord() {
         hex::decode("0cc4ff55b1598a19689b97bd06cdb7c6abe8799bfd5e1554fbe44b606c265780").unwrap();
     expect.reverse();
     assert_eq!(pow.as_slice(), expect.as_slice());
+    let sha3 = rgrpow_hash80(&[0u8; 80]);
+    assert_ne!(pow, sha3);
+}
+
+#[test]
+fn rgrpow_zero_header_matches_rigord() {
+    let want = hex::decode("dd057fc1df8f5b9466e834cc9d7b819e2d511c75b43675b577f6d9f5d6de04fc")
+        .unwrap();
+    assert_eq!(rgrpow_hash80(&[0u8; 80]).as_slice(), want.as_slice());
 }
 
 #[test]
@@ -199,7 +206,6 @@ fn accepts_share_with_historical_window_txid_and_opaque_mint() {
     let publisher = JobPublisher::with_defaults(jobs.clone());
     let validator = ShareValidator::with_defaults(jobs, templates.clone());
 
-    let historical = "aa".repeat(32);
     let mint = "cc".repeat(32);
     let raw = format!(
         r#"{{
@@ -207,7 +213,7 @@ fn accepts_share_with_historical_window_txid_and_opaque_mint() {
             "transactions": [
                 {{"data": "02000000000100", "txid": "{mint}", "hash": "{mint}", "weight": 681}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "window/mint/1",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -215,13 +221,10 @@ fn accepts_share_with_historical_window_txid_and_opaque_mint() {
             "height": 306,
             "version": 536870912,
             "curtime": 1700000200,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{historical}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
         mint = mint,
-        historical = historical,
     );
     let t: GbtTemplate = serde_json::from_str(&raw).unwrap();
     let record = templates.ingest(t, raw, tip(6)).unwrap().unwrap();
@@ -248,21 +251,15 @@ fn accepts_share_with_historical_window_txid_and_opaque_mint() {
 }
 
 #[test]
-fn rejects_share_when_winner_present_but_mint_missing() {
+fn rejects_lottery_gbt_fields_at_ingest() {
     let templates = Arc::new(TemplateCache::new());
-    let jobs = Arc::new(block_assembler::JobCache::new());
-    let publisher = JobPublisher::with_defaults(jobs.clone());
-    let validator = ShareValidator::with_defaults(jobs, templates.clone());
-
-    let historical = "aa".repeat(32);
     let prev = "bb".repeat(32);
-    let prog = "11".repeat(32);
     let raw = format!(
         r#"{{
             "previousblockhash": "{prev}",
             "transactions": [],
-            "coinbasevalue": 5000000000,
-            "longpollid": "missing/mint/1",
+            "coinbasevalue": 12800000000,
+            "longpollid": "lottery/1",
             "weightlimit": 1000000,
             "bits": "207fffff",
             "prev_nbits": "1c00ff00",
@@ -270,74 +267,27 @@ fn rejects_share_when_winner_present_but_mint_missing() {
             "version": 536870912,
             "curtime": 1700000200,
             "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{historical}"],
-            "convergence_draw": {{
-                "source_blockhash": "{prev}",
-                "source_height": 305,
-                "sigma_seed": "{prev}",
-                "payout_height": 306,
-                "convergence_root": "{root}",
-                "target_prev": "1c00ff00",
-                "res_probability_target": "{root}",
-                "eligible_root": "{root}",
-                "candidates": [{{
-                    "txid": "{historical}",
-                    "weight": 50000000,
-                    "res_program": "{prog}",
-                    "eligible": true
-                }}],
-                "winner": {{
-                    "index": 0,
-                    "txid": "{historical}",
-                    "weight": 50000000,
-                    "res_program": "{prog}"
-                }}
-            }}
+            "convergence_draw": {{"source_blockhash": "{prev}", "source_height": 305, "sigma_seed": "{prev}", "payout_height": 306, "convergence_root": "{root}", "target_prev": "1c00ff00", "res_probability_target": "{root}", "eligible_root": "{root}"}}
         }}"#,
         prev = prev,
-        historical = historical,
-        prog = prog,
         root = "00".repeat(32),
     );
     let t: GbtTemplate = serde_json::from_str(&raw).unwrap();
-    let record = templates.ingest(t, raw, tip(7)).unwrap().unwrap();
-    let job = publisher.publish_from_template(&record).unwrap();
-    let share = ShareSubmission {
-        share_id: "missing-mint-share-1".into(),
-        job_id: job.job_id.clone(),
-        record_id: Some(record.record_id),
-        extranonce1: vec![],
-        extranonce2: vec![0; job.coinbase.extranonce2_size as usize],
-        ntime: job.ntime as u32,
-        nonce: 0,
-        share_target: [0xff; 32],
-    };
-    let result = validator.validate_share(share);
-    assert!(!result.accepted);
-    assert_eq!(result.error_code, Some(ValidationErrorCode::ErrResMintInvalid));
-    let msg = result.message.unwrap_or_default();
-    assert!(msg.contains("missing the node automatic RES mint"), "{msg}");
+    let err = templates.ingest(t, raw, tip(7)).unwrap_err();
+    let msg = format!("{err}");
+    assert!(msg.contains("V-06") || msg.contains("lottery"), "{msg}");
 }
 
 #[test]
-fn rejects_convergence_root_mismatch() {
+fn leftover_convergence_root_check_is_noop() {
     let templates = Arc::new(TemplateCache::new());
     let (t, raw) = fixture("conv/mis/1");
     let record = templates.ingest(t, raw, tip(5)).unwrap().unwrap();
-
-    let err = share_validator::convergence::validate_convergence_root_matches(
+    share_validator::convergence::validate_convergence_root_matches(
         &record,
         "00".repeat(64).as_str(),
     )
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        share_validator::ValidatorError::Validation {
-            code: ValidationErrorCode::ErrConvergenceMismatch,
-            ..
-        }
-    ));
+    .unwrap();
 }
 
 #[test]

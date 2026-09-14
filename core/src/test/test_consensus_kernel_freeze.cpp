@@ -8,8 +8,6 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root_eligibility.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
@@ -39,9 +37,6 @@
 
 namespace {
 
-constexpr CAmount kSaturatingWeight =
-    65536 * static_cast<CAmount>(Consensus::CONVERGENCE_DRAW_WINDOW) * Consensus::MIN_CONVERGENCE_AMOUNT;
-
 const int kFreezeHeights[] = {0, 1, 99, 100, 101, 209999, 210000, 419999, 420000};
 
 CScript OruP2wpkh(unsigned char fill = 0x11)
@@ -54,32 +49,6 @@ CScript ResNative(unsigned char fill = 0xaa)
     return CScript() << RIGOR_PUSH_1 << std::vector<unsigned char>(WITNESS_V1_RES_SIZE, fill);
 }
 
-uint256 TxidByte(unsigned char b)
-{
-    uint256 id;
-    std::fill(id.begin(), id.end(), static_cast<unsigned char>(0));
-    *(id.begin() + 31) = b;
-    return id;
-}
-
-ConvergenceDrawSet MakeDrawSet(int source_height, const std::vector<std::pair<uint256, uint64_t>>& members)
-{
-    ConvergenceDrawSet set;
-    set.source_height = source_height;
-    set.source_nbits = 0x207fffff;
-    set.source_block_hash = uint256S("0xaa");
-    std::vector<uint256> txids;
-    for (const auto& m : members) {
-        ConvergenceDrawCandidate c;
-        c.txid = m.first;
-        c.weight = m.second;
-        set.candidates.push_back(c);
-        txids.push_back(m.first);
-    }
-    set.convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids(txids);
-    return set;
-}
-
 } // namespace
 
 BOOST_FIXTURE_TEST_SUITE(test_consensus_kernel_freeze, BasicTestingSetup)
@@ -87,62 +56,20 @@ BOOST_FIXTURE_TEST_SUITE(test_consensus_kernel_freeze, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(freeze_issuance_heights)
 {
     const auto& c = Params().GetConsensus();
-    BOOST_REQUIRE_EQUAL(Consensus::GetResMintReward(0), 40000000);
     BOOST_REQUIRE_EQUAL(GetBlockSubsidy(0, c), 0);
-    BOOST_REQUIRE_EQUAL(ComputeRigorIssuance(0, c).res_reward, 40000000);
     BOOST_REQUIRE_MESSAGE(ComputeRigorIssuance(0, c).oru_subsidy == 0, "CONSENSUS_KERNEL_FREEZE_DRIFT");
 
     for (int h : kFreezeHeights) {
         const RigorIssuance pack = ComputeRigorIssuance(h, c);
         BOOST_REQUIRE_MESSAGE(pack.oru_subsidy == GetBlockSubsidy(h, c), "CONSENSUS_KERNEL_FREEZE_DRIFT");
-        BOOST_REQUIRE_MESSAGE(pack.res_reward == Consensus::GetResMintReward(h), "CONSENSUS_KERNEL_FREEZE_DRIFT");
         BOOST_REQUIRE_MESSAGE(pack.epoch == RigorIssuanceEpoch(h), "CONSENSUS_KERNEL_FREEZE_DRIFT");
-        const CAmount issued = (h == 0) ? 0 : pack.res_reward;
-        if (h == 0) {
-            BOOST_REQUIRE_EQUAL(issued, 0);
-        }
     }
 
-    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(1, c), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(209999, c), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(210000, c), Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 1);
-    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(419999, c), Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 1);
-    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(420000, c), Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> 2);
-}
-
-BOOST_AUTO_TEST_CASE(freeze_draw_cases)
-{
-    const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
-    const uint64_t w = static_cast<uint64_t>(kSaturatingWeight);
-    const uint256 a = TxidByte(0x11);
-    const uint256 b = TxidByte(0x22);
-
-    ConvergenceDrawSet empty;
-    empty.source_height = 100;
-    BOOST_REQUIRE_MESSAGE(!ResolveConvergenceDraw(empty, T).HasWinner(), "CONSENSUS_KERNEL_FREEZE_DRIFT");
-
-    ConvergenceDrawSet single = MakeDrawSet(100, {{a, w}});
-    const ConvergenceDrawOutcome one = ResolveConvergenceDraw(single, T);
-    BOOST_REQUIRE_MESSAGE(one.HasWinner() && single.candidates[static_cast<size_t>(one.winner_index)].txid == a,
-        "CONSENSUS_KERNEL_FREEZE_DRIFT");
-
-    ConvergenceDrawSet eq = MakeDrawSet(100, {{a, w}, {b, w}});
-    const uint256 w1 = eq.candidates[static_cast<size_t>(ResolveConvergenceDraw(eq, T).winner_index)].txid;
-    std::swap(eq.candidates[0], eq.candidates[1]);
-    const uint256 w2 = eq.candidates[static_cast<size_t>(ResolveConvergenceDraw(eq, T).winner_index)].txid;
-    BOOST_REQUIRE_MESSAGE(w1 == w2, "CONSENSUS_KERNEL_FREEZE_DRIFT");
-
-    BOOST_REQUIRE_MESSAGE(!ResolveConvergenceDraw(MakeDrawSet(100, {{a, w}}), uint256()).HasWinner(),
-        "CONSENSUS_KERNEL_FREEZE_DRIFT");
-
-    ConvergenceDrawSet ov = MakeDrawSet(100, {{a, std::numeric_limits<uint64_t>::max()}});
-    BOOST_REQUIRE_MESSAGE(!ResolveConvergenceDraw(ov, T).HasWinner(), "CONSENSUS_KERNEL_FREEZE_DRIFT");
-
-    ConvergenceDrawSet dup = MakeDrawSet(100, {{a, w}, {a, w}});
-    const ConvergenceDrawOutcome d = ResolveConvergenceDraw(dup, T);
-    BOOST_REQUIRE_MESSAGE(d.HasWinner(), "CONSENSUS_KERNEL_FREEZE_DRIFT");
-    BOOST_REQUIRE_MESSAGE(dup.candidates[static_cast<size_t>(d.winner_index)].txid == a,
-        "CONSENSUS_KERNEL_FREEZE_DRIFT");
+    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(1, c), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(209999, c), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(210000, c), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(419999, c), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_REQUIRE_EQUAL(GetBlockSubsidy(420000, c), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
 }
 
 BOOST_AUTO_TEST_CASE(freeze_classify_cases)

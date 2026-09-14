@@ -1,0 +1,38 @@
+# Shipping freeze pins. Text-only: no compile, no Coq, no apt.
+# Skipped unless a consensus lock file (or this gate) changes.
+name: mainnet-freeze-gate
+
+on:
+  pull_request:
+    paths:
+      - "core/src/consensus/rigor_consensus_lock.h"
+      - "core/src/consensus/res_issuance.h"
+      - "core/src/consensus/consensus.h"
+      - "core/src/consensus/rigor_issuance.cpp"
+      - "core/src/kernel/chainparams.cpp"
+      - "core/src/rigor_kernel/pow_digest.h"
+      - "docs/protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md"
+      - "tools/lint-mainnet-freeze-locks.py"
+      - ".github/workflows/mainnet-freeze-gate.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "core/src/consensus/rigor_consensus_lock.h"
+      - "core/src/consensus/res_issuance.h"
+      - "core/src/consensus/consensus.h"
+      - "core/src/consensus/rigor_issuance.cpp"
+      - "core/src/kernel/chainparams.cpp"
+      - "core/src/rigor_kernel/pow_digest.h"
+      - "docs/protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md"
+      - "tools/lint-mainnet-freeze-locks.py"
+      - ".github/workflows/mainnet-freeze-gate.yml"
+
+jobs:
+  freeze-locks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Pin freeze locks
+        run: python3 tools/lint-mainnet-freeze-locks.py

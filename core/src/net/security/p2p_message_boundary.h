@@ -7,8 +7,8 @@
 //
 // This module is a wire firewall. It does not:
 //   - modify chainstate
-//   - call GetBlockSubsidy / GetResMintReward / ResolveConvergenceDraw /
-//     ClassifyRigorTxout / RigorSupplyDelta / VerifyRigorPredicate
+//   - call GetBlockSubsidy / ResolveConvergenceDraw / ClassifyRigorTxout /
+//     RigorSupplyDelta / VerifyRigorPredicate
 //   - implement a script parser, signature verifier, or asset classifier
 //   - emit ConsensusKernelInput
 //

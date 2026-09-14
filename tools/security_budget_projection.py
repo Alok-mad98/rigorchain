@@ -6,7 +6,7 @@
 
 Simulates miner ORU issuance over 0-10 years and 10-50 years.
 Does not predict price, fees, hashrate, or adoption.
-Does not reimplement GetBlockSubsidy / GetResMintReward / RigorSupplyDelta.
+Does not reimplement GetBlockSubsidy / ResDestroyCostAtHeight / RigorSupplyDelta.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ def main() -> int:
     print("PRICE_PREDICTION=FALSE")
     print("TARGET_BLOCK_TIME_S", TARGET_BLOCK_TIME_S)
     print("BLOCKS_PER_YEAR", BLOCKS_PER_YEAR)
-    print("HALVING_INTERVAL", sched.interval)
+    print("CALENDAR_INTERVAL", sched.interval)
     print()
 
     header = (

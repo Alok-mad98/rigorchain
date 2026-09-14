@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
+VERSION="${RIGOR_ALPHA_VERSION:-0.2}"
 linux_ap="${ROOT}/dist/alphaplus/linux"
 win="${ROOT}/dist/alphaplus/windows"
 LINUX_TAR="${linux_ap}/rigor-v${VERSION}-linux.tar.gz"

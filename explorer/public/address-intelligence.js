@@ -75,12 +75,14 @@
         ["Classification", escapeHtml(id.classification ?? "—")],
         ["First seen block", id.first_seen_block != null ? String(id.first_seen_block) : "—"],
         ["Latest activity block", id.latest_activity_block != null ? String(id.latest_activity_block) : "—"],
+        ["Indexed at height", id.indexer_height != null ? String(id.indexer_height) : "—"],
       ]),
     );
 
     html += card(
       "Asset classification",
-      `<div class="address-balances">
+      `<p class="muted">Current balance at indexer height ${escapeHtml(String(id.indexer_height ?? data.accounting?.indexer_height ?? "—"))}. This is unspent UTXO, not lifetime received.</p>
+      <div class="address-balances">
         <div class="address-balance-box oru"><strong class="address-tag-oru">ORU balance</strong><p>${escapeHtml(bal.oru?.display ?? "0 ORU")}</p></div>
         <div class="address-balance-box res"><strong class="address-tag-res">RES balance</strong><p>${escapeHtml(bal.res?.display ?? "0 RES")}</p></div>
       </div>`,
@@ -101,9 +103,9 @@
         "Convergence activity",
         dl([
           ["Convergence tx count", String(conv.convergence_transaction_count ?? 0)],
-          ["Winner count", String(conv.winner_count ?? 0)],
-          ["Candidate count", String(conv.candidate_count ?? 0)],
-          ["Winner transactions", winnerLinks || "—"],
+          ["Mint count", String(conv.winner_count ?? 0)],
+          ["Destroy count", String(conv.candidate_count ?? 0)],
+          ["Mint transactions", winnerLinks || "—"],
         ]),
       );
     }

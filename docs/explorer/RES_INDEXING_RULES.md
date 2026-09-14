@@ -1,14 +1,15 @@
 # RES Indexing Rules (Explorer Interpretation)
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
-**Baseline:** `mainnet-freeze-rfc014-2026-05-25`  
-**Normative:** RFC-001, RFC-002, RFC-014, RFC-008 erratum, `core/src/consensus/`, `getconvergenceresult`.
+**Document status:** Production documentation  
+**Baseline:** RFC-020 shipping issuance  
+**Normative:** RFC-020, RFC-008, `core/src/consensus/res_issuance.h`, `CheckResMintArithmetic`.  
+Historical RFC-014 / RFC-017 draw fields and RFC-019 `RATE(k)` are **not** live authority.
 
 ---
 
 ## 1. Purpose
 
-Exact **read-only** rules for how the indexer classifies and stores RES-related chain facts. These rules MUST match node RPC output; the indexer MUST NOT reimplement consensus selection math for production truth.
+Exact **read-only** rules for how the indexer classifies and stores RES-related chain facts. These rules MUST match node RPC output; the indexer MUST NOT reimplement mint arithmetic as a second authority. Live mint is `CheckResMintArithmetic` in the confirming body transaction.
 
 ---
 
@@ -17,11 +18,11 @@ Exact **read-only** rules for how the indexer classifies and stores RES-related 
 | Signal | ORU | RES |
 |--------|-----|-----|
 | Witness version | **0** (P2WPKH/P2WSH) | **1** (32-byte program) |
-| `OP_CONVERGE` (`OP_PUSHBYTES_20 \|\| HASH160 \|\| 0xbd`) | Convergence burn / draw-entry — **ORU**, unspendable | N/A |
-| Native / RES2 v1 program | N/A | **RES** transfer or mint output |
+| `OP_CONVERGE` (`OP_PUSHBYTES_20 \|\| HASH160 \|\| 0xbd`) | Convergence destroy — **ORU**, unspendable | N/A (same tx MAY also create RES) |
+| Native v1 program | N/A | **RES** transfer or mint output |
 | Historical RFC-014 Witness v1 `CVG2` | **Retired** — not a live asset (indexer classifies `NONE`) | N/A |
 | `listunspent` / decode `asset` | `"ORU"` | `"RES"` |
-| Display decimals | 8 (base units per `COIN`) | 6 (`RES_COIN = 1_000_000` atoms per 1.000000 RES) |
+| Display decimals | 8 (base units per `COIN`) | 8 (`RES_COIN = 100_000_000` atoms per 1.00000000 RES) |
 
 **Forbidden:** Single “balance” column summing ORU + RES.
 
@@ -31,23 +32,25 @@ Exact **read-only** rules for how the indexer classifies and stores RES-related 
 
 A transaction is indexed as **RES mint** when ALL hold:
 
-1. It is the **coinbase** at height `H`.
-2. One output is canonical `OP_RES_MINT` (`<height> <20-byte HASH160> 0xbb`).
-3. Block RPC `rigor_res_minted == 1` is a cross-check (`CBlockIndex::has_res`). A missing coinbase mint on a `has_res=1` block is a mismatch, not a body-tx fallback.
-4. The paid winner is the **parent** draw (`getconvergenceresult(parent).draw_winner_txid`). This block's `rigor_winner` is the next window, not this mint.
+1. It is a **body** transaction at height `H` (not coinbase).
+2. It has exactly one `OP_CONVERGE` output with value `B`.
+3. It has one or more Witness v1 RES outputs summing to `R > 0`.
+4. Node consensus accepted it, so `CheckResMintArithmetic(R, B, H)` held.
 
 **Indexer MUST NOT:**
 
-- Infer mint from probability heuristics.
+- Infer mint from probability heuristics, draw winners, or `W(k)`.
 - Mark mint from mempool alone.
-- Treat a body-tx PCORB witness as issuance. Live mint has no funding input and no 6-field proof stack.
+- Treat coinbase `0xbb` as the issuance path.
+- Treat a body-tx PCORB witness as issuance.
 
 ### 3.1 Mint amount
 
 | Rule | Value |
 |------|-------|
-| Consensus mint increment | `GetResMintReward(H)` = RFC-017 `W(k)` at epoch `k = floor(H / 210000)`; genesis `W(0)` = 40.000000 RES (`RES_REWARD_GENESIS`). Historical RFC-015: constant 100 RES. |
-| Supply cap | `MAX_RES_SUPPLY` — display as static constant |
+| Consensus mint increment | Any `R` admitted by `R · (2²⁵+H)² ≤ B << 40`. Genesis display `destroy_cost(0) = 1024` ORU per 1 RES. |
+| Scale | `RES_COIN = 100000000` |
+| Supply cap | `RES_MAX_SUPPLY = 419430400000000` atoms (`2²²` RES) |
 
 ---
 
@@ -56,7 +59,7 @@ A transaction is indexed as **RES mint** when ALL hold:
 For each `vout`:
 
 ```
-IF script is OP_CONVERGE → asset = ORU (unspendable burn / draw-entry)
+IF script is OP_CONVERGE → asset = ORU (unspendable destroy)
 ELSE IF script is witness v0 → asset = ORU
 ELSE IF witness v1 AND Historical RFC-014 CVG2 prefix → asset = NONE (retired; not a third asset)
 ELSE IF witness v1 AND 32-byte RES program → asset = RES
@@ -77,39 +80,22 @@ Policy: [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATI
 
 ---
 
-## 5. Convergence eligibility (indexer view)
+## 5. Convergence / mint (indexer view)
 
-Eligibility for RES draw is **only** taken from `getconvergenceresult`:
-
-| Field | Indexer action |
-|-------|----------------|
-| `candidates[].draw_eligible` | Store verbatim |
-| `candidates[].convergence_amount` | Store; require ≥ `min_convergence` when eligible |
-| `candidates[].h` | Store for audit display |
-| `convergence_root_set_size` | Store \|F\| |
-| `res_probability_target` | Verify constant on every block |
-
-**Inequality (informational display only):**
+Live mint is the body-tx pole predicate. Indexer stores destroy `B`, minted `R`,
+height, and display `destroy_cost(h)`. Lottery fields
+(`draw_eligible`, `|F|`, `res_probability_target`, winner txid) are
+**retired** and MUST NOT be treated as issuance authority.
 
 ```
-H_i < RES_PROBABILITY_TARGET · f_i   (RFC-017)
-T = windowed RES_PROBABILITY_TARGET at E = 246 (C = 1024 ORU per mint)
-  hex WINDOWED: 000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479
-Historical RFC-014: T = 2^240 (hex 00010000…00 — not shipping)
-f_i = convergence_amount (ORU)
+Accept  ⇔  R = 0  ∨  R · (2²⁵+H)² ≤ B << 40
 ```
 
 **Forbidden indexer logic:**
 
-- Recompute eligibility using `bits` or `SetCompact(target_prev)` as T.
-- Reimplement `RunSelection` as authority — node RPC is authority for closed phase.
-
-### 5.1 Coupled mint rule
-
-| Condition | Display |
-|-----------|---------|
-| \|F\| < 2 | No coupled RES mint; `draw_eligible` may be false for all |
-| \|F\| ≥ 2 | Mint-capable block; show candidate set |
+- Recompute a draw using `bits` or `SetCompact(target_prev)` as a price.
+- Reimplement `RunSelection` / σ / window 32 as authority.
+- Display a declared 21,000,000 cap or six-decimal `RES_COIN`.
 
 ---
 
@@ -127,9 +113,9 @@ f_i = convergence_amount (ORU)
 Build edges:
 
 1. **Inclusion:** `convergence_txid` → `block_hash` at height `H`.
-2. **F-set:** `convergence_txid` in committed root set when `convergence_amount > 0` and tx appears in candidates with `convergence_type=v1_cvg2`.
-3. **Winner:** `draw_winner_txid == convergence_txid`.
-4. **Mint reference:** On RES mint tx, parse witness item 0; if equals `convergence_txid`, link `convergence_txid` → `mint_txid`.
+2. **Destroy:** `OP_CONVERGE` output value `B`.
+3. **Mint reference:** Same txid if Witness v1 RES outputs sum to `R > 0`.
+4. Retired: F-set / `draw_winner_txid` as issuance keys.
 
 ### 6.3 Cumulative convergence
 
@@ -143,12 +129,11 @@ Fields that MUST be stored for any RES mint display (there is no longer a proof-
 
 | Field | Why |
 |-------|-----|
-| `bind_hash` | Sigma-CR-01 domain |
-| `bind_height` / `bind_blockhash` | Ancestor at `H - 10` (or bootstrap) |
-| `target_prev` | Parent `nBits` at mint — witness item 4 |
-| `convergence_root` | F-set commitment at mint block |
-| `convergence_txid` | Winning convergence reference |
-| `res_probability_target` | Constant inequality RHS |
+| `txid` | Mint / destroy identity |
+| `height` | Confirming height |
+| `burn_B` | `OP_CONVERGE` `nValue` |
+| `mint_R` | Sum of Witness v1 RES outputs |
+| `price_h` | Display `destroy_cost(h)` at that height |
 
 **Not sufficient for replay display:** wtxid, fee rate, mempool time.
 
@@ -156,9 +141,7 @@ Fields that MUST be stored for any RES mint display (there is no longer a proof-
 
 | Operation | Identifier |
 |-----------|------------|
-| `convergence_txid` in proof | **txid** |
-| F-set membership | **txid** sorted |
-| `draw_winner_txid` | **txid** |
+| Convergence / mint tx | **txid** |
 | Mempool relay dedup | wtxid (display only) |
 
 Test reference: `convergence_consensus_tests.cpp` — `txid_vs_wtxid_locked`.
@@ -169,13 +152,11 @@ Test reference: `convergence_consensus_tests.cpp` — `txid_vs_wtxid_locked`.
 
 | Case | Rule |
 |------|------|
-| Bootstrap heights `1..9` | `bind_height = -1`; frozen zero bind preimage — show RPC text, do not invent ancestor |
-| Block without undo on historical query | `draw_candidate_root_computed` may be zero; `draw_eligible` false — label “undo unavailable” |
-| Empty F (`convergence_root_set_size = 0`) | Valid; not an error |
-| Committed ≠ computed root | **CRITICAL alert** — possible consensus divergence |
+| Any height `H ≥ 0` | Mint remains authorized; `destroy_cost(h)` is never 0 |
+| `R = 0` with a positive destroy | Legal plain destroy — index as destroy, not mint |
 | Multiple `OP_CONVERGE` outputs in one tx | Consensus rejects — indexer may show decode error from node |
-| Non-zero reserved witness | Post F-WX-08: invalid tx — do not index as valid mint |
-| `getconvergenceresult` vs local recompute mismatch | Trust RPC; file bug against node |
+| Coinbase `0xbb` | Not issuance — do not count toward the cap |
+| Local recompute ≠ node accept | Trust ConnectBlock; file bug against node |
 
 ---
 
@@ -183,9 +164,9 @@ Test reference: `convergence_consensus_tests.cpp` — `txid_vs_wtxid_locked`.
 
 | ID | Check |
 |----|-------|
-| P1 | `draw_candidate_root_committed == draw_candidate_root_computed` for sample ≥ 20 mint-capable blocks |
-| P2 | 100% headers `res_probability_target` == shipping windowed hex `000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479` (`E = 246`). Historical RFC-014 `00010000…00` (`2^240`) MUST NOT match. |
-| P3 | Eligible txid set equals `getconvergenceresult` for known RES block |
+| P1 | Every indexed mint satisfies `R · (2²⁵+H)² ≤ B << 40` at its height |
+| P2 | Display scale is 8 decimals (`RES_COIN = 1e8`). Six-decimal / 21,000,000 copy MUST NOT appear |
+| P3 | Cumulative minted atoms ≤ `419430400000000` |
 
 ---
 

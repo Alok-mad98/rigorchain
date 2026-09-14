@@ -310,7 +310,7 @@ Evaluation Engine::evaluate(ClientModel* clientModel, WalletModel* walletModel)
     const RigorWallet::ExplorerStatusSnapshot explorer =
         RigorWallet::DiagnosticsCollector::collectExplorer(clientModel);
     const RigorWallet::ConvergenceDiagnosticsSnapshot convergence =
-        RigorWallet::DiagnosticsCollector::collectConvergence(clientModel, walletModel);
+        RigorWallet::DiagnosticsCollector::collectConvergence(clientModel);
     const RigorWallet::VerificationStatusSnapshot verification =
         RigorWallet::DiagnosticsCollector::collectVerification(clientModel);
     return evaluateFromSignals(artifacts, node, wallet, explorer, convergence, verification);

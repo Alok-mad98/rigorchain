@@ -27,6 +27,9 @@ pub struct PoolFileConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct NodeSection {
+    /// Display/network label. Production is mainnet. Bech32 HRP remains `rg` (protocol lock).
+    #[serde(default = "default_network")]
+    pub network: String,
     #[serde(default = "default_rpc_host")]
     pub rpc_host: String,
     #[serde(default = "default_rpc_port")]
@@ -37,16 +40,20 @@ pub struct NodeSection {
     pub rpc_password: Option<String>,
 }
 
+fn default_network() -> String {
+    "mainnet".into()
+}
 fn default_rpc_host() -> String {
     "127.0.0.1".into()
 }
 fn default_rpc_port() -> u16 {
-    8332
+    8761
 }
 
 impl Default for NodeSection {
     fn default() -> Self {
         Self {
+            network: default_network(),
             rpc_host: default_rpc_host(),
             rpc_port: default_rpc_port(),
             rpc_user: None,
@@ -399,7 +406,8 @@ mod tests {
     fn example_toml_parses() {
         let raw = include_str!("../../config/example.toml");
         let cfg: PoolFileConfig = toml::from_str(raw).expect("example.toml");
-        assert_eq!(cfg.node.rpc_port, 8332);
+        assert_eq!(cfg.node.rpc_port, 8761);
+        assert_eq!(cfg.node.network, "mainnet");
         assert_eq!(cfg.stratum.listen_port, 3333);
         assert!((cfg.payout.oru_fee_percent - 1.0).abs() < f64::EPSILON);
         assert_eq!(cfg.payout.payout_interval, 3600);

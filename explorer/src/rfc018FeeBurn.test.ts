@@ -21,10 +21,11 @@ const res = (n: bigint): { asset_kind: "RES"; value_atoms: bigint } => ({
 });
 
 describe("RFC-018 explorer fee-burn statistics", () => {
-  it("locks 1/2 floor share and six/eight decimal coins (not 100 atoms)", () => {
+  it("locks 1/2 floor share and eight-decimal coins (not 1e6 or 100 atoms)", () => {
     assert.equal(ORU_COIN, 100000000n);
-    assert.equal(RES_COIN, 1000000n);
+    assert.equal(RES_COIN, 100000000n);
     assert.notEqual(RES_COIN, 100n);
+    assert.notEqual(RES_COIN, 1000000n);
     assert.equal(oruResTransferFeeBurnShare(0n), 0n);
     assert.equal(oruResTransferFeeBurnShare(1n), 0n);
     assert.equal(oruResTransferFeeBurnShare(2n), 1n);

@@ -7,7 +7,7 @@ import type { ChainStateRow } from "./db";
 export const ADDRESS_READONLY_NOTICE =
   "Address information is derived from indexed rigord data. This page does not create, sign, or broadcast transactions.";
 
-const VALID_HRPS = new Set(["trg", "rg"]);
+const VALID_HRPS = new Set(["rg", "trg", "rgrt", "dvt", "slt"]);
 
 export type AddressEncoding = "bech32" | "bech32m";
 

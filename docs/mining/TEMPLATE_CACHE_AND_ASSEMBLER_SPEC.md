@@ -1,13 +1,13 @@
 # Template Cache & Block Assembler — Implementation Specification
 
-**Task:** `TASK-MINING-005`  
-**Constitution:** `TASK-CONSTITUTION-002` (INFRASTRUCTURE MODE)  
+**Document status:** Production documentation  
+**Constitution:** historical verification record (INFRASTRUCTURE MODE)  
 **Parent documents:**
 
-- `RIGOR_GBT_ADAPTER_SPEC.md` (TASK-MINING-004)
-- `RIGOR_POOL_STACK_ARCHITECTURE.md` (TASK-MINING-002)
-- `RIGOR_POOL_ARCHITECTURE_AUDIT.md` (TASK-MINING-003)
-- `RES_BODY_MINT_ARCHITECTURE.md` (TASK-RESMINT-001)
+- `RIGOR_GBT_ADAPTER_SPEC.md` (historical verification record)
+- `RIGOR_POOL_STACK_ARCHITECTURE.md` (historical verification record)
+- `RIGOR_POOL_ARCHITECTURE_AUDIT.md` (historical verification record)
+- `RES_BODY_MINT_ARCHITECTURE.md` (historical verification record)
 - `core/doc/mining-pool-gbt.md`
 
 **Freeze compliance:** PROOF-031–034, `MAINNET_PROTOCOL_FREEZE_DECLARATION`  
@@ -444,7 +444,7 @@ flowchart TD
 | Step | Action |
 |------|--------|
 | 1 | Walk `candidate_blocks` where `block_hash` no longer on mainchain |
-| 2 | Mark `ORPHANED`; reverse `payout_rounds` per TASK-MINING-003 REORG-01 |
+| 2 | Mark `ORPHANED`; reverse `payout_rounds` per historical verification record REORG-01 |
 | 3 | Invalidate all `TemplateRecord` with `tip_hash` not at best tip |
 | 4 | Do not delete `share_id` rows — set `stale=true` |
 
@@ -496,7 +496,7 @@ stateDiagram-v2
 
 ## SECTION 9 — Audit Review
 
-### 9.1 TASK-MINING-003 finding resolution
+### 9.1 historical verification record finding resolution
 
 | Audit ID | Finding | Resolved by this spec? |
 |----------|---------|------------------------|
@@ -538,7 +538,7 @@ stateDiagram-v2
 
 | ID | Risk | Owner spec |
 |----|------|------------|
-| RR-01 | Share Validator + OpuHash golden tests | TASK-MINING-006 (future) |
+| RR-01 | Share Validator + OpuHash golden tests | historical verification record (future) |
 | RR-02 | PPLNS `payout_rounds` reversal detail | Payout Engine spec |
 | RR-03 | GBT leader HA + fencing | Phase B ops |
 | RR-04 | Production ORU+PCORB witness stack | RESMINT-001 §4.4 implementation test |
@@ -577,7 +577,7 @@ stateDiagram-v2
 
 **Rationale:**
 
-- Resolves TASK-MINING-003 **P-01** (Assembler authority) and cache identity ambiguities.
+- Resolves historical verification record **P-01** (Assembler authority) and cache identity ambiguities.
 - Provides implementable state machines, UK constraints, and assembly ordering.
 - Cross-spec gaps (payout reversal, HA fencing) are **outside** Template Cache / Assembler boundary and do not block Phase A.
 
@@ -645,4 +645,4 @@ stateDiagram-v2
 
 ---
 
-*End of TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md — TASK-MINING-005*
+

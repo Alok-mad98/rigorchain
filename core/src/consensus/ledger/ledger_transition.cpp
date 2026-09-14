@@ -79,8 +79,7 @@ bool GenesisOk(const LedgerKernelInput& in)
 {
     if (in.height != 0) return true;
     return in.consensus.oru_issuance == 0 &&
-           in.consensus.res_mint == 0 &&
-           in.consensus.res_schedule == 40000000;
+           in.consensus.res_mint == 0;
 }
 
 } // namespace

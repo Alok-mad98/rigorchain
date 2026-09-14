@@ -1,12 +1,12 @@
 # SPEC-001: RIGOR State Model
 
-**Task:** `TASK-SPEC-002`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, flat 128 ORU)  
 **Parent:** [SPEC-000 Consensus Specification](./SPEC-000-CONSENSUS-SPECIFICATION.md)  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015`  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-018`, `RFC-020`  
+**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`
 
 ---
 
@@ -108,14 +108,14 @@ S(h) = (
   UTXO,
   ProtocolVersion,
   FrozenParameters,
-  DrawContext,
+  MintContext,
   PoWContext
 )
 ```
 
-`DrawContext` and `PoWContext` are consensus-critical extensions required by
-RIGOR's convergence and difficulty rules. They are listed separately because
-their failure modes differ from ledger fields.
+`MintContext` and `PoWContext` are consensus-critical extensions required by
+RIGOR's body-tx destroy-to-mint and difficulty rules. They are listed separately
+because their failure modes differ from ledger fields.
 
 ---
 
@@ -126,12 +126,11 @@ height `h`, including the block hash at `h`, parent linkage, cumulative chainwor
 and header fields required for PoW validation and replay binding (`nBits`, time).
 
 **Why consensus depends on it:** Fork choice selects the active chain by greatest
-chainwork. PoW validation, ASERT difficulty update, and draw binding (`B_{h-k}`,
-`target_prev`) are evaluated relative to the active tip and its ancestors.
+chainwork. PoW validation and ASERT difficulty update are evaluated relative to
+the active tip and its ancestors.
 
 **Failure condition:** Two honest nodes disagree on the active tip given the same
-block history; chainwork fails to increase along the active chain; or draw binding
-references a block hash not on the active ancestor chain when `h ≥ k`.
+block history; or chainwork fails to increase along the active chain.
 
 ---
 
@@ -141,8 +140,7 @@ references a block hash not on the active ancestor chain when `h ≥ k`.
 genesis at `h = 0`. Height MUST increase by exactly one per accepted block on
 the active chain.
 
-**Why consensus depends on it:** Subsidy schedule, bootstrap bind rules (`h < k`),
-σ preimage height slot, and supply recurrence are height-indexed.
+**Why consensus depends on it:** Subsidy schedule and supply recurrence are height-indexed.
 
 **Failure condition:** Accepted block sequence with non-consecutive heights, or
 two nodes assigning different heights to the same active tip hash.
@@ -172,24 +170,26 @@ schedule; or Converge destruction in a valid block is not reflected in supply up
 ### 3.4 RES Supply State
 
 **Definition:** The cumulative RES supply `S_RES(h) ∈ ℤ≥0` with `S_RES(0) = 0`,
-and per-block mint indicator `M(h) ∈ {0, 1}`.
+and per-block body mint quantity `body_mint_atoms(h) ∈ ℤ≥0` equal to the sum of
+Witness v1 RES outputs created by body transactions that pass
+`CheckResMintArithmetic` at height `h`.
 
-Recurrence (normative, RFC-017):
+Recurrence (normative, RFC-020):
 
 ```
-S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
+S_RES(h+1) = S_RES(h) + body_mint_atoms(h+1)
+S_RES(h)   ≤ 419430400000000
 ```
 
-where `GetResMintReward(h)` is the RFC-017 schedule `W(k)`
-(`RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs)
-and at most one successful mint occurs per block. Historical RFC-015 used a
-constant 100 RES mint.
+A block MAY contain zero or more mint transactions; each MUST satisfy
+`R · (2²⁵+h)² ≤ B << 40`.
 
-**Why consensus depends on it:** RES minting is bounded by constitutional cap
-(21,000,000 RES). Excess mint or mint outside the draw path MUST be rejected.
+**Why consensus depends on it:** RES minting is bounded by the derived
+constitutional cap (`419430400000000` atoms). Excess mint or mint that fails
+the mint predicate MUST be rejected.
 
-**Failure condition:** `S_RES(h) > MAX_RES`; `M(h) = 1` for two distinct successful
-mints at the same height; or RES created without valid draw outcome.
+**Failure condition:** `S_RES(h) > 419430400000000`; or RES created without
+`CheckResMintArithmetic`.
 
 ---
 
@@ -215,18 +215,17 @@ structure (legitimacy failures are reported under the applicable CR / SI).
 
 **Definition:** The frozen rule-set identity governing which transaction and block
 formats are valid on the active network. For mainnet this is the genesis-activated,
-post-freeze rule bundle (RFC-014 decoupled convergence target, RFC-015 economics,
-witness V0/V1 only, no transition bridges).
+post-freeze rule bundle (RFC-020 continuous destroy cost, witness V0/V1 only,
+no transition bridges).
 
 This is **not** node software version. Software version strings MUST NOT enter
 consensus hashes or validation predicates.
 
 **Why consensus depends on it:** Block and transaction parsing, witness acceptance,
-and draw gate thresholds are version-governed. A block valid under superseded
-pre-freeze economics MUST NOT be accepted on mainnet.
+and mint-arithmetic predicates are version-governed.
 
-**Failure condition:** Acceptance of a block whose semantics depend on deprecated
-rule sets (variable-T inequality RHS, `|F| ≥ 2` gate, pre-RFC-015 mint quantity).
+**Failure condition:** Acceptance of a block whose mint or subsidy semantics
+diverge from the frozen RFC-020 constant set.
 
 ---
 
@@ -237,19 +236,19 @@ external configuration. Includes at minimum:
 
 | Parameter | Normative value / rule |
 |-----------|------------------------|
-| `RES_PROBABILITY_TARGET` | RFC-017: `E = 246` (windowed `T`); Historical RFC-014 parameter: `2^240` |
-| Block offset `k` | `10` |
-| RES mint amount | RFC-017 `W(k)` / `GetResMintReward(h)`; `RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000; cutoff 250. Historical RFC-015: 100 RES. |
-| `MAX_RES` | 21,000,000 RES |
-| Draw gate | `\|F\| ≥ 1` |
-| Bootstrap bind hash | All-zero 32 bytes when `h < k` |
-| Inequality form | `H_i < T · f_i` with cross-multiply tie-break |
+| `RES_COIN` | `100000000` (same eight-decimal atom as `COIN`) |
+| `RES_DESTROY_COST_GENESIS` | `102400000000` (1024 ORU) |
+| `RES_DESTROY_POLE` | `2²⁵` = `33554432` blocks |
+| `RES_DESTROY_SHIFT` | `40` |
+| `ORU_FLAT_BLOCK_SUBSIDY` | `12800000000` (128 ORU for every `h ≥ 1`) |
+| Mint predicate | `R > 0 → R · (2²⁵+h)² ≤ B << 40` (`CheckResMintArithmetic`) |
+| `RES_MAX_SUPPLY` | `419430400000000` atoms (`2²²` RES) |
 | Activation model | Genesis-only |
 
 Network-scoped PoW constants (target spacing, ASERT half-life, genesis hash)
 are frozen per network but MUST NOT alter mainnet consensus semantics.
 
-**Why consensus depends on it:** Draw eligibility, supply caps, and replay binding
+**Why consensus depends on it:** Destroy cost, supply cap, and mint authorization
 are parameter-driven. Parameter drift is a hard-fork class change.
 
 **Failure condition:** Validation uses a parameter value not in the frozen set;
@@ -258,18 +257,20 @@ governance.
 
 ---
 
-### 3.8 Draw Context (consensus-critical extension)
+### 3.8 Mint / Convergence Destroy Context (consensus-critical extension)
 
-**Definition:** Per-block convergence trace: candidate set `F`, convergence root
-`C`, per-candidate digests and eligibility, parent block hash `B_{h-1}` as the
-σ seed (Sigma-PoW-01), and optional winner selection outcome. Historical
-`bind_commit` is superseded.
+**Definition:** Per-block body-tx mint and convergence-destroy trace: each mint
+transaction’s single `OP_CONVERGE` destroy `B`, Witness v1 RES outputs summing to
+`R`, confirming height `h`, and the `CheckResMintArithmetic` accept/reject
+for that `(R, B, h)`. `R = 0` is a legal plain destroy. Mint-output maturity 100
+is reorg protection.
 
-**Why consensus depends on it:** RES mint authorization flows exclusively through
-the draw. Incorrect root, eligibility, or winner selection MUST reject the block.
+**Why consensus depends on it:** RES mint authorization is a function of the
+confirming block’s own body transactions and height. Failed mint arithmetic
+MUST reject the block.
 
-**Failure condition:** RES mint in block without valid draw; eligibility uses
-PoW-derived inequality RHS; or winner violates deterministic selection order.
+**Failure condition:** RES created without `CheckResMintArithmetic`; or the
+mint price taken from PoW / `nBits`.
 
 ---
 
@@ -279,11 +280,11 @@ PoW-derived inequality RHS; or winner violates deterministic selection order.
 and header fields needed to verify `OpuHash(SHA256d(header)) < ExpandCompact(nBits)`.
 
 **Why consensus depends on it:** PoW validity and fork choice depend on difficulty
-state. Parent compact target is **not** a σ input (SECURITY-001-A8). It MUST NOT
-define the RES inequality RHS (RFC-014).
+state. `destroy_cost(h)` is independent of PoW / `nBits`. Parent compact target MUST NOT
+define the mint destroy cost.
 
 **Failure condition:** Header accepted with insufficient work; ASERT update
-violates frozen rule; or PoW target used as convergence probability source.
+violates frozen rule; or PoW target used as the mint price.
 
 ---
 
@@ -295,7 +296,7 @@ MUST be derivable from consensus state and MUST NOT alter validation outcomes.
 | Runtime artifact | Description | Affects consensus? |
 |------------------|-------------|-------------------|
 | **Validation caches** | Memoized results of prior validation passes | **NO** |
-| **Supply ledger caches** | Cached cumulative ORU/RES counters mirrored from connect path. ObservationalMetrics (W1); not spendable UTXO. Cap authority is RFC-017 `ResScheduleSum()`. | **NO** |
+| **Supply ledger caches** | Cached cumulative ORU/RES counters mirrored from connect path. ObservationalMetrics (W1); not spendable UTXO. Cap authority is the RFC-020 derived `RES_MAX_SUPPLY`. | **NO** |
 | **Runtime supply mirror** | Post-connect observational copy of supply fields (FVR-B) | **NO** |
 | **Coq field hook map** | Name mapping from runtime export fields to formal model fields (FVR-C) | **NO** |
 | **Invariant checker state** | Last-run result of formal invariant verification on mirror (FVR-A, FVR-E) | **NO** |
@@ -306,7 +307,7 @@ MUST be derivable from consensus state and MUST NOT alter validation outcomes.
 | **Coq-readable candidate export** | Structured candidate layer for proof tooling (FVR-J) | **NO** |
 | **Global candidate aggregation** | Cross-height candidate equivalence index (FVR-K) | **NO** |
 | **Closure gate status** | Equivalence closure predicate evaluation (FVR-L) | **NO** |
-| **Draw closure audit** | Impossibility catalog for draw equivalence closure (FVR-M) | **NO** |
+| **Issuance catalog** | Formal issuance / mint-predicate catalog | **NO** |
 | **Phase-5 summary snapshot** | Consolidated FVR-A..N status for audit (FVR-N) | **NO** |
 | **Mempool** | Unconfirmed transaction pool | **NO** |
 | **Peer tables** | Network peer connectivity | **NO** |
@@ -334,7 +335,7 @@ It is a **read-only projection** of consensus or runtime mirrors.
 | **Deterministic state digest** | Derived hash of authoritative fields | Replay audit fingerprint (diagnostic) |
 | **Phase-5 summary export** | FVR-N consolidation | Layer status and honesty boundary |
 | **Equivalence candidate exports** | FVR-I, FVR-J, FVR-K | Candidate comparability, not proof |
-| **Closure and impossibility exports** | FVR-L, FVR-M | Gap catalog; draw non-closability |
+| **Closure and impossibility exports** | FVR-L, FVR-M | Gap catalog |
 
 ### 5.2 Non-authority rule
 
@@ -396,15 +397,14 @@ The transition MUST decompose into ordered phases. Reordering phases is a
 specification violation:
 
 ```
-Transition = Commit ∘ SupplyUpdate ∘ Draw ∘ Transactions ∘ Header
+Transition = Commit ∘ SupplyUpdate ∘ Transactions ∘ Header
 ```
 
 | Phase | Input | Effect |
 |-------|-------|--------|
 | **Header** | `S(h)`, block header | Verify PoW, timestamps, difficulty update |
-| **Transactions** | UTXO at `h`, block tx list | Apply spends and creates; update UTXO scratch |
-| **Draw** | Classified convergence candidates | Compute root, digests, eligibility, winner |
-| **SupplyUpdate** | Draw outcome, convergence commitments, subsidy | Update `S_ORU`, `S_RES` |
+| **Transactions** | UTXO at `h`, block tx list | Apply spends and creates; evaluate body mint / `OP_CONVERGE` destroys |
+| **SupplyUpdate** | Body mint atoms, convergence destroys, subsidy | Update `S_ORU`, `S_RES` via `body_mint_atoms` |
 | **Commit** | Scratch state | Persist `S(h+1)` |
 
 Invalidity at any phase MUST abort the transition and leave `S(h)` unchanged.
@@ -427,13 +427,13 @@ Placeholder invariant catalog (superseded by authoritative [SPEC-005 Consensus I
 | **SI-001** | Chain continuity | Active chain heights are consecutive from genesis; each block references its parent hash on the active chain |
 | **SI-002** | UTXO consistency | Every spend references an existing unspent output; no duplicate spends; output values are non-negative |
 | **SI-003** | ORU supply non-negativity | `S_ORU(h) ≥ 0` at all heights |
-| **SI-004** | RES supply cap | `S_RES(h) ≤ MAX_RES` at all heights |
-| **SI-005** | Frozen parameter preservation | All validation uses the frozen constant set; deprecated pre-freeze economics are rejected |
+| **SI-004** | RES supply cap | `S_RES(h) ≤ 419430400000000` at all heights |
+| **SI-005** | Frozen parameter preservation | All validation uses the frozen RFC-020 constant set |
 | **SI-006** | ORU conservation | Non-coinbase ORU flows preserve input–output balance per transaction validity rules |
-| **SI-007** | Single RES mint | `M(h) ∈ {0, 1}` — at most one successful RES mint per block |
+| **SI-007** | RES mint predicate | Mint transactions MAY exist in a block; each MUST satisfy `R · (2²⁵+h)² ≤ B << 40` |
 | **SI-008** | Chainwork monotonicity | Cumulative chainwork strictly increases along the active chain |
-| **SI-009** | Draw–mint coherence | RES mint in block `h` exists iff draw produced authorized winner and supply headroom |
-| **SI-010** | Replay bind integrity | σ uses parent hash `B_{h-1}` and height `h` (Sigma-PoW-01); mint proofs bind the same parent `C` |
+| **SI-009** | Mint arithmetic coherence | A RES-creating body tx in block `h` is valid only if `CheckResMintArithmetic` accepts `(R, B, h)` |
+| **SI-010** | Mint height binding | Mint authorization is a function of the confirming block’s body and height; maturity 100 is reorg protection |
 | **SI-011** | Script-as-compliance | Asset *class* is derivable from script; no persisted parallel asset field; legitimacy via consensus |
 | **SI-012** | Identity domain | Consensus references use transaction identity (txid), not witness-weighted alternate ids |
 | **SI-013** | Deterministic transition | Identical `(S(h), Block(h+1))` yields identical accept/reject and identical `S(h+1)` when accepted |
@@ -491,7 +491,7 @@ introduced runtime witnesses, mirrors, and Phase-5 export layers for formal audi
 | FVR-J | Coq-readable candidate export | **NONE** |
 | FVR-K | Global candidate equivalence index | **NONE** |
 | FVR-L | Equivalence closure gate | **NONE** |
-| FVR-M | Draw closure impossibility catalog | **NONE** |
+| FVR-M | Issuance / mint-predicate catalog | **NONE** |
 | FVR-N | Phase-5 summary and freeze-protocol link | **NONE** |
 
 Runtime mirrors remain **observational only**. They MUST NOT appear in validation
@@ -511,7 +511,7 @@ This document is **specification only**.
 | No protocol-freeze modification | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -533,4 +533,5 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-002` — initial state model specification |
+| 0.2 | 2026-09-12 | RFC-020 body-tx destroy-to-mint: `body_mint_atoms`, pole predicate, cap `2²²` |
+| 0.1 | 2026-06-05 | `historical verification record` — initial state model specification |

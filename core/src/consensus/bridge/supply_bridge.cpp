@@ -23,12 +23,10 @@ bool rigor_supply_delta(const rigor_supply_input* input, rigor_supply_result* ou
     in.fee_burn = static_cast<CAmount>(input->burn);
     in.converge_sum = static_cast<CAmount>(input->converge);
     in.res_mint = static_cast<CAmount>(input->mint);
-    in.has_winner = input->has_winner != 0;
-    in.draw_cardinality = static_cast<int>(input->card);
     in.oru_coinbase = static_cast<CAmount>(input->oru_coinbase);
     in.res_bootstrap = 0;
     in.fees_res = 0;
-    in.res_coinbase = RigorResCoinbaseExpected(in.fees_res, in.res_bootstrap, in.res_mint);
+    in.res_coinbase = RigorResCoinbaseExpected(in.fees_res, in.res_bootstrap);
 
     BlockValidationState state;
     RigorSupplyDeltaResult out;

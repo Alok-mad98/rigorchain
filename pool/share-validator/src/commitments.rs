@@ -2,37 +2,18 @@ use block_assembler::PublishedJobSnapshot;
 
 use crate::error::{ValidationErrorCode, ValidatorError, ValidatorResult};
 
-/// CVGE + RIGOR script consistency against JobSnapshot commitments.
+/// RFC-020: RIGR / CVGE are leftover-allowed, never required.
+///
+/// If the job still lists those scripts and the coinbase happens to carry them,
+/// they are accepted. Missing leftover outputs is not a share failure.
 pub fn validate_cvge_rigor(job: &PublishedJobSnapshot, coinbase_raw: &[u8]) -> ValidatorResult<()> {
     let outputs = parse_tx_outputs(coinbase_raw)?;
-    let scripts: Vec<Vec<u8>> = outputs.into_iter().map(|o| o.script).collect();
-
-    let rigor = hex::decode(&job.commitments.rigor_script_hex).map_err(|e| {
-        ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string())
-    })?;
-    if !scripts.iter().any(|s| s == &rigor) {
-        return Err(ValidatorError::validation(
-            ValidationErrorCode::ErrConvergenceMismatch,
-            "RIGOR commitment missing from coinbase",
-        ));
-    }
-
-    if let Some(cvge_hex) = &job.commitments.cvge_script_hex {
-        let cvge = hex::decode(cvge_hex).map_err(|e| {
-            ValidatorError::validation(ValidationErrorCode::ErrConvergenceMismatch, e.to_string())
-        })?;
-        if !scripts.iter().any(|s| s == &cvge) {
-            return Err(ValidatorError::validation(
-                ValidationErrorCode::ErrConvergenceMismatch,
-                "CVGE commitment missing from coinbase",
-            ));
-        }
-    }
-
+    let _ = (job, outputs);
     Ok(())
 }
 
 struct TxOut {
+    #[allow(dead_code)]
     script: Vec<u8>,
 }
 

@@ -2,7 +2,7 @@
 
 Production CPU miner client for the RIGOR pool Stratum stack (TASK-MINING-022A / **023**).
 
-Stratum v1 client, job cache, **real CPU OpuHash mining loop** (`share-validator` port), multi-thread nonce scanning, convergence metadata display, metrics, and CLI. No consensus logic, winner selection, mint, or convergence replay.
+Stratum v1 client, job cache, **CPU SHA3-256 RGRPOW01 mining loop** (`share-validator` port), multi-thread nonce scanning, convergence metadata display, metrics, and CLI. No consensus logic, winner selection, mint, or convergence replay.
 
 ## Stack position
 
@@ -37,7 +37,7 @@ cargo run -- --pool 127.0.0.1:3333 --worker test.worker --password x --stats
 
 ## Constraints
 
-- Agent string **must** contain `opushash` (default: `rigor-miner/1.0-opushash`)
+- Agent string **must** contain `rgrpow01` (default: `rigor-miner/1.0-rgrpow01`)
 - Miner **never** performs draw selection, winner validation, or mint locally
 - No pool or protocol modifications in this task
 

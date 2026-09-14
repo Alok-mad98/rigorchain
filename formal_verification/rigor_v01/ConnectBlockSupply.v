@@ -129,10 +129,6 @@ Theorem connectblock_maturity_still_100 :
   coinbase_maturity = 100.
 Proof. reflexivity. Qed.
 
-Theorem connectblock_reward_is_schedule :
-  forall h, mint_cap_at h = get_res_mint_reward h.
-Proof. intros. reflexivity. Qed.
-
 (** Fields that must appear in any future C++ refinement of this slice. *)
 Inductive ConnectBlockSupplyField :=
 | FieldSubsidy

@@ -3,19 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RES amount</title>
+    <title>RES</title>
     <link rel="stylesheet" href="/compliance.css" />
     <link rel="stylesheet" href="/status-dashboard.css" />
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .muted { color: #bbb; font-size: 12px; }
-      a { margin-right: 12px; color: #fff; }
+      a { color: #fff; }
       table { border-collapse: collapse; width: 100%; margin-top: 16px; }
       th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
       th { background: #111; text-align: left; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
-      .res-history { margin-top: 8px; }
-      .res-history h2 { font-size: 16px; margin: 20px 0 0; }
+      .res-history { margin-top: 16px; width: 100%; }
+      .res-history h2 { font-size: 16px; margin: 0 0 8px; }
+      .res-curve { width: 100%; height: 248px; display: block; margin: 8px 0; border: 1px solid #333; background: #0a0a0a; }
+      .status-card .muted { margin: 0 0 8px; }
     </style>
     <script src="/explorer-routes.js"></script>
   </head>
@@ -23,13 +25,14 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
     <h1>Network RES</h1>
-    <p class="muted">Mint outcomes on the left; in-flight draw window on the right. Per-block C and draw roots are on each block page.</p>
+    <p class="muted">ORU destroyed. RES minted. Destroy ORU to mint RES at the confirming-height protocol cost, not a market value.</p>
+    <div id="curves" class="status-dashboard">Loading schedule…</div>
     <div id="root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();
@@ -57,92 +60,171 @@
         const label = s.length < 20 ? s : s.slice(0, 12) + "…" + s.slice(-6);
         return '<a class="mono" href="' + ExplorerRoutes.txPath(txid) + '" title="' + esc(s) + '">' + esc(label) + "</a>";
       }
-      function shortHash(h) {
-        if (isZeroHash(h)) return "—";
-        const s = String(h);
-        if (s.length < 20) return '<span class="status-mono" title="' + esc(s) + '">' + esc(s) + "</span>";
-        return '<span class="status-mono" title="' + esc(s) + '">' + esc(s.slice(0, 12) + "…" + s.slice(-6)) + "</span>";
-      }
       function formatResAtoms(atoms) {
         try {
           const a = BigInt(String(atoms ?? 0));
-          return (a / 1000000n) + "." + (a % 1000000n).toString().padStart(6, "0") + " RES";
+          return (a / 100000000n) + "." + (a % 100000000n).toString().padStart(8, "0") + " RES";
         } catch {
           return "—";
         }
       }
-      function compactFDist(dist) {
-        if (!dist || typeof dist !== "object") return "—";
-        const parts = Object.entries(dist)
-          .filter(([k, v]) => Number(k) > 0 && Number(v) > 0)
-          .sort((a, b) => Number(a[0]) - Number(b[0]))
-          .map(([k, v]) => "|F|=" + k + ": " + v);
-        return parts.length ? esc(parts.join(" · ")) : "none in last 100";
+      function xOfYear(year, endYear, innerW, padX) {
+        return padX + (year / endYear) * innerW;
+      }
+      function yearGrid(endYear, innerW, innerH, padX, padT, height) {
+        const years = [0, 1, 4, 10, 16, 32, 50, 100, 250, 500, 638, 1000, 2000];
+        const ticks = [0, 250, 500, 638, 1000, 2000];
+        let html = "";
+        for (let i = 0; i < years.length; i++) {
+          const year = years[i];
+          const x = xOfYear(year, endYear, innerW, padX).toFixed(2);
+          const major = year === 0 || year === 638 || year === endYear || year === 1000;
+          html += '<line data-year="' + year + '" x1="' + x + '" y1="' + padT +
+            '" x2="' + x + '" y2="' + (padT + innerH) +
+            '" stroke="' + (major ? "#666" : "#333") +
+            '" stroke-width="' + (major ? "1" : "0.4") + '"/>';
+        }
+        for (let i = 0; i < ticks.length; i++) {
+          const year = ticks[i];
+          const x = xOfYear(year, endYear, innerW, padX).toFixed(2);
+          html += '<text x="' + x + '" y="' + (height - 8) +
+            '" fill="#bbb" font-size="10" text-anchor="middle">' + year + "</text>";
+        }
+        return html;
+      }
+      function yearMark(year, endYear, innerW, innerH, padX, padT, width, label) {
+        if (!Number.isFinite(year)) return "";
+        const y = Math.max(0, Math.min(endYear, year));
+        const x = xOfYear(y, endYear, innerW, padX);
+        const labelX = Math.min(x + 4, width - padX - 72);
+        return '<line data-mark="' + esc(label) + '" x1="' + x.toFixed(2) + '" y1="' + padT +
+          '" x2="' + x.toFixed(2) + '" y2="' + (padT + innerH) +
+          '" stroke="#ffffff" stroke-width="2"/>' +
+          '<text x="' + labelX.toFixed(2) + '" y="' + (padT + 12) +
+          '" fill="#ffffff" font-size="11">' + esc(label) + "</text>";
+      }
+      function polylineYears(points, valueOf, endYear) {
+        if (!points.length) return "";
+        const values = points.map(valueOf);
+        const min = Math.min.apply(null, values);
+        const max = Math.max.apply(null, values);
+        const dy = max - min || 1;
+        const w = 720, h = 248, padX = 16, padT = 18, padB = 28;
+        const innerW = w - padX * 2;
+        const innerH = h - padT - padB;
+        return points.map(function (p) {
+          const x = xOfYear(p.year, endYear, innerW, padX);
+          const y = padT + (1 - (valueOf(p) - min) / dy) * innerH;
+          return x.toFixed(2) + "," + y.toFixed(2);
+        }).join(" ");
+      }
+      function svgYearCurve(points, valueOf, label, currentYear, endYear) {
+        const w = 720, h = 248, padX = 16, padT = 18, padB = 28;
+        const innerW = w - padX * 2;
+        const innerH = h - padT - padB;
+        return '<svg class="res-curve" viewBox="0 0 720 248" role="img" aria-label="' + esc(label) + '">' +
+          yearGrid(endYear, innerW, innerH, padX, padT, h) +
+          yearMark(638, endYear, innerW, innerH, padX, padT, w, "pole 638") +
+          yearMark(currentYear, endYear, innerW, innerH, padX, padT, w, "now") +
+          '<polyline fill="none" stroke="#ffffff" stroke-width="1.5" points="' +
+          polylineYears(points, valueOf, endYear) + '" /></svg>';
       }
 
-      async function load() {
-        const [statusRes, mintsRes] = await Promise.all([
-          fetch("/api/status", { signal: AbortSignal.timeout(20000) }),
-          fetch("/api/res/mints?limit=15", { signal: AbortSignal.timeout(20000) }),
-        ]);
-        if (!statusRes.ok) throw new Error("HTTP " + statusRes.status);
-        const j = await statusRes.json();
-        const eco = j.economic_snapshot ?? {};
-        const ch = j.convergence_health ?? {};
-        const mints = ((await mintsRes.json()).mints) || [];
+      function renderCurves(j, currentYear) {
+        const curve = j.curve || j.milestones || [];
+        const endYear = Number(j.chart_end_year) || 2000;
+        const axis = j.axis_caption ||
+          "Horizontal axis: years at 600-second blocks. Pole at year 638 (h = 2^25), where the ceiling reaches half of 4,194,304 RES.";
+        const destroyCaption = j.destroy_caption || j.unit_price_caption ||
+          "Convergence destroys ORU to mint RES. Display destroy_cost(h) is ORU destroyed to mint 1 RES at the confirming height. Not a market value.";
+        document.getElementById("curves").innerHTML =
+          '<div class="status-grid status-grid--charts">' +
+          '<section class="status-card"><h2>ORU destroyed to mint 1 RES</h2>' +
+          '<p class="muted">' + esc(destroyCaption) + "</p>" +
+          svgYearCurve(curve, function (p) { return Number(p.destroy_oru_atoms || p.unit_price_atoms); }, destroyCaption, currentYear, endYear) +
+          '<p class="muted">' + esc(axis) + " Vertical axis: ORU atoms destroyed to mint 1.00000000 RES.</p>" +
+          "</section>" +
+          '<section class="status-card"><h2>RES mint ceiling</h2>' +
+          '<p class="muted">' + esc(j.cumulative_issuance_caption) + "</p>" +
+          svgYearCurve(curve, function (p) { return Number(p.cumulative_res_atoms); }, j.cumulative_issuance_caption, currentYear, endYear) +
+          '<p class="muted">' + esc(axis) + " Vertical axis: cumulative RES atoms at the closed-form ceiling (" +
+          esc(j.derived_max_supply_atoms) + " atoms).</p>" +
+          "</section></div>";
+      }
 
-        const remaining = eco.draw_blocks_remaining;
-        const remainingDisplay =
-          remaining == null || remaining === ""
-            ? "—"
-            : Number(remaining) === 0
-              ? "0 (completes now)"
-              : String(remaining) + " blocks";
-        const completes = eco.draw_completes_at_height;
-        const completesDisplay = completes == null || completes === "" ? "—" : "block " + String(completes);
-        const freq =
-          ch.winner_frequency_last_100 != null && ch.winner_frequency_last_100 !== ""
-            ? (Number(ch.winner_frequency_last_100) * 100).toFixed(1) + "%"
-            : "—";
-        const committed = ch.draw_candidate_root_committed ?? ch.draw_candidate_root;
-        const computed = ch.draw_candidate_root_computed;
-
-        const minted = card("RES minted", [
+      function renderDetails(eco, mints) {
+        const schedule = card("RES schedule", [)
+          row("ORU destroyed to mint 1 RES", val(eco.res_destroy_cost_display)),
+          row("Confirming height", val(eco.confirm_height ?? eco.tip_height ?? eco.height)),
+          row("RES mint ceiling", val(eco.res_derived_max_supply_display)),
           row("Network RES minted", val(eco.network_res_minted_display)),
+        ]);
+        const activity = card("RES activity", [
           row("RES minted (last 100)", val(eco.res_mint_rate_last_100_blocks_display)),
-          row("Winner blocks / 100", val(ch.winner_blocks_last_100)),
-          row("Winner frequency", val(freq)),
           row("Mint count", val(eco.res_mint_count)),
           row("Last mint height", val(eco.last_res_height)),
           row("Last mint tx", txLinkShort(eco.last_res_mint_txid)),
-          row("Last winner tx", txLinkShort(eco.last_winner_txid)),
         ]);
-        const draw = card("RES draw window", [
-          row("Tip height", val(eco.tip_height)),
-          row("Blocks remaining", val(remainingDisplay)),
-          row("Completes at", val(completesDisplay)),
-          row("Active convergences", val(eco.active_convergences ?? ch.active_convergences)),
-          row("Pending in F", val(eco.pending_windows ?? ch.pending_windows)),
-          row("|F| last 100", compactFDist(ch.f_set_distribution_last_100_blocks)),
-          row("C (tip)", shortHash(ch.c_root)),
-          row("Tip draw roots", shortHash(committed) + ' <span class="muted">pays</span> · ' + shortHash(computed) + ' <span class="muted">awards</span>'),
-        ]);
-
-        const rows = mints.map((m) =>
+        const rows = (mints || []).map((m) =>
           "<tr><td>" + esc(m.block_height) + "</td><td>" +
           txLink(m.mint_txid) + "</td><td>" +
-          txLink(m.winner_convergence_txid) + "</td><td>" +
           esc(formatResAtoms(m.mint_amount)) + "</td></tr>"
         ).join("");
-
         document.getElementById("root").innerHTML =
-          '<div class="status-grid status-grid--pair">' + minted + draw + "</div>" +
+          '<div class="status-grid status-grid--pair">' + schedule + activity + "</div>" +
           '<div class="res-history"><h2>RES mint history</h2>' +
-          "<table><thead><tr><th>height</th><th>mint txid</th><th>winner</th><th>amount</th></tr></thead><tbody>" +
-          (rows || '<tr><td colspan="4" class="muted">No RES mints on this chain yet.</td></tr>') +
+          "<table><thead><tr><th>height</th><th>mint txid</th><th>amount</th></tr></thead><tbody>" +
+          (rows || '<tr><td colspan="3" class="muted">No RES mints on this chain yet.</td></tr>') +
           "</tbody></table></div>";
       }
-      load().catch((e) => { document.getElementById("root").textContent = "Failed: " + String(e); });
+
+      async function loadPage() {
+        const curvesEl = document.getElementById("curves");
+        const rootEl = document.getElementById("root");
+        const ssrCurves = curvesEl && curvesEl.getAttribute("data-ssr") === "1";
+        const ssrRoot = rootEl && rootEl.getAttribute("data-ssr") === "1";
+        if (ssrCurves && ssrRoot) return;
+
+        const schedRes = await ExplorerRoutes.fetchJson("/api/res/schedule", 10000);
+        if (!schedRes.ok) throw new Error("schedule HTTP " + schedRes.status);
+        const schedule = await schedRes.json();
+        renderCurves(schedule, NaN);
+
+        const [statusSettled, mintsSettled] = await Promise.allSettled([
+          ExplorerRoutes.fetchJson("/api/status", 15000).then(function (r) {
+            if (!r.ok) throw new Error("status HTTP " + r.status);
+            return r.json();
+          }),
+          ExplorerRoutes.fetchJson("/api/res/mints?limit=15", 10000).then(function (r) {
+            if (!r.ok) throw new Error("mints HTTP " + r.status);
+            return r.json();
+          }),
+        ]);
+
+        const eco =
+          statusSettled.status === "fulfilled"
+            ? (statusSettled.value.economic_snapshot || {})
+            : {};
+        const mints =
+          mintsSettled.status === "fulfilled"
+            ? (mintsSettled.value.mints || [])
+            : [];
+        const confirmH = Number(eco.confirm_height ?? eco.tip_height);
+        const blocksPerYear = Number(schedule.blocks_per_year) || 52594.92;
+        const currentYear = Number.isFinite(confirmH) ? confirmH / blocksPerYear : NaN;
+        if (Number.isFinite(currentYear)) renderCurves(schedule, currentYear);
+        renderDetails(eco, mints);
+      }
+      loadPage().catch((e) => {
+        const curves = document.getElementById("curves");
+        if (curves && curves.getAttribute("data-ssr") !== "1" && String(curves.textContent || "").indexOf("Loading") === 0) {
+          curves.textContent = "Schedule failed: " + String(e);
+        }
+        const root = document.getElementById("root");
+        if (root && root.getAttribute("data-ssr") !== "1") {
+          root.textContent = "Failed: " + String(e);
+        }
+      });
     </script>
     <script src="/compliance.js"></script>
   </body>

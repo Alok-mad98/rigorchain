@@ -1,0 +1,8 @@
+{
+  "actual_result": "reject",
+  "attack_type": "C1_invalid_block_serialization",
+  "block_hash": null,
+  "case": "C1_truncated_block",
+  "expected_result": "reject",
+  "height": 123
+}

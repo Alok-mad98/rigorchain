@@ -10,7 +10,7 @@
 
 #include "cpuminer-config.h"
 #include "miner.h"
-#include "opus_hash.h"
+#include "rgrpow.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -33,8 +33,8 @@ static void print_pow_debug_pair(const unsigned char *hdr_hash, const unsigned c
 		*p++ = hexdig[hdr_hash[i] >> 4];
 		*p++ = hexdig[hdr_hash[i] & 0xf];
 	}
-	memcpy(p, "\nMINER OpuHash: ", 16);
-	p += 16;
+	memcpy(p, "\nMINER RGRPOW01: ", 17);
+	p += 17;
 	for (i = 31; i >= 0; i--) {
 		*p++ = hexdig[pow_hash[i] >> 4];
 		*p++ = hexdig[pow_hash[i] & 0xf];
@@ -628,11 +628,10 @@ int scanhash_sha256d(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 
 	/*
 	 * pdata[] is the cpuminer internal word layout. submit_upstream_work serializes
-	 * the header with le32enc; OpuHash MUST hash those exact same 80 wire bytes.
+	 * the header with le32enc; RGRPOW01 MUST hash those exact same 80 wire bytes.
 	 *
 	 * Digest limbs must match Bitcoin UintToArith256: ReadLE32 at digest+4*i
-	 * (data[0]=least significant). The old BE-reversed load treated the wrong end as
-	 * most-significant → ~50% false positives rejected by the node as high-hash.
+	 * (data[0]=least significant).
 	 */
 	for (i = 0; i < 19; i++)
 		le32enc(wire + 4 * i, pdata[i]);
@@ -640,7 +639,7 @@ int scanhash_sha256d(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 	do {
 		pdata[19] = ++n;
 		le32enc(wire + 4 * 19, pdata[19]);
-		opus_hash(wire, digest);
+		rgrpow_hash80(wire, digest);
 		for (i = 0; i < 8; i++)
 			hash[i] = le32dec(digest + 4 * i);
 		if (hash[7] <= Htarg) {

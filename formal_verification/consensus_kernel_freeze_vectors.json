@@ -1,7 +1,7 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-MIGRATION-FREEZE-P0-068",
   "note": "Freeze vectors. Aligns current C++ authority, migration candidate, and existing refinement pins. Does not prove equivalence.",
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "alignment_source": [
     "formal_verification/release_consensus_vectors.json",
@@ -10,7 +10,7 @@
   ],
   "genesis": {
     "height": 0,
-    "GetResMintReward": 40000000,
+    "res_destroy_cost": 102400000000,
     "res_issued_at_height": 0,
     "oru_actual": 0,
     "draw": "none"
@@ -34,73 +34,84 @@
       "height": 0,
       "epoch": 0,
       "oru": 0,
-      "res_schedule": 40000000,
+      "res_schedule": 102400000000,
       "res_issued": 0
     },
     {
       "height": 1,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400006103,
+      "res_issued": 0
     },
     {
       "height": 99,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400604248,
+      "res_issued": 0
     },
     {
       "height": 100,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400610352,
+      "res_issued": 0
     },
     {
       "height": 101,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400616456,
+      "res_issued": 0
     },
     {
       "height": 209999,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 103685743011,
+      "res_issued": 0
     },
     {
       "height": 210000,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196
+      "oru": 12800000000,
+      "res_schedule": 103685749152,
+      "res_issued": 0
     },
     {
       "height": 419999,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196
+      "oru": 12800000000,
+      "res_schedule": 104979513869,
+      "res_issued": 0
     },
     {
       "height": 420000,
       "epoch": 2,
-      "oru": 25000000000
+      "oru": 12800000000,
+      "res_issued": 0
     },
     {
       "height": 630000,
       "epoch": 3,
-      "oru": 12500000000,
-      "res_schedule": 5000000
+      "oru": 12800000000,
+      "res_schedule": 106281312688,
+      "res_issued": 0
     },
     {
       "height": 840000,
       "epoch": 4,
-      "oru": 12500000000,
-      "res_schedule": 3577712
+      "oru": 12800000000,
+      "res_schedule": 107591127071,
+      "res_issued": 0
     },
     {
       "height": 1050000,
       "epoch": 5,
-      "oru": 12500000000,
-      "res_schedule": 2721656
+      "oru": 12800000000,
+      "res_schedule": 108908963197,
+      "res_issued": 0
     }
   ],
   "draw": [

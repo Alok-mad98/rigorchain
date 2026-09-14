@@ -3,30 +3,23 @@ use rigor_gbt::{TemplateCacheApi, TemplateRecord};
 use std::sync::Arc;
 
 use crate::commitments::validate_cvge_rigor;
-use crate::convergence::{
-    validate_convergence_root_matches, validate_convergence_window_against_parent,
-    CommittedWindowSource,
-};
 use crate::error::{ValidationErrorCode, ValidatorError, ValidatorResult};
 use crate::header::{
-    assemble_coinbase_raw, build_header_bytes, coinbase_scriptsig_from_submission, header_base_hash,
+    assemble_coinbase_raw, build_header_bytes, coinbase_scriptsig_from_submission,
 };
 use crate::job_binding::validate_job_template_binding;
-use crate::opuhash::{expand_compact_bits, get_opus_hash_from_base_hash, verify_opuhash_block, verify_opuhash_share};
+use crate::opuhash::{expand_compact_bits, get_opus_hash_from_base_hash, verify_opuhash_share};
+use crate::rgrpow::{verify_rgrpow_block, verify_rgrpow_share};
 use crate::replay::{ReplayGuard, SharedReplayGuard};
-use crate::res_mint::{
-    validate_block_res_mint, validate_node_supplied_automint, validate_res_mint_placeholder,
-};
+use crate::res_mint::{validate_block_res_mint, validate_res_mint_placeholder};
 use crate::types::{
     BlockSubmission, JobValidationState, ShareSubmission, ValidationKind, ValidationResult,
 };
-/// Share validation enforcement boundary (TASK-MINING-008).
+/// Share validation enforcement boundary (RFC-020 ORU-only).
 pub struct ShareValidator {
     jobs: JobSnapshotApi,
     templates: TemplateCacheApi,
     replay: SharedReplayGuard,
-    /// Optional `getconvergenceresult(parent)` view of the W=32 window.
-    window_source: Option<Arc<dyn CommittedWindowSource>>,
 }
 
 impl ShareValidator {
@@ -39,7 +32,6 @@ impl ShareValidator {
             jobs,
             templates,
             replay,
-            window_source: None,
         }
     }
 
@@ -49,12 +41,6 @@ impl ShareValidator {
             TemplateCacheApi::new(templates),
             Arc::new(ReplayGuard::new()),
         )
-    }
-
-    /// Cross-check GBT `convergence_txids` against the parent's on-chain 32-block window.
-    pub fn with_window_source(mut self, source: Arc<dyn CommittedWindowSource>) -> Self {
-        self.window_source = Some(source);
-        self
     }
 
     pub fn validate_share(&self, share: ShareSubmission) -> ValidationResult {
@@ -91,8 +77,6 @@ impl ShareValidator {
 
         validate_job_template_binding(&job, &template)?;
         validate_res_mint_placeholder(&job)?;
-        validate_node_supplied_automint(&template)?;
-        self.check_parent_window(&template)?;
 
         // TASK-012 H-5: nTime rolling would pair a new timestamp with a frozen
         // job nBits. Until/unless the node scores nBits from parent time only
@@ -107,12 +91,10 @@ impl ShareValidator {
             ));
         }
 
-        validate_convergence_root_matches(&template, &job.coinbase.convergence_root_hex)?;
-
         let coinbase_raw = assemble_coinbase_raw(&job, &share.extranonce1, &share.extranonce2)?;
         validate_cvge_rigor(&job, &coinbase_raw)?;
 
-        // Job snapshot stores consensus-exact scriptSig (height ‖ ConvergenceRoot).
+        // Job snapshot stores consensus-exact scriptSig (BIP34 height + OP_0).
         // Extranonces live in an OP_RETURN output, not scriptSig.
         let scriptsig =
             coinbase_scriptsig_from_submission(&job, &share.extranonce1, &share.extranonce2)?;
@@ -127,18 +109,17 @@ impl ShareValidator {
         }
 
         let header = build_header_bytes(&job, &share.extranonce1, &share.extranonce2, share.ntime, share.nonce)?;
-        let base = header_base_hash(&header);
-        let (pow, share_ok) = verify_opuhash_share(&base, &share.share_target);
+        let (pow, share_ok) = verify_rgrpow_share(&header, &share.share_target);
         if !share_ok {
             return Err(ValidatorError::validation(
                 ValidationErrorCode::ErrInvalidOpouhash,
-                "pow_hash exceeds share_target",
+                "RGRPOW01 pow_hash exceeds share_target",
             ));
         }
 
         let block_target = expand_compact_bits(&job.block_target)
             .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrInvalidOpouhash, e.to_string()))?;
-        let is_block = verify_opuhash_block(&base, &block_target).1;
+        let is_block = verify_rgrpow_block(&header, &block_target).1;
         Ok((pow, is_block))
     }
 
@@ -153,8 +134,6 @@ impl ShareValidator {
         }
 
         validate_job_template_binding(&job, &template)?;
-        validate_convergence_root_matches(&template, &job.coinbase.convergence_root_hex)?;
-        self.check_parent_window(&template)?;
         validate_block_res_mint(&job, &template, &block.block_hex, block.allow_res_body_mint)?;
 
         let block_bytes = hex::decode(&block.block_hex)
@@ -167,32 +146,16 @@ impl ShareValidator {
         }
         let mut header = [0u8; 80];
         header.copy_from_slice(&block_bytes[..80]);
-        let base = header_base_hash(&header);
         let block_target = expand_compact_bits(&job.block_target)
             .map_err(|e| ValidatorError::validation(ValidationErrorCode::ErrInvalidOpouhash, e.to_string()))?;
-        let (pow, ok) = verify_opuhash_block(&base, &block_target);
+        let (pow, ok) = verify_rgrpow_block(&header, &block_target);
         if !ok {
             return Err(ValidatorError::validation(
                 ValidationErrorCode::ErrInvalidOpouhash,
-                "block pow_hash exceeds network target",
+                "block RGRPOW01 pow_hash exceeds network target",
             ));
         }
         Ok(pow)
-    }
-
-    fn check_parent_window(&self, template: &TemplateRecord) -> ValidatorResult<()> {
-        let Some(source) = &self.window_source else {
-            return Ok(());
-        };
-        let parent = source
-            .window_ending_at_parent(&template.previousblockhash)
-            .map_err(|e| {
-                ValidatorError::validation(
-                    ValidationErrorCode::ErrConvergenceMismatch,
-                    format!("parent 32-block window fetch failed: {e}"),
-                )
-            })?;
-        validate_convergence_window_against_parent(template, &parent)
     }
 
     fn resolve_job_and_template(
@@ -277,7 +240,6 @@ impl ShareValidator {
     }
 }
 
-// Re-export assemble helper for header module tests
 impl ShareValidator {
     pub fn verify_opuhash_from_base(&self, base: &[u8; 32], target: &[u8; 32]) -> ([u8; 32], bool) {
         verify_opuhash_share(base, target)

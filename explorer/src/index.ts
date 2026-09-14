@@ -8,13 +8,13 @@ import { getImporterRecoveryState } from "./importerRecovery";
 import { logMismatchEvent } from "./mismatchLog";
 import { registerApiRoutes, registerUiRoutes } from "./registerRoutes";
 import { createRateLimitMiddleware } from "./rateLimit";
+import { assertFailClosedStartup } from "./startupGuard";
 
 async function main(): Promise<void> {
   const config = loadConfigFromEnv();
   const pool = createPool(config);
   await ensureSchema(pool, config);
-
-  await getOrCreateChainState(pool, config);
+  await assertFailClosedStartup(config, pool);
 
   const app = express();
   app.disable("x-powered-by");
@@ -93,15 +93,15 @@ async function main(): Promise<void> {
     }
   };
 
-  await runTick();
-  setInterval(runTick, config.pollIntervalMs);
-
   // Bind IPv4 explicitly. Node's default (::) breaks WSL2 Windows localhost forwarding
   // (ERR_CONNECTION_REFUSED on http://127.0.0.1:PORT from the host browser).
   const apiHost = process.env.API_HOST?.trim() || "0.0.0.0";
   app.listen(config.apiPort, apiHost, () => {
     console.log(`Explorer indexer MVP listening on http://127.0.0.1:${config.apiPort} (${apiHost})`);
   });
+
+  await runTick();
+  setInterval(runTick, config.pollIntervalMs);
 }
 
 main().catch((e) => {

@@ -12,13 +12,12 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
                 "data": "0100000001",
                 "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             }}],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
-            "height": 200,
-            "convergence_txids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+            "height": 200
         }}"#
     );
     let template: GbtTemplate = serde_json::from_str(&raw).unwrap();
@@ -51,12 +50,13 @@ fn read_api_exposes_active_and_history() {
 
 #[test]
 fn validation_rejects_before_cache_touch() {
-    let (mut t, raw) = fixture("bad/1");
-    // A-9-C: a committed txid outside this template's body is normal, so V-06 now keys on the
-    // node's own root disagreeing with C over the list it published.
-    t.convergence_txids.clear();
-    t.convergence_txids.push("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff".into());
-    t.convergence_root = Some("cc".repeat(32));
+    let (t, raw) = fixture("bad/1");
+    // V-06: lottery GBT keys on the raw payload fail ingest.
+    let raw = raw.replacen(
+        "\"height\": 200",
+        "\"height\": 200, \"convergence_root\": \"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"",
+        1,
+    );
     let err = validate_template(&t, &raw);
     assert!(err.is_err());
 }

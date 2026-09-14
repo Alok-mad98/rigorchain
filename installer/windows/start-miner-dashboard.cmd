@@ -4,15 +4,18 @@ cd /d "%~dp0"
 
 echo.
 echo --------------------------------
-echo AlphaPlus Miner Dashboard
+echo RIGOR Miner Dashboard
 echo --------------------------------
-echo Read-only visualization for your Windows mining account.
+echo Read-only visualization for your Windows SOLO mining account.
+echo Path: wallet → rigor-miner → local rigord GBT → submitblock.
 echo Open in this PC's browser: http://127.0.0.1:18083/
 echo Explorer: http://127.0.0.1:18081/
 echo This dashboard does not sign, spend, or read private keys.
 echo.
 
-set "DASHBOARD_DIR=%~dp0..\..\mining\windows-miner-dashboard"
+set "DASHBOARD_DIR=%~dp0dashboard"
+if not exist "%DASHBOARD_DIR%\server.py" set "DASHBOARD_DIR=%~dp0windows-miner-dashboard"
+if not exist "%DASHBOARD_DIR%\server.py" set "DASHBOARD_DIR=%~dp0..\..\mining\windows-miner-dashboard"
 if not exist "%DASHBOARD_DIR%\server.py" (
   echo Dashboard sources were not found next to this launcher.
   echo Start it from the official tree instead:

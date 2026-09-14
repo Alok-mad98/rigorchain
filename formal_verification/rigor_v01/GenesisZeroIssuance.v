@@ -2,7 +2,7 @@
 
     GenesisReward(0) = 0
     CumulativeIssuance(0) = 0
-    h >= 1  →  existing frozen ORU schedule (ORU_INITIAL_BLOCK_SUBSIDY >> shifts)
+    h >= 1  →  RFC-020 flat 128 ORU (ORU_FLAT_BLOCK_SUBSIDY)
 
     C++ [GetBlockSubsidy(0)] returns 0 as of P0-038. This module is still not a
     [ConnectBlock] refinement.
@@ -11,7 +11,7 @@
       CPP_REFINEMENT = NOT_PROVED
 
     Compatible with P0-036 [genesis_supply] (all zeros) and [apply_delta].
-    Does not change W, T, RES W(0), maturity, or the h>=1 ORU schedule.
+    Does not change maturity. Display destroy_cost(h) is continuous; it is not a grant.
 
     No [Axiom] / [Admitted] / [Parameter]. *)
 From Coq Require Import List.
@@ -35,13 +35,12 @@ Proof. reflexivity. Qed.
 
 (** * Landed C++ schedule image (P0-038)
 
-    Mirrors [GetBlockSubsidy]: height 0 is 0; height >= 1 uses nBlockSubsidyBase
-    = 1000 ORU, interval 210000, max 3 shifts. *)
+    Mirrors [GetBlockSubsidy]: height 0 is 0; height >= 1 is flat 128 ORU. *)
 
-Definition ORU_INITIAL_SATS : Z := 100000000000. (* 1000 ORU *)
+Definition ORU_INITIAL_SATS : Z := 12800000000.
 
 Definition current_cpp_oru_subsidy (h : Z) : Z :=
-  if h =? 0 then 0 else Z.shiftr ORU_INITIAL_SATS (Z.min (h / 210000) 3).
+  if h <=? 0 then 0 else ORU_INITIAL_SATS.
 
 Definition proposed_oru_issuance (h : Z) : Z := current_cpp_oru_subsidy h.
 
@@ -173,9 +172,10 @@ Qed.
 Definition height1_block_delta : BlockDelta :=
   ordinary_delta 1 ORU_INITIAL_SATS 0 0.
 
-Lemma get_res_mint_reward_height_1 :
-  get_res_mint_reward 1 = RES_REWARD_GENESIS.
-Proof. vm_compute. reflexivity. Qed.
+Lemma destroy_cost_at_height_1 :
+  res_destroy_cost_at_height 1 = 102400006103 /\
+  RES_DESTROY_COST_GENESIS < res_destroy_cost_at_height 1.
+Proof. split; vm_compute; reflexivity. Qed.
 
 Lemma height1_delta_admissible :
   delta_admissible height1_block_delta = true.
@@ -256,7 +256,7 @@ Theorem proposed_ledger_utxo_aligned :
   genesis_supply_mismatch (GenesisReward 0) 0 = false.
 Proof. reflexivity. Qed.
 
-(** * W / T / RES / maturity are not functions of Genesis ORU *)
+(** * Window / target / RES price / maturity are not functions of Genesis ORU *)
 
 Theorem W32_impact_none :
   WindowSpecialization.PRODUCTION_W = 32.
@@ -266,15 +266,16 @@ Theorem maturity_impact_none :
   WindowGeneric.COINBASE_MATURITY = 100.
 Proof. reflexivity. Qed.
 
-Theorem res_w0_impact_none :
-  get_res_mint_reward 0 = RES_REWARD_GENESIS.
-Proof. exact reward_at_height_zero. Qed.
+Theorem genesis_res_destroy_cost_is_p0 :
+  res_destroy_cost_at_height 0 = RES_DESTROY_COST_GENESIS.
+Proof. exact destroy_cost_at_height_zero. Qed.
 
-Theorem res_reward_not_used_as_oru_compensation :
+Theorem res_destroy_cost_not_used_as_oru_compensation :
   GenesisReward 1 = ORU_INITIAL_SATS /\
-  get_res_mint_reward 1 = RES_REWARD_GENESIS.
+  res_destroy_cost_at_height 1 <> RES_DESTROY_COST_GENESIS.
 Proof.
   split.
   - reflexivity.
-  - exact get_res_mint_reward_height_1.
+  - destruct destroy_cost_at_height_1 as [_ Hlt].
+    lia.
 Qed.

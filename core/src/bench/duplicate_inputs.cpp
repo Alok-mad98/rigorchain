@@ -5,8 +5,8 @@
 #include <bench/bench.h>
 #include <chainparams.h>
 #include <coins.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <pow.h>
 #include <test/util/setup_common.h>
@@ -54,12 +54,7 @@ static void DuplicateInputs(benchmark::Bench& bench)
 
     {
         CMutableTransaction cb2(*block.vtx[0]);
-        CCoinsView view_dummy;
-        CCoinsViewCache view_empty(&view_dummy);
-        const uint256 convergence_root = Consensus::ComputeConvergenceRootFromConvergenceSet(
-            block.vtx, view_empty, nHeight, chainparams.GetConsensus());
-        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-            nHeight, convergence_root, uint256{});
+        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(nHeight);
         block.vtx[0] = MakeTransactionRef(std::move(cb2));
     }
 

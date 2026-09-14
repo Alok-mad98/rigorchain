@@ -8,6 +8,7 @@
 #include <consensus/convergenceres.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <hash.h>
+#include <netaddress.h>
 #include <primitives/block.h>
 #include <pow.h>
 #include <rigor_kernel/pow_digest.h>
@@ -321,11 +322,9 @@ BOOST_AUTO_TEST_CASE(startup_gap_future_genesis_gates_height1_via_mtp_not_asert)
 
 BOOST_AUTO_TEST_CASE(startup_gap_audit_does_not_touch_frozen_params)
 {
-    BOOST_CHECK_EQUAL(Consensus::CONVERGENCE_DRAW_WINDOW, 32);
     BOOST_CHECK_EQUAL(COINBASE_MATURITY, 100);
-    BOOST_CHECK_EQUAL(Consensus::ORU_INITIAL_BLOCK_SUBSIDY, 1000 * COIN);
+    BOOST_CHECK_EQUAL(Consensus::ORU_FLAT_BLOCK_SUBSIDY, 128 * COIN);
     BOOST_CHECK_EQUAL(Consensus::ORU_GENESIS_BLOCK_SUBSIDY, 0);
-    BOOST_CHECK_EQUAL(Consensus::GetResMintReward(0), Consensus::RES_REWARD_GENESIS);
     BOOST_CHECK_EQUAL(Consensus::ASERT_ANCHOR_HEIGHT, 1);
     BOOST_CHECK_EQUAL(Consensus::MAINNET_POW_ASERT_HALF_LIFE, 43200);
 }
@@ -707,30 +706,19 @@ BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_sanity)
     sanity_check_chainparams(*m_node.args, CBaseChainParams::TESTNET);
 }
 
-BOOST_AUTO_TEST_CASE(res_initial_target_matches_params_bits)
+BOOST_AUTO_TEST_CASE(ChainParams_TESTNET_fixed_seed_is_local_bootstrap)
 {
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    const uint256 t = Consensus::InitialResDrawTarget(consensus);
-    BOOST_CHECK(t == ArithToUint256(Consensus::ResMintTargetArith(consensus.res_mint_target_bits)));
-}
-
-BOOST_AUTO_TEST_CASE(res_draw_target_is_protocol_fixed)
-{
-    const auto consensus = CreateChainParams(*m_node.args, CBaseChainParams::MAIN)->GetConsensus();
-    CBlockIndex p{};
-    p.nHeight = 42;
-    const uint256 t = Consensus::ResDrawTargetForBlock(&p, consensus);
-    BOOST_CHECK(t == Consensus::InitialResDrawTarget(consensus));
-    BOOST_CHECK(t == Consensus::ResDrawTargetForBlock(nullptr, consensus));
-}
-
-BOOST_AUTO_TEST_CASE(res_mint_target_arith_min_shift)
-{
-    const arith_uint256 t = Consensus::ResMintTargetArith(1);
-    arith_uint256 max;
-    max.SetHex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-    arith_uint256 expect = max >> 1;
-    BOOST_CHECK(t == expect);
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::TESTNET);
+    BOOST_REQUIRE(!chainParams->FixedSeeds().empty());
+    CDataStream s(chainParams->FixedSeeds(), SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
+    CService endpoint;
+    s >> endpoint;
+    BOOST_CHECK(s.eof());
+    BOOST_CHECK(endpoint.IsIPv4());
+    BOOST_CHECK(endpoint.IsBindAny() == false);
+    BOOST_CHECK(endpoint.IsLocal());
+    BOOST_CHECK_EQUAL(endpoint.GetPort(), 18760);
+    BOOST_CHECK_EQUAL(endpoint.ToStringAddrPort(), "127.0.0.1:18760");
 }
 
 BOOST_AUTO_TEST_CASE(header_80_byte_serialization_is_pow_preimage)

@@ -159,7 +159,7 @@ QString BitcoinUnits::formatRes(const CAmount& amount, bool plussign, SeparatorS
 {
     qint64 n = (qint64)amount;
     const qint64 coin = RES_COIN;
-    const int num_decimals = 6;
+    const int num_decimals = 8;
     qint64 n_abs = (n > 0 ? n : -n);
     qint64 quotient = n_abs / coin;
     QString quotient_str = QString::number(quotient);
@@ -230,7 +230,7 @@ bool BitcoinUnits::parseRes(const QString& value, CAmount* val_out)
     if (value.isEmpty()) {
         return false;
     }
-    const int num_decimals = 6;
+    const int num_decimals = 8;
     QStringList parts = removeSpaces(value).split(".");
     if (parts.size() > 2) {
         return false;

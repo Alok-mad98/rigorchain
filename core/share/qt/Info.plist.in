@@ -22,13 +22,13 @@
   </array>
 
   <key>NSHumanReadableCopyright</key>
-  <string>@CLIENT_VERSION_MAJOR@.@CLIENT_VERSION_MINOR@.@CLIENT_VERSION_BUILD@, Copyright © 2009-@COPYRIGHT_YEAR@ @COPYRIGHT_HOLDERS_FINAL@</string>
+  <string>0.2, Copyright © 2009-@COPYRIGHT_YEAR@ @COPYRIGHT_HOLDERS_FINAL@</string>
 
   <key>CFBundleShortVersionString</key>
-  <string>@CLIENT_VERSION_MAJOR@.@CLIENT_VERSION_MINOR@.@CLIENT_VERSION_BUILD@</string>
+  <string>0.2</string>
 
   <key>CFBundleVersion</key>
-  <string>@CLIENT_VERSION_MAJOR@.@CLIENT_VERSION_MINOR@.@CLIENT_VERSION_BUILD@</string>
+  <string>0.2</string>
 
   <key>CFBundleSignature</key>
   <string>????</string>
@@ -37,7 +37,7 @@
   <string>rigor-qt</string>
 
   <key>CFBundleName</key>
-  <string>Rigor-Qt</string>
+  <string>Rigor Wallet</string>
 
   <key>LSHasLocalizedDisplayName</key>
   <true/>

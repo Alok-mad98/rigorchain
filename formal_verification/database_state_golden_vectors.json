@@ -2,7 +2,7 @@
   "task": "TASK-RIGOR-DATABASE-STATE-PERSISTENCE-SECURITY-AUDIT-P0-086",
   "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
   "canonical": {
-    "coin_layout": "leaf VARINT(code)||VARINT(CompressAmount)||VARINT(scriptLen)||script; disk adds CRC32C_RGCI",
+    "coin_layout": "leaf VARINT(code)||VARINT(CompressAmount)||VARINT(scriptLen)||script||VARINT(nFlags); disk adds CRC32C_RGCI",
     "key_layout": "0x43 || txid32 || VARINT(vout)",
     "undo_layout": "same as disk Coin (leaf + CRC32C); no dummy version byte",
     "asset_field_in_coin": false,
@@ -10,7 +10,7 @@
   },
   "vectors": {
     "clean_chainstate_coin": {
-      "value_hex": "03321600140102030405060708090a0b0c0d0e0f1011121314db717a9e",
+      "value_hex": "03321600140102030405060708090a0b0c0d0e0f10111213140025767904",
       "key_hex": "437e2305eba935a0e5520ae65c333107e178958210ce3031c3cb8f6af17b90441f00",
       "coin": {
         "n_value": 5000000000,
@@ -23,20 +23,20 @@
       "note": "spent coins are erased from CoinsDB, not stored as a spent record"
     },
     "created_coin": {
-      "value_hex": "0228160014030405060708090a0b0c0d0e0f10111213141516610500bb",
+      "value_hex": "0228160014030405060708090a0b0c0d0e0f10111213141516008545a2f9",
       "asset": "ORU"
     },
     "coinbase": {
-      "value_hex": "013216001402030405060708090a0b0c0d0e0f101112131415f0ccd0c3",
+      "value_hex": "013216001402030405060708090a0b0c0d0e0f10111213141500a00d218e",
       "height": 0,
       "coinbase": true
     },
     "rigor_asset_res": {
-      "value_hex": "020922512005060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223241c5c7e35",
+      "value_hex": "020922512005060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232400c3d4bd73",
       "asset": "RES"
     },
     "rigor_res_mint": {
-      "value_hex": "05321752140708090a0b0c0d0e0f101112131415161718191abb6c6ae6e0",
+      "value_hex": "05321752140708090a0b0c0d0e0f101112131415161718191abb006c633d19",
       "asset": "RES"
     },
     "rigor_convergence_not_stored": {
@@ -45,13 +45,13 @@
       "reason": "AddCoins skips via EntersUtxoSet"
     },
     "undo_created_coin": {
-      "undo_hex": "0228160014030405060708090a0b0c0d0e0f10111213141516610500bb"
+      "undo_hex": "0228160014030405060708090a0b0c0d0e0f10111213141516008545a2f9"
     },
     "undo_coinbase": {
-      "undo_hex": "013216001402030405060708090a0b0c0d0e0f101112131415f0ccd0c3"
+      "undo_hex": "013216001402030405060708090a0b0c0d0e0f10111213141500a00d218e"
     },
     "undo_res": {
-      "undo_hex": "020922512005060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223241c5c7e35"
+      "undo_hex": "020922512005060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232400c3d4bd73"
     }
   },
   "cache_db_equivalence": {
@@ -94,7 +94,7 @@
     {
       "case": "truncated_mid",
       "kind": "coin",
-      "input_hex": "0332160014010203040506070809",
+      "input_hex": "03321600140102030405060708090a",
       "harness_outcome": "FAIL_CLOSED",
       "production_read_maps_to_missing": false,
       "production_fail_closed": true
@@ -102,7 +102,7 @@
     {
       "case": "wrong_type_key",
       "kind": "coin",
-      "input_hex": "63321600140102030405060708090a0b0c0d0e0f1011121314db717a9e",
+      "input_hex": "63321600140102030405060708090a0b0c0d0e0f10111213140025767904",
       "harness_outcome": "FAIL_CLOSED",
       "production_read_maps_to_missing": false,
       "production_fail_closed": true
@@ -110,7 +110,7 @@
     {
       "case": "flipped_last",
       "kind": "coin",
-      "input_hex": "03321600140102030405060708090a0b0c0d0e0f1011121314db717a61",
+      "input_hex": "03321600140102030405060708090a0b0c0d0e0f101112131400257679fb",
       "harness_outcome": "FAIL_CLOSED",
       "production_read_maps_to_missing": false,
       "production_fail_closed": true
@@ -118,7 +118,7 @@
     {
       "case": "extra_suffix",
       "kind": "coin",
-      "input_hex": "03321600140102030405060708090a0b0c0d0e0f1011121314db717a9e00",
+      "input_hex": "03321600140102030405060708090a0b0c0d0e0f1011121314002576790400",
       "harness_outcome": "FAIL_CLOSED",
       "production_read_maps_to_missing": false,
       "production_fail_closed": true
@@ -134,7 +134,7 @@
     {
       "case": "height_zero_coinbase",
       "kind": "coin",
-      "input_hex": "01321600140102030405060708090a0b0c0d0e0f1011121314db717a9e",
+      "input_hex": "01321600140102030405060708090a0b0c0d0e0f10111213140025767904",
       "harness_outcome": "FAIL_CLOSED",
       "production_read_maps_to_missing": false,
       "production_fail_closed": true
@@ -153,7 +153,7 @@
     "malformed_value": "Read throws DESERIALIZATION_FAILURE; ErrorCatcher abort()",
     "database_failure_mapped_to_consensus_invalid": false,
     "database_fail_closed_for_value_corruption": true,
-    "coin_integrity": "CRC-32C Castagnoli over RGCI||height||coinbase||nValue||scriptPubKey; CoinDiskFormatter only",
+    "coin_integrity": "CRC-32C Castagnoli over RGCI||height||coinbase||nValue||scriptPubKey||nFlags; CoinDiskFormatter only",
     "pre_checksum_chainstate": "wipe / -reindex; no in-place migration"
   }
 }

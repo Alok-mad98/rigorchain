@@ -5,6 +5,7 @@
 #include <consensus/consensus.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
 #include <primitives/transaction.h>
@@ -21,9 +22,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -32,11 +30,11 @@ static void usage()
 {
     std::fprintf(stderr,
         "cpp_consensus_kernel_cli (C++ Kernel adapter)\n"
-        "epoch H | oru H | res-schedule H | issuance H\n"
+        "epoch H | oru H | res-schedule H | res-price H | issuance H\n"
         "mature SPEND COIN | maturity-const\n"
         "classify HEX|-\n"
         "claimable FEES BURN H | ledger-delta H CONVERGE\n"
-        "res-coinbase FEES BOOT MINT\n");
+        "res-coinbase FEES BOOT\n");
     std::exit(2);
 }
 
@@ -88,12 +86,12 @@ int main(int argc, char** argv)
         std::printf("%d\n", RigorIssuanceEpoch(std::atoi(argv[2])));
     } else if (cmd == "oru" && argc == 3) {
         std::printf("%lld\n", static_cast<long long>(GetBlockSubsidy(std::atoi(argv[2]), p)));
-    } else if (cmd == "res-schedule" && argc == 3) {
-        std::printf("%lld\n", static_cast<long long>(Consensus::GetResMintReward(std::atoi(argv[2]))));
+    } else if ((cmd == "res-schedule" || cmd == "res-price") && argc == 3) {
+        std::printf("%lld\n", static_cast<long long>(Consensus::ResDestroyCostAtHeight(std::atoi(argv[2]))));
     } else if (cmd == "issuance" && argc == 3) {
         const RigorIssuance g = ComputeRigorIssuance(std::atoi(argv[2]), p);
         std::printf("%d %lld %lld\n", g.epoch, static_cast<long long>(g.oru_subsidy),
-                    static_cast<long long>(g.res_reward));
+                    static_cast<long long>(Consensus::ResDestroyCostAtHeight(std::atoi(argv[2]))));
     } else if (cmd == "mature" && argc == 4) {
         const int spend = std::atoi(argv[2]);
         const int coin = std::atoi(argv[3]);
@@ -116,10 +114,10 @@ int main(int argc, char** argv)
         const CAmount sub = GetBlockSubsidy(std::atoi(argv[2]), p);
         const CAmount conv = std::atoll(argv[3]);
         std::printf("%lld\n", static_cast<long long>(sub - conv));
-    } else if (cmd == "res-coinbase" && argc == 5) {
+    } else if (cmd == "res-coinbase" && argc == 4) {
         std::printf("%lld\n",
             static_cast<long long>(RigorResCoinbaseExpected(
-                std::atoll(argv[2]), std::atoll(argv[3]), std::atoll(argv[4]))));
+                std::atoll(argv[2]), std::atoll(argv[3]))));
     } else {
         usage();
     }

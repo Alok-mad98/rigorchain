@@ -14,6 +14,7 @@
 #include <consensus/kernel_canary/kernel_canary.h>
 #include <consensus/bridge/kernel_marshalling.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 
@@ -94,7 +95,7 @@ static ConsensusKernelInput Base()
     in.draw_ctx.payout_height = 101;
     in.draw_ctx.convergence_root = U256FromHex("1111111111111111111111111111111111111111111111111111111111111111");
     in.draw_ctx.source_block_hash = U256FromHex("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    Uint256ToRigorU256(Consensus::RES_PROBABILITY_TARGET_CONST, &in.draw_ctx.target);
+    in.draw_ctx.target = U256FromHex("5555555555555555555555555555555555555555555555555555555555555555");
     in.supply.height = 1;
     return in;
 }
@@ -122,7 +123,9 @@ int main()
         in.supply.height = 0;
         if (!Check(ex, in, o, "genesis")) return fail("genesis");
         if (o.oru_subsidy != 0) return fail("genesis ORU");
-        if (o.res_schedule != 40000000) return fail("genesis RES schedule");
+        if (o.res_schedule != static_cast<uint64_t>(Consensus::RES_DESTROY_COST_GENESIS)) {
+            return fail("genesis RES destroy cost");
+        }
         if (o.res_mint_expectation != 0) return fail("genesis RES issued");
         if (o.draw_has_winner) return fail("genesis draw");
         if (o.coinbase_expectation != 0) return fail("genesis coinbase");
@@ -140,10 +143,10 @@ int main()
         if (o.oru_subsidy != static_cast<uint64_t>(GetBlockSubsidy(static_cast<int>(h), p))) {
             return fail("epoch oru");
         }
-        if (o.res_schedule != static_cast<uint64_t>(Consensus::GetResMintReward(static_cast<int>(h)))) {
-            return fail("epoch res");
+        if (o.res_schedule != static_cast<uint64_t>(Consensus::ResDestroyCostAtHeight(static_cast<int>(h)))) {
+            return fail("epoch res destroy cost");
         }
-        if (o.res_mint_expectation != (h == 0 ? 0ULL : o.res_schedule)) return fail("epoch res mint");
+        if (o.res_mint_expectation != 0) return fail("RFC-019: no scheduled mint quantity");
         if (o.coinbase_expectation != o.oru_subsidy) return fail("epoch coinbase");
     }
 

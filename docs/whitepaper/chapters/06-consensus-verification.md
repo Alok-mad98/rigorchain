@@ -1,3 +1,9 @@
+# Note — Consensus Verification (older numbering)
+
+Narrative Chapter 7 is now
+[`07-self-proving.md`](./07-self-proving.md)
+(Chinese: [`07-self-proving.zh.md`](./07-self-proving.zh.md)).
+
 # Chapter 6 — Consensus Verification
 
 Trust in RIGOR is not “trust the team”. Trust is **recompute the function**.
@@ -12,11 +18,11 @@ from the same bytes.
 ```
 Public block
         ↓
-eligible convergence transactions
+body tx: OP_CONVERGE destroy B, optional Witness v1 RES sum R
         ↓
-Convergence Root / Draw Candidate Root
+R > 0 → R · (2²⁵ + h)² ≤ B << 40
         ↓
-σ and winner
+coinbase (this block’s height; ORU only)
         ↓
 compare to commitment
         ↓
@@ -26,14 +32,15 @@ accept only if equal
 In engineering language, the check walks a single chain of bindings:
 
 ```
-Convergence tx
-    → script / CVG2 commitment
-    → Convergence Root
-    → coinbase commitment
+Body tx
+    → OP_CONVERGE destroy B
+    → Witness v1 RES outputs sum R (optional)
+    → CheckResMintArithmetic
+    → coinbase (this block’s height; ORU only)
     → coinbase txid
     → merkle root
     → block header
-    → OpuHash
+    → SHA3-256 (`RGRPOW01`)
 ```
 
 If any step fails to match, the block is invalid. That is **Self-Proving
@@ -41,6 +48,9 @@ Block Commitment**: the block is not valid because a website said so. It is
 valid only if the committed values equal the recomputed values.
 
 Nobody is asked to trust an explorer `VALID` flag.
+
+Lottery-era objects (Convergence Root / Draw Candidate Root / σ / winner)
+are **retired**. They are not live issuance checks.
 
 ---
 
@@ -50,10 +60,8 @@ The **Consensus Fingerprint Library** publishes a deterministic identity
 over already-public fields. It is **observational**. It does not accept or
 reject blocks.
 
-```
-ConsensusFingerprint =
-  Hash256(ConvergenceRoot || winner_txid || Sigma || height || target_prev)
-```
+Lottery-era fingerprint inputs (`ConvergenceRoot`, `winner_txid`, `Sigma`)
+are **retired**. They are not live issuance commitments.
 
 An explorer may *display* a fingerprint. A verifier *recomputes* it.
 Equality means the published identity matches the local bytes. It does not
@@ -73,17 +81,12 @@ mean the publisher was an authority.
 | Wallet | Spending tool, not an oracle |
 | Pool dashboard | Operator observer |
 
-All critical inputs are public: candidate txids, sort order, Convergence
-Root, σ, height, and the resulting winner. There is no private “internal
-transaction” path. A manipulation that breaks the self-proving chain makes
-the block invalid.
+All critical inputs are public: destroy `B`, mint `R`, height, `destroy_cost(h)`, and
+the integer inequality. There is no private “internal transaction” path.
+A manipulation that breaks the self-proving chain makes the block invalid.
 
 Formal verification of the **model** exists as a research layer. It does
-**not** claim that the shipping binary is proven identical to that model.
-
-```
-equivalence_claimed = false
-```
+**not** claim that the running binary is proven identical to that model.
 
 Independent verification means: download the data, run the function, compare
 the bytes.

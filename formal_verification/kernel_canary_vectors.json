@@ -3,11 +3,11 @@
   "note": "Canary vectors. Production switch remains OFF. Does not prove equivalence.",
   "canary_default": "OFF",
   "enable_flag": "ENABLE_CONSENSUS_KERNEL_CANARY",
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "genesis": {
     "height": 0,
-    "res_schedule": 40000000,
+    "res_destroy_cost": 102400000000,
     "actual_issuance_oru": 0,
     "actual_issuance_res": 0,
     "draw": "none"
@@ -56,7 +56,7 @@
   "mismatch_policy": "CONSENSUS_KERNEL_CANARY_DISCREPANCY; never auto-correct",
   "deterministic_cases": 10000,
   "production_consensus_authority": "RigorConsensusKernel(C++)",
-  "formal_refinement_status": "PROVED",
+  "formal_refinement_status": "NOT_PROVED",
   "extracted_kernel_production": false,
   "compcert_binary_verified_kernel": false
 }

@@ -1,14 +1,15 @@
 //! # winner-engine
 //!
-//! Production Winner Engine — convergence draw replay and mint authorization
-//! (TASK-MINING-016). Implements `WINNER_ENGINE_PRODUCTION_SPEC.md`.
+//! Leftover lottery audit crate. **Not on the RFC-020 mining path.**
+//! Shipping pool (rigor-gbt → block-assembler → share-validator → stratum / pilot)
+//! does not construct or depend on this crate.
 //!
 //! ## Architecture impact
 //!
 //! - Consensus: **NONE**
-//! - Protocol: **NONE**
+//! - Pool production path: **NONE**
 //! - Freeze: **NONE**
-//! - `equivalence_claimed`: **false** (until P-03 golden certification)
+//! - `equivalence_claimed`: **false**
 
 pub mod authorize;
 pub mod candidate;

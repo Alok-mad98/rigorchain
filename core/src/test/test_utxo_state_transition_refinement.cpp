@@ -6,15 +6,14 @@
 // Does not switch production. Does not recode issuance / RES / draw / classify.
 
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/utxo/utxo_state_transition.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
-#include <uint256.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -32,26 +31,8 @@ static int fail(const char* msg)
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
-}
-
-static uint256 uint256_from_hex(const char* hex)
-{
-    uint256 out;
-    std::vector<unsigned char> raw;
-    const std::string s(hex);
-    for (size_t i = 0; i < s.size(); i += 2) {
-        unsigned v = 0;
-        std::sscanf(s.c_str() + static_cast<int>(i), "%2x", &v);
-        raw.push_back(static_cast<unsigned char>(v));
-    }
-    if (raw.size() != 32) std::exit(2);
-    std::memcpy(out.begin(), raw.data(), 32);
-    return out;
 }
 
 static LedgerCoin Coin(uint64_t id, uint32_t n, CAmount value, LedgerAsset asset, int64_t cb = -1)
@@ -98,27 +79,6 @@ static UTXOStateTransitionInput Base()
     return in;
 }
 
-static ConvergenceDrawSet TieSet(bool swap)
-{
-    const uint64_t sat = 209715200000000ULL;
-    ConvergenceDrawSet set;
-    set.source_height = 100;
-    set.convergence_root = uint256_from_hex(
-        "1111111111111111111111111111111111111111111111111111111111111111");
-    set.source_block_hash = uint256_from_hex(
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    ConvergenceDrawCandidate a, b;
-    a.txid = uint256_from_hex(
-        "0000000000000000000000000000000000000000000000000000000000000001");
-    a.weight = sat;
-    b.txid = uint256_from_hex(
-        "0000000000000000000000000000000000000000000000000000000000000002");
-    b.weight = sat;
-    set.candidates = swap ? std::vector<ConvergenceDrawCandidate>{b, a}
-                          : std::vector<ConvergenceDrawCandidate>{a, b};
-    return set;
-}
-
 int main()
 {
     const Consensus::Params p = FrozenParams();
@@ -130,7 +90,9 @@ int main()
     // --- Genesis ---
     {
         if (GetBlockSubsidy(0, p) != 0) return fail("genesis ORU actual");
-        if (Consensus::GetResMintReward(0) != 40000000) return fail("genesis RES schedule");
+        if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS) {
+            return fail("genesis RATE");
+        }
         UTXOStateTransitionInput in = Base();
         in.height = 0;
         in.consensus.height = 0;
@@ -138,7 +100,6 @@ int main()
         if (!o.accept) return fail("genesis accept");
         if (!o.delta.removals.empty() || !o.delta.additions.empty()) return fail("genesis empty delta");
         if (ComputeRigorIssuance(0, p).oru_subsidy != 0) return fail("genesis issuance pack");
-        if (ComputeRigorIssuance(0, p).res_reward != 40000000) return fail("genesis schedule pack");
     }
 
     // --- Maturity: coinbase_height 0 ---
@@ -159,10 +120,10 @@ int main()
     // --- Epoch ---
     if (RigorIssuanceEpoch(209999) != 0) return fail("epoch 209999");
     if (RigorIssuanceEpoch(210000) != 1) return fail("epoch 210000");
-    if (GetBlockSubsidy(209999, p) != 100000000000LL) return fail("ORU 209999");
-    if (GetBlockSubsidy(210000, p) != 50000000000LL) return fail("ORU 210000");
-    if (Consensus::GetResMintReward(209999) != 40000000) return fail("RES 209999");
-    if (Consensus::GetResMintReward(210000) != 14142196) return fail("RES 210000");
+    if (GetBlockSubsidy(209999, p) != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU 209999");
+    if (GetBlockSubsidy(210000, p) != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU 210000");
+    if (Consensus::ResDestroyCostAtHeight(209999) != 103685743011LL) return fail("RATE 209999");
+    if (Consensus::ResDestroyCostAtHeight(210000) != 103685749152LL) return fail("RATE 210000");
     {
         UTXOStateTransitionInput e0 = Base();
         e0.height = 209999;
@@ -201,39 +162,6 @@ int main()
         UTXOStateTransitionInput unk = ok;
         unk.asset_scripts = {Bytes(v2)};
         if (UTXOStateTransition(unk).accept) return fail("unknown version");
-    }
-
-    // --- Draw ---
-    {
-        const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
-        ConvergenceDrawSet empty_f;
-        if (ResolveConvergenceDraw(empty_f, T).HasWinner()) return fail("empty F");
-
-        ConvergenceDrawSet one = TieSet(false);
-        one.candidates.resize(1);
-        if (!ResolveConvergenceDraw(one, T).HasWinner()) return fail("single candidate");
-
-        const auto w2 = ResolveConvergenceDraw(TieSet(false), T);
-        const auto w3 = ResolveConvergenceDraw(TieSet(true), T);
-        if (!w2.HasWinner() || !w3.HasWinner()) return fail("weight/txid tie");
-        if (TieSet(false).candidates[static_cast<size_t>(w2.winner_index)].txid !=
-            TieSet(true).candidates[static_cast<size_t>(w3.winner_index)].txid) {
-            return fail("txid tie break");
-        }
-
-        UTXOStateTransitionInput g = Base();
-        g.height = 0;
-        g.consensus.draw = empty_f;
-        g.consensus.draw_target = T;
-        if (!UTXOStateTransition(g).accept) return fail("genesis draw none");
-
-        UTXOStateTransitionInput s = Base();
-        s.height = 1;
-        s.consensus.draw = one;
-        s.consensus.draw_target = T;
-        s.ledger.consensus.oru_issuance = GetBlockSubsidy(1, p);
-        s.ledger.created = {Coin(1, 0, GetBlockSubsidy(1, p), LedgerAsset::ORU)};
-        if (!UTXOStateTransition(s).accept) return fail("single draw transition");
     }
 
     // --- Malformed ---

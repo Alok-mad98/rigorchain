@@ -1,0 +1,12 @@
+{
+  "domain": "oru",
+  "expect": "VALID",
+  "theorem": "oru_conservation_extended",
+  "dom": "ORU",
+  "oru_in": 10,
+  "oru_out": 7,
+  "res_in": 0,
+  "res_out": 0,
+  "old_supply": 100,
+  "subsidy": 50
+}

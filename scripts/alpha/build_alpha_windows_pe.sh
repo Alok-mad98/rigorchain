@@ -124,6 +124,7 @@ if [[ "${SKIP_MINER}" != "1" ]]; then
   fi
   # Out-of-tree copy so miner/ stays a Linux-safe source tree.
   MINER="${REPO_ROOT}/.runtime/miner-mingw"
+  mkdir -p "${REPO_ROOT}/.runtime"
   rm -rf "${MINER}"
   cp -a "${MINER_SRC}" "${MINER}"
   cd "${MINER}"
@@ -152,11 +153,20 @@ if [[ "${SKIP_MINER}" != "1" ]]; then
   # Do not `objdump | grep` under pipefail: SIGPIPE makes the check look false.
   log "Relinking miner with static libcurl/winpthread…"
   rm -f minerd.exe
+  miner_objs=()
+  for o in minerd-cpu-miner.o minerd-util.o minerd-sha2.o minerd-scrypt.o \
+           minerd-rgrpow.o minerd-gbt_solo.o minerd-arith_uint256.o \
+           minerd-sha2-x64.o minerd-scrypt-x64.o; do
+    if [[ ! -f "$o" ]]; then
+      log "ERROR: missing object $o after mingw make"
+      exit 1
+    fi
+    miner_objs+=("$o")
+  done
   x86_64-w64-mingw32-g++ -g -O2 \
     -L"${DEPENDS}/${HOST}/lib" -static-libgcc -static-libstdc++ \
     -o minerd.exe \
-    minerd-cpu-miner.o minerd-util.o minerd-sha2.o minerd-scrypt.o minerd-opus_hash.o minerd-arith_uint256.o \
-    minerd-sha2-x64.o minerd-scrypt-x64.o \
+    "${miner_objs[@]}" \
     compat/jansson/libjansson.a \
     -Wl,-Bstatic -lcurl -lpthread -lwinpthread \
     -Wl,-Bdynamic \
@@ -176,11 +186,37 @@ if [[ "${SKIP_MINER}" != "1" ]]; then
     log "ERROR: miner PE missing — see /tmp/minerd-mingw-configure.log"
     exit 1
   fi
+  cp -a "${REPO_ROOT}/installer/windows/rigor-miner.cmd" "${STAGING}/rigor-miner.cmd"
+  log "staged rigor-miner.cmd (RFC-020 SOLO launcher)"
+fi
+
+# Dashboard ships next to rigor-miner (not in the wallet installer).
+if [[ -f "${STAGING}/rigor-miner.exe" ]] || [[ -f "${STAGING}/rigor-miner.cmd" ]]; then
+  bash "${REPO_ROOT}/scripts/alpha/stage_windows_miner_dashboard.sh" "${STAGING}"
 fi
 
 # --- PE gate ---
-log "Verifying PE staging…"
-bash "${REPO_ROOT}/scripts/alpha/verify_windows_pe.sh" "${STAGING}"
-
-log "Staging complete:"
-ls -la "${STAGING}"
+if [[ "${SKIP_CORE}" == "1" ]]; then
+  log "Skipping full staging PE gate (SKIP_CORE=1); verifying miner PE only…"
+  if [[ ! -f "${STAGING}/rigor-miner.exe" ]]; then
+    log "ERROR: ${STAGING}/rigor-miner.exe missing"
+    exit 1
+  fi
+  magic="$(od -An -tx1 -N2 "${STAGING}/rigor-miner.exe" | tr -d ' \n')"
+  if [[ "${magic}" != "4d5a" ]]; then
+    log "ERROR: rigor-miner.exe is not a Windows MZ/PE"
+    exit 1
+  fi
+  miner_dlls="$(x86_64-w64-mingw32-objdump -p "${STAGING}/rigor-miner.exe" | awk '/DLL Name:/{print $3}')"
+  if echo "${miner_dlls}" | grep -qiE 'libwinpthread|libgcc_s|libstdc\+\+'; then
+    log "ERROR: rigor-miner still depends on MinGW runtime DLLs: ${miner_dlls}"
+    exit 1
+  fi
+  log "Miner PE OK:"
+  ls -la "${STAGING}/rigor-miner.exe"
+else
+  log "Verifying PE staging…"
+  bash "${REPO_ROOT}/scripts/alpha/verify_windows_pe.sh" "${STAGING}"
+  log "Staging complete:"
+  ls -la "${STAGING}"
+fi

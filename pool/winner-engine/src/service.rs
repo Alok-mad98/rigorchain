@@ -6,7 +6,6 @@ use rigor_gbt::{record::unix_now, TemplateRecord};
 use crate::authorize::{authorize_mint, replay_draw_from_candidate_set};
 use crate::candidate::{extract_parent_draw_candidates, validate_convergence_membership};
 use crate::constants::RES_PROBABILITY_TARGET;
-use crate::draw::verify_replay_against_node;
 use crate::error::{WinnerError, WinnerResult};
 use crate::pg_adapter::WinnerPgBackend;
 use crate::persist::{
@@ -248,27 +247,10 @@ impl WinnerRuntime {
         template: &TemplateRecord,
         job: &PublishedJobSnapshot,
     ) -> WinnerResult<(CandidateSet, DrawReplayResult)> {
+        let _ = job;
         validate_convergence_membership(template)?;
         let set = extract_parent_draw_candidates(template)?;
         let draw = replay_draw_from_candidate_set(&set, RES_PROBABILITY_TARGET);
-
-        let node_draw = template
-            .gbt
-            .convergence_draw
-            .as_ref()
-            .expect("extract_parent_draw_candidates rejects a template without one");
-        verify_replay_against_node(node_draw, &draw)?;
-
-        // The block still commits its own convergence set, and the assembler's C for it must
-        // match what the job published. Unrelated to the draw being paid.
-        let assembler_root =
-            block_assembler::compute_convergence_root(&template.gbt.convergence_txids);
-        let assembler_root_hex = block_assembler::native_to_hash_hex(&assembler_root);
-        if assembler_root_hex != job.coinbase.convergence_root_hex {
-            return Err(WinnerError::Validation(
-                "convergence_root mismatch between template and published job".into(),
-            ));
-        }
         Ok((set, draw))
     }
 

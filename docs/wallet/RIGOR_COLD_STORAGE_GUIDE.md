@@ -1,6 +1,6 @@
 # RIGOR_COLD_STORAGE_GUIDE
 
-**Task:** TASK-WALLET-DESCRIPTOR-COLD-STORAGE-001  
+**Document status:** Production documentation  
 **Philosophy:** Bitcoin Core descriptor wallet + Electrum-style offline signing + RIGOR dual-asset scripts  
 **Never:** seed servers, admin recovery, account-model balances as truth
 

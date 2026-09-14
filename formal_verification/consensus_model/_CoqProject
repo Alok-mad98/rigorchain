@@ -1,0 +1,30 @@
+# Consensus object model (TASK-015 kernel input model).
+# Standalone cone. Do NOT add these modules to rigor_kernel or coq/_CoqProject.
+# Not extraction. Not ConnectBlock. Admitted/Parameter are allowed here only.
+-R . ConsensusModel
+-R ../refinement ConsensusRefinement
+
+TransactionModel.v
+BlockModel.v
+UTXOState.v
+ValidationResult.v
+KernelInputV2.v
+UTXOStateProperties.v
+ValidationProperties.v
+TransactionProperties.v
+KernelInputV2Properties.v
+ValidationModel.v
+KernelStepModel.v
+ChainState.v
+ReorgModel.v
+ByteModel.v
+CompactSizeModel.v
+TransactionCodec.v
+BlockCodec.v
+WireCodec.v
+SerializationBridge.v
+KernelInputConstruction.v
+ValidationPipeline.v
+ASERTModel.v
+ReorgSafetyModel.v
+../refinement/interfaces.v

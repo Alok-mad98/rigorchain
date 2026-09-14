@@ -1,6 +1,6 @@
 # FV Release Checklist
 
-**Task:** `TASK-FV-OPS-REGRESSION-GUARD-001` (2026-08-20)  
+**Document status:** Production documentation  
 **Role:** Repeatable pre-release checks for formal-verification correspondence.  
 **Does not claim:** Coq = C++ refinement, a shared production hash binary, or permission to flip honesty flags.
 
@@ -20,7 +20,7 @@ Operator status: [FORMAL-VERIFICATION-STATUS.md](./FORMAL-VERIFICATION-STATUS.md
 
 ## 1. One command (default release path)
 
-From `~/rigor-official-tree`:
+From this repository:
 
 ```bash
 bash formal_verification/scripts/run_fv_release_checklist.sh

@@ -5,7 +5,7 @@ import { buildConvergeProofPanel } from "./convergeProofPanel";
 import { getLineageForBlock, getLineageForTxid } from "./lineageDb";
 import { buildTxWitnessPanel } from "./witnessPanel";
 import { computeTxFee, formatOruAtoms } from "./fee";
-import { classifyTxKind, pickPrimaryOruOutput, txKindLabel } from "./txSummary";
+import { classifyTxKind, convergeOutputNote, pickPrimaryOruOutput, txKindLabel, txKindNotice } from "./txSummary";
 import {
   CONVERGENCE_OUTPUT_STATE,
   OP_CONVERGE_SCRIPT_NAME,
@@ -16,6 +16,9 @@ import { atomsToOruDisplay, atomsToResDisplay } from "./addressIntelligence";
 import { displayOrNA, displayOrNotAvailable } from "./rpcFields";
 import { getRfc018FeeBurnAtHeight } from "./rfc018FeeBurnStore";
 import { rfc018FeeBurnView } from "./rfc018FeeBurn";
+import { formatRateOruPerRes, resDestroyCostForHeight } from "./resIssuanceSchedule";
+import { opConvergeScriptSql } from "./circulating";
+import { CONVERGENCE_IS_MINT_SQL } from "./rfc020MintSql";
 
 export type ChainStateRow = {
   indexer_name: string;
@@ -23,6 +26,7 @@ export type ChainStateRow = {
   last_height: bigint;
   last_block_hash: string | null;
   critical_root_mismatch: boolean;
+  issuance_generation: string | null;
   updated_at: Date;
 };
 
@@ -41,6 +45,7 @@ const MIGRATION_FILES = [
   "003_c_root.sql",
   "004_consensus_fingerprint.sql",
   "005_rfc018_fee_burn_stats.sql",
+  "007_issuance_generation.sql",
 ];
 
 export async function ensureSchema(pool: Pool, config: Config): Promise<void> {
@@ -75,7 +80,7 @@ export async function getOrCreateChainState(pool: Pool, config: Config): Promise
   const network = config.network;
   const res = await pool.query<ChainStateRow>(
     `
-      SELECT indexer_name, network, last_height, last_block_hash, critical_root_mismatch, updated_at
+      SELECT indexer_name, network, last_height, last_block_hash, critical_root_mismatch, issuance_generation, updated_at
       FROM chain_state WHERE indexer_name = $1
     `,
     [config.indexerName],
@@ -84,20 +89,35 @@ export async function getOrCreateChainState(pool: Pool, config: Config): Promise
 
   await pool.query(
     `
-      INSERT INTO chain_state(indexer_name, network, last_height, last_block_hash, critical_root_mismatch, updated_at)
-      VALUES($1, $2, -1, NULL, FALSE, now())
+      INSERT INTO chain_state(indexer_name, network, last_height, last_block_hash, critical_root_mismatch, issuance_generation, updated_at)
+      VALUES($1, $2, -1, NULL, FALSE, NULL, now())
     `,
     [config.indexerName, network],
   );
 
   const res2 = await pool.query<ChainStateRow>(
     `
-      SELECT indexer_name, network, last_height, last_block_hash, critical_root_mismatch, updated_at
+      SELECT indexer_name, network, last_height, last_block_hash, critical_root_mismatch, issuance_generation, updated_at
       FROM chain_state WHERE indexer_name = $1
     `,
     [config.indexerName],
   );
   return res2.rows[0];
+}
+
+export async function stampIssuanceGeneration(
+  pool: Pool,
+  config: Config,
+  generation: string,
+): Promise<void> {
+  await pool.query(
+    `
+      UPDATE chain_state
+      SET issuance_generation = $2, updated_at = now()
+      WHERE indexer_name = $1
+    `,
+    [config.indexerName, generation],
+  );
 }
 
 export async function updateChainState(pool: Pool, config: Config, patch: Partial<Pick<ChainStateRow, "last_height" | "last_block_hash" | "critical_root_mismatch">>): Promise<void> {
@@ -128,7 +148,7 @@ export async function truncateFromHeight(pool: Pool, height: bigint): Promise<vo
 // Query helpers for API
 // --------------------
 
-export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
+export async function listBlocks(pool: Pool, limit: number, offset = 0): Promise<any[]> {
   const res = await pool.query(
     `
       SELECT b.height, b.block_hash, b.time, b.tx_count,
@@ -150,17 +170,31 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
                WHERE t.block_hash = b.block_hash
                  AND t.block_tx_index = 0
              ), '0') AS oru_minted_atoms,
+             COALESCE((
+               SELECT SUM(rm.mint_amount)::text
+               FROM res_mints rm
+               WHERE rm.block_hash = b.block_hash
+             ), '0') AS res_minted_atoms,
+             COALESCE((
+               SELECT SUM(o.value_atoms)::text
+               FROM transactions t
+               JOIN outputs o ON o.txid = t.txid
+               WHERE t.block_hash = b.block_hash
+                 AND LOWER(REPLACE(TRIM(o.script_pubkey), ' ', '')) ~ '^14[0-9a-f]{40}bd$'
+             ), '0') AS converge_burn_atoms,
              s.burned_oru::text AS rfc018_block_burned_oru,
              s.cumulative_burned_oru::text AS rfc018_cumulative_burned_oru
       FROM blocks b
       LEFT JOIN rfc018_fee_burn_stats s ON s.height = b.height
       ORDER BY b.height DESC
-      LIMIT $1
+      LIMIT $1 OFFSET $2
     `,
-    [limit],
+    [limit, Math.max(0, offset)],
   );
   return res.rows.map((row) => {
     const atoms = BigInt(row.oru_minted_atoms ?? "0");
+    const resMintAtoms = BigInt(row.res_minted_atoms ?? "0");
+    const convergeBurnAtoms = BigInt(row.converge_burn_atoms ?? "0");
     const blockBurn = BigInt(row.rfc018_block_burned_oru ?? "0");
     const cumBurn = BigInt(row.rfc018_cumulative_burned_oru ?? "0");
     const indexed = row.rfc018_block_burned_oru != null;
@@ -168,6 +202,8 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
       ...row,
       oru_minted: formatOruAtoms(atoms),
       oru_minted_display: `${formatOruAtoms(atoms)} ORU`,
+      res_minted_display: resMintAtoms > 0n ? atomsToResDisplay(resMintAtoms) : "—",
+      converge_burn_display: convergeBurnAtoms > 0n ? atomsToOruDisplay(convergeBurnAtoms) : "—",
       consensus_fingerprint: row.consensus_fingerprint ?? null,
       consensus_fingerprint_short: shortFingerprint(row.consensus_fingerprint),
       consensus_fingerprint_display: displayFingerprint(row.consensus_fingerprint),
@@ -180,12 +216,27 @@ export async function listBlocks(pool: Pool, limit: number): Promise<any[]> {
   });
 }
 
+export async function countBlocks(pool: Pool): Promise<number> {
+  const res = await pool.query<{ n: number }>(`SELECT COUNT(*)::int AS n FROM blocks`);
+  return Number(res.rows[0]?.n ?? 0);
+}
+
 export async function getBlockHashByHeight(pool: Pool, height: string | number | bigint): Promise<string | null> {
   const res = await pool.query(
     `SELECT block_hash FROM blocks WHERE height = $1::bigint LIMIT 1`,
     [String(height)],
   );
   return res.rows[0]?.block_hash ?? null;
+}
+
+/** Canonical txid for a witness txid. Null when wtxid is missing or equals txid. */
+export async function getTxidByWtxid(pool: Pool, wtxid: string): Promise<string | null> {
+  const hex = wtxid.trim().toLowerCase();
+  const res = await pool.query<{ txid: string }>(
+    `SELECT txid FROM transactions WHERE wtxid = $1 AND txid <> $1 LIMIT 1`,
+    [hex],
+  );
+  return res.rows[0]?.txid ?? null;
 }
 
 export async function getBlockByHash(pool: Pool, hash: string): Promise<any | null> {
@@ -280,7 +331,14 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
     [hash],
   );
 
-  const convergence_panel = buildBlockConvergencePanel(block, candidates.rows);
+  const convergence_panel = buildBlockConvergencePanel(
+    {
+      ...block,
+      mint_txid: mintRows.rows[0]?.mint_txid ?? null,
+      rigor_res_minted: resMinted,
+    },
+    candidates.rows,
+  );
 
   // Legacy field: winner row for audit consumers.
   const winnerRow = candidates.rows.find((c) => c.convergence_txid === (block.rigor_winner || "").trim()) ?? null;
@@ -318,29 +376,10 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
   const indexedMintAtoms = mintRows.rows.reduce((acc, r) => acc + BigInt(r.mint_amount ?? 0), 0n);
   const mintAtoms = indexedMintAtoms > 0n ? indexedMintAtoms : bodyResAtoms;
   const res_minted_display = mintAtoms > 0n ? atomsToResDisplay(mintAtoms) : resMinted ? String(resMinted) : "0";
-
-  const winnerTxid = (block.rigor_winner || "").trim();
-  let res_award_note: string | null = null;
-  let res_payout_block_hash: string | null = null;
-  if (winnerTxid) {
-    const payout = await pool.query<{ block_height: string; block_hash: string; mint_amount: string }>(
-      `
-        SELECT block_height::text AS block_height, block_hash, mint_amount::text AS mint_amount
-        FROM res_mints
-        WHERE winner_convergence_txid = $1
-        ORDER BY block_height ASC
-        LIMIT 1
-      `,
-      [winnerTxid],
-    );
-    if (payout.rows[0]) {
-      const p = payout.rows[0];
-      res_award_note = `${atomsToResDisplay(p.mint_amount)} paid in block ${p.block_height}`;
-      res_payout_block_hash = p.block_hash;
-    } else if (resMinted === 0) {
-      res_award_note = "Winner selected this block; RES mint is in the next block";
-    }
-  }
+  const heightNum = Number(block.height);
+  const res_destroy_cost_display = Number.isFinite(heightNum)
+    ? formatRateOruPerRes(resDestroyCostForHeight(heightNum))
+    : null;
 
   const fp = block.consensus_fingerprint ?? null;
   let feeBurnRow: Awaited<ReturnType<typeof getRfc018FeeBurnAtHeight>> = null;
@@ -370,8 +409,7 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
     oru_subsidy_display: formatOruAtoms(oruSubsidyAtoms),
     rigor_res_minted: resMinted,
     res_minted_display,
-    res_award_note,
-    res_payout_block_hash,
+    res_destroy_cost_display,
     bind_height: block.bind_height ?? null,
     bind_height_display: displayOrNotAvailable(block.bind_height),
     bind_hash_display: displayOrNotAvailable(block.bind_hash),
@@ -436,7 +474,7 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
   const convergence = await pool.query(
     `
       SELECT ce.*,
-             (ce.convergence_txid = b.rigor_winner AND b.rigor_winner <> '') AS is_winner
+             ${CONVERGENCE_IS_MINT_SQL} AS is_winner
       FROM convergence_events ce
       JOIN blocks b ON b.block_hash = ce.block_hash
       WHERE ce.convergence_txid = $1
@@ -460,7 +498,9 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
   const inclusion = blockCtx.rows[0]
     ? { block_hash: blockCtx.rows[0].block_hash, block_height: blockCtx.rows[0].height }
     : null;
-  const convergence_panel = buildTxConvergencePanel(convergence.rows, inclusion);
+  const convergence_panel = buildTxConvergencePanel(convergence.rows, inclusion, {
+    isResMint: (resMint.rowCount ?? 0) > 0,
+  });
 
   const witness_panel = buildTxWitnessPanel(
     txid,
@@ -539,6 +579,14 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
   const primary = pickPrimaryOruOutput(vout.rows);
   const firstSender = enrichedVin.find((v) => v.prev_address)?.prev_address ?? (isCoinbase ? "Coinbase" : null);
   const primaryAtoms = primary ? BigInt(primary.output.value_atoms) : 0n;
+  const hasResOut = vout.rows.some((o) => o.asset_kind === "RES");
+  const tx_kind = classifyTxKind({
+    isCoinbase,
+    primaryRole: primary?.role ?? null,
+    hasOru: vout.rows.some((o) => o.asset_kind === "ORU"),
+    hasRes: hasResOut,
+    isResMint: resMint.rows.length > 0,
+  });
 
   const summary = {
     txid,
@@ -550,6 +598,11 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
     amount_role: primary?.role ?? null,
     amount_total_atoms: oruOut.toString(),
     amount_total_display: formatOruAtoms(oruOut),
+    tx_kind,
+    tx_kind_label: txKindLabel(tx_kind),
+    minted_res: tx_kind === "res_mint",
+    kind_notice: txKindNotice(tx_kind),
+    converge_output_note: convergeOutputNote(tx_kind),
     fee,
     subsidy_display: isCoinbase ? formatOruAtoms(oruOut) : null,
   };
@@ -599,75 +652,62 @@ export async function listResMints(pool: Pool, limit: number): Promise<any[]> {
   return res.rows;
 }
 
+export function formatResEventRow(row: {
+  convergence_txid: string;
+  included_height: string | null;
+  last_window_height?: string | null;
+  mint_height?: string | null;
+  lock_atoms?: string | null;
+  mint_amount_atoms?: string | null;
+}): Record<string, unknown> {
+  const mintAtoms = String(row.mint_amount_atoms ?? "0");
+  const minted = BigInt(mintAtoms) > 0n;
+  const height = row.mint_height ?? row.included_height;
+  return {
+    convergence_txid: row.convergence_txid,
+    included_height: row.included_height,
+    last_window_height: row.last_window_height ?? row.included_height,
+    award_height: height,
+    mint_height: minted ? (row.mint_height ?? row.included_height) : null,
+    height,
+    draw_eligible: minted,
+    lock_display: atomsToOruDisplay(String(row.lock_atoms ?? "0")),
+    mint_amount: minted ? atomsToResDisplay(mintAtoms) : "0",
+    result: minted ? `Minted ${atomsToResDisplay(mintAtoms)}` : "Destroy only",
+  };
+}
+
 export async function listResEvents(pool: Pool, limit: number, eligibleOnly: boolean): Promise<any[]> {
   const res = await pool.query(
     `
       SELECT
-        ce.convergence_txid,
-        MIN(ce.block_height)::text AS included_height,
-        MAX(ce.block_height)::text AS last_window_height,
-        (
-          SELECT MIN(b.height)::text
-            FROM blocks b
-           WHERE b.rigor_winner = ce.convergence_txid
-             AND b.rigor_winner <> ''
-        ) AS award_height,
-        (
-          SELECT MIN(rm.block_height)::text
-            FROM res_mints rm
-           WHERE rm.winner_convergence_txid = ce.convergence_txid
-        ) AS mint_height,
-        BOOL_OR(ce.draw_eligible) AS ever_eligible,
-        COALESCE((
-          SELECT SUM(rm.mint_amount)
-            FROM res_mints rm
-           WHERE rm.winner_convergence_txid = ce.convergence_txid
-        ), MAX(ce.mint_amount), 0)::text AS mint_amount_atoms,
-        COALESCE((
-          SELECT SUM(o.value_atoms)
-            FROM outputs o
-           WHERE o.txid = ce.convergence_txid
-             AND o.asset_kind = 'ORU'
-             AND (
-               LOWER(REPLACE(TRIM(o.script_pubkey), ' ', '')) ~ '^14[0-9a-f]{40}bd$'
-               OR LOWER(o.script_pubkey) LIKE '512043564732%'
-             )
-        ), 0)::text AS lock_atoms
-      FROM convergence_events ce
-      GROUP BY ce.convergence_txid
-      HAVING ($2::boolean = FALSE) OR BOOL_OR(ce.draw_eligible)
-      ORDER BY
-        COALESCE(
-          (SELECT MIN(rm.block_height) FROM res_mints rm WHERE rm.winner_convergence_txid = ce.convergence_txid),
-          (SELECT MIN(b.height) FROM blocks b WHERE b.rigor_winner = ce.convergence_txid AND b.rigor_winner <> ''),
-          MIN(ce.block_height)
-        ) DESC,
-        ce.convergence_txid ASC
+        burn.txid AS convergence_txid,
+        burn.block_height::text AS included_height,
+        burn.block_height::text AS last_window_height,
+        burn.lock_atoms::text AS lock_atoms,
+        COALESCE(mint.mint_amount_atoms, 0)::text AS mint_amount_atoms,
+        mint.block_height::text AS mint_height
+      FROM (
+        SELECT o.txid, t.block_height, SUM(o.value_atoms) AS lock_atoms
+          FROM outputs o
+          JOIN transactions t ON t.txid = o.txid
+         WHERE o.asset_kind = 'ORU'
+           AND ${opConvergeScriptSql("o.script_pubkey")}
+           AND o.value_atoms > 0
+         GROUP BY o.txid, t.block_height
+      ) burn
+      LEFT JOIN (
+        SELECT mint_txid, SUM(mint_amount) AS mint_amount_atoms, MIN(block_height) AS block_height
+          FROM res_mints
+         GROUP BY mint_txid
+      ) mint ON mint.mint_txid = burn.txid
+      WHERE ($2::boolean = FALSE) OR COALESCE(mint.mint_amount_atoms, 0) > 0
+      ORDER BY burn.block_height DESC, burn.txid ASC
       LIMIT $1
     `,
     [limit, eligibleOnly],
   );
-  return res.rows.map((row) => {
-    const mintAtoms = String(row.mint_amount_atoms ?? "0");
-    const minted = BigInt(mintAtoms) > 0n;
-    const eligible = Boolean(row.ever_eligible);
-    let result = "No RES";
-    if (minted) result = `Minted ${atomsToResDisplay(mintAtoms)}`;
-    else if (eligible) result = "Eligible, no mint";
-    return {
-      convergence_txid: row.convergence_txid,
-      included_height: row.included_height,
-      last_window_height: row.last_window_height,
-      award_height: row.award_height ?? null,
-      mint_height: row.mint_height ?? null,
-      // Primary height for RES events: draw (中签) when awarded, else inclusion.
-      height: row.award_height ?? row.included_height,
-      draw_eligible: eligible,
-      lock_display: atomsToOruDisplay(String(row.lock_atoms ?? "0")),
-      mint_amount: minted ? atomsToResDisplay(mintAtoms) : "0",
-      result,
-    };
-  });
+  return res.rows.map((row) => formatResEventRow(row));
 }
 
 /** @deprecated Use getAddressIntelligence from addressDb.ts */

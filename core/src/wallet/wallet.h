@@ -577,10 +577,6 @@ public:
     void blockDisconnected(const interfaces::BlockInfo& block) override;
     void updatedBlockTip() override;
 
-    /** Convergence draw result + RES maturity promotion (see convergencestate.h). */
-    void UpdateConvergenceStateForBlock(const interfaces::BlockInfo& block) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
-    /** WALLET_EXTREME_SAFETY_V1: revert convergence metadata when a block is disconnected (reorg). */
-    void UpdateConvergenceStateOnDisconnect(const interfaces::BlockInfo& block) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     int64_t RescanFromTime(int64_t startTime, const WalletRescanReserver& reserver, bool update);
 
     struct ScanResult {
@@ -638,15 +634,21 @@ public:
                   bool finalize = true) const;
 
     /**
-     * Submit the transaction to the node's mempool and then relay to peers.
-     * Should be called after CreateTransaction unless you want to abort
-     * broadcasting the transaction.
+     * Add the transaction to the wallet and, if walletbroadcast is on, submit
+     * it to the node's mempool and relay to peers.
+     *
+     * A false return means broadcast was attempted and the mempool rejected the
+     * transaction. Such a transaction is abandoned before returning, so its
+     * inputs go back to the spendable set instead of being hidden by IsSpent();
+     * callers must surface the rejection rather than report a txid as sent.
+     * When walletbroadcast is off, this returns true after the local commit.
      *
      * @param[in] tx The transaction to be broadcast.
      * @param[in] mapValue key-values to be set on the transaction.
      * @param[in] orderForm BIP 70 / BIP 21 order form details to be set on the transaction.
+     * @param[out] broadcast_error Mempool/relay rejection text when returning false.
      */
-    void CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm);
+    bool CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, std::string* broadcast_error = nullptr);
 
     /** Pass this transaction to node for mempool insertion and relay to peers if flag set to true */
     bool SubmitTxMemoryPoolAndRelay(CWalletTx& wtx, std::string& err_string, bool relay) const

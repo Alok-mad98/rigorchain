@@ -12,6 +12,7 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
+#include <consensus/trace/consensus_trace.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <hash.h>
@@ -3208,6 +3209,18 @@ void PeerManagerImpl::ProcessBlock(CNode& node, const std::shared_ptr<const CBlo
     }
     bool new_block{false};
     const uint256 block_hash{block->GetHash()};
+    // Observation only. Does not change ProcessNewBlock arguments or accept/reject.
+    if (RigorConsensusTraceEnabled()) {
+        const int64_t noted_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                     std::chrono::system_clock::now().time_since_epoch())
+                                     .count();
+        RigorConsensusTraceNoteNetworkContext(
+            block_hash,
+            static_cast<int>(m_connman.GetNodeCount(ConnectionDirection::Both)),
+            "p2p",
+            static_cast<int64_t>(node.GetId()),
+            noted_ms);
+    }
     const bool accepted{m_chainman.ProcessNewBlock(block, force_processing, min_pow_checked, &new_block)};
     if (!accepted) {
         LogPrint(BCLog::VALIDATION,

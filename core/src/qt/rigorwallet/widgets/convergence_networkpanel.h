@@ -14,7 +14,7 @@ namespace RigorWallet {
 
 /**
  * Wallet → Convergence → Network Statistics (TASK-WALLET-CONVERGENCE-NETWORK-STATS-001).
- * Displays chain-wide stats from getconvergencestats. No protocol digests.
+ * Displays chain-wide stats from getconvergencestatus. No protocol digests.
  */
 class ConvergenceNetworkPanel : public QFrame
 {
@@ -28,9 +28,8 @@ public:
 
 private:
     ClientModel* m_clientModel{nullptr};
-    QLabel* m_activeLabel{nullptr};
-    QLabel* m_oruLabel{nullptr};
-    QLabel* m_pendingLabel{nullptr};
+    QLabel* m_priceLabel{nullptr};
+    QLabel* m_nextPriceLabel{nullptr};
     QLabel* m_resLabel{nullptr};
     QLabel* m_updatedLabel{nullptr};
 };

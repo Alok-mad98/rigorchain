@@ -3,7 +3,6 @@ import { ConvergencePanel } from "../components/ConvergencePanel";
 import { ProtocolCard } from "../components/ProtocolCard";
 import { RESMintPanel } from "../components/RESMintPanel";
 import { SubNav } from "../components/SubNav";
-
 export function WalletTopicPage() {
   const { pathname } = useLocation();
 
@@ -13,7 +12,7 @@ export function WalletTopicPage() {
         <SubNav />
         <header className="page-header">
           <h1>ORU</h1>
-          <p className="muted">Execution and fee resource. Existing ProtocolCard module — KEEP.</p>
+          <p className="muted">Fee asset, PoW subsidy, Convergence destroy. R(0) = 0, then 128 forever.</p>
         </header>
         <ProtocolCard variant="oru" />
         <p>
@@ -29,7 +28,7 @@ export function WalletTopicPage() {
         <SubNav />
         <header className="page-header">
           <h1>RES</h1>
-          <p className="muted">Scarce settlement asset. Existing RESMintPanel — previously unwired, now WIRED.</p>
+          <p className="muted">Reserve asset. Body-tx destroy-to-mint at destroy_cost(h). Cap 4,194,304 RES.</p>
         </header>
         <ProtocolCard variant="res" />
         <RESMintPanel />
@@ -44,7 +43,7 @@ export function WalletTopicPage() {
         <header className="page-header">
           <h1>Convergence</h1>
           <p className="muted">
-            Deterministic selection. Existing ConvergencePanel — previously unwired, now WIRED.
+            Destroy ORU via OP_CONVERGE to mint Witness v1 RES at the confirming height.
           </p>
         </header>
         <ProtocolCard variant="forge" />
@@ -66,7 +65,7 @@ export function WalletTopicPage() {
       </header>
       <section className="card prose-section">
         <p>
-          Body RES mint outputs and ORU coinbase outputs use the same confirmation depth:{" "}
+          ORU coinbase outputs and body RES <em>mint</em> outputs use the same confirmation depth:{" "}
           <code>nCoinbaseMaturity = 100</code>. A UTXO created at height H is first spendable in a
           transaction whose spend height is H + 100. Mempool spend height is tip + 1. Ordinary RES
           transfers are not delayed by the mint flag and still cannot create RES (
@@ -80,11 +79,8 @@ export function WalletTopicPage() {
         <ul>
           <li>Confirmation count as observation, not authority</li>
           <li>ORU subsidy maturity vs RES mint linkage</li>
-          <li>Link to independent verification of the producing TXID</li>
+          <li>Inspect the producing TXID in Explorer</li>
         </ul>
-        <p>
-          <Link to="/zero-trust-verification">Verify a transaction</Link>
-        </p>
       </section>
     </div>
   );

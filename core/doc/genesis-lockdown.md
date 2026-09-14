@@ -1,14 +1,13 @@
 # Genesis Lockdown Audit Attachment
 
-> **Release identity.** Shipping product is **RIGOR v0.1.1-alphaplus** (codename **AlphaPlus Consensus Freeze**). Remaining "Alpha1" wording in this file is **historical Alpha1 naming before AlphaPlus release identity migration**. Consensus (genesis hash, Ed25519, lock v2, PoW, W/T, RES, fees) is unchanged.
-
+> Remaining "Alpha1" / AlphaPlus wording in this file is **historical naming**. Consensus (genesis hash, Ed25519, lock v2, PoW, W/T, RES, fees) is unchanged.
 
 This document records **consensus-locked** genesis parameters for each public-style network variant, as defined in `src/kernel/chainparams.cpp`. Any change requires regenerating the genesis block, updating `consensus.hashGenesisBlock` asserts, checkpoints, `defaultAssumeValid` policy (when bumped past genesis), and this file.
 
 ## Shared policy
 
-- **Coinbase reward at height 0:** `Consensus::ORU_GENESIS_BLOCK_SUBSIDY` (`0`) on mainnet, testnet, regtest, devtest, and slowtest. `CreateGenesisBlock` and `GetBlockSubsidy(0)` both use this value (P0-038). Height `>= 1` keeps `ORU_INITIAL_BLOCK_SUBSIDY` (`1000 * COIN`).
-- **Subsidy schedule:** `nBlockSubsidyBase = ORU_INITIAL_BLOCK_SUBSIDY`, `nBlockSubsidyMaxHalvingShifts = 3`, `nSubsidyHalvingInterval = 210000` (regtest uses interval **150** per `CRegTestParams`). Do not compensate the removed genesis 1000 ORU at later heights.
+- **Coinbase reward at height 0:** `Consensus::ORU_GENESIS_BLOCK_SUBSIDY` (`0`) on mainnet, testnet, regtest, devtest, and slowtest. `CreateGenesisBlock` and `GetBlockSubsidy(0)` both use this value (P0-038). Height `>= 1` pays `ORU_FLAT_BLOCK_SUBSIDY` (`128 * COIN`) on every network (RFC-020).
+- **Subsidy schedule:** `GetBlockSubsidy` ignores `Params`. There is no halving field. Observational calendar length is `RES_REWARD_EPOCH = 210000`. Do not compensate the genesis 0 ORU at later heights.
 - **Coinbase vout[0]:** witness v0 P2WPKH-style placeholder (`0x0014` + 20 bytes); **no** bare P2PK in consensus-valid blocks.
 - **Coinbase scriptSig layout:** `CreateGenesisBlock` retains Bitcoin-era height/nBits preamble pushes (`486604799`, `4`) plus the timestamp bytes — **wire layout only**; timestamps and hashes are chain-specific (see below).
 - **Merkle root:** single coinbase tx, no witness; `assert(genesis.hashMerkleRoot == BlockMerkleRoot(genesis))` in code pins determinism.
@@ -17,7 +16,7 @@ This document records **consensus-locked** genesis parameters for each public-st
 ## Mainnet (`CMainParams`)
 
 Constants live in namespace `GenesisLockMainnet` in `chainparams.cpp`.
-**Normative freeze:** RFC-016 (Alpha1 / `v0.1.1-alphaplus`). This is a new chain, not a hard fork of `v0.1.0-alpha`.
+**Normative freeze:** RFC-016 genesis parameters remain the live mainnet lock. This is a new chain, not a hard fork of `v0.1.0-alpha`.
 
 | Field | Value |
 |--------|--------|
@@ -92,5 +91,5 @@ Devtest retains **Bitcoin-era buried heights** for compatibility testing; **do n
 
 ## Audit notes
 
-- `test/functional/test_framework/blocktools.py` subsidy helpers must stay aligned with `GetBlockSubsidy` (regtest base **1000 ORU** for `h >= 1`, height **0 = 0 ORU**, halving interval **150**, max **3** right-shifts).
+- `test/functional/test_framework/blocktools.py` subsidy helpers must stay aligned with `GetBlockSubsidy` (RFC-020: height **0 = 0 ORU**, every `h >= 1` pays **128 ORU** on every net, no halving).
 - `pow_tests.cpp` ASERT numeric vectors use a **synthetic** anchor time `1774915200` for frozen arithmetic regression; they are **not** the deployed mainnet genesis clock (`1786125600`). See comments in that test.

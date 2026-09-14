@@ -21,40 +21,14 @@
     link.href = href;
   }
 
-  function verifierBase() {
-    if (window.RIGOR_ZERO_TRUST_VERIFIER_URL) return String(window.RIGOR_ZERO_TRUST_VERIFIER_URL).replace(/\/$/, "");
-    return "https://www.rigorchain.com/zero-trust-verification";
-  }
-
-  function verifyTxUrl(txid) {
-    return verifierBase() + "?mode=tx&txid=" + encodeURIComponent(txid);
-  }
-
-  function verifyBlockUrl(hash) {
-    return verifierBase() + "?mode=block&hash=" + encodeURIComponent(hash);
-  }
-
-  function verifyIndependentlyHtml(kind, id) {
-    if (!id) return "";
-    const href = kind === "tx" ? verifyTxUrl(id) : verifyBlockUrl(id);
-    return (
-      '<p class="verify-independently">' +
-      '<a href="' +
-      href +
-      '">Verify independently</a>' +
-      " — Zero-Trust Verification Portal (browser computes; explorer is not an authority)</p>"
-    );
-  }
-
   function navHtml() {
     return `
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
-      <a href="${verifierBase()}">Zero-Trust Verification</a>
     `;
   }
 
@@ -124,9 +98,6 @@
     timeAbsolute,
     timeCellHtml,
     fetchJson,
-    verifyTxUrl,
-    verifyBlockUrl,
-    verifyIndependentlyHtml,
     apiBase: "/api",
   };
 })();

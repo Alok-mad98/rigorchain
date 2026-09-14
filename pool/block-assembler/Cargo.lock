@@ -1141,7 +1141,6 @@ version = "0.1.0"
 dependencies = [
  "hex",
  "reqwest",
- "rigor-convergence-root",
  "rigor-pool-pg",
  "serde",
  "serde_json",

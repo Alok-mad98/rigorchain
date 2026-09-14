@@ -20,6 +20,8 @@ mkdir -p "$CORPUS"
   "$ROOT/fuzz/predicate_boundary_differential/predicate_boundary_fuzz.cpp" \
   "$SRC/test/predicate_boundary_ed25519_stub.cpp" \
   "$SRC/script/predicate_verify.cpp" \
+  "$SRC/script/script_error.cpp" \
+  "$SRC/consensus/trace/consensus_trace.cpp" \
   "$SRC/script/rigor_classify.cpp" \
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
@@ -69,6 +71,8 @@ FORCE_OUT="${TMPDIR:-/tmp}/predicate_boundary_fuzz_force_accept"
   "$ROOT/fuzz/predicate_boundary_differential/predicate_boundary_fuzz.cpp" \
   "$SRC/test/predicate_boundary_ed25519_stub.cpp" \
   "$SRC/script/predicate_verify.cpp" \
+  "$SRC/script/script_error.cpp" \
+  "$SRC/consensus/trace/consensus_trace.cpp" \
   "$SRC/script/rigor_classify.cpp" \
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \

@@ -685,12 +685,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 900,
-        "RES": 40000000,
+        "RES": 1,
         "mint": true,
         "height": 0
       },
       "expected": {
-        "RES_after": 80000000
+        "RES_after": 2
       }
     },
     {
@@ -704,7 +704,7 @@
         "height": 210000
       },
       "expected": {
-        "RES_after": 15142196
+        "RES_after": 1000001
       }
     },
     {
@@ -713,12 +713,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 0,
-        "RES": 21000000000000,
+        "RES": 419430400000000,
         "mint": false,
         "height": 0
       },
       "expected": {
-        "RES_after": 21000000000000
+        "RES_after": 419430400000000
       }
     },
     {
@@ -727,12 +727,12 @@
       "module": "SupplyScaffold",
       "input": {
         "ORU": 100,
-        "RES": 20999999999900,
+        "RES": 419430399999900,
         "mint": true,
         "height": 0
       },
       "expected": {
-        "RES_after": 20999999999900
+        "RES_after": 419430399999901
       }
     },
     {
@@ -8685,7 +8685,7 @@
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "ordinary_inflation"
       },
@@ -8724,7 +8724,7 @@
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "ordinary_inflation"
       },
@@ -8742,7 +8742,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1024,
             "asset": "ORU"
           }
         ],
@@ -8763,11 +8763,11 @@
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
-        "reject": "mint_wrong_amount"
+        "reject": "burn_insufficient"
       },
-      "note": "ORU-only inputs cannot create RES except via mint-shape of W(h)",
+      "note": "RFC-020: 1024 ORU is genesis-exact for 1 RES atom; at height 1 the continuous price has already moved, so this burn is insufficient",
       "coq_enforce": true
     },
     {
@@ -8802,7 +8802,7 @@
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "res_to_oru"
       },
@@ -8820,7 +8820,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1024,
             "asset": "ORU"
           }
         ],
@@ -8834,18 +8834,18 @@
           ],
           "creates": [
             {
-              "value": 40000001,
+              "value": 2,
               "asset": "RES"
             }
           ]
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
-        "reject": "mint_wrong_amount"
+        "reject": "burn_insufficient"
       },
-      "note": "ORU-funded mint of W(h)+1",
+      "note": "exact epoch-0 burn covers 1 RES atom, not 2 (burn_insufficient)",
       "coq_enforce": true
     },
     {
@@ -8859,7 +8859,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1023,
             "asset": "ORU"
           }
         ],
@@ -8873,18 +8873,18 @@
           ],
           "creates": [
             {
-              "value": 39999999,
+              "value": 1,
               "asset": "RES"
             }
           ]
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
-        "reject": "mint_wrong_amount"
+        "reject": "burn_insufficient"
       },
-      "note": "ORU-funded mint of W(h)-1",
+      "note": "one ORU atom short of the genesis-exact burn for a 1-atom mint",
       "coq_enforce": true
     },
     {
@@ -8898,7 +8898,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 2048,
             "asset": "ORU"
           }
         ],
@@ -8912,22 +8912,22 @@
           ],
           "creates": [
             {
-              "value": 20000000,
+              "value": 1,
               "asset": "RES"
             },
             {
-              "value": 20000000,
+              "value": 1,
               "asset": "RES"
             }
           ]
         }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "mint_wrong_count"
       },
-      "note": "mint-shape requires exactly one RES output; two outputs summing to W(h) still fail",
+      "note": "mint-shape requires exactly one RES output; two outputs still fail",
       "coq_enforce": true
     },
     {
@@ -8941,7 +8941,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1024,
             "asset": "ORU"
           }
         ],
@@ -8955,18 +8955,18 @@
           ],
           "creates": [
             {
-              "value": 40000000,
+              "value": 1,
               "asset": "RES"
             }
           ]
         }
       },
       "expected": {
-        "W": 14142196,
+        "W": 103685749152,
         "accepted": false,
-        "reject": "mint_wrong_amount"
+        "reject": "burn_insufficient"
       },
-      "note": "epoch-1 mint of W(0) rather than W(k=1)",
+      "note": "calendar k=1 mint: genesis-exact 1024 ORU does not cover destroy_cost(210000)",
       "coq_enforce": true
     },
     {
@@ -8974,17 +8974,38 @@
       "name": "winner_mint_count_two",
       "module": "NegativeCore",
       "input": {
-        "kind": "connect_obligation",
-        "height": 1,
-        "draw_won": true,
-        "mint_count": 2
+        "kind": "mint_shape",
+        "height": 52710000,
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 1024,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1,
+              "asset": "RES"
+            }
+          ]
+        }
       },
       "expected": {
-        "W": 40000000,
+        "W": 676805232458,
         "accepted": false,
-        "reject": "winner_mismatch"
+        "reject": "burn_insufficient"
       },
-      "note": "H-1 / winner-mismatch: scored mint count is 2, not 1",
+      "note": "observational k=251: genesis-exact burn still fails the continuous price",
       "coq_enforce": true
     },
     {
@@ -8992,17 +9013,42 @@
       "name": "winner_omits_mint",
       "module": "NegativeCore",
       "input": {
-        "kind": "connect_obligation",
+        "kind": "mint_shape",
         "height": 1,
-        "draw_won": true,
-        "mint_count": 0
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 1024,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1024,
+              "asset": "ORU"
+            },
+            {
+              "value": 1,
+              "asset": "RES"
+            }
+          ]
+        }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
-        "reject": "winner_mismatch"
+        "reject": "burn_insufficient"
       },
-      "note": "H-1: winner with W(h)>0 and mint_count=0",
+      "note": "H-1 omit has no referent; zero-burn ORU-to-RES is still illegal",
       "coq_enforce": true
     },
     {
@@ -9012,16 +9058,16 @@
       "input": {
         "kind": "connect_cap",
         "height": 1,
-        "res_supply": 20999960000001,
+        "res_supply": 419430399999999,
         "draw_won": true,
-        "mint_count": 1
+        "mint_count": 2
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "cap_overshoot"
       },
-      "note": "supply + W(h) = cap + 1; equal-to-cap is admitted, one atom over is not",
+      "note": "supply + 2 atoms = cap + 1; equal-to-cap is admitted, one atom over is not",
       "coq_enforce": true
     },
     {
@@ -9031,16 +9077,16 @@
       "input": {
         "kind": "connect_cap",
         "height": 1,
-        "res_supply": 21000000000000,
+        "res_supply": 419430400000000,
         "draw_won": true,
         "mint_count": 1
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "cap_overshoot"
       },
-      "note": "exactly at the hard cap, then mint W(h)",
+      "note": "exactly at the hard cap, then mint 1 atom",
       "coq_enforce": true
     },
     {
@@ -9050,15 +9096,15 @@
       "input": {
         "kind": "connect_obligation",
         "height": 52710000,
-        "draw_won": true,
+        "draw_won": false,
         "mint_count": 1
       },
       "expected": {
-        "W": 0,
+        "W": 676805232458,
         "accepted": false,
-        "reject": "unauthorized_mint"
+        "reject": "without_winner"
       },
-      "note": "epoch 251: W(h)=0 so a mint is unauthorized, not winner-mismatch",
+      "note": "leftover H-1 pin: observational k=251 still authorizes mints; draw_won=false + mint_count=1 is without_winner, not RATE=0",
       "coq_enforce": true
     },
     {
@@ -9066,17 +9112,38 @@
       "name": "without_winner_mint",
       "module": "NegativeCore",
       "input": {
-        "kind": "connect_obligation",
+        "kind": "mint_shape",
         "height": 1,
-        "draw_won": false,
-        "mint_count": 1
+        "utxo": [
+          {
+            "id": 2,
+            "vout": 0,
+            "value": 1023,
+            "asset": "ORU"
+          }
+        ],
+        "tx": {
+          "id": 10,
+          "spends": [
+            {
+              "id": 2,
+              "vout": 0
+            }
+          ],
+          "creates": [
+            {
+              "value": 1,
+              "asset": "RES"
+            }
+          ]
+        }
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
-        "reject": "without_winner"
+        "reject": "burn_insufficient"
       },
-      "note": "no draw winner, but a mint is present",
+      "note": "without_winner has no referent; replaced by burn-insufficiency (1023 ORU for 1 RES)",
       "coq_enforce": true
     },
     {
@@ -9099,7 +9166,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1024,
             "asset": "ORU"
           }
         ],
@@ -9129,7 +9196,7 @@
             ],
             "creates": [
               {
-                "value": 40000001,
+                "value": 2,
                 "asset": "RES"
               }
             ]
@@ -9137,11 +9204,11 @@
         ]
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "apply_block_none"
       },
-      "note": "valid ordinary transfer plus W(h)+1 mint in the same body; apply_block = None",
+      "note": "valid ordinary transfer plus burn-insufficient mint in the same body",
       "coq_enforce": true
     },
     {
@@ -9164,7 +9231,7 @@
           {
             "id": 2,
             "vout": 0,
-            "value": 50,
+            "value": 1025,
             "asset": "ORU"
           }
         ],
@@ -9194,7 +9261,7 @@
             ],
             "creates": [
               {
-                "value": 40000000,
+                "value": 1,
                 "asset": "RES"
               }
             ]
@@ -9202,11 +9269,11 @@
         ]
       },
       "expected": {
-        "W": 40000000,
+        "W": 102400006103,
         "accepted": false,
         "reject": "apply_block_none"
       },
-      "note": "ordinary inflation plus a well-shaped mint; body still rejected",
+      "note": "ordinary inflation plus a well-shaped height-1 mint (1025 ORU); body still rejected",
       "coq_enforce": true
     },
     {
@@ -9997,7 +10064,7 @@
       "expected": {
         "accepted": false,
         "reject": "bad_rigor_script_type",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10041,8 +10108,8 @@
       "expected": {
         "accepted": false,
         "reject": "bad_rigor_script_type",
-        "W": 40000000,
-        "dual_pool_reject": "mint_wrong_amount",
+        "W": 102400006103,
+        "dual_pool_reject": "burn_insufficient",
         "shape_reject": "script_shape"
       },
       "note": "CROSS script+dual-pool: witness v2 created script + ORU-in creating RES-out (mint_wrong_amount). Shape and pooling both reject.",
@@ -10084,7 +10151,7 @@
       "expected": {
         "accepted": false,
         "reject": "spend_cvg2",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10127,7 +10194,7 @@
             ],
             "creates": [
               {
-                "value": 40000001,
+                "value": 2,
                 "asset": "RES"
               }
             ]
@@ -10136,13 +10203,13 @@
       },
       "expected": {
         "accepted": false,
-        "reject": "c_mismatch+mint_wrong_amount",
-        "W": 40000000,
+        "reject": "c_mismatch+burn_insufficient",
+        "W": 102400006103,
         "root_reject": "c_mismatch",
-        "mint_reject": "mint_wrong_amount",
+        "mint_reject": "burn_insufficient",
         "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c"
       },
-      "note": "CROSS root+mint: committed C bitflip (ICVG-006 family) and ORU-funded mint of W(h)+1 (NEG-004 family). Both halves reject.",
+      "note": "CROSS root+mint: committed C bitflip (ICVG-006 family) and ORU-funded 2-atom mint on a 50-ORU input (burn_insufficient). Both halves reject.",
       "coq_enforce": true
     },
     {
@@ -10160,7 +10227,7 @@
         "mint": {
           "kind": "connect_cap",
           "height": 1,
-          "res_supply": 20999960000001,
+          "res_supply": 419430400000000,
           "draw_won": true,
           "mint_count": 1
         }
@@ -10168,12 +10235,12 @@
       "expected": {
         "accepted": false,
         "reject": "malformed_length+cap_overshoot",
-        "W": 40000000,
+        "W": 102400006103,
         "root_reject": "malformed_length",
         "mint_reject": "cap_overshoot",
         "convergence_root": "0000000000000000000000000000000000000000000000000000000000000000"
       },
-      "note": "CROSS root+cap: claimed C length 31 (ICVG-009) and one-atom hard-cap overshoot (NEG-010). Both halves reject.",
+      "note": "CROSS root+cap: claimed C length 31 (ICVG-009) and one-atom hard-cap overshoot (NEG-011). Both halves reject.",
       "coq_enforce": true
     },
     {
@@ -10195,7 +10262,7 @@
         "mint": {
           "kind": "connect_cap",
           "height": 1,
-          "res_supply": 21000000000000,
+          "res_supply": 419430400000000,
           "draw_won": true,
           "mint_count": 1
         }
@@ -10203,7 +10270,7 @@
       "expected": {
         "accepted": false,
         "reject": "unsorted+cap_overshoot",
-        "W": 40000000,
+        "W": 102400006103,
         "root_reject": "unsorted",
         "mint_reject": "cap_overshoot",
         "convergence_root": "2b6d935d9f5e35a64b0ef4907aeb835c4e6f25ddf031a96f80785235507ed35c",
@@ -10380,7 +10447,7 @@
             ],
             "creates": [
               {
-                "value": 14142196,
+                "value": 1,
                 "asset": "RES"
               }
             ]
@@ -10389,12 +10456,12 @@
       },
       "expected": {
         "accepted": false,
-        "reject": "mint_wrong_amount",
-        "W": 40000000,
-        "mint_reject": "mint_wrong_amount",
-        "W_neighbour": 14142196
+        "reject": "burn_insufficient",
+        "W": 103685743011,
+        "mint_reject": "burn_insufficient",
+        "W_neighbour": 103685749152
       },
-      "note": "CROSS schedule+mint-shape: last height of epoch 0 mints W(k=1) instead of W(0). W jumps at the next height.",
+      "note": "CROSS schedule+mint-shape: last height of observational calendar 0 with a 50-ORU input cannot cover 1 RES atom. destroy_cost(h) moves at the next height.",
       "coq_enforce": true
     },
     {
@@ -10426,7 +10493,7 @@
             ],
             "creates": [
               {
-                "value": 10058,
+                "value": 1,
                 "asset": "RES"
               }
             ]
@@ -10435,12 +10502,12 @@
       },
       "expected": {
         "accepted": false,
-        "reject": "unauthorized_mint",
-        "W": 0,
-        "mint_reject": "unauthorized_mint",
-        "W_neighbour": 10058
+        "reject": "burn_insufficient",
+        "W": 676805232458,
+        "mint_reject": "burn_insufficient",
+        "W_neighbour": 676805216767
       },
-      "note": "CROSS schedule+mint-shape: first W(h)=0 height mints the last positive-epoch amount. Unauthorized, not winner-mismatch.",
+      "note": "CROSS schedule+mint-shape: observational k=251 still has destroy_cost(h)>0; 50 ORU cannot cover 1 RES atom (burn_insufficient, not unauthorized).",
       "coq_enforce": true
     },
     {
@@ -10471,7 +10538,7 @@
             ],
             "creates": [
               {
-                "value": 10059,
+                "value": 2,
                 "asset": "RES"
               }
             ]
@@ -10480,19 +10547,19 @@
         "cap": {
           "kind": "connect_cap",
           "height": 52709999,
-          "res_supply": 20999999989943,
+          "res_supply": 419430400000000,
           "draw_won": true,
           "mint_count": 1
         }
       },
       "expected": {
         "accepted": false,
-        "reject": "mint_wrong_amount+cap_overshoot",
-        "W": 10058,
-        "shape_reject": "mint_wrong_amount",
+        "reject": "burn_insufficient+cap_overshoot",
+        "W": 676805216767,
+        "shape_reject": "burn_insufficient",
         "cap_reject": "cap_overshoot"
       },
-      "note": "CROSS schedule+mint+cap: last height with W(h)>0, mint of W(h)+1 and one-atom cap overshoot together.",
+      "note": "CROSS schedule+mint+cap: last height of the old 251-epoch calendar, burn-insufficient mint and one-atom cap overshoot together.",
       "coq_enforce": true
     },
     {
@@ -10532,7 +10599,7 @@
       "expected": {
         "accepted": false,
         "reject": "bad_rigor_script_type",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10576,7 +10643,7 @@
       "expected": {
         "accepted": false,
         "reject": "bad_rigor_script_type",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10620,7 +10687,7 @@
       "expected": {
         "accepted": false,
         "reject": "bad_rigor_script_type",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10668,7 +10735,7 @@
       "expected": {
         "accepted": false,
         "reject": "pcorb_too_few",
-        "W": 40000000,
+        "W": 102400006103,
         "dual_pool_reject": "ordinary_inflation",
         "shape_reject": "script_shape"
       },
@@ -10807,7 +10874,7 @@
             ],
             "creates": [
               {
-                "value": 40000001,
+                "value": 2,
                 "asset": "RES"
               }
             ]
@@ -10816,19 +10883,19 @@
         "cap": {
           "kind": "connect_cap",
           "height": 209999,
-          "res_supply": 20999960000001,
+          "res_supply": 419430400000000,
           "draw_won": true,
           "mint_count": 1
         }
       },
       "expected": {
         "accepted": false,
-        "reject": "mint_wrong_amount+cap_overshoot",
-        "W": 40000000,
-        "shape_reject": "mint_wrong_amount",
+        "reject": "burn_insufficient+cap_overshoot",
+        "W": 103685743011,
+        "shape_reject": "burn_insufficient",
         "cap_reject": "cap_overshoot"
       },
-      "note": "CROSS first-epoch-last+cap: last height of epoch 0, mint of W(0)+1 and one-atom cap overshoot. Complements XFAM-011 (last paying height).",
+      "note": "CROSS first-epoch-last+cap: last height of epoch 0, burn-insufficient mint and one-atom cap overshoot. Complements XFAM-011 (last paying height).",
       "coq_enforce": true
     },
     {
@@ -10859,7 +10926,7 @@
             ],
             "creates": [
               {
-                "value": 14142197,
+                "value": 2,
                 "asset": "RES"
               }
             ]
@@ -10868,19 +10935,19 @@
         "cap": {
           "kind": "connect_cap",
           "height": 210000,
-          "res_supply": 20999985857805,
+          "res_supply": 419430400000000,
           "draw_won": true,
           "mint_count": 1
         }
       },
       "expected": {
         "accepted": false,
-        "reject": "mint_wrong_amount+cap_overshoot",
-        "W": 14142196,
-        "shape_reject": "mint_wrong_amount",
+        "reject": "burn_insufficient+cap_overshoot",
+        "W": 103685749152,
+        "shape_reject": "burn_insufficient",
         "cap_reject": "cap_overshoot"
       },
-      "note": "CROSS first-epoch-start+cap: first height of epoch 1, mint of W(1)+1 and one-atom cap overshoot. Complements NEG-007 (wrong-epoch amount only).",
+      "note": "CROSS first-epoch-start+cap: first height of epoch 1, burn-insufficient mint and one-atom cap overshoot. Complements NEG-007 (wrong-epoch price).",
       "coq_enforce": true
     }
   ]

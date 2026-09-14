@@ -4,6 +4,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <script/predicate_verify.h>
+
+#include <consensus/trace/consensus_trace.h>
 #include <script/fixed_ed25519_checker.h>
 
 #include <script/rigor_tags.h>
@@ -21,6 +23,7 @@
 #include <algorithm>
 #include <cstring>
 #include <limits>
+#include <string>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -351,7 +354,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
         // safe as the first.
         //
         // FENCE-W5: do not reintroduce block-level rigor context (CBlockIndex, T, C, parent)
-        // into this function. Mint coupling remains ConnectEvaluateCoinbaseResMint only.
+        // into this function. Mint coupling is CheckResMintArithmetic in CheckTxInputs.
         // M-1: the RES2-prefixed spend branch was deleted; RES2 programs are not creatable.
         return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
     } else {
@@ -508,10 +511,19 @@ bool VerifyRigorPredicate(const CScript& scriptSig, const CScript& scriptPubKey,
 
     const TransactionKernelInput in = MakeKernelInput(scriptSig, scriptPubKey, *witness, flags, checker);
     if (VerifyRigorPredicateBoundary(in)) {
-        return set_success(serror);
+        const bool ok = set_success(serror);
+        RigorConsensusTraceNoteTx(uint256(), "VerifyRigorPredicate", false, true, ok, true, 0, nullptr);
+        return ok;
     }
     const FixedEd25519Checker fixed(checker, in.crypto_accept);
-    return VerifyRigorPredicateClassifyError(scriptSig, scriptPubKey, *witness, flags, fixed, serror);
+    const bool ok = VerifyRigorPredicateClassifyError(scriptSig, scriptPubKey, *witness, flags, fixed, serror);
+    std::string reason_str;
+    if (!ok && serror) {
+        reason_str = ScriptErrorString(*serror);
+    }
+    RigorConsensusTraceNoteTx(uint256(), "VerifyRigorPredicate", false, true, ok, true, 0,
+                              reason_str.empty() ? nullptr : reason_str.c_str());
+    return ok;
 }
 
 size_t static WitnessSigOps(int witversion, const std::vector<unsigned char>& witprogram, const CScriptWitness& witness)

@@ -1,0 +1,22 @@
+From Phase10 Require Import UnliftDef UnliftRelation.
+
+Print Assumptions unlift_preserves_control_structure.
+Print Assumptions unlift_preserves_calls.
+Print Assumptions unlift_preserves_return_none.
+Print Assumptions unlift_preserves_return_some.
+Print Assumptions unlift_function_same_signature.
+Print Assumptions unlift_sset_only_params.
+Print Assumptions store_params_cons.
+Print Assumptions unlift_typeof.
+
+Print Assumptions function_entry1_param_temp_none.
+Print Assumptions store_params_temp_stuck_entry1.
+Print Assumptions function_entry2_param_not_local.
+Print Assumptions store_params_evar_not_local_entry2.
+
+Print Assumptions eval_unlifted_param_equiv.
+Print Assumptions exec_sset_to_sassign_simulation.
+Print Assumptions exec_sequence_unlift_simulation.
+Print Assumptions exec_sset_to_sassign_observable.
+Print Assumptions deref_loc_after_storev.
+Print Assumptions tlong_access_mode.

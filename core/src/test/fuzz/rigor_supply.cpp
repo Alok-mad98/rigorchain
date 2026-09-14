@@ -66,56 +66,26 @@ FUZZ_TARGET(rigor_supply)
 
     const int32_t raw_h = rng.ConsumeIntegral<int32_t>();
     const int height = raw_h < 0 ? 0 : static_cast<int>(raw_h);
-    const int epoch = height / Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    assert(Consensus::ORU_SUBSIDY_HALVING_INTERVAL == Consensus::RES_REWARD_EPOCH);
-    assert(epoch == height / Consensus::RES_REWARD_EPOCH);
-    assert(Consensus::GetResMintReward(height) == Consensus::ResRewardForEpoch(epoch));
-
-    // C++ subsidy API is `int` height. Coq uses Z. Do not silently feed uint64/UINT32_MAX
-    // into GetBlockSubsidy — only the interval identity is checked past INT_MAX.
-    const uint64_t wide = rng.ConsumeIntegral<uint64_t>();
-    if (wide > static_cast<uint64_t>(std::numeric_limits<int>::max())) {
-        assert(Consensus::ORU_SUBSIDY_HALVING_INTERVAL == Consensus::RES_REWARD_EPOCH);
-    }
 
     Consensus::Params subsidy_params;
-    subsidy_params.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    subsidy_params.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    subsidy_params.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
 
     const int forced[] = {0, 1, 209999, 210000, 210001, 419999, 420000, 420001};
     const int probe = rng.ConsumeBool() ? height : forced[rng.ConsumeIntegralInRange<size_t>(0, 7)];
-    const int probe_epoch = probe / Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    assert(probe_epoch == probe / Consensus::RES_REWARD_EPOCH);
-    assert(Consensus::GetResMintReward(probe) == Consensus::ResRewardForEpoch(probe_epoch));
+    const int probe_epoch = probe / Consensus::RES_REWARD_EPOCH;
     if (probe == 0) {
         assert(GetBlockSubsidy(0, subsidy_params) == 0);
-        assert(Consensus::GetResMintReward(0) == Consensus::RES_REWARD_GENESIS);
     } else {
-        const int shifts = std::min(probe_epoch, Consensus::ORU_SUBSIDY_MAX_SHIFTS);
-        assert(GetBlockSubsidy(probe, subsidy_params) ==
-               (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> shifts));
+        assert(GetBlockSubsidy(probe, subsidy_params) == Consensus::ORU_FLAT_BLOCK_SUBSIDY);
     }
 
     // Closed-form increment is fuzz coverage, not a theorem. Stay inside int64-safe heights.
     if (probe >= 1 && probe <= 630001) {
-        const CAmount r0 = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        const CAmount r1 = r0 >> 1;
-        const CAmount r2 = r0 >> 2;
-        const CAmount r3 = r0 >> 3;
+        const CAmount flat = Consensus::ORU_FLAT_BLOCK_SUBSIDY;
         auto oru_closed = [&](int64_t H) -> CAmount {
             if (H <= 0) return 0;
-            if (H < 210000) return H * r0;
-            if (H < 420000) return 209999 * r0 + (H - 209999) * r1;
-            if (H < 630000) return 209999 * r0 + 210000 * r1 + (H - 419999) * r2;
-            return 209999 * r0 + 210000 * r1 + 210000 * r2 + (H - 629999) * r3;
+            return H * flat;
         };
-        const CAmount expected = (probe_epoch == 0) ? r0
-            : (probe_epoch == 1) ? r1
-            : (probe_epoch == 2) ? r2
-            : r3;
-        assert(oru_closed(probe) - oru_closed(probe - 1) == expected);
-        assert(Consensus::GetResMintReward(probe) ==
-               Consensus::ResRewardForEpoch(probe_epoch));
+        assert(oru_closed(probe) - oru_closed(probe - 1) == flat);
+        (void)probe_epoch;
     }
 }

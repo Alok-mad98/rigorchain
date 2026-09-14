@@ -49,7 +49,7 @@ Inductive KernelRejectReason :=
     (core/src/consensus/rigor_supply.cpp). Not coinbase-script parsing. *)
 Definition kernel_supply_reject (i : ConsensusKernelInput)
   : option KernelRejectReason :=
-  let scheduled := cpp_GetResMintReward (cki_height i) in
+  let scheduled := cpp_ResDestroyCostAtHeight (cki_height i) in
   let authorized := 0 <? scheduled in
   let minted := 0 <? cki_mint i in
   if authorized && cki_has_winner i && negb minted then Some KR_WinnerMismatch
@@ -194,9 +194,9 @@ Theorem genesis_run_oru_actual_zero :
   ip_oru (ckr_issuance (RunKernel (PrepareKernelInput genesis_block_state))) = 0.
 Proof. vm_compute. reflexivity. Qed.
 
-Theorem genesis_run_res_schedule_40000000 :
+Theorem genesis_run_res_schedule_is_genesis_destroy_cost :
   ip_res_schedule (ckr_issuance (RunKernel (PrepareKernelInput genesis_block_state)))
-  = 40000000.
+  = 102400000000.
 Proof. vm_compute. reflexivity. Qed.
 
 Theorem genesis_run_res_actual_zero :

@@ -1,0 +1,77 @@
+{
+  "expected_rejection_point": "CheckTransaction",
+  "before": {
+    "case_id": "CE-013",
+    "block_hash": null,
+    "height": null,
+    "header_result": "not_reached",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "CheckTransaction",
+        "inputs_checked": false,
+        "utxo_result": true,
+        "script_result": true,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": ""
+      }
+    ],
+    "block_result": "accept",
+    "rejection_layer": null,
+    "kernel_candidate": {
+      "status": "partial",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "after": {
+    "case_id": "CE-013",
+    "block_hash": null,
+    "height": null,
+    "header_result": "not_reached",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "CheckTransaction",
+        "inputs_checked": false,
+        "utxo_result": true,
+        "script_result": true,
+        "amount_result": false,
+        "fee_result": 0,
+        "reason": "bad-txns-vout-toolarge"
+      }
+    ],
+    "block_result": "reject",
+    "rejection_layer": "CheckTransaction",
+    "kernel_candidate": {
+      "status": "partial",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate_difference": {},
+  "future_refinement_target": "TxArithmetic.no_uint64_wrap"
+}

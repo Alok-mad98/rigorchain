@@ -93,10 +93,10 @@ int main(int argc, char** argv)
     if (cmd == "issuance" && argc == 3) {
         rigor_issuance_result out{};
         if (!rigor_compute_issuance(static_cast<uint32_t>(std::atoi(argv[2])), &out)) return 1;
-        std::printf("{\"epoch\":%u,\"oru_subsidy\":%llu,\"res_reward_schedule\":%llu}\n",
+        std::printf("{\"epoch\":%u,\"oru_subsidy\":%llu,\"res_destroy_cost\":%llu}\n",
             out.epoch,
             static_cast<unsigned long long>(out.oru_subsidy),
-            static_cast<unsigned long long>(out.res_reward_schedule));
+            static_cast<unsigned long long>(out.res_destroy_cost));
     } else if (cmd == "mature" && argc == 4) {
         uint8_t el = 0;
         if (!rigor_coinbase_mature(static_cast<uint32_t>(std::atoi(argv[2])),
@@ -122,8 +122,7 @@ int main(int argc, char** argv)
         ctx.convergence_root = u256_from_hex(argv[3]);
         ctx.source_block_hash = u256_from_hex(argv[4]);
         if (cmd != "draw-t0") {
-            const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
-            std::memcpy(ctx.target.bytes, T.begin(), 32);
+            std::memset(ctx.target.bytes, 0x55, 32);
         }
         const std::string spec = argv[5];
         std::vector<rigor_candidate> cs;

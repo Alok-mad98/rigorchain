@@ -79,7 +79,7 @@ assert CONVERGENCE_DRAW_WINDOW == 1 << CONVERGENCE_DRAW_WINDOW_LOG2
 # satoshis, floored at MIN_CONVERGENCE_AMOUNT = 1e8, so `T * f_min / 2^256 = 1525.9`
 # and the eligibility filter `H < T * f` was unconditionally true. Dividing out the
 # unit error restores `p(n ORU) = min(1, n / 65536)`, i.e. `p(1 ORU) = 2^-16` exactly
-# as RFC-014 §2.1 intended. See docs/rfcs/RFC-014-v1.1.md.
+# as RFC-014 §2.1. See docs/archive/rfc/RFC-014-frozen-convergence-target.md.
 #
 # SECURITY-001-A9-C then divided by the window W. Each convergence is now a candidate in W
 # consecutive draws instead of one, so without this the issuance rate would be W times higher.
@@ -125,49 +125,75 @@ assert (
     < (RES_PROBABILITY_TARGET_INT + 1) * CONVERGENCE_DRAW_WINDOW
 )
 
-# RFC-017: the scheduled RES mint reward.
+# RFC-020: continuous destroy cost destroy_cost(h).
 #
-# The reward used to be the constant 100 RES. It is now W(k) = floor(W0 * (k+1)^(-3/2)) over
-# epochs of RES_REWARD_EPOCH blocks, evaluated in fixed point at 2^-16 so that consensus never
-# touches a float. Mirrors Consensus::ResRewardForEpoch in
-# core/src/consensus/rigor_consensus_lock.h and res_reward_for_epoch in
-# formal_verification/coq/ResSchedule.v; all three are checked to agree pointwise.
+# Display destroy_cost(h) = P0 · (2^25 + h)^2 >> 50. Consensus evaluates
+# R · (2^25 + h)^2 ≤ B << 40. Mirrors Consensus::ResDestroyCostAtHeight /
+# CheckResMintArithmetic in core/src/consensus/res_issuance.h,
+# tools/res_continuous_price_schedule.py, and ResSchedule.v.
 #
-# Termination at RES_REWARD_LAST_EPOCH is a stated rule, not the point where the reward happens
-# to floor to zero. Without it the horizon would be a consequence of RES_COIN, i.e. a display
-# choice would move the monetary schedule.
-RES_COIN = 1_000_000
-RES_MAX_SUPPLY = 21_000_000 * RES_COIN
-RES_REWARD_GENESIS = 40 * RES_COIN
+# Observational calendar k = height // 210000 is not a mint argument.
+# There is no mint horizon.
+RES_COIN = 100_000_000
+RES_MAX_SUPPLY = 419_430_400_000_000
+RES_DESTROY_COST_GENESIS = 1024 * COIN
+RES_DESTROY_POLE = 1 << 25
+RES_DESTROY_SHIFT = 40
 RES_REWARD_EPOCH = 210_000
+# Observational calendar bucket only. Not a mint horizon.
 RES_REWARD_LAST_EPOCH = 250
+MAX_MONEY = 10_000_000_000 * COIN
 
 
-def res_reward_for_epoch(k: int) -> int:
-    """W(k) in RES atoms; zero once the schedule is exhausted."""
-    if k < 0 or k > RES_REWARD_LAST_EPOCH:
+def res_destroy_cost_at_height(height: int) -> int:
+    if height < 0:
         return 0
-    e = k + 1
-    return (RES_REWARD_GENESIS << 16) // math.isqrt((e * e * e) << 32)
+    pole_h = RES_DESTROY_POLE + height
+    return (RES_DESTROY_COST_GENESIS * pole_h * pole_h) >> 50
+
+
+def res_destroy_cost_for_epoch(k: int) -> int:
+    """Observational display destroy cost at the first height of calendar k."""
+    if k < 0:
+        return 0
+    return res_destroy_cost_at_height(k * RES_REWARD_EPOCH)
+
+
+def res_mint_authorized(height: int) -> bool:
+    return height >= 0
+
+
+def check_res_mint_arith(res_atoms: int, burn_atoms: int, height: int) -> bool:
+    if res_atoms < 0 or burn_atoms < 0 or height < 0:
+        return False
+    if res_atoms == 0:
+        return True
+    if res_atoms > RES_MAX_SUPPLY or burn_atoms > MAX_MONEY:
+        return False  # same fail-closed bounds as CheckResMintArithmetic
+    pole_h = RES_DESTROY_POLE + height
+    return res_atoms * pole_h * pole_h <= (burn_atoms << RES_DESTROY_SHIFT)
 
 
 def get_res_mint_reward(height: int) -> int:
-    """Scheduled reward for a block at this height."""
-    if height < 0:
-        return 0
-    return res_reward_for_epoch(height // RES_REWARD_EPOCH)
+    """Compatibility alias: the destroy cost at this height, not a mint quantity."""
+    return res_destroy_cost_at_height(height)
 
 
-RES_SCHEDULE_SUM = sum(res_reward_for_epoch(k) for k in range(RES_REWARD_LAST_EPOCH + 1))
+def res_reward_for_epoch(k: int) -> int:
+    """Compatibility alias: observational calendar price, not a grant."""
+    return res_destroy_cost_for_epoch(k)
 
-assert RES_SCHEDULE_SUM == 99_450_437, "reward schedule drifted"
-# The cap identity: one mint per block at most, RES_REWARD_EPOCH blocks per epoch. This bounds
-# issuance with no assumption about demand or behaviour, so the cap holds by arithmetic rather
-# than by a runtime check.
-assert RES_REWARD_EPOCH * RES_SCHEDULE_SUM <= RES_MAX_SUPPLY
-assert res_reward_for_epoch(0) == RES_REWARD_GENESIS
-assert res_reward_for_epoch(RES_REWARD_LAST_EPOCH) > 0
-assert res_reward_for_epoch(RES_REWARD_LAST_EPOCH + 1) == 0
+
+RES_REWARD_GENESIS = RES_DESTROY_COST_GENESIS
+RES_SCHEDULE_SUM = RES_MAX_SUPPLY
+
+assert res_destroy_cost_for_epoch(0) == RES_DESTROY_COST_GENESIS
+assert res_destroy_cost_at_height(0) == RES_DESTROY_COST_GENESIS
+assert res_destroy_cost_at_height(1) == 102400006103
+assert res_destroy_cost_at_height(210000) == 103685749152
+assert res_mint_authorized(210000 * (RES_REWARD_LAST_EPOCH + 1))
+assert check_res_mint_arith(RES_COIN, RES_DESTROY_COST_GENESIS, 0)
+assert not check_res_mint_arith(RES_COIN, RES_DESTROY_COST_GENESIS - 1, 0)
 
 
 # =============================================================================
@@ -623,9 +649,12 @@ def eval_script_mint_neg(inp: Dict[str, Any]) -> Dict[str, Any]:
         base["is_res"] = is_res_script(spk)
         base["asset"] = asset_from_script(spk)
         if kind == "domain_cross":
-            w = get_res_mint_reward(int(inp["height"]))
-            base["W"] = w
-            base["dual_pool_reject"] = classify_dual_pool_reject(inp["utxo"], inp["tx"], w)
+            # L1 extras are frozen at the lottery-era W snapshot so this
+            # invariant family stays byte-identical. Primary reject is script.
+            base["W"] = SCRIPT_MINT_NEG_LOCKED_W
+            base["dual_pool_reject"] = classify_dual_pool_reject_locked(
+                inp["utxo"], inp["tx"], SCRIPT_MINT_NEG_LOCKED_W
+            )
         if reason is None:
             if kind == "domain_cross" and base.get("dual_pool_reject"):
                 base["reject"] = "asset_tag_mismatch"
@@ -653,10 +682,11 @@ def eval_script_mint_neg(inp: Dict[str, Any]) -> Dict[str, Any]:
         stack = [bytes.fromhex(h) for h in inp["stack_hex"]]
         reason = classify_pcorb_reject(stack)
         if kind == "mint_witness_cross":
-            w = get_res_mint_reward(int(inp["height"]))
             ins = gather_inputs(inp["utxo"], inp["tx"]["spends"])
-            mint_ok = ins is not None and res_mint_shape(inp["tx"], ins, w)
-            base["W"] = w
+            mint_ok = ins is not None and res_mint_shape_locked(
+                inp["tx"], ins, SCRIPT_MINT_NEG_LOCKED_W
+            )
+            base["W"] = SCRIPT_MINT_NEG_LOCKED_W
             base["mint_shape_would_pass"] = mint_ok
         if reason is None:
             if kind == "mint_witness_cross" and not base.get("mint_shape_would_pass"):
@@ -1256,7 +1286,27 @@ def valid_ordinary_dual_pool(ins: List[Dict[str, Any]], tx: Dict[str, Any]) -> b
     )
 
 
-def res_mint_shape(tx: Dict[str, Any], ins: List[Dict[str, Any]], reward: int) -> bool:
+def res_mint_shape(tx: Dict[str, Any], ins: List[Dict[str, Any]], height: int) -> bool:
+    """RFC-020: one RES output, no RES inputs, burn covers R · (2^25+h)^2 ≤ B << 40."""
+    creates = tx["creates"]
+    res_out = sum_asset(ASSET_RES, creates)
+    burn = sum_asset(ASSET_ORU, ins) - sum_asset(ASSET_ORU, creates)
+    return (
+        res_out > 0
+        and sum_asset(ASSET_RES, ins) == 0
+        and burn > 0
+        and count_asset(ASSET_RES, creates) == 1
+        and check_res_mint_arith(res_out, burn, height)
+    )
+
+
+# ScriptMintNeg is an invariant family. SMW-010/011 carry lottery-era L1 extras
+# (W = 40e6 mint-equality). Keep those extras pinned so regeneration does not
+# flip the invariant digest. Live minting uses res_mint_shape above.
+SCRIPT_MINT_NEG_LOCKED_W = 40_000_000
+
+
+def res_mint_shape_locked(tx: Dict[str, Any], ins: List[Dict[str, Any]], reward: int) -> bool:
     creates = tx["creates"]
     return (
         reward > 0
@@ -1267,30 +1317,19 @@ def res_mint_shape(tx: Dict[str, Any], ins: List[Dict[str, Any]], reward: int) -
     )
 
 
-def valid_dual_pool_tx(utxo: List[Dict[str, Any]], tx: Dict[str, Any], reward: int) -> bool:
-    ins = gather_inputs(utxo, tx["spends"])
-    if ins is None:
-        return False
-    if res_mint_shape(tx, ins, reward):
-        return True
-    return valid_ordinary_dual_pool(ins, tx)
-
-
-def classify_dual_pool_reject(
+def classify_dual_pool_reject_locked(
     utxo: List[Dict[str, Any]], tx: Dict[str, Any], reward: int
 ) -> Optional[str]:
-    """None means the tx is accepted. Otherwise a stable reject tag."""
     ins = gather_inputs(utxo, tx["spends"])
     if ins is None:
         return "missing_input"
-    if res_mint_shape(tx, ins, reward) or valid_ordinary_dual_pool(ins, tx):
+    if res_mint_shape_locked(tx, ins, reward) or valid_ordinary_dual_pool(ins, tx):
         return None
     creates = tx["creates"]
     res_in = sum_asset(ASSET_RES, ins)
     res_out = sum_asset(ASSET_RES, creates)
     oru_in = sum_asset(ASSET_ORU, ins)
     n_res_out = count_asset(ASSET_RES, creates)
-    n_oru_out = count_asset(ASSET_ORU, creates)
     if res_in == 0 and oru_in > 0 and n_res_out > 0:
         if reward <= 0:
             return "unauthorized_mint"
@@ -1300,6 +1339,47 @@ def classify_dual_pool_reject(
             return "mint_wrong_amount"
     if res_in == 0 and n_res_out > 0:
         return "oru_to_res"
+    if oru_in == 0 and count_asset(ASSET_ORU, creates) > 0:
+        return "res_to_oru"
+    if res_in < res_out:
+        return "ordinary_inflation"
+    return "dual_pool"
+
+
+def valid_dual_pool_tx(utxo: List[Dict[str, Any]], tx: Dict[str, Any], height: int) -> bool:
+    ins = gather_inputs(utxo, tx["spends"])
+    if ins is None:
+        return False
+    if res_mint_shape(tx, ins, height):
+        return True
+    return valid_ordinary_dual_pool(ins, tx)
+
+
+def classify_dual_pool_reject(
+    utxo: List[Dict[str, Any]], tx: Dict[str, Any], height: int
+) -> Optional[str]:
+    """None means the tx is accepted. Otherwise a stable reject tag."""
+    ins = gather_inputs(utxo, tx["spends"])
+    if ins is None:
+        return "missing_input"
+    if res_mint_shape(tx, ins, height) or valid_ordinary_dual_pool(ins, tx):
+        return None
+    creates = tx["creates"]
+    res_in = sum_asset(ASSET_RES, ins)
+    res_out = sum_asset(ASSET_RES, creates)
+    oru_in = sum_asset(ASSET_ORU, ins)
+    burn = oru_in - sum_asset(ASSET_ORU, creates)
+    n_res_out = count_asset(ASSET_RES, creates)
+    n_oru_out = count_asset(ASSET_ORU, creates)
+    if res_in == 0 and oru_in > 0 and n_res_out > 0:
+        if not res_mint_authorized(height):
+            return "unauthorized_mint"
+        if n_res_out != 1:
+            return "mint_wrong_count"
+        if not check_res_mint_arith(res_out, burn, height):
+            return "burn_insufficient"
+    if res_in == 0 and n_res_out > 0:
+        return "oru_to_res"
     if oru_in == 0 and n_oru_out > 0:
         return "res_to_oru"
     if res_in < res_out:
@@ -1307,11 +1387,12 @@ def classify_dual_pool_reject(
     return "dual_pool"
 
 
-def res_mint_authorized(height: int) -> bool:
-    return get_res_mint_reward(height) > 0
-
-
 def valid_res_mint_obligation(height: int, draw_won: bool, mint_count: int) -> bool:
+    """Draw-era H-1 pin, kept for EdgeCross window_obligation rows.
+
+    RFC-019 production minting does not depend on a winner. These predicates
+    only evaluate leftover golden vectors that still name draw_won.
+    """
     if res_mint_authorized(height):
         return mint_count == 1 if draw_won else mint_count == 0
     return mint_count == 0
@@ -1330,7 +1411,7 @@ def without_winner_mint_path(draw_won: bool, mint_count: int) -> bool:
 
 
 def cb_res_attempted_amount(height: int, mint_count: int) -> int:
-    return 0 if mint_count == 0 else get_res_mint_reward(height)
+    return 0 if mint_count == 0 else mint_count
 
 
 def valid_res_cap(res_supply: int, height: int, mint_count: int) -> bool:
@@ -1440,12 +1521,12 @@ def valid_script_shape_tx(utxo: List[Dict[str, Any]], tx: Dict[str, Any]) -> boo
 
 
 def apply_tx_model(
-    utxo: List[Dict[str, Any]], tx: Dict[str, Any], reward: int
+    utxo: List[Dict[str, Any]], tx: Dict[str, Any], height: int
 ) -> Optional[List[Dict[str, Any]]]:
     u2 = apply_tx_utxo(utxo, tx)
     if u2 is None:
         return None
-    if not valid_dual_pool_tx(utxo, tx, reward):
+    if not valid_dual_pool_tx(utxo, tx, height):
         return None
     if not valid_script_shape_tx(utxo, tx):
         return None
@@ -1455,10 +1536,10 @@ def apply_tx_model(
 def apply_block_model(state: Dict[str, Any], block: Dict[str, Any]) -> bool:
     if not valid_block_connect_model(state, block):
         return False
-    reward = get_res_mint_reward(int(state["cm_height"]) + 1)
+    height = int(state["cm_height"]) + 1
     utxo = list(state["utxo"])
     for tx in block.get("txs", []):
-        nxt = apply_tx_model(utxo, tx, reward)
+        nxt = apply_tx_model(utxo, tx, height)
         if nxt is None:
             return False
         utxo = nxt
@@ -1486,14 +1567,14 @@ def eval_negative_core(inp: Dict[str, Any]) -> Dict[str, Any]:
     base = {"W": w, "accepted": False, "reject": "unknown"}
 
     if kind == "dual_pool_tx":
-        reason = classify_dual_pool_reject(inp["utxo"], inp["tx"], w)
+        reason = classify_dual_pool_reject(inp["utxo"], inp["tx"], height)
         if reason is None:
             return {"W": w, "accepted": True, "reject": None}
         base["reject"] = reason
         return base
 
     if kind == "mint_shape":
-        reason = classify_dual_pool_reject(inp["utxo"], inp["tx"], w)
+        reason = classify_dual_pool_reject(inp["utxo"], inp["tx"], height)
         if reason is None:
             return {"W": w, "accepted": True, "reject": None}
         base["reject"] = reason
@@ -1549,7 +1630,7 @@ def eval_edge_cross(inp: Dict[str, Any]) -> Dict[str, Any]:
         height = int(inp["height"])
         w = get_res_mint_reward(height)
         spk = bytes.fromhex(inp["script_hex"])
-        dual = classify_dual_pool_reject(inp["utxo"], inp["tx"], w)
+        dual = classify_dual_pool_reject(inp["utxo"], inp["tx"], height)
         shape_ok = valid_script_shape_tx(inp["utxo"], inp["tx"])
         if kind == "spend_cvg2_dual_pool":
             script_reason = classify_spend_cvg2(spk)
@@ -1664,7 +1745,7 @@ def eval_edge_cross(inp: Dict[str, Any]) -> Dict[str, Any]:
     if kind == "pcorb_dual_pool":
         height = int(inp["height"])
         w = get_res_mint_reward(height)
-        dual = classify_dual_pool_reject(inp["utxo"], inp["tx"], w)
+        dual = classify_dual_pool_reject(inp["utxo"], inp["tx"], height)
         shape_ok = valid_script_shape_tx(inp["utxo"], inp["tx"])
         stack = [bytes.fromhex(h) for h in inp["tx"]["stack_hex"]]
         pcorb_reason = classify_pcorb_reject(stack)

@@ -148,7 +148,7 @@ RPCHelpMan getreceivedbylabel()
                     RPCResult::Type::OBJ, "", "",
                     {
                         {RPCResult::Type::STR_AMOUNT, "amount_oru", "ORU received for this label"},
-                        {RPCResult::Type::NUM, "amount_res", "RES received for this label (2 decimal places)"},
+                        {RPCResult::Type::NUM, "amount_res", "RES received for this label (8 decimal places)"},
                         {RPCResult::Type::STR_AMOUNT, "amount", "ORU received (legacy; same as amount_oru)"},
                     },
                 },
@@ -491,7 +491,7 @@ RPCHelpMan getbalances()
 {
     return RPCHelpMan{
         "getbalances",
-        "Returns per-asset spendable buckets (ORU in " + CURRENCY_UNIT + " with 8 decimals; RES with 6 decimals).\n"
+        "Returns per-asset spendable buckets (ORU and RES both with 8 decimals).\n"
         "Canonical ORU bucket key is \"oru\". Legacy keys \"orum\" and \"mine\" duplicate \"oru\" for backward compatibility.\n"
         "\"watchonly\" retains legacy ORU keys (trusted / untrusted_pending / immature) and adds an optional nested \"res\" object for RES watch-only buckets (additive; same field names).\n",
         {},

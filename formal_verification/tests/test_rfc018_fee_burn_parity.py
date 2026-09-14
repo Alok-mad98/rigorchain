@@ -1,7 +1,7 @@
 """RFC-018 fee-burn parity: C++ share/display ≡ Python spec ≡ Coq pins.
 
 Does not call coqc. Pins are the lemmas in
-``formal_verification/coq/fee-burn/Accounting.v`` and ``Precision.v``.
+``formal_verification/coq/FeeBurn/Accounting.v`` and ``Precision.v``.
 Exit 1 on any mismatch. Does not claim C++ refinement.
 """
 
@@ -111,7 +111,7 @@ def main() -> int:
         errors.append(f"NUM C++={cpp['num']} Python={ORU_RES_TRANSFER_FEE_BURN_NUM}")
     if cpp["den"] != ORU_RES_TRANSFER_FEE_BURN_DEN:
         errors.append(f"DEN C++={cpp['den']} Python={ORU_RES_TRANSFER_FEE_BURN_DEN}")
-    if cpp["res_coin"] != RES_COIN or RES_COIN != 1_000_000 or RES_COIN == 100:
+    if cpp["res_coin"] != RES_COIN or RES_COIN != 100_000_000 or RES_COIN in (100, 1_000_000):
         errors.append(f"RES_COIN C++={cpp['res_coin']} Python={RES_COIN}")
     if cpp["res_atom"] != RES_ATOMIC_UNIT:
         errors.append(f"RES_ATOMIC_UNIT C++={cpp['res_atom']}")
@@ -140,12 +140,12 @@ def main() -> int:
             errors.append(f"display Python {atoms}: {py!r} != {text!r}")
         if got != text:
             errors.append(f"display C++ {atoms}: {got!r} != {text!r}")
-        if RES_DISPLAY_DECIMALS != 6:
-            errors.append("RES_DISPLAY_DECIMALS is not 6")
+        if RES_DISPLAY_DECIMALS != 8:
+            errors.append("RES_DISPLAY_DECIMALS is not 8")
 
     pre = FeeBurnState(oru=10 * ORU_COIN, res=40 * RES_COIN)
     txs = [FeeTx("oru_only", 4000), FeeTx(TX_FEE_RES_TRANSFER, 6000)]
-    subsidy = 125 * ORU_COIN
+    subsidy = 128 * ORU_COIN
     post = apply_block_circulating(pre, txs, subsidy, 0)
     replay = apply_block_circulating(pre, txs, subsidy, 0)
     if post is None or replay is None:

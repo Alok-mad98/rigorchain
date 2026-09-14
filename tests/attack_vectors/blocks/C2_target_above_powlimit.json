@@ -1,0 +1,8 @@
+{
+  "actual_result": "reject",
+  "attack_type": "C2_pow_boundary",
+  "block_hash": "5c199efdd2b5b74d6d12377d2f14b519bbe023d6c64227daecc24f5098d3bf62",
+  "case": "C2_target_above_powlimit",
+  "expected_result": "reject",
+  "height": 123
+}

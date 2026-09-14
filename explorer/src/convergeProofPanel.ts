@@ -10,7 +10,7 @@ import {
 } from "./witnessPanel";
 
 export const CONVERGEPROOF_PROTOCOL_NOTICE =
-  "ConvergeProof is a protocol-native proof chain linking a convergence winner event to RES issuance.";
+  "RES mint is the same body transaction that destroys ORU via OP_CONVERGE and creates Witness v1 RES when R · (2^25+h)^2 ≤ B << 40.";
 
 export const CONVERGEPROOF_AUTHORITY_NOTICE =
   "This explorer displays recorded proof data only. Protocol authority remains rigord.";

@@ -1,0 +1,53 @@
+{
+  "case_id": "SV-TRUNCATED-HEADER",
+  "raw_block_hex": "00000020ca16f2253c7e45c5af9ed49c68144112",
+  "raw_tx_hex": null,
+  "kind": "block",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "fail",
+    "cpp_type": null,
+    "error": "truncated hashPrevBlock",
+    "fields": {},
+    "leftover_bytes": 0,
+    "roundtrip_equal": null
+  },
+  "consensus_result": "decode_fail",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "serialization",
+    "function": "DecodeHexBlk",
+    "reject_reason": "truncated hashPrevBlock"
+  },
+  "kernel_candidate": {
+    "status": "not_reached",
+    "note": "DecodeHexBlk / UnserializeTransaction failed; no KernelInput candidate."
+  },
+  "future_theorem": "decode_rejects_truncated_block",
+  "trace": {
+    "raw_bytes": {
+      "hex": "00000020ca16f2253c7e45c5af9ed49c68144112",
+      "source": "attack_lab",
+      "entry_function": "DecodeHexBlk"
+    },
+    "decoded_object": {
+      "status": "fail",
+      "cpp_type": null,
+      "error": "truncated hashPrevBlock",
+      "fields": {},
+      "leftover_bytes": 0,
+      "roundtrip_equal": null
+    },
+    "validation_rule": {
+      "layer": "serialization",
+      "function": "DecodeHexBlk",
+      "reject_reason": "truncated hashPrevBlock"
+    },
+    "decision": "decode_fail",
+    "kernel_candidate": {
+      "status": "not_reached",
+      "note": "DecodeHexBlk / UnserializeTransaction failed; no KernelInput candidate."
+    },
+    "future_theorem": "decode_rejects_truncated_block"
+  }
+}

@@ -10,7 +10,7 @@
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .muted { color: #bbb; font-size: 12px; }
-      a { margin-right: 12px; color: #fff; }
+      a { color: #fff; }
       input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
     </style>
     <script src="/explorer-routes.js"></script>
@@ -21,14 +21,14 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
     <h1>Address intelligence</h1>
     <p>
-      <input id="addr" placeholder="trg… bech32 address" />
+      <input id="addr" placeholder="rg1… bech32 address" />
       <button id="go" type="button">Lookup</button>
     </p>
     <div id="address-root" class="address-page muted">Loading…</div>

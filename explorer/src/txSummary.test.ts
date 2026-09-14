@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
   CONVERGENCE_LOCK_DESTINATION_LABEL,
   classifyTxKind,
+  convergeOutputNote,
   destinationLabel,
   pickPrimaryOruOutput,
   txKindLabel,
+  txKindNotice,
 } from "./txSummary";
 
 const OP_CONVERGE_HEX = "14" + "00".repeat(20) + "bd";
@@ -55,7 +57,10 @@ describe("txSummary", () => {
     assert.ok(pick);
     assert.equal(pick.role, "convergence_lock");
     assert.equal(String(pick.output.value_atoms), "6553600000000");
-    assert.equal(classifyTxKind({ isCoinbase: false, primaryRole: pick.role, hasOru: true }), "convergence_lock");
+    assert.equal(classifyTxKind({ isCoinbase: false, primaryRole: pick.role, hasOru: true }), "oru_destroy");
+    assert.equal(txKindLabel("oru_destroy"), "ORU destroyed");
+    assert.equal(txKindNotice("oru_destroy"), "ORU destroyed. No RES minted.");
+    assert.equal(convergeOutputNote("oru_destroy"), "OP_CONVERGE · ORU destroyed · no RES minted");
     assert.equal(txKindLabel("convergence_lock"), CONVERGENCE_LOCK_DESTINATION_LABEL);
     assert.equal(
       classifyTxKind({
@@ -68,6 +73,7 @@ describe("txSummary", () => {
       "res_mint",
     );
     assert.equal(txKindLabel("res_mint"), "RES mint");
+    assert.equal(txKindNotice("res_mint"), "ORU destroyed. RES minted.");
     assert.equal(
       classifyTxKind({
         isCoinbase: true,

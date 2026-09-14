@@ -2,7 +2,7 @@
 # Freeze artifact check — works from any directory.
 #
 # The relative paths formal_verification/coq/... are from the *repo root*.
-# Running those ls commands after `cd formal_verification/coq` will print 缺失
+# Running those ls commands after `cd formal_verification/coq` will print missing
 # even when the files exist. Use this script instead:
 #
 #   bash formal_verification/scripts/check_freeze_artifacts.sh
@@ -18,12 +18,12 @@ check() {
   if [[ -e "$ROOT/$rel" ]]; then
     ls -l "$ROOT/$rel"
   else
-    echo "缺失: $rel"
+    echo "missing: $rel"
     fail=1
   fi
 }
 
-echo "=== 关键文件检查 (repo root: $ROOT) ==="
+echo "=== critical file check (repo root: $ROOT) ==="
 check formal_verification/coq/CanonicalHashKernel.v
 check formal_verification/coq/CanonicalDrawEncoder.v
 check formal_verification/coq/DrawCandidateRoot.v
@@ -51,12 +51,12 @@ check docs/verification/FV-RELEASE-CHECKLIST.md
 check formal_verification/scripts/run_fv_release_checklist.sh
 
 echo
-echo "=== 诚实声明检查 ==="
+echo "=== honesty-flag check ==="
 LOCK="$ROOT/formal_verification/coq/DrawBridgeProgress.v"
 if grep -q 'equivalence_claimed' "$LOCK" && grep -q 'hash_kernel_shared_binary_with_cpp' "$LOCK"; then
   grep -n 'equivalence_claimed\|hash_kernel_shared_binary_with_cpp' "$LOCK"
 else
-  echo "缺失: honesty flags in DrawBridgeProgress.v"
+  echo "missing: honesty flags in DrawBridgeProgress.v"
   fail=1
 fi
 if ! grep -q 'equivalence_claimed = false' "$LOCK"; then
@@ -74,8 +74,10 @@ if ! grep -q 'refinement_proved : bool := false' "$PHASE5"; then
 fi
 
 CS="$ROOT/docs/formal/RIGOR_FORMAL_VERIFICATION_CURRENT_STATE.md"
-if ! grep -q 'TASK-FV-FREEZE-RC0-READINESS-001' "$CS"; then
-  echo "FAIL: RC0 freeze task missing from CURRENT_STATE"
+# Production CURRENT_STATE dropped historical TASK-FV-* ids. Require the
+# living sections and pinned counts instead of those retired labels.
+if ! grep -q 'RC0 freeze declaration' "$CS"; then
+  echo "FAIL: RC0 freeze declaration missing from CURRENT_STATE"
   fail=1
 fi
 if ! grep -q '414' "$CS" || ! grep -q '207' "$CS"; then
@@ -86,8 +88,8 @@ if ! grep -q '422' "$CS" || ! grep -q '215' "$CS"; then
   echo "FAIL: living densify counts 422/215 missing from CURRENT_STATE"
   fail=1
 fi
-if ! grep -q 'TASK-FV-OPS-REGRESSION-GUARD-001' "$CS"; then
-  echo "FAIL: FV release-checklist task missing from CURRENT_STATE"
+if ! grep -q 'FV release checklist' "$CS"; then
+  echo "FAIL: FV release checklist missing from CURRENT_STATE"
   fail=1
 fi
 for flag in equivalence_claimed hash_kernel_shared_binary_with_cpp refinement_proved; do

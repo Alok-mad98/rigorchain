@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn rpc_client_constructs() {
-        let _rpc = RigordRpc::new("http://127.0.0.1:8332");
+        let _rpc = RigordRpc::new("http://127.0.0.1:8761");
     }
 
     #[test]

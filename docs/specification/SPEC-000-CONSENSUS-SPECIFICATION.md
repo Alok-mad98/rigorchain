@@ -1,484 +1,337 @@
 # SPEC-000: RIGOR Consensus Specification
 
-> **SECURITY-001-A8 (Sigma-PoW-01):** σ = Hash256(txid ‖ C ‖ B_{h-1} ‖ LE32(h)); draw deferred one block; `bind_commit` deleted. See `docs/security/SECURITY_001_A8_REPORT.md`.
->
-> **Parameter boundary.** RFC-014 `E = 240` / `C = 65536` ORU and RFC-015 fixed `100 RES` are **Historical RFC** values and **not active consensus parameters**. Active draw exponent and mint schedule: RFC-017 (`E = 246`, `C = 1024` ORU, `W(k)`).
+**Status:** CURRENT PRODUCTION (protocol description)  
+**Protocol SSOT:** [`../protocol/RFC-020.md`](../protocol/RFC-020.md),
+[`../protocol/RFC-018.md`](../protocol/RFC-018.md)  
+**Implementation:** `core/src/consensus/`, `core/src/script/`, `core/src/pow.cpp`,
+`core/src/rigor_kernel/pow_digest.h` (realization)  
+**Lock files:** `core/src/consensus/params.h`,
+`core/src/consensus/rigor_consensus_lock.h`
 
+```
+equivalence_claimed = false
+documentation_consensus_authority = false
+```
 
-**Task:** `TASK-SPEC-001`  
-**Track:** Formal Specification Program  
-**Status:** ESTABLISHED (skeleton)  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-009`, `RFC-014`, `RFC-015`, `RFC-017`  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+Protocol specifications are normative SSOT.
+Implementations realize the frozen protocol.
+If this file disagrees with RFC-020 / RFC-018 on their scope, the RFC is correct.
+If this file disagrees with `core/src/`, reconcile both against the live RFC.
+The implementation does not define the protocol.
 
----
-
-## Document Role
-
-This document is the **canonical specification layer** for RIGOR consensus. It states
-what the system **SHOULD** do. It does not describe how any particular implementation
-currently behaves, and it does not claim equivalence to runtime code.
-
-Future formal models, proofs, and runtime-alignment evidence **MUST** reference this
-specification structure. Where this skeleton is incomplete, the ratified RFC bundle
-remains the interim normative source until the corresponding `SPEC-00N` document
-is published.
-
-**Falsifiability requirement:** Every objective and invariant stated here MUST admit
-a counterexample or regression test. Vacuous or implementation-accident definitions
-are specification defects.
+This document describes production consensus. It is not a second money
+formula. Live RFC texts are `docs/protocol/RFC-018.md` and
+`docs/protocol/RFC-020.md`. Earlier RFC texts are historical and live
+under `archive/rfc/`.
 
 ---
 
 ## 1. Scope
 
-### 1.1 RIGOR Mainnet
+### 1.1 Networks
 
-**RIGOR Mainnet** is the public, genesis-activated consensus network whose protocol
-parameters, economics, and convergence semantics were frozen on **2026-05-26** under
-`TASK-MAINNET-FREEZE-001` with final economics from `TASK-RFC015-OCCAM-REBALANCE-001`.
+Shipped consensus networks (`core/src/kernel/chainparams.cpp`):
 
-The specification governs:
+| Network | Chain id | P2P | RPC | HRP |
+|---------|----------|-----|-----|-----|
+| main | `main` | 8760 | 8761 | `rg` |
+| testnet | `test` | 18760 | 18761 | `trg` |
+| regtest | `regtest` | 28760 | 28761 | `rgrt` |
+| devtest | `devtest` | 48760 | 48761 | `dvt` |
+| slowtest | `slowtest` | 49760 | 49761 | `slt` |
 
-- Block and transaction validity on the active chain
-- Proof-of-work header acceptance and fork choice
-- Dual-asset supply evolution (ORU and RES)
-- Convergence draw selection and RES issuance
-- Deterministic replay and reorg behavior
+There is no `CSignetParams`. Signet is not a shipped network.
 
-Networks other than mainnet (testnet, signet, regtest, devtest) MUST use the same
-**consensus semantics** as mainnet; only non-consensus network parameters (genesis,
-address prefixes, timing constants where explicitly network-scoped) MAY differ.
+Mainnet genesis hash:
+`f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`.
 
-### 1.2 ORU (Operational Reserve Unit)
+The same consensus predicates apply on every shipped network. Only
+genesis, magic, ports, HRP, and network-scoped timing constants differ.
 
-**ORU** is the base operational asset of RIGOR. ORU enters circulation through block
-subsidy and exits circulation through valid **Converge** transactions that destroy ORU
-as the cost of convergence participation.
+### 1.2 ORU
 
-ORU MUST satisfy:
+**ORU** is the operational asset. It enters circulation through coinbase
+subsidy (`GetBlockSubsidy`) and leaves circulation through Convergence
+destroys and the RFC-018 fee-destroy share.
 
-- Conservation across non-coinbase transactions (inputs equal outputs plus fees)
-- Non-negative output values
-- Script-classified asset identity (no parallel asset field in output storage); legitimacy enforced by consensus validation
+- Scale: `COIN = 1e8`
+- Spendable path: Witness v0 / 20-byte program
+- Convergence destroy: `<20-byte HASH160> 0xbd` (classified ORU, not a UTXO)
+- Conservation on non-coinbase txs: inputs = outputs + claimable fee
+- No absolute supply cap. `MAX_MONEY` is a per-value overflow bound.
 
-### 1.3 RES (Reserve Energy Standard)
+Subsidy (`core/src/consensus/rigor_issuance.cpp`):
 
-**RES** is the secondary asset minted exclusively through the **convergence draw**
-when a block satisfies draw eligibility and a unique winner is selected.
+```
+R(0) = 0
+R(h) = 128 ORU    for h ≥ 1
+```
 
-RES MUST satisfy:
+### 1.3 RES
 
-- Mint amount per successful draw: **RFC-017 `W(k)`** via `GetResMintReward(h)` (`RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs)
-- Maximum total supply: **21,000,000 RES** (RFC-015 / RFC-017)
-- At most **one** successful RES mint per block height
-- No RES mint outside the convergence draw path
+**RES** is minted in a body transaction that destroys ORU at the confirming
+height (RFC-020).
 
-### 1.4 Proof-of-Work Consensus
-
-RIGOR uses **Proof-of-Work (PoW)** for block production and fork choice.
-
-The specification requires:
-
-- Valid blocks MUST satisfy `OpuHash(SHA256d(header)) < ExpandCompact(nBits)` on the active parent context
-- Difficulty adjustment MUST follow the frozen **ASERT** rule set (parent timestamp, height-1 anchor, ±12.5% per-block clamp)
-- Cumulative **chainwork** MUST increase strictly along the active chain
-- PoW difficulty MUST NOT define the RES convergence inequality right-hand side (RFC-014)
-
-### 1.5 Dual-Asset Model
-
-RIGOR operates a **dual-asset** model:
-
-| Asset | Role | Supply mechanism |
-|-------|------|------------------|
-| ORU | PoW security and economic coordination asset | Subsidy minus Converge destruction |
-| RES | Independent scarce resource (not mined) | Convergence draw mint (bounded) |
-
-Asset *class* MUST be inferred from **scriptPubKey** and witness structure (script as
-compliance layer). Asset *legitimacy* MUST additionally satisfy the consensus rules for
-that class. Consensus MUST NOT persist asset type as a separate field in `CTxOut` storage.
-
-### 1.6 Protocol Freeze Statement
-
-The following are **FINAL and IMMUTABLE** for public mainnet, modifiable only through
-an explicit **Level-5 hard-fork constitutional process** (`PROTOCOL_CHANGE_SEVERITY_TABLE.md`):
-
-| Locked item | Frozen value / rule |
-|-------------|---------------------|
-| `RES_PROBABILITY_TARGET` | RFC-017 shipping: unwindowed `E = 246` (`C = 1024` ORU per mint), then windowed by `W = 32`. Historical RFC-014 parameter: `2^240`. |
-| Inequality form | `H_i < T · f_i` with cross-multiply tie-break (RFC-000) |
-| Inequality RHS source | Constitutional constant only — NOT PoW difficulty (RFC-014) |
-| σ preimage layout | 100 bytes exactly (RFC-000 / RFC-008) |
-| `B_{h-1}` (σ seed) | Parent block hash, verbatim in σ slot `[64..95]` (SECURITY-001-A8 / Sigma-PoW-01). Replaces `bind_commit`. |
-| Draw timing | Deferred one block: height `h` pays the set committed by `h-1` (SECURITY-001-A8) |
-| Draw gate | `\|F\| ≥ 1` (RFC-015) |
-| RES per mint | RFC-017 `W(k)`: `GetResMintReward(h)`; `RES_REWARD_GENESIS` = 40.000000 RES; epoch 210000 blocks; cutoff 250 epochs. Historical RFC-015: constant 100 RES. |
-| RES supply cap | 21,000,000 RES (RFC-015 / RFC-017) |
-| Activation model | Genesis-only (no fork height, no versionbits bridge) |
-
-Variable-T sourcing of the convergence inequality RHS from PoW difficulty is
-**permanently rejected**. Dual-T (PoW T ≠ RES T on the inequality path) is
-**permanently forbidden**.
-
-Full freeze text: `MAINNET_PROTOCOL_FREEZE_DECLARATION.md`.
-
----
-
-## 2. System Model
-
-### 2.1 Chain
-
-A **Chain** is a finite sequence of blocks `B(0), B(1), …, B(h)` extending from
-genesis, where each block references its parent and heights are consecutive.
-
-The **active chain** is the valid chain with greatest cumulative chainwork; ties
-MUST be broken deterministically.
-
-### 2.2 Block
-
-A **Block** consists of a header and an ordered transaction list. A block at height
-`h+1` MUST reference the hash of its parent at height `h`.
-
-Block validity is a conjunction of header validity, PoW validity, transaction
-validity, draw validity, supply validity, and witness canonicality predicates.
-
-### 2.3 Transaction
-
-A **Transaction** is an ordered list of inputs and outputs. Each output carries
-`(nValue, scriptPubKey)`. Asset semantics are derived from script parsing, not from
-stored asset tags.
-
-**txid** (consensus identity) is defined as the double-SHA-256 hash of the
-canonical non-witness serialization.
-
-### 2.4 UTXO
-
-The **UTXO set** maps unspent outpoints `(txid, index)` to output records
-`(nValue, scriptPubKey)`.
-
-UTXO is the authoritative ledger of spendable outputs. State transitions MUST be
-expressed as spending inputs and creating outputs; no account-balance model is
-permitted as a consensus truth source.
-
-### 2.5 ORU (asset domain)
-
-Within the asset domain, **ORU** denotes outputs and flows classified by script
-as the operational base asset. **Spendable ORU is the UTXO projection** classified
-as `ASSET_ORU`. An observational issued-minus-converge scalar is not a consensus
-predicate.
-
-Per-block circulation changes:
-
-- `+ R(h+1)` coinbase subsidy (claimable)
-- `+` claimable body ORU fees (all ORU fees minus the RFC-018 burn share)
-- `− C(h+1)` ORU destroyed by valid Converge outputs (not written to the UTXO set)
-- `−` RFC-018 burn share of RES-transfer ORU fees (unclaimable by coinbase)
-- `−` any unclaimed remainder of the coinbase ORU limit
-
-The historical recurrence `S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)` is an
-**observational issued-minus-converge identity**. It does **not** equal circulating
-UTXO ORU once RFC-018 burns or unclaimed coinbase occur. ConnectBlock MUST NOT
-reject a block by comparing those two figures.
-
-### 2.6 RES (asset domain)
-
-Within the asset domain, **RES** denotes outputs classified by script as the
-reserve asset. RES supply at height `h` evolves as:
+- Scale: `RES_COIN = 1e8` (same as `COIN`)
+- Cap: `RES_MAX_SUPPLY = 419_430_400_000_000` atoms (`2²²` RES)
+- Spendable path: Witness v1 / 32-byte Ed25519 program
+- Issuance: body tx with one `OP_CONVERGE` destroy `B` and RES outputs summing to `R`
+- Predicate: `R > 0 → R · (2²⁵+h)² ≤ B << 40`
+- Genesis destroy cost: `1024 · COIN`
+- `R = 0` is a legal plain destroy
 
 ```
 S_RES(0) = 0
-S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
+S_RES(h+1) = S_RES(h) + body_mint_atoms(h+1)
+S_RES(h) ≤ 419_430_400_000_000
 ```
 
-where `M(h) ∈ {0, 1}` and `GetResMintReward(h)` is the RFC-017 schedule `W(k)` at epoch `k = floor(h / 210000)` (`RES_REWARD_GENESIS` = 40.000000 RES; cutoff 250 epochs). Historical RFC-015 used a constant 100 RES mint.
+### 1.4 Proof-of-Work
 
-### 2.7 State
-
-**State** at height `h` is the complete consensus-visible outcome of applying blocks
-`B(0..h)`. All honest nodes applying the same block sequence MUST converge to
-identical state.
-
-### 2.8 Consensus State
-
-**Consensus State** `S(h)` is the authoritative tuple required to validate the next
-block and to replay history:
+**OpuHash** is the live work function:
 
 ```
-S(h) = ( ChainTip, UTXO, S_ORU, S_RES, DrawState, PoWState, ValidationCursor )
+OpuHash(header) = SHA3-256("RGRPOW01" || header_80)
+valid           ⇔  OpuHash(header) ≤ ExpandCompact(nBits)
 ```
 
-Only fields derivable from chain history and frozen constants belong in consensus
-state. Mempool contents, wallet labels, and explorer indices are excluded.
+Source: `rigor_kernel::GetRigorPowHash`, `CheckProofOfWork`.
 
-| Component | Purpose |
-|-----------|---------|
-| `ChainTip` | Height, block hashes, chainwork, header fields needed for binding |
-| `UTXO` | Spendable output set |
-| `S_ORU`, `S_RES` | Supply counters |
-| `DrawState` | Convergence set, root, digests, eligibility, winner trace per block |
-| `PoWState` | ASERT difficulty context |
-| `ValidationCursor` | Height-indexed validation progress |
+- Block **id** remains `SHA256d(header_80)`
+- Genesis is PoW-exempt after a valid `nBits`
+- ASERT (aserti3-2d): spacing 600 s; mainnet half-life **43200 s**;
+  anchor height 1; per-block clamp ±12.5%
+- The retired 64 KiB mix in `pow_opus.cpp` is not OpuHash
+- The mint price is not `nBits`
 
-Detailed field definitions: **SPEC-001 State Model**.
+### 1.5 Dual-asset model
 
-### 2.9 Runtime State
+| Asset | Role | Creation |
+|-------|------|----------|
+| ORU | Fees, miner subsidy, Convergence weight | Coinbase subsidy |
+| RES | Scarce reserve | Body-tx destroy-to-mint at `destroy_cost(h)` |
 
-**Runtime State** is any additional node-local or operational state not required
-for consensus validity (e.g., mempool, peer tables, RPC caches, non-consensus indexes).
+Asset class is `AssetTypeFromScriptPubKey(scriptPubKey)`. There is no
+`(asset, value, script)` field on `CTxOut`.
 
-Runtime state MUST NOT influence block acceptance, draw outcome, or supply counters.
-Any claim that runtime state is congruent with consensus state requires formal proof
-or vector-backed alignment evidence ([SPEC-006](./SPEC-006-RUNTIME-FORMAL-MAPPING.md), [SPEC-007](./SPEC-007-EQUIVALENCE-BOUNDARIES.md)).
+### 1.6 Locked parameters
+
+| Item | Value |
+|------|-------|
+| `RES_COIN` | `100_000_000` |
+| `RES_DESTROY_COST_GENESIS` | `1024 * COIN` = `102_400_000_000` |
+| `RES_DESTROY_POLE` | `2²⁵` blocks |
+| `RES_DESTROY_SHIFT` | `40` |
+| Mint predicate | `R > 0 → R · (2²⁵+h)² ≤ B << 40` |
+| `RES_MAX_SUPPLY` | `419_430_400_000_000` atoms (`2²²` RES) |
+| ORU subsidy `h ≥ 1` | 128 ORU |
+| Fee destroy | `floor(fee/2)` on RES-transfer ORU fees only |
+| Activation | Genesis-only |
 
 ---
 
-## 3. Consensus Objectives
+## 2. System model
 
-Each objective is a **SHOULD** statement: a property the protocol is specified to
-satisfy. Satisfaction is falsifiable; failure is a specification violation or an
-implementation defect relative to this spec.
+### 2.1 Chain
 
-### CO-1: Chain Validity
+A chain is a finite sequence of blocks from genesis. The active chain is
+the valid chain with greatest cumulative chainwork. Ties break
+deterministically.
 
-**Statement:** The active chain MUST be a well-formed sequence of valid blocks from
-genesis, selected by greatest cumulative chainwork with deterministic tie-break.
+### 2.2 Block
 
-**Falsifiable by:** Presenting a block sequence accepted as the active chain where
-any block fails a validity predicate, heights are not consecutive, or a lower-work
-chain is chosen over a higher-work valid chain.
+A block is a header plus an ordered transaction list. Validity is the
+conjunction of header, OpuHash, transaction, mint, supply, and witness
+canonicality predicates.
 
-### CO-2: Deterministic Block Acceptance
+Coinbase scriptSig:
 
-**Statement:** For fixed consensus state `S(h)` and candidate block `B(h+1)`, every
-correct validator MUST reach the same accept-or-reject verdict.
+```
+<BIP34 height>
+```
 
-**Falsifiable by:** Two honest validators disagreeing on acceptance given identical
-`(S(h), B(h+1))`.
+Coinbase scriptSig is the BIP34 height push only.
 
-### CO-3: Deterministic State Transition
+### 2.3 Transaction
 
-**Statement:** When block `B(h+1)` is accepted, the successor consensus state
-`S(h+1)` MUST be uniquely determined by `(S(h), B(h+1))`.
+Each output is `(nValue, scriptPubKey)`. **txid** is SHA256d of the
+canonical non-witness serialization.
 
-**Falsifiable by:** Two honest validators accepting the same block but producing
-non-identical `S(h+1)`.
+There is **no Script VM**. Bytes are classified; spends go through
+`VerifyRigorPredicate`.
 
-### CO-4: Supply Integrity
+Live templates:
 
-**Statement:** ORU and RES supplies MUST evolve only according to the specified
-subsidy, destruction, and mint rules; RES MUST never exceed its cap; no asset MUST
-be created or destroyed outside defined paths.
+| Template | Encoding | Asset | Spendable |
+|----------|----------|-------|-----------|
+| ORU P2WPKH | Witness v0, 20-byte | ORU | Yes |
+| RES v1 | Witness v1, 32-byte (not CVG2/RES2) | RES | Yes |
+| RES v1 mint output | Witness v1, 32-byte | RES | After maturity (100) |
+| Converge | `<HASH160> 0xbd` (22 bytes) | ORU | No (not a UTXO) |
+| NULL_DATA | `0x6a` + pushes, `nValue = 0` | NONE | No |
 
-**Falsifiable by:** A valid block sequence yielding `S_RES(h) > MAX_RES`, negative
-supply, or ORU/RES conservation violation on a non-coinbase transaction.
+### 2.4 UTXO
 
-### CO-5: Replay Determinism
+The UTXO set maps `(txid, index)` to `(nValue, scriptPubKey)`.
+Convergence outputs are not inserted. Account balances are not consensus
+truth.
 
-**Statement:** Re-executing blocks `B(0..h)` from genesis (or an agreed checkpoint)
-MUST yield identical `S(h)` regardless of validator instance or platform.
+### 2.5 ORU circulation (observational)
 
-**Falsifiable by:** Divergent `S(h)` from two replays of the same block sequence.
+Per-block changes:
 
-### CO-6: Reorg Determinism
+- `+ R(h+1)` claimable coinbase subsidy
+- `+` claimable body ORU fees (all ORU fees minus the RFC-018 destroy share)
+- `− C(h+1)` ORU destroyed by valid Converge outputs
+- `−` RFC-018 destroy share of RES-transfer ORU fees
+- `−` unclaimed remainder of the coinbase ORU limit
 
-**Statement:** Switching active chain tip via reorganization MUST produce the same
-consensus state as if the winning chain had been built sequentially from genesis.
+`S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)` is an issued-minus-converge
+identity. It is not circulating UTXO ORU once fee destroys or unclaimed
+coinbase occur. `ConnectBlock` must not reject a block by comparing
+those two figures.
 
-**Falsifiable by:** Post-reorg state differing from sequential application of the
-same winning chain.
+### 2.6 Consensus state
 
-### CO-7: Protocol Freeze Preservation
+```
+S(h) = ( ChainTip, UTXO, S_ORU, S_RES, PoWState, ValidationCursor )
+```
 
-**Statement:** Validators MUST enforce all frozen constants and forbidden transitions
-listed in §1.6. No block valid under pre-freeze variable-T semantics MAY be accepted
-if it violates frozen RFC-014 / RFC-015 rules.
+Mempool, wallet labels, and explorer indices are excluded.
+Mint authorization is a function of the confirming block’s own body
+transactions.
 
-**Falsifiable by:** Accepting a block whose convergence eligibility or RES issuance
-depends on PoW-derived inequality RHS, deprecated symbols, or superseded RFC-014-only
-economics (`|F| ≥ 2`, 1 RES per draw, 27,182,818 cap).
+---
+
+## 3. Consensus objectives
+
+These properties are what the production predicates are written to
+enforce. `equivalence_claimed` remains false.
+
+### CO-1: Chain validity
+
+The active chain is a well-formed sequence of valid blocks from genesis,
+selected by greatest chainwork with a deterministic tie-break.
+
+### CO-2: Deterministic block acceptance
+
+For fixed `S(h)` and candidate `B(h+1)`, every correct validator reaches
+the same accept-or-reject verdict.
+
+### CO-3: Deterministic state transition
+
+Accepted `B(h+1)` yields a unique `S(h+1)`.
+
+### CO-4: Supply integrity
+
+ORU and RES change only on the subsidy, destroy, fee-destroy, and body-mint
+paths. `S_RES(h) ≤ 419_430_400_000_000`.
+
+### CO-5: Replay determinism
+
+Replaying `B(0..h)` yields the same `S(h)`.
+
+### CO-6: Reorg determinism
+
+A reorg yields the same state as sequential application of the winning
+chain.
+
+### CO-7: Locked constants
+
+Validators enforce the table in §1.6. The mint price is not derived from
+PoW difficulty.
 
 ---
 
 ## 4. Assumptions
 
-Assumptions are explicit preconditions. They are not proven in this document.
-Each assumption MUST be listed in **SPEC-004 Trust Anchors**.
-
-### 4.1 Network Assumptions
-
-- **A-NET-1:** Validators eventually receive the same ordered block history for the
-  active chain (synchrony is not required for consensus correctness, only for liveness
-  in practice).
-- **A-NET-2:** Peer relay, address discovery, and ban scoring are non-consensus; their
-  failure modes MUST NOT alter `S(h)`.
-
-### 4.2 Hash Assumptions
-
-- **A-HASH-1:** `Hash256(x) = SHA256(SHA256(x))` behaves as a deterministic function
-  from byte strings to 256-bit values for all consensus inputs.
-- **A-HASH-2:** Collision resistance of SHA-256 is assumed for economic security
-  arguments; consensus correctness requires only deterministic evaluation.
-- **A-HASH-3:** σ digests and PoW hashes MUST NOT be interpreted as asset values
-  (domain separation, RFC-008 §1).
-
-### 4.3 Timestamp Assumptions
-
-- **A-TIME-1:** Block header times participate in ASERT and median-time-past rules
-  as specified in the RFC bundle; wall-clock time on individual nodes is not a
+- **A-NET-1:** Validators eventually see the same active-chain history.
+  Synchrony is not required for correctness.
+- **A-NET-2:** Relay, discovery, and ban scoring are non-consensus.
+- **A-HASH-1:** `Hash256(x) = SHA256(SHA256(x))` is deterministic.
+- **A-HASH-2:** OpuHash (`SHA3-256` / `RGRPOW01`) is deterministic.
+- **A-HASH-3:** Hash256 and OpuHash digests are not asset values.
+- **A-TIME-1:** Header times enter ASERT and MTP. Wall-clock is not a
   consensus input.
-- **A-TIME-2:** Validators MUST reject blocks whose headers violate frozen timestamp
-  predicates independent of local clock skew beyond specified bounds.
-
-### 4.4 Node Assumptions
-
-- **A-NODE-1:** Validators execute validation as a pure function of chain history
-  and incoming blocks (no hidden global mutable consensus state).
-- **A-NODE-2:** Storage, indexing, and RPC layers MAY cache consensus results but
-  MUST NOT feed caches back into validation predicates.
-- **A-NODE-3:** Integer arithmetic for comparisons and cross-multiplication MUST
-  be exact; floating-point MUST NOT appear on consensus paths (RFC-000 §2).
-
-### 4.5 Trust Anchors (summary)
-
-See §5 and [SPEC-004 Trust Anchors](./SPEC-004-TRUST-ANCHORS.md) (items A-1 through A-5).
+- **A-NODE-1:** Validation is a function of chain history and the
+  candidate block.
+- **A-NODE-2:** Caches must not feed back into predicates.
+- **A-NODE-3:** Mint arithmetic is integer only (`R · (2²⁵+h)² ≤ B << 40`).
 
 ---
 
-## 5. Trust Anchors
+## 5. Trust anchors
 
-Trust anchors are components or environments **accepted without machine-checked proof**
-in the current formal program. They MUST be named explicitly; silent reliance is forbidden.
+Accepted without a machine-checked refinement proof:
 
-| Anchor | Role | Verified how (today) | Formal status |
-|--------|------|----------------------|---------------|
-| **SHA-256 / Hash256** | PoW, txid, σ, convergence root | Golden vectors; cross-implementation checks | Not proven equivalent to FIPS 180-4 in Coq |
-| **PoW hash evaluation** | Header validity | Vector-backed C++ / Python / spec agreement | Structural model only |
-| **System clock** | Non-consensus operations (logging, RPC timeouts) | Out of consensus scope | N/A |
-| **External networking** | Block and tx propagation | Out of consensus scope | N/A |
-| **uint512 cross-multiply** | Winner selection inequality | Convention + magnitude bound argument | Overflow bound not yet proven (A-2) |
-| **σ → integer byte order** | Eligibility comparison | Shared LE convention + vectors | No single RFC pin (A-1) |
-| **F membership predicate** | Convergence candidate set | Partial cross-check | Set equality vs runtime **UNKNOWN** (A-3) |
-| **Golden vectors** | Regression oracle for bytes | Frozen recordings of runtime | Authoritative for bytes, not for intent |
-| **RFC bundle** | Normative intent | Human ratification + freeze | Source for this specification layer |
-
-Anything not listed here but relied upon by proofs or alignment claims MUST be added
-before equivalence is asserted (**Rule 9**: equivalence claims prohibited unless formally proven).
-
----
-
-## 6. Non-Goals
-
-This specification explicitly excludes the following. Their presence in node software
-MUST NOT be interpreted as protocol features unless promoted by a future Level-5 change.
-
-| Non-goal | Rationale |
-|----------|-----------|
-| **Smart contracts** | No Turing-complete VM; no general on-chain computation |
-| **Scripting extensions** | Witness V0/V1 and frozen Converge leaf only; no Taproot/BIP341 semantics |
-| **Proof-of-Stake** | Fork choice is PoW / chainwork-based only |
-| **Governance modifications** | No admin keys, upgrade proxies, or consensus-layer voting |
-| **Mutable monetary policy** | ORU subsidy schedule and RES cap/mint are frozen at mainnet genesis semantics |
-| **Account balances** | UTXO model only; no global balance table as truth source |
-| **External oracle consensus** | Asset validity from script verification only |
-| **Indexers as consensus** | Explorers and wallets are observational |
-
----
-
-## 7. Relationship to Formal Verification
-
-### 7.1 Layer hierarchy
+| Anchor | Role | Formal status |
+|--------|------|---------------|
+| SHA-256 / Hash256 | txid, merkle | Not proven equivalent to FIPS 180-4 in Coq |
+| SHA3-256 / OpuHash | Header work | Coq has no PoW module |
+| 128-bit mint product | `CheckResMintArithmetic` | Overflow bound not proven |
+| Golden vectors | Finite byte oracle (433 / 226) | Authoritative for recorded bytes, not for intent |
 
 ```
-  SPECIFICATION (this document family)
-        │  defines: objectives, entities, SHOULD behaviors
-        ▼
-  FORMAL MODEL (Coq, executable oracle)
-        │  defines: machine-readable refinements of spec predicates
-        ▼
-  PROOF (Coq theorems, alignment audits)
-           proves: model satisfies spec properties; or documents gaps
+equivalence_claimed = false
+hash_kernel_shared_binary_with_cpp = false
+refinement_proved = false
 ```
 
-**Specification precedes proofs.** No theorem MAY be stated as protocol truth until
-the corresponding spec predicate exists and is falsifiable.
+---
 
-**Specification precedes runtime alignment.** Runtime behavior is evidence subject to
-alignment; it does not define the specification.
+## 6. Non-goals
 
-### 7.2 Authority rule
-
-**Specification supersedes implementation.**
-
-When frozen runtime behavior diverges from ratified specification intent, the
-divergence is classified as:
-
-1. **Pre-freeze:** implementation defect to be corrected toward spec.
-2. **Post-freeze:** Level-5 governance incident; neither silent spec amendment nor
-   silent code change is permitted.
-
-Post-freeze operative behavior for what the network accepts today is documented in
-`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`; that declaration does not grant
-implementation the power to redefine SHOULD semantics retroactively.
-
-### 7.3 Related artifacts
-
-| Layer | Location |
-|-------|----------|
-| Specification (this track) | `docs/specification/SPEC-*.md` |
-| RFC normative bundle | `docs/rfcs/RFC-000` … `RFC-015` |
-| Formal model | `formal_verification/coq/`, `formal_verification/spec/` |
-| Proof catalogs | `docs/formal/`, `formal_verification/coq/Phase*` |
-| Runtime (evidence only) | Frozen C++ consensus at baseline tag |
-
-Detailed invariant mapping: [SPEC-005 Consensus Invariants](./SPEC-005-CONSENSUS-INVARIANTS.md).
+| Non-goal | Production fact |
+|----------|-----------------|
+| Script VM | No `EvalScript` / `interpreter.cpp` |
+| Smart contracts | No general on-chain computation |
+| P2WSH / P2PKH / P2SH / Taproot | Not creatable |
+| Proof-of-Stake | Fork choice is PoW / chainwork |
+| Governance keys | None |
+| Account ledger | UTXO only |
+| Explorer / wallet authority | Observational |
+| Signet | Not implemented |
 
 ---
 
-## 8. Freeze Compatibility
+## 7. Formal verification
 
-### 8.1 No consensus modification
+```
+  PROTOCOL (RFC-020 / RFC-018 / this specification)
+        │
+  IMPLEMENTATION (core/src/ — realization)
+        │
+  EVIDENCE (tests, golden vectors)
+        │
+  FORMAL MODEL (Coq, executable oracle — model properties)
+```
 
-This document is **specification only**. It introduces no consensus rule changes,
-no new constants, no serialization changes, and no activation logic.
+The living lock is **433** shared golden vectors and **226** Coq-enforced
+vectors (`formal_verification/golden_lock.json`). That is finite
+correspondence, not refinement.
 
-### 8.2 Subordination to freeze declaration
+Protocol specifications are normative SSOT.
+Implementations realize the frozen protocol.
+When documentation disagrees with the live RFC, update the document.
 
-Nothing in this document supersedes:
-
-- `MAINNET_PROTOCOL_FREEZE_DECLARATION.md`
-- `TASK-MAINNET-FREEZE-001`
-- `TASK-RFC015-OCCAM-REBALANCE-001` (final mainnet economics)
-
-Where this skeleton summarizes frozen rules, the freeze declaration and ratified RFCs
- prevail on any wording conflict until SPEC-001…007 refine and ratify the specification
- layer through the formal program governance process.
-
-### 8.3 Baseline reference
-
-| Field | Value |
-|-------|-------|
-| Baseline commit | `c05f1a94beece54df872dc89c08715bd555fd987` |
-| Release tag | `mainnet-freeze-rfc015-2026-05-26` |
+Related: [SPEC-008 Proof-of-Work](./SPEC-008-PROOF-OF-WORK.md),
+[SPEC-003 Consensus Rules](./SPEC-003-CONSENSUS-RULES.md),
+[SPEC-005 Consensus Invariants](./SPEC-005-CONSENSUS-INVARIANTS.md).
 
 ---
 
-## 9. Task Output Status
+## 8. Source index
 
-| Field | Status |
-|-------|--------|
-| Specification Layer | **INITIALIZED** |
-| Consensus Specification | **ESTABLISHED** |
-| State Specification | **ESTABLISHED** (`SPEC-001`) |
-| Economic Specification | **ESTABLISHED** (`SPEC-002`) |
-| Trust Anchor Specification | **ESTABLISHED** (`SPEC-004`) |
-| Consensus Impact | **NONE** |
-| Equivalence Claimed | **false** |
-
----
-
-## 10. Revision History
-
-| Version | Date | Change |
-|---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-001` — initial consensus specification skeleton |
+| Topic | Path |
+|-------|------|
+| Consensus params | `core/src/consensus/params.h` |
+| Locks / subsidy / mint | `core/src/consensus/rigor_consensus_lock.h` |
+| RES destroy cost | `core/src/consensus/res_issuance.h` |
+| ORU subsidy | `core/src/consensus/rigor_issuance.cpp` |
+| Classification | `core/src/script/rigor_classify.cpp` |
+| Spends | `core/src/script/predicate_verify.cpp` |
+| Tx / mint locus | `core/src/consensus/tx_check.cpp` |
+| Convergence | `core/src/consensus/convergence_logic.cpp` |
+| OpuHash | `core/src/rigor_kernel/pow_digest.cpp` |
+| PoW / ASERT | `core/src/pow.cpp` |
+| Extracted facts | `docs/developer/CODE_SSOT_PROTOCOL_FACTS.md` |

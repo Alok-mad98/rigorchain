@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Historical v0.1.3 assembler. Current packaging: tools/release/build-official.sh
+# (docs/release/OFFICIAL_PACKAGING.md). Do not use this script for v0.2+.
+#
 # P0-093: assemble official rigor-v0.1.3 artifacts from current production
 # binaries. Release engineering only. Does not modify consensus, database
 # format, wallet schema, or Release Guardian stages.
@@ -48,9 +51,7 @@ if [[ -x "${SRC}/qt/rigor-qt" ]]; then
   cp -a "${SRC}/qt/rigor-qt" "${pkg}/bin/rigor-wallet"
   cp -a "${SRC}/qt/rigor-qt" "${pkg}/bin/rigor-qt"
 fi
-if [[ -x "${ROOT}/miner/minerd" ]] && file "${ROOT}/miner/minerd" | grep -q ELF; then
-  cp -a "${ROOT}/miner/minerd" "${pkg}/bin/rigor-miner"
-fi
+# Official wallet/node package does not include mining software.
 for b in "${pkg}/bin/"*; do
   strip --strip-unneeded "$b" 2>/dev/null || true
 done
@@ -76,18 +77,19 @@ tar --sort=name --mtime="@0" --owner=0 --group=0 --numeric-owner \
 rm -rf "${pkg}"
 echo "PACKAGED=${STAGE}/${linux_name}"
 
-# --- Windows: promote last production PE/NSIS to official 0.1.3 names ---
+# --- Windows: production NSIS installer with v0.1.3 display identity ---
 win_src_exe=""
 for cand in \
-  "${ROOT}/dist/alpha/windows/rigor-v0.1.2-alphaplus-windows.exe" \
-  "${ROOT}/dist/alphaplus/windows/rigor-v0.1.2-alphaplus-windows.exe"
+  "${ROOT}/dist/alpha/windows/rigor-v0.1.3-windows-x86_64.exe" \
+  "${ROOT}/dist/alpha/windows/rigor-v0.1.3-windows.exe" \
+  "${ROOT}/dist/alphaplus/windows/rigor-v0.1.3-windows.exe"
 do
   if [[ -f "${cand}" ]]; then
     win_src_exe="${cand}"
     break
   fi
 done
-[[ -n "${win_src_exe}" ]] || die "missing existing Windows NSIS PE to promote"
+[[ -n "${win_src_exe}" ]] || die "missing Windows NSIS installer; build with bash scripts/alpha/build_alpha_windows_nsis.sh"
 magic="$(od -An -tx1 -N2 "${win_src_exe}" | tr -d ' \n')"
 [[ "${magic}" == "4d5a" ]] || die "Windows source is not MZ"
 
@@ -110,12 +112,16 @@ readme.write_text(
     "Datadir: %APPDATA%\\RIGOR\n",
     encoding="utf-8",
 )
-# Portable node PE if present (lets extract-and-run tests see a console binary).
+# Portable node PE from the just-built staging dir (not leftover alphaplus PEs).
 pe_extra = []
 for name in ("rigord.exe", "rigor-cli.exe"):
-    src = root / "dist" / "alphaplus" / "windows" / name
-    if src.is_file() and src.read_bytes()[:2] == b"MZ":
-        pe_extra.append((src, name))
+    for src in (
+        root / "dist" / "alpha" / "windows" / "staging" / name,
+        root / "dist" / "alphaplus" / "windows" / name,
+    ):
+        if src.is_file() and src.read_bytes()[:2] == b"MZ":
+            pe_extra.append((src, name))
+            break
 with zipfile.ZipFile(stage / zname, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     zf.write(stage / exe, exe)
     zf.write(readme, "README.txt")
@@ -126,10 +132,13 @@ print(f"PACKAGED={stage / exe}")
 print(f"PACKAGED={stage / zname}")
 PY
 
-# macOS DMGs are produced on GitHub-hosted macOS runners only (P0-092).
+# macOS DMGs: GitHub-hosted macOS only (WSL cannot emit them).
+# Stage from release-wallet-macos.yml, never from release-build.yml:
+#   bash tools/release/stage-official-macos-from-wallet-ci.sh
 for dmg in rigor-v0.1.3-macos-x86_64.dmg rigor-v0.1.3-macos-arm64.dmg; do
   if [[ ! -f "${STAGE}/${dmg}" ]]; then
     echo "MACOS_ARTIFACT_PENDING_GHA=${dmg}"
+    echo "HINT=bash tools/release/stage-official-macos-from-wallet-ci.sh"
   fi
 done
 

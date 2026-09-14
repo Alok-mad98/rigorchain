@@ -27,10 +27,10 @@ if ! command -v coqc >/dev/null; then
 fi
 
 echo "== coqc LedgerTransitionRefinement.v =="
-(cd "$COQ" && coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 LedgerTransitionRefinement.v)
+(cd "$COQ" && coqc -q -R . Rigor -R ../rigor_v01 RigorV01 LedgerTransitionRefinement.v)
 
 echo "== Print Assumptions =="
-ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
+ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R ../rigor_v01 RigorV01 <<'EOF'
 Require LedgerTransitionRefinement.
 Print Assumptions LedgerTransitionRefinement.ledger_apply_eq.
 Print Assumptions LedgerTransitionRefinement.ledger_apply_delta_eq.

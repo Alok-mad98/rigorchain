@@ -1,0 +1,11 @@
+{
+  "id": "V1",
+  "domain": "utxo",
+  "expect": "INVALID",
+  "theorem": "utxo_soundness",
+  "failure_reason": "invalid UTXO: empty inputs on a non-coinbase tx",
+  "tx_id": [1],
+  "inputs": [],
+  "outputs": [{"value": 1, "spk": []}],
+  "coinbase": false
+}

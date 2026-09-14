@@ -960,6 +960,7 @@ bool CCoinsViewMemPool::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     if (ptx) {
         if (outpoint.n < ptx->vout.size()) {
             coin = Coin(ptx->vout[outpoint.n], MEMPOOL_HEIGHT, false);
+            ApplyBodyResMintFlag(coin, *ptx, outpoint.n);
             return true;
         } else {
             return false;
@@ -972,6 +973,7 @@ void CCoinsViewMemPool::PackageAddTransaction(const CTransactionRef& tx)
 {
     for (unsigned int n = 0; n < tx->vout.size(); ++n) {
         Coin c(tx->vout[n], MEMPOOL_HEIGHT, false);
+        ApplyBodyResMintFlag(c, *tx, n);
         m_temp_added.emplace(COutPoint(tx->GetHash(), n), std::move(c));
     }
 }

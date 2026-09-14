@@ -1,0 +1,94 @@
+{
+  "case_id": "SV-GENESIS-TESTNET",
+  "raw_block_hex": "010000000000000000000000000000000000000000000000000000000000000000000000435388a28e8970e40d19baaff7b70588a826b37f3c585d7d61ef87a8b8e6ac544b8efd69ffff7f20000000000101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff5204ffff001d01044a53656c656374696f6e206e6f7420636f6d7075746174696f6e2e20436f6e76657267656e636520646566696e65732073746174652e204e616d696e6720697320636f6e73656e7375732effffffff010000000000000000160014222222222222222222222222222222222222222200000000",
+  "raw_tx_hex": null,
+  "kind": "block",
+  "source": "genesis",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CBlock",
+    "error": null,
+    "fields": {
+      "nVersion": 1,
+      "hashPrevBlock": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hashMerkleRoot": "435388a28e8970e40d19baaff7b70588a826b37f3c585d7d61ef87a8b8e6ac54",
+      "nTime": 1778224715,
+      "nBits": "0x207fffff",
+      "nNonce": 0,
+      "tx_count": 1,
+      "has_witness": false
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "accept",
+  "expected": "accept",
+  "validation_rule": {
+    "layer": "ConnectBlock",
+    "function": "ProcessNewBlock / ConnectBlock",
+    "reject_reason": null
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": true,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": true,
+    "ki_pow_ok": true,
+    "ki_asert_ok": true,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "decode_then_connect_preserves_header",
+  "trace": {
+    "raw_bytes": {
+      "hex": "010000000000000000000000000000000000000000000000000000000000000000000000435388a28e8970e40d19baaff7b70588a826b37f3c585d7d61ef87a8b8e6ac544b8efd69ffff7f20000000000101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff5204ffff001d01044a53656c656374696f6e206e6f7420636f6d7075746174696f6e2e20436f6e76657267656e636520646566696e65732073746174652e204e616d696e6720697320636f6e73656e7375732effffffff010000000000000000160014222222222222222222222222222222222222222200000000",
+      "source": "genesis",
+      "entry_function": "DecodeHexBlk"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CBlock",
+      "error": null,
+      "fields": {
+        "nVersion": 1,
+        "hashPrevBlock": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hashMerkleRoot": "435388a28e8970e40d19baaff7b70588a826b37f3c585d7d61ef87a8b8e6ac54",
+        "nTime": 1778224715,
+        "nBits": "0x207fffff",
+        "nNonce": 0,
+        "tx_count": 1,
+        "has_witness": false
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "ConnectBlock",
+      "function": "ProcessNewBlock / ConnectBlock",
+      "reject_reason": null
+    },
+    "decision": "accept",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": true,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": true,
+      "ki_pow_ok": true,
+      "ki_asert_ok": true,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "decode_then_connect_preserves_header"
+  },
+  "network": "testnet",
+  "height": 0,
+  "local_tip": 0
+}

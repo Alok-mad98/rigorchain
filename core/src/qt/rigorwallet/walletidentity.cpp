@@ -36,7 +36,7 @@ BrandInfo WalletIdentity::brand()
 VersionInfo WalletIdentity::version()
 {
     VersionInfo info;
-    info.fullVersion = QString::fromStdString(FormatFullVersion());
+    info.fullVersion = QString::fromUtf8(RIGOR_RELEASE_VERSION);
     info.clientName = QString::fromStdString(CLIENT_NAME);
     info.clientVersion = CLIENT_VERSION;
     return info;
@@ -92,7 +92,7 @@ QString WalletIdentity::aboutComplianceHtml()
     html += QStringLiteral("<hr>");
     html += QStringLiteral("<p><b>%1</b> %2</p>")
                 .arg(QCoreApplication::translate("WalletIdentity", "Version").toHtmlEscaped(),
-                     QString::fromStdString(FormatFullVersion()).toHtmlEscaped());
+                     QString::fromUtf8(RIGOR_RELEASE_VERSION).toHtmlEscaped());
     {
         const QString copy = QString(QChar(0x00A9));
         html += QStringLiteral("<p>Copyright %1 2009-2026 The Bitcoin Core developers</p>").arg(copy);

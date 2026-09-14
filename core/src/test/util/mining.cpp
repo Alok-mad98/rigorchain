@@ -7,8 +7,8 @@
 #include <algorithm>
 #include <chainparams.h>
 #include <coins.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <key_io.h>
 #include <node/context.h>
@@ -46,22 +46,8 @@ std::vector<std::shared_ptr<CBlock>> CreateBlockChain(size_t total_height, const
         coinbase_tx.vout.resize(1);
         coinbase_tx.vout[0].scriptPubKey = P2WSH_OP_TRUE;
         coinbase_tx.vout[0].nValue = GetBlockSubsidy(height + 1, params.GetConsensus());
+        coinbase_tx.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(static_cast<int>(height + 1));
         block.vtx = {MakeTransactionRef(coinbase_tx)};
-        // A-9-C: elsewhere a coinbase must commit the WINDOW root via GetTemplateConvergenceRoot,
-        // because C spans CONVERGENCE_DRAW_WINDOW blocks. The block-local call is correct here and
-        // only here: these blocks are coinbase-only, so F is empty at every height and the window
-        // root and the block-local root are both null. There is also no CBlockIndex to walk — this
-        // chain is synthesised before anything is connected. Do not copy this into a producer that
-        // can carry convergence transactions.
-        CCoinsView convergence_root_dummy_base;
-        CCoinsViewCache convergence_root_dummy(&convergence_root_dummy_base);
-        const uint256 convergence_root = Consensus::ComputeConvergenceRootFromConvergenceSet(
-            block.vtx, convergence_root_dummy, static_cast<int>(height + 1), params.GetConsensus());
-        assert(convergence_root.IsNull());
-        coinbase_tx = CMutableTransaction(*block.vtx[0]);
-        coinbase_tx.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-            static_cast<int>(height + 1), convergence_root, uint256{});
-        block.vtx[0] = MakeTransactionRef(std::move(coinbase_tx));
 
         block.nVersion = VERSIONBITS_LAST_OLD_BLOCK_VERSION;
         block.hashPrevBlock = (height >= 1 ? *ret.at(height - 1) : params.GenesisBlock()).GetHash();

@@ -1,20 +1,22 @@
 # RIGOR GBT Adapter — Implementation Specification
 
-**Task:** `TASK-MINING-004`  
-**Constitution:** `TASK-CONSTITUTION-002` (INFRASTRUCTURE MODE)  
+**Document status:** Production documentation  
+**Constitution:** historical verification record (INFRASTRUCTURE MODE)  
 **Parent documents:**
 
-- `RIGOR_POOL_STACK_ARCHITECTURE.md` (TASK-MINING-002)
-- `RIGOR_POOL_ARCHITECTURE_AUDIT.md` (TASK-MINING-003)
-- `STRATUM_GAP_ANALYSIS.md` (TASK-MINING-001)
-- `RES_BODY_MINT_ARCHITECTURE.md` (TASK-RESMINT-001)
+- `RIGOR_POOL_STACK_ARCHITECTURE.md` (historical verification record)
+- `RIGOR_POOL_ARCHITECTURE_AUDIT.md` (historical verification record)
+- `STRATUM_GAP_ANALYSIS.md` (historical verification record)
+- `RES_BODY_MINT_ARCHITECTURE.md` (historical verification record)
 - `core/doc/mining-pool-gbt.md` (normative wire)
 
 **Freeze compliance:** PROOF-031–034, `MAINNET_PROTOCOL_FREEZE_DECLARATION`  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
 **Status:** AUTHORITATIVE IMPLEMENTATION-FACING SPEC (documentation only)
 
-**P0-014 SOLO overlay (shipped `rigord`, not this pool adapter):** GBT advertises `mutable: ["time"]` only, serves `default_coinbase_scriptsig` / `paid_winner_txid` / `rigor_coinbase_immutable`, and consensus requires the BIP141 reserved nonce to be 32 zero bytes. Witness extranonce and in-place `transactions` mutation below describe the **unshipped** pool stack. Do not treat them as `core/` rules.
+**P0-014 SOLO overlay (shipped `rigord`):** GBT advertises `mutable: ["time"]` only, serves `default_coinbase_scriptsig` / `default_coinbase_tx` / `rigor_coinbase_immutable`. BIP141 reserved nonce is 32 zero bytes.
+
+**RFC-020 pool path (2026-09-14):** `rigor-gbt` parses shipping fields and **rejects** lottery JSON keys (`paid_winner_txid`, `default_res_mint`, `default_pcorb_carrier`, `convergence_root`, `convergence_draw`, `convergence_txids`, `default_convergence_commitment`). `coinbasevalue` is ORU `vout[0]` only: 0 at height 0, **128 ORU** for every `h ≥ 1`, no halving. Winner / mint-engine sections below are leftover design notes, not the live assembler.
 
 ---
 
@@ -49,7 +51,7 @@ rigord  ──(JSON-RPC)──►  GBT Adapter  ──(GbtRecord)──►  Temp
 
 Signet chains add `"signet"` to `rules` (node-enforced).
 
-#### 1.3.2 Auxiliary RPCs (adapter-owned per TASK-MINING-003 P-02)
+#### 1.3.2 Auxiliary RPCs (adapter-owned per historical verification record P-02)
 
 | RPC | Purpose |
 |-----|---------|
@@ -580,7 +582,7 @@ sequenceDiagram
 | **convergence_txids mismatch** | Validation gate | `Rejected` | No change | Requires node consistency |
 | **PostgreSQL outage** | DB write fail | **Continue fetch** (adapter stateless) | Cannot publish jobs | Queue events in memory (bounded) |
 | **Redis outage** | Pub fail | Continue fetch | DB canonical path only | Stratum reads DB |
-| **Leader crash** | Heartbeat loss | Standby takeover (Phase B) | Fencing stale leader | TASK-MINING-003 P-09 |
+| **Leader crash** | Heartbeat loss | Standby takeover (Phase B) | Fencing stale leader | historical verification record P-09 |
 
 ### 9.2 rigord restart recovery
 
@@ -651,7 +653,7 @@ flowchart TD
 
 **Rationale:**
 
-- Specification is **complete and internally consistent** with TASK-MINING-002/003 and RESMINT-001.
+- Specification is **complete and internally consistent** with historical verification record/003 and RESMINT-001.
 - Resolves audit finding **P-02** (auxiliary RPCs) and **P-01** (assembler boundary).
 - Safe to begin **Phase A implementation** of `rigor-gbt` adapter module against this document.
 
@@ -664,7 +666,7 @@ flowchart TD
 **Not GS_PARTIAL because:**
 
 - No material spec gaps remain for adapter-only scope.
-- Downstream gaps (HA, deep-reorg payout) are **outside GBT Adapter boundary** per TASK-MINING-003.
+- Downstream gaps (HA, deep-reorg payout) are **outside GBT Adapter boundary** per historical verification record.
 
 ### 10.4 Freeze promotion criteria (future GS_FROZEN)
 
@@ -690,7 +692,7 @@ Fields stored exactly as received; types normalized:
   "prev_nbits": "1d00ffff",
   "convergence_txids": ["…", "…"],
   "longpollid": "tiphash|42",
-  "coinbasevalue": 625000000,
+  "coinbasevalue": 12800000000,
   "validation_status": "PASS"
 }
 ```
@@ -762,4 +764,4 @@ flowchart TB
 
 ---
 
-*End of RIGOR_GBT_ADAPTER_SPEC.md — TASK-MINING-004*
+

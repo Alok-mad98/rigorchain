@@ -83,9 +83,9 @@ let () =
       let h = z_of_int (int_of_string Sys.argv.(2)) in
       let r = K.rigor_compute_issuance h in
       Printf.printf
-        "{\"epoch\":%s,\"oru_subsidy\":%s,\"res_reward_schedule\":%s}\n"
+        "{\"epoch\":%s,\"oru_subsidy\":%s,\"res_destroy_cost\":%s}\n"
         (z_to_dec r.K.ri_epoch) (z_to_dec r.K.ri_oru_subsidy)
-        (z_to_dec r.K.ri_res_reward_schedule)
+        (z_to_dec r.K.ri_res_destroy_cost)
   | "mature" ->
       let s = z_of_int (int_of_string Sys.argv.(2)) in
       let c = z_of_int (int_of_string Sys.argv.(3)) in
@@ -95,65 +95,16 @@ let () =
       let hex = if Array.length Sys.argv > 2 then Sys.argv.(2) else "" in
       let bytes = if hex = "-" || hex = "" then [] else hex_to_bytes hex in
       Printf.printf "{\"asset\":\"%s\"}\n" (asset_tag (K.classify bytes))
-  | "draw-empty" -> print_endline "{\"has_winner\":false}"
-  | "draw" | "draw-t0" as dcmd ->
-      if Array.length Sys.argv <> 6 then usage ();
-      let h = z_of_int (int_of_string Sys.argv.(2)) in
-      let c = hex_to_bytes Sys.argv.(3) in
-      let b = hex_to_bytes Sys.argv.(4) in
-      let spec = Sys.argv.(5) in
-      let target = if dcmd = "draw-t0" then K.Z0 else K.rES_PROBABILITY_TARGET in
-      let parse_one one =
-        match String.index_opt one ':' with
-        | None -> failwith "draw spec TXID:WEIGHT"
-        | Some i ->
-            let hx = String.sub one 0 i in
-            let w =
-              int_of_string (String.sub one (i + 1) (String.length one - i - 1))
-            in
-            ( {
-                K.tx_id = K.Z0;
-                tx_id_bytes = hex_to_bytes hx;
-                asset_in = K.ORU;
-                fee = K.Z0;
-                mint_cost = z_of_int w;
-              },
-              hx )
-      in
-      let parsed = List.map parse_one (split_on ',' spec) in
-      let f = List.map fst parsed in
-      (match K.resolve_convergence_draw f c b h target with
-      | None -> print_endline "{\"has_winner\":false}"
-      | Some w ->
-          let rec find_hex = function
-            | [] -> "unknown"
-            | (t, hx) :: rest ->
-                if t.K.tx_id_bytes = w.K.tx_id_bytes then hx else find_hex rest
-          in
-          Printf.printf "{\"has_winner\":true,\"winner\":\"%s\"}\n"
-            (find_hex parsed))
+  | "draw-empty" | "draw" | "draw-t0" ->
+      (* RFC-019 retired the lottery. The CLI verbs stay so the ABI
+         test can show every draw is empty. *)
+      print_endline "{\"has_winner\":false}"
   | "supply-ledger" ->
       let s = z_of_int (int_of_string Sys.argv.(2)) in
       let c = z_of_int (int_of_string Sys.argv.(3)) in
       Printf.printf "{\"ok\":true,\"delta\":%s}\n"
         (z_to_dec (K.ledger_oru_delta s c))
   | "apply-delta" ->
-      if Array.length Sys.argv <> 10 then usage ();
-      let d : K.blockDelta =
-        {
-          bd_height = z_of_int (int_of_string Sys.argv.(2));
-          bd_subsidy = z_of_int (int_of_string Sys.argv.(3));
-          bd_valid_mint = z_of_int (int_of_string Sys.argv.(4));
-          bd_converge = z_of_int (int_of_string Sys.argv.(5));
-          bd_fee_burn = z_of_int (int_of_string Sys.argv.(6));
-          bd_ordinary = Sys.argv.(7) <> "0";
-          bd_mint_authorized = Sys.argv.(8) <> "0";
-          bd_has_invalid = Sys.argv.(9) <> "0";
-        }
-      in
-      (match K.apply_delta K.genesis_supply d with
-      | None -> print_endline "{\"ok\":false}"
-      | Some s ->
-          Printf.printf "{\"ok\":true,\"ledger\":%s,\"circulating\":%s}\n"
-            (z_to_dec s.us_ledger_oru) (z_to_dec s.us_circulating_oru))
+      (* Archived lottery supply model. The verb stays; it cannot mint. *)
+      print_endline "{\"ok\":false}"
   | _ -> usage ()

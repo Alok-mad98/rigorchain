@@ -246,7 +246,7 @@ RPCHelpMan listreceivedbyaddress()
                             {RPCResult::Type::BOOL, "involvesWatchonly", /*optional=*/true, "Only returns true if imported addresses were involved in transaction"},
                             {RPCResult::Type::STR, "address", "The receiving address"},
                             {RPCResult::Type::STR_AMOUNT, "amount_oru", "ORU received at this address (legacy `amount` is ORU-only)"},
-                            {RPCResult::Type::NUM, "amount_res", "RES received at this address (2 decimal places)"},
+                            {RPCResult::Type::NUM, "amount_res", "RES received at this address (8 decimal places)"},
                             {RPCResult::Type::STR_AMOUNT, "amount", "ORU received (legacy; same as amount_oru)"},
                             {RPCResult::Type::NUM, "confirmations", "The number of confirmations of the most recent transaction included"},
                             {RPCResult::Type::STR, "label", "The label of the receiving address. The default label is \"\""},
@@ -299,7 +299,7 @@ RPCHelpMan listreceivedbylabel()
                         {
                             {RPCResult::Type::BOOL, "involvesWatchonly", /*optional=*/true, "Only returns true if imported addresses were involved in transaction"},
                             {RPCResult::Type::STR_AMOUNT, "amount_oru", "ORU received for this label"},
-                            {RPCResult::Type::NUM, "amount_res", "RES received for this label (2 decimal places)"},
+                            {RPCResult::Type::NUM, "amount_res", "RES received for this label (8 decimal places)"},
                             {RPCResult::Type::STR_AMOUNT, "amount", "ORU received (legacy; same as amount_oru)"},
                             {RPCResult::Type::NUM, "confirmations", "The number of confirmations of the most recent transaction included"},
                             {RPCResult::Type::STR, "label", "The label of the receiving address. The default label is \"\""},
@@ -747,7 +747,7 @@ RPCHelpMan gettransaction()
                         Cat(Cat<std::vector<RPCResult>>(
                         {
                             {RPCResult::Type::STR_AMOUNT, "amount_oru", "Net ORU effect (credit minus debit) for this transaction"},
-                            {RPCResult::Type::NUM, "amount_res", "Net RES effect (credit minus debit) for this transaction (2 decimal places)"},
+                            {RPCResult::Type::NUM, "amount_res", "Net RES effect (credit minus debit) for this transaction (8 decimal places)"},
                             {RPCResult::Type::STR_AMOUNT, "amount", "ORU net (legacy; same as amount_oru)"},
                             {RPCResult::Type::STR_AMOUNT, "fee", /*optional=*/true, "ORU network fee (positive; only when wallet sent this tx)"},
                             {RPCResult::Type::STR_AMOUNT, "fee_oru", /*optional=*/true, "Same as fee (explicit ORU domain)"},

@@ -55,13 +55,9 @@ RuntimeInvariantResult VerifyRuntimeSupplyInvariants(const RuntimeSupplyState& s
         fail("RES-L2");
     }
 
-    // RES-L3
-    if (state.res_mint_block != 0 && state.res_mint_block != state.res_reward_amount) {
-        fail("RES-L3");
-    }
-
-    // RES-L4: M(h) ∈ {0,1}
-    if (state.res_mint_count_block != 0 && state.res_mint_count_block != 1) {
+    // RES-L4: M(h) ∈ {0,1}. An indicator under RFC-019, so this is a mirror-integrity
+    // check, not the retired "one winner per block" rule.
+    if (state.res_mint_present_block != 0 && state.res_mint_present_block != 1) {
         fail("RES-L4");
     }
 
@@ -70,10 +66,17 @@ RuntimeInvariantResult VerifyRuntimeSupplyInvariants(const RuntimeSupplyState& s
         fail("RES-L5");
     }
 
-    // RES-L6: mint amount present iff M(h) = 1
-    const bool minted = state.res_mint_block == state.res_reward_amount;
-    const bool count_one = state.res_mint_count_block == 1;
-    if (minted != count_one) {
+    // RES-L6: RES appears at this height iff the block minted.
+    //
+    // This is the inflation-facing direction. Without it a mirror could report new RES
+    // with no minting transaction behind it and every other invariant would still hold:
+    // L5 only ties the running total to res_mint_block, and L2 only caps it.
+    //
+    // The pre-RFC-019 form compared res_mint_block against the scheduled reward
+    // res_reward_amount. RFC-019 has no schedule to compare against — the amount is
+    // whatever the burns bought at the epoch price — so the comparison is against
+    // presence instead. `!= 0` rather than `> 0` so a negative amount also trips it.
+    if ((state.res_mint_block != 0) != (state.res_mint_present_block == 1)) {
         fail("RES-L6");
     }
 

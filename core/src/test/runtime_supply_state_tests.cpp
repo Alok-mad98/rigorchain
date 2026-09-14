@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <node/supply_monitor/coq_supply_field_hook.h>
+#include <node/supply_monitor/observational_metrics.h>
 #include <node/supply_monitor/runtime_supply_export.h>
 #include <node/supply_monitor/runtime_supply_state.h>
 
@@ -19,6 +20,7 @@
 #include <validation.h>
 
 #include <cstring>
+#include <optional>
 
 BOOST_FIXTURE_TEST_SUITE(runtime_supply_state_tests, BasicTestingSetup)
 
@@ -37,10 +39,10 @@ BOOST_AUTO_TEST_CASE(runtime_supply_mirror_matches_authoritative_index_fields)
     pindex.nHeight = 42;
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = 3 * COIN;
-    // The mirror populates res_reward_amount from the height schedule, so the block's mint must
-    // be the reward scheduled for THIS height or RES-L3 fails.
-    pindex.m_block_res_mint_sum = Consensus::GetResMintReward(pindex.nHeight);
-    pindex.Observational().LoadCachesForTest(Consensus::GetResMintReward(pindex.nHeight), 1000 * COIN);
+    // Use a synthetic RES mint value for testing (RES schedule removed in RFC-019)
+    const CAmount block_res_mint = 1 * COIN;
+    pindex.m_block_res_mint_sum = block_res_mint;
+    pindex.Observational().LoadCachesForTest(block_res_mint, 1000 * COIN);
 
     const CAmount parent_oru = 1000 * COIN - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
     const CAmount parent_res = 0;
@@ -60,7 +62,7 @@ BOOST_AUTO_TEST_CASE(runtime_supply_mirror_matches_authoritative_index_fields)
     BOOST_CHECK_EQUAL(mirror.oru_subsidy_block, GetBlockSubsidy(pindex.nHeight, consensus));
     BOOST_CHECK_EQUAL(mirror.res_mint_cumulative, pindex.Observational().GetChainResMintTotal());
     BOOST_CHECK_EQUAL(mirror.res_mint_block, pindex.m_block_res_mint_sum);
-    BOOST_CHECK_EQUAL(mirror.res_mint_count_block, 1);
+    BOOST_CHECK_EQUAL(mirror.res_mint_present_block, 1);
     BOOST_CHECK_EQUAL(mirror.oru_supply_parent, parent_oru);
     BOOST_CHECK_EQUAL(mirror.res_mint_parent, parent_res);
 
@@ -85,12 +87,12 @@ BOOST_AUTO_TEST_CASE(runtime_supply_recurrence_and_cap_invariants)
     s.oru_converge_burn_block = COIN;
     s.oru_supply_cumulative = s.oru_supply_parent + s.oru_subsidy_block - s.oru_converge_burn_block;
     s.res_mint_parent = 0;
-    s.res_mint_block = Consensus::RES_REWARD_GENESIS;
-    s.res_mint_count_block = 1;
+    const CAmount res_mint = 1 * COIN;  // Synthetic RES mint for testing
+    s.res_mint_block = res_mint;
+    s.res_mint_present_block = 1;
     s.res_mint_cumulative = s.res_mint_parent + s.res_mint_block;
     s.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    s.res_reward_amount = Consensus::RES_REWARD_GENESIS;
-    s.utxo_res_balance = Consensus::RES_REWARD_GENESIS;
+    s.utxo_res_balance = res_mint;
     s.utxo_non_res_balance = s.oru_supply_cumulative;
 
     BOOST_CHECK(Consensus::CheckRuntimeSupplyInvariants(s, consensus).empty());
@@ -154,7 +156,7 @@ BOOST_AUTO_TEST_CASE(coq_field_hook_matches_mirror_and_authoritative_caches)
     BOOST_CHECK_EQUAL(hook.cb_oru_subsidy, mirror.oru_subsidy_block);
     BOOST_CHECK_EQUAL(hook.cb_oru_burn_delta, mirror.oru_converge_burn_block);
     BOOST_CHECK_EQUAL(hook.cb_res_mint_delta, mirror.res_mint_block);
-    BOOST_CHECK_EQUAL(hook.res_mint_count_M_h, mirror.res_mint_count_block);
+    BOOST_CHECK_EQUAL(hook.res_mint_count_M_h, mirror.res_mint_present_block);
     BOOST_CHECK_EQUAL(hook.audit_coq_cb_oru_mint_delta_scaffold, hook.cb_oru_subsidy);
 
     const std::vector<std::string> coq_errors =
@@ -203,8 +205,9 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_phase5_cell_count_and_mirror_source)
     pindex.nHeight = 7;
     pindex.phashBlock = &fake_tip;
     pindex.m_block_converge_sum = COIN;
-    pindex.m_block_res_mint_sum = Consensus::RES_REWARD_GENESIS;
-    pindex.Observational().LoadCachesForTest(Consensus::RES_REWARD_GENESIS, 20 * COIN);
+    const CAmount res_mint = 1 * COIN;  // Synthetic RES mint for testing
+    pindex.m_block_res_mint_sum = res_mint;
+    pindex.Observational().LoadCachesForTest(res_mint, 20 * COIN);
 
     const CAmount parent_oru =
         pindex.Observational().GetChainOruTotal() - GetBlockSubsidy(pindex.nHeight, consensus) + pindex.m_block_converge_sum;
@@ -223,12 +226,15 @@ BOOST_AUTO_TEST_CASE(runtime_supply_export_phase5_cell_count_and_mirror_source)
 
     const UniValue cells = Consensus::RuntimeSupplyPhase5CellsToJson(exp);
     BOOST_CHECK(cells.isArray());
-    BOOST_CHECK_EQUAL(cells.size(), 32U);
+    // 15 observables x 2 sources. Was 32 before RFC-019 retired the res_reward_amount
+    // pair (runtime_mirror + authoritative_index), which had mirrored the W(h) schedule.
+    BOOST_CHECK_EQUAL(cells.size(), 30U);
 
     const UniValue json = Consensus::RuntimeSupplyExportToJson(exp, pindex, consensus);
     BOOST_CHECK(json["mirror_present"].get_bool());
     BOOST_CHECK_EQUAL(json["mirror_source"].get_str(), "stored_mirror");
-    BOOST_CHECK_EQUAL(json["phase5_supply_cell_count"].getInt<int>(), 32);
+    // The reported count must be the array it describes, not an independent literal.
+    BOOST_CHECK_EQUAL(json["phase5_supply_cell_count"].getInt<int>(), static_cast<int>(cells.size()));
     BOOST_CHECK(json["coq_hook_violations"].empty());
 }
 
@@ -290,6 +296,58 @@ BOOST_AUTO_TEST_CASE(observational_metrics_update_after_connect_shape)
     BOOST_CHECK(!pindex.Observational().HasResMintCache());
     BOOST_CHECK(!pindex.Observational().HasOruCache());
     BOOST_CHECK_EQUAL(pindex.Observational().GetCumulativeConvergence(), 0U);
+}
+
+BOOST_AUTO_TEST_CASE(res_mint_fold_invalid_is_not_rewritten_to_zero)
+{
+    CBlockHeader parent_hdr{};
+    CBlockIndex parent{parent_hdr};
+    parent.nHeight = 1;
+    parent.m_block_res_mint_sum = 0;
+    parent.Observational().WriteResMintCache(Consensus::RES_MAX_SUPPLY + 1);
+
+    CBlockHeader child_hdr{};
+    CBlockIndex child{child_hdr};
+    child.nHeight = 2;
+    child.pprev = &parent;
+    child.m_block_res_mint_sum = COIN;
+
+    const ObservationalFoldResult fold = FoldChainResMintTotal(&child);
+    BOOST_CHECK(!fold.ok());
+    BOOST_CHECK(!child.Observational().HasResMintCache());
+
+    CBlock block;
+    CMutableTransaction cb;
+    cb.vin.resize(1);
+    cb.vin[0].prevout.SetNull();
+    block.vtx.push_back(MakeTransactionRef(std::move(cb)));
+
+    // ConnectBlock must leave the ledger unset, not cache 0 + this-block mint.
+    child.Observational().Update(block, &parent, std::nullopt, std::nullopt);
+    BOOST_CHECK(!child.Observational().HasResMintCache());
+    BOOST_CHECK(!child.Observational().HasOruCache());
+    BOOST_CHECK_EQUAL(child.Observational().GetChainResMintTotal(), -1);
+}
+
+BOOST_AUTO_TEST_CASE(res_mint_fold_ok_is_not_confused_with_invalid)
+{
+    CBlockHeader parent_hdr{};
+    CBlockIndex parent{parent_hdr};
+    parent.nHeight = 1;
+    parent.m_block_res_mint_sum = 2 * COIN;
+    parent.Observational().WriteResMintCache(2 * COIN);
+
+    CBlockHeader child_hdr{};
+    CBlockIndex child{child_hdr};
+    child.nHeight = 2;
+    child.pprev = &parent;
+    child.m_block_res_mint_sum = 3 * COIN;
+
+    const ObservationalFoldResult fold = FoldChainResMintTotal(&child);
+    BOOST_REQUIRE(fold.ok());
+    BOOST_CHECK_EQUAL(fold.value, 5 * COIN);
+    BOOST_CHECK(child.Observational().HasResMintCache());
+    BOOST_CHECK_EQUAL(child.Observational().GetChainResMintTotal(), 5 * COIN);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

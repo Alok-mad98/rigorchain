@@ -31,19 +31,17 @@ const std::string CLIENT_NAME("RigorCore");
 
 //! git will put "#define GIT_COMMIT_ID ..." on the next line inside archives. $Format:%n#define GIT_COMMIT_ID "%H"$
 
-#ifdef BUILD_GIT_TAG
-    #define BUILD_DESC BUILD_GIT_TAG
-    #define BUILD_SUFFIX ""
+// Product About / --version identity is always RIGOR_RELEASE_VERSION.
+// Do not use BUILD_GIT_TAG here: a wallet compiled on tag v0.1.2-alphaplus
+// would keep showing that tag in Help → About even after the file is renamed
+// rigor-v0.1.3-*. Git commit remains available via FormatGitCommitStamp().
+#define BUILD_DESC RIGOR_RELEASE_VERSION
+#if defined(BUILD_GIT_COMMIT)
+    #define BUILD_SUFFIX "-" BUILD_GIT_COMMIT
+#elif defined(GIT_COMMIT_ID)
+    #define BUILD_SUFFIX "-g" GIT_COMMIT_ID
 #else
-    // Display identity is RIGOR_RELEASE_VERSION (v0.1.2-alphaplus), not PACKAGE_VERSION (25.0.0).
-    #define BUILD_DESC RIGOR_RELEASE_VERSION
-    #if defined(BUILD_GIT_COMMIT)
-        #define BUILD_SUFFIX "-" BUILD_GIT_COMMIT
-    #elif defined(GIT_COMMIT_ID)
-        #define BUILD_SUFFIX "-g" GIT_COMMIT_ID
-    #else
-        #define BUILD_SUFFIX ""
-    #endif
+    #define BUILD_SUFFIX ""
 #endif
 
 static std::string FormatVersion(int nVersion)

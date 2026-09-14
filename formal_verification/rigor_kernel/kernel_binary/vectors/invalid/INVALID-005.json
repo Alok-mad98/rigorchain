@@ -1,0 +1,10 @@
+{
+  "id": "INVALID-005",
+  "domain": "pow",
+  "expect": "INVALID",
+  "theorem": "compact_decode_lower_bound",
+  "failure_reason": "Compact target invalid encoding: compact_t < 0 is rejected by check_pow",
+  "digest": 1,
+  "target": 100,
+  "compact_t": -1
+}

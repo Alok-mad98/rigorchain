@@ -19,7 +19,7 @@ import database_state_codec as db  # noqa: E402
 def test_canonical_key_and_disk_layout() -> None:
     coin = db.Coin(50_0000_0000, db._spk_oru(1), 1, True)
     raw = db.encode_coin(coin)
-    leaf_len = len(db.write_varint((1 << 1) | 1) + db.write_varint(db.compress_amount(coin.n_value)) + db.compress_script(coin.script_pubkey))
+    leaf_len = len(db.write_varint((1 << 1) | 1) + db.write_varint(db.compress_amount(coin.n_value)) + db.compress_script(coin.script_pubkey) + db.write_varint(coin.n_flags))
     assert len(raw) == leaf_len + 4
     decoded, _ = db.decode_coin(raw)
     assert decoded.n_value == coin.n_value

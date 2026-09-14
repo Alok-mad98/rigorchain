@@ -1,0 +1,155 @@
+{
+  "CI_MAINNET_READY": "PASS",
+  "CLEAN_RELEASE": "PASS",
+  "CONSENSUS_CODE_CHANGED": "FALSE",
+  "CORE_MAINNET_READY": "PASS",
+  "DATABASE_FORMAT_CHANGED": "FALSE",
+  "DATABASE_MAINNET_READY": "PASS",
+  "DOCUMENTATION_MAINNET_READY": "PASS",
+  "EXPLORER_MAINNET_READY": "PASS",
+  "FINAL_VERDICT": "PASS",
+  "GO_NO_GO": "GO",
+  "LINUX_MAINNET_READY": "PASS",
+  "MACOS_MAINNET_READY": "PASS",
+  "MAINNET_LAUNCH_CANDIDATE_AUDIT": "PASS",
+  "MINER_MAINNET_READY": "PASS",
+  "POOL_MAINNET_READY": "PASS",
+  "PROTOCOL_PARAMETERS_CHANGED": "FALSE",
+  "RELEASE_GUARDIAN_READY": "PASS",
+  "WALLET_FORMAT_CHANGED": "FALSE",
+  "WALLET_MAINNET_READY": "PASS",
+  "WINDOWS_MAINNET_READY": "PASS",
+  "artifact_sha256_pass": true,
+  "artifact_sizes": {
+    "rigor-v0.1.3-linux-x86_64.tar.gz": 23833310,
+    "rigor-v0.1.3-macos-arm64.dmg": 19968331,
+    "rigor-v0.1.3-macos-x86_64.dmg": 21314949,
+    "rigor-v0.1.3-windows-x86_64.exe": 18649681,
+    "rigor-v0.1.3-windows-x86_64.zip": 24865681
+  },
+  "command": "bash tools/run-mainnet-launch-candidate-audit.sh",
+  "date": "2026-09-05",
+  "errors": [],
+  "findings": [
+    {
+      "gate": "CORE",
+      "message": "CheckProofOfWork accepts SHA3-256 RGRPOW01 and does not call OpuHash",
+      "severity": "INFO"
+    },
+    {
+      "gate": "CORE",
+      "message": "RES mint is coinbase-only; body IsResMintScript is rejected",
+      "severity": "INFO"
+    },
+    {
+      "gate": "CORE",
+      "message": "official linux BUILD_GIT_COMMIT=a0a470fccc70",
+      "severity": "INFO"
+    },
+    {
+      "gate": "CORE",
+      "message": "getblockchaininfo chain=main genesis/tip=f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      "severity": "INFO"
+    },
+    {
+      "gate": "ARTIFACTS",
+      "message": "all five official v0.1.3 artifacts present; SHA256 matches SHA256SUMS",
+      "severity": "INFO"
+    },
+    {
+      "gate": "MACOS",
+      "message": "MACOS_SIGNING_STATUS=DEFERRED must not block release (RELEASE_BLOCKED_BY_MACOS_SIGNING=FALSE)",
+      "severity": "INFO"
+    },
+    {
+      "gate": "MACOS",
+      "message": "DMG mount / Mach-O arch not executed on this Linux host; CI smoke-macos-wallet-dmg.sh is the mount authority",
+      "severity": "INFO"
+    },
+    {
+      "gate": "WALLET",
+      "message": "live create/backup/restore/send GUI was not click-tested on Windows/macOS in this WSL audit",
+      "severity": "INFO"
+    },
+    {
+      "gate": "EXPLORER",
+      "message": "explorer is an observation product; node remains consensus authority",
+      "severity": "INFO"
+    },
+    {
+      "gate": "CLEAN",
+      "message": "tag v0.1.3=e635cf415d015462ae08b8cc2947b9040ca9dd66",
+      "severity": "INFO"
+    }
+  ],
+  "generated_at_utc": "2026-09-05T04:54:51Z",
+  "git": {
+    "binaries_match_current_sources": true,
+    "clean_tree": true,
+    "describe": "v0.1.3-34-ga0a470f-dirty",
+    "dirty_path_count": 0,
+    "head": "a0a470fccc70777202d411d60d088ade413cd094",
+    "official_linux_build_git_commit": "a0a470fccc70",
+    "tag_v0.1.3": "e635cf415d015462ae08b8cc2947b9040ca9dd66"
+  },
+  "identity": {
+    "asert_tau": 43200,
+    "draw_window": 32,
+    "hrp": {
+      "mainnet": "rg",
+      "regtest": "rgrt",
+      "testnet": "trg"
+    },
+    "magic": "ce f1 db fa",
+    "mainnet_genesis": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+    "p2p_port": 8760,
+    "pow": "SHA3-256(\"RGRPOW01\" || header_80)",
+    "release_version": "v0.1.3",
+    "res": "coinbase mint only; PoW does not create RES",
+    "rpc_port": 8761
+  },
+  "live": {
+    "getblockchaininfo": {
+      "bestblockhash": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      "blocks": 0,
+      "chain": "main",
+      "chainwork": "00000000000000000000000000000000000000000000000000000001ffffffff",
+      "cumulative_convergence": 0.0,
+      "current_convergence_sum": 0.0,
+      "difficulty": 1.999969482421875,
+      "headers": 0,
+      "initialblockdownload": true,
+      "mediantime": 1786125600,
+      "pruned": false,
+      "size_on_disk": 253,
+      "time": 1786125600,
+      "verificationprogress": 1,
+      "warnings": ""
+    },
+    "getblockchaininfo_status": "PASS",
+    "rigord_version": [
+      "RIGOR version v0.1.3",
+      "Production Release",
+      "BUILD_GIT_COMMIT=a0a470fccc70",
+      "NETWORK=mainnet",
+      "Copyright (C) 2026- The Rigor Core developers.",
+      ""
+    ]
+  },
+  "macos_signing_status": "DEFERRED",
+  "nature": "Audit-first. Production readiness gate. No consensus/protocol/database/wallet-schema patch.",
+  "network": "mainnet",
+  "product": "RIGOR v0.1.3",
+  "release_blocked_by_macos_signing": false,
+  "sub_audits": {
+    "DATABASE_SECURITY_STAGE_RESULT": "PASS",
+    "DOCUMENT_ALIGNMENT_STATUS": "PASS",
+    "PERFORMANCE_BASELINE": "PASS",
+    "PRODUCTION_FULL_REINDEX": "PASS",
+    "PRODUCTION_MINING_PATH_AUDIT": "PASS",
+    "RELEASE_GUARDIAN_FULL_PIPELINE": "PASS",
+    "SKIPPED_STAGE_ACCEPTED": "FALSE",
+    "WALLET_SQLITE_AUDIT_STATUS": "CLOSED"
+  },
+  "task": "TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100"
+}

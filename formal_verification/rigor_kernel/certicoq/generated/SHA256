@@ -1,0 +1,18 @@
+# certicoq/generated/SHA256
+# sha256 of CertiCoq-generated Clight. Not hand-edited C.
+# Replay: certicoq/scripts/compile_oru.sh then compile_phase5.sh
+#
+c2923e3e0f968edd3a9841473b144fa2f97255a56701f656e9581da2b870124e  clight-asert/RigorSurface.Kernel.ASERT.check_asert.c
+f9520b6e471264ea001a1b2d3a2a305ca6e2dbc6acf611c16ab6712d5fa9cb5a  clight-oru/RigorSurface.Kernel.ORU.check_oru.c
+32207025a55676dec3c62e2d1ee2dad6b6fe3b5b3db48876300bac2c36d71c1b  clight-pow/RigorSurface.Kernel.Pow.check_pow.c
+f0460269b3ee0bf9be83cc4022d243869c94e2bc9e44fc579bbfae230b83ad48  clight-res/RigorSurface.Kernel.RES.check_res.c
+5de7bea4b721d0f5c4085cae89b255f94346b8f8992675ffca67e98fd7dcb501  clight-script/RigorSurface.Kernel.Script.check_script.c
+44c0eff90fce41e86b8e8b98cdfc601bca95d60f8d291806695945e33184947a  clight-utxo/RigorSurface.Kernel.UTXO.check_utxo.c
+eef15e2c6fb61ad1c5b7dddaae68a5488d894cb4766197002c93ba4864eef8cd  clight-validate/RigorSurface.Kernel.Validate.validate_kernel.c
+b30ef3a19373ec777d865996eac52b633a41e834acf448e96476798efd6eebef  clight-asert/RigorSurface.Kernel.ASERT.check_asert.h
+7f73788879993913255e31da36c0d4f9e5e0dd6ff7492ea0fdc94a1ad7de05ff  clight-oru/RigorSurface.Kernel.ORU.check_oru.h
+42da1a45c91ee0e835bd37511608a1ffb8c8ca08977ea2e9f957fd095aa51f84  clight-pow/RigorSurface.Kernel.Pow.check_pow.h
+c15081f34523802662b032b518bcfc125f7c97367347cc81fbd7d75e8b02997a  clight-res/RigorSurface.Kernel.RES.check_res.h
+c3f73accae467cbbdf00adb098aa46ba3c95ff3176014cea7ca377b796770016  clight-script/RigorSurface.Kernel.Script.check_script.h
+3aef3fe4f68d73443069579dc8d646e53781ceb433710eb11a2c2f38a92edeb4  clight-utxo/RigorSurface.Kernel.UTXO.check_utxo.h
+35138340e4500403dc6a946f105fd62517cea38337167150da0930a94dfb0d86  clight-validate/RigorSurface.Kernel.Validate.validate_kernel.h

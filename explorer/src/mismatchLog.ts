@@ -7,7 +7,7 @@ export type MismatchEventKind =
   | "recovery_retry"
   | "recovery_success"
   | "recovery_stalled"
-  | "res_mint_missing_coinbase";
+  | "res_mint_missing_body";
 
 export type MismatchEvent = {
   ts: string;

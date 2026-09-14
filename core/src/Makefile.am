@@ -123,7 +123,6 @@ BITCOIN_CORE_H = \
   checkqueue.h \
   clientversion.h \
   coins.h \
-  connect_block_rigor_checks.h \
   consensus/kernel/genesis_authority.h \
   common/alphaplus_security.h \
   common/bloom.h \
@@ -339,7 +338,6 @@ BITCOIN_CORE_H = \
   wallet/external_signer_scriptpubkeyman.h \
   wallet/feebumper.h \
   wallet/fees.h \
-  wallet/convergencestate.h \
   wallet/load.h \
   wallet/receive.h \
   wallet/rpc/util.h \
@@ -356,6 +354,7 @@ BITCOIN_CORE_H = \
   wallet/sqlite.h \
   wallet/transaction.h \
   wallet/types.h \
+  wallet/WALLET_DESIGN_LOCK_V2.h \
   wallet/wallet.h \
   wallet/wallet_safety_boundary.h \
   wallet/wallet_extreme_safety.h \
@@ -390,12 +389,7 @@ libbitcoin_node_a_SOURCES = \
   chain.cpp \
   node/supply_monitor/observational_metrics.cpp \
   consensus/convergenceres.cpp \
-  consensus/convergence_root.cpp \
-  consensus/convergence_root_eligibility.cpp \
-  consensus/convergence_commitment.cpp \
-  consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \
-  consensus/rigor_res.cpp \
   consensus/kernel/genesis_authority.cpp \
   consensus/state_snapshot.cpp \
   consensus/replay_snapshot.cpp \
@@ -438,8 +432,6 @@ libbitcoin_node_a_SOURCES = \
   net/security/p2p_message_boundary.cpp \
   net_processing.cpp \
   netgroup.cpp \
-  node/auto_res_mint.cpp \
-  node/auto_res_mint.h \
   node/blockmanager_args.cpp \
   node/blockstorage.cpp \
   node/caches.cpp \
@@ -497,7 +489,6 @@ libbitcoin_node_a_SOURCES = \
   txorphanage.cpp \
   txrequest.cpp \
   validation.cpp \
-  connect_block_rigor_checks.cpp \
   validationinterface.cpp \
   versionbits.cpp \
   $(BITCOIN_CORE_H)
@@ -535,7 +526,6 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/external_signer_scriptpubkeyman.cpp \
   wallet/feebumper.cpp \
   wallet/fees.cpp \
-  wallet/convergencestate.cpp \
   wallet/asset_domain.cpp \
   wallet/security/wallet_security_boundary.cpp \
   wallet/security/wallet_signing_boundary.cpp \
@@ -672,13 +662,9 @@ libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_consensus_a_SOURCES = \
   arith_uint256.cpp \
   arith_uint256.h \
-  arith_uint512.cpp \
-  arith_uint512.h \
   arith_uint_base.h \
-  consensus/rigor_math.h \
   consensus/amount.h \
   consensus/rigor_consensus_lock.h \
-  consensus/draw_digest.h \
   consensus/merkle.cpp \
   consensus/merkle.h \
   consensus/fingerprint.cpp \
@@ -689,11 +675,11 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/rigor_supply.cpp \
   consensus/rigor_supply.h \
   consensus/rigor_coinbase_layout.h \
-  consensus/selection.cpp \
-  consensus/selection.h \
   consensus/convergenceres_verify.cpp \
   consensus/res_amount.h \
   consensus/tx_check.cpp \
+  consensus/trace/consensus_trace.cpp \
+  consensus/trace/consensus_trace.h \
   consensus/validation.h \
   consensus_rigor/fee.h \
   consensus_rigor/sigma_hash.cpp \
@@ -1008,19 +994,13 @@ libbitcoinkernel_la_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -fvisibility=default
 libbitcoinkernel_la_SOURCES = \
   kernel/bitcoinkernel.cpp \
   arith_uint256.cpp \
-  arith_uint512.cpp \
   chain.cpp \
   node/supply_monitor/observational_metrics.cpp \
   consensus/convergenceres.cpp \
-  consensus/convergence_root.cpp \
-  consensus/convergence_root_eligibility.cpp \
   consensus/convergenceres_verify.cpp \
-  consensus/convergence_logic.cpp \
   consensus/res_owner.cpp \
   consensus_rigor/fee.cpp \
   consensus_rigor/sigma_hash.cpp \
-  consensus/convergence_commitment.cpp \
-  connect_block_rigor_checks.cpp \
   node/devtest_res_bootstrap.cpp \
   chainparamsbase.cpp \
   chainparams.cpp \
@@ -1030,9 +1010,9 @@ libbitcoinkernel_la_SOURCES = \
   consensus/merkle.cpp \
   consensus/tx_check.cpp \
   consensus/tx_verify.cpp \
+  consensus/trace/consensus_trace.cpp \
   consensus/rigor_issuance.cpp \
   consensus/rigor_supply.cpp \
-  consensus/rigor_res.cpp \
   consensus/kernel/genesis_authority.cpp \
   core_read.cpp \
   crypto/ed25519_provider.cpp \

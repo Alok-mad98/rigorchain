@@ -52,7 +52,7 @@ int ParseSighashString(const UniValue& sighash);
 
 // core_write.cpp
 UniValue ValueFromAmount(const CAmount amount);
-/** Format amount for RPC/JSON: ORU uses 1e8 decimals; RES uses 2-decimal RES units (see consensus/res_amount.h). */
+/** Format amount for RPC/JSON: ORU and RES both use eight decimal places. */
 UniValue ValueFromAmountAsset(CAmount amount, AssetType asset);
 /**
  * W1.1C frozen contract for the RPC `asset` field: "ORU" | "RES" | "NONE".

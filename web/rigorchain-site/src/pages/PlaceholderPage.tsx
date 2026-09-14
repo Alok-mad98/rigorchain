@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { explorerBaseUrl } from "../lib/explorerClient";
 import { nodeByPath, sectionByPath } from "../ia/sitemap";
 import { SubNav } from "../components/SubNav";
@@ -64,10 +64,6 @@ export function PlaceholderPage() {
             <code>{node.explorerPath}</code>
           </p>
         )}
-        <p>
-          Independent verification:{" "}
-          <Link to="/zero-trust-verification">Zero-Trust Verification</Link>
-        </p>
       </section>
     </div>
   );

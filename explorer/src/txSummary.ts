@@ -1,6 +1,6 @@
 /**
  * Explorer-only primary-output selection. Does not change consensus or CTxOut.
- * Live Convergence is OP_CONVERGE (ORU burn / draw-entry). Witness v1 is RES.
+ * Live Convergence is OP_CONVERGE (ORU burn). Same body tx MAY mint Witness v1 RES at destroy_cost(h).
  */
 
 import { isConvergenceScriptPubKey, OP_CONVERGE_SCRIPT_NAME, CONVERGENCE_OUTPUT_STATE } from "./script";
@@ -42,7 +42,7 @@ export function pickPrimaryOruOutput(vout: OutputRow[]): PrimaryOruPick | null {
   return { output: primary, role: "payment" };
 }
 
-export type TxKind = "coinbase" | "convergence_lock" | "res_mint" | "oru_transfer" | "other";
+export type TxKind = "coinbase" | "convergence_lock" | "oru_destroy" | "res_mint" | "oru_transfer" | "other";
 
 export function classifyTxKind(args: {
   isCoinbase: boolean;
@@ -51,19 +51,32 @@ export function classifyTxKind(args: {
   hasRes?: boolean;
   isResMint?: boolean;
 }): TxKind {
-  if (args.isResMint) return "res_mint";
+  if (args.isResMint || (args.primaryRole === "convergence_lock" && args.hasRes)) return "res_mint";
   if (args.isCoinbase) return "coinbase";
-  if (args.primaryRole === "convergence_lock") return "convergence_lock";
+  if (args.primaryRole === "convergence_lock") return "oru_destroy";
   if (args.hasOru) return "oru_transfer";
   return "other";
 }
 
 export function txKindLabel(kind: TxKind): string {
   if (kind === "coinbase") return "Coinbase";
+  if (kind === "oru_destroy") return "ORU destroyed";
   if (kind === "convergence_lock") return CONVERGENCE_LOCK_DESTINATION_LABEL;
   if (kind === "res_mint") return "RES mint";
   if (kind === "oru_transfer") return "ORU transfer";
   return "Other";
+}
+
+/** Tx-page notice. Empty when the kind does not need a mint/destroy distinction. */
+export function txKindNotice(kind: TxKind): string | null {
+  if (kind === "oru_destroy") return "ORU destroyed. No RES minted.";
+  if (kind === "res_mint") return "ORU destroyed. RES minted.";
+  return null;
+}
+
+export function convergeOutputNote(kind: TxKind): string {
+  if (kind === "oru_destroy") return `${OP_CONVERGE_SCRIPT_NAME} · ORU destroyed · no RES minted`;
+  return `${OP_CONVERGE_SCRIPT_NAME} / ${CONVERGENCE_OUTPUT_STATE}`;
 }
 
 export function amountRoleLabel(role: PrimaryOruRole | null): string {
@@ -73,7 +86,7 @@ export function amountRoleLabel(role: PrimaryOruRole | null): string {
   return "Amount";
 }
 
-/** Summary-row header: OP_CONVERGE is a burn/draw-entry script, not a payment receiver. */
+/** Summary-row header: OP_CONVERGE is an unspendable burn, not a payment receiver. */
 export function destinationLabel(role: PrimaryOruRole | string | null | undefined): string {
   return role === "convergence_lock" ? CONVERGENCE_LOCK_DESTINATION_LABEL : "Receiver";
 }

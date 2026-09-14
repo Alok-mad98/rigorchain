@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Linux AlphaPlus package (deb + AppImage/portable) — RIGOR v0.1.2-alphaplus
-# Historical Alpha1 naming before AlphaPlus release identity migration (path still scripts/alpha/).
-# No consensus / RFC / RES model changes.
+# Linux wallet package (deb + AppImage/portable) — RIGOR Wallet v0.2 display identity.
+# Path remains scripts/alpha/ for historical reasons. No consensus / RFC changes.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CORE="${REPO_ROOT}/core"
 SRC="${CORE}/src"
 OUT="${REPO_ROOT}/dist/alpha/linux"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
+VERSION="${RIGOR_ALPHA_VERSION:-0.2}"
 ARCH=amd64
 
 log() { printf '[alpha-linux] %s\n' "$*"; }

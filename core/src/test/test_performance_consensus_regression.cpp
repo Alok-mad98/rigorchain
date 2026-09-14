@@ -9,6 +9,7 @@
 #include <consensus/amount.h>
 #include <consensus/ledger/ledger_transition.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/txkernel/transaction_kernel_input.h>
@@ -37,9 +38,6 @@ static void Expect(bool ok, const char* msg)
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -189,8 +187,7 @@ bool GenesisOk(const LedgerKernelInput& in)
 {
     if (in.height != 0) return true;
     return in.consensus.oru_issuance == 0 &&
-           in.consensus.res_mint == 0 &&
-           in.consensus.res_schedule == 40000000;
+           in.consensus.res_mint == 0;
 }
 
 LedgerKernelOutput LedgerApplyReference(const LedgerKernelInput& in)
@@ -262,7 +259,7 @@ static LedgerKernelInput BaseLedger()
     in.consensus.accept = true;
     in.consensus.oru_issuance = 0;
     in.consensus.res_mint = 0;
-    in.consensus.res_schedule = 40000000;
+    in.consensus.res_schedule = 0;
     in.height = 1;
     in.maturity = 100;
     return in;
@@ -279,7 +276,6 @@ static UTXOStateTransitionInput OruUtxo()
     in.ledger.consumed = in.snapshot;
     in.ledger.created = {Coin(2, 0, 10 * COIN, LedgerAsset::ORU)};
     in.asset_scripts = {ScriptBytes(OruScript())};
-    in.consensus.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
     return in;
 }
 
@@ -302,9 +298,9 @@ int main()
         const RigorIssuance a = ComputeRigorIssuance(0, p);
         const RigorIssuance b = ComputeRigorIssuance(0, p);
         Expect(a.oru_subsidy == 0 && a.oru_subsidy == b.oru_subsidy, "genesis issuance");
-        Expect(a.res_reward == b.res_reward, "genesis RES schedule identity");
+        Expect(a.epoch == b.epoch, "genesis epoch identity");
         Expect(GetBlockSubsidy(1, p) == ComputeRigorIssuance(1, p).oru_subsidy, "issuance pack");
-        Expect(Consensus::GetResMintReward(1) == ComputeRigorIssuance(1, p).res_reward, "RES pack");
+        Expect(Consensus::ResDestroyCostAtHeight(1) == Consensus::RES_DESTROY_COST_GENESIS, "RATE pack");
     }
 
     {

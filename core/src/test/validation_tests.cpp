@@ -16,109 +16,25 @@
 
 BOOST_FIXTURE_TEST_SUITE(validation_tests, TestingSetup)
 
-BOOST_AUTO_TEST_CASE(subsidy_zero_base_is_zero_not_bitcoin_fifty)
+BOOST_AUTO_TEST_CASE(subsidy_ignores_params_and_stays_flat)
 {
     Consensus::Params p;
-    p.nSubsidyHalvingInterval = 210000;
-    p.nBlockSubsidyBase = 0;
     BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, p), 0);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, p), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(-1, p), 0);
 }
 
-BOOST_AUTO_TEST_CASE(subsidy_zero_interval_is_zero_not_division)
-{
-    Consensus::Params p;
-    p.nBlockSubsidyBase = 1000 * COIN;
-    p.nSubsidyHalvingInterval = 0;
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
-    p.nSubsidyHalvingInterval = -1;
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), 0);
-}
-
-BOOST_AUTO_TEST_CASE(rigor_genesis_subsidy_zero_height_one_unchanged)
+BOOST_AUTO_TEST_CASE(rigor_genesis_subsidy_zero_height_one_flat)
 {
     const Consensus::Params& p = Params().GetConsensus();
     BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), 0);
     BOOST_CHECK_EQUAL(GetBlockSubsidy(0, p), Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(2, p), Consensus::ORU_INITIAL_BLOCK_SUBSIDY);
-    BOOST_CHECK_NE(GetBlockSubsidy(1, p), 2000 * COIN);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, p), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(2, p), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, p), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_CHECK_NE(GetBlockSubsidy(1, p), 1000 * COIN);
 }
-
-/** Bitcoin-style subsidy (50 * COIN, 210k halving, no Rigor floor cap) — not Rigor mainnet Params. */
-[[maybe_unused]] static Consensus::Params BitcoinMainlikeSubsidySchedule()
-{
-    Consensus::Params p;
-    p.nSubsidyHalvingInterval = 210000;
-    return p;
-}
-
-static void TestBlockSubsidyHalvings(const Consensus::Params& consensusParams)
-{
-    int maxHalvings = 64;
-    CAmount nInitialSubsidy = 50 * COIN;
-
-    CAmount nPreviousSubsidy = nInitialSubsidy * 2; // for height == 0
-    BOOST_CHECK_EQUAL(nPreviousSubsidy, nInitialSubsidy * 2);
-    for (int nHalvings = 0; nHalvings < maxHalvings; nHalvings++) {
-        int nHeight = nHalvings * consensusParams.nSubsidyHalvingInterval;
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
-        BOOST_CHECK(nSubsidy <= nInitialSubsidy);
-        BOOST_CHECK_EQUAL(nSubsidy, nPreviousSubsidy / 2);
-        nPreviousSubsidy = nSubsidy;
-    }
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(maxHalvings * consensusParams.nSubsidyHalvingInterval, consensusParams), 0);
-}
-
-[[maybe_unused]] static void TestBlockSubsidyHalvings(int nSubsidyHalvingInterval)
-{
-    Consensus::Params consensusParams;
-    consensusParams.nSubsidyHalvingInterval = nSubsidyHalvingInterval;
-    TestBlockSubsidyHalvings(consensusParams);
-}
-
-/* Temporarily disabled, pending genesis block generation
-BOOST_AUTO_TEST_CASE(block_subsidy_test)
-{
-    TestBlockSubsidyHalvings(BitcoinMainlikeSubsidySchedule());
-    TestBlockSubsidyHalvings(150); // As in regtest
-    TestBlockSubsidyHalvings(1000); // Just another interval
-}
-*/
-
-/* Temporarily disabled
-BOOST_AUTO_TEST_CASE(rigor_block_subsidy_three_halvings_then_const)
-{
-    Consensus::Params rigor;
-    rigor.nSubsidyHalvingInterval = 210000;
-    rigor.nBlockSubsidyBase = 1000 * COIN;
-    rigor.nBlockSubsidyMaxHalvingShifts = 3;
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(0, rigor), 0);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, rigor), 1000 * COIN);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000 - 1, rigor), 1000 * COIN);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(210000, rigor), 500 * COIN);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(420000, rigor), 250 * COIN);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(630000, rigor), 125 * COIN);
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(10'000'000, rigor), 125 * COIN);
-}
-*/
-
-/* Temporarily disabled
-BOOST_AUTO_TEST_CASE(subsidy_limit_test)
-{
-    const Consensus::Params consensus = BitcoinMainlikeSubsidySchedule();
-    CAmount nSum = 0;
-    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensus);
-        BOOST_CHECK(nSubsidy <= 50 * COIN);
-        nSum += nSubsidy * 1000;
-        BOOST_CHECK(MoneyRange(nSum));
-    }
-    BOOST_CHECK_EQUAL(nSum, CAmount{2099999997690000});
-}
-*/
 
 /* Temporarily disabled
 BOOST_AUTO_TEST_CASE(signet_parse_tests)

@@ -60,17 +60,22 @@ Theorem kernel_oru_genesis_zero :
 Proof. exact IssuanceHeightBoundary.genesis_reward_zero. Qed.
 
 Theorem kernel_oru_height_1 :
-  IssuanceHeightBoundary.oru_subsidy 1 = 100000000000.
+  IssuanceHeightBoundary.oru_subsidy 1 = 12800000000.
 Proof. reflexivity. Qed.
 
-Theorem kernel_oru_halving_boundary :
-  IssuanceHeightBoundary.oru_subsidy 209999 = 100000000000 /\
-  IssuanceHeightBoundary.oru_subsidy 210000 = 50000000000.
+Theorem kernel_oru_calendar_boundary :
+  IssuanceHeightBoundary.oru_subsidy 209999 = 12800000000 /\
+  IssuanceHeightBoundary.oru_subsidy 210000 = 12800000000.
 Proof. split; reflexivity. Qed.
 
+Theorem kernel_oru_halving_boundary :
+  IssuanceHeightBoundary.oru_subsidy 209999 = 12800000000 /\
+  IssuanceHeightBoundary.oru_subsidy 210000 = 12800000000.
+Proof. apply kernel_oru_calendar_boundary. Qed.
+
 Theorem kernel_oru_cumulative_coins :
-  CanonicalIssuance.total_oru_issued 209999 / CanonicalIssuance.ORU_COIN = 209999000 /\
-  CanonicalIssuance.total_oru_issued 210000 / CanonicalIssuance.ORU_COIN = 209999500.
+  CanonicalIssuance.total_oru_issued 209999 / CanonicalIssuance.ORU_COIN = 26879872 /\
+  CanonicalIssuance.total_oru_issued 210000 / CanonicalIssuance.ORU_COIN = 26880000.
 Proof.
   split.
   - exact CanonicalIssuance.first_epoch_oru_coins.
@@ -84,28 +89,28 @@ Proof. exact IssuanceHeightBoundary.no_height_1_compensation. Qed.
 
 (** * RES schedule vs actual issuance
 
-    C++ [GetResMintReward(0)] is the schedule value W(0).
+    C++ [ResDestroyCostAtHeight(0)] is the display destroy_cost(0).
     ConnectBlock genesis skip / [res_issued_at_height 0] is actual issuance 0.
     These are different facts. *)
 
 Theorem kernel_res_schedule_at_genesis :
-  get_res_mint_reward 0 = RES_REWARD_GENESIS.
-Proof. exact reward_at_height_zero. Qed.
+  res_destroy_cost_at_height 0 = RES_DESTROY_COST_GENESIS.
+Proof. exact destroy_cost_at_height_zero. Qed.
 
 Theorem kernel_res_actual_issuance_at_genesis :
   CanonicalIssuance.res_issued_at_height 0 = 0.
 Proof. exact CanonicalIssuance.res_issued_zero. Qed.
 
 Theorem kernel_genesis_schedule_is_not_actual_issuance :
-  get_res_mint_reward 0 = RES_REWARD_GENESIS /\
+  res_destroy_cost_at_height 0 = RES_DESTROY_COST_GENESIS /\
   CanonicalIssuance.res_issued_at_height 0 = 0 /\
-  get_res_mint_reward 0 <> CanonicalIssuance.res_issued_at_height 0.
+  res_destroy_cost_at_height 0 <> CanonicalIssuance.res_issued_at_height 0.
 Proof.
-  split; [exact reward_at_height_zero|].
+  split; [exact destroy_cost_at_height_zero|].
   split; [exact CanonicalIssuance.res_issued_zero|].
-  rewrite reward_at_height_zero.
+  rewrite destroy_cost_at_height_zero.
   rewrite CanonicalIssuance.res_issued_zero.
-  unfold RES_REWARD_GENESIS, RES_COIN.
+  unfold RES_DESTROY_COST_GENESIS, RES_COIN.
   discriminate.
 Qed.
 

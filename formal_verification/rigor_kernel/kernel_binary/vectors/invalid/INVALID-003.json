@@ -1,0 +1,17 @@
+{
+  "id": "INVALID-003",
+  "domain": "res",
+  "expect": "INVALID",
+  "theorem": "res_issuance_soundness",
+  "failure_reason": "coinbase cannot mint RES (RFC-020 body-tx path)",
+  "coinbase": true,
+  "mint_ok": true,
+  "mint_amount": 100000000,
+  "burn_oru": 102400000000,
+  "height": 0,
+  "draw_ok": false,
+  "dom": "ORU",
+  "res_in": 0,
+  "res_out": 0,
+  "oru_in": 0
+}

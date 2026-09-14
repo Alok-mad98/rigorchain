@@ -1,0 +1,49 @@
+{
+  "task": "P0-093-GUARDIAN-FIX",
+  "full_task": "TASK-RIGOR-RELEASE-GUARDIAN-MTIME-REVALIDATION-P0-093-GUARDIAN-FIX",
+  "date": "2026-09-03",
+  "cause": "filesystem mtime stale binary detection",
+  "source_changes": false,
+  "consensus_changes": false,
+  "guardian_result": "PASS",
+  "nature": "Release verification remediation. NOT a consensus TASK. NOT a code modification TASK.",
+  "command": "bash tools/run-release-guardian-full-pipeline-audit.sh",
+  "guardian_exit": 0,
+  "elapsed_ms": 885956,
+  "skipped_stage_accepted": false,
+  "stale_before": {
+    "artifact": "core/src/rigord",
+    "rigord_mtime": "2026-09-02 21:47:14 +0800",
+    "init_cpp_mtime": "2026-09-03 07:24:05 +0800",
+    "init_cpp_git_diff": "empty",
+    "blocked_reason": "stale production binary; source newer than rigord: core/src/init.cpp"
+  },
+  "rebuild": {
+    "system": "cd core && make -j2 src/rigord",
+    "make_exit": 0,
+    "compiler": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+    "git_commit": "8743c509d9273b19c431df2f4f0ee630ccd810f8",
+    "architecture": "Linux x86_64",
+    "build_timestamp": "2026-09-03 08:11:26 +0800",
+    "use_sqlite": 1,
+    "removed_build_products_only": [
+      "core/src/libbitcoin_node_a-init.o",
+      "core/src/libbitcoin_node.a"
+    ]
+  },
+  "fresh_after": {
+    "rigord_mtime": "2026-09-03 08:11:26 +0800",
+    "init_cpp_mtime": "2026-09-03 07:24:05 +0800",
+    "binary_integrity": "PASS"
+  },
+  "release_guardian_full_pipeline": "PASS",
+  "database_security_stage": "PASS",
+  "production_full_reindex": "PASS",
+  "wallet_sqlite_audit_status": "CLOSED",
+  "consensus_code_changed": false,
+  "database_format_changed": false,
+  "wallet_format_changed": false,
+  "protocol_parameters_changed": false,
+  "formal_theorems_changed": false,
+  "final_verdict": "PASS"
+}

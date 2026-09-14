@@ -122,9 +122,8 @@ UniValue RuntimeSupplyExportToJson(const RuntimeSupplyExport& exp,
     obj.pushKV("res_mint_cumulative", ValueFromAmount(s.res_mint_cumulative));
     obj.pushKV("res_mint_block", ValueFromAmount(s.res_mint_block));
     obj.pushKV("res_mint_parent", ValueFromAmount(s.res_mint_parent));
-    obj.pushKV("res_mint_count_block", static_cast<int>(s.res_mint_count_block));
+    obj.pushKV("res_mint_present_block", static_cast<int>(s.res_mint_present_block));
     obj.pushKV("res_max_supply", ValueFromAmount(s.res_max_supply));
-    obj.pushKV("res_reward_amount", ValueFromAmount(s.res_reward_amount));
     obj.pushKV("utxo_res_balance", ValueFromAmount(s.utxo_res_balance));
     obj.pushKV("utxo_non_res_balance", ValueFromAmount(s.utxo_non_res_balance));
     if (s.oru_subsidy_cumulative_derived.has_value()) {
@@ -178,8 +177,12 @@ UniValue RuntimeSupplyExportToJson(const RuntimeSupplyExport& exp,
     }
     obj.pushKV("coq_fields", std::move(coq_fields));
 
-    obj.pushKV("phase5_supply_cell_count", 32);
-    obj.pushKV("phase5_supply_cells", RuntimeSupplyPhase5CellsToJson(exp));
+    // Derived from the array, not a literal. The old hardcoded count was decoupled from
+    // the cells it described, so retiring res_reward_amount under RFC-019 (32 -> 30) could
+    // just as easily have left it reporting 32 forever.
+    UniValue phase5_cells = RuntimeSupplyPhase5CellsToJson(exp);
+    obj.pushKV("phase5_supply_cell_count", static_cast<int>(phase5_cells.size()));
+    obj.pushKV("phase5_supply_cells", std::move(phase5_cells));
 
     UniValue sem(UniValue::VOBJ);
     sem.pushKV("equivalence_claimed", false);
@@ -200,7 +203,9 @@ UniValue RuntimeSupplyPhase5CellsToJson(const RuntimeSupplyExport& exp)
     const CAmount auth_res = exp.authoritative_res_mint_cumulative;
     const bool auth_oru_ok = auth_oru >= 0;
     const bool auth_res_ok = auth_res >= 0;
-    const uint8_t auth_mint_count = exp.authoritative_res_mint_block > 0 ? 1 : 0;
+    // Presence indicator, matching RuntimeSupplyState::res_mint_present_block: RFC-019
+    // allows many mints in one block, so this is not a cardinality.
+    const uint8_t auth_mint_present = exp.authoritative_res_mint_block > 0 ? 1 : 0;
 
     UniValue arr(UniValue::VARR);
     int idx = 0;
@@ -222,8 +227,8 @@ UniValue RuntimeSupplyPhase5CellsToJson(const RuntimeSupplyExport& exp)
     idx = EmitMirrorAuthoritativePair(arr, idx, "cb_res_mint_delta", true, m.res_mint_block, true,
                                       exp.authoritative_res_mint_block);
 
-    PushIntCell(arr, idx++, "res_mint_count_M_h", "runtime_mirror", true, m.res_mint_count_block);
-    PushIntCell(arr, idx++, "res_mint_count_M_h", "authoritative_index", true, auth_mint_count);
+    PushIntCell(arr, idx++, "res_mint_count_M_h", "runtime_mirror", true, m.res_mint_present_block);
+    PushIntCell(arr, idx++, "res_mint_count_M_h", "authoritative_index", true, auth_mint_present);
 
     PushAmountCell(arr, idx++, "rs_oru_supply_parent", "runtime_mirror", true, m.oru_supply_parent);
     PushAmountCell(arr, idx++, "rs_oru_supply_parent", "authoritative_index", false, 0);
@@ -233,9 +238,6 @@ UniValue RuntimeSupplyPhase5CellsToJson(const RuntimeSupplyExport& exp)
 
     PushAmountCell(arr, idx++, "res_max_supply", "runtime_mirror", true, m.res_max_supply);
     PushAmountCell(arr, idx++, "res_max_supply", "authoritative_index", true, m.res_max_supply);
-
-    PushAmountCell(arr, idx++, "res_reward_amount", "runtime_mirror", true, m.res_reward_amount);
-    PushAmountCell(arr, idx++, "res_reward_amount", "authoritative_index", true, m.res_reward_amount);
 
     PushAmountCell(arr, idx++, "utxo_res_balance", "runtime_mirror", true, m.utxo_res_balance);
     PushAmountCell(arr, idx++, "utxo_res_balance", "authoritative_index", false, 0);

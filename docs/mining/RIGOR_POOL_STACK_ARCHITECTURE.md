@@ -1,8 +1,16 @@
 # RIGOR Pool Stack Architecture — Production Specification
 
-**Task:** `TASK-MINING-002`  
-**Constitution:** `TASK-CONSTITUTION-002` (INFRASTRUCTURE MODE)  
-**Supersedes:** Simple Stratum-only design (`TASK-MINING-001` gap analysis)  
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
+**Document status:** Production documentation  
+**Constitution:** historical verification record (INFRASTRUCTURE MODE)  
+**Supersedes:** Simple Stratum-only design (historical verification record gap analysis)  
 **Integrates:** `STRATUM_GAP_ANALYSIS.md`, `RES_BODY_MINT_ARCHITECTURE.md`, `RES_BODY_MINT_OPERATIONAL_SPEC.md`  
 **Freeze compliance:** PROOF-031, PROOF-032, PROOF-033, PROOF-034, `MAINNET_PROTOCOL_FREEZE_DECLARATION`  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
@@ -21,7 +29,7 @@ The **RIGOR Pool Stack** is a greenfield mining infrastructure layer that sits b
 | OpuHash PoW only | `pow_opus.cpp` (frozen) |
 | Body mint off-node on testnet/mainnet | `RES_BODY_MINT_ARCHITECTURE.md` |
 | `coinbasevalue` = ORU only | `mining-pool-gbt.md` |
-| No consensus / protocol / mining rule changes | TASK-CONSTITUTION-002 |
+| No consensus / protocol / mining rule changes | historical verification record |
 | `equivalence_claimed = false` | PROOF-033 |
 
 ---
@@ -1004,9 +1012,9 @@ gantt
 
 | Document | Role |
 |----------|------|
-| `STRATUM_GAP_ANALYSIS.md` | Gap analysis (TASK-MINING-001) |
-| `RES_BODY_MINT_ARCHITECTURE.md` | Body mint architecture (TASK-RESMINT-001) |
-| `RES_BODY_MINT_OPERATIONAL_SPEC.md` | Operational runbooks (TASK-RESMINT-001) |
+| `STRATUM_GAP_ANALYSIS.md` | Gap analysis (historical verification record) |
+| `RES_BODY_MINT_ARCHITECTURE.md` | Body mint architecture (historical verification record) |
+| `RES_BODY_MINT_OPERATIONAL_SPEC.md` | Operational runbooks (historical verification record) |
 | `core/doc/mining-pool-gbt.md` | Normative GBT wire contract |
 | `core/doc/miner-opushash.md` | OpuHash miner guide |
 
@@ -1031,4 +1039,4 @@ gantt
 
 ---
 
-*End of RIGOR_POOL_STACK_ARCHITECTURE.md — TASK-MINING-002*
+

@@ -1,194 +1,246 @@
-# Chapter 4 — Convergence Mechanism
+# Chapter 4 — Convergence: How the One-Way Bridge Is Verified
 
-## What is Convergence?
+Chapter 3 gave two native identities. Without a public, deterministic
+bridge they are two unrelated ledger objects: the miner budget and the
+scarce stock come apart again. This chapter states how every full node
+verifies that bridge.
 
-**Convergence** is the consensus act of committing **≥ 1 ORU** into a
-**CVG2** output. The ORU becomes unspendable and leaves circulating supply.
-It does not convert 1:1 into RES. It becomes draw weight `f_i`.
-
-If the commitment enters candidate set **F**, survives the window
-(`W = 32`), and is selected, the paying block must mint **`W(h)` RES** in
-its **body** to the winner’s declared Witness v1 program.
-
-Short definitions of `convergence_root`, `draw_candidate_root`, and the
-RES origin path: [Chapter 9 — Glossary](./09-glossary.md).
-
-A **convergence transaction** is that CVG2 commitment. RES is not a pool
-payout and not a miner-chosen bonus.
+The claim is still architectural. The protocol fixes **one visible
+destroy, and an integer predicate in the same transaction**. It does not
+fix that anyone will destroy, and it does not fix a secondary ratio.
 
 ```
-Eligible convergence transactions
+ORU inputs
         ↓
-sorted txids
+exactly one OP_CONVERGE output, amount B (destroyed, not a UTXO)
         ↓
-Hash256
+Witness v1 RES outputs summing to R, in the same body transaction
         ↓
-Convergence Root
-        ↓
-σ for each candidate
-        ↓
-H_i < T · f_i
-        ↓
-at most one RES mint when predicates pass
+at confirming height h: R > 0 → R · (2²⁵ + h)² ≤ B << 40
 ```
+
+No Convergence → no new RES.
 
 ---
 
-## What is `convergence_root`?
+## 4.1 The bridge must be one-way, atomic, and replayable
 
-```
-eligible transactions
-        ↓
-sorted txids
-        ↓
-Hash256
-        ↓
-Convergence Root
-```
+Chapter 1 assigned the three vertices to two assets. Chapter 2 wrote the
+transform as rules. Chapter 3 wrote the identities as classification.
+One step remains: the transform must happen in **the same transaction
+bytes**, and every honest node replaying those bytes must reach the same
+decision.
 
-Canonical form:
+If destroy is in one transaction and mint in another, the ledger has a
+window in which RES is credited and the destroy is “to follow.” That is
+credit, not destroy. If destroy is inferred from
+`inputs − outputs − fee`, destroy collapses into the fee remainder and
+a verifier cannot point at the output that was burned. If a miner mints
+RES in coinbase, the bridge becomes miner discretion.
 
-```
-C = Hash256( concat( sort_memcmp( txid_i ) ) )
-```
+Convergence therefore has three requirements that do not come apart:
 
-| Rule | Meaning |
-|------|---------|
-| Input | Native 32-byte txids of eligible convergence transactions |
-| Order | Unsigned byte-wise sort — not arrival order, not miner preference |
-| Concatenation | Sorted bytes, no delimiters, no per-leaf Merkle tree |
-| Hash | Hash256 = SHA-256(SHA-256(·)) |
+1. **Destroy is visible** — one explicit, unspendable `OP_CONVERGE`
+   output whose value is `B`.
+2. **Mint is same-transaction** — if RES outputs exist, they sit in the
+   same body transaction as that destroy.
+3. **The predicate is integer** — admit or reject looks only at `R`,
+   `B`, and `h`. The same numbers, the same result.
 
-`C` is a function of the **set**, not of gossip order. Two honest nodes that
-see the same eligible transactions compute the same root.
-
-This is **not** a Merkle root of transaction hashes. Older drafts used that
-language. The official commitment is a single Hash256 over the concatenated
-sorted txids.
+The direction is one-way: ORU may disappear and (when the predicate
+holds) RES may appear. RES cannot convert back to ORU.
 
 ---
 
-## What is `draw_candidate_root`?
+## 4.2 What it is
 
-The **Draw Candidate Root** (`draw_candidate_root`) is the public digest of
-the **draw-eligible** subset — the candidates that enter the selection
-inequality for the active height / window.
+**Convergence** is the consensus act of destroying ORU into
+`OP_CONVERGE` (`RIGOR_MARKER_CONVERGE`, `<20-byte HASH160> 0xbd`).
+Destroyed ORU leaves circulation. The same transaction **may** mint
+Witness v1 RES. The cost is the protocol predicate at the confirming
+height.
 
-| Root | Commits |
-|------|---------|
-| Convergence Root (`C`) | Eligible convergence commitments bound into the block |
-| Draw Candidate Root | Draw-eligible candidates for the active draw |
+It is not:
 
-Explorers may display both. Neither display is a verdict. A verifier
-recomputes the roots from public lists and compares.
+- mining. Proof-of-work only orders history and pays ORU.
+- a 1:1 counter. Destroyed ORU is not renamed into an equal amount of
+  RES.
+- a draw. Nobody is “selected.” There is no winning hash in a window.
+- a smart contract. No bytecode is deployed. No state machine steps.
+- a miner prize. The receiver is the transaction’s RES outputs, not
+  coinbase.
 
----
+A wallet may construct the destroy output. A wallet cannot spend it.
+After validation the node does not insert it into the UTXO set.
 
-## Selection (σ)
-
-Each candidate receives a deterministic digest. Under the frozen
-Sigma-PoW-01 rule:
-
-```
-σ_i  =  Hash256( txid_i  ||  C  ||  B_{h-1}  ||  LE32(h) )
-```
-
-- `C` is the Convergence Root.
-- `B_{h-1}` is the **parent block hash**, taken verbatim.
-- `h` is the height of the paying block.
-- The preimage is exactly **100 bytes**.
-
-The block at height `h` pays the winner of the set committed by block
-`h-1`. A producer cannot re-roll the draw by editing the paying block’s
-own candidate list after the fact: every σ input is already committed.
-
-`T` on the inequality is **not** the parent PoW target. `T` is the frozen
-constant `RES_PROBABILITY_TARGET` (Deterministic Reserve Issuance: **`E = 246`**, windowed).
-Mint cost **`C = 1024` ORU per RES mint**. Difficulty adjusts **block finding**.
-It does not rewrite RES probability.
-
-Weight is linear:
-
-```
-f_i  =  converge_amount(tx_i)
-```
-
-There is no `amount^{7/5}` term. Exponentiation, floating point, and
-ad-hoc scaling are forbidden.
-
-Eligibility:
-
-```
-H_i  <  T · f_i
-```
-
-Winner (integer cross-multiplication, not floating division):
-
-```
-i ≺ j   iff   H_i · f_j  <  H_j · f_i
-winner  =  minimal element under ≺
-```
-
-Ties break on txid, byte-wise.
-
-The public form `winner = argmin(H_i / f_i)` is the same order, written
-for readers. Consensus implements the cross-multiply form.
+`R = 0` is a legal plain destroy: ORU is removed and no RES is minted.
+The destroy is a complete act. The mint is an optional, costly sequel.
 
 ---
 
-## What a hash space is
+## 4.3 Destroy must be visible
 
-A cryptographic hash such as SHA-256 maps arbitrary input to a fixed
-256-bit output. The output space has
-
-```
-2^256
-```
-
-possible values — about `1.16 × 10^77`. The result is not assigned by a
-committee. Absent a break of SHA-256, no one can choose the digest in
-advance.
-
-The **shipping** probability identity is a slice of that space with
-**`E = 246`**:
+Destroy is declared by an explicit output, not inferred from a balance
+difference.
 
 ```
-C = 2^(256-E) = 1024 ORU per RES mint
-p(n ORU)            =  min(1, n / 1024)
-p_draw(n)           =  n / (1024 · 32)
-expected wins       =  n / 1024
+scriptPubKey = PUSHBYTES_20 || HASH160(...) || 0xbd
+nValue       = B  ≥ 1 atom
 ```
 
-**Historical RFC-014 parameter** (not an active consensus parameter):
+`B` is the destroy amount in the mint arithmetic. The one-atom floor is
+the threshold that says “this is a destroy output,” not a mint price.
+The smallest `B` that mints one RES atom at genesis is 1 024 ORU atoms;
+the smallest `B` that mints one whole RES is the atom count implied by
+`destroy_cost(h)`.
 
-```
-2^240 / 2^256  =  1 / 2^16  =  1 / 65536
-```
+| Rule | Why |
+|------|-----|
+| At most one positive-value Convergence output per transaction | `B` must be a single declaration |
+| ORU inputs only | RES cannot be the destroy feedstock; that would reverse the direction |
+| Output not inserted into the UTXO set | What was burned cannot be spent again |
+| Classified ORU-domain | It is a sink of the flow, not a piece of RES |
 
-That teaching constant implied `C = 65536` ORU. The long-run **shipping**
-identity is **n / 1024**. The window spreads participation; it does not invent
-a private probability.
+A RES output with no such destroy is invalid:
+`bad-txns-res-mint-no-burn`. No visible destroy, no admitted mint.
 
 ---
 
-## Fairness
+## 4.4 Mint must be in the same transaction
 
-Fairness is cryptographic and procedural, not social.
+The mint lives in the **block body**, not in coinbase. A Convergence
+transaction looks like this:
 
-| Property | Meaning |
-|----------|---------|
-| **Deterministic** | Same accepted block and same candidate set ⇒ same `C`, same σ, same winner |
-| **Unpredictable** | Before the parent hash and the committed set exist, no one knows `C` or σ |
-| **No privileged participant** | No admin key, no pool override, no website authority, no premine path |
-| **Publicly verifiable** | Anyone recomputes roots and selection from public bytes |
-| **Cryptographic probability** | Weight is committed ORU. Probability is a hash-space inequality, not discretion |
+```
+inputs        ORU only
+outputs       exactly one OP_CONVERGE, amount B
+              zero or more Witness v1 RES, sum R
+              optional ORU change
+fee           oru_in − B − oru_change, still paid in ORU
+```
 
-If a miner changes the eligible set, `C` changes, and **every** candidate’s
-σ changes. There is no quiet edit that favors one transaction while leaving
-the published root intact.
+`R` is the sum of all new RES outputs in that transaction. The predicate
+is evaluated once on that sum. The miner who includes the transaction
+does not receive RES. The miner still receives only coinbase ORU.
 
-Fairness does **not** mean “everyone receives RES”. It means there is no
-privileged path around the published function.
+Same-transaction is atomicity. A verifier sees either “`B` is destroyed
+and `R` is admitted” or a wholly invalid transaction. There is no
+ledger state in which RES has appeared and ORU has not yet been
+destroyed.
 
-**No hidden process. The published aggregate is 1/1024 per ORU of
-committed weight (`E = 246`, `C = 1024` ORU per mint).**
+Ordinary RES transfers cannot create RES: `res_in ≥ res_out`. Destroying
+RES (`res_in > res_out`) only tightens stock. It does not convert back
+to ORU.
+
+---
+
+## 4.5 An integer predicate, not a quote
+
+Consensus never evaluates the display formula. It evaluates the same
+relation with the division cleared:
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+R = 0  →  B unconstrained
+```
+
+`h` is the **confirming height**, not the wallet’s construction guess.
+Display form, for reading only:
+
+```
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰
+destroy_cost(0) = 1024 ORU per whole RES
+```
+
+Same height, same `B`, same `R` ⇒ every honest node admits or rejects
+alike. No miner discretion. No unpublished rate. No division, square
+root, or epoch index enters the predicate.
+
+`destroy_cost(h)` is a protocol destroy requirement, not a market quote.
+While minting is open, a secondary ratio above that requirement is
+bounded by mint arbitrage; a ratio below it stops minting. The protocol
+does not publish a quote.
+
+`R` may be any positive number of RES atoms. A mint need not be a whole
+RES. “What one RES costs in ORU” is the headline at `R = RES_COIN`, not
+the integer a wallet must burn — construction must satisfy the
+inequality itself.
+
+There is no per-block mint cap. One block may absorb an unbounded
+destroy. The absence of rate limiting is deliberate: demand should be
+absorbable in a single block, not queued by the protocol.
+
+---
+
+## 4.6 Why it is not a 1:1 counter
+
+A 1:1 swap would re-merge the two identities: destroy this much flow,
+appear that much stock. That is a rename, not a transform. Chapter 1’s
+triangle would collapse back to one asset.
+
+The protocol cost rises with height. An earlier mint pays less per RES
+for a longer remaining span of protection. Destroyed ORU leaves
+`S_ORU`. New RES enters `S_RES` as a new Witness v1 UTXO. No field
+paints the old output as RES.
+
+The reverse path does not exist. Spending RES as ORU, or spending a
+Convergence output, is an invalid transaction.
+
+---
+
+## 4.7 Why it is not a draw
+
+A draw hands “who receives RES” to a hash or to an operator. A verifier
+must trust a randomness source, or a windowed winning rule. The same
+public inputs can yield different assignments after one hash.
+
+Convergence’s decision has no random term. Given `R`, `B`, and `h`, the
+result is admit or reject. Nobody is chosen. Nobody is skipped. A
+higher fee cannot buy a higher chance of being selected, because there
+is no selection.
+
+A miner cannot write RES into coinbase. A miner cannot assign RES to
+their own address as a block prize. Pool policy cannot allocate RES.
+Changing a miner payout address cannot create RES.
+
+Fairness is: **the same public inequality, the same decision.** The
+mathematics is Chapter 5. This chapter only fixes the verification act.
+
+---
+
+## 4.8 What happens when verification fails
+
+Live reject codes name the failing clause:
+
+| Reject | Meaning |
+|--------|---------|
+| `bad-txns-res-mint-underpaid` | `R · (2²⁵ + h)² > B << 40`: destroy does not cover the requested mint |
+| `bad-txns-res-mint-no-burn` | RES output present, no `OP_CONVERGE` |
+| `bad-txns-res-mint-cap-overshoot` | Runtime defence; Chapter 2’s closed-form integral makes it unreachable |
+| `illegal-res-to-oru-conversion` | Wrong direction, or an attempt to spend a Convergence output |
+
+Underpayment invalidates the whole transaction. There is no partial
+fill that credits RES and waits for a later destroy.
+
+Mint outputs mature after 100 blocks. That is the same depth as
+coinbase maturity: reorg protection. It is not a wait for a draw. The
+kernel model proves selected rewind identities: disconnect an orphan
+suffix and apply another, equals never applying the orphans. That is
+not a `ConnectBlock` equivalence proof.
+
+---
+
+## 4.9 What this chapter does not claim
+
+- It does not assert that anyone will destroy ORU, or that `ρ` lands in
+  a band.
+- It does not write `destroy_cost(h)` as a market price.
+- It does not write maturity 100 as a draw wait.
+- It does not claim C++ equivalence to the kernel model.
+- It does not write Convergence as a contract, a counter, or a miner
+  prize.
+
+**Destroy is visible. Mint is an integer predicate in the same
+transaction.** Chapter 5 unfolds that predicate as checkable
+mathematics: the closed-form integral, the forced shift, and why “same
+inputs, same decision” is the fairness claim.

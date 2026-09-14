@@ -1,0 +1,2210 @@
+{
+  "affected": [
+    {
+      "id": "CR-000",
+      "module": "ConvergenceRoot",
+      "name": "root_n0"
+    },
+    {
+      "id": "CR-001",
+      "module": "ConvergenceRoot",
+      "name": "root_n1"
+    },
+    {
+      "id": "CR-002",
+      "module": "ConvergenceRoot",
+      "name": "root_n2"
+    },
+    {
+      "id": "CR-003",
+      "module": "ConvergenceRoot",
+      "name": "root_n3"
+    },
+    {
+      "id": "CR-004",
+      "module": "ConvergenceRoot",
+      "name": "root_n5"
+    },
+    {
+      "id": "CR-005",
+      "module": "ConvergenceRoot",
+      "name": "root_n8"
+    },
+    {
+      "id": "CR-006",
+      "module": "ConvergenceRoot",
+      "name": "root_n12"
+    },
+    {
+      "id": "CR-010",
+      "module": "ConvergenceRoot",
+      "name": "perm"
+    },
+    {
+      "id": "CR-011",
+      "module": "ConvergenceRoot",
+      "name": "sethex_pair"
+    },
+    {
+      "id": "SIG-000",
+      "module": "SigmaPoW01",
+      "name": "sigma_0"
+    },
+    {
+      "id": "SIG-001",
+      "module": "SigmaPoW01",
+      "name": "sigma_1"
+    },
+    {
+      "id": "SIG-002",
+      "module": "SigmaPoW01",
+      "name": "sigma_2"
+    },
+    {
+      "id": "SIG-003",
+      "module": "SigmaPoW01",
+      "name": "sigma_3"
+    },
+    {
+      "id": "SIG-004",
+      "module": "SigmaPoW01",
+      "name": "sigma_4"
+    },
+    {
+      "id": "INQ-000",
+      "module": "Inequality",
+      "name": "inq_0"
+    },
+    {
+      "id": "INQ-001",
+      "module": "Inequality",
+      "name": "inq_1"
+    },
+    {
+      "id": "INQ-002",
+      "module": "Inequality",
+      "name": "inq_2"
+    },
+    {
+      "id": "INQ-003",
+      "module": "Inequality",
+      "name": "inq_3"
+    },
+    {
+      "id": "WIN-000",
+      "module": "RunSelection",
+      "name": "empty"
+    },
+    {
+      "id": "WIN-001",
+      "module": "RunSelection",
+      "name": "sort"
+    },
+    {
+      "id": "WIN-002",
+      "module": "RunSelection",
+      "name": "single"
+    },
+    {
+      "id": "WIN-003",
+      "module": "RunSelection",
+      "name": "nowin"
+    },
+    {
+      "id": "WIN-004",
+      "module": "RunSelection",
+      "name": "wgt"
+    },
+    {
+      "id": "WIN-005",
+      "module": "RunSelection",
+      "name": "tie"
+    },
+    {
+      "id": "WIN-006",
+      "module": "RunSelection",
+      "name": "big"
+    },
+    {
+      "id": "RO-000",
+      "module": "ReorgBind",
+      "name": "seed_depth_h1"
+    },
+    {
+      "id": "RO-001",
+      "module": "ReorgBind",
+      "name": "seed_depth_h2"
+    },
+    {
+      "id": "RO-002",
+      "module": "ReorgBind",
+      "name": "seed_depth_h3"
+    },
+    {
+      "id": "RO-003",
+      "module": "ReorgBind",
+      "name": "seed_depth_h4"
+    },
+    {
+      "id": "RO-004",
+      "module": "ReorgBind",
+      "name": "seed_depth_h5"
+    },
+    {
+      "id": "RO-005",
+      "module": "ReorgBind",
+      "name": "seed_depth_h6"
+    },
+    {
+      "id": "RO-006",
+      "module": "ReorgBind",
+      "name": "seed_depth_h7"
+    },
+    {
+      "id": "RO-007",
+      "module": "ReorgBind",
+      "name": "seed_depth_h8"
+    },
+    {
+      "id": "RO-008",
+      "module": "ReorgBind",
+      "name": "seed_depth_h9"
+    },
+    {
+      "id": "RO-009",
+      "module": "ReorgBind",
+      "name": "seed_depth_h10"
+    },
+    {
+      "id": "RO-010",
+      "module": "ReorgBind",
+      "name": "seed_depth_h11"
+    },
+    {
+      "id": "RO-011",
+      "module": "ReorgBind",
+      "name": "seed_depth_h12"
+    },
+    {
+      "id": "SUP-000",
+      "module": "SupplyScaffold",
+      "name": "supply"
+    },
+    {
+      "id": "SUP-001",
+      "module": "SupplyScaffold",
+      "name": "supply"
+    },
+    {
+      "id": "SUP-002",
+      "module": "SupplyScaffold",
+      "name": "supply"
+    },
+    {
+      "id": "SUP-003",
+      "module": "SupplyScaffold",
+      "name": "supply"
+    },
+    {
+      "id": "SUP-004",
+      "module": "SupplyScaffold",
+      "name": "supply"
+    },
+    {
+      "id": "ENC-000",
+      "module": "SigmaEncoder",
+      "name": "encoder_h0"
+    },
+    {
+      "id": "ENC-001",
+      "module": "SigmaEncoder",
+      "name": "encoder_h1"
+    },
+    {
+      "id": "ENC-002",
+      "module": "SigmaEncoder",
+      "name": "encoder_h255"
+    },
+    {
+      "id": "ENC-003",
+      "module": "SigmaEncoder",
+      "name": "encoder_h256"
+    },
+    {
+      "id": "ENC-004",
+      "module": "SigmaEncoder",
+      "name": "encoder_h16909060"
+    },
+    {
+      "id": "ENC-005",
+      "module": "SigmaEncoder",
+      "name": "encoder_h4294967295"
+    },
+    {
+      "id": "A9C-000",
+      "module": "WindowExclusion",
+      "name": "none_paid"
+    },
+    {
+      "id": "A9C-001",
+      "module": "WindowExclusion",
+      "name": "first_paid"
+    },
+    {
+      "id": "A9C-002",
+      "module": "WindowExclusion",
+      "name": "last_paid"
+    },
+    {
+      "id": "A9C-003",
+      "module": "WindowExclusion",
+      "name": "all_paid"
+    },
+    {
+      "id": "A9C-004",
+      "module": "WindowExclusion",
+      "name": "middle_two"
+    },
+    {
+      "id": "A9C-005",
+      "module": "WindowExclusion",
+      "name": "paid_not_in_set"
+    },
+    {
+      "id": "A9C-006",
+      "module": "WindowExclusion",
+      "name": "empty_candidates"
+    },
+    {
+      "id": "A9C-007",
+      "module": "WindowExclusion",
+      "name": "dup_paid_list"
+    },
+    {
+      "id": "A9C-008",
+      "module": "WindowExclusion",
+      "name": "perm_paid"
+    },
+    {
+      "id": "A9C-009",
+      "module": "WindowExclusion",
+      "name": "single_survives"
+    },
+    {
+      "id": "A9C-010",
+      "module": "WindowExclusion",
+      "name": "single_dropped"
+    },
+    {
+      "id": "A9C-011",
+      "module": "WindowExclusion",
+      "name": "window_full_eight"
+    },
+    {
+      "id": "DCR-000",
+      "module": "DrawCandidateRoot",
+      "name": "empty"
+    },
+    {
+      "id": "DCR-001",
+      "module": "DrawCandidateRoot",
+      "name": "singleton_no_zero_shortcut"
+    },
+    {
+      "id": "DCR-002",
+      "module": "DrawCandidateRoot",
+      "name": "two_agrees_with_C"
+    },
+    {
+      "id": "DCR-003",
+      "module": "DrawCandidateRoot",
+      "name": "perm_two"
+    },
+    {
+      "id": "DCR-004",
+      "module": "DrawCandidateRoot",
+      "name": "eligible_subset"
+    },
+    {
+      "id": "DCR-005",
+      "module": "DrawCandidateRoot",
+      "name": "none_eligible"
+    },
+    {
+      "id": "DCR-006",
+      "module": "DrawCandidateRoot",
+      "name": "a9c_all_paid"
+    },
+    {
+      "id": "DCR-007",
+      "module": "DrawCandidateRoot",
+      "name": "a9c_singleton_remainder"
+    },
+    {
+      "id": "DCR-008",
+      "module": "DrawCandidateRoot",
+      "name": "incomplete_window_no_root"
+    },
+    {
+      "id": "DCR-009",
+      "module": "DrawCandidateRoot",
+      "name": "genesis_complete_empty"
+    },
+    {
+      "id": "DCR-010",
+      "module": "DrawCandidateRoot",
+      "name": "exclusion_all_paid"
+    },
+    {
+      "id": "DCR-011",
+      "module": "DrawCandidateRoot",
+      "name": "three_perm_a"
+    },
+    {
+      "id": "DCR-012",
+      "module": "DrawCandidateRoot",
+      "name": "three_perm_b"
+    },
+    {
+      "id": "DCR-013",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_all_eligible_winner"
+    },
+    {
+      "id": "DCR-014",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_none_eligible"
+    },
+    {
+      "id": "DCR-015",
+      "module": "DrawCandidateRoot",
+      "name": "subset_perm"
+    },
+    {
+      "id": "DCR-016",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_same_dcr_winner_flips_with_seed"
+    },
+    {
+      "id": "DCR-017",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_two_prev22_baseline"
+    },
+    {
+      "id": "DCR-018",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_root_change_flips_winner"
+    },
+    {
+      "id": "DCR-019",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_three_prev11_baseline"
+    },
+    {
+      "id": "DCR-020",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_exclusion_drops_winner"
+    },
+    {
+      "id": "DCR-021",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_exclusion_singleton_hashed"
+    },
+    {
+      "id": "DCR-022",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_three_t_one_no_winner"
+    },
+    {
+      "id": "DCR-023",
+      "module": "DrawCandidateRoot",
+      "name": "e2e_height_flips_winner_same_root"
+    },
+    {
+      "id": "DCR-024",
+      "module": "DrawCandidateRoot",
+      "name": "neg_tamper_insert"
+    },
+    {
+      "id": "DCR-025",
+      "module": "DrawCandidateRoot",
+      "name": "neg_tamper_delete"
+    },
+    {
+      "id": "DCR-026",
+      "module": "DrawCandidateRoot",
+      "name": "neg_tamper_replace"
+    },
+    {
+      "id": "DCR-027",
+      "module": "DrawCandidateRoot",
+      "name": "neg_flag_perm_changes_hashed_set"
+    },
+    {
+      "id": "DCR-028",
+      "module": "DrawCandidateRoot",
+      "name": "neg_perm_of_tampered_still_differs"
+    },
+    {
+      "id": "DCR-029",
+      "module": "DrawCandidateRoot",
+      "name": "neg_duplicate_txid"
+    },
+    {
+      "id": "DCR-030",
+      "module": "DrawCandidateRoot",
+      "name": "neg_empty_neq_zero"
+    },
+    {
+      "id": "DCR-031",
+      "module": "DrawCandidateRoot",
+      "name": "pos_singleton_eq_C"
+    },
+    {
+      "id": "DCR-032",
+      "module": "DrawCandidateRoot",
+      "name": "neg_exclusion_root_winner_mismatch"
+    },
+    {
+      "id": "DCR-033",
+      "module": "DrawCandidateRoot",
+      "name": "neg_sigma_wrong_C"
+    },
+    {
+      "id": "DCR-034",
+      "module": "DrawCandidateRoot",
+      "name": "neg_sigma_flip_prev"
+    },
+    {
+      "id": "DCR-035",
+      "module": "DrawCandidateRoot",
+      "name": "neg_sigma_flip_height"
+    },
+    {
+      "id": "A9C-012",
+      "module": "WindowExclusion",
+      "name": "drop_index_0"
+    },
+    {
+      "id": "A9C-013",
+      "module": "WindowExclusion",
+      "name": "drop_index_1"
+    },
+    {
+      "id": "A9C-014",
+      "module": "WindowExclusion",
+      "name": "drop_index_2"
+    },
+    {
+      "id": "A9C-015",
+      "module": "WindowExclusion",
+      "name": "drop_index_3"
+    },
+    {
+      "id": "A9C-016",
+      "module": "WindowExclusion",
+      "name": "drop_index_4"
+    },
+    {
+      "id": "A9C-017",
+      "module": "WindowExclusion",
+      "name": "drop_index_5"
+    },
+    {
+      "id": "A9C-SEQ-000",
+      "module": "WindowExclusion",
+      "name": "seq_step_0"
+    },
+    {
+      "id": "A9C-SEQ-001",
+      "module": "WindowExclusion",
+      "name": "seq_step_1"
+    },
+    {
+      "id": "A9C-SEQ-002",
+      "module": "WindowExclusion",
+      "name": "seq_step_2"
+    },
+    {
+      "id": "A9C-SEQ-003",
+      "module": "WindowExclusion",
+      "name": "seq_step_3"
+    },
+    {
+      "id": "REORG-A9C-000",
+      "module": "WindowExclusion",
+      "name": "branch_a_paid"
+    },
+    {
+      "id": "REORG-A9C-001",
+      "module": "WindowExclusion",
+      "name": "branch_b_unpaid"
+    },
+    {
+      "id": "WIN-H-000",
+      "module": "RunSelection",
+      "name": "height_1"
+    },
+    {
+      "id": "WIN-H-001",
+      "module": "RunSelection",
+      "name": "height_2"
+    },
+    {
+      "id": "WIN-H-002",
+      "module": "RunSelection",
+      "name": "height_31"
+    },
+    {
+      "id": "WIN-H-003",
+      "module": "RunSelection",
+      "name": "height_32"
+    },
+    {
+      "id": "WIN-H-004",
+      "module": "RunSelection",
+      "name": "height_33"
+    },
+    {
+      "id": "WIN-H-005",
+      "module": "RunSelection",
+      "name": "height_63"
+    },
+    {
+      "id": "WIN-H-006",
+      "module": "RunSelection",
+      "name": "height_64"
+    },
+    {
+      "id": "WIN-H-007",
+      "module": "RunSelection",
+      "name": "height_100000"
+    },
+    {
+      "id": "WIN-H-008",
+      "module": "RunSelection",
+      "name": "height_2100000"
+    },
+    {
+      "id": "SIG-REORG-000",
+      "module": "SigmaPoW01",
+      "name": "parent_0"
+    },
+    {
+      "id": "SIG-REORG-001",
+      "module": "SigmaPoW01",
+      "name": "parent_1"
+    },
+    {
+      "id": "SIG-REORG-002",
+      "module": "SigmaPoW01",
+      "name": "parent_2"
+    },
+    {
+      "id": "SIG-REORG-003",
+      "module": "SigmaPoW01",
+      "name": "parent_3"
+    },
+    {
+      "id": "SIG-REORG-004",
+      "module": "SigmaPoW01",
+      "name": "parent_4"
+    },
+    {
+      "id": "INQ-B-004",
+      "module": "Inequality",
+      "name": "boundary_low_f1"
+    },
+    {
+      "id": "INQ-B-005",
+      "module": "Inequality",
+      "name": "boundary_high_f1"
+    },
+    {
+      "id": "INQ-B-006",
+      "module": "Inequality",
+      "name": "boundary_low_f99999999"
+    },
+    {
+      "id": "INQ-B-007",
+      "module": "Inequality",
+      "name": "boundary_high_f99999999"
+    },
+    {
+      "id": "INQ-B-008",
+      "module": "Inequality",
+      "name": "boundary_low_f100000000"
+    },
+    {
+      "id": "INQ-B-009",
+      "module": "Inequality",
+      "name": "boundary_high_f100000000"
+    },
+    {
+      "id": "INQ-B-010",
+      "module": "Inequality",
+      "name": "boundary_low_f100000001"
+    },
+    {
+      "id": "INQ-B-011",
+      "module": "Inequality",
+      "name": "boundary_high_f100000001"
+    },
+    {
+      "id": "INQ-B-012",
+      "module": "Inequality",
+      "name": "boundary_low_f200000000"
+    },
+    {
+      "id": "INQ-B-013",
+      "module": "Inequality",
+      "name": "boundary_high_f200000000"
+    },
+    {
+      "id": "INQ-B-014",
+      "module": "Inequality",
+      "name": "boundary_low_f102400000000"
+    },
+    {
+      "id": "INQ-B-015",
+      "module": "Inequality",
+      "name": "boundary_high_f102400000000"
+    },
+    {
+      "id": "INQ-B-016",
+      "module": "Inequality",
+      "name": "boundary_low_f3200000000"
+    },
+    {
+      "id": "INQ-B-017",
+      "module": "Inequality",
+      "name": "boundary_high_f3200000000"
+    },
+    {
+      "id": "INQ-B-018",
+      "module": "Inequality",
+      "name": "boundary_low_f3276799999999"
+    },
+    {
+      "id": "INQ-B-019",
+      "module": "Inequality",
+      "name": "boundary_high_f3276799999999"
+    },
+    {
+      "id": "INQ-B-020",
+      "module": "Inequality",
+      "name": "boundary_low_f3276800000000"
+    },
+    {
+      "id": "INQ-B-021",
+      "module": "Inequality",
+      "name": "boundary_high_f3276800000000"
+    },
+    {
+      "id": "INQ-B-022",
+      "module": "Inequality",
+      "name": "boundary_low_f3276800000001"
+    },
+    {
+      "id": "INQ-B-023",
+      "module": "Inequality",
+      "name": "boundary_high_f3276800000001"
+    },
+    {
+      "id": "CR-N-004",
+      "module": "ConvergenceRoot",
+      "name": "root_n4"
+    },
+    {
+      "id": "CR-P-004",
+      "module": "ConvergenceRoot",
+      "name": "root_n4_rev"
+    },
+    {
+      "id": "CR-N-006",
+      "module": "ConvergenceRoot",
+      "name": "root_n6"
+    },
+    {
+      "id": "CR-P-006",
+      "module": "ConvergenceRoot",
+      "name": "root_n6_rev"
+    },
+    {
+      "id": "CR-N-007",
+      "module": "ConvergenceRoot",
+      "name": "root_n7"
+    },
+    {
+      "id": "CR-P-007",
+      "module": "ConvergenceRoot",
+      "name": "root_n7_rev"
+    },
+    {
+      "id": "CR-N-009",
+      "module": "ConvergenceRoot",
+      "name": "root_n9"
+    },
+    {
+      "id": "CR-P-009",
+      "module": "ConvergenceRoot",
+      "name": "root_n9_rev"
+    },
+    {
+      "id": "CR-N-010",
+      "module": "ConvergenceRoot",
+      "name": "root_n10"
+    },
+    {
+      "id": "CR-P-010",
+      "module": "ConvergenceRoot",
+      "name": "root_n10_rev"
+    },
+    {
+      "id": "CR-N-016",
+      "module": "ConvergenceRoot",
+      "name": "root_n16"
+    },
+    {
+      "id": "CR-P-016",
+      "module": "ConvergenceRoot",
+      "name": "root_n16_rev"
+    },
+    {
+      "id": "CR-N-024",
+      "module": "ConvergenceRoot",
+      "name": "root_n24"
+    },
+    {
+      "id": "CR-P-024",
+      "module": "ConvergenceRoot",
+      "name": "root_n24_rev"
+    },
+    {
+      "id": "CR-N-032",
+      "module": "ConvergenceRoot",
+      "name": "root_n32"
+    },
+    {
+      "id": "CR-P-032",
+      "module": "ConvergenceRoot",
+      "name": "root_n32_rev"
+    },
+    {
+      "id": "SIG-X-000",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_0"
+    },
+    {
+      "id": "SIG-X-001",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_1"
+    },
+    {
+      "id": "SIG-X-002",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_2"
+    },
+    {
+      "id": "SIG-X-003",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_3"
+    },
+    {
+      "id": "SIG-X-004",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_4"
+    },
+    {
+      "id": "SIG-X-005",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_5"
+    },
+    {
+      "id": "SIG-X-006",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_6"
+    },
+    {
+      "id": "SIG-X-007",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_7"
+    },
+    {
+      "id": "SIG-X-008",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_8"
+    },
+    {
+      "id": "SIG-X-009",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_9"
+    },
+    {
+      "id": "SIG-X-010",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_10"
+    },
+    {
+      "id": "SIG-X-011",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_11"
+    },
+    {
+      "id": "SIG-X-012",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_12"
+    },
+    {
+      "id": "SIG-X-013",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_13"
+    },
+    {
+      "id": "SIG-X-014",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_14"
+    },
+    {
+      "id": "SIG-X-015",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_15"
+    },
+    {
+      "id": "SIG-X-016",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_16"
+    },
+    {
+      "id": "SIG-X-017",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_17"
+    },
+    {
+      "id": "SIG-X-018",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_18"
+    },
+    {
+      "id": "SIG-X-019",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_19"
+    },
+    {
+      "id": "SIG-X-020",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_20"
+    },
+    {
+      "id": "SIG-X-021",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_21"
+    },
+    {
+      "id": "SIG-X-022",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_22"
+    },
+    {
+      "id": "SIG-X-023",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_23"
+    },
+    {
+      "id": "SIG-X-024",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_24"
+    },
+    {
+      "id": "SIG-X-025",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_25"
+    },
+    {
+      "id": "SIG-X-026",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_26"
+    },
+    {
+      "id": "SIG-X-027",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_27"
+    },
+    {
+      "id": "SIG-X-028",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_28"
+    },
+    {
+      "id": "SIG-X-029",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_29"
+    },
+    {
+      "id": "SIG-X-030",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_30"
+    },
+    {
+      "id": "SIG-X-031",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_31"
+    },
+    {
+      "id": "SIG-X-032",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_32"
+    },
+    {
+      "id": "SIG-X-033",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_33"
+    },
+    {
+      "id": "SIG-X-034",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_34"
+    },
+    {
+      "id": "SIG-X-035",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_35"
+    },
+    {
+      "id": "SIG-X-036",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_36"
+    },
+    {
+      "id": "SIG-X-037",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_37"
+    },
+    {
+      "id": "SIG-X-038",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_38"
+    },
+    {
+      "id": "SIG-X-039",
+      "module": "SigmaPoW01",
+      "name": "sigma_extra_39"
+    },
+    {
+      "id": "WIN-X-000",
+      "module": "RunSelection",
+      "name": "win_extra_0"
+    },
+    {
+      "id": "WIN-X-001",
+      "module": "RunSelection",
+      "name": "win_extra_1"
+    },
+    {
+      "id": "WIN-X-002",
+      "module": "RunSelection",
+      "name": "win_extra_2"
+    },
+    {
+      "id": "WIN-X-003",
+      "module": "RunSelection",
+      "name": "win_extra_3"
+    },
+    {
+      "id": "WIN-X-004",
+      "module": "RunSelection",
+      "name": "win_extra_4"
+    },
+    {
+      "id": "WIN-X-005",
+      "module": "RunSelection",
+      "name": "win_extra_5"
+    },
+    {
+      "id": "WIN-X-006",
+      "module": "RunSelection",
+      "name": "win_extra_6"
+    },
+    {
+      "id": "WIN-X-007",
+      "module": "RunSelection",
+      "name": "win_extra_7"
+    },
+    {
+      "id": "WIN-INCOMPLETE-000",
+      "module": "WindowIncomplete",
+      "name": "incomplete_is_none"
+    },
+    {
+      "id": "WIN-INCOMPLETE-001",
+      "module": "WindowIncomplete",
+      "name": "genesis_empty_complete"
+    },
+    {
+      "id": "ENC-Z-000",
+      "module": "SigmaEncoder",
+      "name": "all_zero"
+    },
+    {
+      "id": "ENC-Z-001",
+      "module": "SigmaEncoder",
+      "name": "all_ff"
+    },
+    {
+      "id": "ENC-Z-002",
+      "module": "SigmaEncoder",
+      "name": "zero_txid_ff_croot"
+    },
+    {
+      "id": "A9C-DUP-000",
+      "module": "WindowExclusion",
+      "name": "dup_unpaid"
+    },
+    {
+      "id": "A9C-DUP-001",
+      "module": "WindowExclusion",
+      "name": "dup_paid"
+    },
+    {
+      "id": "REORG-A9C-002",
+      "module": "WindowExclusion",
+      "name": "two_prefix"
+    },
+    {
+      "id": "REORG-A9C-003",
+      "module": "WindowExclusion",
+      "name": "overlap_ends"
+    },
+    {
+      "id": "REORG-A9C-004",
+      "module": "WindowExclusion",
+      "name": "middle_only"
+    },
+    {
+      "id": "REORG-A9C-005",
+      "module": "WindowExclusion",
+      "name": "disjoint_from_window"
+    },
+    {
+      "id": "REORG-A9C-006",
+      "module": "WindowExclusion",
+      "name": "branch_a_three_paid"
+    },
+    {
+      "id": "REORG-A9C-007",
+      "module": "WindowExclusion",
+      "name": "branch_b_restored"
+    },
+    {
+      "id": "REORG-A9C-008",
+      "module": "WindowExclusion",
+      "name": "restored_then_repay_first"
+    },
+    {
+      "id": "REORG-A9C-009",
+      "module": "WindowExclusion",
+      "name": "fork_a_prefix_paid"
+    },
+    {
+      "id": "REORG-A9C-010",
+      "module": "WindowExclusion",
+      "name": "fork_b_suffix_paid"
+    },
+    {
+      "id": "A9C-W32-drop_first",
+      "module": "WindowExclusion",
+      "name": "drop_first"
+    },
+    {
+      "id": "A9C-W32-drop_last",
+      "module": "WindowExclusion",
+      "name": "drop_last"
+    },
+    {
+      "id": "A9C-W32-all_paid",
+      "module": "WindowExclusion",
+      "name": "all_paid"
+    },
+    {
+      "id": "A9C-NDW-000",
+      "module": "WindowExclusion",
+      "name": "paid_excluded_under_permutation"
+    },
+    {
+      "id": "INQ-Z-000",
+      "module": "Inequality",
+      "name": "weight_zero_ineligible"
+    },
+    {
+      "id": "ENC-W-000",
+      "module": "SigmaEncoder",
+      "name": "encoder_height_window_w"
+    },
+    {
+      "id": "WIN-Y-000",
+      "module": "RunSelection",
+      "name": "win_bulk_0"
+    },
+    {
+      "id": "WIN-Y-001",
+      "module": "RunSelection",
+      "name": "win_bulk_1"
+    },
+    {
+      "id": "WIN-Y-002",
+      "module": "RunSelection",
+      "name": "win_bulk_2"
+    },
+    {
+      "id": "WIN-Y-003",
+      "module": "RunSelection",
+      "name": "win_bulk_3"
+    },
+    {
+      "id": "WIN-Y-004",
+      "module": "RunSelection",
+      "name": "win_bulk_4"
+    },
+    {
+      "id": "WIN-Y-005",
+      "module": "RunSelection",
+      "name": "win_bulk_5"
+    },
+    {
+      "id": "WIN-Y-006",
+      "module": "RunSelection",
+      "name": "win_bulk_6"
+    },
+    {
+      "id": "WIN-Y-007",
+      "module": "RunSelection",
+      "name": "win_bulk_7"
+    },
+    {
+      "id": "WIN-Y-008",
+      "module": "RunSelection",
+      "name": "win_bulk_8"
+    },
+    {
+      "id": "WIN-Y-009",
+      "module": "RunSelection",
+      "name": "win_bulk_9"
+    },
+    {
+      "id": "WIN-Y-010",
+      "module": "RunSelection",
+      "name": "win_bulk_10"
+    },
+    {
+      "id": "WIN-Y-011",
+      "module": "RunSelection",
+      "name": "win_bulk_11"
+    },
+    {
+      "id": "WIN-Y-012",
+      "module": "RunSelection",
+      "name": "win_bulk_12"
+    },
+    {
+      "id": "WIN-Y-013",
+      "module": "RunSelection",
+      "name": "win_bulk_13"
+    },
+    {
+      "id": "WIN-Y-014",
+      "module": "RunSelection",
+      "name": "win_bulk_14"
+    },
+    {
+      "id": "WIN-Y-015",
+      "module": "RunSelection",
+      "name": "win_bulk_15"
+    },
+    {
+      "id": "WIN-Y-016",
+      "module": "RunSelection",
+      "name": "win_bulk_16"
+    },
+    {
+      "id": "WIN-Y-017",
+      "module": "RunSelection",
+      "name": "win_bulk_17"
+    },
+    {
+      "id": "WIN-Y-018",
+      "module": "RunSelection",
+      "name": "win_bulk_18"
+    },
+    {
+      "id": "WIN-Y-019",
+      "module": "RunSelection",
+      "name": "win_bulk_19"
+    },
+    {
+      "id": "WIN-Y-020",
+      "module": "RunSelection",
+      "name": "win_bulk_20"
+    },
+    {
+      "id": "WIN-Y-021",
+      "module": "RunSelection",
+      "name": "win_bulk_21"
+    },
+    {
+      "id": "WIN-Y-022",
+      "module": "RunSelection",
+      "name": "win_bulk_22"
+    },
+    {
+      "id": "WIN-Y-023",
+      "module": "RunSelection",
+      "name": "win_bulk_23"
+    },
+    {
+      "id": "WIN-Y-024",
+      "module": "RunSelection",
+      "name": "win_bulk_24"
+    },
+    {
+      "id": "WIN-Y-025",
+      "module": "RunSelection",
+      "name": "win_bulk_25"
+    },
+    {
+      "id": "WIN-Y-026",
+      "module": "RunSelection",
+      "name": "win_bulk_26"
+    },
+    {
+      "id": "WIN-Y-027",
+      "module": "RunSelection",
+      "name": "win_bulk_27"
+    },
+    {
+      "id": "WIN-Y-028",
+      "module": "RunSelection",
+      "name": "win_bulk_28"
+    },
+    {
+      "id": "WIN-Y-029",
+      "module": "RunSelection",
+      "name": "win_bulk_29"
+    },
+    {
+      "id": "WIN-Y-030",
+      "module": "RunSelection",
+      "name": "win_bulk_30"
+    },
+    {
+      "id": "WIN-Y-031",
+      "module": "RunSelection",
+      "name": "win_bulk_31"
+    },
+    {
+      "id": "WIN-Y-032",
+      "module": "RunSelection",
+      "name": "win_bulk_32"
+    },
+    {
+      "id": "WIN-Y-033",
+      "module": "RunSelection",
+      "name": "win_bulk_33"
+    },
+    {
+      "id": "WIN-Y-034",
+      "module": "RunSelection",
+      "name": "win_bulk_34"
+    },
+    {
+      "id": "WIN-Y-035",
+      "module": "RunSelection",
+      "name": "win_bulk_35"
+    },
+    {
+      "id": "WIN-Y-036",
+      "module": "RunSelection",
+      "name": "win_bulk_36"
+    },
+    {
+      "id": "WIN-Y-037",
+      "module": "RunSelection",
+      "name": "win_bulk_37"
+    },
+    {
+      "id": "WIN-Y-038",
+      "module": "RunSelection",
+      "name": "win_bulk_38"
+    },
+    {
+      "id": "WIN-Y-039",
+      "module": "RunSelection",
+      "name": "win_bulk_39"
+    },
+    {
+      "id": "WIN-Y-040",
+      "module": "RunSelection",
+      "name": "win_bulk_40"
+    },
+    {
+      "id": "WIN-Y-041",
+      "module": "RunSelection",
+      "name": "win_bulk_41"
+    },
+    {
+      "id": "WIN-Y-042",
+      "module": "RunSelection",
+      "name": "win_bulk_42"
+    },
+    {
+      "id": "WIN-Y-043",
+      "module": "RunSelection",
+      "name": "win_bulk_43"
+    },
+    {
+      "id": "WIN-Y-044",
+      "module": "RunSelection",
+      "name": "win_bulk_44"
+    },
+    {
+      "id": "WIN-Y-045",
+      "module": "RunSelection",
+      "name": "win_bulk_45"
+    },
+    {
+      "id": "WIN-Y-046",
+      "module": "RunSelection",
+      "name": "win_bulk_46"
+    },
+    {
+      "id": "WIN-Y-047",
+      "module": "RunSelection",
+      "name": "win_bulk_47"
+    },
+    {
+      "id": "WIN-Y-048",
+      "module": "RunSelection",
+      "name": "win_bulk_48"
+    },
+    {
+      "id": "WIN-Y-049",
+      "module": "RunSelection",
+      "name": "win_bulk_49"
+    },
+    {
+      "id": "WIN-Y-050",
+      "module": "RunSelection",
+      "name": "win_bulk_50"
+    },
+    {
+      "id": "WIN-Y-051",
+      "module": "RunSelection",
+      "name": "win_bulk_51"
+    },
+    {
+      "id": "WIN-Y-052",
+      "module": "RunSelection",
+      "name": "win_bulk_52"
+    },
+    {
+      "id": "WIN-Y-053",
+      "module": "RunSelection",
+      "name": "win_bulk_53"
+    },
+    {
+      "id": "WIN-Y-054",
+      "module": "RunSelection",
+      "name": "win_bulk_54"
+    },
+    {
+      "id": "WIN-Y-055",
+      "module": "RunSelection",
+      "name": "win_bulk_55"
+    },
+    {
+      "id": "WIN-Y-056",
+      "module": "RunSelection",
+      "name": "win_bulk_56"
+    },
+    {
+      "id": "WIN-Y-057",
+      "module": "RunSelection",
+      "name": "win_bulk_57"
+    },
+    {
+      "id": "WIN-Y-058",
+      "module": "RunSelection",
+      "name": "win_bulk_58"
+    },
+    {
+      "id": "WIN-Y-059",
+      "module": "RunSelection",
+      "name": "win_bulk_59"
+    },
+    {
+      "id": "A9C-Y-000",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_0"
+    },
+    {
+      "id": "A9C-Y-001",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_1"
+    },
+    {
+      "id": "A9C-Y-002",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_2"
+    },
+    {
+      "id": "A9C-Y-003",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_3"
+    },
+    {
+      "id": "A9C-Y-004",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_4"
+    },
+    {
+      "id": "A9C-Y-005",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_5"
+    },
+    {
+      "id": "A9C-Y-006",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_6"
+    },
+    {
+      "id": "A9C-Y-007",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_7"
+    },
+    {
+      "id": "A9C-Y-008",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_8"
+    },
+    {
+      "id": "A9C-Y-009",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_9"
+    },
+    {
+      "id": "A9C-Y-010",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_10"
+    },
+    {
+      "id": "A9C-Y-011",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_11"
+    },
+    {
+      "id": "A9C-Y-012",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_12"
+    },
+    {
+      "id": "A9C-Y-013",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_13"
+    },
+    {
+      "id": "A9C-Y-014",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_14"
+    },
+    {
+      "id": "A9C-Y-015",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_15"
+    },
+    {
+      "id": "A9C-Y-016",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_16"
+    },
+    {
+      "id": "A9C-Y-017",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_17"
+    },
+    {
+      "id": "A9C-Y-018",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_18"
+    },
+    {
+      "id": "A9C-Y-019",
+      "module": "WindowExclusion",
+      "name": "a9c_bulk_19"
+    },
+    {
+      "id": "NEG-000",
+      "module": "NegativeCore",
+      "name": "ordinary_res_two_out_inflation"
+    },
+    {
+      "id": "NEG-001",
+      "module": "NegativeCore",
+      "name": "ordinary_res_amount_plus_one"
+    },
+    {
+      "id": "NEG-002",
+      "module": "NegativeCore",
+      "name": "oru_only_creates_res"
+    },
+    {
+      "id": "NEG-003",
+      "module": "NegativeCore",
+      "name": "res_only_creates_oru"
+    },
+    {
+      "id": "NEG-004",
+      "module": "NegativeCore",
+      "name": "mint_W_plus_one"
+    },
+    {
+      "id": "NEG-005",
+      "module": "NegativeCore",
+      "name": "mint_W_minus_one"
+    },
+    {
+      "id": "NEG-006",
+      "module": "NegativeCore",
+      "name": "mint_two_res_outputs"
+    },
+    {
+      "id": "NEG-007",
+      "module": "NegativeCore",
+      "name": "mint_genesis_W_at_epoch_1"
+    },
+    {
+      "id": "NEG-008",
+      "module": "NegativeCore",
+      "name": "winner_mint_count_two"
+    },
+    {
+      "id": "NEG-009",
+      "module": "NegativeCore",
+      "name": "winner_omits_mint"
+    },
+    {
+      "id": "NEG-010",
+      "module": "NegativeCore",
+      "name": "cap_one_atom_overshoot"
+    },
+    {
+      "id": "NEG-011",
+      "module": "NegativeCore",
+      "name": "at_cap_then_mint"
+    },
+    {
+      "id": "NEG-012",
+      "module": "NegativeCore",
+      "name": "schedule_exhausted_mint"
+    },
+    {
+      "id": "NEG-013",
+      "module": "NegativeCore",
+      "name": "without_winner_mint"
+    },
+    {
+      "id": "NEG-014",
+      "module": "NegativeCore",
+      "name": "mixed_ordinary_plus_illegal_mint"
+    },
+    {
+      "id": "NEG-015",
+      "module": "NegativeCore",
+      "name": "mixed_inflation_plus_mint_shape"
+    },
+    {
+      "id": "ICVG-000",
+      "module": "InvalidCvg",
+      "name": "amount_below_min"
+    },
+    {
+      "id": "ICVG-001",
+      "module": "InvalidCvg",
+      "name": "amount_zero"
+    },
+    {
+      "id": "ICVG-002",
+      "module": "InvalidCvg",
+      "name": "wrong_asset_res"
+    },
+    {
+      "id": "ICVG-003",
+      "module": "InvalidCvg",
+      "name": "script_res2_not_cvg2"
+    },
+    {
+      "id": "ICVG-004",
+      "module": "InvalidCvg",
+      "name": "script_p2wpkh_not_cvg2"
+    },
+    {
+      "id": "ICVG-005",
+      "module": "InvalidCvg",
+      "name": "two_cvg2_outputs"
+    },
+    {
+      "id": "ICVG-006",
+      "module": "InvalidCvg",
+      "name": "committed_c_bitflip"
+    },
+    {
+      "id": "ICVG-007",
+      "module": "InvalidCvg",
+      "name": "unsorted_concat"
+    },
+    {
+      "id": "ICVG-008",
+      "module": "InvalidCvg",
+      "name": "truncated_concat"
+    },
+    {
+      "id": "ICVG-009",
+      "module": "InvalidCvg",
+      "name": "claimed_root_len_31"
+    },
+    {
+      "id": "ICVG-010",
+      "module": "InvalidCvg",
+      "name": "extra_byte_concat"
+    },
+    {
+      "id": "ICVG-011",
+      "module": "InvalidCvg",
+      "name": "duplicate_txid_not_nlt2"
+    },
+    {
+      "id": "ICVG-012",
+      "module": "InvalidCvg",
+      "name": "empty_claimed_dcr_as_c"
+    },
+    {
+      "id": "ICVG-013",
+      "module": "InvalidCvg",
+      "name": "singleton_claimed_zeros_as_c"
+    },
+    {
+      "id": "XFAM-000",
+      "module": "EdgeCross",
+      "name": "p2pkh_plus_ordinary_inflation"
+    },
+    {
+      "id": "XFAM-001",
+      "module": "EdgeCross",
+      "name": "witness_v2_plus_oru_to_res"
+    },
+    {
+      "id": "XFAM-002",
+      "module": "EdgeCross",
+      "name": "spend_cvg2_plus_inflation"
+    },
+    {
+      "id": "XFAM-003",
+      "module": "EdgeCross",
+      "name": "c_bitflip_plus_mint_W_plus_one"
+    },
+    {
+      "id": "XFAM-004",
+      "module": "EdgeCross",
+      "name": "claimed_c_len_31_plus_cap_overshoot"
+    },
+    {
+      "id": "XFAM-005",
+      "module": "EdgeCross",
+      "name": "unsorted_concat_plus_mint_at_cap"
+    },
+    {
+      "id": "XFAM-006",
+      "module": "EdgeCross",
+      "name": "window_all_paid_empty_dcr_no_winner"
+    },
+    {
+      "id": "XFAM-007",
+      "module": "EdgeCross",
+      "name": "window_drop_to_singleton_hashed"
+    },
+    {
+      "id": "XFAM-008",
+      "module": "EdgeCross",
+      "name": "window_drop_winner_moves_dcr_and_sel"
+    },
+    {
+      "id": "XFAM-009",
+      "module": "EdgeCross",
+      "name": "epoch_last_height_mint_next_W"
+    },
+    {
+      "id": "XFAM-010",
+      "module": "EdgeCross",
+      "name": "W_zero_mint_last_epoch_amount"
+    },
+    {
+      "id": "XFAM-011",
+      "module": "EdgeCross",
+      "name": "last_positive_W_mint_plus_one_and_cap"
+    },
+    {
+      "id": "XFAM-012",
+      "module": "EdgeCross",
+      "name": "p2sh_plus_ordinary_inflation"
+    },
+    {
+      "id": "XFAM-013",
+      "module": "EdgeCross",
+      "name": "v1_len20_plus_ordinary_inflation"
+    },
+    {
+      "id": "XFAM-014",
+      "module": "EdgeCross",
+      "name": "opreturn_nonzero_plus_inflation"
+    },
+    {
+      "id": "XFAM-015",
+      "module": "EdgeCross",
+      "name": "pcorb_five_plus_ordinary_inflation"
+    },
+    {
+      "id": "XFAM-016",
+      "module": "EdgeCross",
+      "name": "window_empty_plus_without_winner_mint"
+    },
+    {
+      "id": "XFAM-017",
+      "module": "EdgeCross",
+      "name": "window_drop_winner_plus_h1_omit"
+    },
+    {
+      "id": "XFAM-018",
+      "module": "EdgeCross",
+      "name": "epoch_last_mint_plus_one_and_cap"
+    },
+    {
+      "id": "XFAM-019",
+      "module": "EdgeCross",
+      "name": "epoch_start_mint_plus_one_and_cap"
+    }
+  ],
+  "affected_files": [
+    "rigor_golden_vectors.json",
+    "frozen_consensus_vectors.json",
+    "genesis_consensus_vectors.json",
+    "release_consensus_vectors.json",
+    "consensus_kernel_refinement_vectors.json",
+    "adversarial_security_vectors.json"
+  ],
+  "affected_modules": [
+    "ConvergenceRoot",
+    "DrawCandidateRoot",
+    "EdgeCross",
+    "Inequality",
+    "InvalidCvg",
+    "NegativeCore",
+    "ReorgBind",
+    "RunSelection",
+    "SigmaEncoder",
+    "SigmaPoW01",
+    "SupplyScaffold",
+    "WindowExclusion",
+    "WindowIncomplete"
+  ],
+  "invariant": [
+    {
+      "id": "RP-000",
+      "module": "Replay",
+      "name": "replay_seed_bit_0"
+    },
+    {
+      "id": "RP-001",
+      "module": "Replay",
+      "name": "replay_seed_bit_127"
+    },
+    {
+      "id": "RP-002",
+      "module": "Replay",
+      "name": "replay_seed_bit_255"
+    },
+    {
+      "id": "BLK-000",
+      "module": "BlockTrace",
+      "name": "blk_0"
+    },
+    {
+      "id": "BLK-001",
+      "module": "BlockTrace",
+      "name": "blk_1"
+    },
+    {
+      "id": "BLK-002",
+      "module": "BlockTrace",
+      "name": "blk_2"
+    },
+    {
+      "id": "BLK-003",
+      "module": "BlockTrace",
+      "name": "blk_3"
+    },
+    {
+      "id": "BLK-004",
+      "module": "BlockTrace",
+      "name": "blk_4"
+    },
+    {
+      "id": "BLK-005",
+      "module": "BlockTrace",
+      "name": "blk_5"
+    },
+    {
+      "id": "BLK-006",
+      "module": "BlockTrace",
+      "name": "blk_6"
+    },
+    {
+      "id": "BLK-007",
+      "module": "BlockTrace",
+      "name": "blk_7"
+    },
+    {
+      "id": "BLK-008",
+      "module": "BlockTrace",
+      "name": "blk_8"
+    },
+    {
+      "id": "BLK-009",
+      "module": "BlockTrace",
+      "name": "blk_9"
+    },
+    {
+      "id": "BLK-010",
+      "module": "BlockTrace",
+      "name": "blk_10"
+    },
+    {
+      "id": "BLK-011",
+      "module": "BlockTrace",
+      "name": "blk_11"
+    },
+    {
+      "id": "HASH-000",
+      "module": "HashKernel",
+      "name": "sha256d_len0"
+    },
+    {
+      "id": "HASH-001",
+      "module": "HashKernel",
+      "name": "sha256d_len1"
+    },
+    {
+      "id": "HASH-002",
+      "module": "HashKernel",
+      "name": "sha256d_len55"
+    },
+    {
+      "id": "HASH-003",
+      "module": "HashKernel",
+      "name": "sha256d_len100"
+    },
+    {
+      "id": "HASH-004",
+      "module": "HashKernel",
+      "name": "sha256d_len200"
+    },
+    {
+      "id": "HASH-005",
+      "module": "HashKernel",
+      "name": "sha256d_len256"
+    },
+    {
+      "id": "HASH-ABC-000",
+      "module": "HashKernel",
+      "name": "sha256d_abc"
+    },
+    {
+      "id": "HASH-PAD-000",
+      "module": "HashKernel",
+      "name": "sha256d_pad63"
+    },
+    {
+      "id": "HASH-PAD-001",
+      "module": "HashKernel",
+      "name": "sha256d_pad65"
+    },
+    {
+      "id": "FIPS-000",
+      "module": "Sha256Fips",
+      "name": "empty"
+    },
+    {
+      "id": "FIPS-001",
+      "module": "Sha256Fips",
+      "name": "abc"
+    },
+    {
+      "id": "FIPS-002",
+      "module": "Sha256Fips",
+      "name": "pad55"
+    },
+    {
+      "id": "FIPS-003",
+      "module": "Sha256Fips",
+      "name": "pad56"
+    },
+    {
+      "id": "FIPS-004",
+      "module": "Sha256Fips",
+      "name": "block64"
+    },
+    {
+      "id": "FIPS-005",
+      "module": "Sha256Fips",
+      "name": "nist56"
+    },
+    {
+      "id": "FIPS-006",
+      "module": "Sha256Fips",
+      "name": "pad63"
+    },
+    {
+      "id": "FIPS-007",
+      "module": "Sha256Fips",
+      "name": "pad65"
+    },
+    {
+      "id": "HASH-X-000",
+      "module": "HashKernel",
+      "name": "sha256d_var_0"
+    },
+    {
+      "id": "HASH-X-001",
+      "module": "HashKernel",
+      "name": "sha256d_var_1"
+    },
+    {
+      "id": "HASH-X-002",
+      "module": "HashKernel",
+      "name": "sha256d_var_2"
+    },
+    {
+      "id": "HASH-X-003",
+      "module": "HashKernel",
+      "name": "sha256d_var_3"
+    },
+    {
+      "id": "HASH-X-004",
+      "module": "HashKernel",
+      "name": "sha256d_var_4"
+    },
+    {
+      "id": "HASH-X-005",
+      "module": "HashKernel",
+      "name": "sha256d_var_5"
+    },
+    {
+      "id": "HASH-X-006",
+      "module": "HashKernel",
+      "name": "sha256d_var_6"
+    },
+    {
+      "id": "HASH-X-007",
+      "module": "HashKernel",
+      "name": "sha256d_var_7"
+    },
+    {
+      "id": "HASH-X-008",
+      "module": "HashKernel",
+      "name": "sha256d_var_8"
+    },
+    {
+      "id": "HASH-X-009",
+      "module": "HashKernel",
+      "name": "sha256d_var_9"
+    },
+    {
+      "id": "HASH-X-010",
+      "module": "HashKernel",
+      "name": "sha256d_var_10"
+    },
+    {
+      "id": "HASH-X-011",
+      "module": "HashKernel",
+      "name": "sha256d_var_11"
+    },
+    {
+      "id": "HASH-X-012",
+      "module": "HashKernel",
+      "name": "sha256d_var_12"
+    },
+    {
+      "id": "HASH-X-013",
+      "module": "HashKernel",
+      "name": "sha256d_var_13"
+    },
+    {
+      "id": "HASH-X-014",
+      "module": "HashKernel",
+      "name": "sha256d_var_14"
+    },
+    {
+      "id": "HASH-X-015",
+      "module": "HashKernel",
+      "name": "sha256d_var_15"
+    },
+    {
+      "id": "HASH-X-016",
+      "module": "HashKernel",
+      "name": "sha256d_var_16"
+    },
+    {
+      "id": "HASH-X-017",
+      "module": "HashKernel",
+      "name": "sha256d_var_17"
+    },
+    {
+      "id": "HASH-X-018",
+      "module": "HashKernel",
+      "name": "sha256d_var_18"
+    },
+    {
+      "id": "HASH-X-019",
+      "module": "HashKernel",
+      "name": "sha256d_var_19"
+    },
+    {
+      "id": "SMW-000",
+      "module": "ScriptMintNeg",
+      "name": "v0_p2wpkh_claimed_res"
+    },
+    {
+      "id": "SMW-001",
+      "module": "ScriptMintNeg",
+      "name": "v1_res2_claimed_oru"
+    },
+    {
+      "id": "SMW-002",
+      "module": "ScriptMintNeg",
+      "name": "v1_program_len_20"
+    },
+    {
+      "id": "SMW-003",
+      "module": "ScriptMintNeg",
+      "name": "p2pkh_nonstandard"
+    },
+    {
+      "id": "SMW-004",
+      "module": "ScriptMintNeg",
+      "name": "p2sh_nonstandard"
+    },
+    {
+      "id": "SMW-005",
+      "module": "ScriptMintNeg",
+      "name": "v0_p2wsh_claimed_res"
+    },
+    {
+      "id": "SMW-006",
+      "module": "ScriptMintNeg",
+      "name": "pcorb_five_items"
+    },
+    {
+      "id": "SMW-007",
+      "module": "ScriptMintNeg",
+      "name": "pcorb_amount_len_7"
+    },
+    {
+      "id": "SMW-008",
+      "module": "ScriptMintNeg",
+      "name": "witness_v2_32"
+    },
+    {
+      "id": "SMW-009",
+      "module": "ScriptMintNeg",
+      "name": "spend_cvg2"
+    },
+    {
+      "id": "SMW-010",
+      "module": "ScriptMintNeg",
+      "name": "domain_v0_tagged_res_oru_to_res"
+    },
+    {
+      "id": "SMW-011",
+      "module": "ScriptMintNeg",
+      "name": "mint_shape_ok_pcorb_five"
+    },
+    {
+      "id": "SASS-000",
+      "module": "ScriptAsset",
+      "name": "v0_p2wpkh"
+    },
+    {
+      "id": "SASS-001",
+      "module": "ScriptAsset",
+      "name": "native_res_rfc8032"
+    },
+    {
+      "id": "SASS-002",
+      "module": "ScriptAsset",
+      "name": "op_converge"
+    },
+    {
+      "id": "SASS-003",
+      "module": "ScriptAsset",
+      "name": "op_res_mint"
+    },
+    {
+      "id": "SASS-004",
+      "module": "ScriptAsset",
+      "name": "v0_p2wsh"
+    },
+    {
+      "id": "SASS-005",
+      "module": "ScriptAsset",
+      "name": "p2pkh"
+    },
+    {
+      "id": "SASS-006",
+      "module": "ScriptAsset",
+      "name": "cvg2"
+    },
+    {
+      "id": "SASS-007",
+      "module": "ScriptAsset",
+      "name": "res2"
+    },
+    {
+      "id": "SASS-008",
+      "module": "ScriptAsset",
+      "name": "empty"
+    },
+    {
+      "id": "SASS-009",
+      "module": "ScriptAsset",
+      "name": "op_return"
+    },
+    {
+      "id": "SASS-010",
+      "module": "ScriptAsset",
+      "name": "v1_len20"
+    }
+  ],
+  "invariant_modules": [
+    "BlockTrace",
+    "HashKernel",
+    "Replay",
+    "ScriptAsset",
+    "ScriptMintNeg",
+    "Sha256Fips"
+  ],
+  "invariant_sha256": "057c54e842894f20ecae43eb1c861edfbf99f06b5f857e28ca46455274f32882",
+  "polarity_flips": {
+    "NEG-002": "oru_only_creates_res currently expects reject=mint_wrong_amount. Under a deterministic destroy cost this is the legal mint shape: an ordinary transaction that destroys ORU and creates RES. The expected verdict inverts from reject to accept, conditional on the burn covering res_out * RATE(height).",
+    "NEG-013": "without_winner_mint expects reject=without_winner. The winner concept does not survive; the vector has no referent and must be replaced by a burn-insufficiency vector rather than rescaled."
+  },
+  "source": "phase3_golden_vectors.json",
+  "source_count": 433,
+  "source_version": "phase3-2.2-tightening"
+}

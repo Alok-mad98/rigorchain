@@ -99,6 +99,5 @@ FUZZ_TARGET(rigor_reorg)
     assert(surviving_mint == kept_mint + new_suffix_mint);
     (void)orphan_mint;
     assert(surviving_mint >= 0);
-    assert(Consensus::CONVERGENCE_DRAW_WINDOW == 32);
     assert(COINBASE_MATURITY == 100);
 }

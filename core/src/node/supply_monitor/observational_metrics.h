@@ -9,9 +9,46 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 
 class CBlock;
 class CBlockIndex;
+
+namespace Consensus {
+struct Params;
+}
+
+/**
+ * Path-fold outcome. Invalid is not "zero supply" and must not be written as a
+ * cache. The in-memory sentinel `-1` means uncached; this status means the fold
+ * refused the inputs (overflow / out of range). Callers must not rewrite Invalid
+ * to 0.
+ */
+enum class ObservationalFoldStatus : uint8_t {
+    Ok = 0,
+    Invalid = 1,
+};
+
+struct ObservationalFoldResult {
+    ObservationalFoldStatus status{ObservationalFoldStatus::Invalid};
+    CAmount value{0};
+
+    [[nodiscard]] bool ok() const { return status == ObservationalFoldStatus::Ok; }
+
+    static ObservationalFoldResult Ok(CAmount v)
+    {
+        ObservationalFoldResult r;
+        r.status = ObservationalFoldStatus::Ok;
+        r.value = v;
+        return r;
+    }
+    static ObservationalFoldResult Invalid() { return {}; }
+};
+
+/** Ancestor mint-sum fold. Writes Ok prefixes only; leaves the tip uncached on Invalid. */
+[[nodiscard]] ObservationalFoldResult FoldChainResMintTotal(const CBlockIndex* tip);
+/** Ancestor S_ORU fold. Writes Ok prefixes only; leaves the tip uncached on Invalid. */
+[[nodiscard]] ObservationalFoldResult FoldChainOruTotal(const CBlockIndex* tip, const Consensus::Params& consensus);
 
 /**
  * Post-validation index / explorer projection (W1, W2).
@@ -54,11 +91,14 @@ public:
     /**
      * Write path after consensus validation has accepted the block.
      *
-     * Ledger totals are supplied by the caller (indexer). Cumulative convergence
-     * is parent prefix + this block's destroyed ORU. No coinbase payload is read.
+     * Ledger totals are supplied by the caller (indexer). `std::nullopt` means
+     * the path-fold was Invalid: leave that ledger uncached (`-1`). Do not pass
+     * 0 as a stand-in for failure. Cumulative convergence is parent prefix +
+     * this block's destroyed ORU. No coinbase payload is read.
      */
     void Update(const CBlock& block, const CBlockIndex* pindexPrev,
-                CAmount chain_res_mint_total, CAmount chain_oru_total);
+                std::optional<CAmount> chain_res_mint_total,
+                std::optional<CAmount> chain_oru_total);
 
     /** DisconnectBlock: drop memory-only W1 ledgers so reorgs recompute from ancestors. */
     void InvalidateLedgerCaches()

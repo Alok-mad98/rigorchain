@@ -5,7 +5,6 @@
 #include <node/supply_monitor/runtime_supply_witness_chain.h>
 
 #include <chain.h>
-#include <consensus/rigor_consensus_lock.h>
 #include <sync.h>
 
 #include <deque>
@@ -110,7 +109,7 @@ public:
     }
 
 private:
-    static constexpr size_t MAX_ENTRIES = 4 * static_cast<size_t>(CONVERGENCE_DRAW_WINDOW);
+    static constexpr size_t MAX_ENTRIES = 128;
 
     void RecomputeLatestLocked() EXCLUSIVE_LOCKS_REQUIRED(m_mutex)
     {

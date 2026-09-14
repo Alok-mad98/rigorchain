@@ -31,9 +31,12 @@
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QTabWidget>
 #include <QUrl>
 #include <QVBoxLayout>
+
+#include <vector>
 
 namespace {
 
@@ -42,6 +45,67 @@ std::string WalletRpcUri(WalletModel* model)
     if (!model) return "/";
     const QByteArray encoded = QUrl::toPercentEncoding(model->getWalletName());
     return "/wallet/" + std::string(encoded.constData(), encoded.length());
+}
+
+/** One descriptor line extracted from a Key Management export or a raw paste. */
+struct ParsedImportDescriptor {
+    QString desc;
+    bool active{false};
+    bool internal{false};
+    bool have_active{false};
+    bool have_internal{false};
+};
+
+/**
+ * Export Descriptor writes human comments (# ...) plus checksummed descriptor
+ * lines. importdescriptors treats '#' as the checksum marker, so pasting the
+ * export verbatim used to fail with "Multiple '#' symbols".
+ */
+std::vector<ParsedImportDescriptor> ExtractImportDescriptors(const QString& text)
+{
+    std::vector<ParsedImportDescriptor> out;
+    const QStringList lines = text.split(QRegularExpression(QStringLiteral("[\\r\\n]+")), Qt::SkipEmptyParts);
+    for (const QString& raw : lines) {
+        const QString line = raw.trimmed();
+        if (line.isEmpty()) continue;
+        if (line.startsWith(QLatin1Char('#'))) {
+            if (out.empty()) continue;
+            if (line.contains(QStringLiteral("active="))) {
+                out.back().have_active = true;
+                out.back().active = line.contains(QStringLiteral("active=true"));
+            }
+            if (line.contains(QStringLiteral("internal="))) {
+                out.back().have_internal = true;
+                out.back().internal = line.contains(QStringLiteral("internal=true"));
+            }
+            continue;
+        }
+        QString desc = line;
+        desc.remove(QRegularExpression(QStringLiteral("\\s+")));
+        if (desc.isEmpty()) continue;
+        ParsedImportDescriptor parsed;
+        parsed.desc = desc;
+        out.push_back(parsed);
+    }
+    return out;
+}
+
+bool DescriptorHasPrivateMaterial(const QString& desc)
+{
+    if (desc.contains(QLatin1String("xprv"), Qt::CaseInsensitive)) return true;
+    static const QRegularExpression res_secret(QStringLiteral("res\\(([0-9a-fA-F]{128})\\)"));
+    return res_secret.match(desc).hasMatch();
+}
+
+// Public ranged HD after the xpub uses hardened steps (/0'/*') — cannot expand.
+bool DescriptorIsHardenedPublicRange(const QString& desc)
+{
+    if (desc.contains(QLatin1String("xprv"), Qt::CaseInsensitive)) return false;
+    const int xpub_at = desc.indexOf(QLatin1String("xpub"), 0, Qt::CaseInsensitive);
+    if (xpub_at < 0) return false;
+    const QString after_xpub = desc.mid(xpub_at);
+    return after_xpub.contains(QLatin1String("/*'")) ||
+           after_xpub.contains(QRegularExpression(QStringLiteral("/\\d+'")));
 }
 
 QString RpcErrorMessage(const std::exception& e)
@@ -71,8 +135,10 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
     auto* root = new QVBoxLayout(this);
     auto* intro = new QLabel(tr(
         "Descriptor-first key management for ORU (wpkh / Bech32) and RES (res / Bech32m). "
-        "Private keys never leave this machine. Prefer exporting public descriptors for watch-only cold storage. "
-        "Address-level export is under the Security tab (dumporuprivkey / dumpresprivkey)."));
+        "Private keys never leave this machine. "
+        "To restore a spendable HD wallet, export with private descriptors and keep that file offline. "
+        "Public ranged xpub lines use hardened paths and cannot be imported. "
+        "Address-level export is under the Export private key tab (dumporuprivkey / dumpresprivkey)."));
     intro->setWordWrap(true);
     root->addWidget(intro);
 
@@ -125,59 +191,10 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         m_privkey_status->setWordWrap(true);
         layout->addWidget(m_privkey_status);
         layout->addStretch();
-        m_tabs->addTab(page, tr("Import Private Key"));
+        m_tabs->addTab(page, tr("Import private key"));
     }
 
-    // --- Import descriptor ---
-    {
-        auto* page = new QWidget(this);
-        auto* layout = new QVBoxLayout(page);
-        layout->addWidget(new QLabel(tr("Paste a checksummed descriptor (wpkh(...)#… or res(...)#…):")));
-        m_desc_import_edit = new QPlainTextEdit(page);
-        m_desc_import_edit->setPlaceholderText(tr("wpkh([fingerprint/path]xpub…)#checksum\nor res(<32-byte pubkey hex>)#checksum"));
-        layout->addWidget(m_desc_import_edit, 1);
-
-        m_desc_active = new QCheckBox(tr("Mark as active receive descriptor (ranged ORU only; RES res() is fixed)"), page);
-        layout->addWidget(m_desc_active);
-
-        auto* btn = new QPushButton(tr("Import Descriptor"), page);
-        connect(btn, &QPushButton::clicked, this, &KeyManagementDialog::importDescriptor);
-        layout->addWidget(btn);
-
-        m_desc_status = new QLabel(page);
-        m_desc_status->setWordWrap(true);
-        layout->addWidget(m_desc_status);
-        m_tabs->addTab(page, tr("Import Descriptor"));
-    }
-
-    // --- Export cold storage ---
-    {
-        auto* page = new QWidget(this);
-        auto* layout = new QVBoxLayout(page);
-        layout->addWidget(new QLabel(tr(
-            "Export descriptors for cold-storage backup or an online watch-only wallet. "
-            "Public descriptors contain no private keys.")));
-
-        m_export_private = new QCheckBox(tr("Include private descriptors (keep offline only)"), page);
-        layout->addWidget(m_export_private);
-
-        auto* row = new QHBoxLayout();
-        auto* export_btn = new QPushButton(tr("Export Cold Storage Descriptors"), page);
-        connect(export_btn, &QPushButton::clicked, this, &KeyManagementDialog::exportDescriptors);
-        row->addWidget(export_btn);
-        auto* copy_btn = new QPushButton(tr("Copy"), page);
-        connect(copy_btn, &QPushButton::clicked, this, &KeyManagementDialog::copyExport);
-        row->addWidget(copy_btn);
-        row->addStretch();
-        layout->addLayout(row);
-
-        m_desc_export_edit = new QPlainTextEdit(page);
-        m_desc_export_edit->setReadOnly(true);
-        layout->addWidget(m_desc_export_edit, 1);
-        m_tabs->addTab(page, tr("Export Descriptor"));
-    }
-
-    // --- Security: Export Private Key ---
+    // --- Export private key ---
     {
         auto* page = new QWidget(this);
         auto* layout = new QVBoxLayout(page);
@@ -192,7 +209,7 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         layout->addWidget(warning);
 
         layout->addWidget(new QLabel(tr(
-            "Advanced security path only (Settings → Advanced → Security → Export Private Key). "
+            "Address-level private key export (dumporuprivkey / dumpresprivkey). "
             "Not shown on Overview, Receive, Transactions, or Convergence.")));
 
         auto* form = new QFormLayout();
@@ -224,7 +241,65 @@ KeyManagementDialog::KeyManagementDialog(const PlatformStyle* platformStyle, QWi
         m_export_key_status->setWordWrap(true);
         layout->addWidget(m_export_key_status);
 
-        m_tabs->addTab(page, tr("Security / Export Private Key"));
+        m_tabs->addTab(page, tr("Export private key"));
+    }
+
+    // --- Import descriptor ---
+    {
+        auto* page = new QWidget(this);
+        auto* layout = new QVBoxLayout(page);
+        layout->addWidget(new QLabel(tr(
+            "Paste a checksummed descriptor, or a Key Management export. "
+            "Comment lines starting with # are ignored. "
+            "A public export (# private: no) cannot restore this spendable HD wallet — "
+            "re-export with private descriptors checked.")));
+        m_desc_import_edit = new QPlainTextEdit(page);
+        m_desc_import_edit->setPlaceholderText(tr(
+            "Private restore: export with “Include private descriptors”, then paste here.\n"
+            "Watch-only: res(<32-byte pubkey hex>)#checksum into a watch-only wallet."));
+        layout->addWidget(m_desc_import_edit, 1);
+
+        m_desc_active = new QCheckBox(tr("Mark as active receive descriptor (ranged ORU only; RES res() is fixed)"), page);
+        layout->addWidget(m_desc_active);
+
+        auto* btn = new QPushButton(tr("Import Descriptor"), page);
+        connect(btn, &QPushButton::clicked, this, &KeyManagementDialog::importDescriptor);
+        layout->addWidget(btn);
+
+        m_desc_status = new QLabel(page);
+        m_desc_status->setWordWrap(true);
+        m_desc_status->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        layout->addWidget(m_desc_status);
+        m_tabs->addTab(page, tr("Import descriptor"));
+    }
+
+    // --- Export descriptor ---
+    {
+        auto* page = new QWidget(this);
+        auto* layout = new QVBoxLayout(page);
+        layout->addWidget(new QLabel(tr(
+            "Private export restores a spendable HD wallet (keep offline). "
+            "Public export is not a restore file: RIGOR HD paths are hardened (/0'/*'), "
+            "so xpub lines cannot be imported. A watch-only wallet can import res(<pubkey hex>). "
+            "Comment lines starting with # are ignored when importing.")));
+
+        m_export_private = new QCheckBox(tr("Include private descriptors (keep offline only)"), page);
+        layout->addWidget(m_export_private);
+
+        auto* row = new QHBoxLayout();
+        auto* export_btn = new QPushButton(tr("Export Cold Storage Descriptors"), page);
+        connect(export_btn, &QPushButton::clicked, this, &KeyManagementDialog::exportDescriptors);
+        row->addWidget(export_btn);
+        auto* copy_btn = new QPushButton(tr("Copy"), page);
+        connect(copy_btn, &QPushButton::clicked, this, &KeyManagementDialog::copyExport);
+        row->addWidget(copy_btn);
+        row->addStretch();
+        layout->addLayout(row);
+
+        m_desc_export_edit = new QPlainTextEdit(page);
+        m_desc_export_edit->setReadOnly(true);
+        layout->addWidget(m_desc_export_edit, 1);
+        m_tabs->addTab(page, tr("Export descriptor"));
     }
 
     auto* close_btn = new QPushButton(tr("Close"), this);
@@ -312,30 +387,108 @@ void KeyManagementDialog::importPrivateKey()
 void KeyManagementDialog::importDescriptor()
 {
     if (!m_model) return;
-    const QString desc = m_desc_import_edit->toPlainText().trimmed();
-    if (desc.isEmpty()) {
+    const QString pasted = m_desc_import_edit->toPlainText().trimmed();
+    if (pasted.isEmpty()) {
         m_desc_status->setText(tr("Paste a descriptor first."));
         return;
     }
 
-    try {
-        UniValue req(UniValue::VOBJ);
-        req.pushKV("desc", desc.toStdString());
-        req.pushKV("timestamp", "now");
-        if (m_desc_active->isChecked()) {
-            req.pushKV("active", true);
-        }
+    const std::vector<ParsedImportDescriptor> parsed = ExtractImportDescriptors(pasted);
+    if (parsed.empty()) {
+        m_desc_status->setText(tr(
+            "No descriptor line found. Comment lines starting with # are ignored. "
+            "Paste a checksummed descriptor (wpkh(...)#… or res(...)#…)."));
+        return;
+    }
 
+    const bool spendable = !m_model->wallet().privateKeysDisabled();
+    bool has_private = false;
+    for (const ParsedImportDescriptor& item : parsed) {
+        if (DescriptorHasPrivateMaterial(item.desc)) has_private = true;
+    }
+
+    if (spendable && !has_private) {
+        m_desc_status->setText(tr(
+            "This is a public export. It cannot restore a spendable HD wallet.\n\n"
+            "RIGOR HD derivation is hardened (/0'/*'). An xpub cannot create those child keys, "
+            "so the ranged res(...) / wpkh(...) lines fail with "
+            "“hardened derivations without private keys”. "
+            "The single-key res(<pubkey hex>) line cannot be imported into a wallet that already has private keys.\n\n"
+            "To restore spendability: open Export descriptor, check "
+            "“Include private descriptors (keep offline only)”, then import that file "
+            "into a new or blank wallet.\n"
+            "To watch a public key only: create a watch-only wallet and import res(<32-byte pubkey hex>)."));
+        return;
+    }
+
+    std::vector<ParsedImportDescriptor> to_import = parsed;
+    if (!spendable && !has_private) {
+        to_import.clear();
+        for (const ParsedImportDescriptor& item : parsed) {
+            if (!DescriptorIsHardenedPublicRange(item.desc)) {
+                to_import.push_back(item);
+            }
+        }
+        if (to_import.empty()) {
+            m_desc_status->setText(tr(
+                "Ranged public descriptors with hardened paths cannot be imported, even into a watch-only wallet. "
+                "Import res(<32-byte pubkey hex>) or an address descriptor instead."));
+            return;
+        }
+    }
+
+    try {
         UniValue requests(UniValue::VARR);
-        requests.push_back(req);
+        for (const ParsedImportDescriptor& item : to_import) {
+            UniValue req(UniValue::VOBJ);
+            req.pushKV("desc", item.desc.toStdString());
+            req.pushKV("timestamp", "now");
+            const bool active = item.have_active ? item.active : m_desc_active->isChecked();
+            if (active) {
+                req.pushKV("active", true);
+            }
+            if (item.have_internal) {
+                req.pushKV("internal", item.internal);
+            }
+            requests.push_back(req);
+        }
         UniValue params(UniValue::VARR);
         params.push_back(requests);
 
         const UniValue result = m_model->node().executeRpc("importdescriptors", params, WalletRpcUri(m_model));
-        if (result.isArray() && !result.empty() && result[0]["success"].get_bool()) {
-            m_desc_status->setText(tr("Descriptor imported successfully. Back up the wallet if this added spendable keys."));
+        bool all_ok = result.isArray() && !result.empty();
+        int ok_count = 0;
+        QStringList failures;
+        if (result.isArray()) {
+            int i = 0;
+            for (const UniValue& row : result.getValues()) {
+                if (row.exists("success") && row["success"].get_bool()) {
+                    ++ok_count;
+                } else {
+                    all_ok = false;
+                    QString reason = QStringLiteral("unknown error");
+                    if (row.exists("error") && row["error"].isObject() && row["error"].exists("message")) {
+                        reason = QString::fromStdString(row["error"]["message"].get_str());
+                    }
+                    const QString desc = (i < static_cast<int>(to_import.size())) ? to_import[static_cast<size_t>(i)].desc : QString();
+                    failures << QStringLiteral("%1: %2").arg(desc.left(48), reason);
+                }
+                ++i;
+            }
+        }
+        QString extra;
+        if (to_import.size() < parsed.size()) {
+            extra = QLatin1Char('\n') + tr("Skipped %1 hardened public xpub line(s); they cannot be expanded.")
+                                            .arg(static_cast<int>(parsed.size() - to_import.size()));
+        }
+        if (all_ok) {
+            m_desc_status->setText(tr("Imported %1 descriptor(s) successfully. Back up the wallet if this added spendable keys.")
+                                       .arg(ok_count) + extra);
         } else {
-            m_desc_status->setText(tr("Import result: %1").arg(QString::fromStdString(result.write(2))));
+            m_desc_status->setText(tr("Imported %1 of %2 descriptor(s).\n%3")
+                                       .arg(ok_count)
+                                       .arg(static_cast<int>(to_import.size()))
+                                       .arg(failures.join(QLatin1Char('\n'))) + extra);
         }
     } catch (const UniValue& e) {
         m_desc_status->setText(tr("Import failed: %1").arg(QString::fromStdString(e.write())));
@@ -353,9 +506,16 @@ void KeyManagementDialog::exportDescriptors()
         const UniValue result = m_model->node().executeRpc("listdescriptors", params, WalletRpcUri(m_model));
 
         QStringList lines;
-        lines << tr("# RIGOR cold-storage descriptor export");
-        lines << tr("# wallet: %1").arg(m_model->getWalletName());
-        lines << tr("# private: %1").arg(m_export_private->isChecked() ? tr("yes — keep offline") : tr("no"));
+        if (m_export_private->isChecked()) {
+            lines << tr("# RIGOR cold-storage descriptor export");
+            lines << tr("# wallet: %1").arg(m_model->getWalletName());
+            lines << tr("# private: yes — keep offline");
+        } else {
+            lines << tr("# RIGOR public descriptor export");
+            lines << tr("# wallet: %1").arg(m_model->getWalletName());
+            lines << tr("# private: no");
+            lines << tr("# not a restore file — hardened xpub cannot be imported");
+        }
         lines << QString();
 
         const UniValue& descs = result["descriptors"];

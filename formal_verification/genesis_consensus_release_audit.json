@@ -6,7 +6,7 @@
   "historical_chain": false,
   "legacy_compatibility_required": false,
   "GENESIS_CONSENSUS_READY": true,
-  "REFINEMENT_PROVED": true,
+  "REFINEMENT_PROVED": false,
   "EQUIVALENCE_PROVED": false,
   "SINGLE_PRODUCTION_AUTHORITY": true,
   "production_call_graph": [
@@ -21,7 +21,7 @@
   "authorities": {
     "pow": "CheckProofOfWork",
     "issuance": "GetBlockSubsidy",
-    "res": "GetResMintReward",
+    "res": "CheckResMintArithmetic",
     "classification": "ClassifyRigorTxout",
     "draw": "ResolveConvergenceDraw",
     "supply": "RigorSupplyDelta",

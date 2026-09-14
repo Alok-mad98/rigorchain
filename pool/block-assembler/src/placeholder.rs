@@ -10,15 +10,14 @@ pub fn body_mint_placeholder_txid(record_seed: &[u8]) -> String {
 
 /// Body-mint slot metadata for JobSnapshot schema compatibility.
 ///
-/// TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 (Option A): the pool **never** reserves a
-/// merkle placeholder for RES mint and **never** marks `mint_required`. RES body
-/// mint bytes, when required by consensus, arrive only as opaque GBT transactions
-/// from `rigord` automint — the pool does not invent them.
+/// RFC-020: `reserved=false` and `mint_required=false` always. Callers that pass
+/// `mint_required=true` are refused by [`crate::assembly::assemble_from_gbt`].
 pub fn build_body_mint_placeholder(
     gbt_tx_count: usize,
-    _mint_required: bool,
+    mint_required: bool,
     _record_seed: &[u8],
 ) -> BodyMintPlaceholder {
+    let _ = mint_required;
     BodyMintPlaceholder {
         // Informational: first index after coinbase + GBT package (unused for merkle).
         slot_index: gbt_tx_count + 1,

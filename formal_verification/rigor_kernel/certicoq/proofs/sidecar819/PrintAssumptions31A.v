@@ -1,0 +1,9 @@
+From Phase10 Require Import ClosedPhase31A Phase31B_Unlift.
+Print Assumptions sl_f_case_120_computes_ok.
+Print Assumptions sl_f_case_118_computes_error.
+Print Assumptions first_bad_temporary_is_f_case_118_env_301.
+Print Assumptions unlift_makes_f_case_118_simpllocals_ok.
+Print Assumptions unlift_makes_all_internal_simpllocals_ok.
+Print Assumptions check_oru_cminor_has_switch.
+Print Assumptions check_oru_selection_helpers_ok.
+Print Assumptions unlift_sset_only_params.

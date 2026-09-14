@@ -9,7 +9,8 @@
 | **Date** | 2026-09-03 |
 | **Nature** | Release engineering / distribution. **Not** a consensus change. |
 
-Official user downloads use the P0-092 names. The retired AlphaPlus names
+Official user downloads use the names in the release build matrix
+(historical verification reference: P0-092). The retired AlphaPlus names
 (`rigor-v0.1.2-alphaplus-*`) are **not** official v0.1.3 assets.
 
 ---
@@ -17,6 +18,14 @@ Official user downloads use the P0-092 names. The retired AlphaPlus names
 ## v0.1.3 changes
 
 - Production **stable** channel: `VERSION=0.1.3`, tag `v0.1.3`, `ALPHAPLUS_RELEASE=false`.
+- Display identity matches the artifact names: About dialog, `rigord --version`,
+  Windows setup wizard (no longer "Rigor Wallet Alpha"), and macOS
+  `CFBundleShortVersionString` all show **v0.1.3**. Packed `CLIENT_VERSION`
+  remains `25.0.0` (serialization / wallet file version, not the product tag).
+- Official wallet packages do **not** include `rigor-miner` / mining software.
+- macOS `.dmg` files on this release were originally identity stubs
+  (~19 KiB). Real Qt wallet DMGs are built on GitHub-hosted macOS runners via
+  `.github/workflows/release-wallet-macos.yml` (WSL cannot emit Mach-O).
 - Official multi-platform artifact names (architecture required):
   - `rigor-v0.1.3-windows-x86_64.exe`
   - `rigor-v0.1.3-windows-x86_64.zip`
@@ -99,10 +108,9 @@ rigor-v0.1.3-macos-arm64.dmg
 ## Known limitations
 
 - Packed `CLIENT_VERSION` remains `25.0.0` (wallet / fee-estimate file versions
-  are not rewritten).
-- Existing operator-built `rigord` may still print the previous display banner
-  `v0.1.2-alphaplus` until a later identity-stamp rebuild. The **release
-  channel and artifact names** are v0.1.3 stable.
+  are not rewritten). Display identity (`RIGOR_RELEASE_VERSION`, About dialog,
+  `rigord --version`, Windows NSIS Name/InstallDir, macOS `CFBundleShortVersionString`)
+  is **v0.1.3**.
 - macOS `.dmg` files are not generated on WSL. Use the GitHub Actions macOS
   jobs from P0-092.
 - This is not a Guix-reproducible signed/notarized build.

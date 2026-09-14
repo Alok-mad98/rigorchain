@@ -13,7 +13,7 @@
     toward zero; Coq [Z.div] floors. Those differ for [h < 0]. This file
     does not change either formula.
 
-      refinement_proved                    = true   (this kernel boundary only)
+      refinement_proved                    = false  (kernel-wide flag; issuance models now match RFC-020)
       equivalence_proved                   = false  (not the node)
       extracted_kernel_production          = false
       compcert_binary_verified_kernel      = false
@@ -43,7 +43,7 @@ Local Open Scope Z_scope.
 
 (** * Honesty *)
 
-Definition refinement_proved : bool := true.
+Definition refinement_proved : bool := false.
 Definition equivalence_proved : bool := false.
 Definition extracted_kernel_production : bool := false.
 Definition extracted_kernel_linked : bool := extracted_kernel_production.
@@ -54,7 +54,7 @@ Definition db_refinement_proved : bool := false.
 Definition pow_refinement_proved : bool := false.
 Definition transaction_kernel_refinement_proved : bool := false.
 
-Theorem kernel_boundary_refinement_proved : refinement_proved = true.
+Theorem kernel_boundary_refinement_proved : refinement_proved = false.
 Proof. reflexivity. Qed.
 
 Theorem node_equivalence_not_proved : equivalence_proved = false.
@@ -80,18 +80,19 @@ Record cpp_issuance_params := {
   cpp_max_shifts : Z
 }.
 
-(** Must match Consensus::ORU_INITIAL_BLOCK_SUBSIDY / HALVING_INTERVAL / MAX_SHIFTS.
-    FrozenKernelParams does not apply to regtest (nSubsidyHalvingInterval = 150). *)
+(** Must match Consensus::ORU_FLAT_BLOCK_SUBSIDY.
+    cpp_interval is the observational calendar (RES_REWARD_EPOCH), not a mint argument.
+    cpp_max_shifts = 0: RFC-020 has no halvings.
+    FrozenKernelParams does not apply to regtest. *)
 Definition FrozenKernelParams : cpp_issuance_params :=
-  {| cpp_base := 100000000000;
+  {| cpp_base := 12800000000;
      cpp_interval := 210000;
-     cpp_max_shifts := 3 |}.
+     cpp_max_shifts := 0 |}.
 
 Definition ORU_GENESIS_BLOCK_SUBSIDY_Z : Z := 0.
-Definition ORU_MIN_BLOCK_SUBSIDY_Z : Z :=
-  Z.shiftr (cpp_base FrozenKernelParams) (cpp_max_shifts FrozenKernelParams).
-Definition ORU_SUBSIDY_CAP_HEIGHT : Z :=
-  cpp_interval FrozenKernelParams * cpp_max_shifts FrozenKernelParams.
+Definition ORU_FLAT_BLOCK_SUBSIDY_Z : Z := cpp_base FrozenKernelParams.
+Definition ORU_MIN_BLOCK_SUBSIDY_Z : Z := ORU_FLAT_BLOCK_SUBSIDY_Z.
+Definition ORU_SUBSIDY_CAP_HEIGHT : Z := 0.
 
 Definition kernel_params_frozen (p : cpp_issuance_params) : Prop :=
   p = FrozenKernelParams.
@@ -100,25 +101,14 @@ Definition cpp_RigorIssuanceEpoch (h : Z) : Z :=
   if h <? 0 then 0 else h / 210000.
 
 Definition cpp_GetBlockSubsidy (h : Z) (p : cpp_issuance_params) : Z :=
-  if cpp_base p <=? 0 then 0
-  else if cpp_interval p <=? 0 then 0
-  else if h =? 0 then ORU_GENESIS_BLOCK_SUBSIDY_Z
-  else
-    let halvings := h / cpp_interval p in
-    if cpp_max_shifts p >=? 0 then
-      Z.shiftr (cpp_base p) (Z.min halvings (cpp_max_shifts p))
-    else if halvings >=? 64 then 0
-    else Z.shiftr (cpp_base p) halvings.
+  if h <=? 0 then ORU_GENESIS_BLOCK_SUBSIDY_Z
+  else cpp_base p.
 
-Definition cpp_ResRewardForEpoch (k : Z) : Z :=
-  if ((k <? 0) || (k >? Z.of_nat RES_REWARD_LAST_EPOCH))%bool then 0
-  else
-    let e := k + 1 in
-    Z.shiftl RES_REWARD_GENESIS 16 / Z.sqrt (Z.shiftl (e * e * e) 32).
+Definition cpp_ResDestroyCostForEpoch (k : Z) : Z :=
+  res_destroy_cost_at_height (k * RES_REWARD_EPOCH).
 
-Definition cpp_GetResMintReward (h : Z) : Z :=
-  if h <? 0 then 0
-  else cpp_ResRewardForEpoch (h / RES_REWARD_EPOCH).
+Definition cpp_ResDestroyCostAtHeight (h : Z) : Z :=
+  res_destroy_cost_at_height h.
 
 Record issuance_pack := {
   ip_epoch : Z;
@@ -129,12 +119,12 @@ Record issuance_pack := {
 Definition cpp_issuance (h : Z) (p : cpp_issuance_params) : issuance_pack :=
   {| ip_epoch := cpp_RigorIssuanceEpoch h;
      ip_oru := cpp_GetBlockSubsidy h p;
-     ip_res_schedule := cpp_GetResMintReward h |}.
+     ip_res_schedule := cpp_ResDestroyCostAtHeight h |}.
 
 Definition coq_issuance (h : Z) (p : cpp_issuance_params) : issuance_pack :=
   {| ip_epoch := issuance_epoch h;
      ip_oru := oru_subsidy h;
-     ip_res_schedule := get_res_mint_reward h |}.
+     ip_res_schedule := res_destroy_cost_at_height h |}.
 
 Definition compute_issuance (h : Z) : issuance_pack :=
   coq_issuance h FrozenKernelParams.
@@ -146,130 +136,45 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma cpp_res_epoch_eq_coq :
-  forall k, 0 <= k ->
-    cpp_ResRewardForEpoch k = res_reward_for_epoch (Z.to_nat k).
-Proof.
-  intros k Hk.
-  unfold cpp_ResRewardForEpoch, res_reward_for_epoch.
-  destruct ((k <? 0) || (k >? Z.of_nat RES_REWARD_LAST_EPOCH))%bool eqn:G.
-  - apply orb_true_iff in G. destruct G as [Hn | Hi].
-    + apply Z.ltb_lt in Hn. lia.
-    + apply Z.gtb_lt in Hi.
-      replace (Nat.ltb RES_REWARD_LAST_EPOCH (Z.to_nat k)) with true.
-      { reflexivity. }
-      symmetry. apply Nat.ltb_lt.
-      apply Nat2Z.inj_lt.
-      rewrite Z2Nat.id by exact Hk.
-      exact Hi.
-  - apply orb_false_iff in G. destruct G as [Hn Hi].
-    pose proof (Z.gtb_spec k (Z.of_nat RES_REWARD_LAST_EPOCH)) as Hs.
-    rewrite Hi in Hs.
-    replace (Nat.ltb RES_REWARD_LAST_EPOCH (Z.to_nat k)) with false.
-    { rewrite Z2Nat.id by exact Hk. reflexivity. }
-    symmetry. apply Nat.ltb_nlt.
-    intros Hnat.
-    apply Nat2Z.inj_lt in Hnat.
-    rewrite Z2Nat.id in Hnat by exact Hk.
-    inversion Hs. lia.
-Qed.
-
-Lemma cpp_res_schedule_is_coq :
-  forall h, cpp_GetResMintReward h = get_res_mint_reward h.
-Proof.
-  intros h.
-  unfold cpp_GetResMintReward, get_res_mint_reward.
-  destruct (h <? 0) eqn:L; [reflexivity|].
-  apply cpp_res_epoch_eq_coq.
-  apply Z.ltb_ge in L.
-  apply Z.div_pos; [exact L | unfold RES_REWARD_EPOCH; lia].
-Qed.
-
-Lemma cpp_oru_frozen_is_coq :
-  forall h, 0 <= h ->
+Lemma cpp_oru_is_coq :
+  forall h,
     cpp_GetBlockSubsidy h FrozenKernelParams = oru_subsidy h.
 Proof.
-  intros h Hh.
-  unfold cpp_GetBlockSubsidy, FrozenKernelParams, oru_subsidy.
-  simpl.
-  destruct (h =? 0) eqn:Z0.
-  - apply Z.eqb_eq in Z0. subst. reflexivity.
-  - unfold issuance_epoch, HALVING_INTERVAL, ORU_INITIAL_SATS.
-    destruct (h <? 0) eqn:Ln.
-    { apply Z.ltb_lt in Ln. lia. }
-    reflexivity.
+  intros h.
+  unfold cpp_GetBlockSubsidy, oru_subsidy, FrozenKernelParams, ORU_FLAT_SATS.
+  simpl. reflexivity.
 Qed.
 
+Lemma cpp_res_epoch_eq_coq :
+  forall k,
+    cpp_ResDestroyCostForEpoch k = res_destroy_cost_at_height (k * RES_REWARD_EPOCH).
+Proof. intros k. reflexivity. Qed.
+
+Lemma cpp_res_schedule_is_coq :
+  forall h, cpp_ResDestroyCostAtHeight h = res_destroy_cost_at_height h.
+Proof. intros h. reflexivity. Qed.
+
 Theorem issuance_refinement :
-  forall h params,
-    kernel_params_frozen params ->
-    0 <= h ->
-    cpp_issuance h params = coq_issuance h params.
+  forall h,
+    cpp_issuance h FrozenKernelParams = coq_issuance h FrozenKernelParams.
 Proof.
-  intros h params Hp Hh.
-  unfold kernel_params_frozen in Hp. subst params.
+  intros h.
   unfold cpp_issuance, coq_issuance.
-  rewrite cpp_epoch_is_coq.
-  rewrite cpp_oru_frozen_is_coq by exact Hh.
-  rewrite cpp_res_schedule_is_coq.
+  rewrite cpp_epoch_is_coq, cpp_oru_is_coq, cpp_res_schedule_is_coq.
   reflexivity.
 Qed.
 
-Theorem issuance_pins :
-  let p := FrozenKernelParams in
-  cpp_issuance 0 p = coq_issuance 0 p /\
-  cpp_issuance 1 p = coq_issuance 1 p /\
-  cpp_issuance 99 p = coq_issuance 99 p /\
-  cpp_issuance 100 p = coq_issuance 100 p /\
-  cpp_issuance 209999 p = coq_issuance 209999 p /\
-  cpp_issuance 210000 p = coq_issuance 210000 p /\
-  cpp_issuance 419999 p = coq_issuance 419999 p /\
-  cpp_issuance 630000 p = coq_issuance 630000 p /\
-  cpp_issuance 840000 p = coq_issuance 840000 p /\
-  cpp_issuance 1050000 p = coq_issuance 1050000 p.
-Proof.
-  repeat split; apply issuance_refinement; unfold kernel_params_frozen; reflexivity; lia.
-Qed.
+Theorem cpp_flat_oru_pins :
+  cpp_GetBlockSubsidy 0 FrozenKernelParams = 0 /\
+  cpp_GetBlockSubsidy 1 FrozenKernelParams = 12800000000 /\
+  cpp_GetBlockSubsidy 209999 FrozenKernelParams = 12800000000 /\
+  cpp_GetBlockSubsidy 210000 FrozenKernelParams = 12800000000 /\
+  cpp_GetBlockSubsidy 630000 FrozenKernelParams = 12800000000.
+Proof. repeat split; reflexivity. Qed.
 
-Theorem oru_subsidy_constant_after_cap :
-  forall h,
-    ORU_SUBSIDY_CAP_HEIGHT <= h ->
-    cpp_GetBlockSubsidy h FrozenKernelParams = ORU_MIN_BLOCK_SUBSIDY_Z /\
-    oru_subsidy h = ORU_MIN_BLOCK_SUBSIDY_Z.
-Proof.
-  intros h Hh.
-  assert (Hge0 : 0 <= h) by (unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia).
-  split.
-  - unfold cpp_GetBlockSubsidy, FrozenKernelParams, ORU_GENESIS_BLOCK_SUBSIDY_Z.
-    simpl.
-    destruct (h =? 0) eqn:Z0.
-    + apply Z.eqb_eq in Z0. unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia.
-    + replace (Z.min (h / 210000) 3) with 3.
-      { unfold ORU_MIN_BLOCK_SUBSIDY_Z, FrozenKernelParams. simpl. reflexivity. }
-      symmetry. apply Z.min_r.
-      unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh. simpl in Hh.
-      assert (3 <= h / 210000).
-      { replace 3 with (630000 / 210000) by reflexivity.
-        apply Z.div_le_mono; lia. }
-      lia.
-  - rewrite <- cpp_oru_frozen_is_coq by exact Hge0.
-    unfold cpp_GetBlockSubsidy, FrozenKernelParams, ORU_GENESIS_BLOCK_SUBSIDY_Z.
-    simpl.
-    destruct (h =? 0) eqn:Z0.
-    + apply Z.eqb_eq in Z0. unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh; simpl in Hh; lia.
-    + replace (Z.min (h / 210000) 3) with 3.
-      { unfold ORU_MIN_BLOCK_SUBSIDY_Z, FrozenKernelParams. simpl. reflexivity. }
-      symmetry. apply Z.min_r.
-      unfold ORU_SUBSIDY_CAP_HEIGHT, FrozenKernelParams in Hh. simpl in Hh.
-      assert (3 <= h / 210000).
-      { replace 3 with (630000 / 210000) by reflexivity.
-        apply Z.div_le_mono; lia. }
-      lia.
-Qed.
-
-Theorem res_schedule_at_0_is_40000000 :
-  cpp_GetResMintReward 0 = 40000000 /\
-  get_res_mint_reward 0 = 40000000.
+Theorem res_schedule_at_0_is_genesis_destroy_cost :
+  cpp_ResDestroyCostAtHeight 0 = RES_DESTROY_COST_GENESIS /\
+  res_destroy_cost_at_height 0 = RES_DESTROY_COST_GENESIS.
 Proof. split; vm_compute; reflexivity. Qed.
 
 Theorem res_actual_issuance_at_0_is_0 :
@@ -277,7 +182,7 @@ Theorem res_actual_issuance_at_0_is_0 :
 Proof. reflexivity. Qed.
 
 Theorem res_schedule_is_not_actual_issuance :
-  cpp_GetResMintReward 0 <> CanonicalIssuance.res_issued_at_height 0.
+  cpp_ResDestroyCostAtHeight 0 <> CanonicalIssuance.res_issued_at_height 0.
 Proof. vm_compute. discriminate. Qed.
 
 (** * Classification — script bytes only. No sighash / Ed25519. *)

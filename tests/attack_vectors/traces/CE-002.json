@@ -1,0 +1,82 @@
+{
+  "expected_rejection_point": "CCoinsViewCache / CheckTxInputs",
+  "before": {
+    "case_id": "CE-002",
+    "block_hash": null,
+    "height": null,
+    "header_result": "accept",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "CheckTxInputs",
+        "inputs_checked": true,
+        "utxo_result": true,
+        "script_result": true,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": ""
+      }
+    ],
+    "block_result": "accept",
+    "rejection_layer": "CCoinsViewCache",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": false,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "after": {
+    "case_id": "CE-002",
+    "block_hash": null,
+    "height": null,
+    "header_result": "accept",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "CheckTxInputs",
+        "inputs_checked": true,
+        "utxo_result": false,
+        "script_result": true,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": "Transaction already in block chain / inputs missing/spent"
+      }
+    ],
+    "block_result": "reject",
+    "rejection_layer": "CCoinsViewCache",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": false,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate_difference": {
+    "ki_utxo_ok": {
+      "before": true,
+      "after": false
+    }
+  },
+  "future_refinement_target": "UTXOState.current_set_not_prior_block"
+}

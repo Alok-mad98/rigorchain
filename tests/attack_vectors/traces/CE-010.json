@@ -1,0 +1,82 @@
+{
+  "expected_rejection_point": "VerifyRigorPredicate",
+  "before": {
+    "case_id": "CE-010",
+    "block_hash": null,
+    "height": null,
+    "header_result": "accept",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "VerifyRigorPredicate",
+        "inputs_checked": false,
+        "utxo_result": true,
+        "script_result": true,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": ""
+      }
+    ],
+    "block_result": "accept",
+    "rejection_layer": null,
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": true,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "after": {
+    "case_id": "CE-010",
+    "block_hash": null,
+    "height": null,
+    "header_result": "accept",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "VerifyRigorPredicate",
+        "inputs_checked": false,
+        "utxo_result": true,
+        "script_result": false,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": "mandatory-script-verify-flag-failed"
+      }
+    ],
+    "block_result": "reject",
+    "rejection_layer": "VerifyRigorPredicate",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": false,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate_difference": {
+    "ki_script_ok": {
+      "before": true,
+      "after": false
+    }
+  },
+  "future_refinement_target": "WitnessValidation.sound"
+}

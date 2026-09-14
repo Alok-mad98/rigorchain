@@ -14,6 +14,7 @@
   "date": "2026-09-03",
   "tag": "v0.1.3",
   "title": "RIGOR v0.1.3",
+  "url": "https://github.com/rigorchain/rigorchain/releases/tag/v0.1.3",
   "alphaplus_release": false,
   "forbidden_legacy_prefix": "rigor-v0.1.2-alphaplus-",
   "official_artifacts": [
@@ -24,33 +25,47 @@
     "rigor-v0.1.3-macos-arm64.dmg",
     "SHA256SUMS"
   ],
-  "local_sha256": {
-    "rigor-v0.1.3-windows-x86_64.exe": "83b698f0826e85a5e424600d692296bf4a6e1c0b89614a631177aadd0c237bd9",
-    "rigor-v0.1.3-windows-x86_64.zip": "bbb7cc0d1bb7b03bdabe8c5f2fdd6df80e14df850ef06696fccce3c1821e3858",
-    "rigor-v0.1.3-linux-x86_64.tar.gz": "78784fe9691ee67ef5d68eb5ccc437b316c362698b6033434d635b7f3a020ff9"
+  "freeze_commit": "a0a470fccc70777202d411d60d088ade413cd094",
+  "linux_build_git_commit": "a0a470fccc70",
+  "sha256": {
+    "rigor-v0.1.3-windows-x86_64.exe": "be9a5e137d559571f4ffbc4ba31ed6840646091171c5d6415de3e1fc5a54e03d",
+    "rigor-v0.1.3-windows-x86_64.zip": "2189cdc0d1ece09db21d795b3fd81058410d3ae8a26a4af8996188397fbae690",
+    "rigor-v0.1.3-linux-x86_64.tar.gz": "617cc180c68df06c96bb1a37872236551b0d8ccc49f29453dd6fa0d0bb22701d",
+    "rigor-v0.1.3-macos-x86_64.dmg": "9efbb8e9886669801b84a150f409671b6f3a22c7d1deb9905de767dbf2e6266f",
+    "rigor-v0.1.3-macos-arm64.dmg": "6abadd5b9804fc94003fcac61b5b7d432d97a1271102b4ffd6cc3a8e7e243daa"
   },
-  "artifacts_missing_local": [
-    "rigor-v0.1.3-macos-x86_64.dmg",
-    "rigor-v0.1.3-macos-arm64.dmg"
-  ],
-  "wsl_cannot_generate_macos_binaries": true,
-  "github_actions_macos": {
-    "intel": "macos-15-intel",
-    "arm64": "macos-15"
-  },
+  "fresh_download_sha256sum_c": "PASS",
+  "github_release_created": "PASS",
+  "tag_v0_1_3": "PASS",
+  "git_describe": "v0.1.3",
+  "artifact_upload": "PASS",
+  "sha256_verification": "PASS",
   "linux_install_test": "PASS",
   "windows_install_test": "PASS",
-  "macos_intel_install_test": "FAIL",
-  "macos_arm_install_test": "FAIL",
+  "macos_intel_install_test": "PASS",
+  "macos_arm_install_test": "PASS",
+  "macos_install_evidence": "P0-094 run 33717592867: real wallet DMGs (~20 MiB). Runner smoke mounted each DMG, checked .app + lipo arch, MACOS_INSTALL_TEST=PASS. WSL cannot hdiutil-attach.",
   "windows_run": "SKIPPED_NO_WINE",
+  "install_test": "PASS",
+  "release_guardian": "PASS",
   "release_guardian_this_host": {
     "command": "bash tools/run-release-guardian-full-pipeline-audit.sh",
-    "result": "FAIL",
-    "blocked_reason": "stale production binary; source newer than rigord: core/src/init.cpp mtime (content unchanged; no git diff)"
+    "result": "PASS",
+    "exit": 0,
+    "p0_094_note": "Re-run after P0-094 macOS recovery; rigord rebuilt so mtime gate passed. Guardian stages unchanged."
   },
+  "production_release_status": "PASS",
   "consensus_code_changed": false,
   "database_format_changed": false,
   "wallet_format_changed": false,
+  "wsl_cannot_generate_macos_binaries": true,
+  "github_actions_macos": {
+    "intel": "macos-15-intel",
+    "arm64": "macos-15",
+    "run_id": "33717592867"
+  },
   "notes": "docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md",
-  "staging": ".github/releases/v0.1.3/"
+  "staging": ".github/releases/v0.1.3/",
+  "final_verdict": "PASS",
+  "final_verdict_reason": "P0-094 recovered real macOS wallet DMGs (run 33717592867). RELEASE_GUARDIAN_FULL_PIPELINE=PASS and DATABASE_SECURITY_STAGE=PASS on this host. Tag v0.1.3 not moved."
 }

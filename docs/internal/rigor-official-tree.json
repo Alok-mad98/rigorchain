@@ -1,8 +1,0 @@
-{
-  "task": "TASK-RELEASE-007-OFFICIAL-TREE-BUILD-001",
-  "source_repository": "ardachain/ring (private development)",
-  "target_repository": "rigorchain/rigorchain",
-  "repository_type": "official_protocol_source",
-  "history": "orphan",
-  "visibility": "private"
-}

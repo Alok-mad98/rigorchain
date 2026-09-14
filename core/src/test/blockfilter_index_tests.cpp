@@ -5,8 +5,8 @@
 #include <blockfilter.h>
 #include <chainparams.h>
 #include <coins.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <consensus/validation.h>
 #include <index/blockfilterindex.h>
 #include <interfaces/chain.h>
@@ -80,14 +80,7 @@ CBlock BuildChainTestingSetup::CreateBlock(const CBlockIndex* prev,
     }
     {
         CMutableTransaction tx_coinbase{*block.vtx.at(0)};
-        // A-9-C: the committed C spans the draw window, not this block alone.
-        const uint256 convergence_root = GetTemplateConvergenceRoot(
-            block,
-            prev,
-            m_node.chainman->ActiveChainstate().CoinsTip(),
-            m_node.chainman->GetConsensus());
-        tx_coinbase.vin.at(0).scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-            prev->nHeight + 1, convergence_root, uint256{});
+        tx_coinbase.vin.at(0).scriptSig = Consensus::BuildCoinbaseScriptSig(prev->nHeight + 1);
         block.vtx.at(0) = MakeTransactionRef(std::move(tx_coinbase));
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }

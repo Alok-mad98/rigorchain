@@ -72,8 +72,8 @@ def main() -> int:
             errors.append(f"missing vector {vid}")
 
     g0s = by_id.get("P049-G0-RES-SCHEDULE", {})
-    if g0s.get("get_res_mint_reward") != 40000000:
-        errors.append("P049-G0-RES-SCHEDULE schedule value drifted")
+    if g0s.get("get_res_mint_reward") != 102400000000:
+        errors.append("P049-G0-RES-SCHEDULE destroy_cost(0) drifted")
     if g0s.get("res_issued") != 0:
         errors.append("P049-G0-RES-SCHEDULE actual issuance must stay 0")
     if not g0s.get("schedule_is_not_actual"):

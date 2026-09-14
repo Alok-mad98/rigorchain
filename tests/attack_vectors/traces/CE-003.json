@@ -1,0 +1,55 @@
+{
+  "expected_rejection_point": null,
+  "before": {
+    "case_id": "CE-003",
+    "block_hash": "a2a13f5e03c503176eb0d1beffa15e07124114689cd49eafc5457e3c25f216ca",
+    "height": 122,
+    "header_result": "accept",
+    "pow_result": true,
+    "asert_result": true,
+    "tx_results": [],
+    "block_result": "accept",
+    "rejection_layer": null,
+    "kernel_candidate": {
+      "status": "partial",
+      "note": "Disconnect has no KernelInput field.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "after": {
+    "case_id": "CE-003",
+    "block_hash": "a2a13f5e03c503176eb0d1beffa15e07124114689cd49eafc5457e3c25f216ca",
+    "height": 122,
+    "header_result": "accept",
+    "pow_result": true,
+    "asert_result": true,
+    "tx_results": [],
+    "block_result": "accept",
+    "rejection_layer": null,
+    "kernel_candidate": {
+      "status": "partial",
+      "note": "Disconnect has no KernelInput field.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate_difference": {},
+  "future_refinement_target": "UTXOState.connect_disconnect_inverse"
+}

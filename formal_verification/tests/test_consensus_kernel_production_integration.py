@@ -107,12 +107,10 @@ def main() -> int:
         errors.append("GetBlockSubsidy(0)")
     if run(OCAML, "res-issued", "0") != "0":
         errors.append("res_issued_at_height(0)")
-    if run(OCAML, "res-schedule", "0") != "40000000":
-        errors.append("GetResMintReward(0) schedule")
+    if run(OCAML, "res-schedule", "0") != "102400000000":
+        errors.append("ResDestroyCostAtHeight(0)")
     if run(OCAML, "res-schedule", "0") == "0":
-        errors.append("FORBIDDEN: schedule at 0 collapsed to actual 0")
-    if run(OCAML, "draw-empty") != "NONE":
-        errors.append("empty F must be NONE")
+        errors.append("FORBIDDEN: RATE at 0 collapsed to actual 0")
     if run(OCAML, "maturity-const") != "100":
         errors.append("ORU/RES maturity const")
     if run(CPP, "maturity-const") != "100":
@@ -140,12 +138,8 @@ def main() -> int:
         errors.append("claimable")
     if run(OCAML, "ledger-delta", sub1, "2") != str(int(sub1) - 2):
         errors.append("ledger delta")
-    if run(OCAML, "res-coinbase", "0", "0", "40000000") != "40000000":
+    if run(OCAML, "res-coinbase", "0", "0") != "0":
         errors.append("res coinbase predicate")
-    if run(OCAML, "apply-delta", "0", "0", "0", "0", "0", "1", "0", "1") != "REJECT":
-        errors.append("invalid apply-delta must REJECT")
-    if run(OCAML, "apply-delta", "0", "0", "0", "0", "0", "1", "0", "0") != "0 0 0 0":
-        errors.append("genesis apply-delta")
 
     if errors:
         print("FAIL: consensus kernel production integration")

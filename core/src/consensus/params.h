@@ -16,98 +16,6 @@
 namespace Consensus {
 
 /**
- * RFC-014 §2.1 corrected — SECURITY-001-A finding A-6.
- *
- * RFC-014 fixes the per-candidate convergence probability at `p = 2^-16` and its
- * §5.4 sensitivity analysis (100 mints/yr at N=125, 7.3% saturation at N=5000,
- * 228-day cold start at N=2) reproduces exactly under that figure. But §2.1 then
- * writes the constant as `p = T / 2^256`, i.e. it evaluates the consensus rule
- *
- *     H_i < T * f_i
- *
- * at `f_i = 1`. The implemented weight `f_i` is the convergence amount **in
- * satoshis**, floored at `MIN_CONVERGENCE_AMOUNT = 1 ORU = 1e8`, so shipping
- * `T = 2^240` gave `T * f_min ≈ 2^266.6 > 2^256` and the inequality was
- * satisfied by every candidate unconditionally — the eligibility filter was a
- * constant `true` and each block's RES draw degenerated into "whoever the miner
- * chose to include". The 512-bit arithmetic in rigor_math.h was never at fault.
- *
- * The corrected constant restores exactly the economics RFC-014 already
- * adjudicated, by dividing out the unit error:
- *
- *     RES_PROBABILITY_TARGET := floor(2^E / MIN_CONVERGENCE_AMOUNT)
- *
- * which yields, for a candidate converging n ORU,
- *
- *     p(n) = n / 2^(256-E)      (saturating at 1 for n >= 2^(256-E) ORU)
- *
- * At the E = 240 in force when A-6 was fixed that is p(1 ORU) = 2^-16 exactly, as RFC-014 §2.1
- * intended. That was a correction of a unit error, not a monetary decision: no figure in
- * RFC-014 §5.4 changed. RFC-017 subsequently moves E to 246, which IS a monetary decision and
- * is argued separately below.
- *
- * ---------------------------------------------------------------------------
- * SECURITY-001-A9-C: divided by the draw window W.
- *
- * The candidate set F now spans CONVERGENCE_DRAW_WINDOW = 32 blocks instead of one, so every
- * convergence transaction is a candidate in W consecutive draws rather than a single draw.
- * Left alone, that would multiply RES issuance by W. Dividing the target by the same W
- * restores neutrality exactly:
- *
- *     RES_PROBABILITY_TARGET := floor(2^E / MIN_CONVERGENCE_AMOUNT) >> CONVERGENCE_DRAW_WINDOW_LOG2
- *
- * per-draw probability   p_draw(n) = n / (C · W) = n / 32768     (at E = 246, C = 1024)
- * expected wins per tx   W · p_draw(n) = n / C = n / 1024   ← unchanged from the pre-A9C model
- *
- * So aggregate issuance and the burn-proportional fairness property are both preserved, and
- * no figure in RFC-014 §5.4 changes at the aggregate level.
- *
- * ONE ECONOMIC PROPERTY DOES CHANGE, deliberately. Eligibility no longer saturates at C ORU.
- * Per draw, saturation now needs C·W = 32 768 ORU; a candidate burning C = 1024 ORU is
- * eligible in at least one draw of the window with probability
- * 1 - (1 - p/W)^W ≈ 1 - e^-1 ≈ 63%, not 100%. The hard saturation cliff becomes a smooth
- * curve. This is intended: SECURITY-001-A8-DESIGN-REVIEW finding F-2 identified "burn to
- * saturation, then censor" as the cheapest path to GUARANTEED RES acquisition, and removing
- * the guarantee is the point. Total expected wins per unit burned is unchanged.
- *
- * ---------------------------------------------------------------------------
- * RFC-017: the exponent moves from 240 to 246.
- *
- * Inverting the relation above, a per-block burn of b base units yields b / (1e8 · 2^(256−E))
- * expected eligible candidates, i.e. one mint per C ORU burned with C = 2^(256−E). At E = 240
- * that is C = 65 536 ORU per mint, against an ORU tail of 125 ORU/block: the whole network
- * produces ~100 mints per year even if every newly emitted ORU is converged. A draw that fires
- * twice a week globally at its physical maximum has no price discovery and no observable
- * issuance. E = 246 gives C = 1024 ORU, ~6 400 mints/year at the same physical maximum.
- *
- * E is bounded above as well. The one-mint-per-block rule truncates the expected count, and at
- * E >= 247 epoch 0 saturates: every block mints regardless of burn, so `H_i < T · f_i` stops
- * discriminating and the eligibility filter — the thing A-6 was fixed to preserve — goes inert
- * during bootstrap. E = 246 reaches saturation only under a 100%-burn assumption.
- *
- * Cap utilisation is deliberately NOT a criterion. Cumulative ORU emission is fixed, so
- * (RES issued) × (average ORU cost per RES) is bounded by a constant; raising E buys supply by
- * halving average production cost, which is the inverse of what a store of value needs. See
- * RFC-017 §5.2 and §5.4.
- *
- * INVARIANTS (guarded by res_proof_math_tests):
- *   1. T * MIN_CONVERGENCE_AMOUNT < 2^256 — if this fails the eligibility filter is vacuous
- *      again and the draw degenerates to "whoever the miner chose to include" (the A-6 bug).
- *      At E = 246 the margin is 2^15; the boundary is at E = 261.
- *   2. T == floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, floored. The
- *      pre-windowing target is not a multiple of W (its residue mod 32 is 27), so the division
- *      discards a remainder and neutrality is exact only to a relative 27/T ≈ 2.4e-65 — far
- *      below the smallest quantity this protocol can express. The floor relation is what is
- *      pinned by test, not a lossless round trip.
- */
-inline const uint256 RES_PROBABILITY_TARGET_CONST{
-    uint256S("000000000055e63b88c230e77e7ee106959b5d3e1e9ea69ebac0b0b4be383479")};
-
-/** Pre-A9C value, retained so tests can assert the shift relation rather than a bare literal. */
-inline const uint256 RES_PROBABILITY_TARGET_UNWINDOWED{
-    uint256S("000000000abcc77118461cefcfdc20d2b36ba7c3d3d4d3d758161697c7068f3b")};
-
-/**
  * A buried deployment is one where the height of the activation has been hardcoded into
  * the client implementation long after the consensus change has activated. See BIP 90.
  */
@@ -166,30 +74,6 @@ struct BIP9Deployment {
  */
 struct Params {
     uint256 hashGenesisBlock;
-    /**
-     * Per-block ORU subsidy halving interval in blocks. MUST be positive on
-     * every shipped network. Zero or negative is fail-closed: `GetBlockSubsidy`
-     * returns 0 (TASK-010 R-6) rather than dividing by zero.
-     */
-    int nSubsidyHalvingInterval;
-    /**
-     * Per-block ORU subsidy base before right-shift halving. MUST be positive on
-     * every shipped network (`Consensus::ORU_INITIAL_BLOCK_SUBSIDY`). Zero is
-     * fail-closed: `GetBlockSubsidy` returns 0 (TASK-010 D-7). There is no
-     * Bitcoin 50 COIN fallback.
-     * Rigor main/testnet/signet/regtest/devtest use `nBlockSubsidyMaxHalvingShifts`
-     * to cap further halving (see GetBlockSubsidy).
-     */
-    CAmount nBlockSubsidyBase{0};
-    /**
-     * When >= 0, subsidy = nBlockSubsidyBase >> min(nHeight / nSubsidyHalvingInterval, nBlockSubsidyMaxHalvingShifts)
-     * (no further halving after that floor; ORU emission continues indefinitely at that per-block amount).
-     * Example: base 1000 ORU, interval 210000 (~4y at 10min blocks): 1000 → 500 → 250 → 125 ORU then fixed at 125.
-     * -1 means uncapped Bitcoin-style halving until period 64 then subsidy 0.
-     */
-    int nBlockSubsidyMaxHalvingShifts{-1};
-    /** Fixed draw target bits: T = ResMintTargetArith(this); see Consensus::ResDrawTargetForBlock. */
-    uint8_t res_mint_target_bits{14};
     /** Confirmations required before spending an ORU coinbase or a body RES mint UTXO. */
     int nCoinbaseMaturity{100};
     /** Block height and hash at which BIP34 becomes active */
@@ -208,20 +92,6 @@ struct Params {
     /** Don't warn about unknown BIP 9 activations below this height.
      * This prevents us from warning about the CSV and segwit activations. */
     int MinBIP9WarningHeight;
-    /**
-     * RFC-014 (Conv-Decouple-01), as corrected by SECURITY-001-A finding A-6:
-     * RES convergence eligibility constant. Identical across all networks
-     * (RFC-014 §2.4). It is the RHS of `H_i < RES_PROBABILITY_TARGET * f_i`
-     * (RFC-008 §6.1 / §14) and is NOT derived at runtime from `nBits`, ASERT
-     * state, or any header field. Parent `nBits` is not a σ input
-     * (SECURITY-001-A8 / Sigma-PoW-01). Historical Sigma-CR-01 `bind_commit` is
-     * superseded.
-     *
-     * Always assign `Consensus::RES_PROBABILITY_TARGET_CONST`; see the note
-     * there for why the literal `2^240` printed in RFC-014 §2.1 is wrong, and for
-     * why RFC-017 sets the exponent to 246.
-     */
-    uint256 RES_PROBABILITY_TARGET;
     /**
      * Minimum blocks including miner confirmation of the total of 2016 blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.

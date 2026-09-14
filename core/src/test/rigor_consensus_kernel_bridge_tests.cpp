@@ -7,7 +7,6 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
@@ -26,9 +25,6 @@ BOOST_AUTO_TEST_CASE(p052_genesis_schedule_is_not_actual)
 {
     const auto& c = Params().GetConsensus();
     BOOST_CHECK_EQUAL(GetBlockSubsidy(0, c), 0);
-    BOOST_CHECK_EQUAL(Consensus::GetResMintReward(0), Consensus::RES_REWARD_GENESIS);
-    BOOST_CHECK_EQUAL(Consensus::RES_REWARD_GENESIS, 40 * Consensus::RES_COIN);
-    BOOST_CHECK_NE(Consensus::GetResMintReward(0), 0);
 
     RigorSupplyDeltaInput in;
     in.height = 0;
@@ -36,7 +32,6 @@ BOOST_AUTO_TEST_CASE(p052_genesis_schedule_is_not_actual)
     RigorSupplyDeltaResult out;
     BOOST_CHECK(RigorSupplyDelta(in, c, out, state));
     BOOST_CHECK_EQUAL(out.oru_subsidy, 0);
-    BOOST_CHECK_EQUAL(out.res_reward_scheduled, Consensus::RES_REWARD_GENESIS);
     BOOST_CHECK_EQUAL(out.res_delta, 0);
     BOOST_CHECK_EQUAL(out.oru_circulating_delta, 0);
 }
@@ -61,16 +56,6 @@ BOOST_AUTO_TEST_CASE(p052_maturity_issued_is_not_mature)
     BOOST_CHECK_EQUAL(RES_MINT_MATURITY, 100);
     BOOST_CHECK_LT(100 - 1, COINBASE_MATURITY);
     BOOST_CHECK_GE(101 - 1, COINBASE_MATURITY);
-}
-
-BOOST_AUTO_TEST_CASE(p052_empty_F_draw_none)
-{
-    ConvergenceDrawSet empty;
-    empty.source_height = 0;
-    BOOST_CHECK(empty.candidates.empty());
-    const ConvergenceDrawOutcome o =
-        ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST);
-    BOOST_CHECK(!o.HasWinner());
 }
 
 BOOST_AUTO_TEST_CASE(p052_supply_layer_mapping)

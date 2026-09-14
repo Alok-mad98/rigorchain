@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { DarkCard } from "../components/DarkCard";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
@@ -46,8 +45,8 @@ export function DownloadPage() {
 
       <section className="card prose-section">
         <p>
-          Always compare published SHA256 sums. After install, confirm chain validity in the browser
-          via <Link to="/zero-trust-verification">Zero-Trust Verification</Link>.
+          Always compare published SHA256 sums. After install, confirm chain validity with a local
+          node.
         </p>
         <ul>
           <li>

@@ -48,17 +48,17 @@ def main() -> int:
         c = jrun(CABI, "issuance", h)
         if o != c:
             errors.append(f"issuance({h}) ocaml={o} cabi={c}")
-        for key in ("epoch", "oru_subsidy", "res_reward_schedule"):
+        for key in ("epoch", "oru_subsidy", "res_destroy_cost"):
             if o.get(key) != pin[key]:
                 errors.append(f"issuance({h}) {key} pin={pin[key]} got={o.get(key)}")
         if CPP.is_file():
             epoch = run(CPP, "epoch", h)
             oru = run(CPP, "oru", h)
-            sched = run(CPP, "res-schedule", h)
-            if int(epoch) != o["epoch"] or int(oru) != o["oru_subsidy"] or int(sched) != o["res_reward_schedule"]:
+            price = run(CPP, "res-price", h)
+            if int(epoch) != o["epoch"] or int(oru) != o["oru_subsidy"] or int(price) != o["res_destroy_cost"]:
                 errors.append(f"issuance({h}) cpp kernel mismatch")
-        if pin["height"] == 0 and o["res_reward_schedule"] == 0:
-            errors.append("FORBIDDEN: schedule at 0 collapsed")
+        if pin["height"] == 0 and o["res_destroy_cost"] == 0:
+            errors.append("FORBIDDEN: RATE at height 0 collapsed")
 
     for pin in vec["maturity"]:
         args = [str(pin["spend"]), str(pin["coin"])]
@@ -99,13 +99,9 @@ def main() -> int:
         if oj != cj:
             errors.append(f"draw {case['id']} ocaml={oj} cabi={cj}")
         winners[case["id"]] = oj
-    if winners.get("boundary_target", {}).get("has_winner") is not False:
-        errors.append(f"boundary T=0 must be none: {winners.get('boundary_target')}")
-    if winners.get("one", {}).get("has_winner") is not True:
-        errors.append(f"single candidate must win: {winners.get('one')}")
-    if winners.get("two") and winners.get("same_target"):
-        if winners["two"].get("winner") != winners["same_target"].get("winner"):
-            errors.append("same-target order independence failed")
+    for case_id, result in winners.items():
+        if result.get("has_winner") is not False:
+            errors.append(f"RFC-019 retired the lottery; {case_id} must be empty: {result}")
 
     for pin in vec["supply"]:
         args = [

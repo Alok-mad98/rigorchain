@@ -1,0 +1,10 @@
+{
+  "id": "INVALID-004",
+  "domain": "asert",
+  "expect": "INVALID",
+  "theorem": "negative_time_error_preserved",
+  "failure_reason": "ASERT extreme negative time with a non-negative expected_q (sign / quotient mismatch)",
+  "te": -1000000,
+  "tau": 43200,
+  "expected_q": 0
+}

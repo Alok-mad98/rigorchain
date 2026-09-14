@@ -53,13 +53,9 @@ Definition CONVERGENCE_DRAW_WINDOW : Z := 32.
     changes what the chain issues rather than how it selects.
 
     E fixes the ORU cost of one mint at C = 2^(256-E) ORU: 65536 at E = 240, 1024 at E = 246.
-    Because the reward schedule W(k) is a protocol constant (ResSchedule.v) rather than a
-    function of demand, C is the entire cost side of the system, and C / W(k) is the floor price
-    of one RES in ORU. At E = 240 that floor was so high relative to the ORU subsidy that the
-    whole chain's output funded a mint only every ~65 blocks, and cumulative RES issuance under
-    100%-burn stayed under 1% of the cap — the cap described nothing. E = 246 brings the
-    economically reachable ceiling and the scheduled ceiling into the same order of magnitude, so
-    the cap becomes a meaningful bound on dilution.
+    RES minting is body-tx burn-to-mint at continuous `destroy_cost(h)`. The
+    pole predicate `R · (2^25+h)^2 ≤ B << 40` is the cost side. There is
+    no per-block RES grant.
 
     Neither direction is free. Every proof in this file is a statement about T alone and holds at
     both exponents; the constraint E must satisfy is that T stay non-vacuous, which
@@ -132,11 +128,11 @@ Proof. vm_compute. discriminate. Qed.
     quantitative reason, and these two lemmas pin the quantity so that changing the exponent
     without revisiting the monetary argument is a proof failure rather than a silent repricing.
 
-    [mint_cost_is_1024_oru] is the economic content of E: the expected ORU weight consumed per
-    successful draw is 2^256 / T_unwindowed = 2^(256-E) ORU. It is C in RFC-017, the numerator of
-    the cost floor C / W(k), and it is a protocol constant — independent of demand, of the ORU
-    subsidy schedule, and of every piece of chain state. That independence is why the cost floor
-    is a schedule rather than a market outcome.
+    [mint_cost_is_1024_oru] is the economic content of E: the expected ORU
+    weight consumed per successful draw is 2^256 / T_unwindowed = 2^(256-E)
+    ORU. That is a protocol constant, independent of demand and of the ORU
+    subsidy. RES minting itself is the RFC-020 pole predicate, not a
+    per-block grant.
 
     [saturation_weight_is_32768_oru] pins the other end. Above the saturation weight the draw
     inequality holds for every digest, so additional ORU on one candidate buys no additional

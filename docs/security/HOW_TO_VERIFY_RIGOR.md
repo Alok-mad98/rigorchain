@@ -1,6 +1,5 @@
 # How to Verify RIGOR
 
-**Task companion:** `TASK-RIGOR-FORMAL-VERIFICATION-PUBLIC-RELEASE-ARCHITECTURE-P0-001`  
 **Public map:** [`verification/README.md`](../../verification/README.md)  
 **Honesty:**
 
@@ -59,14 +58,15 @@ python3 scripts/check_golden_lock.py
 
 ---
 
-## 3. RFC-017 schedule parity (C++ formula mirror ≡ Python ≡ Coq pins)
+## 3. RFC-020 schedule parity (C++ formula mirror ≡ Python ≡ Coq pins)
 
 ```bash
 cd formal_verification
 python3 tests/test_rfc017_schedule_parity.py
 ```
 
-**Expected:** exit 0; no mismatches for `k = 0..251`.
+**Expected:** exit 0; golden heights and closed-form cap match.
+The filename is historical.
 
 ---
 

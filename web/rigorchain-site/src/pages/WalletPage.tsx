@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { ConvergencePanel } from "../components/ConvergencePanel";
 import { DarkCard } from "../components/DarkCard";
 import { RESMintPanel } from "../components/RESMintPanel";
@@ -23,7 +22,7 @@ export function WalletPage() {
           <p>Confirmation and spendability are observations, not a verdict.</p>
         </DarkCard>
         <DarkCard title="Convergence" to="/wallet/convergence" linkLabel="Convergence">
-          <p>Deterministic selection over candidate set F.</p>
+          <p>Destroy ORU at destroy_cost(h) to mint RES. The miner does not receive the RES.</p>
         </DarkCard>
         <DarkCard title="RES" to="/wallet/res" linkLabel="RES detail">
           <p>Scarce settlement asset. Mint linkage is distinct from ORU balance.</p>
@@ -39,9 +38,7 @@ export function WalletPage() {
         <pre className="mono-json">{`gettransaction <txid>
 sendtoaddress  # returns the TXID`}</pre>
         <p>
-          Paste that TXID into{" "}
-          <Link to="/zero-trust-verification">Zero-Trust Verification</Link>. The browser recomputes
-          ConvergenceRoot, Sigma, and winner selection locally.
+          Use that TXID to inspect the transaction in Explorer.
         </p>
       </section>
     </div>

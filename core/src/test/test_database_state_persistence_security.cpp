@@ -115,6 +115,7 @@ struct Coin {
     std::vector<uint8_t> script;
     uint32_t height{0};
     bool coinbase{false};
+    uint32_t n_flags{0};
 };
 
 //! CRC-32C Castagnoli. Matches crc32c::Crc32c (init 0 / empty → 0).
@@ -156,7 +157,7 @@ std::vector<uint8_t> DecodeScript(const std::vector<uint8_t>& buf, size_t& pos)
 uint32_t CoinIntegrityChecksum(const Coin& c)
 {
     std::vector<uint8_t> raw;
-    raw.reserve(4 + 1 + 8 + c.script.size());
+    raw.reserve(4 + 1 + 8 + 4 + c.script.size());
     raw.push_back('R');
     raw.push_back('G');
     raw.push_back('C');
@@ -167,6 +168,7 @@ uint32_t CoinIntegrityChecksum(const Coin& c)
     memcpy(&bits, &c.n_value, 8);
     for (int i = 0; i < 8; ++i) raw.push_back(static_cast<uint8_t>(bits >> (8 * i)));
     raw.insert(raw.end(), c.script.begin(), c.script.end());
+    for (int i = 0; i < 4; ++i) raw.push_back(static_cast<uint8_t>(c.n_flags >> (8 * i)));
     return Crc32c(raw.data(), raw.size());
 }
 
@@ -196,6 +198,8 @@ std::vector<uint8_t> EncodeLeaf(const Coin& c)
     out.insert(out.end(), amt.begin(), amt.end());
     const auto sc = EncodeScript(c.script);
     out.insert(out.end(), sc.begin(), sc.end());
+    const auto flags = WriteVarInt(c.n_flags);
+    out.insert(out.end(), flags.begin(), flags.end());
     return out;
 }
 
@@ -217,6 +221,7 @@ Coin DecodeCoin(const std::vector<uint8_t>& buf)
     c.n_value = static_cast<int64_t>(camt);
     if (camt > 10000000000ull * 100000000ull) throw CodecError("nValue out of MoneyRange");
     c.script = DecodeScript(buf, pos);
+    c.n_flags = static_cast<uint32_t>(ReadVarInt(buf, pos));
     const uint32_t stored = ReadU32LE(buf, pos);
     if (stored != CoinIntegrityChecksum(c)) throw CodecError("checksum mismatch");
     if (pos != buf.size()) throw CodecError("trailing bytes");
@@ -295,6 +300,7 @@ void TestCoinRoundtrip()
     Expect(d.height == c.height, "height");
     Expect(d.coinbase == c.coinbase, "coinbase");
     Expect(d.script == c.script, "script");
+    Expect(d.n_flags == c.n_flags, "n_flags");
     const auto again = EncodeCoin(d);
     Expect(again == raw, "coin encode involution");
     const auto leaf = EncodeLeaf(c);

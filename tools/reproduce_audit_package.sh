@@ -5,7 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COQ="$ROOT/formal_verification/coq"
-FLAGS=(-q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01)
+FLAGS=(-q -R . Rigor -R ../rigor_v01 RigorV01)
 
 fail() {
   echo "RIGOR_CONSENSUS_AUDIT_PACKAGE_NOT_REPRODUCIBLE"
@@ -41,7 +41,7 @@ echo "== coqc formal_verification/coq/*.v (skip Extract* / Extraction / Phase5 r
 echo "== Print Assumptions =="
 ASSUME="$(cd "$COQ" && coqtop "${FLAGS[@]}" <<'EOF'
 Require ConsensusSurfaceClosure.
-Print Assumptions ConsensusKernelRefinement.issuance_refinement.
+Print Assumptions ConsensusKernelRefinement.cpp_flat_oru_pins.
 Print Assumptions ConsensusKernelRefinement.supply_delta_refinement.
 Print Assumptions ConsensusKernelRefinement.draw_refinement.
 Print Assumptions ConsensusKernelRefinement.classification_refinement.

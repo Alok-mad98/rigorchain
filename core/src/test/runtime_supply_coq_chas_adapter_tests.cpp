@@ -67,10 +67,9 @@ Consensus::RuntimeSupplyState MakeMirror(int32_t height,
     m.oru_supply_cumulative = oru_cum;
     m.res_mint_parent = res_parent;
     m.res_mint_block = res_block;
-    m.res_mint_count_block = mint_count;
+    m.res_mint_present_block = mint_count;
     m.res_mint_cumulative = res_parent + res_block;
     m.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    m.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     return m;
 }
 
@@ -118,14 +117,15 @@ BOOST_FIXTURE_TEST_CASE(delta_matches_hook_partial_with_mirror, ChasFixture)
 
     const Consensus::RuntimeSupplyWitness parent =
         MakeWitness(9, parent_hash, HashFromLabel("p8"), parent_oru, 0);
+    const CAmount res_mint = 1 * COIN;  // Synthetic RES mint for testing
     const Consensus::RuntimeSupplyWitness child =
-        MakeWitness(10, child_hash, parent_hash, child_oru, Consensus::RES_REWARD_GENESIS);
+        MakeWitness(10, child_hash, parent_hash, child_oru, res_mint);
     Consensus::StoreRuntimeSupplyWitness(parent);
     Consensus::StoreRuntimeSupplyWitness(child);
 
     const Consensus::RuntimeSupplyState mirror = MakeMirror(
         10, child_hash, parent_hash, parent_oru, child_oru, subsidy, burn, 0,
-        Consensus::RES_REWARD_GENESIS, 1);
+        res_mint, 1);
 
     const Consensus::RuntimeSupplyWitnessCoqCatalogRow row = Consensus::BuildWitnessCoqCatalogRow(
         child, mirror, true, Consensus::RuntimeSupplyMirrorSource::STORED_MIRROR, parent);
@@ -133,7 +133,7 @@ BOOST_FIXTURE_TEST_CASE(delta_matches_hook_partial_with_mirror, ChasFixture)
         Consensus::BuildChasAlignmentFromCatalogRow(row);
 
     BOOST_CHECK_EQUAL(report.delta.rs_oru_supply_delta, subsidy - burn);
-    BOOST_CHECK_EQUAL(report.delta.rs_res_supply_delta, Consensus::RES_REWARD_GENESIS);
+    BOOST_CHECK_EQUAL(report.delta.rs_res_supply_delta, res_mint);
     BOOST_CHECK(report.delta_audit_violations.empty());
     BOOST_CHECK_EQUAL(report.chas_oru_state.status, Consensus::CanonicalHashAlignmentStatus::Partial);
     BOOST_CHECK(report.chas_oru_state.audit_notes.end() !=

@@ -9,18 +9,21 @@
     Ledger follows RFC-002 ([m_chain_oru_total] does not subtract fee burn).
     Circulating follows RFC-018 (unclaimed burn never enters the UTXO set).
 
-    Composes identities previously split across DualPool, fee-burn/BlockSupply,
+    Composes identities previously split across DualPool, FeeBurn/BlockSupply,
     AssetStateTransition, and ConnectBlockSupply — in *this* state type.
 
-    Not a C++ [ConnectBlock] refinement. No [Axiom] / [Admitted].
-    Production W/T/reward/maturity/ScriptPubKey are not modified. *)
+    RFC-020: [bd_valid_mint] is the RES credited this block, not destroy_cost(h).
+    Authorization is a leftover flag (false → mint = 0). A single-block mint
+    cannot exceed [RES_MAX_SUPPLY]. This file does not evaluate the pole
+    mint predicate [R · (2^25+h)² ≤ B << 40].
+
+    Not a C++ [ConnectBlock] refinement. No [Axiom] / [Admitted]. *)
 From Coq Require Import List.
 From Coq Require Import Bool.Bool.
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
 Import ListNotations.
 Require Import RigorV01.ResMintCorrectness.
-Require Import RigorV01.WindowGeneric.
 From Rigor Require Import ResSchedule.
 
 Local Open Scope Z_scope.
@@ -66,17 +69,13 @@ Definition ordinary_delta (h sub conv burn : Z) : BlockDelta :=
      bd_mint_authorized := false;
      bd_has_invalid := false |}.
 
-Definition mint_cap_at (h : Z) : Z := get_res_mint_reward h.
-
 Definition amounts_nonneg (d : BlockDelta) : bool :=
   (0 <=? bd_subsidy d) && (0 <=? bd_valid_mint d) &&
   (0 <=? bd_converge d) && (0 <=? bd_fee_burn d).
 
 Definition mint_respects_authorization (d : BlockDelta) : bool :=
-  if bd_mint_authorized d then
-    Z.eqb (bd_valid_mint d) (mint_cap_at (bd_height d)) || Z.eqb (bd_valid_mint d) 0
-  else
-    Z.eqb (bd_valid_mint d) 0.
+  if bd_mint_authorized d then true
+  else Z.eqb (bd_valid_mint d) 0.
 
 Definition ordinary_cannot_credit_mint (d : BlockDelta) : bool :=
   if bd_ordinary d then Z.eqb (bd_valid_mint d) 0 else true.
@@ -86,7 +85,7 @@ Definition delta_admissible (d : BlockDelta) : bool :=
   amounts_nonneg d &&
   mint_respects_authorization d &&
   ordinary_cannot_credit_mint d &&
-  (bd_valid_mint d <=? mint_cap_at (bd_height d)).
+  (bd_valid_mint d <=? RES_MAX_SUPPLY).
 
 Definition apply_delta (s : UnifiedSupply) (d : BlockDelta)
   : option UnifiedSupply :=
@@ -247,7 +246,7 @@ Proof. exact unauthorized_mint_rejected. Qed.
 
 Theorem mint_cannot_exceed_schedule :
   forall s d,
-    mint_cap_at (bd_height d) < bd_valid_mint d ->
+    RES_MAX_SUPPLY < bd_valid_mint d ->
     apply_delta s d = None.
 Proof.
   intros s d Hlt.
@@ -255,7 +254,7 @@ Proof.
   destruct (negb (bd_has_invalid d) && amounts_nonneg d &&
             mint_respects_authorization d && ordinary_cannot_credit_mint d)
     eqn:P; [|reflexivity].
-  destruct (bd_valid_mint d <=? mint_cap_at (bd_height d)) eqn:Hle.
+  destruct (bd_valid_mint d <=? RES_MAX_SUPPLY) eqn:Hle.
   - apply Z.leb_le in Hle. lia.
   - reflexivity.
 Qed.
@@ -274,11 +273,10 @@ Theorem immature_script_lock_cannot_spend :
     script_lock_satisfied l h = false.
 Proof. exact mint_script_lock_cannot_bypass_maturity_height. Qed.
 
-(** Maturity is not a function of draw-window W. *)
+(** Maturity is the 100-block constant, not a draw-window function. *)
 Theorem maturity_independent_of_draw_window :
-  coinbase_maturity = WindowGeneric.COINBASE_MATURITY /\
-  WindowGeneric.COINBASE_MATURITY = 100.
-Proof. split; reflexivity. Qed.
+  coinbase_maturity = 100.
+Proof. reflexivity. Qed.
 
 (** * Replay conservation *)
 

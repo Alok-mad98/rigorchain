@@ -3,6 +3,15 @@ import { Button } from "../components/Button";
 import { DarkCard } from "../components/DarkCard";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
+import {
+  ASERT_ANCHOR_HEIGHT,
+  ASERT_CLAMP,
+  ASERT_HALF_LIFE_S,
+  MAINNET_HRP,
+  MAINNET_RPC_PORT,
+  OPUHASH,
+  TARGET_SPACING_S,
+} from "../protocolFacts";
 
 export function MiningPage() {
   return (
@@ -11,25 +20,38 @@ export function MiningPage() {
       <header className="page-header">
         <h1>Mining</h1>
         <p className="muted">
-          Test-phase mining is local SOLO: wallet address → rigor-miner → local rigord GBT →
-          submitblock. The pool is not the test path.
+          Mining is local SOLO: wallet address → rigor-miner → local rigord GBT → submitblock. The
+          pool observer is not the mining path.
         </p>
       </header>
 
       <SectionTitle>Mining Overview</SectionTitle>
       <section className="card prose-section">
         <p>
-          Mining discovers valid headers (OpuHash / ASERT). RES allocation is a deterministic draw
-          over committed set F — not a miner or pool policy. The shipped client copies the node
-          template and grinds <code>nNonce</code> only.
+          Consensus PoW is <strong>OpuHash</strong>:
         </p>
-        <pre className="mono-json">{`wallet --coinbase-addr=rg1q…
+        <pre className="math-block">{`digest = ${OPUHASH}
+valid  ⇔  digest ≤ ASERT target`}</pre>
+        <p>
+          ASERT (aserti3-2d): spacing {TARGET_SPACING_S}s, half-life {ASERT_HALF_LIFE_S}s (
+          {ASERT_HALF_LIFE_S / 3600} hours), anchor height {ASERT_ANCHOR_HEIGHT}, per-block clamp{" "}
+          {ASERT_CLAMP}. Block id remains SHA256d of the 80-byte header. The retired 64 KiB mix in{" "}
+          <code>pow_opus.cpp</code> is not OpuHash.
+        </p>
+        <p>
+          RES is not a PoW reward. RES mint is a body-tx destroy at <code>destroy_cost(h)</code>; the miner
+          receives ORU subsidy. The shipped <code>minerd</code> grinds the same digest as{" "}
+          <code>CheckProofOfWork</code> (<code>-a rgrpow01</code>). SOLO copies canonical GBT
+          coinbase bytes from <code>rigord</code> on RPC {MAINNET_RPC_PORT} and grinds{" "}
+          <code>nNonce</code> / time only.
+        </p>
+        <pre className="mono-json">{`wallet --coinbase-addr=${MAINNET_HRP}1q…
         ↓
-rigor-miner  +  local rigord
+minerd  +  local rigord (RPC ${MAINNET_RPC_PORT})
         ↓
-getblocktemplate  →  nonce grind  →  submitblock
+getblocktemplate  →  copy coinbase  →  nonce grind  →  submitblock
         ↓
-ProcessNewBlock  →  P2P`}</pre>
+ProcessNewBlock  →  CheckProofOfWork  →  ConnectBlock`}</pre>
         <p className="muted">
           Installer: <code>installer/windows/rigor-miner.cmd</code>. This page does not run miners.
         </p>
@@ -43,7 +65,7 @@ ProcessNewBlock  →  P2P`}</pre>
           <p>Wallet → local rigord → rigor-miner GBT → submitblock → verify the tip independently.</p>
         </DarkCard>
         <DarkCard title="Mining Economics" to="/mining/economics" linkLabel="Economics">
-          <p>ORU subsidy 1000 → 500 → 250 → 125. No premine. RES is not mined.</p>
+          <p>ORU subsidy 128 per block forever. No premine. RES is not mined.</p>
         </DarkCard>
       </section>
 
@@ -56,13 +78,12 @@ ProcessNewBlock  →  P2P`}</pre>
         <h2>Get a block hash</h2>
         <pre className="mono-json">{`getblockhash <height>`}</pre>
         <p>
-          Verify the hash in{" "}
-          <Link to="/zero-trust-verification?mode=block">Block Verification</Link>. Advanced
-          auditors can paste <code>getblock &lt;hash&gt; 2</code> JSON into Advanced Raw Block mode.
+          Observe the hash in <Link to="/explorer">Explorer</Link>. Advanced auditors can inspect{" "}
+          <code>getblock &lt;hash&gt; 2</code> JSON from a local node.
         </p>
         <p className="muted">
-          A quarantined Alpha pool observer exists at <Link to="/mining/pool">/mining/pool</Link>.
-          It is not the test-phase mining path and is not a consensus authority.
+          A quarantined pool observer exists at <Link to="/mining/pool">/mining/pool</Link>. It is
+          not the SOLO mining path and is not a consensus authority.
         </p>
       </section>
     </div>

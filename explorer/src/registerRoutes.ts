@@ -1,24 +1,36 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Pool } from "pg";
 import path from "node:path";
-import { canonicalUrlForResolution, resolveSearchInput } from "./searchResolve";
+import { canonicalUrlForResolution, loadBlockByRouteParam, resolveSearchInput, WTXID_INFORMATIONAL } from "./searchResolve";
 import { getAddressIntelligence } from "./addressDb";
 import { getLineageForTxid } from "./lineageDb";
 import {
-  getBlockByHash,
   getOrCreateChainState,
   getTxByTxid,
+  getTxidByWtxid,
   listBlocks,
+  countBlocks,
   listResEvents,
   listResMints,
 } from "./db";
 import type { Config } from "./config";
 import { buildStatusDashboard } from "./api/status";
+import { blockListPageMeta, parseBlockListQuery } from "./blocksList";
 import {
+  formatDerivedMaxSupply,
+  formatRateOruPerRes,
+  resIssuanceSchedulePayload,
+  resDestroyCostForHeight,
+} from "./resIssuanceSchedule";
+import { atomsToResDisplay } from "./amount";
+import {
+  escapeHtml,
+  injectSsrResPage,
   injectSsrRoot,
   readPublicTemplate,
   renderBlockRoot,
   renderBlocksRoot,
+  renderResPageSsr,
   renderStatusRoot,
   renderTxRoot,
 } from "./uiSsr";
@@ -48,23 +60,31 @@ export function wantsHtmlPage(req: Request): boolean {
 export function registerApiRoutes(app: Express, pool: Pool, config: Config): void {
   const mountApi = (prefix: string) => {
     app.get(`${prefix}/blocks`, async (req, res) => {
-      const limit = Math.min(Number(req.query.limit ?? 50), 200);
-      const rows = await listBlocks(pool, limit);
-      res.json({ blocks: rows });
+      const query = parseBlockListQuery(req.query as Record<string, unknown>);
+      const total = await countBlocks(pool);
+      const page = blockListPageMeta(query, total);
+      const rows = await listBlocks(pool, page.limit, page.offset);
+      res.json({ blocks: rows, ...page });
     });
 
     app.get(`${prefix}/block/:hash`, async (req, res) => {
-      const hash = req.params.hash;
-      const row = await getBlockByHash(pool, hash);
-      if (!row) return res.status(404).json({ error: "block not found" });
-      res.json(row);
+      const loaded = await loadBlockByRouteParam(pool, req.params.hash);
+      if (!loaded) return res.status(404).json({ error: "block not found" });
+      res.json(loaded.row);
     });
 
     app.get(`${prefix}/tx/:txid`, async (req, res) => {
-      const txid = req.params.txid;
+      const txid = req.params.txid.trim().toLowerCase();
       const row = await getTxByTxid(pool, txid);
-      if (!row) return res.status(404).json({ error: "tx not found" });
-      res.json(row);
+      if (row) {
+        res.json(row);
+        return;
+      }
+      const canonical = await getTxidByWtxid(pool, txid);
+      if (canonical) {
+        return res.status(400).json({ error: WTXID_INFORMATIONAL, txid: canonical });
+      }
+      return res.status(404).json({ error: "tx not found" });
     });
 
     app.get(`${prefix}/lineage/:txid`, async (req, res) => {
@@ -88,6 +108,10 @@ export function registerApiRoutes(app: Express, pool: Pool, config: Config): voi
       const limit = Math.min(Number(req.query.limit ?? 50), 200);
       const rows = await listResMints(pool, limit);
       res.json({ mints: rows });
+    });
+
+    app.get(`${prefix}/res/schedule`, (_req, res) => {
+      res.json(resIssuanceSchedulePayload());
     });
 
     app.get(`${prefix}/res/events`, async (req, res) => {
@@ -188,8 +212,14 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
   app.get("/blocks", async (req, res, next) => {
     if (!wantsHtmlPage(req)) return next();
     try {
-      const rows = await listBlocks(pool, 50);
-      const html = injectSsrRoot(readPublicTemplate(publicDir, "blocks.html"), renderBlocksRoot(rows));
+      const query = parseBlockListQuery(req.query as Record<string, unknown>);
+      const total = await countBlocks(pool);
+      const page = blockListPageMeta(query, total);
+      const rows = await listBlocks(pool, page.limit, page.offset);
+      const html = injectSsrRoot(
+        readPublicTemplate(publicDir, "blocks.html"),
+        renderBlocksRoot(rows, page),
+      );
       sendSsrHtml(res, html);
     } catch (e) {
       console.error("SSR /blocks failed:", e);
@@ -199,10 +229,10 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
 
   app.get("/block/:hash", async (req, res, next) => {
     if (!wantsHtmlPage(req)) return next();
-    const hash = req.params.hash;
+    const param = req.params.hash;
     try {
-      const row = await getBlockByHash(pool, hash);
-      if (!row) {
+      const loaded = await loadBlockByRouteParam(pool, param);
+      if (!loaded) {
         const html = injectSsrRoot(
           readPublicTemplate(publicDir, "block.html"),
           "<p>Block not found.</p>",
@@ -211,7 +241,10 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
         sendSsrHtml(res, html);
         return;
       }
-      const html = injectSsrRoot(readPublicTemplate(publicDir, "block.html"), renderBlockRoot(row, hash));
+      if (loaded.hash !== param.trim().toLowerCase()) {
+        return res.redirect(302, `/block/${encodeURIComponent(loaded.hash)}`);
+      }
+      const html = injectSsrRoot(readPublicTemplate(publicDir, "block.html"), renderBlockRoot(loaded.row, loaded.hash));
       sendSsrHtml(res, html);
     } catch (e) {
       console.error("SSR /block failed:", e);
@@ -221,16 +254,26 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
 
   app.get("/tx/:txid", async (req, res, next) => {
     if (!wantsHtmlPage(req)) return next();
-    const txid = req.params.txid;
+    const txid = req.params.txid.trim().toLowerCase();
     try {
       const row = await getTxByTxid(pool, txid);
-      if (!row) {
-        const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), "<p>Transaction not found.</p>");
-        res.status(404);
+      if (row) {
+        const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), renderTxRoot(row, txid));
         sendSsrHtml(res, html);
         return;
       }
-      const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), renderTxRoot(row, txid));
+      const canonical = await getTxidByWtxid(pool, txid);
+      if (canonical) {
+        const html = injectSsrRoot(
+          readPublicTemplate(publicDir, "tx.html"),
+          `<p>${escapeHtml(WTXID_INFORMATIONAL)}</p><p>Canonical txid: ${escapeHtml(canonical)}</p>`,
+        );
+        res.status(400);
+        sendSsrHtml(res, html);
+        return;
+      }
+      const html = injectSsrRoot(readPublicTemplate(publicDir, "tx.html"), "<p>Transaction not found.</p>");
+      res.status(404);
       sendSsrHtml(res, html);
     } catch (e) {
       console.error("SSR /tx failed:", e);
@@ -240,6 +283,40 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
 
   app.get("/address/:addr", htmlOrNext("address.html"));
   app.get("/status", (_req, res) => res.redirect(301, "/"));
+
+  app.get(["/res", "/res.html"], async (req, res, next) => {
+    if (!wantsHtmlPage(req)) return next();
+    try {
+      const [mints, totals] = await Promise.all([
+        listResMints(pool, 15),
+        pool.query<{ n: number; atoms: string }>(
+          `SELECT COUNT(*)::int AS n, COALESCE(SUM(mint_amount), 0)::text AS atoms FROM res_mints`,
+        ),
+      ]);
+      let confirmHeight: number | null = null;
+      if (config) {
+        const chain = await getOrCreateChainState(pool, config);
+        if (Number.isFinite(Number(chain.last_height))) {
+          confirmHeight = Number(chain.last_height) + 1;
+        }
+      }
+      const eco: Record<string, unknown> = {
+        confirm_height: confirmHeight,
+        res_destroy_cost_display:
+          confirmHeight != null ? formatRateOruPerRes(resDestroyCostForHeight(confirmHeight)) : null,
+        res_derived_max_supply_display: formatDerivedMaxSupply(),
+        network_res_minted_display: atomsToResDisplay(totals.rows[0]?.atoms ?? "0"),
+        res_mint_count: totals.rows[0]?.n ?? 0,
+        last_res_height: mints[0]?.block_height ?? null,
+        last_res_mint_txid: mints[0]?.mint_txid ?? null,
+      };
+      const { curvesHtml, rootHtml } = renderResPageSsr({ confirmHeight, eco, mints });
+      sendSsrHtml(res, injectSsrResPage(readPublicTemplate(publicDir, "res.html"), curvesHtml, rootHtml));
+    } catch (e) {
+      console.error("SSR /res failed:", e);
+      sendPublic(res, publicDir, "res.html");
+    }
+  });
 
   if (config) {
     app.get("/", async (req, res, next) => {

@@ -15,7 +15,6 @@ TEST_UTIL_H = \
   test/util/logging.h \
   test/util/mining.h \
   test/util/net.h \
-  test/util/pcorb_carrier.h \
   test/util/random.h \
   test/util/script.h \
   test/util/setup_common.h \
@@ -39,7 +38,6 @@ libtest_util_a_SOURCES = \
   test/util/logging.cpp \
   test/util/mining.cpp \
   test/util/net.cpp \
-  test/util/pcorb_carrier.cpp \
   test/util/script.cpp \
   test/util/setup_common.cpp \
   test/util/str.cpp \

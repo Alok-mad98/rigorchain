@@ -77,8 +77,6 @@ def main() -> int:
     else:
         if "RigorConsensusKernel::EvaluateConnect" not in cb:
             errors.append("ConnectBlock does not call RigorConsensusKernel")
-        if "RigorConsensusKernel::ResolveDraw" not in cb:
-            errors.append("ConnectBlock does not call Kernel ResolveDraw")
         if re.search(r"\bResolveConvergenceDraw\s*\(", cb):
             errors.append("ConnectBlock still contains draw formula call")
         if re.search(r"\bRigorSupplyDelta\s*\(", cb):
@@ -101,8 +99,8 @@ def main() -> int:
         audit = json.loads(AUDIT.read_text(encoding="utf-8"))
         if audit.get("GENESIS_CONSENSUS_READY") is not True:
             errors.append("GENESIS_CONSENSUS_READY")
-        if audit.get("REFINEMENT_PROVED") is not True:
-            errors.append("REFINEMENT_PROVED")
+        if audit.get("REFINEMENT_PROVED") is not False:
+            errors.append("REFINEMENT_PROVED must be false under RFC-020")
         if audit.get("EQUIVALENCE_PROVED") is not False:
             errors.append("EQUIVALENCE_PROVED overclaim")
         vec = json.loads(VECTORS.read_text(encoding="utf-8"))
@@ -119,9 +117,9 @@ def main() -> int:
         for h in (0, 1, 99, 100, 101, 210000):
             if h not in by_h:
                 errors.append(f"missing vector height {h}")
-        if by_h.get(1, {}).get("oru_subsidy") != 100000000000:
+        if by_h.get(1, {}).get("oru_subsidy") != 12800000000:
             errors.append("height 1 ORU subsidy")
-        if by_h.get(210000, {}).get("oru_subsidy") != 50000000000:
+        if by_h.get(210000, {}).get("oru_subsidy") != 12800000000:
             errors.append("height 210000 ORU subsidy")
         if by_h.get(210000, {}).get("res_schedule") != 14142196:
             errors.append("height 210000 RES schedule")
@@ -134,7 +132,6 @@ def main() -> int:
     for needle in (
         "transaction_kernel_adversarial_fail_closed",
         "classification_adversarial",
-        "draw_kernel_adversarial",
         "maturity_adversarial_early_spend",
         "supply_delta_adversarial",
     ):

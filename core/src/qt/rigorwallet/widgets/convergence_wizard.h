@@ -35,6 +35,7 @@ private:
     void showStep(int index);
     void refreshReviewStep();
     bool validateAmount(CAmount& amount_out);
+    CAmount minMintBurn() const;
 
     WalletModel* m_walletModel{nullptr};
     ClientModel* m_clientModel{nullptr};

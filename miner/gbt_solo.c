@@ -149,74 +149,62 @@ void gbt_solo_out_free(struct gbt_solo_out *out)
 	out->workid = NULL;
 }
 
-static bool parse_scriptsig_three_pushes(const uint8_t *s, int len,
-					 uint8_t root[32], uint8_t winner[32],
+/*
+ * RFC-020 coinbase scriptSig: BIP34 height, then padding to
+ * COINBASE_SCRIPTSIG_MIN_SIZE (node writes OP_0). ConnectBlock checks the
+ * height prefix only. Copy the node's bytes; do not invent extra-nonce.
+ */
+static bool parse_scriptsig_bip34_height(const uint8_t *s, int len,
+					 int64_t *height_out,
 					 char *err, size_t errlen)
 {
 	int off = 0;
-	int push_i = 0;
-	uint8_t pushes[3][32];
-	int push_len[3] = {0, 0, 0};
+	uint8_t op;
+	int64_t h = 0;
+	int i;
 
-	if (len < 1 || len > GBT_SOLO_SCRIPTSIG_MAX) {
+	if (len < 2 || len > GBT_SOLO_SCRIPTSIG_MAX) {
 		fail_msg(err, errlen, "default_coinbase_scriptsig length invalid");
 		return false;
 	}
-
-	while (off < len) {
-		uint8_t op;
-		int n;
-		const uint8_t *payload;
-		int payload_len;
-
-		if (push_i >= 3) {
-			fail_msg(err, errlen, "default_coinbase_scriptsig trailing bytes");
+	op = s[off++];
+	if (op == 0x00) {
+		h = 0;
+	} else if (op >= 0x51 && op <= 0x60) {
+		h = (int64_t)(op - 0x50);
+	} else if (op >= 1 && op <= 75) {
+		if (off + op > len) {
+			fail_msg(err, errlen, "default_coinbase_scriptsig truncated height");
 			return false;
 		}
-		op = s[off++];
-		if (op == 0x00) {
-			payload = NULL;
-			payload_len = 0;
-		} else if (op >= 0x51 && op <= 0x60) {
-			pushes[push_i][0] = (uint8_t)(op - 0x50);
-			push_len[push_i] = 1;
-			push_i++;
-			continue;
-		} else if (op <= 75) {
-			n = op;
-			if (off + n > len) {
-				fail_msg(err, errlen, "default_coinbase_scriptsig truncated push");
-				return false;
-			}
-			payload = s + off;
-			payload_len = n;
-			off += n;
-		} else {
-			fail_msg(err, errlen, "default_coinbase_scriptsig non-canonical opcode");
+		for (i = 0; i < op; i++)
+			h |= ((int64_t)s[off + i]) << (8 * i);
+		if (op > 0 && (s[off + op - 1] & 0x80)) {
+			fail_msg(err, errlen, "default_coinbase_scriptsig negative height");
 			return false;
 		}
-		if (payload_len > 32) {
-			fail_msg(err, errlen, "default_coinbase_scriptsig push too large");
-			return false;
-		}
-		if (payload_len)
-			memcpy(pushes[push_i], payload, (size_t)payload_len);
-		push_len[push_i] = payload_len;
-		push_i++;
-	}
-
-	if (push_i != 3) {
-		fail_msg(err, errlen, "default_coinbase_scriptsig must be height|C|paid-winner");
+	} else {
+		fail_msg(err, errlen, "default_coinbase_scriptsig non-canonical height");
 		return false;
 	}
-	if (push_len[1] != 32 || push_len[2] != 32) {
-		fail_msg(err, errlen, "default_coinbase_scriptsig C/paid-winner not 32 bytes");
+	if (h < 1 || h > 0x7fffffff) {
+		fail_msg(err, errlen, "default_coinbase_scriptsig height out of range");
 		return false;
 	}
-	memcpy(root, pushes[1], 32);
-	memcpy(winner, pushes[2], 32);
-	(void)root;
+	*height_out = h;
 	return true;
+}
+
+static bool refuse_retired_gbt_field(const json_t *gbt, const char *key,
+				     char *err, size_t errlen)
+{
+	json_t *v = json_object_get(gbt, key);
+
+	if (!v || json_is_null(v))
+		return true;
+	if (err && errlen)
+		snprintf(err, errlen, "lottery-era GBT field %s is not a shipping template field", key);
+	return false;
 }
 
 static void merkle_hash_level(uint8_t (*tree)[32], int *n)
@@ -440,12 +428,10 @@ static bool verify_canonical_coinbase(const uint8_t *cb, int cb_len,
 				      const uint8_t *payout_spk, int payout_len,
 				      int64_t cbvalue,
 				      const uint8_t *wit_commit,
-				      bool has_mint, const uint8_t *mint_spk,
-				      int mint_spk_len, int64_t mint_value,
 				      struct gbt_cb_parsed *p,
 				      char *err, size_t errlen)
 {
-	int commit_count = 0, mint_count = 0, commit_i = -1, mint_i = -1, i;
+	int commit_count = 0, mint_count = 0, commit_i = -1, i;
 
 	if (!parse_coinbase(cb, cb_len, p, err, errlen))
 		return false;
@@ -485,7 +471,6 @@ static bool verify_canonical_coinbase(const uint8_t *cb, int cb_len,
 			commit_i = i;
 		} else if (slen > 0 && spk[slen - 1] == 0xbb) {
 			mint_count++;
-			mint_i = i;
 		}
 	}
 	if (commit_count != 1) {
@@ -496,27 +481,14 @@ static bool verify_canonical_coinbase(const uint8_t *cb, int cb_len,
 		fail_msg(err, errlen, "witness commitment output value must be 0");
 		return false;
 	}
-	if (has_mint) {
-		if (mint_count != 1) {
-			fail_msg(err, errlen, "coinbase dropped default_res_mint");
-			return false;
-		}
-		if (p->vout_spk[mint_i].len != mint_spk_len ||
-		    memcmp(cb + p->vout_spk[mint_i].off, mint_spk, (size_t)mint_spk_len) != 0) {
-			fail_msg(err, errlen, "coinbase mint != default_res_mint.scriptPubKey");
-			return false;
-		}
-		if (p->vout_value[mint_i] != mint_value) {
-			fail_msg(err, errlen, "coinbase mint value != default_res_mint.value");
-			return false;
-		}
-	} else if (mint_count != 0) {
-		fail_msg(err, errlen, "coinbase mints RES without a paid winner");
+	if (mint_count != 0) {
+		fail_msg(err, errlen, "coinbase must not mint RES");
 		return false;
 	}
-	/* Payout, optional mint, witness commitment. A RES bootstrap output
-	 * (devtest -reswalletbootstrap) is not a SOLO template. */
-	if (p->vout_count != 2 + (has_mint ? 1 : 0)) {
+	/* RFC-020: payout + witness commitment. Coinbase never mints RES.
+	 * A RES bootstrap output (devtest -reswalletbootstrap) is not a
+	 * SOLO template. */
+	if (p->vout_count != 2) {
 		fail_msg(err, errlen, "unexpected coinbase output count");
 		return false;
 	}
@@ -533,22 +505,16 @@ bool gbt_solo_assemble(const json_t *gbt,
 		       struct gbt_solo_out *out,
 		       char *err, size_t errlen)
 {
-	json_t *tmp, *txa, *rules, *mint;
+	json_t *tmp, *txa, *rules;
 	const char *hex;
 	uint8_t prev_display[32], prev_wire[32];
-	uint8_t scriptsig_winner[32], scriptsig_root[32];
-	uint8_t paid_display[32], paid_native[32];
 	uint8_t wit_commit_gbt[GBT_SOLO_WITNESS_COMMITMENT_LEN];
 	uint8_t wit_commit_calc[GBT_SOLO_WITNESS_COMMITMENT_LEN];
 	uint8_t reserved[32];
 	int tx_count, i, n;
 	bool ok;
-	int64_t height64, version64, curtime64, cbvalue;
+	int64_t height64, version64, curtime64, cbvalue, scriptsig_height;
 	uint32_t version, curtime, bits;
-	bool has_mint = false;
-	int64_t mint_value = 0;
-	uint8_t mint_spk[GBT_SOLO_MINT_SPK_MAX];
-	int mint_spk_len = 0;
 	uint8_t (*merkle)[32] = NULL;
 	uint8_t (*wtree)[32] = NULL;
 	char *txs_end;
@@ -664,13 +630,12 @@ bool gbt_solo_assemble(const json_t *gbt,
 	memcpy(prev_wire, prev_display, 32);
 	memrev_local(prev_wire, 32);
 
-	hex = json_string_value(json_object_get(gbt, "paid_winner_txid"));
-	if (!hex || !decode_hex(paid_display, 32, hex)) {
-		fail_msg(err, errlen, "missing paid_winner_txid");
+	if (!refuse_retired_gbt_field(gbt, "paid_winner_txid", err, errlen) ||
+	    !refuse_retired_gbt_field(gbt, "convergence_root", err, errlen) ||
+	    !refuse_retired_gbt_field(gbt, "default_res_mint", err, errlen) ||
+	    !refuse_retired_gbt_field(gbt, "convergence_txids", err, errlen) ||
+	    !refuse_retired_gbt_field(gbt, "convergence_draw", err, errlen))
 		return false;
-	}
-	memcpy(paid_native, paid_display, 32);
-	memrev_local(paid_native, 32);
 
 	hex = json_string_value(json_object_get(gbt, "default_coinbase_scriptsig"));
 	if (!hex) {
@@ -685,75 +650,18 @@ bool gbt_solo_assemble(const json_t *gbt,
 			fail_msg(err, errlen, "invalid default_coinbase_scriptsig");
 			return false;
 		}
-		if (!parse_scriptsig_three_pushes(ss, ss_len, scriptsig_root, scriptsig_winner, err, errlen)) {
+		if (!parse_scriptsig_bip34_height(ss, ss_len, &scriptsig_height, err, errlen)) {
 			free(ss);
 			return false;
 		}
-		if (memcmp(scriptsig_winner, paid_native, 32) != 0) {
+		if (scriptsig_height != height64) {
 			free(ss);
-			fail_msg(err, errlen, "paid_winner_txid does not match scriptSig");
+			fail_msg(err, errlen, "scriptSig height does not match GBT height");
 			return false;
 		}
 		memcpy(out->scriptsig, ss, (size_t)ss_len);
 		out->scriptsig_len = ss_len;
 		free(ss);
-	}
-
-	mint = json_object_get(gbt, "default_res_mint");
-	if (all_zero(paid_native, 32)) {
-		if (mint && !json_is_null(mint)) {
-			fail_msg(err, errlen, "default_res_mint present but paid_winner is zero");
-			return false;
-		}
-	} else {
-		json_t *mv, *ms;
-		if (!mint || !json_is_object(mint)) {
-			fail_msg(err, errlen, "missing default_res_mint for non-zero paid_winner");
-			return false;
-		}
-		mv = json_object_get(mint, "value");
-		ms = json_object_get(mint, "scriptPubKey");
-		if (!mv || !ms || !json_is_string(ms)) {
-			fail_msg(err, errlen, "invalid default_res_mint");
-			return false;
-		}
-		if (json_is_integer(mv))
-			mint_value = (int64_t)json_integer_value(mv);
-		else if (json_is_real(mv))
-			mint_value = (int64_t)json_real_value(mv);
-		else {
-			fail_msg(err, errlen, "invalid default_res_mint.value");
-			return false;
-		}
-		if (mint_value <= 0) {
-			fail_msg(err, errlen, "default_res_mint.value must be > 0");
-			return false;
-		}
-		hex = json_string_value(ms);
-		{
-			uint8_t *spk = NULL;
-			int slen = 0;
-			if (!decode_hex_alloc(&spk, &slen, hex) || slen < 23 || slen > GBT_SOLO_MINT_SPK_MAX) {
-				free(spk);
-				fail_msg(err, errlen, "invalid default_res_mint.scriptPubKey");
-				return false;
-			}
-			/* Canonical GetResMintScript never uses OP_1..OP_16 for maturity. */
-			if (spk[0] >= 0x51 && spk[0] <= 0x60) {
-				free(spk);
-				fail_msg(err, errlen, "RES mint uses OP_n encoding; require OP_PUSHBYTES");
-				return false;
-			}
-			if (spk[slen - 1] != 0xbb) {
-				free(spk);
-				fail_msg(err, errlen, "default_res_mint.scriptPubKey is not OP_RES_MINT");
-				return false;
-			}
-			memcpy(mint_spk, spk, (size_t)slen);
-			mint_spk_len = slen;
-			free(spk);
-		}
-		has_mint = true;
 	}
 
 	hex = json_string_value(json_object_get(gbt, "default_witness_commitment"));
@@ -850,7 +758,6 @@ bool gbt_solo_assemble(const json_t *gbt,
 					       out->scriptsig, out->scriptsig_len,
 					       payout_spk, payout_len, cbvalue,
 					       wit_commit_gbt,
-					       has_mint, mint_spk, mint_spk_len, mint_value,
 					       &cbp, err, errlen)) {
 			free(cb);
 			return false;
@@ -974,28 +881,6 @@ bool gbt_solo_assemble(const json_t *gbt,
 		}
 	}
 
-	tmp = json_object_get(gbt, "convergence_root");
-	if (!tmp || !json_is_string(tmp)) {
-		gbt_solo_out_free(out);
-		fail_msg(err, errlen, "missing convergence_root");
-		return false;
-	}
-	{
-		uint8_t root_display[32], root_native[32];
-		if (!decode_hex(root_display, 32, json_string_value(tmp))) {
-			gbt_solo_out_free(out);
-			fail_msg(err, errlen, "invalid convergence_root");
-			return false;
-		}
-		memcpy(root_native, root_display, 32);
-		memrev_local(root_native, 32);
-		if (memcmp(root_native, scriptsig_root, 32) != 0) {
-			gbt_solo_out_free(out);
-			fail_msg(err, errlen, "convergence_root does not match scriptSig C");
-			return false;
-		}
-	}
-
 	tmp = json_object_get(gbt, "workid");
 	if (tmp && json_is_string(tmp))
 		out->workid = strdup(json_string_value(tmp));
@@ -1003,12 +888,10 @@ bool gbt_solo_assemble(const json_t *gbt,
 	out->height = (int)height64;
 	out->coinbasevalue = cbvalue;
 	out->nbits = bits;
-	memcpy(out->paid_winner_native, paid_native, 32);
+	memset(out->paid_winner_native, 0, 32);
 	memcpy(out->witness_commitment, wit_commit_gbt, GBT_SOLO_WITNESS_COMMITMENT_LEN);
-	out->has_mint = has_mint ? 1 : 0;
-	out->mint_value = mint_value;
-	out->mint_spk_len = mint_spk_len;
-	if (has_mint)
-		memcpy(out->mint_spk, mint_spk, (size_t)mint_spk_len);
+	out->has_mint = 0;
+	out->mint_value = 0;
+	out->mint_spk_len = 0;
 	return true;
 }

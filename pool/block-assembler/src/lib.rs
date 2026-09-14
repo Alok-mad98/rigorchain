@@ -2,12 +2,12 @@
 //!
 //! RIGOR pool stack block assembler and JobSnapshot publisher (TASK-MINING-007).
 //!
-//! Consumes `TemplateRecord` from [`rigor_gbt`], assembles coinbase (height‖C),
-//! witness / CVGE / RIGOR commitments, and publishes immutable `JobSnapshot`
-//! rows with monotonic `job_id` / `candidate_block_id` pairs.
+//! Consumes `TemplateRecord` from [`rigor_gbt`], assembles an RFC-020 ORU-only
+//! coinbase (BIP34 height + OP_0, optional witness + extranonce OP_RETURN),
+//! and publishes immutable `JobSnapshot` rows with monotonic `job_id` /
+//! `candidate_block_id` pairs.
 //!
-//! ORU-only (Option A): does **not** reserve RES body-mint merkle placeholders
-//! and does **not** construct RES mint transactions. Node GBT txs are opaque.
+//! Does **not** insert mint / carrier / CVGE / RIGR / C-root. Node GBT txs are opaque.
 //!
 //! ## Impact
 //!

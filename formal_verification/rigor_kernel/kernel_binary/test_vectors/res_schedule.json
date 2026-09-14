@@ -1,0 +1,15 @@
+{
+  "domain": "res",
+  "expect": "VALID",
+  "theorem": "res_issuance_soundness",
+  "coinbase": false,
+  "mint_ok": true,
+  "mint_amount": 1,
+  "burn_oru": 1024,
+  "height": 0,
+  "draw_ok": false,
+  "dom": "ORU",
+  "res_in": 0,
+  "res_out": 0,
+  "oru_in": 0
+}

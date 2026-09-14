@@ -18,6 +18,7 @@
 #include <test/util/logging.h>
 #include <test/util/setup_common.h>
 #include <util/translation.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
@@ -176,7 +177,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         BOOST_CHECK_EQUAL(result.last_failed_block, oldTip->GetBlockHash());
         BOOST_CHECK_EQUAL(result.last_scanned_block, newTip->GetBlockHash());
         BOOST_CHECK_EQUAL(*result.last_scanned_height, newTip->nHeight);
-        BOOST_CHECK_EQUAL(GetBalance(wallet).m_mine_immature, 1000 * COIN);
+        BOOST_CHECK_EQUAL(GetBalance(wallet).m_mine_immature, Consensus::ORU_FLAT_BLOCK_SUBSIDY);
     }
 
     // Prune the remaining block file.
@@ -234,7 +235,7 @@ BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
     // credit amount is calculated.
     wtx.MarkDirty();
     AddKey(wallet, coinbaseKey);
-    BOOST_CHECK_EQUAL(CachedTxGetImmatureCredit(wallet, wtx, ISMINE_SPENDABLE), 1000 * COIN);
+    BOOST_CHECK_EQUAL(CachedTxGetImmatureCredit(wallet, wtx, ISMINE_SPENDABLE), Consensus::ORU_FLAT_BLOCK_SUBSIDY);
 }
 
 static int64_t AddTx(ChainstateManager& chainman, CWallet& wallet, uint32_t lockTime, int64_t mockTime, int64_t blockTime)
@@ -442,7 +443,7 @@ BOOST_FIXTURE_TEST_CASE(ListCoinsTest, ListCoinsTestingSetup)
     BOOST_CHECK_EQUAL(list.begin()->second.size(), 1U);
 
     // Check initial balance from one mature coinbase transaction.
-    BOOST_CHECK_EQUAL(1000 * COIN, WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).GetTotalAmount()));
+    BOOST_CHECK_EQUAL(Consensus::ORU_FLAT_BLOCK_SUBSIDY, WITH_LOCK(wallet->cs_wallet, return AvailableCoins(*wallet).GetTotalAmount()));
 
     // Add a transaction creating a change address, and confirm ListCoins still
     // returns the coin associated with the change address underneath the
@@ -686,6 +687,11 @@ BOOST_FIXTURE_TEST_CASE(CreateWalletWithoutChain, BasicTestingSetup)
     context.args = &m_args;
     auto wallet = TestLoadWallet(context);
     BOOST_CHECK(wallet);
+    {
+        // Two output types × receive/change, each topped to DEFAULT_KEYPOOL_SIZE.
+        LOCK(wallet->cs_wallet);
+        BOOST_CHECK_EQUAL(wallet->GetKeyPoolSize(), 2 * 2 * DEFAULT_KEYPOOL_SIZE);
+    }
     UnloadWallet(std::move(wallet));
 }
 

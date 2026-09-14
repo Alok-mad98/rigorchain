@@ -1,0 +1,14 @@
+{
+  "id": "V2",
+  "domain": "oru",
+  "expect": "INVALID",
+  "theorem": "no_hidden_inflation",
+  "failure_reason": "invalid ORU creation: oru_out > oru_in",
+  "dom": "ORU",
+  "oru_in": 7,
+  "oru_out": 10,
+  "res_in": 0,
+  "res_out": 0,
+  "old_supply": 100,
+  "subsidy": 50
+}

@@ -1,5 +1,13 @@
 # RIGOR — Formal Verification Verdict
 
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
 **Status**: Final
 **Subject**: `formal_verification/coq` — the machine-checked model of the RIGOR consensus protocol
 **Prover**: Coq 8.15.0

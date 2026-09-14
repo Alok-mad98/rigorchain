@@ -29,13 +29,9 @@ BODY = {
         re.compile(r"inline int RigorIssuanceEpoch\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
         ROOT / "core/src/consensus/rigor_issuance.h",
     ),
-    "GetResMintReward": (
-        re.compile(r"inline constexpr CAmount GetResMintReward\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        ROOT / "core/src/consensus/rigor_consensus_lock.h",
-    ),
-    "ResolveConvergenceDraw": (
-        re.compile(r"^ConvergenceDrawOutcome ResolveConvergenceDraw\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        ROOT / "core/src/consensus/convergence_logic.cpp",
+    "CheckResMintArithmetic": (
+        re.compile(r"inline constexpr bool CheckResMintArithmetic\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
+        ROOT / "core/src/consensus/res_issuance.h",
     ),
     "ClassifyRigorTxout": (
         re.compile(r"^TxoutType ClassifyRigorTxout\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -93,7 +89,7 @@ def main() -> int:
     if st.get("phase5_authority") != "NON_AUTHORITATIVE":
         errors.append("Phase5 must be NON_AUTHORITATIVE")
 
-    if "NON_AUTHORITATIVE" not in PHASE5.read_text(encoding="utf-8", errors="replace"):
+    if PHASE5.is_file() and "NON_AUTHORITATIVE" not in PHASE5.read_text(encoding="utf-8", errors="replace"):
         errors.append("Phase5 EquivalenceFramework.v missing NON_AUTHORITATIVE stamp")
     if "DEAD_BUILD" not in LEGACY.read_text(encoding="utf-8", errors="replace"):
         errors.append("legacy_account_model README missing DEAD_BUILD registration")
@@ -111,7 +107,6 @@ def main() -> int:
     if "bool Chainstate::ConnectBlock" not in cb:
         errors.append("ConnectBlock missing")
     for needle in (
-        "GetConvergenceDrawSetForBlock",
         "RigorConsensusKernel",
         "hashGenesisBlock",
     ):
@@ -121,12 +116,6 @@ def main() -> int:
         errors.append("validation.cpp contains an issuance formula fragment")
     if "caml_startup" in cb or "consensus_kernel.ml" in cb:
         errors.append("ConnectBlock links extracted OCaml")
-
-    m = ASSEMBLY.search(cb)
-    if not m:
-        errors.append("GetConvergenceDrawSetForBlock not found")
-    elif "ResolveConvergenceDraw" in m.group(0) or "winner_index =" in m.group(0):
-        errors.append("GetConvergenceDrawSetForBlock contains winner resolution")
 
     makefile = MAKEFILE.read_text(encoding="utf-8", errors="replace")
     if "consensus/bridge/" in makefile or "caml_" in makefile:

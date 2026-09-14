@@ -1,10 +1,8 @@
 //! # mint-engine (LEGACY)
 //!
-//! Historical RES body mint builder for the RIGOR mining pool (TASK-MINT-ENGINE-001).
-//!
-//! **Detached from pool runtime** by TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 (Option A).
-//! Production Stratum / pilot no longer depend on this crate. Retained for audit and
-//! offline unit/integration tests of the former builder only.
+//! Leftover lottery audit crate. **Not on the RFC-020 mining path.**
+//! Historical RES body mint builder; production Stratum / pilot do not depend
+//! on this crate. Retained for audit of the former builder only.
 //!
 //! ## Impact
 //!

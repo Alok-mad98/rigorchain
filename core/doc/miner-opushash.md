@@ -1,6 +1,10 @@
 # CPU Miner OpuHash Integration (Minimal Guide)
 
-This guide summarizes how a CPU miner must evaluate PoW to match Rigor consensus.
+> **P0-098.** Official SOLO `minerd` now hashes SHA3-256(`RGRPOW01` || header_80).
+> This file is a historical OpuHash grind-path note. See `miner/README_MINER.md`.
+
+This guide summarizes how the in-tree CPU miner evaluates the historical
+OpuHash mix. It does not define current node consensus.
 
 ## Goal
 

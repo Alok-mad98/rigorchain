@@ -13,11 +13,27 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CORE_DIR = REPO_ROOT / "formal_verification" / "coq" / "ReplayReorgCore"
+CORE_DIR = REPO_ROOT / "formal_verification" / "archive" / "lottery" / "coq" / "ReplayReorgCore"
 AUDIT_DOC_4B = REPO_ROOT / "docs" / "formal" / "phase4b_replay" / "REPLAY_REORG_CORE_AUDIT.md"
 AUDIT_DOC_4C = REPO_ROOT / "docs" / "formal" / "phase4c_replay" / "REPLAY_REORG_CLOSURE_AUDIT.md"
-AUDIT_DOC_4D = REPO_ROOT / "docs" / "formal" / "phase4d_supply" / "SUPPLY_CONSERVATION_AUDIT.md"
-AUDIT_DOC_4E = REPO_ROOT / "docs" / "formal" / "phase4e_connectblock" / "CONNECTBLOCK_SUPPLY_AUDIT.md"
+AUDIT_DOC_4D = (
+    REPO_ROOT
+    / "archive"
+    / "p0-history"
+    / "docs"
+    / "formal"
+    / "phase4d_supply"
+    / "SUPPLY_CONSERVATION_AUDIT.md"
+)
+AUDIT_DOC_4E = (
+    REPO_ROOT
+    / "archive"
+    / "p0-history"
+    / "docs"
+    / "formal"
+    / "phase4e_connectblock"
+    / "CONNECTBLOCK_SUPPLY_AUDIT.md"
+)
 
 FORBIDDEN_IMPORTS = (
     "RigorSha256",
@@ -219,8 +235,8 @@ def check_audit_doc() -> list[str] | None:
 
     Partial trees are allowed: only enforce section checklists for audit pages
     that are present. Unshipped phase4b/4c pages do not fail the suite.
-    RFC-017 delivery always ships phase4d + phase4e; if either is missing while
-    any formal markdown exists, that is a hard error.
+    Lottery-era phase4d + phase4e audits live under archive/p0-history;
+    if either is missing while any formal markdown exists, that is a hard error.
     """
     formal_root = REPO_ROOT / "docs" / "formal"
     if not formal_root.is_dir() or not any(formal_root.rglob("*.md")):

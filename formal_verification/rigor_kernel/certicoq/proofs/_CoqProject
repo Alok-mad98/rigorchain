@@ -1,0 +1,14 @@
+# Phase 7 documentation theorems. Cone 8.15.0. No CertiCoq plugin.
+# Do not add this project to _CoqProject.kernel-critical.
+-R . RigorCertiCoqProofs
+
+CertiCoqCorrespondence.v
+CompiledCheckerSoundness.v
+CompCertAST.v
+LambdaANFInstance.v
+Phase10Flags.v
+CodegenUpstream.v
+Task018Flags.v
+Task31AFlags.v
+Task31BFlags.v
+Task31CFlags.v

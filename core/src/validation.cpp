@@ -13,16 +13,13 @@
 
 #include <validation.h>
 
+#include <node/supply_monitor/observational_metrics.h>
 #include <node/supply_monitor/runtime_supply_invariant_checker.h>
 #include <node/supply_monitor/runtime_supply_witness_chain.h>
 #include <node/supply_monitor/runtime_supply_state.h>
-#include <consensus/convergence_commitment.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_owner.h>
 #include <consensus/kernel/genesis_authority.h>
-#include <consensus/rigor_res.h>
 #include <consensus_rigor/sigma_hash.h>
 #include <cuckoocache.h>
 #include <kernel/coinstats.h>
@@ -39,15 +36,16 @@
 #include <consensus/amount.h>
 #include <stdexcept>
 #include <consensus/consensus.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
 #include <consensus/merkle.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
-#include <consensus/rigor_math.h>
 #include <consensus/replay_snapshot.h>
 #include <consensus/state_snapshot.h>
 #include <consensus/tx_check.h>
+#include <consensus/trace/consensus_trace.h>
 #include <consensus/tx_verify.h>
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
@@ -120,76 +118,9 @@
 #include <vector>
 
 namespace {
-static_assert((Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> Consensus::ORU_SUBSIDY_MAX_SHIFTS) ==
-                  Consensus::ORU_MIN_BLOCK_SUBSIDY,
+static_assert(Consensus::ORU_FLAT_BLOCK_SUBSIDY == 128 * COIN,
     "GetBlockSubsidy Rigor floor must match rigor_consensus_lock");
 
-/**
- * TASK-ARCH-NO-GLOBAL-FENCE-001 (W1): observer path-fold of cumulative RES issuance.
- *
- * Path-fold of ancestor `m_block_res_mint_sum`. This is an observational ledger
- * scalar for RPC / explorer / state_hash, **not** a spendable balance and **not**
- * a ConnectBlock predicate. The RES hard cap is RFC-017 `ResScheduleSum()`.
- */
-static CAmount GetChainResMintTotal(const CBlockIndex* tip)
-{
-    if (tip == nullptr) return 0;
-
-    std::vector<const CBlockIndex*> pending;
-    const CBlockIndex* cursor = tip;
-    while (cursor != nullptr && !cursor->Observational().HasResMintCache()) {
-        pending.push_back(cursor);
-        cursor = cursor->pprev;
-    }
-
-    CAmount running = (cursor != nullptr) ? cursor->Observational().GetChainResMintTotal() : 0;
-    if (running < 0 || running > Consensus::RES_MAX_SUPPLY) return -1;
-
-    for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
-        const CBlockIndex* block = *it;
-        if (block->m_block_res_mint_sum < 0 || block->m_block_res_mint_sum > Consensus::RES_MAX_SUPPLY) return -1;
-        if (running > Consensus::RES_MAX_SUPPLY - block->m_block_res_mint_sum) return -1;
-        running += block->m_block_res_mint_sum;
-        block->Observational().WriteResMintCache(running);
-    }
-    return running;
-}
-
-/**
- * TASK-ARCH-NO-GLOBAL-FENCE-001 (W1): observer path-fold of RFC-002 S_ORU(t).
- *
- * Uses only block-index data (per-block subsidy + converge sums + parent links).
- * Observational ledger scalar for RPC / explorer / state_hash, **not** spendable
- * ORU and **not** a ConnectBlock predicate.
- */
-static CAmount GetChainOruTotal(const CBlockIndex* tip, const Consensus::Params& consensus)
-{
-    if (tip == nullptr) return 0;
-
-    std::vector<const CBlockIndex*> pending;
-    const CBlockIndex* cursor = tip;
-    while (cursor != nullptr && !cursor->Observational().HasOruCache()) {
-        pending.push_back(cursor);
-        cursor = cursor->pprev;
-    }
-
-    CAmount running = (cursor != nullptr) ? cursor->Observational().GetChainOruTotal() : 0;
-    if (running < 0) return -1;
-
-    for (auto it = pending.rbegin(); it != pending.rend(); ++it) {
-        const CBlockIndex* block = *it;
-        CAmount subsidy = GetBlockSubsidy(block->nHeight, consensus);
-        CAmount converge = block->m_block_converge_sum;
-        if (converge < 0) return -1;
-        
-        // RFC-002: S_ORU(t+1) = S_ORU(t) + R(t) - C(t)
-        running = running + subsidy - converge;
-        if (running < 0) return -1;
-        
-        block->Observational().WriteOruCache(running);
-    }
-    return running;
-}
 } // namespace
 
 using kernel::CCoinsStats;
@@ -489,7 +420,20 @@ void Chainstate::MaybeUpdateMempoolForReorg(
             }
         }
 
-        // If the transaction spends any coinbase outputs, it must be mature.
+        // RFC-020: mint price is a function of the confirming height. A floor-priced
+        // mint accepted while the tip is h-1 is consensus-invalid at spendheight h+1.
+        // Evict it here so CTxMemPool::check() (regtest: every block) does not abort
+        // after an empty block leaves the mint in the mempool.
+        if (Consensus::IsConvergenceTx(tx)) {
+            const CAmount res_mint_out = tx.GetValueOut(ASSET_RES);
+            const CAmount burn = Consensus::GetConvergenceAmount(tx);
+            const int spendheight = m_chain.Tip()->nHeight + 1;
+            if (res_mint_out > 0 && !Consensus::CheckResMintArithmetic(res_mint_out, burn, spendheight)) {
+                return true;
+            }
+        }
+
+        // If the transaction spends any coinbase or body RES mint outputs, it must be mature.
         if (it->GetSpendsCoinbase()) {
             for (const CTxIn& txin : tx.vin) {
                 auto it2 = m_mempool->mapTx.find(txin.prevout.hash);
@@ -498,7 +442,7 @@ void Chainstate::MaybeUpdateMempoolForReorg(
                 const Coin& coin{CoinsTip().AccessCoin(txin.prevout)};
                 assert(!coin.IsSpent());
                 const auto mempool_spend_height{m_chain.Tip()->nHeight + 1};
-                if (coin.IsCoinBase() && mempool_spend_height - static_cast<int>(coin.nHeight) < m_chainman.GetConsensus().nCoinbaseMaturity) {
+                if (coin.RequiresMaturity() && mempool_spend_height - static_cast<int>(coin.nHeight) < m_chainman.GetConsensus().nCoinbaseMaturity) {
                     return true;
                 }
                 int64_t mint_maturity = 0;
@@ -950,12 +894,12 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
     ws.m_modified_fees = ws.m_base_fees;
     m_pool.ApplyDelta(hash, ws.m_modified_fees);
 
-    // Keep track of transactions that spend a coinbase or RIGOR_MARKER_RES_MINT output, which we re-scan
+    // Keep track of transactions that spend a coinbase or body RES mint, which we re-scan
     // during reorgs to ensure maturity is still met.
     bool fSpendsCoinbase = false;
     for (const CTxIn &txin : tx.vin) {
         const Coin &coin = m_view.AccessCoin(txin.prevout);
-        if (coin.IsCoinBase() || IsResMintScript(coin.out.scriptPubKey)) {
+        if (coin.RequiresMaturity() || IsResMintScript(coin.out.scriptPubKey)) {
             fSpendsCoinbase = true;
             break;
         }
@@ -2062,7 +2006,8 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
             COutPoint out(hash, o);
             Coin coin;
             bool is_spent = view.SpendCoin(out, &coin);
-            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase) {
+            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase ||
+                TxOutputIsBodyResMint(tx, static_cast<uint32_t>(o)) != coin.IsResMint()) {
                 fClean = false;
             }
         }
@@ -2125,7 +2070,8 @@ bool ApplyBlockUndoCoinsOnly_SCRATCH(CCoinsViewCache& view, const CBlock& block,
             COutPoint out(hash, o);
             Coin coin;
             bool is_spent = view.SpendCoin(out, &coin);
-            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase) {
+            if (!is_spent || tx.vout[o] != coin.out || static_cast<uint32_t>(pindex->nHeight) != coin.nHeight || is_coinbase != coin.fCoinBase ||
+                TxOutputIsBodyResMint(tx, static_cast<uint32_t>(o)) != coin.IsResMint()) {
                 fClean = false;
             }
         }
@@ -2182,13 +2128,11 @@ static std::array<ThresholdConditionCache, VERSIONBITS_NUM_BITS> warningcache GU
 
 static unsigned int GetBlockScriptFlags(const CBlockIndex& block_index, const ChainstateManager& chainman)
 {
-    // Reorging D blocks disconnects down to tip-D, then connects the replacement chain — and each
-    // ConnectBlock reads the CONVERGENCE_DRAW_WINDOW ancestors of the block it is connecting. The
-    // oldest datum a depth-D reorg touches is therefore at tip - D - W, so the keep window must
-    // cover the sum. Anything less and a reorg inside the supported depth hits unreadable data,
-    // which now aborts the node (see ConnectBlock) instead of silently stalling.
-    static_assert(MIN_BLOCKS_TO_KEEP >= MAX_SUPPORTED_REORG_DEPTH + static_cast<unsigned>(Consensus::CONVERGENCE_DRAW_WINDOW),
-                  "the prune keep window must cover the supported reorg depth plus the convergence draw window");
+    // A depth-D reorg disconnects to tip-D and reconnects from there, so the keep window must
+    // cover the supported reorg depth. Under RFC-019 that is all it must cover: ConnectBlock
+    // reads the block being connected and the coins view, never an ancestor's block or undo data.
+    static_assert(MIN_BLOCKS_TO_KEEP >= MAX_SUPPORTED_REORG_DEPTH,
+                  "the prune keep window must cover the supported reorg depth");
     (void)block_index;
     (void)chainman;
     // RIGOR has no script-flag exceptions and no delayed soft-fork activation.
@@ -2210,532 +2154,6 @@ static SteadyClock::duration time_index{};
 static SteadyClock::duration time_total{};
 static int64_t num_blocks_total = 0;
 
-namespace rigor {
-bool CheckRigorDrawTargetCommitment(BlockValidationState& state,
-                                    const CBlock& block,
-                                    const CBlockIndex* pindex,
-                                    const Consensus::Params& consensus_params)
-{
-    (void)state;
-    (void)block;
-    (void)pindex;
-    (void)consensus_params;
-    // RIGR RIGOR_MARKER_RETURN is no longer a consensus object. Parent nBits live in the header.
-    return true;
-}
-} // namespace rigor
-
-namespace {
-/**
- * SECURITY-001-A9-C: what one block contributes to a draw window — the candidates it introduces,
- * plus the winner txid its RES mint paid out (if any).
- *
- * The two halves serve opposite purposes. `candidates` accumulate INTO F; `paid_winners` are
- * subtracted FROM it, because a candidate stays in the window for up to W draws and must be
- * payable only once. The paid txid is the parent-draw winner when the coinbase has RIGOR_MARKER_RES_MINT.
- */
-struct BlockWindowContribution {
-    std::vector<ConvergenceDrawCandidate> candidates;
-    /** Convergence txids paid by this block's coinbase RIGOR_MARKER_RES_MINT (parent-draw winner). */
-    std::vector<uint256> paid_winners;
-};
-
-/**
- * Bounded cache of per-block contributions, keyed by block hash.
- *
- * Under A-9-C a draw spans CONVERGENCE_DRAW_WINDOW blocks, so assembling one from cold storage
- * costs W block reads plus W undo reads. That bound is real only because the paid-winner txid is
- * read from the block index (H-1, ValidatePaidWinnerRecord) rather than re-derived: deriving it
- * re-entered this function for the parent, and the "W reads" were unbounded to genesis.
- *
- * Blocks connect in order and consecutive windows overlap in W-1 blocks, so caching the per-block
- * contribution makes the steady state one new read per connected block instead of W. This cache
- * is now an optimisation only — a permanently cold cache costs W reads per window, not a scan.
- *
- * Keyed by block hash, so a reorg can never hit a stale entry: a different branch has different
- * hashes and simply misses. Bounded by insertion order; eviction costs a re-read and never
- * correctness. Several chainstates share the map and may evict each other's entries, which
- * likewise costs only performance.
- */
-class BlockWindowContributionCache
-{
-public:
-    bool Lookup(const uint256& block_hash, BlockWindowContribution& out) const
-    {
-        LOCK(m_mutex);
-        const auto it = m_entries.find(block_hash);
-        if (it == m_entries.end()) return false;
-        out = it->second;
-        return true;
-    }
-
-    void Remember(const uint256& block_hash, const BlockWindowContribution& contribution)
-    {
-        LOCK(m_mutex);
-        if (m_entries.emplace(block_hash, contribution).second) {
-            m_order.push_back(block_hash);
-        }
-        while (m_order.size() > MAX_ENTRIES) {
-            m_entries.erase(m_order.front());
-            m_order.pop_front();
-        }
-    }
-
-private:
-    /** Four windows: enough to serve the active tip plus a shallow reorg without thrashing. */
-    static constexpr size_t MAX_ENTRIES = 4 * static_cast<size_t>(Consensus::CONVERGENCE_DRAW_WINDOW);
-
-    mutable Mutex m_mutex;
-    std::map<uint256, BlockWindowContribution> m_entries GUARDED_BY(m_mutex);
-    std::deque<uint256> m_order GUARDED_BY(m_mutex);
-};
-
-BlockWindowContributionCache g_window_contribution_cache;
-
-/** Process-local cache of reconstructed draw sets, same lifetime/bounds as the contribution cache. */
-class DrawSetCache
-{
-public:
-    bool Lookup(const uint256& block_hash, ConvergenceDrawSet& out) const
-    {
-        LOCK(m_mutex);
-        const auto it = m_entries.find(block_hash);
-        if (it == m_entries.end()) return false;
-        out = it->second;
-        return true;
-    }
-
-    void Remember(const uint256& block_hash, const ConvergenceDrawSet& set)
-    {
-        LOCK(m_mutex);
-        if (m_entries.emplace(block_hash, set).second) {
-            m_order.push_back(block_hash);
-        }
-        while (m_order.size() > MAX_ENTRIES) {
-            m_entries.erase(m_order.front());
-            m_order.pop_front();
-        }
-    }
-
-private:
-    static constexpr size_t MAX_ENTRIES = 4 * static_cast<size_t>(Consensus::CONVERGENCE_DRAW_WINDOW);
-    mutable Mutex m_mutex;
-    std::map<uint256, ConvergenceDrawSet> m_entries GUARDED_BY(m_mutex);
-    std::deque<uint256> m_order GUARDED_BY(m_mutex);
-};
-
-DrawSetCache g_draw_set_cache;
-
-/**
- * H-1: read the txid this block's coinbase paid out of the block index, where ConnectBlock
- * recorded it.
- *
- * This replaces a derivation that resolved the parent draw, which rebuilt the parent's window,
- * which resolved ITS parent draw — recursing to genesis rather than stopping at W. Reading the
- * record is O(1) and, crucially, touches no other block, so window assembly is now flat.
- *
- * The record is cross-checked against the block instead of trusted: `CoinbaseHasResMint` is the
- * predicate ConnectBlock used to decide whether to write a txid at all, so the two must agree.
- * A disagreement means the index is corrupt or predates the field, and the read fails rather
- * than assembling F from a window with the wrong exclusions.
- */
-bool ValidatePaidWinnerRecord(const CBlock& block,
-    const CBlockIndex& block_index,
-    std::optional<uint256>& paid_out)
-{
-    paid_out.reset();
-    if (block.vtx.empty()) {
-        return false;
-    }
-
-    const bool coinbase_mints = CoinbaseHasResMint(*block.vtx[0]);
-
-    // Genesis predates the height‖C‖paid-winner scriptSig (classic timestamp push).
-    // BIP34 is active from height 1; reading genesis as a parent of block 1 must not
-    // require the canonical three-push commitment.
-    if (block_index.nHeight == 0) {
-        if (coinbase_mints || !block_index.m_paid_winner_txid.IsNull()) {
-            LogPrintf("ERROR: %s: genesis %s has a RES mint or paid-winner index record\n",
-                __func__, block_index.GetBlockHash().ToString());
-            return false;
-        }
-        return true;
-    }
-
-    // RIG-05: the paid-winner txid is committed in the coinbase scriptSig. The
-    // block-index field is a cache and must match the on-chain push when present.
-    std::string parse_err;
-    Consensus::CoinbaseConvergenceRootScriptSig parsed;
-    const bool parsed_ok = Consensus::ParseCoinbaseConvergenceRootScriptSig(
-        block.vtx[0]->vin[0].scriptSig, parsed, parse_err);
-    if (!parsed_ok) {
-        LogPrintf("ERROR: %s: coinbase scriptSig for %s is not a canonical commitment (%s)\n",
-            __func__, block_index.GetBlockHash().ToString(), parse_err);
-        return false;
-    }
-    const bool committed_paid = !parsed.paid_winner_txid.IsNull();
-    if (coinbase_mints != committed_paid) {
-        LogPrintf("ERROR: %s: block %s coinbase %s a RES mint but paid-winner push is %s\n",
-            __func__, block_index.GetBlockHash().ToString(),
-            coinbase_mints ? "has" : "has no",
-            committed_paid ? parsed.paid_winner_txid.ToString() : "null");
-        return false;
-    }
-
-    const bool have_record = !block_index.m_paid_winner_txid.IsNull();
-    if (have_record && block_index.m_paid_winner_txid != parsed.paid_winner_txid) {
-        LogPrintf("ERROR: %s: block index for %s paid_winner=%s disagrees with coinbase commitment %s. "
-                  "The block index is corrupt; restart with -reindex.\n",
-            __func__, block_index.GetBlockHash().ToString(),
-            block_index.m_paid_winner_txid.ToString(),
-            parsed.paid_winner_txid.ToString());
-        return false;
-    }
-
-    if (committed_paid) paid_out = parsed.paid_winner_txid;
-    return true;
-}
-
-/** Read one block's window contribution from disk, or serve it from the cache. */
-bool GetBlockWindowContribution(const CBlockIndex& block_index,
-    const Consensus::Params& consensus_params,
-    BlockWindowContribution& out)
-{
-    const uint256 block_hash = block_index.GetBlockHash();
-    if (g_window_contribution_cache.Lookup(block_hash, out)) {
-        return true;
-    }
-
-    CBlock source_block;
-    if (!ReadBlockFromDisk(source_block, &block_index, consensus_params)) {
-        return false;
-    }
-    // Genesis carries no undo data; an empty one is the correct input for its single coinbase.
-    CBlockUndo source_undo;
-    if (block_index.nHeight > 0 && !UndoReadFromDisk(source_undo, &block_index)) {
-        return false;
-    }
-
-    out = BlockWindowContribution{};
-    if (!BuildBlockConvergenceCandidatesFromUndo(source_block, block_index.nHeight, source_undo, consensus_params, out.candidates)) {
-        return false;
-    }
-    std::optional<uint256> paid_txid;
-    if (!ValidatePaidWinnerRecord(source_block, block_index, paid_txid)) {
-        return false;
-    }
-    out.paid_winners = FindBlockPaidConvergenceTxids(source_block, paid_txid);
-
-    g_window_contribution_cache.Remember(block_hash, out);
-    return true;
-}
-
-/**
- * Warm the cache with a block that has just been connected, using the undo data already in hand.
- * Best effort: a failure here only means the next window pays for a disk read.
- */
-void RememberBlockWindowContribution(const CBlock& block,
-    const CBlockUndo& block_undo,
-    const CBlockIndex& index,
-    const Consensus::Params& consensus_params)
-{
-    BlockWindowContribution contribution;
-    if (!BuildBlockConvergenceCandidatesFromUndo(block, index.nHeight, block_undo, consensus_params, contribution.candidates)) {
-        return;
-    }
-    std::optional<uint256> paid_txid;
-    if (!ValidatePaidWinnerRecord(block, index, paid_txid)) {
-        return;
-    }
-    contribution.paid_winners = FindBlockPaidConvergenceTxids(block, paid_txid);
-    g_window_contribution_cache.Remember(index.GetBlockHash(), contribution);
-}
-} // namespace
-
-bool BuildConvergenceWindowTail(const CBlockIndex* parent_index,
-    const Consensus::Params& consensus_params,
-    ConvergenceWindowTail& out)
-{
-    out = ConvergenceWindowTail{};
-
-    // A draw whose source block sits at height s enumerates F over [s-W+1, s]. The source block's
-    // own candidates come from the caller — a live coins view during assembly and validation, undo
-    // data on the read paths — so the tail is the remaining W-1 blocks, which are exactly the W-1
-    // blocks ending at the source block's parent inclusive.
-    //
-    // Genesis has no parent: an empty tail is the correct and complete answer.
-    if (parent_index == nullptr) {
-        out.complete = true;
-        return true;
-    }
-
-    std::vector<const CBlockIndex*> ancestors;
-    ancestors.reserve(static_cast<size_t>(Consensus::CONVERGENCE_DRAW_WINDOW));
-    const CBlockIndex* walk = parent_index;
-    for (int i = 0; i < Consensus::CONVERGENCE_DRAW_WINDOW - 1 && walk != nullptr; ++i) {
-        ancestors.push_back(walk);
-        walk = walk->pprev;
-    }
-
-    // Oldest first, so candidate order is a deterministic function of the window alone and never
-    // of the order a node happened to learn the blocks in.
-    for (auto it = ancestors.rbegin(); it != ancestors.rend(); ++it) {
-        BlockWindowContribution contribution;
-        if (!GetBlockWindowContribution(**it, consensus_params, contribution)) {
-            // A local storage failure, or a block index that predates the paid-winner record.
-            // Returning false makes every consumer treat the draw as unavailable, rather than
-            // silently resolving a short window. Each iteration reads exactly one block and one
-            // undo file and never re-enters this function, so the loop is bounded at W-1.
-            return false;
-        }
-        out.candidates.insert(out.candidates.end(), contribution.candidates.begin(), contribution.candidates.end());
-        const std::vector<uint256>& paid = contribution.paid_winners;
-        if (!paid.empty()) {
-            out.candidates.erase(std::remove_if(out.candidates.begin(), out.candidates.end(),
-                [&paid](const ConvergenceDrawCandidate& c) {
-                    return std::find(paid.begin(), paid.end(), c.txid) != paid.end();
-                }),
-                out.candidates.end());
-        }
-    }
-
-    // Near genesis the walk stops early. That is a complete window, not a truncated one: the
-    // blocks simply do not exist, so every validator derives the same F.
-    out.complete = true;
-    return true;
-}
-
-// State / chain access for the parent draw window. Not the kernel resolver:
-// after F is assembled, ConnectBlock calls RigorConsensusKernel::ResolveDraw(F, T).
-bool GetConvergenceDrawSetForBlock(const CBlockIndex& block_index,
-    const Consensus::Params& consensus_params,
-    ConvergenceDrawSet& out)
-{
-    out = ConvergenceDrawSet{};
-    const uint256 block_hash = block_index.GetBlockHash();
-
-    // ConnectBlock records F on the index. After prune, blk/rev of this block are gone but
-    // the index entry remains, which is what a child ConnectBlock needs. Check it before the
-    // process-local cache and before any disk read.
-    if (block_index.m_draw_set.IsSet()) {
-        out = block_index.m_draw_set;
-        g_draw_set_cache.Remember(block_hash, out);
-        return true;
-    }
-
-    if (g_draw_set_cache.Lookup(block_hash, out)) {
-        return true;
-    }
-
-    ConvergenceWindowTail tail;
-    if (!BuildConvergenceWindowTail(block_index.pprev, consensus_params, tail)) {
-        return false;
-    }
-
-    CBlock source_block;
-    if (!ReadBlockFromDisk(source_block, &block_index, consensus_params)) {
-        return false;
-    }
-    // Genesis carries no undo data; an empty one is the correct input for its single coinbase.
-    CBlockUndo source_undo;
-    if (block_index.nHeight > 0 && !UndoReadFromDisk(source_undo, &block_index)) {
-        return false;
-    }
-    std::optional<uint256> paid_txid;
-    if (!ValidatePaidWinnerRecord(source_block, block_index, paid_txid)) {
-        return false;
-    }
-    if (!BuildConvergenceDrawSetFromUndo(source_block, block_index.nHeight, source_undo, consensus_params, tail, out, paid_txid)) {
-        return false;
-    }
-    // TASK-010 C-2: σ binds C. The C used to pay this set MUST be the C committed
-    // in the source coinbase. Genesis has no three-push commitment; its F is empty
-    // and C is the zero root.
-    if (block_index.nHeight > 0) {
-        if (source_block.vtx.empty()) {
-            return false;
-        }
-        std::string parse_err;
-        Consensus::CoinbaseConvergenceRootScriptSig parsed;
-        if (!Consensus::ParseCoinbaseConvergenceRootScriptSig(
-                source_block.vtx[0]->vin[0].scriptSig, parsed, parse_err)) {
-            LogPrintf("ERROR: %s: %s coinbase is not a canonical C commitment (%s)\n",
-                __func__, block_hash.ToString(), parse_err);
-            return false;
-        }
-        if (parsed.convergence_root != out.convergence_root) {
-            LogPrintf("ERROR: %s: reconstructed C %s != coinbase C %s for %s\n",
-                __func__, out.convergence_root.ToString(), parsed.convergence_root.ToString(),
-                block_hash.ToString());
-            return false;
-        }
-    } else if (!out.convergence_root.IsNull()) {
-        LogPrintf("ERROR: %s: genesis reconstructed C is not the zero root\n", __func__);
-        return false;
-    }
-    g_draw_set_cache.Remember(block_hash, out);
-    return true;
-}
-
-namespace {
-/** Process-local tip-hash cache for getconvergencestats / Convergence Network GUI. */
-Mutex g_convergence_network_stats_mutex;
-ConvergenceNetworkStats g_convergence_network_stats GUARDED_BY(g_convergence_network_stats_mutex);
-
-/**
- * Rebuild stats from the tip W-window. Uses GetBlockWindowContribution (warmed by ConnectBlock),
- * which since H-1 reads each block's paid-winner txid from its index instead of re-resolving the
- * parent draw. A cold restart therefore costs at most O(W) block/undo reads — never a full-chain
- * scan. Before H-1 this comment was false: the derivation recursed to genesis.
- */
-bool ComputeConvergenceNetworkStats(const CBlockIndex& tip,
-    const Consensus::Params& consensus_params,
-    ConvergenceNetworkStats& out) EXCLUSIVE_LOCKS_REQUIRED(::cs_main)
-{
-    out = ConvergenceNetworkStats{};
-    out.best_height = tip.nHeight;
-    out.tip_hash = tip.GetBlockHash();
-
-    const int window_first = std::max(0, tip.nHeight - Consensus::CONVERGENCE_DRAW_WINDOW + 1);
-    for (const CBlockIndex* p = &tip; p != nullptr && p->nHeight >= window_first; p = p->pprev) {
-        BlockWindowContribution contribution;
-        if (!GetBlockWindowContribution(*p, consensus_params, contribution)) {
-            return false;
-        }
-        for (const ConvergenceDrawCandidate& candidate : contribution.candidates) {
-            ++out.active_convergences;
-            if (candidate.weight > static_cast<uint64_t>(std::numeric_limits<CAmount>::max()) ||
-                out.active_oru > std::numeric_limits<CAmount>::max() - static_cast<CAmount>(candidate.weight)) {
-                return false;
-            }
-            out.active_oru += static_cast<CAmount>(candidate.weight);
-        }
-    }
-
-    ConvergenceDrawSet draw_set;
-    if (GetConvergenceDrawSetForBlock(tip, consensus_params, draw_set) && draw_set.IsSet()) {
-        out.pending_windows = static_cast<int64_t>(draw_set.candidates.size());
-    } else {
-        // Incomplete/unavailable draw near storage failure: report zero pending rather than inventing.
-        out.pending_windows = 0;
-    }
-
-    const CAmount res_total = GetChainResMintTotal(&tip);
-    if (res_total < 0) return false;
-    out.total_res_minted = res_total;
-    out.valid = true;
-    return true;
-}
-} // namespace
-
-bool GetConvergenceNetworkStats(const CBlockIndex& tip,
-    const Consensus::Params& consensus_params,
-    ConvergenceNetworkStats& out)
-{
-    AssertLockHeld(::cs_main);
-    const uint256 tip_hash = tip.GetBlockHash();
-    {
-        LOCK(g_convergence_network_stats_mutex);
-        if (g_convergence_network_stats.valid && g_convergence_network_stats.tip_hash == tip_hash) {
-            out = g_convergence_network_stats;
-            return true;
-        }
-    }
-
-    ConvergenceNetworkStats computed;
-    if (!ComputeConvergenceNetworkStats(tip, consensus_params, computed)) {
-        out = ConvergenceNetworkStats{};
-        return false;
-    }
-
-    LOCK(g_convergence_network_stats_mutex);
-    g_convergence_network_stats = computed;
-    out = computed;
-    return true;
-}
-
-void RefreshConvergenceNetworkStatsCache(const CBlockIndex* tip,
-    const Consensus::Params& consensus_params)
-{
-    AssertLockHeld(::cs_main);
-    if (tip == nullptr) {
-        InvalidateConvergenceNetworkStatsCache();
-        return;
-    }
-    ConvergenceNetworkStats unused;
-    (void)GetConvergenceNetworkStats(*tip, consensus_params, unused);
-}
-
-void InvalidateConvergenceNetworkStatsCache()
-{
-    LOCK(g_convergence_network_stats_mutex);
-    g_convergence_network_stats = ConvergenceNetworkStats{};
-}
-
-bool GetTemplatePaidWinner(const CBlock& block,
-    const CBlockIndex* parent,
-    const Consensus::Params& consensus_params,
-    std::optional<uint256>& out)
-{
-    out.reset();
-    if (parent == nullptr || block.vtx.empty() || !CoinbaseHasResMint(*block.vtx[0])) {
-        return true;
-    }
-    ConvergenceDrawSet parent_set;
-    if (!GetConvergenceDrawSetForBlock(*parent, consensus_params, parent_set)) {
-        return false;
-    }
-    const ConvergenceDrawOutcome outcome =
-        RigorConsensusKernel::ResolveDraw(parent_set, consensus_params.RES_PROBABILITY_TARGET);
-    if (outcome.HasWinner()) {
-        out = parent_set.candidates[static_cast<size_t>(outcome.winner_index)].txid;
-    }
-    return true;
-}
-
-ConvergenceDrawSet GetTemplateConvergenceDrawSet(const CBlock& block,
-    const CBlockIndex* parent,
-    const CCoinsViewCache& view_at_block_entry,
-    const Consensus::Params& consensus_params)
-{
-    ConvergenceWindowTail tail;
-    if (!BuildConvergenceWindowTail(parent, consensus_params, tail)) {
-        return ConvergenceDrawSet{};
-    }
-    const int height = parent != nullptr ? parent->nHeight + 1 : 0;
-
-    // A template has no block index, so its paid txid cannot be read (H-1) and must be derived:
-    // resolve the parent draw and take its winner. Bounded: GetConvergenceDrawSetForBlock reads
-    // the paid txid of every block in the parent's window from the index, so it recurses no further.
-    std::optional<uint256> paid_txid;
-    if (!GetTemplatePaidWinner(block, parent, consensus_params, paid_txid)) {
-        return ConvergenceDrawSet{};
-    }
-    return BuildConvergenceDrawSet(block, height, view_at_block_entry, consensus_params, tail, paid_txid);
-}
-
-uint256 GetTemplateConvergenceRoot(const CBlock& block,
-    const CBlockIndex* parent,
-    const CCoinsViewCache& view_at_block_entry,
-    const Consensus::Params& consensus_params)
-{
-    return GetTemplateConvergenceDrawSet(block, parent, view_at_block_entry, consensus_params).convergence_root;
-}
-
-std::optional<uint256> GetConvergenceWinnerForBlock(const CBlockIndex& block_index,
-    const Consensus::Params& consensus_params)
-{
-    ConvergenceDrawSet set;
-    if (!GetConvergenceDrawSetForBlock(block_index, consensus_params, set)) {
-        return std::nullopt;
-    }
-    const ConvergenceDrawOutcome outcome = RigorConsensusKernel::ResolveDraw(set, consensus_params.RES_PROBABILITY_TARGET);
-    if (!outcome.HasWinner()) {
-        return std::nullopt;
-    }
-    return set.candidates[static_cast<size_t>(outcome.winner_index)].txid;
-}
-
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
@@ -2747,6 +2165,7 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     uint256 block_hash{block.GetHash()};
     assert(*pindex->phashBlock == block_hash);
+    RigorConsensusTraceConnectGuard rigor_consensus_trace_guard(block_hash, pindex->nHeight, state);
     // CVE-2024-52911 fix: parallel script-check infrastructure has been deleted.
     // ConnectBlock executes all script verifications synchronously inline; there is no
     // CCheckQueue, no worker thread pool, and no CScriptCheck batching. Restoring any
@@ -2786,17 +2205,10 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     num_blocks_total++;
 
     // Special case for the genesis block, skipping connection of its transactions
-    // (its coinbase is unspendable). Still record the empty draw set so a child
-    // can resolve the parent draw after genesis blk/rev are pruned.
+    // (its coinbase is unspendable).
     if (block_hash == params.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck) {
             view.SetBestBlock(pindex->GetBlockHash());
-            ConvergenceDrawSet genesis_set;
-            genesis_set.source_block_hash = block_hash;
-            genesis_set.source_height = 0;
-            genesis_set.source_nbits = block.nBits;
-            pindex->m_draw_set = genesis_set;
-            m_blockman.MarkBlockIndexDirty(pindex);
         }
         return true;
     }
@@ -2872,56 +2284,16 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // the life of the datadir and get the serving peer banned. After ConnectBlock records F
     // on the parent index, a pruned node still has that record, so this path is a real I/O
     // fault or an index that predates the field — AbortNode, no verdict.
-    ConvergenceDrawSet parent_draw_set;
-    ConvergenceDrawOutcome parent_outcome;
+    // BIP34. Under RFC-017 the height push was the first of three, followed by C
+    // and the paid winner, and the whole triple was checked together. RFC-019
+    // issues RES in the body against the epoch price, so a block commits to
+    // nothing about issuance and the coinbase carries the height alone.
     if (pindex->pprev != nullptr) {
-        if (!GetConvergenceDrawSetForBlock(*pindex->pprev, params.GetConsensus(), parent_draw_set)) {
-            return AbortNode(state,
-                strprintf("Failed to assemble the convergence window of %s, the parent of %s: block or undo data is unreadable",
-                    pindex->pprev->GetBlockHash().ToString(), block_hash.ToString()),
-                _("Convergence window data is unreadable. Restart with -reindex, or resync without -prune."));
-        }
-        if (parent_draw_set.source_block_hash != block.hashPrevBlock) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "parent-convergence-set-hash-mismatch");
-        }
-        parent_outcome = RigorConsensusKernel::ResolveDraw(parent_draw_set, params.GetConsensus().RES_PROBABILITY_TARGET);
-    }
-
-    std::optional<uint256> convergence_winner_opt;
-    if (parent_outcome.HasWinner()) {
-        convergence_winner_opt = parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)].txid;
-    }
-    const int convergence_candidate_n = static_cast<int>(parent_draw_set.candidates.size());
-    const uint256 expected_draw_candidate_root = ConvergenceDrawEligibleRoot(parent_draw_set, parent_outcome);
-
-    std::optional<uint256> own_paid_txid;
-    if (CoinbaseHasResMint(*block.vtx[0])) {
-        own_paid_txid = convergence_winner_opt;
-    }
-
-    ConvergenceWindowTail own_window_tail;
-    if (pindex->pprev == nullptr) {
-        own_window_tail = ConvergenceWindowTail::Empty();
-    } else {
-        own_window_tail = TailFromParentDrawSet(parent_draw_set, pindex->nHeight);
-        if (!own_window_tail.complete &&
-            !BuildConvergenceWindowTail(pindex->pprev, params.GetConsensus(), own_window_tail)) {
-            return AbortNode(state,
-                strprintf("Failed to assemble the convergence window tail of %s: block or undo data is unreadable",
-                    block_hash.ToString()),
-                _("Convergence window data is unreadable. Restart with -reindex, or resync without -prune."));
-        }
-    }
-    const ConvergenceDrawSet own_draw_set = BuildConvergenceDrawSet(
-        block, pindex->nHeight, view, params.GetConsensus(), own_window_tail, own_paid_txid);
-    const uint256 rigor_block_convergence_root = own_draw_set.convergence_root;
-
-    {
-        std::string convergence_err;
-        if (!Consensus::ValidateCoinbaseConvergenceRootScriptSig(
-                block.vtx[0]->vin[0].scriptSig, pindex->nHeight, rigor_block_convergence_root,
-                own_paid_txid.value_or(uint256{}), convergence_err)) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-convergence-root", convergence_err);
+        const CScript expect = CScript() << pindex->nHeight;
+        const CScript& actual = block.vtx[0]->vin[0].scriptSig;
+        if (actual.size() < expect.size() || !std::equal(expect.begin(), expect.end(), actual.begin())) {
+            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cb-height",
+                                 "block height mismatch in coinbase");
         }
     }
 
@@ -2949,52 +2321,32 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         }
 
         LogPrintf("MERKLE ROOT: %s\n", block.hashMerkleRoot.ToString());
-        LogPrintf("CONVERGENCE ROOT: %s\n", rigor_block_convergence_root.ToString());
-
-        LogPrintf("CONVERGENCE TXIDS (sorted):\n");
-        std::vector<uint256> sorted_txids;
-        sorted_txids.reserve(own_draw_set.candidates.size());
-        for (const ConvergenceDrawCandidate& candidate : own_draw_set.candidates) {
-            sorted_txids.push_back(candidate.txid);
-        }
-        std::sort(sorted_txids.begin(), sorted_txids.end());
-        for (const auto& id : sorted_txids) {
-            LogPrintf("  %s\n", id.ToString());
-        }
 
         LogPrintf("==== END RIGOR DEBUG ====\n\n");
     }
     // === RIGOR DEBUG END ===
 
     // ==============================================================================
-    // STEP 8..10 — Resolve the draw this block pays (Sigma-PoW-01, SECURITY-001-A8)
+    // STEP 8..10 — (retired by RFC-019)
     //
-    //     σ_i = Hash256(txid_i || C_{h-1} || B_{h-1} || LE32(h))
+    // These steps resolved a lottery: σ_i = Hash256(txid_i || C_{h-1} || B_{h-1} ||
+    // LE32(h)) over a 32-block candidate window, whose argmin won the right to be
+    // paid by the next block's coinbase. Binding σ to the parent made the draw
+    // unforgeable, but it also made a block's validity depend on 32 ancestors.
     //
-    // Every σ input other than the payout height comes from block h-1: the candidate
-    // txids and C are committed by its merkle root, and B_{h-1} is its hash. Deviating
-    // on any of them therefore costs a full proof-of-work solution, which is what makes
-    // the draw unforgeable — before A-8 the producer chose all of them for free while
-    // assembling h and could re-roll σ until it won.
-    //
-    // Consequence: the set built above from THIS block is not drawn here. It is drawn by
-    // block h+1, which is why it is only committed (coinbase) and cached (end of
-    // ConnectBlock) at this height.
+    // RFC-019 removes the draw outright. Nothing is resolved here, and a block's
+    // validity now depends on its parent alone.
     // ==============================================================================
-
-    // The parent draw was resolved before this block's C was committed. Mint evaluation
-    // below consumes those same objects.
 
     // ==============================================================================
     // STEP 11 — RES Mint Verification
-    // if winner != None:
-    //     REQUIRE(exists exactly 1 RES_MINT tx)
-    //     REQUIRE(winner == mint_tx)
-    //     REQUIRE(mint pays the declared owner W(h))
-    // else:
-    //     REQUIRE(no RES mint tx exists)
+    //
+    // A mint is an ordinary body transaction: it destroys ORU with OP_CONVERGE and
+    // creates RES, and it is valid when the burn covers the created amount at the
+    // epoch's destroy cost. There is no winner to match and no coinbase mint to gate,
+    // so this is a per-transaction check in CheckTxInputs, not a block-level one.
     // ==============================================================================
-    // Will be verified in transaction loop below
+    // Verified in CheckTxInputs; the block-level sum is accumulated in the loop below.
 
     // ==============================================================================
     // STEP 12 — State Transition
@@ -3013,17 +2365,17 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // STEP 13 — Update Supply
     // S_ORU += block_reward
     // S_ORU -= total_converge
-    // if winner:
-    //     S_RES += RES_REWARD_AMOUNT
+    // S_RES += RES minted by the body transactions that paid for it
     // ==============================================================================
 
     // This will be computed at lines 2693-2706 (ORU supply) and lines 2733-2734 (RES supply)
 
     // ==============================================================================
     // STEP 14 — Cap Enforcement
-    // At most one RIGOR_MARKER_RES_MINT of size GetResMintReward(h). The schedule sum is a
-    // compile-time identity (ResScheduleSum); ConnectBlock does not reject on a
-    // running S_RES scalar.
+    // The cap is derived, not declared: each epoch's whole ORU emission buys a bounded
+    // amount of RES at that epoch's price, and issuance stops at the horizon. Enforced
+    // per transaction in CheckTxInputs; ConnectBlock does not reject on a running
+    // S_RES scalar.
     // ==============================================================================
 
     // ==============================================================================
@@ -3094,6 +2446,14 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     // RFC-002: Track total ORU converged (destroyed) in this block (C(t))
     CAmount block_converge_sum = 0;
 
+    // RFC-019: RES created by body transactions that paid for it. Under RFC-017
+    // the only new RES in a block was in its coinbase, so this quantity did not
+    // exist; the supply ledger read the coinbase mint alone.
+    CAmount block_res_mint_body = 0;
+    // How many transactions minted, for the observational mirror. Unbounded above
+    // in principle — a block may hold as many mints as it has room for.
+    size_t block_res_mint_count = 0;
+
     // Per-tx PrecomputedTransactionData lives on the ConnectBlock stack; CScriptCheck
     // instances are constructed and consumed synchronously inside CheckInputScripts,
     // so all raw pointers held by CScriptCheck (ptxTo, txdata) are bounded by this
@@ -3108,16 +2468,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     int nInputs = 0;
     int64_t nSigOpsCost = 0;
     blockundo.vtxundo.reserve(block.vtx.size() - 1);
-
-    // TASK-010 R-4: this block's own F members, in vtx order, among txs ConnectBlock
-    // actually accepted. Compared after the loop to the F used for C.
-    std::vector<uint256> accepted_own_draw_txids;
-    accepted_own_draw_txids.reserve(block.vtx.size());
-
-    // --- ConvergenceRoot single-source pipeline ---
-    // **F** and optional committed ConvergenceRoot were fixed in steps 6-7 above
-    // (ListConvergenceRootCommitmentTxids once + ValidateCoinbaseConvergenceRootScriptSig against expected root).
-    // Res mint evaluation receives the same vectors and MUST NOT call ListConvergenceRootCommitmentTxids again (rigor_res.h).
 
     for (unsigned int i = 0; i < block.vtx.size(); i++)
     {
@@ -3176,11 +2526,18 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
                     return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-converge-overflow");
                 }
                 block_converge_sum += converge_amount;
-                // Same structural gates as IsConvergenceDrawMember minus CheckTxInputs,
-                // which just succeeded on this view. Owner-less converge burns still
-                // count toward C(t) but are not draw members.
-                if (Consensus::HasResOwnerDeclaration(tx)) {
-                    accepted_own_draw_txids.push_back(tx.GetHash());
+
+                // RFC-019: a convergence output forces ORU-only inputs
+                // (convergence-must-be-orum), so any RES this transaction pays
+                // out is newly minted rather than transferred. CheckTxInputs
+                // has already verified it against the epoch destroy cost.
+                const CAmount minted = tx.GetValueOut(ASSET_RES);
+                if (minted > 0) {
+                    if (AddMoneyOverflows(block_res_mint_body, minted)) {
+                        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-res-mint-overflow");
+                    }
+                    block_res_mint_body += minted;
+                    ++block_res_mint_count;
                 }
             }
 
@@ -3227,50 +2584,9 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
         UpdateCoins(tx, view, i == 0 ? undoDummy : blockundo.vtxundo.back(), pindex->nHeight);
     }
 
-    // TASK-010 C-2: the C committed in this coinbase was computed from the live overlay.
-    // Every later node reconstructs F from undo. Reject now if those disagree.
-    {
-        ConvergenceDrawSet undo_own_set;
-        if (!BuildConvergenceDrawSetFromUndo(block, pindex->nHeight, blockundo, params.GetConsensus(),
-                own_window_tail, undo_own_set, own_paid_txid)) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-convergence-undo-set");
-        }
-        if (undo_own_set.convergence_root != rigor_block_convergence_root ||
-            undo_own_set.candidates.size() != own_draw_set.candidates.size()) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "convergence-set-live-undo-mismatch");
-        }
-        for (size_t i = 0; i < own_draw_set.candidates.size(); ++i) {
-            if (undo_own_set.candidates[i].txid != own_draw_set.candidates[i].txid ||
-                undo_own_set.candidates[i].weight != own_draw_set.candidates[i].weight) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "convergence-set-live-undo-mismatch");
-            }
-        }
-    }
-
-    // TASK-010 R-4: F used for C must be exactly the accepted converge members of
-    // this block (plus the buried window, which is not in vtx). An incomplete
-    // window yields the empty draw set rather than a silently shortened F, so
-    // there is nothing to compare.
-    if (own_window_tail.complete) {
-        std::vector<uint256> f_this_block;
-        f_this_block.reserve(block.vtx.size());
-        for (size_t i = 1; i < block.vtx.size(); ++i) {
-            const uint256& txid = block.vtx[i]->GetHash();
-            for (const ConvergenceDrawCandidate& candidate : own_draw_set.candidates) {
-                if (candidate.txid == txid) {
-                    f_this_block.push_back(txid);
-                    break;
-                }
-            }
-        }
-        if (f_this_block != accepted_own_draw_txids) {
-            return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "convergence-set-not-accepted-txs");
-        }
-    }
-
-    // The only issuance gate. `CheckTxInputs` already rejected every body transaction that
-    // creates RES; PCORB carriers are rejected as `bad-pcorb-carrier`. "At most one mint per
-    // block" is structural: one coinbase, at most one RIGOR_MARKER_RES_MINT.
+    // The coinbase pays ORU only. Every RES in this block was minted by a body
+    // transaction that CheckTxInputs already priced against the epoch, so there is
+    // no block-level issuance gate left to run here.
     const CAmount oru_coinbase_value = Consensus::GetOutputValueByAsset(*block.vtx[0], ASSET_ORU);
     const CAmount res_coinbase_value = Consensus::GetOutputValueByAsset(*block.vtx[0], ASSET_RES);
     Assert(nFeesOruResTransferBurn >= 0);
@@ -3281,8 +2597,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     RigorConsensusKernelConnectInput kernel_in;
     kernel_in.height = pindex->nHeight;
     kernel_in.coinbase = block.vtx[0].get();
-    kernel_in.parent_draw = parent_draw_set;
-    kernel_in.parent_draw_outcome = parent_outcome;
     kernel_in.params = &params.GetConsensus();
     kernel_in.supply.height = pindex->nHeight;
     kernel_in.supply.fees_oru = nFeesOru;
@@ -3292,14 +2606,13 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
     kernel_in.supply.res_coinbase = res_coinbase_value;
     kernel_in.supply.res_bootstrap = params.IsMockableChain() ? params.GetConsensus().res_wallet_bootstrap_coinbase : 0;
     kernel_in.supply.converge_sum = block_converge_sum;
-    kernel_in.supply.has_winner = convergence_winner_opt.has_value();
-    kernel_in.supply.draw_cardinality = convergence_candidate_n;
+    // RFC-019: observational S_RES Δ is body mint, not coinbase. Leaving this at 0
+    // wrote m_chain_res_mint_total = parent and broke RES-L5 / getruntimesupply.
+    kernel_in.supply.res_mint = block_res_mint_body;
     RigorConsensusKernelConnectResult kernel_out;
     if (!RigorConsensusKernel::EvaluateConnect(kernel_in, kernel_out, state)) {
         return false;
     }
-    const CAmount res_mint_coinbase = kernel_out.res_mint;
-    const bool res_minted = res_mint_coinbase > 0;
     const auto supply_delta = kernel_out.supply;
 
     const auto time_3{SteadyClock::now()};
@@ -3311,52 +2624,52 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
              Ticks<MillisecondsDouble>(time_connect) / num_blocks_total);
 
 
-    pindex->m_block_res_mint_sum = res_mint_coinbase;
+    // RFC-019: all new RES in a block comes from its body.
+    pindex->m_block_res_mint_sum = block_res_mint_body;
     // RFC-002: per-block C(t) remains on the index (used by path-fold and state_hash).
     pindex->m_block_converge_sum = block_converge_sum;
 
-    // H-1: record which ticket this block paid, so later windows can exclude it without
-    // re-deriving the parent draw (see ValidatePaidWinnerRecord). Written only after every mint
-    // check above has passed, so the record can never describe a block this node rejected.
-    // `own_paid_txid` is set iff the coinbase mints, and the mint gate already rejected a mint
-    // without a winner, so this is null exactly for non-minting blocks.
-    Assert(own_paid_txid.has_value() == (res_mint_coinbase > 0));
-    pindex->m_paid_winner_txid = own_paid_txid.value_or(uint256{});
-    pindex->m_draw_set = own_draw_set;
-
-    // Observer index only — after consensus accept. RFC-017 ResScheduleSum() is the
-    // RES cap; these ledgers are not ConnectBlock predicates.
-    const CAmount res_minted_before = GetChainResMintTotal(pindex->pprev);
-    const CAmount oru_supply_before = GetChainOruTotal(pindex->pprev, params.GetConsensus());
-    const CAmount res_minted_parent = res_minted_before >= 0 ? res_minted_before : 0;
-    const CAmount oru_supply_parent = oru_supply_before >= 0 ? oru_supply_before : 0;
-    pindex->Observational().Update(block, pindex->pprev,
-                                   res_minted_parent + supply_delta.res_delta,
-                                   oru_supply_parent + supply_delta.oru_circulating_delta);
+    // Observer index only — after consensus accept. RFC-020 ResDerivedMaxSupply() is
+    // the RES cap; these ledgers are not ConnectBlock predicates.
+    // Invalid fold ≠ zero supply: do not rewrite failure to 0 and cache it.
+    const ObservationalFoldResult res_fold = FoldChainResMintTotal(pindex->pprev);
+    const ObservationalFoldResult oru_fold = FoldChainOruTotal(pindex->pprev, params.GetConsensus());
+    if (!res_fold.ok() || !oru_fold.ok()) {
+        LogPrintf("WARNING: observational path-fold invalid at height %d hash=%s (res_ok=%d oru_ok=%d); leaving failed ledger unset, not rewriting to 0\n",
+                  pindex->nHeight, pindex->GetBlockHash().ToString(),
+                  res_fold.ok() ? 1 : 0, oru_fold.ok() ? 1 : 0);
+    }
+    const std::optional<CAmount> res_minted_parent =
+        res_fold.ok() ? std::optional<CAmount>{res_fold.value} : std::nullopt;
+    const std::optional<CAmount> oru_supply_parent =
+        oru_fold.ok() ? std::optional<CAmount>{oru_fold.value} : std::nullopt;
+    pindex->Observational().Update(
+        block, pindex->pprev,
+        res_minted_parent ? std::optional<CAmount>{*res_minted_parent + block_res_mint_body} : std::nullopt,
+        oru_supply_parent ? std::optional<CAmount>{*oru_supply_parent + supply_delta.oru_circulating_delta} : std::nullopt);
 
     if (pindex->pprev == nullptr) {
         pindex->has_res = 0;
         pindex->last_res_mint_block_hash = uint256();
-    } else if (res_mint_coinbase > 0) {
+    } else if (block_res_mint_body > 0) {
         pindex->has_res = 1;
         pindex->last_res_mint_block_hash = pindex->GetBlockHash();
     } else {
         pindex->has_res = 0;
         pindex->last_res_mint_block_hash = pindex->pprev->last_res_mint_block_hash;
     }
-    if (pindex->pprev != nullptr) {
-        pindex->m_draw_candidate_root = expected_draw_candidate_root;
-    }
 
     if (!fJustCheck) {
-        const uint8_t res_mint_count_block = res_minted ? 1 : 0;
+        // True count, saturated to the parameter width. CaptureRuntimeSupplyState reduces
+        // it to the M(h) presence indicator; RFC-019 puts no cap on mints per block.
+        const uint8_t res_mint_count_block = block_res_mint_count > 255 ? 255 : static_cast<uint8_t>(block_res_mint_count);
         Consensus::RuntimeSupplyState mirror = Consensus::CaptureRuntimeSupplyState(
             pindex,
             view,
             params.GetConsensus(),
             res_mint_count_block,
-            std::optional<CAmount>{oru_supply_parent},
-            std::optional<CAmount>{res_minted_parent});
+            oru_supply_parent,
+            res_minted_parent);
         const Consensus::RuntimeInvariantResult mirror_invariants =
             Consensus::VerifyRuntimeSupplyInvariants(mirror, params.GetConsensus());
         if (!mirror_invariants.passed) {
@@ -3396,13 +2709,6 @@ bool Chainstate::ConnectBlock(const CBlock& block, BlockValidationState& state, 
 
     if (fJustCheck)
         return true;
-
-    // A-9-C: the block is now part of the chain, so it belongs to the next W draw windows.
-    // Handing its contribution over here saves each of those windows a block read and an undo
-    // read. It is rebuilt from the undo data rather than reused from `own_draw_set` so that the
-    // cached value is produced by exactly the code a cold node runs, leaving no way for cache
-    // warmth to change a result.
-    RememberBlockWindowContribution(block, blockundo, *pindex, params.GetConsensus());
 
     if (!m_blockman.WriteUndoDataForBlock(blockundo, state, pindex, params)) {
         return false;
@@ -3787,9 +3093,6 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     m_chain.SetTip(*pindexDelete->pprev);
 
     UpdateTip(pindexDelete->pprev);
-    // Stats cache is tip-keyed; invalidate then refresh for the new tip (reorg-safe).
-    InvalidateConvergenceNetworkStatsCache();
-    RefreshConvergenceNetworkStatsCache(m_chain.Tip(), m_chainman.GetConsensus());
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     GetMainSignals().BlockDisconnected(pblock, pindexDelete);
@@ -3919,8 +3222,6 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     // Update m_chain & related variables.
     m_chain.SetTip(*pindexNew);
     UpdateTip(pindexNew);
-    // Warm Convergence Network stats for GUI/RPC (O(W); uses window contribution cache).
-    RefreshConvergenceNetworkStatsCache(pindexNew, m_chainman.GetConsensus());
     LogPrint(BCLog::VALIDATION,
              "Rigor: block accepted as chain tip: hash=%s height=%d nBits=0x%08x log2_work=%.8f\n",
              pindexNew->GetBlockHash().ToString(),
@@ -4115,12 +3416,13 @@ bool Chainstate::ActivateBestChainStep(BlockValidationState& state, CBlockIndex*
         }
     }
 
-    if (fBlocksDisconnected) {
-        // If any blocks were disconnected, disconnectpool may be non empty.  Add
-        // any disconnected transactions back to the mempool.
-        MaybeUpdateMempoolForReorg(disconnectpool, true);
+    // Always re-filter the mempool against the new tip. RFC-020 mint price
+    // hardens every block, so a leftover mint can become consensus-invalid
+    // without a reorg. Passing an empty disconnectpool is a no-op add.
+    if (m_mempool) {
+        MaybeUpdateMempoolForReorg(disconnectpool, /*fAddToMempool=*/true);
+        m_mempool->check(this->CoinsTip(), this->m_chain.Height() + 1);
     }
-    if (m_mempool) m_mempool->check(this->CoinsTip(), this->m_chain.Height() + 1);
 
     CheckForkWarningConditions();
 
@@ -4545,9 +3847,12 @@ static bool CheckBlockHeader(const CBlockHeader& block, BlockValidationState& st
 {
     // Genesis: nBits sanity via CheckProofOfWork (work exempt). Non-genesis PoW is checked in contextual / ConnectBlock.
     if (fCheckPOW && block.GetHash() == consensusParams.hashGenesisBlock &&
-        !CheckProofOfWork(block, block.nBits, consensusParams))
+        !CheckProofOfWork(block, block.nBits, consensusParams)) {
+        RigorConsensusTraceNoteHeader("CheckBlockHeader", false, "high-hash");
         return state.Invalid(BlockValidationResult::BLOCK_INVALID_HEADER, "high-hash", "proof of work failed");
+    }
 
+    RigorConsensusTraceNoteHeader("CheckBlockHeader", true, nullptr);
     return true;
 }
 
@@ -4557,6 +3862,14 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
 
     if (block.fChecked)
         return true;
+
+    struct RigorCheckBlockTrace {
+        BlockValidationState& state;
+        ~RigorCheckBlockTrace()
+        {
+            RigorConsensusTraceNoteCheckBlock(!state.IsInvalid(), state.GetRejectReason().c_str());
+        }
+    } rigor_checkblock_trace{state};
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
@@ -4695,9 +4008,18 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, BlockValidatio
     assert(pindexPrev != nullptr);
     const int nHeight = pindexPrev->nHeight + 1;
 
+    struct RigorHeaderTrace {
+        BlockValidationState& state;
+        ~RigorHeaderTrace()
+        {
+            RigorConsensusTraceNoteHeader("ContextualCheckBlockHeader", !state.IsInvalid(), state.GetRejectReason().c_str());
+        }
+    } rigor_header_trace{state};
+
     // Check proof of work
     const Consensus::Params& consensusParams = chainman.GetConsensus();
     const unsigned int expected_nbits = GetNextWorkRequired(pindexPrev, &block, consensusParams);
+    RigorConsensusTraceNoteAsert(block.nBits == expected_nbits, expected_nbits, block.nBits);
     if (block.nBits != expected_nbits) {
         LogPrintf("ERROR: bad-diffbits: got=0x%08x expect=0x%08x nTime=%u height=%d\n",
                   block.nBits, expected_nbits, block.nTime, nHeight);
@@ -4766,9 +4088,17 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
 {
     const int nHeight = pindexPrev == nullptr ? 0 : pindexPrev->nHeight + 1;
 
+    struct RigorContextualBlockTrace {
+        BlockValidationState& state;
+        ~RigorContextualBlockTrace()
+        {
+            RigorConsensusTraceNoteContextualCheckBlock(!state.IsInvalid(), state.GetRejectReason().c_str());
+        }
+    } rigor_contextual_block_trace{state};
+
     uint64_t block_new_convergence{0};
     for (size_t i = 1; i < block.vtx.size(); ++i) {
-        block_new_convergence += GetTransactionConvergenceAmount(*block.vtx[i]);
+        block_new_convergence += Consensus::GetTransactionConvergenceAmount(*block.vtx[i]);
     }
     if (nHeight == 0 && block_new_convergence != 0) {
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-genesis-convergence-txns");
@@ -5240,21 +4570,6 @@ CVerifyDB::~CVerifyDB()
     uiInterface.ShowProgress("", 100, false);
 }
 
-/** ConnectBlock(H) reads the parent's draw set and the window ending at the parent: block and
- *  undo of every ancestor in [H - CONVERGENCE_DRAW_WINDOW, H). Bitcoin's VerifyDB stopped at the
- *  first pruned block; reconnecting the next one is then a local-data miss, not a corrupt DB, and
- *  must not reach ConnectBlock's AbortNode path. */
-static bool AncestorsNeededToConnectAreOnDisk(const CBlockIndex& block)
-{
-    if (block.pprev == nullptr) return true;
-    const int window_first = std::max(0, block.nHeight - Consensus::CONVERGENCE_DRAW_WINDOW);
-    for (const CBlockIndex* p = block.pprev; p != nullptr && p->nHeight >= window_first; p = p->pprev) {
-        if (!(p->nStatus & BLOCK_HAVE_DATA)) return false;
-        if (p->nHeight > 0 && !(p->nStatus & BLOCK_HAVE_UNDO)) return false;
-    }
-    return true;
-}
-
 VerifyDBResult CVerifyDB::VerifyDB(
     Chainstate& chainstate,
     const Consensus::Params& consensus_params,
@@ -5296,11 +4611,9 @@ VerifyDBResult CVerifyDB::VerifyDB(
         if (pindex->nHeight <= chainstate.m_chain.Height() - nCheckDepth) {
             break;
         }
-        if ((chainstate.m_blockman.IsPruneMode() || is_snapshot_cs) &&
-            (!(pindex->nStatus & BLOCK_HAVE_DATA) || !AncestorsNeededToConnectAreOnDisk(*pindex))) {
+        if ((chainstate.m_blockman.IsPruneMode() || is_snapshot_cs) && !(pindex->nStatus & BLOCK_HAVE_DATA)) {
             // If pruning or running under an assumeutxo snapshot, only go
-            // back as far as we have data — including the convergence window
-            // ConnectBlock will reread when this block is reconnected at level 4.
+            // back as far as we have data.
             LogPrintf("VerifyDB(): block verification stopping at height %d (no data). This could be due to pruning or use of an assumeutxo snapshot.\n", pindex->nHeight);
             skipped_no_block_data = true;
             break;
@@ -5316,14 +4629,6 @@ VerifyDBResult CVerifyDB::VerifyDB(
             LogPrintf("Verification error: found bad block at %d, hash=%s (%s)\n",
                       pindex->nHeight, pindex->GetBlockHash().ToString(), state.ToString());
             return VerifyDBResult::CORRUPTED_BLOCK_DB;
-        }
-        if (nCheckLevel >= 1 && pindex->pprev != nullptr) {
-            BlockValidationState rigor_state;
-            if (!rigor::CheckRigorDrawTargetCommitment(rigor_state, block, pindex, consensus_params)) {
-                LogPrintf("Verification error: RIGOR commitment failed at height %d, hash=%s (%s)\n",
-                    pindex->nHeight, pindex->GetBlockHash().ToString(), rigor_state.ToString());
-                return VerifyDBResult::CORRUPTED_BLOCK_DB;
-            }
         }
         // check level 2: verify undo validity
         if (nCheckLevel >= 2 && pindex) {
@@ -6024,8 +5329,8 @@ uint256 Chainstate::ComputeDeterministicStateHash()
     // depend on that implicit side effect — otherwise identical UTXO+t tip yields
     // different `state_hash` across restart (TASK-H2 H-3-2 / replay closure).
     if (tip != nullptr) {
-        (void)GetChainResMintTotal(tip);
-        (void)GetChainOruTotal(tip, m_chainman.GetParams().GetConsensus());
+        (void)FoldChainResMintTotal(tip);
+        (void)FoldChainOruTotal(tip, m_chainman.GetParams().GetConsensus());
     }
     return Consensus::ComputeDeterministicStateHash(CoinsTip(), tip);
 }

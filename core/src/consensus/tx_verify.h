@@ -32,9 +32,9 @@ namespace Consensus {
 /**
  * Dual-pool conservation: POOL-T (transfer) per asset; POOL-F network fee always ORU (`oru_in - oru_out`).
  * RES transfer requires ORU fee inputs; RES amounts never fund the network fee.
- * ORU→RES is never allowed here: new RES exists only in the coinbase (`mixed-asset-output`).
- * A PCORB carrier output is never allowed (`bad-pcorb-carrier`) — mint authorization is
- * coinbase `RIGOR_MARKER_RES_MINT` only.
+ * ORU→RES is never allowed here except the RFC-019 body-tx mint
+ * (`CheckResMintArithmetic`). A PCORB carrier output is never allowed
+ * (`bad-pcorb-carrier`).
  * @param[out] txfee ORU network fee (sat) on success.
  * Preconditions: tx.IsCoinBase() is false.
  */

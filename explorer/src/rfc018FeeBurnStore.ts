@@ -145,7 +145,7 @@ export async function computeRfc018BurnForStoredBlock(pool: Pool, blockHash: str
   return burned;
 }
 
-export async function backfillMissingRfc018FeeBurn(pool: Pool, limit = 32): Promise<number> {
+export async function backfillMissingRfc018FeeBurn(pool: Pool, limit = 600): Promise<number> {
   const missing = await pool.query<{ height: string; block_hash: string }>(
     `
       SELECT b.height::text AS height, b.block_hash

@@ -1,0 +1,10 @@
+{
+  "domain": "utxo",
+  "expect": "INVALID",
+  "theorem": "utxo_soundness",
+  "note": "single output MAX_MONEY+1 = 10^18+1; fits in 63-bit OCaml int so the generated artifact should still reject without wrap",
+  "tx_id": [1],
+  "inputs": [{"txid": [2], "index": 0}],
+  "outputs": [{"value": 1000000000000000001, "spk": []}],
+  "coinbase": false
+}

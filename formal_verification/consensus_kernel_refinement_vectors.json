@@ -1,6 +1,6 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-REFINEMENT-EXECUTION-P0-053",
-  "note": "Finite canonical execution domain V. Does not modify phase3_golden_vectors.json. Not a ∀-proof.",
+  "note": "Finite canonical execution domain V. Does not modify phase3_golden_vectors.json. Not a \u2200-proof.",
   "refinement_proved": false,
   "equivalence_proved": false,
   "refinement_scope": "finite canonical vector domain",
@@ -34,7 +34,7 @@
       "height": 0,
       "epoch": 0,
       "oru_subsidy": 0,
-      "res_schedule": 40000000,
+      "res_schedule": 102400000000,
       "res_issued": 0,
       "schedule_is_not_issuance": true
     },
@@ -42,113 +42,127 @@
       "id": "P053-ISS-1",
       "height": 1,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400006103,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-99",
       "height": 99,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400604248,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-100",
       "height": 100,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400610352,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-101",
       "height": 101,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 102400616456,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-209999",
       "height": 209999,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685743011,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-210000",
       "height": 210000,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196,
-      "res_issued": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685749152,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-210001",
       "height": 210001,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196,
-      "res_issued": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 103685755294,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-419999",
       "height": 419999,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
-      "res_schedule": 14142196,
-      "res_issued": 14142196
+      "oru_subsidy": 12800000000,
+      "res_schedule": 104979513869,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-420000",
       "height": 420000,
       "epoch": 2,
-      "oru_subsidy": 25000000000,
-      "res_schedule": 7698004,
-      "res_issued": 7698004
+      "oru_subsidy": 12800000000,
+      "res_schedule": 104979520049,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-630000",
       "height": 630000,
       "epoch": 3,
-      "oru_subsidy": 12500000000,
-      "res_schedule": 5000000,
-      "res_issued": 5000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 106281312688,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-630001",
       "height": 630001,
       "epoch": 3,
-      "oru_subsidy": 12500000000,
-      "res_schedule": 5000000,
-      "res_issued": 5000000
+      "oru_subsidy": 12800000000,
+      "res_schedule": 106281318906,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-840000",
       "height": 840000,
       "epoch": 4,
-      "oru_subsidy": 12500000000,
-      "res_schedule": 3577712,
-      "res_issued": 3577712
+      "oru_subsidy": 12800000000,
+      "res_schedule": 107591127071,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-840001",
       "height": 840001,
       "epoch": 4,
-      "oru_subsidy": 12500000000,
-      "res_schedule": 3577712,
-      "res_issued": 3577712
+      "oru_subsidy": 12800000000,
+      "res_schedule": 107591133327,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     },
     {
       "id": "P053-ISS-1050000",
       "height": 1050000,
       "epoch": 5,
-      "oru_subsidy": 12500000000,
-      "res_schedule": 2721656,
-      "res_issued": 2721656
+      "oru_subsidy": 12800000000,
+      "res_schedule": 108908963197,
+      "res_issued": 0,
+      "schedule_is_not_issuance": true
     }
   ],
   "maturity": [

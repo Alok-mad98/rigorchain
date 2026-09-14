@@ -31,6 +31,19 @@ export type BlockConvergenceStatus =
 
 export type TxConvergenceRole = "Candidate" | "Winner" | "Not Participating";
 
+/** RFC-020 display only. API / index still use Candidate / Winner. */
+export function displayBlockConvergenceStatus(status: BlockConvergenceStatus): string {
+  if (status === "Convergence Winner Block") return "RES Mint Block";
+  if (status === "Convergence Candidate Block") return "Convergence Destroy Block";
+  return status;
+}
+
+export function displayTxConvergenceRole(role: TxConvergenceRole): string {
+  if (role === "Winner") return "Mint";
+  if (role === "Candidate") return "Destroy";
+  return role;
+}
+
 export type ConvergenceCandidateRow = {
   convergence_txid: string;
   draw_eligible: boolean;
@@ -70,6 +83,8 @@ export type TxConvergencePanel = {
 export function buildBlockConvergencePanel(
   block: {
     rigor_winner: string;
+    rigor_res_minted?: number | string | null;
+    mint_txid?: string | null;
     committed_root?: string;
     computed_root?: string;
     draw_candidate_root?: string;
@@ -77,13 +92,14 @@ export function buildBlockConvergencePanel(
   },
   candidates: ConvergenceCandidateRow[],
 ): BlockConvergencePanel {
-  const winner = (block.rigor_winner || "").trim();
+  const winner = (block.mint_txid || block.rigor_winner || "").trim();
+  const minted = Number(block.rigor_res_minted ?? 0) > 0 || Boolean(winner);
   const candidateTxids = [...new Set(candidates.map((c) => c.convergence_txid))].sort();
   const eligibleCount = candidates.filter((c) => c.draw_eligible).length;
   const status: BlockConvergenceStatus =
-    candidateTxids.length === 0
+    candidateTxids.length === 0 && !minted
       ? "No Convergence Activity"
-      : winner
+      : minted
         ? "Convergence Winner Block"
         : "Convergence Candidate Block";
 
@@ -113,8 +129,10 @@ export function buildTxConvergencePanel(
     is_winner: boolean;
   }>,
   inclusion?: { block_hash?: string | null; block_height?: bigint | number | null } | null,
+  opts?: { isResMint?: boolean },
 ): TxConvergencePanel {
-  if (events.length === 0) {
+  const minted = Boolean(opts?.isResMint) || events.some((e) => e.is_winner);
+  if (events.length === 0 && !minted) {
     return {
       role: "Not Participating",
       block_height: null,
@@ -139,14 +157,16 @@ export function buildTxConvergencePanel(
     null;
 
   const winnerEvt = events.find((e) => e.is_winner);
-  if (winnerEvt) {
-    const h = Number(winnerEvt.block_height);
+  if (minted) {
+    const h = winnerEvt != null ? Number(winnerEvt.block_height) : inclusionHeight;
+    const hash = winnerEvt?.block_hash ?? inclusionHash;
     return {
       role: "Winner",
       block_height: h,
-      block_hash: winnerEvt.block_hash,
+      block_hash: hash,
       window_last_height: windowLast,
-      winner_reference: { block_hash: winnerEvt.block_hash, block_height: h },
+      winner_reference:
+        hash != null && h != null ? { block_hash: hash, block_height: h } : null,
       rpc_authority_notice: RPC_AUTHORITY_NOTICE,
     };
   }

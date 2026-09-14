@@ -44,7 +44,7 @@ static std::pair<CAmount, AssetType> ParseAmountAndAsset(const UniValue& output_
         }
         const UniValue& asset_value = find_value(details, "asset");
         const AssetType asset = asset_value.isNull() ? ASSET_ORU : ParseAssetType(asset_value, "asset");
-        const int decimals = asset == ASSET_RES ? 2 : 8;
+        const int decimals = 8;
         return {AmountFromValue(amount_value, decimals), asset};
     }
     return {AmountFromValue(output_value), ASSET_ORU};

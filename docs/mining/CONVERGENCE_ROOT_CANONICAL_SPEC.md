@@ -1,6 +1,6 @@
 # Convergence Root Canonical Specification
 
-**Task:** TASK-MINING-020  
+**Document status:** Production documentation  
 **Authority:** `P03_LIVE_EQUIVALENCE_CERTIFICATION.md`, `convergence_root.cpp`  
 **Implementation:** `pool/rigor-convergence-root/` (single source of truth)
 

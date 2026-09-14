@@ -29,12 +29,12 @@ fi
 
 echo "== coqc transaction kernel modules =="
 (cd "$COQ" && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 SignatureBoundary.v && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 TransactionKernelRefinement.v && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 MakeKernelInput.v)
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 SignatureBoundary.v && \
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 TransactionKernelRefinement.v && \
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 MakeKernelInput.v)
 
 echo "== Print Assumptions TransactionKernelRefinement =="
-ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
+ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R ../rigor_v01 RigorV01 <<'EOF'
 Require TransactionKernelRefinement.
 Require MakeKernelInput.
 Print Assumptions TransactionKernelRefinement.predicate_theorem.
@@ -104,6 +104,8 @@ echo "== g++ test_predicate_boundary_differential =="
   "$SRC/test/test_predicate_boundary_differential.cpp" \
   "$SRC/test/predicate_boundary_ed25519_stub.cpp" \
   "$SRC/script/predicate_verify.cpp" \
+  "$SRC/script/script_error.cpp" \
+  "$SRC/consensus/trace/consensus_trace.cpp" \
   "$SRC/script/rigor_classify.cpp" \
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
@@ -123,6 +125,8 @@ echo "== g++ test_makekernelinput_field_map =="
   "$SRC/test/test_makekernelinput_field_map.cpp" \
   "$SRC/test/predicate_boundary_ed25519_stub.cpp" \
   "$SRC/script/predicate_verify.cpp" \
+  "$SRC/script/script_error.cpp" \
+  "$SRC/consensus/trace/consensus_trace.cpp" \
   "$SRC/script/rigor_classify.cpp" \
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \

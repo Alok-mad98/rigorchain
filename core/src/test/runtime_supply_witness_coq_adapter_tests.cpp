@@ -62,10 +62,9 @@ Consensus::RuntimeSupplyState MakeMirror(int32_t height,
     m.oru_supply_cumulative = oru_cum;
     m.res_mint_parent = res_parent;
     m.res_mint_block = res_block;
-    m.res_mint_count_block = mint_count;
+    m.res_mint_present_block = mint_count;
     m.res_mint_cumulative = res_parent + res_block;
     m.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    m.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     return m;
 }
 
@@ -81,7 +80,8 @@ BOOST_FIXTURE_TEST_CASE(build_catalog_row_from_witness_chain, WitnessCoqFixture)
     const uint256 h0 = HashFromLabel("genesis-block");
     const uint256 h1 = HashFromLabel("block-one");
     Consensus::StoreRuntimeSupplyWitness(MakeWitness(0, h0, uint256{}, 50 * COIN, 0));
-    Consensus::StoreRuntimeSupplyWitness(MakeWitness(1, h1, h0, 50 * COIN + COIN, Consensus::RES_REWARD_GENESIS));
+    const CAmount res_mint = 1 * COIN;  // Synthetic RES mint for testing
+    Consensus::StoreRuntimeSupplyWitness(MakeWitness(1, h1, h0, 50 * COIN + COIN, res_mint));
 
     const std::optional<Consensus::RuntimeSupplyWitness> w1 = Consensus::GetRuntimeSupplyWitness(h1);
     BOOST_REQUIRE(w1.has_value());
@@ -112,20 +112,21 @@ BOOST_FIXTURE_TEST_CASE(parent_child_delta_matches_hook, WitnessCoqFixture)
 
     const Consensus::RuntimeSupplyWitness parent =
         MakeWitness(9, parent_hash, HashFromLabel("parent-8"), parent_oru, 0);
+    const CAmount res_mint = 1 * COIN;  // Synthetic RES mint for testing
     const Consensus::RuntimeSupplyWitness child =
-        MakeWitness(10, child_hash, parent_hash, child_oru, Consensus::RES_REWARD_GENESIS);
+        MakeWitness(10, child_hash, parent_hash, child_oru, res_mint);
     Consensus::StoreRuntimeSupplyWitness(parent);
     Consensus::StoreRuntimeSupplyWitness(child);
 
     const Consensus::RuntimeSupplyState mirror = MakeMirror(
         10, child_hash, parent_hash, parent_oru, child_oru, subsidy, burn, 0,
-        Consensus::RES_REWARD_GENESIS, 1);
+        res_mint, 1);
 
     const Consensus::RuntimeSupplyWitnessCoqCatalogRow row = Consensus::BuildWitnessCoqCatalogRow(
         child, mirror, true, Consensus::RuntimeSupplyMirrorSource::STORED_MIRROR, parent);
 
     BOOST_CHECK_EQUAL(row.delta.rs_oru_supply_delta, subsidy - burn);
-    BOOST_CHECK_EQUAL(row.delta.rs_res_supply_delta, Consensus::RES_REWARD_GENESIS);
+    BOOST_CHECK_EQUAL(row.delta.rs_res_supply_delta, res_mint);
     BOOST_CHECK(Consensus::CheckWitnessCoqDeltaMatchesHook(row).empty());
 }
 

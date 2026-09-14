@@ -13,6 +13,8 @@
 #include <clientversion.h>
 #include <coins.h>
 #include <consensus/amount.h>
+#include <consensus/consensus.h>
+#include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
 #include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
@@ -867,6 +869,22 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
         CheckIsNotStandard(t, "dust");
     }
 
+    // OP_CONVERGE never enters the UTXO set. One atom is consensus-legal and
+    // must not be rejected as policy dust (the pre-fix non-witness size model
+    // treated a 22-byte CONVERGE lock like a spendable output, ~537 atoms).
+    {
+        CMutableTransaction conv_tx;
+        conv_tx.nVersion = 2;
+        conv_tx.vin.resize(1);
+        conv_tx.vin[0].scriptSig = CScript() << std::vector<unsigned char>(65, 0);
+        conv_tx.vout.resize(1);
+        conv_tx.vout[0].scriptPubKey = GetConvergeScript(uint160());
+        conv_tx.vout[0].nValue = Consensus::MIN_CONVERGENCE_AMOUNT;
+        BOOST_CHECK_EQUAL(GetDustThreshold(conv_tx.vout[0], g_dust), 0);
+        BOOST_CHECK(!IsDust(conv_tx.vout[0], g_dust));
+        CheckIsStandard(conv_tx);
+    }
+
     // P2WSH is not a standard (or consensus) output type.
     t.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(32, 0);
     t.vout[0].nValue = COIN;
@@ -947,7 +965,9 @@ BOOST_AUTO_TEST_CASE(mixed_asset_outputs_rejected_by_checktxinputs)
     TxValidationState state;
     CAmount fee{};
     BOOST_CHECK(!Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
-    BOOST_CHECK_EQUAL(state.GetRejectReason(), "mixed-asset-output");
+    // RFC-019: RES on the output side with no RES input and no OP_CONVERGE burn
+    // is unfunded, which is a narrower ground than the former blanket refusal.
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-res-mint-no-burn");
 }
 
 BOOST_AUTO_TEST_CASE(get_transaction_input_asset_dual_pool_semantic_is_res)
@@ -1072,6 +1092,65 @@ BOOST_AUTO_TEST_CASE(dual_pool_fee_never_res_in_minus_res_out)
     BOOST_REQUIRE(Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee));
     BOOST_CHECK_EQUAL(fee, oru_fee);
     BOOST_CHECK(fee != RES_COIN - RES_COIN / 2);
+}
+
+BOOST_AUTO_TEST_CASE(body_res_mint_immature_until_coinbase_maturity)
+{
+    CCoinsView base;
+    CCoinsViewCache coins(&base);
+
+    const CScript oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
+    const CScript res_spk = MakeOrb2FixtureScriptPubKey();
+    const int mint_height = 100;
+
+    const uint256 h_oru{uint256S("0x0101010101010101010101010101010101010101010101010101010101010101")};
+    coins.AddCoin(COutPoint(h_oru, 0), Coin(CTxOut(COIN, oru_spk), mint_height, false), false);
+
+    const uint256 h_mint{uint256S("0x0202020202020202020202020202020202020202020202020202020202020202")};
+    Coin mint_coin(CTxOut(RES_COIN, res_spk), mint_height, false);
+    mint_coin.nFlags = COIN_FLAG_RES_MINT;
+    coins.AddCoin(COutPoint(h_mint, 0), std::move(mint_coin), false);
+
+    CMutableTransaction mtx;
+    mtx.vin.emplace_back(COutPoint(h_mint, 0));
+    mtx.vin.emplace_back(COutPoint(h_oru, 0));
+    mtx.vout.emplace_back(RES_COIN / 2, res_spk);
+    mtx.vout.emplace_back(COIN - 5000, oru_spk);
+
+    const auto& params = Params().GetConsensus();
+    TxValidationState early;
+    CAmount fee{};
+    BOOST_CHECK(!Consensus::CheckTxInputs(CTransaction(mtx), early, coins, mint_height + params.nCoinbaseMaturity - 1, params, fee));
+    BOOST_CHECK_EQUAL(early.GetRejectReason(), "bad-txns-premature-spend-of-res-mint");
+
+    TxValidationState mature;
+    BOOST_CHECK(Consensus::CheckTxInputs(CTransaction(mtx), mature, coins, mint_height + params.nCoinbaseMaturity, params, fee));
+}
+
+BOOST_AUTO_TEST_CASE(res_transfer_not_locked_by_mint_maturity)
+{
+    CCoinsView base;
+    CCoinsViewCache coins(&base);
+
+    const CScript oru_spk = CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x11);
+    const CScript res_spk = MakeOrb2FixtureScriptPubKey();
+    const int created_height = 100;
+
+    const uint256 h_oru{uint256S("0x0303030303030303030303030303030303030303030303030303030303030303")};
+    coins.AddCoin(COutPoint(h_oru, 0), Coin(CTxOut(COIN, oru_spk), created_height, false), false);
+
+    const uint256 h_res{uint256S("0x0404040404040404040404040404040404040404040404040404040404040404")};
+    coins.AddCoin(COutPoint(h_res, 0), Coin(CTxOut(RES_COIN, res_spk), created_height, false), false);
+
+    CMutableTransaction mtx;
+    mtx.vin.emplace_back(COutPoint(h_res, 0));
+    mtx.vin.emplace_back(COutPoint(h_oru, 0));
+    mtx.vout.emplace_back(RES_COIN / 2, res_spk);
+    mtx.vout.emplace_back(COIN - 5000, oru_spk);
+
+    TxValidationState state;
+    CAmount fee{};
+    BOOST_CHECK(Consensus::CheckTxInputs(CTransaction(mtx), state, coins, created_height + 1, Params().GetConsensus(), fee));
 }
 
 /**
@@ -1253,7 +1332,7 @@ BOOST_AUTO_TEST_CASE(res_domain_tx_rejected_when_sole_input_is_oru)
     CAmount fee{};
     const bool ok = Consensus::CheckTxInputs(CTransaction(mtx), state, coins, 200, Params().GetConsensus(), fee);
     BOOST_CHECK(!ok);
-    BOOST_CHECK_EQUAL(state.GetRejectReason(), "mixed-asset-output");
+    BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-res-mint-no-burn");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

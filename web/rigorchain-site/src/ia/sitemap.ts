@@ -13,7 +13,6 @@ export type SiteNode = {
   preservation: Preservation;
   planned?: string[];
   explorerPath?: string;
-  mode?: "tx" | "block";
 };
 
 export type SiteSection = {
@@ -26,20 +25,10 @@ export type SiteSection = {
 export const PRIMARY_NAV = [
   { to: "/", label: "Home" },
   { to: "/download", label: "Download" },
-  { to: "/wallet", label: "Wallet" },
   { to: "/mining", label: "Mining" },
   { to: "/explorer", label: "Explorer" },
   { to: "/documentation", label: "Documentation" },
-  { to: "/zero-trust-verification", label: "Zero-Trust" },
   { to: "/about", label: "About" },
-] as const;
-
-export const LAB_NAV = [
-  { to: "/protocol", label: "Protocol" },
-  { to: "/science", label: "Science" },
-  { to: "/lab", label: "Lab" },
-  { to: "/status", label: "Status" },
-  { to: "/experiment", label: "PROOF-034" },
 ] as const;
 
 export const SECTIONS: SiteSection[] = [
@@ -92,20 +81,19 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/wallet/oru",
         title: "ORU",
-        purpose: "ORU as execution and fee resource; subsidy floor 125.",
+        purpose: "ORU as execution and fee resource; R(0)=0 then 128 ORU/block forever.",
         preservation: "WIRED",
       },
       {
         path: "/wallet/maturity",
         title: "Maturity",
         purpose: "How confirmation and maturity are shown to users.",
-        preservation: "PLACEHOLDER",
-        planned: ["Confirmation rules", "When a reward is spendable", "Wallet UX mapping"],
+        preservation: "KEEP",
       },
       {
         path: "/wallet/convergence",
         title: "Convergence",
-        purpose: "Deterministic selection over candidate set F; live observer panel.",
+        purpose: "Destroy ORU to mint RES at confirming height; live getconvergencestatus panel.",
         preservation: "WIRED",
       },
       {
@@ -142,11 +130,11 @@ export const SECTIONS: SiteSection[] = [
       },
       {
         path: "/mining/pool",
-        title: "Quarantined pool (not the test path)",
-        purpose: "Optional read-only Alpha pool observer. Not the shipped SOLO mining path.",
+        title: "Quarantined pool (not the SOLO path)",
+        purpose: "Optional read-only pool observer. Not the shipped SOLO mining path.",
         preservation: "PLACEHOLDER",
         planned: [
-          "Not used for test-phase mining",
+          "Not used for SOLO mining",
           "Hashrate / workers (display only)",
           "Not a consensus authority",
         ],
@@ -156,7 +144,7 @@ export const SECTIONS: SiteSection[] = [
         title: "Mining Economics",
         purpose: "ORU subsidy schedule and why RES is not mined.",
         preservation: "PLACEHOLDER",
-        planned: ["1000 → 500 → 250 → 125", "No premine", "RES via Convergence only"],
+        planned: ["128 ORU/block forever", "No premine", "RES via Convergence only"],
       },
     ],
   },
@@ -203,40 +191,6 @@ export const SECTIONS: SiteSection[] = [
     ],
   },
   {
-    id: "zero-trust",
-    path: "/zero-trust-verification",
-    title: "Zero-Trust Verification",
-    children: [
-      {
-        path: "/zero-trust-verification/what-is-zero-trust",
-        title: "What is Zero Trust?",
-        purpose: "You do not need to trust a node. You can independently verify the result yourself.",
-        preservation: "KEEP",
-      },
-      {
-        path: "/zero-trust-verification/transaction",
-        title: "Verify Transaction",
-        purpose: "Browser recomputes TX consensus outputs from a TXID.",
-        preservation: "KEEP",
-        mode: "tx",
-      },
-      {
-        path: "/zero-trust-verification/block",
-        title: "Verify Block",
-        purpose: "Browser recomputes block genesis, parent, ConvergenceRoot, winner.",
-        preservation: "KEEP",
-        mode: "block",
-      },
-      {
-        path: "/zero-trust-verification/fingerprint",
-        title: "Consensus Fingerprint",
-        purpose: "Explain observational fingerprint vs locally computed ConvergenceRoot.",
-        preservation: "PLACEHOLDER",
-        planned: ["Input: block hash", "Local ConvergenceRoot", "Explorer fingerprint is not authority"],
-      },
-    ],
-  },
-  {
     id: "documentation",
     path: "/documentation",
     title: "Documentation",
@@ -244,7 +198,8 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/documentation/whitepaper",
         title: "Whitepaper",
-        purpose: "Official RIGOR protocol whitepaper: dual assets, Convergence, fairness, mining, verification.",
+        purpose:
+          "Official RIGOR protocol whitepaper: issuance, dual assets, Coq kernel boundary.",
         preservation: "KEEP",
       },
       {
@@ -257,7 +212,8 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/documentation/formal-verification",
         title: "Formal Verification",
-        purpose: "Coq model, correspondence boundary, differential gate. equivalence_claimed = false.",
+        purpose:
+          "Formally verified critical consensus invariants inside a Coq kernel model. cpp_equivalence = false. Maturity 4.9.",
         preservation: "KEEP",
       },
       {
@@ -272,7 +228,7 @@ export const SECTIONS: SiteSection[] = [
         title: "Developer Guide",
         purpose: "Build, RPC, explorer API, verifier library.",
         preservation: "PLACEHOLDER",
-        planned: ["Repo map", "Read-only RPC", "zeroTrust library", "No consensus edits from this site"],
+        planned: ["Repo map", "Read-only RPC", "No consensus edits from this site"],
       },
       {
         path: "/documentation/architecture",
@@ -284,14 +240,14 @@ export const SECTIONS: SiteSection[] = [
       {
         path: "/documentation/rfc",
         title: "RFC Overview",
-        purpose: "Index of frozen RFCs that define RIGOR.",
+        purpose: "Index of explanatory RFCs. Production consensus is core/src/.",
         preservation: "PLACEHOLDER",
-        planned: ["RFC-000 constitution", "RFC-015 consensus model", "RFC-008 mathematics"],
+        planned: ["RFC-020 issuance", "RFC-000 constitution", "RFC-008 mathematics", "historical RFC-001 / RFC-014 / RFC-017 / RFC-019"],
       },
       {
         path: "/documentation/security",
         title: "Security Architecture",
-        purpose: "Security through minimalism: UTXO verification, dual native assets, Zero Trust.",
+        purpose: "Security through minimalism: UTXO verification and dual native assets.",
         preservation: "KEEP",
       },
       {

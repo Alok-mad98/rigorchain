@@ -49,15 +49,10 @@ AUTHORITY = {
         ISSUANCE,
         "issuance",
     ),
-    "GetResMintReward": (
-        re.compile(r"inline constexpr CAmount GetResMintReward\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        LOCK,
+    "CheckResMintArithmetic": (
+        re.compile(r"inline constexpr bool CheckResMintArithmetic\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
+        SRC / "consensus/res_issuance.h",
         "RES",
-    ),
-    "ResolveConvergenceDraw": (
-        re.compile(r"^ConvergenceDrawOutcome ResolveConvergenceDraw\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
-        DRAW,
-        "draw",
     ),
     "ClassifyRigorTxout": (
         re.compile(r"^TxoutType ClassifyRigorTxout\s*\([^;{]*\{", re.MULTILINE | re.DOTALL),
@@ -172,7 +167,7 @@ def main() -> int:
             (FORMULA, "subsidy calculation"),
             (re.compile(r"\bResRewardForEpoch\s*\("), "RES calculation"),
             (re.compile(r"\bGetBlockSubsidy\s*\("), "subsidy calculation"),
-            (re.compile(r"\bGetResMintReward\s*\("), "RES calculation"),
+            (re.compile(r"\bCheckResMintArithmetic\s*\("), "RES calculation"),
             (re.compile(r"\bMul256x256Full\s*\("), "draw resolution"),
             (re.compile(r"\boru_circulating_delta\s*="), "supply calculation"),
             (re.compile(r"\bParseResMintScript\s*\("), "predicate parsing"),
@@ -186,8 +181,6 @@ def main() -> int:
                     continue
                 errors.append(f"ConnectBlock {label}")
                 print("CONNECTBLOCK_CONSENSUS_DUPLICATION_FOUND")
-        if "RigorConsensusKernel::ResolveDraw" not in cb:
-            errors.append("ConnectBlock does not call RigorConsensusKernel::ResolveDraw")
         if "RigorConsensusKernel::EvaluateConnect" not in cb:
             errors.append("ConnectBlock does not call RigorConsensusKernel::EvaluateConnect")
         if re.search(r"\bResolveConvergenceDraw\s*\(", cb):

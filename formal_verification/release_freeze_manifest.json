@@ -1,0 +1,29 @@
+{
+  "version": "v0.1.3",
+  "freeze_commit": "a0a470fccc70777202d411d60d088ade413cd094",
+  "freeze_commit_short12": "a0a470fccc70",
+  "source_freeze_commit": "973a5b8927cc32355b185e005fbed322d69981d4",
+  "dirty_tree": false,
+  "tag": "v0.1.3",
+  "tag_moved": false,
+  "artifact_commit_match": false,
+  "artifact_commit_match_linux": true,
+  "linux_build_git_commit": "a0a470fccc70",
+  "linux_build_git_commit_dirty": false,
+  "guardian": "PASS",
+  "mainnet_launch_candidate_audit": "PASS",
+  "go_no_go": "GO",
+  "sha256_verification": "PASS",
+  "sha256": {
+    "rigor-v0.1.3-windows-x86_64.exe": "be9a5e137d559571f4ffbc4ba31ed6840646091171c5d6415de3e1fc5a54e03d",
+    "rigor-v0.1.3-windows-x86_64.zip": "2189cdc0d1ece09db21d795b3fd81058410d3ae8a26a4af8996188397fbae690",
+    "rigor-v0.1.3-linux-x86_64.tar.gz": "617cc180c68df06c96bb1a37872236551b0d8ccc49f29453dd6fa0d0bb22701d",
+    "rigor-v0.1.3-macos-x86_64.dmg": "9efbb8e9886669801b84a150f409671b6f3a22c7d1deb9905de767dbf2e6266f",
+    "rigor-v0.1.3-macos-arm64.dmg": "6abadd5b9804fc94003fcac61b5b7d432d97a1271102b4ffd6cc3a8e7e243daa"
+  },
+  "consensus_code_changed": false,
+  "database_format_changed": false,
+  "wallet_format_changed": false,
+  "protocol_parameters_changed": false,
+  "task": "TASK-RIGOR-RELEASE-FREEZE-REBUILD-P0-101"
+}

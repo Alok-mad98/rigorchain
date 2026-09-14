@@ -119,12 +119,14 @@ class MiningTest(BitcoinTestFramework):
         assert 'proposal' in tmpl['capabilities']
         assert 'coinbasetxn' not in tmpl
         assert 'default_coinbase_scriptsig' in tmpl
-        assert 'paid_winner_txid' in tmpl
+        assert 'paid_winner_txid' not in tmpl
+        assert 'default_res_mint' not in tmpl
+        assert 'convergence_root' not in tmpl
         assert tmpl['mutable'] == ['time']
         assert tmpl['rigor_coinbase_immutable'] is True
-        # Three pushes: height + 32-byte C + 32-byte paid-winner.
+        # RFC-019: BIP34 height plus OP_0 padding (COINBASE_SCRIPTSIG_MIN_SIZE).
         ss = bytes.fromhex(tmpl['default_coinbase_scriptsig'])
-        assert len(ss) >= 1 + 33 + 33
+        assert len(ss) >= 2
 
         next_height = int(tmpl["height"])
         coinbase_tx = create_coinbase(height=next_height, script_pubkey=CScript(self.wallet.get_scriptPubKey()))

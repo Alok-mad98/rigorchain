@@ -9,7 +9,7 @@ write anything.
 The hard constraints
 --------------------
 
-These come from [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md) and are not open to case-by-case
+These come from [Architecture.md](docs/developer/Architecture.md) and are not open to case-by-case
 negotiation.
 
 **Storage is immutable.** `CTxOut` does not change. No asset field, no tag, no parallel

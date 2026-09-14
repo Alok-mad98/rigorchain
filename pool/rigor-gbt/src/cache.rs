@@ -340,13 +340,12 @@ mod tests {
                 "data": "0100000001",
                 "txid": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             }}],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "1d00ffff",
             "prev_nbits": "1c00ff00",
-            "height": 100,
-            "convergence_txids": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+            "height": 100
         }}"#
         )
     }

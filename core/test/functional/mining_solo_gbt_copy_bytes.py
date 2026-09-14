@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""P041: rigor-miner copy-bytes GBT → OpuHash → submitblock against a live node.
+"""P041: rigor-miner copy-bytes GBT → SHA3-256 RGRPOW01 → submitblock against a live node.
 
 Does not change consensus. Skips if miner/minerd is not built.
 Mines heights 1, 2, 3 sequentially and checks mined coinbase == GBT
@@ -71,7 +71,7 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
         return subprocess.Popen(
             [
                 self.minerd,
-                "-a", "sha256d",
+                "-a", "rgrpow01",
                 "-q",
                 "-t", "1",
                 "--submit-delay", "2",
@@ -111,11 +111,10 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
         assert_equal(wit[0], "00" * 32)
         commit = tmpl["default_witness_commitment"]
         assert any(v["scriptPubKey"]["hex"] == commit for v in blk["tx"][0]["vout"])
-        if "default_res_mint" in tmpl:
-            mint = tmpl["default_res_mint"]
-            assert any(v["scriptPubKey"]["hex"] == mint["scriptPubKey"] for v in blk["tx"][0]["vout"])
+        assert "default_res_mint" not in tmpl
+        assert not any(v["scriptPubKey"]["hex"].endswith("bb") for v in blk["tx"][0]["vout"])
         self.log.info(
-            "SOLO accepted height=%s prev=%s bits=%s time=%s nonce=%s merkle=%s cb=%s mint=%s oru=%s hash=%s",
+            "SOLO accepted height=%s prev=%s bits=%s time=%s nonce=%s merkle=%s cb=%s oru=%s hash=%s",
             expect_height,
             blk["previousblockhash"],
             blk["bits"],
@@ -123,7 +122,6 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
             blk["nonce"],
             blk["merkleroot"],
             blk["tx"][0]["txid"],
-            "yes" if "default_res_mint" in tmpl else "no",
             tmpl["coinbasevalue"],
             h,
         )
@@ -135,7 +133,6 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
             "nonce": blk["nonce"],
             "merkle": blk["merkleroot"],
             "coinbase_txid": blk["tx"][0]["txid"],
-            "res_mint": "default_res_mint" in tmpl,
             "oru_subsidy": tmpl["coinbasevalue"],
             "hash": h,
         }
@@ -194,23 +191,15 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
         malformed = base.serialize().hex()[:-8]
         assert_raises_rpc_error(-22, "Block decode failed", node.submitblock, malformed)
 
-        no_winner = copy.deepcopy(base)
-        ss = no_winner.vtx[0].vin[0].scriptSig
-        assert len(ss) >= 33
-        no_winner.vtx[0].vin[0].scriptSig = ss[:-33]
-        no_winner.vtx[0].rehash()
-        no_winner.hashMerkleRoot = no_winner.calc_merkle_root()
-        no_winner.solve()
-        assert_equal(node.submitblock(no_winner.serialize().hex()), "bad-cb-convergence-root")
-
-        flipped = copy.deepcopy(base)
-        ss = bytearray(flipped.vtx[0].vin[0].scriptSig)
-        ss[-2] ^= 0x01
-        flipped.vtx[0].vin[0].scriptSig = bytes(ss)
-        flipped.vtx[0].rehash()
-        flipped.hashMerkleRoot = flipped.calc_merkle_root()
-        flipped.solve()
-        assert_equal(node.submitblock(flipped.serialize().hex()), "bad-cb-convergence-root")
+        bad_h = copy.deepcopy(base)
+        ss = bytearray(bad_h.vtx[0].vin[0].scriptSig)
+        assert len(ss) >= 2
+        ss[0] = 0x52  # OP_2, height prefix no longer matches
+        bad_h.vtx[0].vin[0].scriptSig = bytes(ss)
+        bad_h.vtx[0].rehash()
+        bad_h.hashMerkleRoot = bad_h.calc_merkle_root()
+        bad_h.solve()
+        assert_equal(node.submitblock(bad_h.serialize().hex()), "bad-cb-height")
 
         wit = copy.deepcopy(base)
         commit = bytes.fromhex(tmpl["default_witness_commitment"])
@@ -228,20 +217,8 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
         wit.solve()
         assert_equal(node.submitblock(wit.serialize().hex()), "bad-witness-merkle-match")
 
-        if "default_res_mint" in tmpl:
-            drop = copy.deepcopy(base)
-            mint_spk = bytes.fromhex(tmpl["default_res_mint"]["scriptPubKey"])
-            drop.vtx[0].vout = [o for o in drop.vtx[0].vout if o.scriptPubKey != mint_spk]
-            drop.vtx[0].rehash()
-            drop.hashMerkleRoot = drop.calc_merkle_root()
-            drop.solve()
-            rsp = node.submitblock(drop.serialize().hex())
-            # Whichever RIGOR check fires first, it must be a RIGOR coinbase rule
-            # and not a generic subsidy rounding failure.
-            assert rsp in ("bad-cb-res-amount", "bad-cb-convergence-root"), rsp
-            self.log.info("dropped RES mint rejected: %s", rsp)
-        else:
-            self.log.info("height-1 GBT has no RES mint; drop-mint submit covered when a draw pays")
+        assert "default_res_mint" not in tmpl
+        self.log.info("RFC-019 GBT has no coinbase RES mint; PoW does not create RES")
 
         assert_equal(node.getblockcount(), 0)
 
@@ -260,7 +237,6 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
             "default_coinbase_tx",
             "default_coinbase_txid",
             "merkleroot",
-            "paid_winner_txid",
             "rigor_coinbase_immutable",
             "default_witness_commitment",
             "transactions",
@@ -272,25 +248,21 @@ class MiningSoloGbtCopyBytesTest(BitcoinTestFramework):
             "bits",
             "target",
             "height",
-            "convergence_root",
             "coinbase_address",
         ):
             assert key in tmpl, f"GBT missing {key}"
+        for retired in ("paid_winner_txid", "convergence_root", "default_res_mint"):
+            assert retired not in tmpl, f"RFC-019 GBT must not serve {retired}"
         assert tmpl["rigor_coinbase_immutable"] is True
         assert "segwit" in tmpl["rules"] or "!segwit" in tmpl["rules"]
         assert_equal(tmpl["height"], 1)
         assert_equal(tmpl["coinbase_address"], addr)
         ss = bytes.fromhex(tmpl["default_coinbase_scriptsig"])
-        assert_greater_than(len(ss), 1 + 1 + 32 + 1 + 32 - 1)
-        assert ss.count(bytes([0x20])) >= 2
+        assert_greater_than(len(ss), 1)
+        assert ss[0] == 0x51  # height 1 = OP_1
         cb = bytes.fromhex(tmpl["default_coinbase_tx"])
         assert bytes.fromhex(tmpl["default_coinbase_scriptsig"]) in cb
         assert bytes.fromhex(tmpl["default_witness_commitment"]) in cb
-        if "default_res_mint" in tmpl:
-            mint_spk = bytes.fromhex(tmpl["default_res_mint"]["scriptPubKey"])
-            assert mint_spk[0] != 0x55, "RES mint must not use OP_5"
-            assert mint_spk[-1] == 0xbb
-            assert mint_spk in cb
         assert b"RIGR" not in bytes.fromhex(tmpl["default_coinbase_scriptsig"])
 
         self.reject_mutations(node, addr)

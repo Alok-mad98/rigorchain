@@ -4,19 +4,16 @@ use block_assembler::{
     BodyMintPlaceholder, CandidateBlockId, CoinbaseInfo, CommitmentInfo, JobId, JobState,
     PublishedJobSnapshot,
 };
-use rigor_gbt::{
-    ConvergenceDraw, ConvergenceDrawCandidate, ConvergenceDrawWinner, GbtRecord, GbtTransaction,
-    RecordId, TemplateVersion, TipHash,
-};
+use rigor_gbt::legacy::{ConvergenceDraw, ConvergenceDrawCandidate, ConvergenceDrawWinner};
+use rigor_gbt::{GbtRecord, GbtTransaction, RecordId, TemplateVersion, TipHash};
 use winner_engine::{
     display_hex_to_native, native_to_display_hex, replay_convergence_draw, DrawReplayInput,
     RevocationReason, WinnerRuntime, RES_PROBABILITY_TARGET,
 };
 
 fn fixture_job(tpl: &rigor_gbt::TemplateRecord) -> PublishedJobSnapshot {
-    let root = native_to_display_hex(&block_assembler::compute_convergence_root(
-        &tpl.gbt.convergence_txids,
-    ));
+    let root = "00".repeat(32);
+    let _ = tpl;
     PublishedJobSnapshot {
         job_id: JobId("job-018".into()),
         candidate_block_id: CandidateBlockId(42),
@@ -138,17 +135,17 @@ fn fixture_template() -> rigor_gbt::TemplateRecord {
                 weight: None,
             }],
             // This block's committed set (for the *next* payout) — independent of the paid draw.
-            convergence_txids: vec![txid.clone()],
-            convergence_root: None,
-            convergence_draw: Some(parent_draw(&["aa"], 300)),
             default_witness_commitment: None,
-            default_convergence_commitment: None,
-                default_res_mint: None,
-                default_pcorb_carrier: None,
             weightlimit: None,
             version: None,
             gbt_payload_hash: [0u8; 32],
             raw_json: "{}".into(),
+            default_coinbase_scriptsig: None,
+            default_coinbase_tx: None,
+            default_coinbase_txid: None,
+            merkleroot: None,
+            rigor_coinbase_immutable: None,
+            coinbase_address: None,
         },
         None,
         TemplateVersion::INITIAL,

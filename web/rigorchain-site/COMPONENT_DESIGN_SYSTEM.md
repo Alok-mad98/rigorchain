@@ -93,9 +93,9 @@ Props: `source: 'rpc' | 'explorer' | 'static' | 'manifest'`
 | Variant | Content |
 |---------|---------|
 | `overview` | UTXO, \(F(S,T)\), no global state |
-| `oru` | Conservation, subsidy path 1000→125 |
+| `oru` | Conservation, flat subsidy 128 ORU (`h ≥ 1`) |
 | `res` | Conservation, cap, mint path |
-| `forge` | MTH burn threshold, \|F\|≥2, PCORB |
+| `forge` | Destroy-to-mint at `destroy_cost(h)`, cap `2²²` RES |
 | `utxo` | Script-as-compliance |
 
 **Layout:**

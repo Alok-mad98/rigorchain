@@ -1,0 +1,40 @@
+{
+  "task": "P0-095",
+  "task_id": "TASK-RIGOR-MACOS-CODE-SIGNING-P0-095",
+  "date": "2026-09-03",
+  "scope": "macos_release_signing_only",
+  "signing_workflow_enabled": true,
+  "workflow": ".github/workflows/release-wallet-macos.yml",
+  "sign_script": "tools/release/sign-macos-wallet-dmg.sh",
+  "entitlements": "tools/release/macos-developer-id.entitlements",
+  "identity_kind": "Developer ID Application",
+  "codesign": true,
+  "notarization_task": "later (not P0-096; P0-096 is ecosystem alignment)",
+  "macos_signing_status": "DEFERRED",
+  "macos_signing_deferred_reason": "github_secrets_unavailable",
+  "macos_signing_verification": "SKIPPED",
+  "macos_spctl_assessment": "SKIPPED",
+  "macos_notarization_ready": false,
+  "release_blocked_by_macos_signing": false,
+  "defer_test": "PASS",
+  "host": "linux_wsl_cannot_codesign",
+  "github_developer_id_secrets_present": false,
+  "required_secrets": [
+    "MACOS_DEVELOPER_ID_APPLICATION_CERTIFICATE",
+    "MACOS_DEVELOPER_ID_APPLICATION_PASSWORD",
+    "MACOS_DEVELOPER_ID_APPLICATION_IDENTITY"
+  ],
+  "artifacts": [
+    "rigor-v0.1.3-macos-x86_64.dmg",
+    "rigor-v0.1.3-macos-arm64.dmg"
+  ],
+  "official_dmg_signed": false,
+  "wallet_logic_changed": false,
+  "wallet_schema_changed": false,
+  "consensus_changed": false,
+  "database_format_changed": false,
+  "guardian_logic_changed": false,
+  "tag_moved": false,
+  "consensus_code_changed": false,
+  "final_verdict": "PASS"
+}

@@ -37,7 +37,8 @@ TxSemanticKind ClassifyTxSemantic(const CTransaction& tx, const CCoinsViewCache&
 
 /**
  * Fallback when wallet lacks input prevouts (typical incoming payment).
- * RES-bearing outputs → ResTransfer (never ResMint: mint needs input view for maturity).
+ * Convergence + RES outputs is the RFC-019 mint shape (reorg lock).
+ * Other RES-bearing outputs → ResTransfer.
  */
 TxSemanticKind ClassifyTxSemanticFromOutputs(const CTransaction& tx);
 

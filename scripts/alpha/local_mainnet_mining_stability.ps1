@@ -64,9 +64,9 @@ function Write-Event([string]$msg) {
 
 function Test-IsRpcUnavailable([string]$msg) {
     if ([string]::IsNullOrEmpty($msg)) { return $false }
-    # EN + zh-CN (Invoke-WebException / WebException localized text)
+    # EN plus zh-CN Invoke-WebException / WebException localized text (Unicode escapes)
     return [bool]($msg -match
-        'Unable to connect|actively refused|Connection refused|503|服务器不可用|无法连接|timed out|timeout|Connection reset|Name or service not known|No connection|远程服务器返回错误:\s*\(503\)')
+        'Unable to connect|actively refused|Connection refused|503|\u670d\u52a1\u5668\u4e0d\u53ef\u7528|\u65e0\u6cd5\u8fde\u63a5|timed out|timeout|Connection reset|Name or service not known|No connection|\u8fdc\u7a0b\u670d\u52a1\u5668\u8fd4\u56de\u9519\u8bef:\s*\(503\)')
 }
 
 function Rpc([string]$method, $params = @()) {

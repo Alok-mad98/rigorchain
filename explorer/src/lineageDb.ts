@@ -8,6 +8,7 @@ import {
   type LineageGraph,
 } from "./lineageGraph";
 import { buildTxWitnessPanel } from "./witnessPanel";
+import { CONVERGENCE_IS_MINT_SQL } from "./rfc020MintSql";
 
 async function loadTxLineageParts(pool: Pool, txid: string) {
   const tx = await pool.query(`SELECT * FROM transactions WHERE txid = $1`, [txid]);
@@ -30,7 +31,7 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
   ]);
 
   const convergence = await pool.query(
-    `SELECT ce.*, (ce.convergence_txid = b.rigor_winner AND b.rigor_winner <> '') AS is_winner
+    `SELECT ce.*, ${CONVERGENCE_IS_MINT_SQL} AS is_winner
      FROM convergence_events ce
      JOIN blocks b ON b.block_hash = ce.block_hash
      WHERE ce.convergence_txid = $1
@@ -50,6 +51,9 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
     [txid],
   );
 
+  const inclusion = blockCtx.rows[0]
+    ? { block_hash: blockCtx.rows[0].block_hash, block_height: blockCtx.rows[0].height }
+    : null;
   const convRow = convergence.rows[0] ?? null;
   let blockHash = convRow?.block_hash ? String(convRow.block_hash) : blockCtx.rows[0]?.block_hash;
   if (!blockHash && linkedMint.rows[0]?.block_hash) {
@@ -71,13 +75,23 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
         [blockHash],
       );
       candidates = cand.rows;
-      blockPanel = buildBlockConvergencePanel(blockRow, candidates);
-      const winner = (blockRow.rigor_winner || "").trim();
+      const mintRow = await pool.query<{ mint_txid: string }>(
+        `SELECT mint_txid FROM res_mints WHERE block_hash = $1 ORDER BY mint_vout_index ASC LIMIT 1`,
+        [blockHash],
+      );
+      const mintTxid = mintRow.rows[0]?.mint_txid ?? null;
+      blockPanel = buildBlockConvergencePanel(
+        { ...blockRow, mint_txid: mintTxid },
+        candidates,
+      );
+      const winner = (blockRow.rigor_winner || mintTxid || "").trim();
       winnerRow = candidates.find((c) => c.convergence_txid === winner) ?? convRow;
     }
   }
 
-  const convergencePanel = buildTxConvergencePanel(convergence.rows);
+  const convergencePanel = buildTxConvergencePanel(convergence.rows, inclusion, {
+    isResMint: (resMint.rowCount ?? 0) > 0,
+  });
   const witnessPanel = buildTxWitnessPanel(
     txid,
     vin.rows,
@@ -162,7 +176,11 @@ export async function getLineageForBlock(pool: Pool, blockHash: string): Promise
     return emptyLineageGraph(null);
   }
 
-  const winnerTxid = (block.rigor_winner || "").trim();
+  const mintRow = await pool.query<{ mint_txid: string }>(
+    `SELECT mint_txid FROM res_mints WHERE block_hash = $1 ORDER BY mint_vout_index ASC LIMIT 1`,
+    [blockHash],
+  );
+  const winnerTxid = (block.rigor_winner || mintRow.rows[0]?.mint_txid || "").trim();
   const anchor = winnerTxid || candidates.rows[0].convergence_txid;
   const parts = await loadTxLineageParts(pool, anchor);
   if (!parts) return null;

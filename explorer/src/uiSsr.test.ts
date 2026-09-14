@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { injectSsrRoot, renderBlockRoot, renderStatusRoot, renderTxRoot } from "./uiSsr";
+import { injectSsrResPage, injectSsrRoot, renderBlockRoot, renderResPageSsr, renderStatusRoot, renderTxRoot } from "./uiSsr";
 import { CONVERGENCE_LOCK_DESTINATION_LABEL } from "./txSummary";
-import { CONVERGENCE_OUTPUT_STATE, OP_CONVERGE_SCRIPT_NAME } from "./script";
+import { OP_CONVERGE_SCRIPT_NAME } from "./script";
 
 describe("uiSsr", () => {
   it("replaces the Loading placeholder with rendered block amounts", () => {
@@ -31,13 +31,13 @@ describe("uiSsr", () => {
     assert.doesNotMatch(html, />Loading\.\.\.</);
   });
 
-  it("renders C and split draw_candidate_root committed/computed labels", () => {
+  it("renders C and convergence burns without lottery draw-root labels", () => {
     const html = renderBlockRoot(
       {
         block: { height: "305", block_hash: "d8" },
         summary: { height: "305", hash: "d8" },
         convergence_panel: {
-          status: "Convergence Winner Block",
+          status: "Convergence Candidate Block",
           candidate_set_size: 2,
           eligible_count: 1,
           c_root: "04644ee72744a48d226f795d7cc4d692cbf763975275b7054dec59baedfaa7ba",
@@ -51,37 +51,37 @@ describe("uiSsr", () => {
       "d8",
     );
     assert.match(html, /C \(convergence_root\)/);
-    assert.match(html, /draw_candidate_root_committed/);
-    assert.match(html, /draw_candidate_root_computed/);
+    assert.match(html, /Convergence destroys/);
+    assert.match(html, /Convergence Destroy Block/);
+    assert.doesNotMatch(html, /Convergence Candidate Block/);
     assert.match(html, /04644ee72744a48d/);
-    assert.match(html, /56944c5d3f98413e/);
-    assert.match(html, /5371455808011a2a/);
-    assert.match(html, /pays parent draw/);
-    assert.match(html, /this block awards · eligible=1/);
-    assert.match(html, /empty eligible set/);
+    assert.doesNotMatch(html, /draw_candidate_root_committed/);
+    assert.doesNotMatch(html, /draw_candidate_root_computed/);
+    assert.doesNotMatch(html, /pays parent draw/);
+    assert.doesNotMatch(html, /winner_txid/);
   });
 
-  it("renders Draw Identity with Not available when fingerprint is missing", () => {
+  it("renders Block identity with Not available when fingerprint is missing", () => {
     const html = renderBlockRoot(
       {
-        block: { height: "0", block_hash: "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758" },
+        block: { height: "0", block_hash: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717" },
         summary: {
           height: "0",
-          hash: "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758",
+          hash: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
           consensus_fingerprint_display: "Not available",
           consensus_fingerprint_status: "Not available",
         },
         txs: [],
       },
-      "1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758",
+      "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
     );
-    assert.match(html, /Draw Identity/);
-    assert.match(html, /Draw Fingerprint:/);
+    assert.match(html, /Block identity/);
+    assert.match(html, /Observational fingerprint:/);
     assert.match(html, /Not available/);
-    assert.match(html, /1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758/);
+    assert.match(html, /f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717/);
   });
 
-  it("shows A-8 RES award note with payout-block link", () => {
+  it("does not invent a next-block RES award note", () => {
     const html = renderBlockRoot(
       {
         block: { height: "305", block_hash: "award" },
@@ -89,26 +89,30 @@ describe("uiSsr", () => {
           height: "305",
           hash: "award",
           res_minted_display: "0",
-          res_award_note: "40.000000 RES paid in block 306",
-          res_payout_block_hash: "payout306",
+          res_destroy_cost_display: "1024.00000000 ORU per RES",
         },
         txs: [],
       },
       "award",
     );
-    assert.match(html, /RES award/);
-    assert.match(html, /40\.000000 RES paid in block 306/);
-    assert.match(html, /href="\/block\/payout306"/);
+    assert.match(html, /ORU destroyed to mint 1 RES/);
+    assert.match(html, /1024\.00000000 ORU per RES/);
+    assert.doesNotMatch(html, /RES award/);
+    assert.doesNotMatch(html, /next block/);
   });
 
-  it("labels an OP_CONVERGE output as an unspendable burn, not a receiver", () => {
+  it("labels a plain destroy as ORU destroyed with no RES minted", () => {
     const html = renderTxRoot(
       {
         summary: {
           sender: "rg1qk4v6avkzfu3rmzaph2jrhep8w4vvwj9xjrlpn9",
           receiver: null,
           amount_role: "convergence_lock",
-          amount_display: "1000.00000000",
+          amount_display: "0.00001000",
+          tx_kind: "oru_destroy",
+          tx_kind_label: "ORU destroyed",
+          kind_notice: "ORU destroyed. No RES minted.",
+          converge_output_note: "OP_CONVERGE · ORU destroyed · no RES minted",
         },
         vout: [
           {
@@ -126,17 +130,68 @@ describe("uiSsr", () => {
     );
     assert.match(html, new RegExp(CONVERGENCE_LOCK_DESTINATION_LABEL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.match(html, new RegExp(OP_CONVERGE_SCRIPT_NAME));
-    assert.match(html, new RegExp(CONVERGENCE_OUTPUT_STATE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(html, /ORU destroyed\. No RES minted\./);
+    assert.match(html, /ORU destroyed · no RES minted/);
+    assert.match(html, /<th>Type<\/th>/);
     assert.doesNotMatch(html, /<th>Receiver<\/th>/);
     assert.match(html, /<th>Amount<\/th>/);
-    assert.match(html, /Draw Fingerprint/);
+    assert.match(html, /Observational fingerprint/);
     assert.doesNotMatch(html, /Chain Fingerprint/);
   });
 
-  it("keeps homepage S3 as a pulse and sends draw-root detail to RES amount", () => {
+  it("labels a Convergence mint as ORU destroyed with RES minted", () => {
+    const html = renderTxRoot(
+      {
+        summary: {
+          sender: "rg1qk4v6avkzfu3rmzaph2jrhep8w4vvwj9xjrlpn9",
+          receiver: null,
+          amount_role: "convergence_lock",
+          amount_display: "1024.00000000",
+          tx_kind: "res_mint",
+          tx_kind_label: "RES mint",
+          kind_notice: "ORU destroyed. RES minted.",
+          converge_output_note: "OP_CONVERGE / Unspendable destroy output",
+        },
+        vout: [
+          {
+            vout_index: 0,
+            asset_kind: "ORU",
+            value_atoms: "102400000000",
+            script_pubkey: "14" + "00".repeat(20) + "bd",
+            is_convergence: true,
+          },
+          {
+            vout_index: 1,
+            asset_kind: "RES",
+            value_atoms: "100000000",
+            address: "rgrt1pxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          },
+        ],
+      },
+      "aaa",
+    );
+    assert.match(html, /ORU destroyed\. RES minted\./);
+    assert.match(html, /<th>Type<\/th>/);
+    assert.match(html, />RES mint</);
+    assert.doesNotMatch(html, /No RES minted/);
+  });
+
+  it("keeps homepage modules plus RFC-020 issuance and hides draw leftovers", () => {
     const html = renderStatusRoot({
-      chain_identity: { product: "AlphaPlus" },
-      block_health: {},
+      generated_at: "2026-09-10T00:00:00.000Z",
+      chain_identity: {
+        product: "RIGOR v0.1.3",
+        network: "regtest",
+        genesis_hash: "3070f47e2c1b15a3288382f3258396bb48b016eab76eae9f235d006dc2ef63",
+        node_subversion: "/RigorCore:25.0.0/",
+        explorer_version: "0.1.3",
+        equivalence_claimed: false,
+      },
+      block_health: {
+        current_height_node: 704,
+        current_height_indexer: 461,
+        verificationprogress: 1,
+      },
       convergence_health: {
         winner_blocks_last_100: 2,
         winner_frequency_last_100: 0.02,
@@ -147,29 +202,70 @@ describe("uiSsr", () => {
         draw_candidate_root_computed: "5371455808011a2a80f870425e923d25eded85fb65246af20b06b8ebd2634a39",
         f_set_distribution_last_100_blocks: { "1": 12, "2": 3 },
       },
-      economic_snapshot: { network_res_minted_display: "200.00 RES" },
-      mining_activity: {},
-      system_integrity: { indexer_sync_lag_blocks: 0, explorer_compliance: { mismatch_active: false } },
+      economic_snapshot: {
+        network_res_minted_display: "200.00 RES",
+        res_destroy_cost_display: "1024.00000000 ORU per RES",
+        confirm_height: 705,
+        last_res_height: 700,
+        oru_subsidy_tip_display: "128.00000000 ORU",
+        cumulative_convergence_display: "12.00000000 ORU",
+        supply_chart: { total_issued_oru: { display: "90112.00000000 ORU" } },
+        res_mint_count_last_100: 2,
+        convergence_burns_last_100: 4,
+      },
+      mining_activity: { mempool_tx_count: 0, connections: 0 },
+      system_integrity: {
+        indexer_sync_lag_blocks: 243,
+        indexer_last_updated_at: "2026-09-10T00:00:00.000Z",
+        rpc_authority: "rigord: authoritative",
+        explorer_compliance: { mismatch_active: false },
+      },
     });
-    assert.match(html, /S3 — Convergence &amp; integrity/);
-    assert.match(html, /Winner frequency/);
-    assert.match(html, /href="\/res\.html"/);
+    assert.match(html, /Chain identity/);
+    assert.match(html, /Block production/);
+    assert.match(html, /Indexer integrity/);
+    assert.doesNotMatch(html, /Node snapshot/);
+    assert.doesNotMatch(html, /S1 —/);
+    assert.doesNotMatch(html, /S2 —/);
+    assert.doesNotMatch(html, /S3 —/);
+    assert.doesNotMatch(html, /S4 —/);
+    assert.match(html, /status-grid--pair/);
+    assert.match(html, /Height \(node\)/);
+    assert.match(html, /Height \(indexer\)/);
+    assert.doesNotMatch(html, /Connections/);
+    assert.doesNotMatch(html, /href="\/res\.html"/);
+    assert.doesNotMatch(html, /href="\/oru\.html"/);
+    assert.doesNotMatch(html, /Codename/);
+    assert.doesNotMatch(html, /Network type/);
+    assert.doesNotMatch(html, /RFC-019 body-tx RATE\(k\)/);
+    assert.doesNotMatch(html, /Current RATE\(k\)/);
+    assert.match(html, /Issuance/);
+    assert.match(html, /RES minted/);
+    assert.match(html, /200\.00 RES/);
+    assert.match(html, /Issued ORU/);
+    assert.match(html, /90112\.00000000 ORU/);
+    assert.match(html, /ORU destroyed to mint 1 RES/);
+    assert.match(html, /1024\.00000000 ORU per RES/);
+    assert.match(html, /Confirming height/);
+    assert.doesNotMatch(html, /Of which plain destroy/);
+    assert.doesNotMatch(html, /Circulating spendable ORU/);
+    assert.doesNotMatch(html, /Winner frequency/);
     assert.doesNotMatch(html, /draw_candidate_root_committed/);
-    assert.doesNotMatch(html, /draw_candidate_root_computed/);
     assert.doesNotMatch(html, /\|F\| distribution/);
     assert.doesNotMatch(html, /04644ee72744a48d/);
   });
 
-  it("renders Convergence destroyed, RFC-018 fee burn, and circulating as separate S4 rows", () => {
+  it("does not dump circulating or fee-burn series on the homepage", () => {
     const html = renderStatusRoot({
       chain_identity: {},
       block_health: {},
       convergence_health: {},
       economic_snapshot: {
-        network_res_minted_display: "40.000000 RES",
+        network_res_minted_display: "40.00000000 RES",
         oru_supply_cumulative_display: "1000.00000000 ORU",
         cumulative_convergence_display: "12.00000000 ORU",
         oru_circulating_spendable_display: "980.00000000 ORU",
+        oru_plain_destroy_display: "1.00001000 ORU",
         rfc018_fee_burn: {
           block_burned_oru: "500",
           cumulative_burned_oru: "1500",
@@ -182,15 +278,40 @@ describe("uiSsr", () => {
       mining_activity: {},
       system_integrity: { explorer_compliance: {} },
     });
-    assert.match(html, /Total issued ORU/);
+    assert.doesNotMatch(html, /Node snapshot/);
+    assert.match(html, /Issuance/);
+    assert.match(html, /Issued ORU/);
     assert.match(html, /1250\.00000000 ORU/);
-    assert.match(html, /Convergence destroyed ORU/);
-    assert.match(html, /12\.00000000 ORU/);
-    assert.match(html, /Deflationary Fee Burn ORU/);
-    assert.match(html, /0\.00001500 ORU/);
-    assert.match(html, /Circulating spendable ORU/);
-    assert.match(html, /980\.00000000 ORU/);
+    assert.doesNotMatch(html, /Deflationary Fee Burn ORU/);
+    assert.doesNotMatch(html, /0\.00001500 ORU/);
+    assert.doesNotMatch(html, /Circulating spendable ORU/);
+    assert.doesNotMatch(html, /980\.00000000 ORU/);
+    assert.doesNotMatch(html, /Of which plain destroy/);
+    assert.doesNotMatch(html, /1\.00001000 ORU/);
     assert.doesNotMatch(html, /ORU burned \(lifetime\)/);
+  });
+
+  it("omits draw and winner fields from the block header dump", () => {
+    const html = renderBlockRoot(
+      {
+        block: {
+          height: "527",
+          block_hash: "aa",
+          bits: "207fffff",
+          draw_candidate_root: "dd".repeat(32),
+          rigor_winner: "winner-txid",
+          winner_txid: "winner-txid",
+          opus_hash: "ee".repeat(32),
+        },
+        summary: { height: "527", hash: "aa" },
+        txs: [],
+      },
+      "aa",
+    );
+    assert.doesNotMatch(html, /draw_candidate_root/);
+    assert.doesNotMatch(html, /winner-txid/);
+    assert.doesNotMatch(html, /rigor_winner/);
+    assert.match(html, /207fffff/);
   });
 
   it("renders per-block RFC-018 fee burn on the block page without merging Convergence", () => {
@@ -208,9 +329,37 @@ describe("uiSsr", () => {
       },
       "bb",
     );
-    assert.match(html, /Deflationary Fee Burn \(this block\)/);
+    assert.match(html, /Fees destroyed \(this block\)/);
     assert.match(html, /0\.00000500 ORU/);
-    assert.match(html, /Deflationary Fee Burn \(cumulative\)/);
+    assert.match(html, /Fees destroyed \(cumulative\)/);
     assert.match(html, /0\.00001500 ORU/);
+  });
+
+  it("server-renders the RES page instead of leaving Loading placeholders", () => {
+    const { curvesHtml, rootHtml } = renderResPageSsr({
+      confirmHeight: 529,
+      eco: {
+        res_destroy_cost_display: "1024.03228785 ORU destroyed to mint 1 RES",
+        confirm_height: 529,
+        res_derived_max_supply_display: "4194304.00000000 RES",
+        network_res_minted_display: "40.30762289 RES",
+        res_mint_count: 9,
+        last_res_height: 527,
+        last_res_mint_txid: "aa".repeat(32),
+      },
+      mints: [{ block_height: 527, mint_txid: "bb".repeat(32), mint_amount: "1" }],
+    });
+    const html = injectSsrResPage(
+      '<div id="curves" class="status-dashboard">Loading schedule…</div><div id="root" class="status-dashboard">Loading…</div>',
+      curvesHtml,
+      rootHtml,
+    );
+    assert.match(html, /data-ssr="1"/);
+    assert.match(html, /ORU destroyed to mint 1 RES/);
+    assert.match(html, /status-grid--charts/);
+    assert.match(html, /RES mint history/);
+    assert.match(html, /40\.30762289 RES/);
+    assert.doesNotMatch(html, /Loading schedule/);
+    assert.doesNotMatch(html, />Loading…</);
   });
 });

@@ -89,9 +89,9 @@
         <dt>mint vout</dt>
         <dd>${proof.mint_vout_index != null ? `vout[${proof.mint_vout_index}]` : "—"}
           ${proof.mint_amount_display ? ` — ${escapeHtml(proof.mint_amount_display)}` : ""}</dd>
-        <dt>winner convergence txid</dt>
+        <dt>OP_CONVERGE txid</dt>
         <dd>${proof.winner_convergence_txid ? `<a href="${escapeHtml(txPath(proof.winner_convergence_txid))}">${escapeHtml(proof.winner_convergence_txid)}</a>` : "—"}</dd>
-        <dt>matches winner block</dt>
+        <dt>same confirming block</dt>
         <dd>${proof.matches_winner_block ? "yes" : "no"}</dd>
       </dl>`;
 
@@ -102,7 +102,7 @@
     if (proof.proof_items && proof.proof_items.length > 0) {
       html += `<h4>Historical witness stack (not issuance)</h4>${renderPcorbTable(proof.proof_items, routes)}`;
     } else if (proof.present) {
-      html += `<p class="muted">Issuance is the coinbase <code>OP_RES_MINT</code> output. No body PCORB witness.</p>`;
+      html += `<p class="muted">Issuance is the same body transaction: <code>OP_CONVERGE</code> destroy plus Witness v1 RES. ORU destroyed. RES minted.</p>`;
     }
 
     return html;
@@ -113,8 +113,8 @@
       <dl class="witness-meta">
         <dt>Candidate set height</dt>
         <dd>${status.candidate_set_height != null ? status.candidate_set_height : "—"}</dd>
-        <dt>Winner status</dt>
-        <dd>${escapeHtml(status.winner_status)}</dd>
+        <dt>Issuance status</dt>
+        <dd>${escapeHtml(status.winner_status === "Winner" ? "Mint" : status.winner_status === "Candidate" ? "Destroy" : status.winner_status)}</dd>
         <dt>C (convergence_root)</dt>
         <dd>
           ${status.convergence_root

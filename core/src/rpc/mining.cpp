@@ -7,8 +7,6 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
 #include <consensus/params.h>
 #include <consensus/validation.h>
@@ -378,9 +376,8 @@ static RPCHelpMan generateblock()
         }
         block = blocktemplate->block;
 
-        // Mint is a coinbase RIGOR_MARKER_RES_MINT output, not a second transaction. After the
-        // caller's txs are appended, rebuild C / paid-winner and the witness
-        // commitment in one step so the merkle root cannot be left stale.
+        // After the caller's txs are appended, rebuild the coinbase height push
+        // and the witness commitment so the merkle root cannot be left stale.
         block.vtx.insert(block.vtx.end(), txs.begin(), txs.end());
 
         std::string rebuild_err;
@@ -560,8 +557,9 @@ static RPCHelpMan getblocktemplate()
         "    https://github.com/rigor/bips/blob/master/bip-0009.mediawiki#getblocktemplate_changes\n"
         "    https://github.com/rigor/bips/blob/master/bip-0145.mediawiki\n"
         "\n"
-        "Rigor-specific: the assembled coinbase may include ORU subsidy, optional RES draw mint and RES fee outputs, and a Segwit witness commitment. "
-        "Field \"coinbasevalue\" is only the ORU amount on coinbase vout[0] (subsidy plus ORU-domain fees), in Tharns. "
+        "Rigor-specific: the assembled coinbase pays ORU subsidy plus claimable ORU-domain fees and a Segwit witness commitment. "
+        "RFC-020: subsidy is 0 at height 0 and 128 ORU for every height >= 1; it does not halve. "
+        "It does not mint RES. Field \"coinbasevalue\" is only the ORU amount on coinbase vout[0] (subsidy plus ORU-domain fees), in Tharns. "
         "It does not include RES amounts. "
         "For coinbase output order, RES witness binding, and pool integration, see doc/mining-pool-gbt.md in the source tree.\n",
         {
@@ -621,12 +619,12 @@ static RPCHelpMan getblocktemplate()
                 {
                     {RPCResult::Type::STR_HEX, "key", "values must be in the coinbase (keys may be ignored)"},
                 }},
-                {RPCResult::Type::NUM, "coinbasevalue", "On Rigor: ORU value of coinbase vout[0] only (block subsidy plus ORU-domain fees), in Tharns; excludes RES outputs and commitment scripts. Otherwise same intent as BIP22 generation value + fees on the primary subsidy output"},
+                {RPCResult::Type::NUM, "coinbasevalue", "On Rigor: ORU value of coinbase vout[0] only (RFC-020 subsidy 0 at h=0 / 128 ORU for every h>=1, plus claimable ORU-domain fees), in Tharns; excludes RES outputs and commitment scripts. Otherwise same intent as BIP22 generation value + fees on the primary subsidy output"},
                 {RPCResult::Type::STR, "longpollid", "an id to include with a request to longpoll on an update to this template"},
                 {RPCResult::Type::STR, "target", "The hash target"},
                 {RPCResult::Type::NUM_TIME, "mintime", "The minimum timestamp appropriate for the next block time, expressed in " + UNIX_EPOCH_TIME},
                 {RPCResult::Type::NUM_TIME, "maxtime", "The maximum timestamp a miner may set without violating MAX_FUTURE_BLOCK_TIME (2 hours past adjusted time when this template was built)"},
-                {RPCResult::Type::ARR, "mutable", "RIGOR SOLO: only 'time' is advertised. nNonce is the grind. Coinbase scriptSig / RIGOR_MARKER_RES_MINT / C are not BIP22-mutable",
+                {RPCResult::Type::ARR, "mutable", "RIGOR SOLO: only 'time' is advertised. nNonce is the grind. The coinbase is not BIP22-mutable",
                 {
                     {RPCResult::Type::STR, "value", "A way the block template may be changed; RIGOR advertises only 'time'"},
                 }},
@@ -639,51 +637,12 @@ static RPCHelpMan getblocktemplate()
                 {RPCResult::Type::STR, "prev_nbits", "compressed nBits of the previous block (== pindexPrev->nBits)"},
                 {RPCResult::Type::NUM, "height", "The height of the next block"},
                 {RPCResult::Type::STR_HEX, "default_witness_commitment", /*optional=*/true, "a valid witness commitment for the unmodified block template"},
-                {RPCResult::Type::STR_HEX, "default_coinbase_scriptsig", "Exact coinbase vin[0].scriptSig bytes: BIP34 height || OP_PUSHBYTES_32(C) || OP_PUSHBYTES_32(paid-winner). Copy these bytes; do not re-encode"},
+                {RPCResult::Type::STR_HEX, "default_coinbase_scriptsig", "Exact coinbase vin[0].scriptSig bytes: the BIP34 height push. Copy these bytes; do not re-encode"},
                 {RPCResult::Type::STR_HEX, "default_coinbase_tx", /*optional=*/true, "Witness-serialized canonical coinbase from CreateNewBlock. Miner copies these bytes; do not rebuild outputs. Only present when template_request.coinbase_address was given"},
                 {RPCResult::Type::STR_HEX, "default_coinbase_txid", /*optional=*/true, "txid (no-witness hash) of default_coinbase_tx, RPC hex. Only present alongside default_coinbase_tx"},
                 {RPCResult::Type::STR_HEX, "merkleroot", /*optional=*/true, "Header merkle root of this unmodified template (RPC hex). Only present alongside default_coinbase_tx"},
                 {RPCResult::Type::STR, "coinbase_address", /*optional=*/true, "Echo of template_request.coinbase_address when provided"},
-                {RPCResult::Type::STR_HEX, "paid_winner_txid", "Third scriptSig push as RPC hex (uint256 GetHex). All zeros when this template does not mint"},
-                {RPCResult::Type::BOOL, "rigor_coinbase_immutable", "true: coinbase scriptSig, RIGOR_MARKER_RES_MINT, and C must not be mutated; rebuild via a new getblocktemplate if the tx set changes"},
-                {RPCResult::Type::OBJ, "default_res_mint", /*optional=*/true, "Coinbase RIGOR_MARKER_RES_MINT payout when the parent draw named a winner. Miners MUST copy this output into the coinbase; it is not in `transactions`. Omitted when there is no mint",
-                {
-                    {RPCResult::Type::NUM, "value", "W(h) in RES atoms"},
-                    {RPCResult::Type::STR_HEX, "scriptPubKey", "RIGOR_MARKER_RES_MINT script paying the winner's declared program"},
-                }},
-                {RPCResult::Type::ARR, "convergence_txids", /*optional=*/true, "Txids of the convergence set F this template COMMITS (drawn by the next block, not this one). Spans the whole CONVERGENCE_DRAW_WINDOW, so it includes candidates buried in earlier blocks and excludes any a mint inside the window already paid",
-                {
-                    {RPCResult::Type::STR_HEX, "", "txid in little-endian hexadecimal"},
-                }},
-                {RPCResult::Type::STR_HEX, "convergence_root", "C over \"convergence_txids\"; the exact 32 bytes the coinbase scriptSig must carry after the height push"},
-                {RPCResult::Type::OBJ, "convergence_draw", "The draw this template PAYS, resolved over the set the parent block committed (SECURITY-001-A8). Fully determined by the parent: a miner cannot influence any field by changing this template",
-                {
-                    {RPCResult::Type::STR_HEX, "source_blockhash", "Hash of the block that committed the set being drawn (the parent)"},
-                    {RPCResult::Type::NUM, "source_height", "Height of that block"},
-                    {RPCResult::Type::STR_HEX, "sigma_seed", "The σ seed — the parent block hash, byte-for-byte as it enters the preimage"},
-                    {RPCResult::Type::NUM, "payout_height", "Height fed to σ and the height of this template"},
-                    {RPCResult::Type::STR_HEX, "convergence_root", "C over the parent's convergence set"},
-                    {RPCResult::Type::STR, "target_prev", "Compact nBits of the parent header; the value a RES mint proof must report"},
-                    {RPCResult::Type::STR_HEX, "res_probability_target", "Constitutional constant T on the RHS of σ < T·f"},
-                    {RPCResult::Type::STR_HEX, "eligible_root", "Flat Hash256 of the inequality-eligible subset (informational; not a coinbase commitment)"},
-                    {RPCResult::Type::ARR, "candidates", "The parent's convergence set in canonical order",
-                    {
-                        {RPCResult::Type::OBJ, "", "", {
-                            {RPCResult::Type::STR_HEX, "txid", "Convergence txid"},
-                            {RPCResult::Type::NUM, "weight", "Draw weight f_i (convergence amount in Tharns)"},
-                    {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160(pk32) declared by this convergence; the coinbase RIGOR_MARKER_RES_MINT must pay this hash"},
-                            {RPCResult::Type::STR_HEX, "sigma", "σ_i for this candidate"},
-                            {RPCResult::Type::BOOL, "eligible", "Whether σ_i < T·f_i"},
-                        }},
-                    }},
-                    {RPCResult::Type::OBJ, "winner", /*optional=*/true, "Omitted when nobody is eligible, in which case this template must contain no RES mint",
-                    {
-                        {RPCResult::Type::NUM, "index", "Index into candidates"},
-                        {RPCResult::Type::STR_HEX, "txid", "Winning convergence txid; the RES mint proof must name it"},
-                        {RPCResult::Type::NUM, "weight", "Winning convergence amount in Tharns"},
-                    {RPCResult::Type::STR_HEX, "res_payout_hash", "HASH160(pk32) the coinbase RIGOR_MARKER_RES_MINT must pay"},
-                    }},
-                }},
+                {RPCResult::Type::BOOL, "rigor_coinbase_immutable", "true: the coinbase must not be mutated; rebuild via a new getblocktemplate if the tx set changes"},
             }},
         },
         RPCExamples{
@@ -938,8 +897,8 @@ static RPCHelpMan getblocktemplate()
     arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
     UniValue aMutable(UniValue::VARR);
-    // P0-014 M-1: SOLO advertises only time. Mutating transactions without
-    // rebuilding C is consensus-invalid; do not invite that via BIP22.
+    // P0-014 M-1: SOLO advertises only time. Mutating transactions or the
+    // coinbase requires a new getblocktemplate; do not invite that via BIP22.
     aMutable.push_back("time");
 
     UniValue result(UniValue::VOBJ);
@@ -1039,100 +998,7 @@ static RPCHelpMan getblocktemplate()
         result.pushKV("merkleroot", BlockMerkleRoot(*pblock).GetHex());
         result.pushKV("coinbase_address", gbt_payout_addr);
     }
-    {
-        Consensus::CoinbaseConvergenceRootScriptSig parsed;
-        std::string parse_err;
-        CHECK_NONFATAL(Consensus::ParseCoinbaseConvergenceRootScriptSig(pblock->vtx[0]->vin[0].scriptSig, parsed, parse_err));
-        result.pushKV("paid_winner_txid", parsed.paid_winner_txid.GetHex());
-    }
     result.pushKV("rigor_coinbase_immutable", true);
-
-    {
-        const CTxOut* mint_out = nullptr;
-        for (const CTxOut& o : pblock->vtx[0]->vout) {
-            if (IsResMintScript(o.scriptPubKey)) mint_out = &o;
-        }
-        if (mint_out) {
-            UniValue mint{UniValue::VOBJ};
-            mint.pushKV("value", mint_out->nValue);
-            mint.pushKV("scriptPubKey", HexStr(mint_out->scriptPubKey));
-            result.pushKV("default_res_mint", mint);
-        }
-    }
-
-    // Rigor GBT: the set F this template commits, from which the NEXT block draws.
-    //
-    // A-9-C: F is the 31-block window tail PLUS this template's own convergence transactions, so
-    // it is NOT a function of this body alone. An external builder that derived C from this
-    // block's convergence transactions alone would commit the wrong root and have every block
-    // rejected as `bad-cb-convergence-root`, so the full windowed txid list is served here along
-    // with the exact root it must place in the coinbase. A builder that ADDS or DROPS a
-    // convergence transaction must re-derive C itself: add/remove that txid from this list,
-    // re-sort byte-wise, and Hash256 the concatenation (consensus/convergence_root_eligibility.cpp).
-    {
-        // The template's transactions are not applied to the tip view, so CoinsTip() is already
-        // the block-entry view ConnectBlock will use.
-        const ConvergenceDrawSet committed_set =
-            GetTemplateConvergenceDrawSet(*pblock, pindexPrev, active_chainstate.CoinsTip(), consensusParams);
-        UniValue convergence_txids_json(UniValue::VARR);
-        for (const ConvergenceDrawCandidate& candidate : committed_set.candidates) {
-            convergence_txids_json.push_back(candidate.txid.GetHex());
-        }
-        result.pushKV("convergence_txids", convergence_txids_json);
-        result.pushKV("convergence_root", committed_set.convergence_root.GetHex());
-    }
-
-    // SECURITY-001-A8: a template pays the draw its PARENT awarded, over a set the miner cannot
-    // see in its own template. Without this object an external miner has no way to build the
-    // mandatory RES mint, so the whole resolved draw is served here rather than left to be
-    // rederived. Every value is a function of the parent block alone: nothing the miner does to
-    // this template can change any of it.
-    {
-        ConvergenceDrawSet parent_draw_set;
-        if (!GetConvergenceDrawSetForBlock(*pindexPrev, consensusParams, parent_draw_set)) {
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot read the parent block's convergence set");
-        }
-        const ConvergenceDrawOutcome parent_outcome =
-            ResolveConvergenceDraw(parent_draw_set, consensusParams.RES_PROBABILITY_TARGET);
-
-        UniValue draw(UniValue::VOBJ);
-        draw.pushKV("source_blockhash", parent_draw_set.source_block_hash.GetHex());
-        draw.pushKV("source_height", (int64_t)parent_draw_set.source_height);
-        // The σ seed is the parent block hash verbatim; named separately because that is the role
-        // it plays in the preimage, and because it is what makes a re-roll cost a proof of work.
-        draw.pushKV("sigma_seed", parent_draw_set.source_block_hash.GetHex());
-        draw.pushKV("payout_height", (int64_t)(parent_draw_set.source_height + 1));
-        draw.pushKV("convergence_root", parent_draw_set.convergence_root.GetHex());
-        draw.pushKV("target_prev", strprintf("%08x", parent_draw_set.source_nbits));
-        draw.pushKV("res_probability_target", consensusParams.RES_PROBABILITY_TARGET.GetHex());
-        draw.pushKV("eligible_root",
-            ConvergenceDrawEligibleRoot(parent_draw_set, parent_outcome).GetHex());
-
-        UniValue candidates(UniValue::VARR);
-        for (size_t i = 0; i < parent_draw_set.candidates.size(); ++i) {
-            const ConvergenceDrawCandidate& c = parent_draw_set.candidates[i];
-            UniValue one(UniValue::VOBJ);
-            one.pushKV("txid", c.txid.GetHex());
-            one.pushKV("weight", (int64_t)c.weight);
-            one.pushKV("res_payout_hash", HexStr(c.res_payout_hash160));
-            if (i < parent_outcome.sigmas.size()) one.pushKV("sigma", parent_outcome.sigmas[i].GetHex());
-            one.pushKV("eligible", i < parent_outcome.eligible.size() && parent_outcome.eligible[i]);
-            candidates.push_back(one);
-        }
-        draw.pushKV("candidates", candidates);
-
-        if (parent_outcome.HasWinner()) {
-            const ConvergenceDrawCandidate& w =
-                parent_draw_set.candidates[static_cast<size_t>(parent_outcome.winner_index)];
-            UniValue winner(UniValue::VOBJ);
-            winner.pushKV("index", parent_outcome.winner_index);
-            winner.pushKV("txid", w.txid.GetHex());
-            winner.pushKV("weight", (int64_t)w.weight);
-            winner.pushKV("res_payout_hash", HexStr(w.res_payout_hash160));
-            draw.pushKV("winner", winner);
-        }
-        result.pushKV("convergence_draw", draw);
-    }
 
     return result;
 },

@@ -26,9 +26,9 @@ MANIFEST = ROOT / "formal_verification/consensus_kernel_manifest.json"
 
 REQUIRED = {
     "issuance": "GetBlockSubsidy",
-    "res_schedule": "GetResMintReward",
+    "res_schedule": "CheckResMintArithmetic",
     "supply": "RigorSupplyDelta",
-    "draw": "ResolveConvergenceDraw",
+    "draw": "retired",
     "classification": "ClassifyRigorTxout",
     "spend": "VerifyRigorPredicate",
     "pow": "PowBoundary",
@@ -87,9 +87,9 @@ def main() -> int:
 
     mapping = (
         ("issuance_authority", "GetBlockSubsidy"),
-        ("res_authority", "GetResMintReward"),
+        ("res_authority", "CheckResMintArithmetic"),
         ("supply_authority", "RigorSupplyDelta"),
-        ("draw_authority", "ResolveConvergenceDraw"),
+        ("draw_authority", "retired"),
         ("classify_authority", "ClassifyRigorTxout"),
         ("spend_authority", "VerifyRigorPredicate"),
     )
@@ -120,8 +120,6 @@ def main() -> int:
             errors.append("ConnectBlock contains predicate parser / EvalScript")
         if "IsWitnessProgram" in body and "ParseResMintScript" in body and "ParseConvergeScript" in body:
             errors.append("ConnectBlock contains classify parser copy")
-        if "RigorConsensusKernel::ResolveDraw" not in cb:
-            errors.append("ConnectBlock does not call RigorConsensusKernel::ResolveDraw")
         if "RigorConsensusKernel::EvaluateConnect" not in cb:
             errors.append("ConnectBlock does not call RigorConsensusKernel::EvaluateConnect")
         if re.search(r"\bResolveConvergenceDraw\s*\(", cb):

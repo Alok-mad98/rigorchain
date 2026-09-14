@@ -1,0 +1,11 @@
+{
+  "id": "V7",
+  "domain": "utxo",
+  "expect": "INVALID",
+  "theorem": "integer_range_safe",
+  "failure_reason": "runtime integer overflow attempt: output MAX_MONEY+1",
+  "tx_id": [1],
+  "inputs": [{"txid": [2], "index": 0}],
+  "outputs": [{"value": 1000000000000000001, "spk": []}],
+  "coinbase": false
+}

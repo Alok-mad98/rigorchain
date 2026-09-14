@@ -19,15 +19,16 @@ QString ConvergenceEducation::whatIsRes()
 {
     return QCoreApplication::translate("ConvergenceEducation",
         "RES is an independent scarce resource. RES is not a mining reward. "
-        "RES is minted through deterministic consensus Convergence under a fixed maximum supply.");
+        "RES is minted by destroying ORU at a published protocol cost.");
 }
 
 QString ConvergenceEducation::whatIsConvergence()
 {
     return QCoreApplication::translate("ConvergenceEducation",
-        "Convergence permanently commits ORU to participate in RES Convergence. "
-        "Your ORU participates during the next 32 blocks before the network determines the result. "
-        "The network — not the wallet — determines the result. Convergence does not guarantee RES.");
+        "Convergence permanently destroys ORU to mint RES. "
+        "The confirming block height sets the protocol cost: the largest R such that "
+        "R · (2^25+h)^2 ≤ B · 2^40. The cost updates every block. "
+        "Destroyed ORU cannot be recovered. Consensus — not the wallet — decides whether the transaction is valid.");
 }
 
 QString ConvergenceEducation::whySeparate()

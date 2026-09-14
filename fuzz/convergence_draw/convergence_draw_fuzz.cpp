@@ -54,7 +54,7 @@ static uint256 TargetFromMode(uint8_t mode)
         std::fill(t.begin(), t.end(), static_cast<unsigned char>(0xff));
         return t;
     }
-    return Consensus::RES_PROBABILITY_TARGET_CONST;
+    return uint256S("5555555555555555555555555555555555555555555555555555555555555555");
 }
 
 static void CheckOutcome(const ConvergenceDrawSet& set, const ConvergenceDrawOutcome& o)

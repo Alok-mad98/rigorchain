@@ -88,13 +88,6 @@ Stronger mathematical verification`}</pre>
         >
           <p>Strongly verified Coq model. Finite correspondence. Not a refinement proof.</p>
         </DarkCard>
-        <DarkCard
-          title="Zero Trust Verification"
-          to="/zero-trust-verification"
-          linkLabel="Verify independently"
-        >
-          <p>Recompute public bytes locally. Equal bytes are accepted. Unequal bytes are rejected.</p>
-        </DarkCard>
         <DarkCard title="Whitepaper" to="/documentation/whitepaper" linkLabel="Read">
           <p>Protocol paper, including Chapter 3 — Minimal Script Architecture.</p>
         </DarkCard>
@@ -102,7 +95,12 @@ Stronger mathematical verification`}</pre>
 
       <section className="card prose-section">
         <h2>Execution surfaces</h2>
-        <p>Scripts exist. Witness v0, P2WSH, Witness v1, Ed25519 signature verification, and OP_CONVERGE are real. They are constrained, not a contract VM.</p>
+        <p>
+          There is no Script VM. Live templates: Witness v0 ORU P2WPKH, Witness v1 RES, Convergence
+          destroy <code>0xbd</code>, and zero-value NULL_DATA. Coinbase mint <code>0xbb</code> is
+          retired (not the live issuance path). P2WSH,
+          P2PKH, P2SH, Taproot, and Witness v1 CVG2 are not creatable.
+        </p>
         <p>
           GitHub:{" "}
           <a href="https://github.com/rigorchain/rigorchain/blob/main/docs/security/minimal-script-architecture.md">

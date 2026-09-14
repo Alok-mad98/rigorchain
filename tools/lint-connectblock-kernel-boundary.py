@@ -15,9 +15,7 @@ VALIDATION = ROOT / "core/src/validation.cpp"
 MAKEFILE = ROOT / "core/src/Makefile.am"
 
 KERNEL_CALLS = (
-    "RigorConsensusKernel::ResolveDraw",
     "RigorConsensusKernel::EvaluateConnect",
-    "GetConvergenceDrawSetForBlock",
 )
 
 FORMULA = re.compile(
@@ -62,15 +60,9 @@ def main() -> int:
         errors.append(f"ConnectBlock formula fragment: {m.group(0)}")
 
     for name in KERNEL_CALLS:
-        if name not in cb and name != "GetConvergenceDrawSetForBlock":
-            # assembly may sit just above ConnectBlock; still required in file
-            if name not in text:
-                errors.append(f"missing Kernel/orchestration call {name}")
-        if name == "GetConvergenceDrawSetForBlock" and name not in text:
-            errors.append("missing GetConvergenceDrawSetForBlock (assembly)")
+        if name not in cb:
+            errors.append(f"missing Kernel/orchestration call {name}")
 
-    if "RigorConsensusKernel::ResolveDraw" not in cb:
-        errors.append("ConnectBlock does not consume RigorConsensusKernel::ResolveDraw")
     if "RigorConsensusKernel::EvaluateConnect" not in cb:
         errors.append("ConnectBlock does not consume RigorConsensusKernel::EvaluateConnect")
     if re.search(r"\bResolveConvergenceDraw\s*\(", cb):

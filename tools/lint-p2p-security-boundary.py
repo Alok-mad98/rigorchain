@@ -29,6 +29,8 @@ GATE = ROOT / "tools/run_p2p_security_gate.sh"
 FORBIDDEN_CALLS = (
     "GetBlockSubsidy",
     "GetResMintReward",
+    "CheckResMintArithmetic",
+    "ResDestroyCostAtHeight",
     "ResolveConvergenceDraw",
     "ClassifyRigorTxout",
     "ClassifyRigorAsset",

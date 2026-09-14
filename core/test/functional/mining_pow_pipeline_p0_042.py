@@ -46,7 +46,7 @@ class MiningPowPipelineP0042Test(BitcoinTestFramework):
         url = f"http://127.0.0.1:{rpc_port(node.index)}"
         return subprocess.Popen(
             [
-                self.minerd, "-a", "sha256d", "-q", "-t", "2", "--no-getwork",
+                self.minerd, "-a", "rgrpow01", "-q", "-t", "2", "--no-getwork",
                 "--coinbase-addr", addr, "-o", url, "-u", user, "-p", password,
             ],
             stdout=subprocess.PIPE,

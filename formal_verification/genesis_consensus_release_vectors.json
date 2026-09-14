@@ -21,7 +21,7 @@
     {
       "height": 1,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
+      "oru_subsidy": 12800000000,
       "res_schedule": 40000000,
       "res_actual_without_mint": 0,
       "empty_F_draw": "none"
@@ -29,7 +29,7 @@
     {
       "height": 99,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
+      "oru_subsidy": 12800000000,
       "res_schedule": 40000000,
       "res_actual_without_mint": 0,
       "empty_F_draw": "none",
@@ -38,7 +38,7 @@
     {
       "height": 100,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
+      "oru_subsidy": 12800000000,
       "res_schedule": 40000000,
       "res_actual_without_mint": 0,
       "empty_F_draw": "none",
@@ -47,7 +47,7 @@
     {
       "height": 101,
       "epoch": 0,
-      "oru_subsidy": 100000000000,
+      "oru_subsidy": 12800000000,
       "res_schedule": 40000000,
       "res_actual_without_mint": 0,
       "empty_F_draw": "none",
@@ -56,7 +56,7 @@
     {
       "height": 210000,
       "epoch": 1,
-      "oru_subsidy": 50000000000,
+      "oru_subsidy": 12800000000,
       "res_schedule": 14142196,
       "res_actual_without_mint": 0,
       "empty_F_draw": "none"

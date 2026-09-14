@@ -4,15 +4,15 @@
 //
 // P065 verify-only UTXO State Transition. Composes existing kernels.
 // Not compiled into production (absent from Makefile.am).
-// Does not recode issuance / RES / draw / classify / supply / sighash.
+// RFC-019: mint amount is determined by the burn, not a schedule W(h).
+// There is no draw to carry through a state transition.
 
 #ifndef BITCOIN_CONSENSUS_UTXO_UTXO_STATE_TRANSITION_H
 #define BITCOIN_CONSENSUS_UTXO_UTXO_STATE_TRANSITION_H
 
-#include <consensus/convergence_logic.h>
 #include <consensus/ledger/ledger_transition.h>
 #include <consensus/params.h>
-#include <consensus/rigor_consensus_lock.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/txkernel/transaction_kernel_input.h>
 #include <primitives/transaction.h>
@@ -23,8 +23,6 @@
 
 struct ConsensusKernelInput {
     int64_t height{0};
-    ConvergenceDrawSet draw;
-    uint256 draw_target{};
 };
 
 struct UTXOStateTransitionInput {
@@ -59,8 +57,8 @@ inline UTXOStateTransitionResult UTXOStateTransition(const UTXOStateTransitionIn
     if (in.height < 0) return out;
 
     const RigorIssuance iss = ComputeRigorIssuance(static_cast<int>(in.height), in.params);
-    const ConvergenceDrawOutcome draw =
-        ResolveConvergenceDraw(in.consensus.draw, in.consensus.draw_target);
+    const CAmount rate = Consensus::ResDestroyCostAtHeight(static_cast<int>(in.height));
+    (void)rate;
 
     for (const auto& raw : in.asset_scripts) {
         const CScript spk(raw.begin(), raw.end());
@@ -89,16 +87,11 @@ inline UTXOStateTransitionResult UTXOStateTransition(const UTXOStateTransitionIn
         in.ledger.consensus.oru_issuance != iss.oru_subsidy) {
         return out;
     }
-    if (in.ledger.consensus.res_mint != 0 &&
-        in.ledger.consensus.res_mint != iss.res_reward) {
-        return out;
-    }
+    // RFC-019: res_mint is chosen by the burner. There is no schedule
+    // value to compare it against. The inequality lives in CheckTxInputs.
     ledger.consensus.oru_issuance = (in.height == 0) ? 0 : in.ledger.consensus.oru_issuance;
     ledger.consensus.res_mint = (in.height == 0) ? 0 : in.ledger.consensus.res_mint;
-    ledger.consensus.res_schedule = iss.res_reward;
-    if (in.height == 0 && draw.HasWinner()) {
-        return out;
-    }
+    ledger.consensus.res_schedule = 0;
 
     LedgerKernelOutput applied = LedgerApply(ledger);
     out.accept = applied.accept;

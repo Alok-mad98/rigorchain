@@ -1,9 +1,13 @@
 # RIGOR Explorer / Indexer Architecture
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
+Mainnet genesis
+`f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`,
+HRP `rg`. Explorer is a derived view of `rigord` RPC.
+
+**Document status:** Production documentation  
 **Mode:** INDEXER / EXPLORER / READ-ONLY CHAIN INTERPRETATION  
-**Protocol baseline:** commit `4437597197aa713396a123673cc36606346ad523`, tag `mainnet-freeze-rfc014-2026-05-25`  
-**Scope:** Closed testnet foundation only — no public deployment in this task.
+**Historical protocol baseline (archived):** commit `4437597197aa713396a123673cc36606346ad523`, tag `mainnet-freeze-rfc014-2026-05-25`  
+**Historical scope:** Closed testnet foundation — not the current production identity.
 
 ```
 equivalence_claimed = false
@@ -26,7 +30,7 @@ The indexer is a transformation layer only. API output is a derived view
 
 ## 1. Purpose
 
-Provide a **protocol-correct**, **read-only** indexing and visibility layer for the RIGOR `test` chain during closed testnet operation. The stack MUST mirror node-reported state; it MUST NOT implement alternate consensus rules, probability models, or asset inference.
+Provide a **protocol-correct**, **read-only** indexing and visibility layer for the RIGOR **mainnet** (and operator-selected test chains). The stack MUST mirror node-reported state; it MUST NOT implement alternate consensus rules, probability models, or a second asset classifier.
 
 **In scope:** ORU, RES, convergence (`OP_CONVERGE`), convergence lineage, replay-field display, witness-v1 RES spend interpretation.  
 **Out of scope:** Production UI polish, exchange APIs, analytics dashboards, account models, NFT/token layers.
@@ -39,7 +43,7 @@ Provide a **protocol-correct**, **read-only** indexing and visibility layer for 
 |-----------|---------------------|
 | Script-as-compliance | Classify ORU/RES from `scriptPubKey` / RPC decode — never from a parallel `asset` column in UTXO storage; explorer display is not consensus truth |
 | Node is truth | All indexed facts derivable from STABLE RPC + frozen decode rules |
-| txid identity | Convergence, draw, F-set, convergence lineage keyed by **txid** |
+| txid identity | Convergence / mint txs keyed by **txid** |
 | No consensus in API | REST/API layer is presentation + query only |
 | Deterministic ordering | API sorts by `(height ASC, txid ASC)` — never hash-map iteration order |
 
@@ -76,7 +80,7 @@ Provide a **protocol-correct**, **read-only** indexing and visibility layer for 
 | Component | Responsibility | MUST NOT |
 |-----------|----------------|----------|
 | **rigord** | Full validation, chainstate, STABLE RPC | Be replaced by indexer for validity |
-| **Importer** | Persist blocks/headers/txs from RPC | Recompute draw winner independently of node |
+| **Importer** | Persist blocks/headers/txs from RPC | Recompute mint arithmetic as a second authority |
 | **Enricher** | Attach convergence rows per block | Invent eligibility without `getconvergenceresult` |
 | **API** | Serve sorted, labeled ORU/RES views | Expose `invalidateblock` or wallet keys |
 | **UI** | Display indexed fields + disclaimers | Merge ORU+RES balances |
@@ -109,7 +113,7 @@ Per closed topology: **NODE-C** hosts `rigord` + indexer + API. NODE-A holds spe
 
 ### 4.3 Decode path
 
-Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness display. Asset labels MUST follow the same rules as `AssetTypeFromScriptPubKey` (witness v0 → ORU; `OP_CONVERGE` → ORU burn / draw-entry; other v1 32-byte → RES). Historical RFC-014 Witness v1 `CVG2` is retired and must not be labeled as a live asset.
+Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness display. Asset labels MUST follow the same rules as `AssetTypeFromScriptPubKey` (witness v0 → ORU; `OP_CONVERGE` → ORU destroy; other v1 32-byte → RES). Historical RFC-014 Witness v1 `CVG2` is retired and must not be labeled as a live asset.
 
 ---
 
@@ -135,8 +139,8 @@ Use `decoderawtransaction` / verbose `getrawtransaction` for script and witness 
 | `outputs` | Per-vout script, value, inferred asset | `(txid, vout)` |
 | `convergence_results` | Full `getconvergenceresult` JSON per block | `block_hash` |
 | `convergence_candidates` | Normalized candidate rows | `(block_hash, txid)` |
-| `convergence_events` | ORU convergence txs (`OP_CONVERGE` burn / draw-entry) | `(block_hash, convergence_txid)` |
-| `res_mints` | Links winner convergence → RES mint tx | `(mint_txid, mint_vout_index)` |
+| `convergence_events` | ORU convergence txs (`OP_CONVERGE` destroy; may mint RES) | `(block_hash, convergence_txid)` |
+| `res_mints` | RFC-020 body-tx mint: same txid destroys ORU and creates RES | `(mint_txid, mint_vout_index)` |
 | `chain_meta` | Importer tip, last good height | singleton |
 
 ### 6.2 Engine choice (summary)
@@ -172,7 +176,7 @@ Policy: [`../archive/migration/MIGRATION_NOTES.md`](../archive/migration/MIGRATI
 | Use case | Identifier | Rule |
 |----------|------------|------|
 | Primary keys, URLs, convergence set F | **txid** | Mandatory |
-| Draw winner, candidate list | **txid** | Must match `getconvergenceresult.candidates[].txid` |
+| Draw winner, candidate list | **txid** | Observer-only; RFC-019 issuance is the mint txid itself |
 | Convergence lineage edges | **txid** | Convergence tx identity |
 | Mempool display (if added) | wtxid optional secondary | Label as “witness id”; never primary |
 | Foreign keys / JOINs | **txid** only | wtxid display-only column |

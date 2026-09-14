@@ -31,7 +31,15 @@ INDEX_PATH = FV_DIR / "coq_harness_index.json"
 GOLDEN_HARNESS = FV_DIR / "coq" / "Kernel" / "GoldenHarness.v"
 NEG_HARNESS = FV_DIR / "coq" / "Kernel" / "NegativeCoreHarness.v"
 HONESTY_LOCK = FV_DIR / "coq" / "DrawBridgeProgress.v"
-HONESTY_PHASE5 = FV_DIR / "coq" / "Phase5Equivalence" / "DrawBridgeProgress.v"
+# Phase 5 archived the lottery Phase5Equivalence tree. Prefer the live
+# operator-path stub; fall back to the archive copy.
+_HONESTY_PHASE5_LIVE = FV_DIR / "coq" / "Phase5Equivalence" / "DrawBridgeProgress.v"
+_HONESTY_PHASE5_ARCHIVED = (
+    FV_DIR / "archive" / "lottery" / "coq" / "Phase5Equivalence" / "DrawBridgeProgress.v"
+)
+HONESTY_PHASE5 = (
+    _HONESTY_PHASE5_LIVE if _HONESTY_PHASE5_LIVE.is_file() else _HONESTY_PHASE5_ARCHIVED
+)
 
 LEMMA_RE = re.compile(r"^Lemma golden_(\w+) : chk_\d+ = true\.", re.M)
 ALLOWED_DISPOSITIONS = frozenset({"keep", "not_this_cycle"})

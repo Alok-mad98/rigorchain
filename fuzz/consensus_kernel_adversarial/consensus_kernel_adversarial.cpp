@@ -11,6 +11,7 @@
 #include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
 #include <consensus/validation.h>
@@ -31,9 +32,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -45,13 +43,11 @@ static uint256 FromBytes(const uint8_t b[32])
     return id;
 }
 
-static int OracleOru(int height)
+static CAmount OracleOru(int height)
 {
+    if (height < 0) return 0;
     if (height == 0) return 0;
-    if (height < 0) return -1;
-    const int epoch = height / 210000;
-    const int shifts = epoch < 3 ? epoch : 3;
-    return shifts;
+    return Consensus::ORU_FLAT_BLOCK_SUBSIDY;
 }
 
 void ConsensusKernelAdversarialOne(const uint8_t* data, size_t size)
@@ -61,19 +57,15 @@ void ConsensusKernelAdversarialOne(const uint8_t* data, size_t size)
 
     const int height = in.height;
     (void)GetBlockSubsidy(height, p);
-    (void)Consensus::GetResMintReward(height);
+    (void)Consensus::ResDestroyCostAtHeight(height);
     (void)ComputeRigorIssuance(height, p);
 
     if (height == 0) {
         if (GetBlockSubsidy(0, p) != 0) std::abort();
-        if (Consensus::GetResMintReward(0) != Consensus::RES_REWARD_GENESIS) std::abort();
+        if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS) std::abort();
     }
     if (height >= 0) {
-        const int shifts = OracleOru(height);
-        if (shifts >= 0) {
-            const CAmount expect = (height == 0) ? 0 : (Consensus::ORU_INITIAL_BLOCK_SUBSIDY >> shifts);
-            if (GetBlockSubsidy(height, p) != expect) std::abort();
-        }
+        if (GetBlockSubsidy(height, p) != OracleOru(height)) std::abort();
     }
 
     const CScript script(in.script.begin(), in.script.end());
@@ -105,7 +97,7 @@ void ConsensusKernelAdversarialOne(const uint8_t* data, size_t size)
         set.candidates.push_back(c);
     }
     set.convergence_root = uint256S("0xcc");
-    uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
+    uint256 T = uint256S("5555555555555555555555555555555555555555555555555555555555555555");
     if (in.t_mode == 0) T = uint256();
     if (in.t_mode == 0xff) std::fill(T.begin(), T.end(), static_cast<unsigned char>(0xff));
     const ConvergenceDrawOutcome a = ResolveConvergenceDraw(set, T);

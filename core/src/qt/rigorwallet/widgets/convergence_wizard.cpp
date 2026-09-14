@@ -5,12 +5,17 @@
 #include <qt/rigorwallet/widgets/convergence_wizard.h>
 
 #include <consensus/convergenceres.h>
+#include <consensus/res_issuance.h>
 #include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>
+#include <interfaces/node.h>
 #include <qt/clientmodel.h>
 #include <qt/optionsmodel.h>
 #include <qt/rigorwallet/convergence/convergence_education.h>
 #include <qt/walletmodel.h>
+#include <util/moneystr.h>
+
+#include <univalue.h>
 
 #include <QDialogButtonBox>
 #include <QLabel>
@@ -42,11 +47,14 @@ void ConvergenceWizard::buildSteps()
     s1->addWidget(new QLabel(tr("Step 1: Select ORU amount to convergence"), step1));
     s1->addWidget(new QLabel(ConvergenceEducation::whatIsConvergence(), step1));
     m_amountField = new BitcoinAmountField(step1);
-    // Convergence minimum is 1 ORU; lock display to ORU and hide mORU/uORU/Tharn.
+    m_amountField->setObjectName(QStringLiteral("wizardAmountField"));
+    // Mint UI: floor is ResMinMintBurnAtoms(h), not 1 ORU. Lock display to ORU.
     m_amountField->setDisplayUnit(BitcoinUnit::ORU);
     m_amountField->setUnitSelectorVisible(false);
-    m_amountField->SetMinValue(Consensus::MIN_CONVERGENCE_AMOUNT);
-    m_amountField->setSingleStep(COIN);
+    const CAmount min_mint = minMintBurn();
+    m_amountField->SetMinValue(min_mint);
+    m_amountField->setSingleStep(min_mint);
+    m_amountField->setValue(min_mint);
     s1->addWidget(m_amountField);
     m_stack->addWidget(step1);
 
@@ -55,6 +63,7 @@ void ConvergenceWizard::buildSteps()
     auto* s2 = new QVBoxLayout(step2);
     s2->addWidget(new QLabel(tr("Step 2: Review convergence parameters"), step2));
     m_reviewLabel = new QLabel(step2);
+    m_reviewLabel->setObjectName(QStringLiteral("wizardReviewLabel"));
     m_reviewLabel->setWordWrap(true);
     s2->addWidget(m_reviewLabel);
     m_stack->addWidget(step2);
@@ -64,8 +73,9 @@ void ConvergenceWizard::buildSteps()
     auto* s3 = new QVBoxLayout(step3);
     s3->addWidget(new QLabel(tr("Step 3: Confirmation"), step3));
     m_confirmLabel = new QLabel(
-        tr("Convergence permanently commits ORU under consensus rules. A RES mint may follow deterministic selection but is never guaranteed."),
+        tr("This destroys ORU permanently to mint RES at the current protocol cost. The ORU cannot be recovered."),
         step3);
+    m_confirmLabel->setObjectName(QStringLiteral("wizardConfirmLabel"));
     m_confirmLabel->setWordWrap(true);
     s3->addWidget(m_confirmLabel);
     m_stack->addWidget(step3);
@@ -81,8 +91,11 @@ void ConvergenceWizard::buildSteps()
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel, this);
     QPushButton* backBtn = buttons->addButton(tr("Back"), QDialogButtonBox::ResetRole);
+    backBtn->setObjectName(QStringLiteral("wizardBackButton"));
     QPushButton* nextBtn = buttons->addButton(tr("Next"), QDialogButtonBox::AcceptRole);
+    nextBtn->setObjectName(QStringLiteral("wizardNextButton"));
     QPushButton* finishBtn = buttons->addButton(tr("Finish"), QDialogButtonBox::ApplyRole);
+    finishBtn->setObjectName(QStringLiteral("wizardFinishButton"));
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(backBtn, &QPushButton::clicked, this, &ConvergenceWizard::onBack);
     connect(nextBtn, &QPushButton::clicked, this, &ConvergenceWizard::onNext);
@@ -106,9 +119,41 @@ void ConvergenceWizard::refreshReviewStep()
         m_reviewLabel->setText(tr("Enter a valid amount in Step 1."));
         return;
     }
-    m_reviewLabel->setText(tr("Amount: %1\nMinimum: %2\nNetwork fee: none for convergence\nParameters are reported by your node.")
-                               .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, amt))
-                               .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, Consensus::MIN_CONVERGENCE_AMOUNT)));
+    bool authorized = false;
+    int confirm_height = -1;
+    CAmount destroy_cost = 0;
+    if (m_clientModel) {
+        try {
+            UniValue r = m_clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
+            if (r.isObject() && r.exists("confirm_height")) {
+                confirm_height = r["confirm_height"].getInt<int>();
+                authorized = r.exists("issuance_authorized")
+                    ? r["issuance_authorized"].get_bool()
+                    : (confirm_height >= 0);
+                if (r.exists("destroy_cost")) {
+                    destroy_cost = r["destroy_cost"].getInt<int64_t>();
+                }
+            }
+        } catch (...) {
+            authorized = false;
+        }
+    }
+    if (!authorized || confirm_height < 0) {
+        m_reviewLabel->setText(tr("Unable to read the confirming-height mint cost from the node."));
+        return;
+    }
+    const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
+    m_reviewLabel->setText(
+        tr("ORU destroyed: %1\n"
+           "RES this transaction will create: %2\n"
+           "Confirming height: %3\n"
+           "Display cost at that height: %4 ORU per RES\n"
+           "Destroyed ORU cannot be recovered.\n"
+           "Minted RES unlocks after the reorg-protection lock.")
+            .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, amt))
+            .arg(BitcoinUnits::formatRes(minted) + QStringLiteral(" RES"))
+            .arg(confirm_height)
+            .arg(QString::fromStdString(FormatMoney(destroy_cost))));
 }
 
 bool ConvergenceWizard::validateAmount(CAmount& amount_out)
@@ -117,6 +162,23 @@ bool ConvergenceWizard::validateAmount(CAmount& amount_out)
     bool ok = false;
     amount_out = m_amountField->value(&ok);
     return ok && amount_out > 0;
+}
+
+CAmount ConvergenceWizard::minMintBurn() const
+{
+    if (m_clientModel) {
+        try {
+            UniValue r = m_clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
+            if (r.isObject() && r.exists("min_atom_burn")) {
+                return r["min_atom_burn"].getInt<int64_t>();
+            }
+            if (r.isObject() && r.exists("confirm_height")) {
+                return Consensus::ResMinMintBurnAtoms(r["confirm_height"].getInt<int>());
+            }
+        } catch (...) {
+        }
+    }
+    return Consensus::ResMinMintBurnAtoms(0);
 }
 
 void ConvergenceWizard::onBack()
@@ -132,8 +194,10 @@ void ConvergenceWizard::onNext()
             QMessageBox::warning(this, tr("Convergence"), tr("Enter a valid ORU amount."));
             return;
         }
-        if (amt < Consensus::MIN_CONVERGENCE_AMOUNT) {
-            QMessageBox::warning(this, tr("Convergence"), tr("Amount is below the minimum convergence."));
+        if (amt < minMintBurn()) {
+            QMessageBox::warning(this, tr("Convergence"),
+                tr("Amount is below the ORU that mints 1 RES atom (%1).")
+                    .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, minMintBurn())));
             return;
         }
     }
@@ -163,8 +227,12 @@ void ConvergenceWizard::onSubmit()
     const auto ret = m_walletModel->sendConvergenceOru(amt);
     if (ret.status == WalletModel::OK) {
         QMessageBox::information(this, tr("Convergence"),
-            tr("Convergence transaction broadcast. Track status in Convergence History."));
+            tr("Mint broadcast. The ORU is destroyed; minted RES unlocks after the reorg-protection lock."));
         accept();
+    } else if (ret.status == WalletModel::TransactionCommitFailed) {
+        QMessageBox::critical(this, tr("Convergence"),
+            tr("The node rejected the mint and it has not been broadcast. Reason: %1. No ORU was destroyed and the coins are still available.")
+                .arg(ret.reasonCommitFailed));
     }
 }
 

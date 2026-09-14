@@ -10,7 +10,7 @@ export const LINEAGE_READONLY_NOTICE =
   "Relationship data is derived from indexed rigord data. No lineage relationships are computed in the browser.";
 
 export const LINEAGE_RPC_NOTICE =
-  "Lineage fields mirror rigord-imported convergence_events and res_mints rows. Explorer does not compute eligibility or winners.";
+  "Lineage fields mirror rigord-imported convergence_events and res_mints rows. Explorer does not recompute destroy-to-mint amounts.";
 
 export type LineageVisualState =
   | "Candidate"
@@ -101,12 +101,10 @@ export type LineageGraph = {
 };
 
 export const LINEAGE_LEGEND: LineageGraph["legend"] = [
-  { kind: "Candidate", description: "Indexed convergence candidate in |F|" },
-  { kind: "Winner", description: "rigor_winner for the block (rigord authority)" },
-  { kind: "Root", description: "C (convergence_root) from getconvergenceresult / indexed c_root" },
-  { kind: "Sigma", description: "selection_digest_h (sigma digest) on winner row" },
+  { kind: "Destroy", description: "OP_CONVERGE output: ORU destroyed" },
+  { kind: "Mint", description: "RES created in the same transaction. ORU destroyed. RES minted." },
+  { kind: "Root", description: "C (convergence_root) from indexed getconvergenceresult, observer only" },
   { kind: "PCORB", description: "Retired body-witness mint proof (not live issuance)" },
-  { kind: "Mint", description: "Coinbase OP_RES_MINT output paying the parent-draw winner" },
 ];
 
 function txHref(txid: string): string {
@@ -172,7 +170,9 @@ export function buildLineageGraph(args: {
   winnerConvergenceRow: Record<string, unknown> | null;
   mintResOutputs: Array<{ address: string | null; value_atoms: string | number }>;
 }): LineageGraph {
-  const winnerTxid = (args.block?.rigor_winner || args.blockPanel?.winner_txid || "").trim() || null;
+  const mintTxidEarly = args.convergeProof.res_mint_linkage.mint_txid;
+  const winnerTxid =
+    (args.block?.rigor_winner || args.blockPanel?.winner_txid || mintTxidEarly || "").trim() || null;
   const candidateTxids = (
     args.blockPanel?.candidate_txids ?? args.candidates.map((c) => c.convergence_txid)
   ).sort();
@@ -245,7 +245,7 @@ export function buildLineageGraph(args: {
     nodes.push({
       id: "candidate_set",
       kind: "candidate_set",
-      label: `|F| = ${fSetSize}`,
+      label: `Convergence destroys = ${fSetSize}`,
       state: "Candidate",
       href: blockHash ? blockHref(blockHash) : null,
       value: String(fSetSize),
@@ -258,7 +258,7 @@ export function buildLineageGraph(args: {
     nodes.push({
       id,
       kind: "candidate",
-      label: "Candidate Transaction",
+      label: "Destroy transaction",
       state: c.state,
       href: c.href,
       value: c.txid,
@@ -277,7 +277,7 @@ export function buildLineageGraph(args: {
     nodes.push({
       id: winnerId,
       kind: "winner",
-      label: "Winner Transaction",
+      label: "Mint transaction",
       state: "Winner",
       href: txHref(winnerTxid),
       value: winnerTxid,
@@ -294,30 +294,18 @@ export function buildLineageGraph(args: {
     });
     edges.push({ from: winnerId, to: rootId });
 
-    const sigmaId = "sigma_digest";
-    nodes.push({
-      id: sigmaId,
-      kind: "sigma_digest",
-      label: "Sigma Digest",
-      state: "Winner",
-      href: null,
-      value: sigmaHex,
-      meta: { selection_digest_h: sigmaHex },
-    });
-    edges.push({ from: rootId, to: sigmaId });
-
     if (mintTxid) {
       const mintId = `mint:${mintTxid}`;
       nodes.push({
         id: mintId,
         kind: "res_mint",
-        label: "Coinbase OP_RES_MINT",
+        label: "RES mint",
         state: mintState,
         href: txHref(mintTxid),
         value: mintTxid,
         meta: { mint_height: mintHeight, mint_amount_display: mintAmount },
       });
-      edges.push({ from: sigmaId, to: mintId });
+      edges.push({ from: rootId, to: mintId });
     }
   }
 
@@ -393,11 +381,13 @@ export function buildBlockLineageGraph(
   winnerRow: Record<string, unknown> | null,
   mintResOutputs: Array<{ address: string | null; value_atoms: string | number }>,
 ): LineageGraph {
-  const winnerTxid = (block.rigor_winner || "").trim();
+  const winnerTxid = (block.rigor_winner || "").trim() || convergeProof.res_mint_linkage.mint_txid || "";
   const anchor = winnerTxid || candidates[0]?.convergence_txid || blockHash;
   const blockPanel = buildBlockConvergencePanel(
     {
       rigor_winner: winnerTxid,
+      rigor_res_minted: block.rigor_res_minted,
+      mint_txid: winnerTxid || null,
       committed_root: block.committed_root,
       draw_candidate_root: block.draw_candidate_root,
       c_root: block.c_root ?? null,

@@ -3,6 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 // P068 canary TU. Calls existing authorities / C ABI only. No formula copy.
+//
+// RFC-019: issuance surface is (oru_subsidy, RATE(h), epoch). The lottery
+// and W(h) schedule are gone. Draw fields stay zero.
 
 #if !defined(ENABLE_CONSENSUS_KERNEL_CANARY)
 #error "consensus/kernel_canary is verify-only; compile with -DENABLE_CONSENSUS_KERNEL_CANARY"
@@ -15,8 +18,8 @@
 
 #include <consensus/bridge/consensus_kernel_c_api.h>
 #include <consensus/bridge/kernel_marshalling.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
 #include <consensus/validation.h>
@@ -67,7 +70,7 @@ const char* ResultsEqual(const KernelResult& a, const KernelResult& b)
 {
     if (a.accept != b.accept) return "accept";
     if (a.oru_subsidy != b.oru_subsidy) return "issuance.oru";
-    if (a.res_schedule != b.res_schedule) return "issuance.res_schedule";
+    if (a.res_schedule != b.res_schedule) return "issuance.res_destroy_cost";
     if (a.res_mint_expectation != b.res_mint_expectation) return "res_mint_expectation";
     if (a.epoch != b.epoch) return "issuance.epoch";
     if (a.draw_has_winner != b.draw_has_winner) return "draw.has_winner";
@@ -84,9 +87,9 @@ const char* ResultsEqual(const KernelResult& a, const KernelResult& b)
 void FillIssuanceDerived(uint32_t height, const rigor_issuance_result& iss, KernelResult& out)
 {
     out.oru_subsidy = iss.oru_subsidy;
-    out.res_schedule = iss.res_reward_schedule;
+    out.res_schedule = iss.res_destroy_cost;
     out.epoch = iss.epoch;
-    out.res_mint_expectation = (height == 0) ? 0ULL : iss.res_reward_schedule;
+    out.res_mint_expectation = 0;
     out.coinbase_expectation = iss.oru_subsidy;
 }
 
@@ -98,12 +101,10 @@ RigorSupplyDeltaInput SupplyFromAbi(const rigor_supply_input& s)
     din.fee_burn = static_cast<CAmount>(s.burn);
     din.converge_sum = static_cast<CAmount>(s.converge);
     din.res_mint = static_cast<CAmount>(s.mint);
-    din.has_winner = s.has_winner != 0;
-    din.draw_cardinality = static_cast<int>(s.card);
     din.oru_coinbase = static_cast<CAmount>(s.oru_coinbase);
     din.res_bootstrap = 0;
     din.fees_res = 0;
-    din.res_coinbase = RigorResCoinbaseExpected(din.fees_res, din.res_bootstrap, din.res_mint);
+    din.res_coinbase = RigorResCoinbaseExpected(din.fees_res, din.res_bootstrap);
     return din;
 }
 
@@ -115,12 +116,12 @@ bool KernelCanaryExecutor::RunCpp(const ConsensusKernelInput& in, KernelResult& 
     const Consensus::Params params = KernelFrozenParams();
 
     const CAmount oru = GetBlockSubsidy(static_cast<int>(in.height), params);
-    const CAmount res = Consensus::GetResMintReward(static_cast<int>(in.height));
+    const CAmount destroy_cost = Consensus::ResDestroyCostAtHeight(static_cast<int>(in.height));
     const RigorIssuance pack = ComputeRigorIssuance(static_cast<int>(in.height), params);
-    if (pack.oru_subsidy != oru || pack.res_reward != res) return false;
+    if (pack.oru_subsidy != oru) return false;
     rigor_issuance_result iss{};
     iss.oru_subsidy = static_cast<uint64_t>(pack.oru_subsidy);
-    iss.res_reward_schedule = static_cast<uint64_t>(pack.res_reward);
+    iss.res_destroy_cost = static_cast<uint64_t>(destroy_cost);
     iss.epoch = static_cast<uint32_t>(pack.epoch);
     FillIssuanceDerived(in.height, iss, out);
 
@@ -135,25 +136,7 @@ bool KernelCanaryExecutor::RunCpp(const ConsensusKernelInput& in, KernelResult& 
         out.mature = true;
     }
 
-    if (in.candidate_count > 0 && !in.candidates) return false;
-    ConvergenceDrawSet set;
-    set.source_height = static_cast<int>(in.draw_ctx.payout_height) - 1;
-    set.convergence_root = RigorU256ToUint256(in.draw_ctx.convergence_root);
-    set.source_block_hash = RigorU256ToUint256(in.draw_ctx.source_block_hash);
-    set.candidates.reserve(in.candidate_count);
-    for (size_t i = 0; i < in.candidate_count; ++i) {
-        ConvergenceDrawCandidate c;
-        c.txid = RigorU256ToUint256(in.candidates[i].txid);
-        c.weight = in.candidates[i].value;
-        set.candidates.push_back(c);
-    }
-    const ConvergenceDrawOutcome draw = ResolveConvergenceDraw(set, RigorU256ToUint256(in.draw_ctx.target));
-    if (!draw.HasWinner()) {
-        out.draw_has_winner = 0;
-    } else {
-        out.draw_has_winner = 1;
-        Uint256ToRigorU256(set.candidates[static_cast<size_t>(draw.winner_index)].txid, &out.draw_winner);
-    }
+    out.draw_has_winner = 0;
 
     out.spend_ok = SpendOk(in);
 
@@ -241,9 +224,8 @@ int KernelCanaryExecutor::RunDeterministicBattery(int iterations, const char** f
     }
     tx1.bytes[31] = 0x01;
     tx2.bytes[31] = 0x02;
-    const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
     rigor_u256 tprod{};
-    std::memcpy(tprod.bytes, T.begin(), 32);
+    for (int i = 0; i < 32; ++i) tprod.bytes[i] = 0x55;
     const uint64_t sat = 209715200000000ULL;
     rigor_candidate one{tx1, sat};
     rigor_candidate two[2] = {{tx1, sat}, {tx2, sat}};

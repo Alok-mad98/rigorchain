@@ -1,0 +1,97 @@
+{
+  "case_id": "SV-B3_empty_or_unsigned_witness",
+  "raw_block_hex": null,
+  "raw_tx_hex": "02000000010cdec7b149e0a04abdb77202a07ee5e81fda75b15ab5aa467a2c2d5d494ed8e00000000000fdffffff016061754817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c00000000",
+  "kind": "tx",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CTransaction",
+    "error": null,
+    "fields": {
+      "nVersion": 2,
+      "nLockTime": 0,
+      "vin": 1,
+      "vout": 1,
+      "has_witness": false,
+      "values": [
+        99999900000
+      ],
+      "script_lens": [
+        22
+      ]
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "reject",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "VerifyWitnessProgram",
+    "function": "VerifyWitnessProgram",
+    "reject_reason": "Witness program hash mismatch"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": false,
+    "ki_pow_ok": null,
+    "ki_asert_ok": null,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "witness_is_ed25519_64_and_32",
+  "trace": {
+    "raw_bytes": {
+      "hex": "02000000010cdec7b149e0a04abdb77202a07ee5e81fda75b15ab5aa467a2c2d5d494ed8e00000000000fdffffff016061754817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c00000000",
+      "source": "attack_lab",
+      "entry_function": "UnserializeTransaction"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CTransaction",
+      "error": null,
+      "fields": {
+        "nVersion": 2,
+        "nLockTime": 0,
+        "vin": 1,
+        "vout": 1,
+        "has_witness": false,
+        "values": [
+          99999900000
+        ],
+        "script_lens": [
+          22
+        ]
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "VerifyWitnessProgram",
+      "function": "VerifyWitnessProgram",
+      "reject_reason": "Witness program hash mismatch"
+    },
+    "decision": "reject",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": false,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "witness_is_ed25519_64_and_32"
+  }
+}

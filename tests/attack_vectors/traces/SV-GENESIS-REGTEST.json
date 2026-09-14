@@ -1,0 +1,54 @@
+{
+  "before": null,
+  "after": {
+    "case_id": "SV-GENESIS-REGTEST",
+    "block_hash": null,
+    "height": 0,
+    "header_result": "accept",
+    "pow_result": true,
+    "asert_result": true,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "CheckTransaction",
+        "inputs_checked": false,
+        "utxo_result": true,
+        "script_result": true,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": ""
+      }
+    ],
+    "block_result": "accept",
+    "rejection_layer": null,
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": true,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": true,
+      "ki_pow_ok": true,
+      "ki_asert_ok": true
+    },
+    "nBits": "0x207fffff"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+    "ki_utxo_ok": true,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": true,
+    "ki_pow_ok": true,
+    "ki_asert_ok": true
+  }
+}

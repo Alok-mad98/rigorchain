@@ -6,7 +6,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 STAGING="${REPO_ROOT}/dist/alpha/windows/staging"
 OUT_DIR="${REPO_ROOT}/dist/alpha/windows"
-VERSION="${RIGOR_ALPHA_VERSION:-0.1.2-alphaplus}"
+VERSION="${RIGOR_ALPHA_VERSION:-0.2}"
 OUTFILE="${OUT_DIR}/rigor-v${VERSION}-windows.exe"
 NSI="${REPO_ROOT}/installer/windows/rigor_alpha_installer.nsi"
 
@@ -22,7 +22,7 @@ is_pe() {
   [[ "$magic" == "4d5a" ]]
 }
 
-for req in rigor-wallet.exe rigord.exe rigor-miner.exe rigor-cli.exe; do
+for req in rigor-wallet.exe rigord.exe rigor-cli.exe; do
   if ! is_pe "${STAGING}/${req}"; then
     log "ERROR: ${STAGING}/${req} missing or not PE (MZ)."
     log "Run: bash scripts/alpha/build_alpha_windows_pe.sh"
@@ -39,8 +39,8 @@ done
 
 # Datadir + conf helpers for installer
 cat > "${STAGING}/DATADIR.txt" <<'EOF'
-RIGOR AlphaPlus data directory (Windows)
-====================================
+RIGOR data directory (Windows)
+==============================
 
 Default datadir: %APPDATA%\RIGOR
 Config file:     %APPDATA%\RIGOR\rigor.conf
@@ -48,7 +48,7 @@ Config file:     %APPDATA%\RIGOR\rigor.conf
 Examples:
   Wallet / node (mainnet):  rigor-wallet.exe
 
-Production artifacts default exclusively to AlphaPlus mainnet.
+Production artifacts default exclusively to mainnet.
 Testnet/regtest are available only in development builds.
 RPC credentials are generated on first start (rpc-auth.conf). Do not use user/pass.
 
@@ -70,13 +70,15 @@ Miner log must show: GBT nBits ~0x1e01xxxx (BAD if 0x207fffff)
 If it shows 0x207fffff you are still on the old easy chain/binary.
 EOF
 
-cat > "${STAGING}/README-ALPHA.txt" <<EOF
-Rigor Wallet AlphaPlus ${VERSION}
-Unsigned alpha — not a Guix-signed mainnet release.
+cat > "${STAGING}/README.txt" <<EOF
+Rigor Wallet ${VERSION}
+Official RIGOR v${VERSION} Windows build (unsigned).
 
 Windows users: double-click rigor-v${VERSION}-windows.exe (or the
 same file inside the zip). That opens the setup wizard. After install,
 use the Desktop / Start Menu "Rigor Wallet" shortcut (rigor-wallet.exe).
+
+About / --version identity: v${VERSION} (not Alpha / not v0.1.2-alphaplus).
 
 Data directory: %APPDATA%\\RIGOR
 Config file:    %APPDATA%\\RIGOR\\rigor.conf
@@ -104,19 +106,18 @@ print("staged", dst.name, "CRLF bytes", dst.stat().st_size)
 PY
 }
 
-stage_cmd "${REPO_ROOT}/installer/windows/rigor-miner.cmd" "${STAGING}/rigor-miner.cmd"
 stage_cmd "${REPO_ROOT}/installer/windows/rigor-cli.cmd" "${STAGING}/rigor-cli.cmd"
 stage_cmd "${REPO_ROOT}/installer/windows/load-rpc-auth.cmd" "${STAGING}/load-rpc-auth.cmd"
 
 cat > "${STAGING}/rigor.conf.template" <<'EOF'
-# RIGOR Alpha template — copy to %APPDATA%\RIGOR\rigor.conf
+# RIGOR template — copy to %APPDATA%\RIGOR\rigor.conf
 server=1
 txindex=1
 listen=1
 # RPC credentials are generated on first mainnet start (rpc-auth.conf).
 # Do not ship default rpcuser/rpcpassword.
 rpcallowip=127.0.0.1
-# Allow getblocktemplate with zero peers (local Alpha solo mining).
+# Allow getblocktemplate with zero peers (local solo mining).
 # Also forces a full chain flush after every new tip so Task Manager kills do not rewind to genesis.
 solomining=1
 # Mainnet RPC listens on 8761 by default (override with -rpcport=).
@@ -124,8 +125,8 @@ solomining=1
 EOF
 
 required_staged=(
-  rigor-wallet.exe rigord.exe rigor-cli.exe rigor-miner.exe
-  README-ALPHA.txt DATADIR.txt rigor.conf.template
+  rigor-wallet.exe rigord.exe rigor-cli.exe
+  README.txt DATADIR.txt rigor.conf.template
 )
 for req in "${required_staged[@]}"; do
   if [[ ! -e "${STAGING}/${req}" ]]; then
@@ -136,7 +137,7 @@ done
 
 # Strip debug symbols so the installed wallet is a normal-sized PE (AV / first-launch).
 if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
-  for pe in rigor-wallet.exe rigord.exe rigor-cli.exe rigor-miner.exe; do
+  for pe in rigor-wallet.exe rigord.exe rigor-cli.exe; do
     x86_64-w64-mingw32-strip --strip-unneeded "${STAGING}/${pe}" || true
   done
   log "Stripped staging PEs"
@@ -175,7 +176,7 @@ rm -f "${ZIP_OUT}"
 python3 - <<PY
 import zipfile, pathlib, sys
 installer = pathlib.Path("${OUTFILE}")
-readme = pathlib.Path("${STAGING}/README-ALPHA.txt")
+readme = pathlib.Path("${STAGING}/README.txt")
 out = pathlib.Path("${ZIP_OUT}")
 inner = "rigor-v${VERSION}-windows.exe"
 if not installer.is_file():
@@ -212,14 +213,17 @@ rm -f "${AP}/rigor-v0.1.1-alphaplus-windows.exe" \
   "${AP}/rigor-wallet-0.1.1-alphaplus.exe" \
   "${AP}/rigor-wallet-0.1.1-alphaplus-portable.zip"
 cp -a "${STAGING}/rigord.exe" "${AP}/rigord.exe"
-cp -a "${STAGING}/rigor-miner.exe" "${AP}/rigor-miner.exe"
 cp -a "${STAGING}/rigor-cli.exe" "${AP}/rigor-cli.exe"
+rm -f "${AP}/rigor-miner.exe"
 (
   cd "${AP}"
   sha256sum \
     "rigor-v${VERSION}-windows.exe" \
     "rigor-v${VERSION}-windows.zip" \
-    rigord.exe rigor-miner.exe rigor-cli.exe \
+    rigord.exe rigor-cli.exe \
     > SHA256SUMS
 )
-log "Staged AlphaPlus Windows assets under ${AP}"
+log "Staged Windows wallet assets (no miner) under ${AP}"
+
+# Miner + dashboard is a separate package. Never copy miner into the wallet tree.
+bash "${REPO_ROOT}/scripts/alpha/package_windows_miner.sh"

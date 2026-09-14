@@ -77,9 +77,9 @@ CAmount ConsumeOutputValue(FuzzedDataProvider& p, const CScript& spk, int spend_
 {
     if (spk.IsUnspendable()) return 0;
     if (IsResScript(spk)) {
+        // RFC-020: RES is minted at destroy_cost(h), not a scheduled reward. For fuzzing use RES_COIN.
         if (p.ConsumeBool()) {
-            const CAmount reward = Consensus::GetResMintReward(spend_height);
-            return reward > 0 ? reward : RES_COIN;
+            return RES_COIN;
         }
         const CAmount n = ConsumeResAmount(p);
         return n == 0 ? RES_ATOMIC_UNIT : n;

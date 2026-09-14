@@ -1,25 +1,30 @@
-# RIGOR Pool (Alpha / ORU-only)
+# RIGOR Pool
 
-> **SOLO quarantine (P0-014 M-3).** This directory is **not** part of the shipped
-> SOLO miner / `rigord` release. Do not add Stratum extranonce, a pool payout
-> layer, or a second reward path to `core/`. `scriptSig` has zero free bytes.
+**Node RPC (mainnet):** `8761`.  
+**Network label:** `mainnet` (not an HRP string; HRP is `rg`).
 
-**Status:** Internal Alpha mining product  
-**Authority:** `docs/pool/RIGOR_POOL_PRODUCT_POSITION.md` (Option A)  
-**Consensus / W / T / RES issuance:** Unchanged — this tree does not modify them.
+> **SOLO quarantine.** This directory is **not** part of the shipped SOLO
+> miner / `rigord` release. Do not add Stratum extranonce, a pool payout
+> layer, or a second reward path to `core/`.
+
+The pool is an **ORU-only** mining coordination product. It polls
+`getblocktemplate` from `rigord`, validates templates, and may run a
+Stratum listener for workers. It does **not** mint RES.
 
 ## What this pool is
 
-- Stratum mining coordination (`opushash`)
-- Share validation
-- Block assembly + `submitblock`
-- **ORU** payout accounting (PPLNS + optional fee)
+- GBT client against `rigord` (`pool/rigor-gbt`, default RPC `http://127.0.0.1:8761`)
+- Share validation / ORU payout accounting (PPLNS + optional fee)
+- Block submission via node `submitblock`
+- Template format is the node GBT (canonical coinbase copy-bytes)
 
 ## What this pool is not
 
 - Does **not** create, trigger, allocate, or simulate **RES**
-- Does **not** depend on `mint-engine` at runtime
-- Does **not** use the legacy yiimp stack
+- Does **not** replace node coinbase assembly
+- Does **not** use the leftover yiimp / yaamp tree
+- SOLO miners must talk to `rigord` GBT, not to this pool, unless they
+  intentionally join the pool product
 
 ## Active binaries (Rust)
 
@@ -27,37 +32,32 @@
 |--------|-------|------|
 | `rigor-pool` / `rigor-pool-pilot` | `pool/pilot` | Pool server |
 | `rigor-miner-agent` | `pool/rigor-miner-agent` | CPU Stratum miner |
+| `rigor-gbt` | `pool/rigor-gbt` | GBT adapter + template cache |
 
-Config examples:
-- Local Alpha: [`config/example.devtest.toml`](./config/example.devtest.toml)
-- Production-shaped: [`config/example.toml`](./config/example.toml)
+Config:
 
-Miner guide: [`../docs/pool/MINER_CONNECTION_GUIDE.md`](../docs/pool/MINER_CONNECTION_GUIDE.md)  
-Alpha package: `dist/alpha/pool/`
+- Production-shaped: [`config/example.toml`](./config/example.toml) (`network = "mainnet"`, `rpc_port = 8761`)
+- Local/devtest: [`config/example.devtest.toml`](./config/example.devtest.toml) (`rpc_port = 48761`)
+
+Miner guide: [`../docs/pool/MINER_CONNECTION_GUIDE.md`](../docs/pool/MINER_CONNECTION_GUIDE.md)
 
 ```bash
-# Build
 cd pool/pilot && cargo build --release --bin rigor-pool
 cd ../rigor-miner-agent && cargo build --release
-
-# Local Alpha (devtest — starts without production secrets)
-../pilot/target/release/rigor-pool --config ../config/example.devtest.toml run
-# or: dist/alpha/pool/linux/bin/rigor-pool --config pool/config/example.devtest.toml run
-
-# Status (pool must already be running)
-rigor-pool --config pool/config/example.devtest.toml status
 ```
 
-`example.toml` is profile=production and will refuse to start until `payout_script_hex` + `worker_credentials` are set.
+`example.toml` is profile=production and will refuse to start until
+`payout_script_hex` + `worker_credentials` are set.
+
+PoW digest used by the **node** and by pool share validation is SHA3-256
+`RGRPOW01`. Production flow: [`../docs/pool/PRODUCTION_MINING_FLOW.md`](../docs/pool/PRODUCTION_MINING_FLOW.md).
 
 ---
 
-## LEGACY / ABANDONED — do not operate for RIGOR
+## Historical / abandoned — do not operate
 
-### Abandoned yiimp vendor tree
-
-The following paths are **upstream yiimp leftovers**. They are **not** the RIGOR Alpha pool.
-Do not install, cron, or point miners at them for RIGOR:
+The following paths are **upstream yiimp leftovers**. They are not the
+RIGOR pool:
 
 | Path | Notes |
 |------|-------|
@@ -67,9 +67,7 @@ Do not install, cron, or point miners at them for RIGOR:
 | `pool/bin/` | yiimp CLI helpers |
 | `pool/blocknotify*` | Daemon hooks for yiimp |
 
-Historical yiimp install prose that used to live in this README has been removed to avoid operator confusion.
+`pool/mint-engine/` is **LEGACY / audit-only**. RES mint is assembled by
+`rigord` automint — never by the pool product.
 
-### Legacy mint-engine
-
-`pool/mint-engine/` is **LEGACY / audit-only**. It is **not** linked into `rigor-pool` or `stratum-server`.  
-RES body mint (when required) is assembled by `rigord` automint / wallet Convergence — never by the pool product.
+Alpha / AlphaPlus pool packaging names are historical.

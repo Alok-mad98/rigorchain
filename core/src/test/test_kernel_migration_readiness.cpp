@@ -3,14 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 // P067: dual-path migration verify. Does not switch production.
+// RFC-019: (oru_subsidy, RATE(h), epoch). No draw. res_issued is ledger mint.
 
 #if !defined(CONSENSUS_KERNEL_MIGRATION_VERIFY_ONLY)
 #error "test_kernel_migration_readiness is verify-only"
 #endif
 
 #include <consensus/kernel_migration/kernel_migration.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
-#include <uint256.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -27,9 +28,6 @@ static int fail(const char* msg)
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -37,11 +35,6 @@ static Consensus::Params FrozenParams()
 static CScript Oru()
 {
     return CScript() << RIGOR_PUSH_0 << std::vector<unsigned char>(WITNESS_V0_KEYHASH_SIZE, 0x11);
-}
-
-static CScript Res()
-{
-    return CScript() << RIGOR_PUSH_1 << std::vector<unsigned char>(WITNESS_V1_RES_SIZE, 0xaa);
 }
 
 static CScript Unknown()
@@ -76,37 +69,6 @@ static TransactionKernelInput ValidOruTx()
     return in;
 }
 
-static uint256 Hex256(const char* hex)
-{
-    uint256 out;
-    std::vector<unsigned char> raw;
-    const std::string s(hex);
-    for (size_t i = 0; i < s.size(); i += 2) {
-        unsigned v = 0;
-        std::sscanf(s.c_str() + static_cast<int>(i), "%2x", &v);
-        raw.push_back(static_cast<unsigned char>(v));
-    }
-    std::memcpy(out.begin(), raw.data(), 32);
-    return out;
-}
-
-static ConvergenceDrawSet TieSet(bool swap)
-{
-    const uint64_t sat = 209715200000000ULL;
-    ConvergenceDrawSet set;
-    set.source_height = 100;
-    set.convergence_root = Hex256("1111111111111111111111111111111111111111111111111111111111111111");
-    set.source_block_hash = Hex256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    ConvergenceDrawCandidate a, b;
-    a.txid = Hex256("0000000000000000000000000000000000000000000000000000000000000001");
-    a.weight = sat;
-    b.txid = Hex256("0000000000000000000000000000000000000000000000000000000000000002");
-    b.weight = sat;
-    set.candidates = swap ? std::vector<ConvergenceDrawCandidate>{b, a}
-                          : std::vector<ConvergenceDrawCandidate>{a, b};
-    return set;
-}
-
 static KernelMigrationInput Base()
 {
     KernelMigrationInput in;
@@ -114,7 +76,6 @@ static KernelMigrationInput Base()
     in.height = 1;
     in.spend_height = 200;
     in.maturity = 100;
-    in.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
     in.tx = ValidOruTx();
     in.supply.height = 1;
     in.supply.oru_coinbase = GetBlockSubsidy(1, in.params);
@@ -148,9 +109,8 @@ int main()
         in.tx = {};
         if (!Verify(in, o, "genesis")) return fail("genesis verify");
         if (o.oru_subsidy != 0) return fail("genesis ORU actual");
-        if (o.res_schedule != 40000000) return fail("genesis RES schedule");
+        if (o.res_destroy_cost != Consensus::RES_DESTROY_COST_GENESIS) return fail("genesis RATE");
         if (o.res_issued != 0) return fail("genesis RES issued");
-        if (o.draw_winner != -1) return fail("genesis draw");
         if (!o.supply_ok || !o.ledger_ok) return fail("genesis accept");
     }
 
@@ -164,7 +124,8 @@ int main()
         std::snprintf(name, sizeof(name), "epoch-%d", h);
         if (!Verify(in, o, name)) return fail(name);
         if (o.oru_subsidy != GetBlockSubsidy(h, p)) return fail("epoch oru");
-        if (o.res_schedule != Consensus::GetResMintReward(h)) return fail("epoch res");
+        if (o.res_destroy_cost != Consensus::ResDestroyCostAtHeight(h)) return fail("epoch RATE");
+        if (o.res_issued != 0) return fail("epoch res issued is ledger mint, Base has none");
     }
 
     {
@@ -200,31 +161,6 @@ int main()
         in.classify_scripts = {Unknown()};
         if (!Verify(in, o, "unknown-asset")) return fail("unknown asset");
         if (o.classification != ASSET_INVALID || o.ledger_ok) return fail("unknown asset must reject");
-    }
-
-    {
-        KernelMigrationInput in = Base();
-        ConvergenceDrawSet empty;
-        if (ResolveConvergenceDraw(empty, in.draw_target).HasWinner()) return fail("empty F");
-        in.draw = empty;
-        if (!Verify(in, o, "draw-empty")) return fail("draw empty");
-        if (o.draw_winner != -1) return fail("empty winner");
-
-        ConvergenceDrawSet one = TieSet(false);
-        one.candidates.resize(1);
-        in.draw = one;
-        if (!Verify(in, o, "draw-single")) return fail("draw single");
-        if (o.draw_winner != 0) return fail("single winner");
-
-        in.draw = TieSet(false);
-        if (!Verify(in, o, "draw-equal")) return fail("draw equal");
-        const int w1 = o.draw_winner;
-        in.draw = TieSet(true);
-        if (!Verify(in, o, "draw-tie")) return fail("draw tie");
-        if (TieSet(false).candidates[static_cast<size_t>(w1)].txid !=
-            TieSet(true).candidates[static_cast<size_t>(o.draw_winner)].txid) {
-            return fail("txid tie-break");
-        }
     }
 
     {

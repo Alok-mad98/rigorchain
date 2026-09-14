@@ -31,7 +31,6 @@ GATES = [
     ("supply_kernel", "RigorConsensusKernel::EvaluateConnect"),
     ("issuance_kernel", "RigorConsensusKernel::EvaluateConnect"),
     ("res_kernel", "RigorConsensusKernel::EvaluateConnect"),
-    ("draw_resolve", "RigorConsensusKernel::ResolveDraw"),
     ("maturity_via_checktxinputs", "CheckTxInputs"),
     ("state_range_setbestblock", "view.SetBestBlock"),
     ("reorg_undo", "WriteUndoDataForBlock"),
@@ -45,11 +44,8 @@ UNIQUE_DELETIONS = [
     "CheckInputScripts",
     "UpdateCoins(",
     "RigorConsensusKernel::EvaluateConnect",
-    "RigorConsensusKernel::ResolveDraw",
     "view.SetBestBlock",
     "WriteUndoDataForBlock",
-    "ValidateCoinbaseConvergenceRootScriptSig",
-    "GetConvergenceDrawSetForBlock",
 ]
 
 EQUIVALENT_MUTANTS = {

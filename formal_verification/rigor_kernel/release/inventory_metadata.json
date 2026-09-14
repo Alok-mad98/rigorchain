@@ -1,0 +1,1136 @@
+{
+ "apply_block_accepted_inputs_unique|Kernel/SafetyExtensions.v": {
+  "assumptions": "Single candidate block. `Print Assumptions`: Closed.",
+  "dependencies": "SafetyExtensions",
+  "meaning": "Converse of the `nodupb` guard. Not a reorg bound.",
+  "statement": "`apply_block u b = Some u' → NoDup (collect_inputs b)`."
+ },
+ "apply_block_rejects_duplicate_input|Kernel/SafetyExtensions.v": {
+  "assumptions": "Single-block `nodupb`. Not reorg (OP-R1). `Print Assumptions`: Closed.",
+  "dependencies": "SafetyExtensions / apply_block",
+  "meaning": "Definitional unfolding. Class A UTXO content remains `utxo_soundness`.",
+  "statement": "`apply_block` with duplicate collected inputs is `None` (`nodupb` guard)."
+ },
+ "asert_boundary_complete|Pow/ASERTMatrix.v": {
+  "assumptions": "Coq `Z` ASERT matrix. Not C++ nBits. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTMatrix / ASERTBoundary",
+  "meaning": "Matrix form of the ASERT integer model is complete for the declared cases.",
+  "statement": "ASERT matrix / boundary uses `Z.quot` (`matrix_quot`); the tabulated boundary cases hold."
+ },
+ "asert_child_time_irrelevant|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "Reflexivity. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTCorrectness",
+  "meaning": "Documentation-only. Do not cite as ASERT completeness.",
+  "statement": "`asert_next_target i = asert_next_target i` (no semantic content)."
+ },
+ "asert_extract_reflects_quot|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / ASERTValidator",
+  "meaning": "Reflection lemma.",
+  "statement": "The ASERT checker reflects the Coq `Z.quot` model."
+ },
+ "asert_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Source identity only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "ASERT extracted name = Coq ASERT validator (definitional)."
+ },
+ "asert_poly_fits_uint64|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "`0 <= e < ASERT_RADIX`. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTModel / asert_poly, asert_poly_mono",
+  "meaning": "Bounds the width the evaluation needs. The margin at the top of the domain is under one part in 10^5, so the ceiling is real rather than nominal.",
+  "statement": "`0 <= e < 65536 → asert_poly e < 2^64`."
+ },
+ "asert_poly_pos|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "`0 <= e`, discharged for every exponent by `exp_rem_range`. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTModel / asert_poly, asert_poly_mono",
+  "meaning": "The C++ reads `poly >> 48` as unsigned. A negative polynomial would wrap to an enormous factor rather than a small one, and nothing downstream checks it, so the sign is a consensus precondition rather than a tidiness property.",
+  "statement": "`0 <= e → 0 < asert_poly e`."
+ },
+ "block_acceptance_sound|Kernel/Block/Acceptance.v": {
+  "assumptions": "Model `accept_block`. Not ConnectBlock. `Print Assumptions`: Closed.",
+  "dependencies": "Block types / PoW acceptance",
+  "meaning": "A block cannot be accepted by dropping the PoW conjunct.",
+  "statement": "Block acceptance in the kernel model requires the declared conjuncts (including PoW acceptance)."
+ },
+ "block_transition_utxo_soundness|proofs/UTXO_Soundness/UTXOTransitionSoundness.v": {
+  "assumptions": "`transition_inputs_unique` guard. Single candidate block, not a reorg. `Print Assumptions`: Closed.",
+  "dependencies": "`utxo_soundness`, apply_block",
+  "meaning": "Block-level UTXO apply in the Coq model does not introduce a double-spend of collected inputs.",
+  "statement": "A successful `apply_block_transition` preserves UTXO well-formedness and consumes unique inputs."
+ },
+ "burn_is_monotonic_supply_decrease|Economic/ORU/ORUSoundness.v": {
+  "assumptions": "ORU/economic burn field. `Print Assumptions`: Closed.",
+  "dependencies": "ORUSoundness",
+  "meaning": "Burn cannot be used as a hidden mint.",
+  "statement": "Burn monotonically decreases (or leaves) supply."
+ },
+ "burn_only_removal|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Economic burn field. `Print Assumptions`: Closed.",
+  "dependencies": "Economic.v",
+  "meaning": "Burn decreases (or leaves) supply; it is not a mint.",
+  "statement": "Burn is a removal term; it does not create value."
+ },
+ "chain_no_hidden_creation|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / chain_oru_conservation",
+  "meaning": "The same identity with the flows spelled out, so it reads without unfolding `oru_delta`. A hidden per-block creation of any size, however small, breaks it once the chain is long enough.",
+  "statement": "Net ORU change over a run `= sum_subsidy_in + sum_incoming − sum_outgoing − sum_burn_in`."
+ },
+ "chain_oru_conservation|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "None; an identity about the fold, so it holds of runs the kernel would reject too. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / oru_delta",
+  "meaning": "Single-step conservation is definitional unfolding. Over a run it is an accounting statement: the tip stock differs from the start stock by exactly the summed per-block flow, with no term depending on chain length.",
+  "statement": "`oru_stock (ks_oru (chain_step_of s is)) = oru_stock (ks_oru s) + sum_oru_delta is`."
+ },
+ "chain_res_cap_fixed|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / res_transition",
+  "meaning": "The cap a run is measured against is the cap it started with. A single step trivially respects whatever cap it is handed; only a chain can notice a ceiling being raised block by block. Rules out that reading.",
+  "statement": "`res_cap (ks_res (chain_step_of s is)) = res_cap (ks_res s)`."
+ },
+ "chain_res_monotone|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "Start invariants and an acceptable run. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / step_of_preserves",
+  "meaning": "RES issuance never runs backwards along an acceptable run.",
+  "statement": "`kernel_invariants s → chain_ok s is → res_stock (ks_res s) ≤ res_stock (ks_res (chain_step_of s is))`."
+ },
+ "check_econ_reflects|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Schedule-side model. Not a runtime S_RES reject and not C++ EvaluateSupply. `Print Assumptions`: Closed.",
+  "dependencies": "Supply/ORUModel.v",
+  "meaning": "The economic validity predicate is decidable and the two directions agree, so subsidy_schedule_bound is now stated over the checker instead of projecting its own hypothesis.",
+  "statement": "`check_econ e = true <-> valid_econ e`."
+ },
+ "check_executable_kernel_reflects|CheckerContract/CheckerSpecification.v": {
+  "assumptions": "Boolean reflection of the kernel invariant over the executable state. Coq model only; not the shipped checker binary. `Print Assumptions`: Closed.",
+  "dependencies": "ExecutionBoundary/ConcreteExecutionState.v",
+  "meaning": "The decision procedure and the propositional invariant agree in both directions, so the checker cannot be sound by rejecting everything or complete by accepting everything.",
+  "statement": "`check_executable_kernel e = true <-> executable_invariants e`."
+ },
+ "check_res_mint_bounded_by_genesis|Kernel/SafetyExtensions.v": {
+  "assumptions": "`res_created` + schedule. `Print Assumptions`: Closed.",
+  "dependencies": "SafetyExtensions",
+  "meaning": "Local per-mint cap. Not OP-D1 / not Category A.",
+  "statement": "Executable form: a passing RES check implies `0 < mint <= RES_REWARD_GENESIS`."
+ },
+ "check_value_flow_reflects|Kernel/Transaction/Validity.v": {
+  "assumptions": "Requires induction over the input and output lists (all_in_nonneg / all_out_nonneg reflection). Kernel model only; no signatures, no script VM. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/Transaction/Types.v",
+  "meaning": "Transaction validity now has a decision procedure that provably agrees with the invariant. The three exported transaction theorems are stated over the checker, so they can no longer be discharged by destructuring their own hypothesis.",
+  "statement": "`check_value_flow t = true <-> ValueFlow t`."
+ },
+ "checker_accepts_valid_kernel_state|CheckerContract/CheckerSpecification.v": {
+  "assumptions": "`force_checker_accept = false` does not interfere with the true case. `Print Assumptions`: Closed.",
+  "dependencies": "CheckerSpecification",
+  "meaning": "Abstract accept contract. Not `rigor-kernel-checker`.",
+  "statement": "`checker_accept_contract true`: a valid bit is accepted by the abstract checker."
+ },
+ "checker_decides_kernel_validity|CheckerContract/CheckerSpecification.v": {
+  "assumptions": "`abstract_checker` takes a runtime machine state and computes; it no longer receives a validity bit as an argument. `Print Assumptions`: Closed.",
+  "dependencies": "Runtime/MachineState.v, ExecutionBoundary/ConcreteExecutionState.v",
+  "meaning": "Replaces checker_accepts_valid_kernel_state / checker_rejects_invalid_kernel_state in their old form, where abstract_checker was the identity on bool and the contract read b = b -> b = b.",
+  "statement": "`abstract_checker m = true <-> exists e, machine_decode m = Some e /\\ executable_invariants e`."
+ },
+ "checker_rejects_invalid_kernel_state|CheckerContract/CheckerSpecification.v": {
+  "assumptions": "`force_checker_accept = false`. `Print Assumptions`: Closed.",
+  "dependencies": "CheckerSpecification",
+  "meaning": "Abstract reject contract. Invalid cannot become VALID by the checker interface.",
+  "statement": "`checker_reject_contract false`: an invalid bit is rejected by the abstract checker."
+ },
+ "checker_rejects_unrepresentable_state|CheckerContract/CheckerSpecification.v": {
+  "assumptions": "Decode failure is rejection, never truncation. `Print Assumptions`: Closed.",
+  "dependencies": "Runtime/MachineState.v",
+  "meaning": "A state carrying values outside the runtime word domain is refused rather than silently wrapped into a valid-looking one.",
+  "statement": "If `machine_decode m = None` then `abstract_checker m = false`."
+ },
+ "classify_deterministic|proofs/Script_Correctness/ScriptCorrectness.v": {
+  "assumptions": "Script bytes only. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptCorrectness",
+  "meaning": "Classifier is a function.",
+  "statement": "Equal scripts classify equally."
+ },
+ "classify_range_exact|Script/ScriptClassifier.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "The other half of totality. Without it a classifier answering `T_NONSTANDARD` everywhere would satisfy the range bound. Each class is exhibited by a witness script.",
+  "statement": "The range is contained in the six types, and every one of the six is `classify_script s` for some concrete `s`."
+ },
+ "classify_total|Script/ScriptClassifier.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "The classifier's range is bounded by the six declared types. Until frontier 1.4 this name stood for `exists t, classify_script s = t`, witnessed by `classify_script s`, which holds of every function.",
+  "statement": "`In (classify_script s) [T_WITNESS_V0; T_WITNESS_V1; T_MINT; T_CONVERGE; T_NULL_DATA; T_NONSTANDARD]`."
+ },
+ "classify_total|proofs/Script_Correctness/ScriptCorrectness.v": {
+  "assumptions": "Script bytes only. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptCorrectness",
+  "meaning": "Totality of `classify`.",
+  "statement": "For every script there exists a classification."
+ },
+ "classify_type_total|proofs/Script_Correctness/ScriptCorrectness.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptCorrectness, ScriptClassifier",
+  "meaning": "Same statement at the asset level, which is the level consensus consumes. Replaces `exists t, classify_script s = t`.",
+  "statement": "`In (classify s) [A_ORU; A_RES; A_NONE; A_INVALID]`, and each of the four is `classify s` for some `s`."
+ },
+ "classifier_then_spend|Script/Semantics/Spend.v": {
+  "assumptions": "`sig_ok` is an argument, not Ed25519. `Print Assumptions`: Closed. Not a VM.",
+  "dependencies": "`script_spend_ok`, `classify_script`",
+  "meaning": "Spend consults the classifier. A second recognizer ladder is a different function.",
+  "statement": "`script_spend_ok sig_ok s w = spendable_by_class sig_ok (classify_script s) w s`."
+ },
+ "compact_decode_lower_bound|Pow/CompactBits.v": {
+  "assumptions": "Coq integer compact model only. `Print Assumptions`: Closed.",
+  "dependencies": "Pow/CompactBits",
+  "meaning": "Prevents treating compact nBits as a lossless codec.",
+  "statement": "Compact bits decode is a lower bound, not `decode(encode(t)) = t`."
+ },
+ "concrete_chain_commute|Kernel/Chain/ChainRefinement.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ChainRefinement / projection_step_commute",
+  "meaning": "The concrete layer's run projects onto the abstract run. Single-step commutation, iterated by induction over the run.",
+  "statement": "`kernel_projection (concrete_chain_step_of c is) = chain_step_of (kernel_projection c) is`."
+ },
+ "concrete_invariants_imply_kernel_invariants|Refinement/ConcreteKernel/ConcreteKernelMapping.v": {
+  "assumptions": "none. `Print Assumptions`: Closed.",
+  "dependencies": "`kernel_projection`, `kernel_invariants`",
+  "meaning": "Upward cone link. Definitional field projection. Not implementation refinement.",
+  "statement": "`concrete_invariants c -> kernel_invariants (kernel_projection c)`."
+ },
+ "concrete_state_preserves_invariant|Refinement/ConcreteKernel/ConcreteKernelMapping.v": {
+  "assumptions": "Projection field-wise. Not C++ layout. `Print Assumptions`: Closed.",
+  "dependencies": "ConcreteKernelMapping",
+  "meaning": "Lifting an abstract invariant through `kernel_projection`.",
+  "statement": "If `kernel_invariants a` and `kernel_projection c = a`, then `concrete_invariants c`."
+ },
+ "concrete_step_refines_abstract_step|Refinement/ConcreteKernel/ConcreteKernelTransition.v": {
+  "assumptions": "Coq-to-Coq projection. OP-R2 (C++ / node) remains open. `Print Assumptions`: Closed.",
+  "dependencies": "ConcreteKernelTransition / UnifiedTransition",
+  "meaning": "Coq concrete step is a refinement of the abstract kernel step.",
+  "statement": "If `concrete_kernel_step c c'`, then `kernel_step (kernel_projection c) (kernel_projection c')`."
+ },
+ "converge_not_null_data|Script/ScriptClassifier.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "Third disjointness pair: PUSHBYTES_20 is not OP_RETURN.",
+  "statement": "`is_converge_script s = true -> is_null_data s = false`."
+ },
+ "converge_unspendable|Script/Semantics/Spend.v": {
+  "assumptions": "`classify_script s = T_CONVERGE`. `Print Assumptions`: Closed. Not ConnectBlock.",
+  "dependencies": "`script_spend_ok`, `spendable_by_class`",
+  "meaning": "A converge lock cannot be spent, for any abstract `sig_ok`.",
+  "statement": "If `classify_script s = T_CONVERGE` then `script_spend_ok sig_ok s w = false`."
+ },
+ "crypto_assumptions_are_not_security_proofs|Kernel/CryptoAssumptions.v": {
+  "assumptions": "Declared assumption inventory. `Print Assumptions`: Closed.",
+  "dependencies": "CryptoAssumptions",
+  "meaning": "Central crypto honesty theorem.",
+  "statement": "SHA3 / Ed25519 / related flags are `false`; they are assumptions, not proofs."
+ },
+ "crypto_keccak_not_verified|Kernel/CryptoAssumptions.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "CryptoAssumptions",
+  "meaning": "keccak implementation is not verified.",
+  "statement": "`keccak_implementation_verified = false`."
+ },
+ "decode_encode_identity|Kernel/SerializationBoundary.v": {
+  "assumptions": "ORU-list codec only. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/SerializationBoundary",
+  "meaning": "ORU-list encode/decode identity. Category A same name is executable kernel state.",
+  "statement": "`decode (encode t) = t` on the ORU-list encoding."
+ },
+ "decode_encode_identity|SerializationBoundary/KernelSerialization.v": {
+  "assumptions": "Coq encode/decode only. Not an ABI / wire format proof. `Print Assumptions`: Closed.",
+  "dependencies": "KernelSerialization",
+  "meaning": "Coq-model serialization of executable kernel state is a left inverse. Category B has a same-named ORU-list lemma.",
+  "statement": "`decode_kernel_state (encode_kernel_state e) = Some e` (executable kernel state)."
+ },
+ "econ_chain_no_supply_loss|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Uses sum_subsidy_nonneg and sum_burn_le_sum_fees, both by induction. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/EconomicInvariant/Economic.v",
+  "meaning": "A valid chain never destroys supply: burn is bounded by fees, so it cannot eat into the principal.",
+  "statement": "If every block is `valid_econ` then `init <= econ_chain init es`."
+ },
+ "economic_net_issuance_is_subsidy|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Proved by induction over the block list via econ_chain_conservation. Schedule-side accounting only. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/EconomicInvariant/Economic.v (econ_chain_conservation)",
+  "meaning": "Once the fee flow is subtracted out, the only source of new coins across a chain is the block subsidy. Fees are a transfer, not a source.",
+  "statement": "Over any chain, `econ_chain init es - init - (sum_fees es - sum_burn es) = sum_subsidy es`."
+ },
+ "economic_no_hidden_creation|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Economic invariant bundle. `Print Assumptions`: Closed.",
+  "dependencies": "Economic.v",
+  "meaning": "Fees cannot mint coins in the economic algebra.",
+  "statement": "Economic state change has no hidden mint: creation is subsidy (plus incoming), not fees."
+ },
+ "economic_refinement_preserves_conservation|Refinement/EconomicRefinement.v": {
+  "assumptions": "`economic_refines`. `Print Assumptions`: Closed.",
+  "dependencies": "EconomicRefinement / EconomicState",
+  "meaning": "Coq economic refinement, not C++ ConnectBlock.",
+  "statement": "If economic states refine and the abstract conservation holds, the concrete economic step preserves it."
+ },
+ "encoding_contract_proved_crypto_not_proved|Kernel/SerializationBoundary.v": {
+  "assumptions": "Serialization vs crypto inventory. `Print Assumptions`: Closed.",
+  "dependencies": "SerializationBoundary / CryptoAssumptions",
+  "meaning": "Separates encode lemmas from crypto claims.",
+  "statement": "Encoding contract is proved; crypto and full extraction refinement are not."
+ },
+ "encoding_deterministic|Kernel/SerializationBoundary.v": {
+  "assumptions": "Kernel/SerializationBoundary encode. `Print Assumptions`: Closed.",
+  "dependencies": "SerializationBoundary",
+  "meaning": "Supporting serialization lemma (ORU list path).",
+  "statement": "ORU-list / kernel encoding is a function."
+ },
+ "epoch_supply_transition_sound|Supply/SupplyTransition.v": {
+  "assumptions": "Schedule-side epoch transition. Not OP-D1. `Print Assumptions`: Closed.",
+  "dependencies": "SupplyTransition / SupplySchedule",
+  "meaning": "Epoch supply step cannot mint an extra `RES_MAX_SUPPLY` slab.",
+  "statement": "Epoch minted amount follows the schedule identity (no `RES_MAX_SUPPLY` inflation term)."
+ },
+ "executable_chain_commute|Kernel/Chain/ChainRefinement.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ChainRefinement / execution_step_commute",
+  "meaning": "The executable layer's run projects onto the concrete run.",
+  "statement": "`execution_projection (executable_chain_step_of e is) = concrete_chain_step_of (execution_projection e) is`."
+ },
+ "executable_chain_preserves_invariants|Kernel/Chain/ChainRefinement.v": {
+  "assumptions": "Executable invariants at the start; the projected run is acceptable step by step. `Print Assumptions`: Closed.",
+  "dependencies": "ChainRefinement / executable_step_preserves_invariants",
+  "meaning": "Executable invariants survive a whole run. The acceptability hypothesis is the abstract one transported through the projection at each step, which is exactly why `chain_ok` had to be defined at the running state.",
+  "statement": "`executable_invariants e → chain_ok (kernel_projection (execution_projection e)) is → executable_invariants (executable_chain_step_of e is)`."
+ },
+ "executable_step_preserves_invariants|ExecutionBoundary/ExecutableInvariance.v": {
+  "assumptions": "The ORU conjunct is discharged from the flow condition inside `input_ok`; the RES conjunct from the `Z.min` clamp. `Print Assumptions`: Closed.",
+  "dependencies": "ExecutionBoundary/ExecutableInvariance.v (executable_step_fields), Kernel/UnifiedTransition.v",
+  "meaning": "The property the execution boundary owes and never stated. It replaces execution_projection_preserves_invariants, which was a projection between field-for-field clone records (proof: exact Hinv) and is now Category C.",
+  "statement": "If `executable_invariants e` and the input is accepted by `input_ok`, then `executable_invariants (executable_step_of e i)`."
+ },
+ "executable_step_refines_concrete_step|ExecutionBoundary/ExecutableTransition.v": {
+  "assumptions": "Coq executable model. `Print Assumptions`: Closed.",
+  "dependencies": "ExecutableTransition",
+  "meaning": "Executable step refines the concrete kernel step.",
+  "statement": "If `executable_kernel_step s s'`, then `concrete_kernel_step (execution_projection s) (execution_projection s')`."
+ },
+ "executable_transition_deterministic|ExecutionBoundary/ExecutableTransition.v": {
+  "assumptions": "`executable_step_unique = true`. `Print Assumptions`: Closed.",
+  "dependencies": "ExecutableTransition",
+  "meaning": "Executable apply is deterministic.",
+  "statement": "If `executable_kernel_apply s i s1` and `... s2`, then `s1 = s2`."
+ },
+ "execution_projection_preserves_invariants|ExecutionBoundary/ConcreteExecutionState.v": {
+  "assumptions": "Coq executable model. Not ocamlopt. `Print Assumptions`: Closed.",
+  "dependencies": "ConcreteExecutionState",
+  "meaning": "Executable model states stay in the concrete invariant set.",
+  "statement": "If `executable_invariants e`, then `concrete_invariants (execution_projection e)`."
+ },
+ "exp_q_clamped|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "Clamp constants of the ASERT model. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTCorrectness / ASERTModel",
+  "meaning": "Extreme time errors do not escape the declared clamp in the Coq ASERT model.",
+  "statement": "The ASERT exponent is clamped to the model clamp interval."
+ },
+ "extraction_boundary_declared|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Documentation flag. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Documents the extraction stop. Not a proof of extraction correctness.",
+  "statement": "Compiler and runtime remain outside the declared proof scope."
+ },
+ "extraction_interface_bijective|ExtractionBoundary/ExtractionModel.v": {
+  "assumptions": "Interface table. `EXTRACTION_FORMAL_PROOF=source_identity_only`. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionInterface / ExtractionModel",
+  "meaning": "Extraction interface is total and aligned. Not compiler correctness.",
+  "statement": "Every `CoqKernelFunction` has an `ExtractedKernelInterface` entry and `boundary_aligned`."
+ },
+ "extraction_interface_injective|ExtractionBoundary/ExtractionModel.v": {
+  "assumptions": "Interface consistency only. Not OCaml extraction correctness, not binary equivalence. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary/ExtractionInterface.v",
+  "meaning": "Two different Coq validators cannot share one extracted entry, so no validator can be silently substituted for another. collapsing_boundary is the witness that this is a constraint on the mapping and not a fact about Coq.",
+  "statement": "`kernel_call_boundary f = kernel_call_boundary g -> f = g`."
+ },
+ "extraction_interface_surjective|ExtractionBoundary/ExtractionModel.v": {
+  "assumptions": "Interface consistency only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary/ExtractionInterface.v",
+  "meaning": "No declared extracted name is unreachable from the Coq side, so there is no extracted entry without a proof obligation behind it. Together with injectivity this replaces extraction_interface_total, whose existential was witnessed by its own subject and held for every total function.",
+  "statement": "For every extracted entry `e` there is a Coq validator `f` with `kernel_call_boundary f = e`."
+ },
+ "extraction_source_equivalence|Kernel/ExtractionBoundary.v": {
+  "assumptions": "`EXTRACTION_FORMAL_PROOF=source_identity_only`. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Source identity only. Not Gallina→OCaml operational correspondence.",
+  "statement": "The six extracted names are definitionally the Coq validators."
+ },
+ "factor_range|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "ASERT integer factor construction. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTCorrectness",
+  "meaning": "Prevents an unconstrained factor from forging a next target in-model.",
+  "statement": "The ASERT multiplicative factor stays in the declared model range."
+ },
+ "factor_wrap_continuous|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTModel / factor, asert_poly",
+  "meaning": "The exponent is split into a shift count and a remainder and the target is built from both. This is the statement that the two pieces agree where they meet, so the piecewise target does not jump as the remainder wraps past 65535. Exact, not approximate, and the most coefficient-sensitive result in the ASERT domain.",
+  "statement": "`factor 65536 = 2 * factor 0`."
+ },
+ "fees_only_transfer|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Same economic model as `economic_no_hidden_creation`. `Print Assumptions`: Closed.",
+  "dependencies": "`economic_no_hidden_creation`",
+  "meaning": "Fee term is a transfer in the economic algebra.",
+  "statement": "Fees move existing value; they do not increase supply."
+ },
+ "golden_negative_vectors_rejected|ExtractionBoundary/GoldenNegatives.v": {
+  "assumptions": "Abstract vector table. Extracted binary is a separate test. `Print Assumptions`: Closed.",
+  "dependencies": "GoldenNegatives",
+  "meaning": "Documented invalid cases stay invalid in the Coq checker model.",
+  "statement": "The Coq golden-negative model rejects V1–V6 when `force_accept_invalid = false`."
+ },
+ "hash_less_target_equivalent|Pow/TargetRelation.v": {
+  "assumptions": "TargetRelation. `Print Assumptions`: Closed.",
+  "dependencies": "TargetRelation",
+  "meaning": "Definitional. Abstract `H` only.",
+  "statement": "`meets_target` unfolds to the same comparison as `hash_le_target`."
+ },
+ "immature_coinbase_rejected|Kernel/Tx/Maturity.v": {
+  "assumptions": "`sc_coinbase = true` and depth < 100. `Print Assumptions`: Closed. Not ConnectBlock.",
+  "dependencies": "`spend_ok`, `COINBASE_MATURITY`",
+  "meaning": "A coinbase cannot be spent before depth 100, even if its value is in range.",
+  "statement": "If `sc_coinbase c = true` and `spend_h - sc_height c < 100` then `spend_ok spend_h c = false`."
+ },
+ "input_over_max_rejected|Kernel/Tx/Maturity.v": {
+  "assumptions": "`MAX_MONEY < sc_value c`. `Print Assumptions`: Closed. Not an ORU supply cap.",
+  "dependencies": "`spend_ok`, `money_range_b`",
+  "meaning": "An input above MAX_MONEY is rejected regardless of maturity flags.",
+  "statement": "If `MAX_MONEY < sc_value c` then `spend_ok spend_h c = false`."
+ },
+ "mature_coinbase_at_100|Kernel/Tx/Maturity.v": {
+  "assumptions": "Coinbase, `money_range`, depth ≥ 100. `Print Assumptions`: Closed.",
+  "dependencies": "`spend_ok`, `COINBASE_MATURITY`",
+  "meaning": "An in-range coinbase becomes spendable at depth 100, not 101.",
+  "statement": "If coinbase, `money_range`, and `100 <= spend_h - height` then `spend_ok = true`."
+ },
+ "plain_transfer_no_maturity|Kernel/Tx/Maturity.v": {
+  "assumptions": "Not coinbase, not RES mint, `money_range`. `Print Assumptions`: Closed.",
+  "dependencies": "`spend_ok`, `requires_maturity`",
+  "meaning": "A plain transfer has no confirmation-depth gate.",
+  "statement": "If both maturity flags are false and `money_range` then `spend_ok = true`."
+ },
+ "pool_add_overflow_none|Kernel/Tx/Maturity.v": {
+  "assumptions": "`MAX_MONEY < acc + v`. `Print Assumptions`: Closed. Not int64 wrap.",
+  "dependencies": "`pool_add`, `add_money_overflows`",
+  "meaning": "A pool add that would exceed MAX_MONEY is None, checked before the addition.",
+  "statement": "If `MAX_MONEY < acc + v` then `pool_add acc v = None`."
+ },
+ "res_mint_uses_same_maturity|Kernel/Tx/Maturity.v": {
+  "assumptions": "`sc_res_mint = true` and depth < 100. `Print Assumptions`: Closed.",
+  "dependencies": "`spend_ok`, `requires_maturity`",
+  "meaning": "A body RES mint uses the same 100-block spend gate as coinbase.",
+  "statement": "If `sc_res_mint c = true` and depth < 100 then `spend_ok = false`."
+ },
+ "integer_range_safe|RuntimeModel/IntegerBoundary.v": {
+  "assumptions": "`MAX_MONEY` / `COIN`. `Print Assumptions`: Closed.",
+  "dependencies": "Core/Amount, IntegerBoundary",
+  "meaning": "Kernel money fits the documented signed 63-bit magnitude. Not all OCaml `int`s.",
+  "statement": "If `money_range z` then `0 <= z <= 2^62 - 1`."
+ },
+ "invalid_kernel_input_rejected|Runtime/RuntimeFailure.v": {
+  "assumptions": "`input_ok` conjuncts. `Print Assumptions`: Closed.",
+  "dependencies": "UnifiedTransition / RuntimeFailure",
+  "meaning": "A kernel input with `ki_utxo_ok = false` is never `input_ok`.",
+  "statement": "If `InvalidKernelInput i` then `~ input_ok s i`."
+ },
+ "kernel_boundary_closed|Kernel/RefinementBoundary.v": {
+  "assumptions": "None (True). `Print Assumptions`: Closed.",
+  "dependencies": "RefinementBoundary",
+  "meaning": "Boundary marker only. Does not prove extraction, compiler, or binary correctness.",
+  "statement": "`refinement_scope_closed` is the documentation record field `True`."
+ },
+ "kernel_chain_is_graph|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / kernel_apply_is_graph",
+  "meaning": "The multi-block relation is exactly the multi-block fold on acceptable runs. `chain_ok` judges each input at the state its predecessors produced, which is the only honest reading: `input_ok` reads the ORU stock and RES cap out of the state, so acceptability is not a property of the input alone.",
+  "statement": "`kernel_chain s is s' ↔ chain_ok s is ∧ s' = chain_step_of s is`."
+ },
+ "kernel_chain_preserves_invariants|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "Start state satisfies the invariants; the run is acceptable at every step. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / step_of_preserves",
+  "meaning": "The six kernel invariants survive a run of arbitrary length. Proved by induction on the run, so the block count is unbounded rather than fixed at one. This is the theorem the package was missing: every consensus result before 2.1 governed a single step.",
+  "statement": "`kernel_invariants s → chain_ok s is → kernel_invariants (chain_step_of s is)`."
+ },
+ "kernel_chain_states_invariant|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "Same as the preceding row. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / step_of_preserves",
+  "meaning": "Not only the tip: every state the run passes through satisfies the invariants. A node serves intermediate states to its callers, so this is the form the safety claim has to take. Strictly stronger than endpoint preservation.",
+  "statement": "`kernel_invariants s → chain_ok s is → Forall kernel_invariants (chain_states s is)`."
+ },
+ "kernel_sound|Kernel/KernelSoundness.v": {
+  "assumptions": "Bridge packaging. Does not close compiler / node / crypto. `Print Assumptions`: Closed.",
+  "dependencies": "KernelInterface / domain validators",
+  "meaning": "Bridge: the packaged kernel validator implies the bundled invariant.",
+  "statement": "`validate_kernel input = true → consensus_invariant input`."
+ },
+ "kernel_step_preserves_invariants|proofs/KernelTransitionSoundness.v": {
+  "assumptions": "Unified `KernelState` / `kernel_step`. Not C++. `Print Assumptions`: Closed.",
+  "dependencies": "UnifiedTransition / InvariantBundle",
+  "meaning": "Unified kernel transition stays inside the invariant bundle.",
+  "statement": "If `kernel_invariants s` and `kernel_step s s'`, then `kernel_invariants s'`."
+ },
+ "kernel_step_refinement_composes|Refinement/KernelComposition.v": {
+  "assumptions": "Refinement composition interface. `Print Assumptions`: Closed.",
+  "dependencies": "KernelComposition / TransitionRefinement",
+  "meaning": "Composition of model refinements; not a node proof.",
+  "statement": "Kernel-step refinement composes along the declared refinement chain."
+ },
+ "kernel_transition_deterministic|proofs/KernelTransitionSoundness.v": {
+  "assumptions": "`kernel_step_unique = true` in the healthy cone. `Print Assumptions`: Closed.",
+  "dependencies": "UnifiedTransition",
+  "meaning": "Unified kernel apply is a function of state and input.",
+  "statement": "If `kernel_apply s i s1` and `kernel_apply s i s2`, then `s1 = s2`."
+ },
+ "machine_chain_refines_executable_chain|Kernel/Chain/ChainRefinement.v": {
+  "assumptions": "Start state decodes and the whole run completes on the machine. `Print Assumptions`: Closed.",
+  "dependencies": "ChainRefinement / machine_step_refines_executable_step",
+  "meaning": "A chain-level simulation with partiality carried through. It does not say the machine completes the run — the bounded word domain can refuse — it says a run the machine does complete is the run the model computes. `machine_chain_completes_on_idle` and `machine_chain_refinement_is_partial` show both sides of that guard are reachable.",
+  "statement": "`machine_decode m = Some e → machine_chain_step_of m is = Some m' → machine_decode m' = Some (executable_chain_step_of e is)`."
+ },
+ "machine_invariants_imply_representable|Runtime/MachineState.v": {
+  "assumptions": "Requires the invariant to bound every numeric field; the `res_stock <= res_cap <= word_max` chain supplies the stock bound. `Print Assumptions`: Closed.",
+  "dependencies": "Runtime/MachineWord.v",
+  "meaning": "The kernel invariant is strong enough to guarantee that a valid state can exist in the bounded runtime domain. The converse is false and is stated separately (representable_does_not_imply_valid).",
+  "statement": "If a machine state satisfies the kernel invariant then it decodes: `exists e, machine_decode m = Some e /\\ executable_invariants e`."
+ },
+ "machine_state_preserves_invariant|Execution/KernelMachine.v": {
+  "assumptions": "Kernel machine invariant. `Print Assumptions`: Closed.",
+  "dependencies": "`machine_step_deterministic`",
+  "meaning": "Machine subset does not leave the proved kernel invariant set.",
+  "statement": "A machine step that starts in the invariant bundle stays in it."
+ },
+ "machine_step_deterministic|Execution/KernelMachine.v": {
+  "assumptions": "Coq machine model. Not a CPU. `Print Assumptions`: Closed.",
+  "dependencies": "Execution/KernelMachine",
+  "meaning": "Machine subset is deterministic.",
+  "statement": "The small-step kernel machine has at most one successor."
+ },
+ "machine_step_failure_is_overflow|Runtime/MachineState.v": {
+  "assumptions": "Enumerates every failure branch of the machine step. `Print Assumptions`: Closed.",
+  "dependencies": "Runtime/MachineWord.v",
+  "meaning": "The runtime has no failure mode other than representability. Everything it rejects and the model accepts is an overflow, not a consensus disagreement.",
+  "statement": "If `machine_step_of m i = None` then some value left the word domain: the fee, burn or subsidy input, the RES accumulator, or the ORU result."
+ },
+ "machine_step_refines_executable_step|Runtime/MachineState.v": {
+  "assumptions": "The machine layer is defined independently over a 63-bit word domain with checked arithmetic; it does not call `executable_step_of`. Decode is partial. This is a Coq-model simulation, not OCaml or CPU semantics. `Print Assumptions`: Closed.",
+  "dependencies": "Runtime/MachineWord.v (w_add), ExecutionBoundary/ExecutableInvariance.v (executable_step_fields)",
+  "meaning": "The runtime layer computes the same consensus result as the model whenever it can represent the values at all. Replaces the former definitional layering, where the runtime step was defined AS the model step and the refinement held by construction.",
+  "statement": "If a machine state decodes to an executable state (`machine_decode m = Some e`) and the bounded machine step succeeds (`machine_step_of m i = Some m'`), then `m'` decodes and equals `executable_step_of e i`."
+ },
+ "mint_not_converge|Script/ScriptClassifier.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "Mint scripts start with a byte at most 4, converge scripts with PUSHBYTES_20. The shapes cannot both fire, so the order of the ladder is presentation rather than semantics.",
+  "statement": "`is_mint_script s = true -> is_converge_script s = false`."
+ },
+ "mint_not_null_data|Script/ScriptClassifier.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "Second disjointness pair: the mint prefix is not OP_RETURN.",
+  "statement": "`is_mint_script s = true -> is_null_data s = false`."
+ },
+ "mint_script_of_is_mint|Script/ScriptClassifier.v": {
+  "assumptions": "Payload is exactly 20 bytes. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptClassifier",
+  "meaning": "An arbitrary 20-byte payload really does build a mint script, so no key and no allowlisted address is privileged by the classifier. The payload-independence statements above it forward to this.",
+  "statement": "`length p = 20 -> is_mint_script (mint_script_of p) = true`."
+ },
+ "negative_time_error_preserved|Pow/ASERTModel.v": {
+  "assumptions": "ASERT `Z.quot` / `Z.div` split. Not C++ `__int128`. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTModel",
+  "meaning": "ASERT integer model does not erase the sign of a negative time error via `Z.div`.",
+  "statement": "`exp_q_raw` uses `Z.quot`; negative time error keeps the signed quotient direction."
+ },
+ "negative_vectors_rejected_in_coq|Kernel/VerifiedCompilerBoundary.v": {
+  "assumptions": "`vm_compute` on Coq validators. `Print Assumptions`: Closed.",
+  "dependencies": "VerifiedCompilerBoundary",
+  "meaning": "Coq-side negative vectors. Not a binary proof.",
+  "statement": "INVALID-001..005 evaluate to `false` in Coq (`vm_compute`)."
+ },
+ "no_hidden_inflation|proofs/ORU_Conservation/ORUConservation.v": {
+  "assumptions": "`valid_oru_tx` (`oru_out <= oru_in`). `fee := oru_in - oru_out`. `Print Assumptions`: Closed.",
+  "dependencies": "ORU conservation identities",
+  "meaning": "ORU cannot appear from nowhere: fee is the leftover of input minus output.",
+  "statement": "If `valid_tx tx` then `oru_input tx = oru_output tx + fee tx`."
+ },
+ "nonstandard_unspendable|Script/Semantics/Spend.v": {
+  "assumptions": "`classify_script s = T_NONSTANDARD`. `Print Assumptions`: Closed. Not a VM.",
+  "dependencies": "`script_spend_ok`, `spendable_by_class`",
+  "meaning": "A nonstandard lock cannot be spent, for any abstract `sig_ok`.",
+  "statement": "If `classify_script s = T_NONSTANDARD` then `script_spend_ok sig_ok s w = false`."
+ },
+ "nulldata_unspendable|Script/Semantics/Spend.v": {
+  "assumptions": "`classify_script s = T_NULL_DATA`. `Print Assumptions`: Closed. Not a VM.",
+  "dependencies": "`script_spend_ok`, `spendable_by_class`",
+  "meaning": "OP_RETURN / null-data cannot be spent, for any abstract `sig_ok`.",
+  "statement": "If `classify_script s = T_NULL_DATA` then `script_spend_ok sig_ok s w = false`."
+ },
+ "operation_trace_preserved|ExtractionBoundary/ExtractionTrace.v": {
+  "assumptions": "Trace of interface tags, not OCaml evaluation. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionTrace",
+  "meaning": "Operation sequence is preserved at the extraction-interface model.",
+  "statement": "`extract_trace ops = expected_trace ops`."
+ },
+ "oru_conservation_extended|Supply/FeeDomain.v": {
+  "assumptions": "Supply transition is the FeeDomain identity, not a live UTXO reconstruction. `Print Assumptions`: Closed.",
+  "dependencies": "FeeDomain / ORU supply transition",
+  "meaning": "Supply change is only subsidy plus fees minus burn. Same-named packaging exists in ORUConservation.v.",
+  "statement": "If `valid_tx tx` then `new_supply = old_supply + subsidy + fees - burn` (FeeDomain identity cited as Category A)."
+ },
+ "oru_domain_conservation|Economic/ORU/ORUSoundness.v": {
+  "assumptions": "ORU domain model. Not a full monetary system. `Print Assumptions`: Closed.",
+  "dependencies": "ORUTransition / ORUDomain",
+  "meaning": "First-class ORU domain: conservation is independent of RES issuance.",
+  "statement": "ORU-domain transitions conserve ORU (no fee mint)."
+ },
+ "oru_extract_reflects_conservation|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / ORUValidator",
+  "meaning": "Reflection lemma.",
+  "statement": "The ORU checker reflects the Coq conservation predicate."
+ },
+ "oru_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Source identity only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "ORU extracted name = Coq ORU validator (definitional)."
+ },
+ "oru_fees_are_transfer_only|Economic/ORU/ORUSoundness.v": {
+  "assumptions": "ORU domain fee definition. `Print Assumptions`: Closed.",
+  "dependencies": "`oru_domain_conservation`",
+  "meaning": "ORU fee term cannot increase ORU stock.",
+  "statement": "ORU fees are transfers, not creation."
+ },
+ "pow_acceptance_monotonic|Pow/TargetRelation.v": {
+  "assumptions": "Abstract `H`. `Print Assumptions`: Closed.",
+  "dependencies": "`target_monotonic`",
+  "meaning": "A header accepted at target T is accepted at any larger target in-model.",
+  "statement": "PoW acceptance inherits target monotonicity."
+ },
+ "pow_asert_correctness|proofs/Pow_Correctness/ASERTCorrectness.v": {
+  "assumptions": "ASERT integer model. Child nTime is not an input. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTCorrectness",
+  "meaning": "Supporting packaging. Class A ASERT content is `negative_time_error_preserved`.",
+  "statement": "Equal anchor/parent imply equal `asert_next_target` (function-ness)."
+ },
+ "pow_extract_reflects_target|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / PowValidator",
+  "meaning": "Reflection lemma. Abstract `H`.",
+  "statement": "The PoW checker reflects the Coq target predicate."
+ },
+ "pow_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Source identity only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "PoW extracted name = Coq PoW validator (definitional)."
+ },
+ "pow_hash_deterministic|proofs/Pow_Correctness/PowCorrectness.v": {
+  "assumptions": "Uninterpreted `H`. `Print Assumptions`: Closed.",
+  "dependencies": "PowCorrectness",
+  "meaning": "No concrete hash. Collision resistance is not proved.",
+  "statement": "Equal preimages yield equal `H` results (`H` is a function)."
+ },
+ "pow_pipeline_sound|Pow/Acceptance.v": {
+  "assumptions": "Abstract `H`. `Print Assumptions`: Closed.",
+  "dependencies": "Pow/Acceptance, TargetRelation",
+  "meaning": "Pipeline packaging of target comparison.",
+  "statement": "The PoW pipeline (digest vs target) accepts only when the abstract comparison holds."
+ },
+ "pow_valid_deterministic|proofs/Pow_Correctness/PowCorrectness.v": {
+  "assumptions": "Abstract `H`. `Print Assumptions`: Closed.",
+  "dependencies": "PowCorrectness",
+  "meaning": "Not a digest implementation proof. Class A is `pow_valid_rejects_above_target`.",
+  "statement": "`pow_valid h 0 = pow_valid h 0` (function-ness of the abstract relation)."
+ },
+ "pow_valid_rejects_above_target|proofs/Pow_Correctness/PowCorrectness.v": {
+  "assumptions": "Digest `H` is an uninterpreted function (C-1). Not keccak/SHA3. `Print Assumptions`: Closed.",
+  "dependencies": "AbstractHash / PowModel",
+  "meaning": "Abstract PoW rejects a digest strictly above the target.",
+  "statement": "If `digest_as_Z (pow_hash h) > target` then `~ pow_valid h target`."
+ },
+ "reachable_preserves_invariants|Kernel/Chain/ChainTransition.v": {
+  "assumptions": "Start state satisfies the invariants. `Print Assumptions`: Closed.",
+  "dependencies": "ChainTransition / kernel_chain_preserves_invariants",
+  "meaning": "The same guarantee stated over reachability, which is the form a safety property is usually quoted in: no acceptable run reaches a state that violates the invariants. Deferral; the mutation-coverage gate checks its two components rather than accepting the deferral on trust.",
+  "statement": "`kernel_invariants s → reachable s s' → kernel_invariants s'`."
+ },
+ "recognizer_pairwise_disjoint|proofs/Script_Correctness/ScriptCorrectness.v": {
+  "assumptions": "`classify` is a total function of script bytes. No height or keys. `Print Assumptions`: Closed.",
+  "dependencies": "Script classifier recognizers",
+  "meaning": "Script classification subset has no overlapping asset class.",
+  "statement": "Recognizer branches are exclusive: a witness program never classifies as mint/converge/null-data; later recognizers fire only after earlier ones fail."
+ },
+ "recognizer_trace_disjoint|Script/Semantics/ScriptTrace.v": {
+  "assumptions": "Kernel-subset classifier step. Not a Script VM. `Print Assumptions`: Closed.",
+  "dependencies": "`recognizer_pairwise_disjoint`",
+  "meaning": "Trace-level restatement of recognizer disjointness.",
+  "statement": "Classifier-step traces never assign the same script to two exclusive classes."
+ },
+ "refinement_preservation|Refinement/TransitionRefinement.v": {
+  "assumptions": "`refines` / `observe_ok` skeleton. `Print Assumptions`: Closed.",
+  "dependencies": "RefinementRelation / TransitionRefinement",
+  "meaning": "Level-4 foundation: model refinement relation, not C++.",
+  "statement": "If `refines` and the abstract step holds, the concrete observation `observe_ok` is preserved."
+ },
+ "res_creation_separate_from_oru_transfer|Economic/DomainSeparation.v": {
+  "assumptions": "DomainSeparation model. `Print Assumptions`: Closed.",
+  "dependencies": "ORU / RES domain models",
+  "meaning": "RES issuance and ORU transfer are separate domains.",
+  "statement": "An ORU transfer cannot increase supply the way a RES mint can."
+ },
+ "res_extract_reflects_issuance|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / RESValidator",
+  "meaning": "Reflection lemma.",
+  "statement": "The RES checker reflects the Coq issuance predicate."
+ },
+ "res_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Source identity only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "RES extracted name = Coq RES validator (definitional)."
+ },
+ "res_block_mint_sum|proofs/RES_Issuance/RESIssuance.v": {
+  "assumptions": "Every mint amount is non-negative. The kernel clips negatives to zero via `Z.max`. `Print Assumptions`: Closed.",
+  "dependencies": "`apply_res_delta`, `apply_res_mints`",
+  "meaning": "A block's RES pool move is the sum of its body mints. The lottery unique-mint rule is gone.",
+  "statement": "If every `mint_amount` is `>= 0`, then `res_pool (apply_res_mints s h txs) = res_pool s + res_mint_list_total txs`."
+ },
+ "res_derived_cap_identity|Supply/SupplySchedule.v": {
+  "assumptions": "Epoch-unfolded sum (251 terms). Schedule-side identity, not a runtime `S_RES` reject. `Print Assumptions`: Closed.",
+  "dependencies": "`res_schedule_total`, `RES_MAX_SUPPLY`",
+  "meaning": "The derived cap pin is exactly the epoch sum, not a looser ceiling.",
+  "statement": "`res_schedule_total = RES_MAX_SUPPLY`."
+ },
+ "res_height_monotonic|Supply/SupplySchedule.v": {
+  "assumptions": "`0 <= h1`, `h1 <= h2`, and `h2` is authorized. `Print Assumptions`: Closed.",
+  "dependencies": "`RATE_epoch_mono_paying`",
+  "meaning": "The destroy cost never falls on the authorized ray, so later epochs cannot cheapen a mint.",
+  "statement": "If `0 <= h1 <= h2` and `res_mint_authorized h2 = true`, then `RATE h1 <= RATE h2`."
+ },
+ "res_issuance_soundness|proofs/RES_Issuance/RESIssuance.v": {
+  "assumptions": "Draw eligibility is a hypothesis (C-4). Bound is `W(h)`, not a running `S_RES` reject. `Print Assumptions`: Closed.",
+  "dependencies": "`res_created`, `res_schedule_finite`",
+  "meaning": "RES creation is coinbase-only and bounded by the schedule `W(h)`.",
+  "statement": "If `res_created tx`, `draw_eligible tx`, and `h = rt_height tx`, then the tx is coinbase, a valid mint, `mint_amount <= W h`, and draw-eligible."
+ },
+ "res_mint_products_fit_uint128|Supply/SupplySchedule.v": {
+  "assumptions": "`0 < R` and `check_res_mint_arith R B h = true`. A zero mint does not cap `B`. `Print Assumptions`: Closed.",
+  "dependencies": "`check_res_mint_arith`, `res_schedule_finite`",
+  "meaning": "Both cross-products of a legal mint stay inside `unsigned __int128`, so the C++ multiply cannot wrap.",
+  "statement": "If `0 < R` and the mint check holds, then `R * RATE h <= 2^128-1` and `B * RES_COIN <= 2^128-1`."
+ },
+ "oru_reorg_rewind_eq|Kernel/Chain/ReorgReplay.v": {
+  "assumptions": "None — `apply_oru_delta` has no clip. `Print Assumptions`: Closed. Not OP-R1.",
+  "dependencies": "`apply_oru_reorg`, `apply_oru_surviving`, `rollback_oru_inverse`",
+  "meaning": "Disconnect orphan ORU flows, then apply a different suffix, equals never applying the orphans.",
+  "statement": "`apply_oru_reorg s0 prefix orphans suffix = apply_oru_surviving s0 prefix suffix`."
+ },
+ "oru_reorg_surviving_pool|Kernel/Chain/ReorgReplay.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not OP-R1.",
+  "dependencies": "`apply_oru_reorg`, `oru_flow_sum`",
+  "meaning": "The surviving ORU pool is the start plus prefix plus the new suffix. Orphan flows are not a summand.",
+  "statement": "`oru_pool (apply_oru_reorg s0 prefix orphans suffix) = oru_pool s0 + oru_flow_sum prefix + oru_flow_sum suffix`."
+ },
+ "oru_subsidy_fold_closed|Supply/SupplySchedule.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not a C++ refinement.",
+  "dependencies": "`oru_subsidy_fold`, `oru_subsidy`",
+  "meaning": "RFC-020: folding subsidy from height 0 through n equals n · 128 ORU. The C++ observational cumulative uses this closed form.",
+  "statement": "`oru_subsidy_fold n = Z.of_nat n * ORU_FLAT_BLOCK_SUBSIDY`."
+ },
+ "block_proof_eq_div|Pow/BlockProof.v": {
+  "assumptions": "`0 < T < 2^256`. `Print Assumptions`: Closed. Not C++ `arith_uint256` refinement, not OP-R1.",
+  "dependencies": "`get_block_proof_from_target`, `u256_not`",
+  "meaning": "The C++ bitwise form `(~T/(T+1))+1` equals `2^256/(T+1)` in integer division.",
+  "statement": "`get_block_proof_from_target T = 2^256 / (T+1)`."
+ },
+ "block_proof_positive_on_valid|Pow/BlockProof.v": {
+  "assumptions": "`0 < T < 2^256`. `Print Assumptions`: Closed.",
+  "dependencies": "`get_block_proof_from_target`",
+  "meaning": "A representable positive target contributes strictly positive work. Does not go through `block_proof_eq_div`, so a mutant that zeros the formula still kills it after isolation.",
+  "statement": "`get_block_proof_from_target T > 0`."
+ },
+ "block_proof_zero_on_bad_target|Pow/BlockProof.v": {
+  "assumptions": "`T <= 0` or `2^256 <= T`. `Print Assumptions`: Closed.",
+  "dependencies": "`get_block_proof_from_target`",
+  "meaning": "A non-positive or unrepresentable target contributes no work.",
+  "statement": "`get_block_proof_from_target T = 0`."
+ },
+ "block_proof_zero_on_compact_fail|Pow/BlockProof.v": {
+  "assumptions": "Negative nBits, compact-negative, compact-overflow, or decoded target 0. `Print Assumptions`: Closed. Not C++ word-type equivalence.",
+  "dependencies": "`get_block_proof`, `compact_negative`, `compact_overflow`",
+  "meaning": "SetCompact failure matches the C++ early return of 0.",
+  "statement": "`get_block_proof n = 0`."
+ },
+ "chain_work_app|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Increments are GetBlockProof. Not OP-R1.",
+  "dependencies": "`chain_work`",
+  "meaning": "Accumulated chainwork is the sum of the per-block increments. A first-only or last-only fold is a different function.",
+  "statement": "`chain_work (xs ++ ys) = chain_work xs + chain_work ys`."
+ },
+ "chain_work_uses_block_proof|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not ActivateBestChain, not OP-R1.",
+  "dependencies": "`chain_work`, `get_block_proof`",
+  "meaning": "Suffix work is the sum of GetBlockProof on each block's nBits. A free wb_work field is a different function.",
+  "statement": "`chain_work bs = chain_work_from_nbits bs`."
+ },
+ "more_work_wins|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "`chain_work b < chain_work a`. `Print Assumptions`: Closed. Not k-deep, not OP-R1.",
+  "dependencies": "`select_suffix`, `chain_work`",
+  "meaning": "The strictly heavier suffix is selected, regardless of how many blocks it has. Longest-chain is a different rule.",
+  "statement": "If `chain_work b < chain_work a` then `select_suffix a b = a`."
+ },
+ "equal_work_keeps_active|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "`chain_work a = chain_work b`. `Print Assumptions`: Closed. Not k-deep, not OP-R1.",
+  "dependencies": "`select_suffix`, `chain_work`",
+  "meaning": "Equal work keeps the already-active suffix. Equal work is not a reorg.",
+  "statement": "If `chain_work a = chain_work b` then `select_suffix a b = a`."
+ },
+ "res_reorg_replay_eq|proofs/RES_Issuance/RESIssuance.v": {
+  "assumptions": "None. Same-height special case of `res_reorg_rewind_eq`. `Print Assumptions`: Closed.",
+  "dependencies": "`apply_reorg_mints`, `res_reorg_rewind_eq`",
+  "meaning": "Disconnect same-height orphans, then fold kept++suffix. Not a definitional drop of the orphan argument.",
+  "statement": "`apply_reorg_mints s h kept suffix orphans = apply_res_mints s h (kept ++ suffix)`."
+ },
+ "res_reorg_rewind_eq|Kernel/Chain/ReorgReplay.v": {
+  "assumptions": "None — `apply_res_delta` and `rollback_res` both clip through `Z.max 0`. `Print Assumptions`: Closed. Not DisconnectBlock, not fork-choice (OP-R1).",
+  "dependencies": "`apply_reorg_via_rollback`, `apply_surviving`, `rollback_apply_inverse`",
+  "meaning": "RFC-020 RES replay: rolling an orphan suffix off a dual-supply tip and applying a different suffix equals never applying the orphans.",
+  "statement": "`apply_reorg_via_rollback s0 prefix orphans suffix = apply_surviving s0 prefix suffix`."
+ },
+ "res_reorg_surviving_pool|Kernel/Chain/ReorgReplay.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not a running `S_RES` reject and not OP-R1.",
+  "dependencies": "`apply_reorg_via_rollback`, `mint_event_sum`",
+  "meaning": "The surviving RES pool is the start plus prefix plus the new suffix. Orphan amounts are not a summand.",
+  "statement": "`res_pool (apply_reorg_via_rollback s0 prefix orphans suffix) = res_pool s0 + mint_event_sum prefix + mint_event_sum suffix`."
+ },
+ "res_mint_bounded_by_genesis|Kernel/SafetyExtensions.v": {
+  "assumptions": "Per-mint, not aggregate (see `res_total_issuance_capped`). `Print Assumptions`: Closed.",
+  "dependencies": "SafetyExtensions",
+  "meaning": "Transitive corollary of `res_created` and `res_schedule_finite`.",
+  "statement": "Any created mint satisfies `0 < mint_amount <= RES_REWARD_GENESIS`."
+ },
+ "res_schedule_finite|Supply/SupplySchedule.v": {
+  "assumptions": "Schedule constants (`RES_REWARD_*`). Not a running `S_RES` reject. `Print Assumptions`: Closed.",
+  "dependencies": "SupplySchedule",
+  "meaning": "RES schedule cannot emit an unbounded per-height mint.",
+  "statement": "`W(h)` is finite and non-increasing for `h >= 0`; mint bound is `W(h)`."
+ },
+ "res_total_issuance_capped|Supply/SupplySchedule.v": {
+  "assumptions": "Epoch-unfolded sum (251 terms). Not a runtime `S_RES` reject (OP-D1). `Print Assumptions`: Closed.",
+  "dependencies": "`res_schedule_finite`",
+  "meaning": "Schedule-side aggregate of all epoch rewards is at most `RES_MAX_SUPPLY`.",
+  "statement": "`RES_REWARD_EPOCH * W_epoch_sum 250 <= RES_MAX_SUPPLY`."
+ },
+ "runtime_accepts_kernel_valid_input|Runtime/RuntimeFailure.v": {
+  "assumptions": "Kernel model only. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/UnifiedTransition.v",
+  "meaning": "No false rejection. Without it the rejection function could be the constant true and failure preservation would still hold.",
+  "statement": "If `input_ok s i` then `runtime_rejects_invalid i = false`."
+ },
+ "runtime_domain_closed|RuntimeModel/IntegerBoundary.v": {
+  "assumptions": "`runtime_signed_max = 2^62-1`. `Print Assumptions`: Closed.",
+  "dependencies": "IntegerBoundary / Amount",
+  "meaning": "Kernel domain is closed under the declared ranges. Not all integers.",
+  "statement": "Money, height, target, and time-error kernel ranges stay inside the documented signed bound."
+ },
+ "runtime_failure_preserved|Runtime/RuntimeFailure.v": {
+  "assumptions": "`failure_path_enabled = true`. `Print Assumptions`: Closed.",
+  "dependencies": "RuntimeFailure",
+  "meaning": "Invalid input stays rejected across the runtime-model boundary.",
+  "statement": "If `InvalidRuntimeInput i` then `runtime_rejects_invalid i = true`."
+ },
+ "runtime_projection_preserves_kernel_domain|Runtime/RuntimeState.v": {
+  "assumptions": "Coq runtime model. Not the OCaml RTS. `Print Assumptions`: Closed.",
+  "dependencies": "RuntimeState / ExecutableKernelState",
+  "meaning": "Runtime-model projection cannot leave the executable kernel domain.",
+  "statement": "If `runtime_invariants r` then `executable_invariants (runtime_projection r)`."
+ },
+ "select_tip_binary|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not ActivateBestChain, not OP-R1.",
+  "dependencies": "`select_tip`, `select_suffix`",
+  "meaning": "The two-tip rule is the binary special case of finite-tip most-work selection.",
+  "statement": "`select_tip a [b] = select_suffix a b`."
+ },
+ "select_tip_keeps_active|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "`chain_work a = pool_max_work a cs`. `Print Assumptions`: Closed.",
+  "dependencies": "`select_tip`, `pool_max_work`",
+  "meaning": "If the already-active tip attains the pool max, it stays selected. Equal work is not a reorg.",
+  "statement": "If `chain_work a = pool_max_work a cs` then `select_tip a cs = a`."
+ },
+ "select_tip_maximal|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "`In x (a :: cs)`. `Print Assumptions`: Closed. Not ActivateBestChain, not OP-R1.",
+  "dependencies": "`select_tip`, `pool_max_work`",
+  "meaning": "The selected tip's work is at least every candidate's work, including the active suffix.",
+  "statement": "If `In x (a :: cs)` then `chain_work x <= chain_work (select_tip a cs)`."
+ },
+ "select_tip_total|Kernel/Chain/ForkChoice.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "`select_tip`",
+  "meaning": "The selected tip is one of the supplied suffixes. The function is total on a finite candidate set.",
+  "statement": "`In (select_tip a cs) (a :: cs)`."
+ },
+ "runtime_rejects_iff_some_flag_down|Runtime/RuntimeFailure.v": {
+  "assumptions": "Covers the boolean conjuncts of input_ok. No OCaml exceptions, no CPU traps. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/UnifiedTransition.v",
+  "meaning": "Rejection is exactly 'some domain flag is down', in both directions. Replaces the failure_path_enabled constant, which existed only so a mutant could flip it.",
+  "statement": "`runtime_rejects_invalid i = true` iff the UTXO, script, PoW or ASERT flag of the input is false."
+ },
+ "runtime_step_deterministic|Runtime/RuntimeTransition.v": {
+  "assumptions": "`runtime_step_unique = true`. `Print Assumptions`: Closed.",
+  "dependencies": "RuntimeTransition",
+  "meaning": "Runtime-model apply is deterministic.",
+  "statement": "If `runtime_apply r i r1` and `runtime_apply r i r2`, then `r1 = r2`."
+ },
+ "runtime_step_refines_executable_step|Runtime/RuntimeTransition.v": {
+  "assumptions": "Coq runtime model only. `Print Assumptions`: Closed.",
+  "dependencies": "RuntimeTransition / ExecutableTransition",
+  "meaning": "`runtime_step` is a refinement of `executable_kernel_step`.",
+  "statement": "If `runtime_step r r'` then `executable_kernel_step (runtime_projection r) (runtime_projection r')`."
+ },
+ "same_state_same_encoding|Kernel/SerializationBoundary.v": {
+  "assumptions": "SerializationBoundary. `Print Assumptions`: Closed.",
+  "dependencies": "SerializationBoundary",
+  "meaning": "Function-ness of encode.",
+  "statement": "Equal states encode equally."
+ },
+ "script_correctness|proofs/Script_Correctness/ScriptCorrectness.v": {
+  "assumptions": "`classify` totality. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptCorrectness",
+  "meaning": "Function-ness packaging. Class A is `recognizer_pairwise_disjoint`.",
+  "statement": "Every script has a class, deterministic classification, and is authority-free."
+ },
+ "script_execution_preserves_class|Script/Semantics/Execution.v": {
+  "assumptions": "Classifier + subset step. Not sighash / Ed25519. `Print Assumptions`: Closed.",
+  "dependencies": "`script_step_deterministic`, classifier",
+  "meaning": "Subset execution cannot reclassify mint as witness (etc.).",
+  "statement": "A kernel-subset execution step does not change the classified asset class."
+ },
+ "script_extract_reflects_classify|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / ScriptValidator",
+  "meaning": "Reflection lemma.",
+  "statement": "The script checker reflects the Coq classifier."
+ },
+ "script_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Source identity only. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "Script extracted name = Coq script validator (definitional)."
+ },
+ "script_invalid_state_rejected|Script/Semantics/Execution.v": {
+  "assumptions": "Script/Semantics/Execution. `Print Assumptions`: Closed.",
+  "dependencies": "Execution.v",
+  "meaning": "Kernel subset only.",
+  "statement": "A rejected subset state stays rejected."
+ },
+ "script_step_deterministic|Script/Semantics/Execution.v": {
+  "assumptions": "Kernel subset only. Not a Bitcoin Script VM. `Print Assumptions`: Closed.",
+  "dependencies": "Script/Semantics/Execution",
+  "meaning": "No nondeterministic opcode transition in the subset model.",
+  "statement": "The kernel-subset script step is a function: one state and opcode yield one next state."
+ },
+ "script_trace_deterministic|Script/Semantics/ScriptTrace.v": {
+  "assumptions": "ScriptTrace. `Print Assumptions`: Closed.",
+  "dependencies": "ScriptTrace",
+  "meaning": "Not a Script VM.",
+  "statement": "The kernel-subset classifier step is a function."
+ },
+ "subsidy_is_only_creation_source|Economic/ORU/ORUSoundness.v": {
+  "assumptions": "ORU domain algebra. `Print Assumptions`: Closed.",
+  "dependencies": "ORUSoundness",
+  "meaning": "Closes the “fees create coins” attack in-model.",
+  "statement": "Aside from incoming transfer, subsidy is the only creation source in the ORU domain."
+ },
+ "subsidy_schedule_bound|Kernel/EconomicInvariant/Economic.v": {
+  "assumptions": "Schedule bound, not a live height-indexed C++ subsidy table proof. `Print Assumptions`: Closed.",
+  "dependencies": "Economic.v / supply schedule",
+  "meaning": "Subsidy cannot be an arbitrary mint in-model.",
+  "statement": "Subsidy used by the economic kernel is bounded by the declared schedule."
+ },
+ "surface_check_asert_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "Copied [exp_q_raw] / boxed [Z]. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + ASERTValidator",
+  "meaning": "Phase 2 isolation: the compile-surface ASERT checker is the cone checker after [of_cone].",
+  "statement": "`SurfASERT.check_asert (asert_of_cone i) = check_asert i`."
+ },
+ "surface_check_oru_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "Copied [valid_oru_tx_b] / [to_oru]. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + ORUValidator",
+  "meaning": "Phase 2 isolation: the compile-surface ORU checker is the cone checker after [of_cone].",
+  "statement": "`SurfORUChk.check_oru (oru_of_cone s) = check_oru s`."
+ },
+ "surface_check_pow_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "Copied compact encode/decode. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + PowValidator",
+  "meaning": "Phase 2 isolation: the compile-surface PoW checker is the cone checker after [of_cone].",
+  "statement": "`SurfPow.check_pow (pow_of_cone h) = check_pow h`."
+ },
+ "surface_check_res_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "RFC-020 body mint; [negb coinbase]; no [draw_ok]. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + RESValidator",
+  "meaning": "Phase 2 isolation: the compile-surface RES checker is the cone checker after [of_cone].",
+  "statement": "`SurfRES.check_res (res_of_cone s) = check_res s`."
+ },
+ "surface_check_script_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "Copied [classify_script]. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + ScriptValidator",
+  "meaning": "Phase 2 isolation: the compile-surface script checker is the cone checker after [of_cone].",
+  "statement": "`SurfScr.check_script (script_of_cone s) = check_script s`."
+ },
+ "surface_check_utxo_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "Copied [valid_tx_b]. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + UTXOValidator",
+  "meaning": "Phase 2 isolation: the compile-surface UTXO checker is the cone checker after [of_cone].",
+  "statement": "`SurfUTXO.check_utxo (utxo_of_cone s) = check_utxo s`."
+ },
+ "surface_validate_kernel_eq|Kernel/SurfaceCorrespondence.v": {
+  "assumptions": "The six [surface_check_*_eq] lemmas. `Print Assumptions`: Closed. Not CertiCoq.",
+  "dependencies": "certicoq/surface + KernelSoundness",
+  "meaning": "Phase 2 isolation: the compile-surface dispatcher matches the cone dispatcher.",
+  "statement": "`SurfVal.validate_kernel (input_of_cone input) = validate_kernel input`."
+ },
+ "target_monotonic|Pow/TargetRelation.v": {
+  "assumptions": "Abstract `H`. Not a difficulty-adjust implementation proof. `Print Assumptions`: Closed.",
+  "dependencies": "TargetRelation",
+  "meaning": "Abstract target comparison is monotonic.",
+  "statement": "If digest meets a tighter target, it meets a looser one (`meets_target` monotonic in the target)."
+ },
+ "time_error_direction_preserved|Pow/ASERTBoundary.v": {
+  "assumptions": "ASERT boundary helper, not C++ nBits. `Print Assumptions`: Closed.",
+  "dependencies": "ASERTBoundary / ASERTModel",
+  "meaning": "Boundary form of the M5 integer-division fact.",
+  "statement": "`exp_q_boundary` uses `Z.quot`; time-error sign is preserved at the ASERT boundary."
+ },
+ "time_error_product_fits_runtime|RuntimeModel/IntegerBoundary.v": {
+  "assumptions": "none. `Print Assumptions`: Closed.",
+  "dependencies": "`ASERT_RADIX`",
+  "meaning": "ASERT intermediate product fits the documented 63-bit magnitude under the tightened time-error domain.",
+  "statement": "If `|te| <= 2^46-1`, then `|te * ASERT_RADIX| <= 2^62-1`."
+ },
+ "transaction_fee_bounded_by_inputs|Kernel/Transaction/Validity.v": {
+  "assumptions": "Uses out_sum_nonneg over the output list. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/Transaction/Types.v",
+  "meaning": "Fees cannot mint value: the fee is covered by the inputs.",
+  "statement": "If `ValueFlow t` then `Fee t <= inputs_total t`."
+ },
+ "transaction_fee_separation|Kernel/Transaction/Validity.v": {
+  "assumptions": "Kernel fee definition. `Print Assumptions`: Closed.",
+  "dependencies": "Economic / transaction validity",
+  "meaning": "Separates fee accounting from subsidy creation.",
+  "statement": "Fees are leftover transfer, not a mint term."
+ },
+ "transaction_no_negative_value|Kernel/Transaction/Validity.v": {
+  "assumptions": "`money_range` / non-negativity of the transaction fields. `Print Assumptions`: Closed.",
+  "dependencies": "`transaction_value_conservation`",
+  "meaning": "Negative money cannot be used as a funding source in-model.",
+  "statement": "Kernel transaction amounts used in the validity predicate are non-negative."
+ },
+ "transaction_single_output_bounded|Kernel/Transaction/Validity.v": {
+  "assumptions": "Needs out_sum_member_le and out_sum_nonneg, both by induction over the output list. `Print Assumptions`: Closed.",
+  "dependencies": "Kernel/Transaction/Types.v",
+  "meaning": "No individual output can exceed total inputs. Not a conjunct of ValueFlow — this is derived content, unlike the previous transaction theorems.",
+  "statement": "If `ValueFlow t` and `In o (tx_outs t)` then `out_value o <= inputs_total t`."
+ },
+ "transaction_value_conservation|Kernel/Transaction/Validity.v": {
+  "assumptions": "Kernel transaction model (`Kernel/Transaction`). No signatures. `Print Assumptions`: Closed.",
+  "dependencies": "Amount / transaction validity",
+  "meaning": "Value-flow conservation at the transaction kernel.",
+  "statement": "A valid kernel transaction does not create value: outputs are funded by inputs (plus declared subsidy on the coinbase path)."
+ },
+ "transaction_value_flow_preserves_economic_state|Economic/UTXOEconomicBridge.v": {
+  "assumptions": "UTXO–economic bridge. `Print Assumptions`: Closed.",
+  "dependencies": "UnifiedTransition / UTXOEconomicBridge",
+  "meaning": "No value is created except subsidy (plus incoming transfer).",
+  "statement": "Kernel apply copies fees/burn/subsidy and updates ORU stock by subsidy + incoming − outgoing − burn."
+ },
+ "u256_add_assoc|Pow/Uint256Model.v": {
+  "assumptions": "Uint256Model. `Print Assumptions`: Closed.",
+  "dependencies": "Uint256Model",
+  "meaning": "Arithmetic helper.",
+  "statement": "Model u256 addition is associative."
+ },
+ "u256_add_comm|Pow/Uint256Model.v": {
+  "assumptions": "Uint256Model, not a CPU adder. `Print Assumptions`: Closed.",
+  "dependencies": "Uint256Model",
+  "meaning": "Arithmetic helper for the compact/target model.",
+  "statement": "Model u256 addition is commutative."
+ },
+ "u256_shr_le|Pow/Uint256Model.v": {
+  "assumptions": "Uint256Model. `Print Assumptions`: Closed.",
+  "dependencies": "Uint256Model",
+  "meaning": "Arithmetic helper for target shifts.",
+  "statement": "Model u256 shift-right is monotone (≤)."
+ },
+ "utxo_extract_reflects_valid_tx|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Coq checker vs predicate. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / UTXOValidator",
+  "meaning": "Reflection lemma, not a binary proof.",
+  "statement": "The UTXO checker boolean reflects the Coq `valid_tx` predicate."
+ },
+ "utxo_extraction_source_eq|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Same as `extraction_source_equivalence`. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary",
+  "meaning": "Per-domain source identity.",
+  "statement": "UTXO extracted name = Coq UTXO validator (definitional)."
+ },
+ "utxo_soundness|proofs/UTXO_Soundness/UTXOSoundness.v": {
+  "assumptions": "Structural `valid_tx` (non-coinbase, non-empty in/out, `NoDup` inputs, money-range outputs). No signatures, no script VM. `Print Assumptions`: Closed.",
+  "dependencies": "UTXO apply / well-formedness lemmas in the same module",
+  "meaning": "A structurally valid transaction updates the association-list UTXO set without double-spend in this model.",
+  "statement": "If `valid_tx tx` and `utxo_wf u`, then there exists `u'` such that `apply_tx u tx = Some u'`, `utxo_wf u'`, inputs are consumed, and outputs are created."
+ },
+ "we_do_not_claim_binary_semantic_equivalence|Audit/KernelNonClaims.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "Audit/KernelNonClaims",
+  "meaning": "Machine-checked non-claim.",
+  "statement": "`binary_semantic_equivalence = false`."
+ },
+ "we_do_not_claim_compiler_correctness|Audit/KernelNonClaims.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "Audit/KernelNonClaims",
+  "meaning": "Machine-checked non-claim.",
+  "statement": "`compiler_correctness = false`."
+ },
+ "we_do_not_claim_cpp_equivalence|Audit/KernelNonClaims.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "Audit/KernelNonClaims",
+  "meaning": "Machine-checked non-claim. C++ equivalence is not proved.",
+  "statement": "`cpp_equivalence = false`."
+ },
+ "we_do_not_claim_extraction_equivalence|Audit/KernelNonClaims.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "Audit/KernelNonClaims",
+  "meaning": "Machine-checked non-claim.",
+  "statement": "`extraction_equivalence = false`."
+ },
+ "we_do_not_claim_extraction_full_equivalence|Kernel/ExtractionBoundary.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "ExtractionBoundary / KernelNonClaims",
+  "meaning": "Machine-checked non-claim.",
+  "statement": "Full OCaml refinement flag is `false`."
+ },
+ "we_do_not_claim_verified_compiler_in_tcb|Kernel/VerifiedCompilerBoundary.v": {
+  "assumptions": "Boolean non-claim. `Print Assumptions`: Closed.",
+  "dependencies": "VerifiedCompilerBoundary",
+  "meaning": "Documents TCB honesty.",
+  "statement": "CompCert / CakeML are not in the current TCB; compiler correctness remains `false`."
+ },
+ "witness_requires_sig_ok|Script/Semantics/Spend.v": {
+  "assumptions": "Auth class (v0 / v1 / mint) and `sig_ok = false`. `Print Assumptions`: Closed. Not Ed25519 unforgeability.",
+  "dependencies": "`script_spend_ok`, `is_auth_class`",
+  "meaning": "An auth-class lock with a failing abstract signature check is rejected.",
+  "statement": "If `is_auth_class (classify_script s) = true` and `sig_ok w s = false` then `script_spend_ok = false`."
+ },
+ "witness_sig_ok_spends|Script/Semantics/Spend.v": {
+  "assumptions": "Auth class and `sig_ok = true`. `Print Assumptions`: Closed. Not “scripts are verified”.",
+  "dependencies": "`script_spend_ok`, `is_auth_class`",
+  "meaning": "An auth-class lock with a passing abstract signature check is accepted.",
+  "statement": "If `is_auth_class (classify_script s) = true` and `sig_ok w s = true` then `script_spend_ok = true`."
+ }
+}

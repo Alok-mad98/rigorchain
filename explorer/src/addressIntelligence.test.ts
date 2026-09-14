@@ -83,7 +83,7 @@ describe("addressIntelligence", () => {
 
   it("formats ORU and RES atom amounts", () => {
     assert.equal(atomsToOruDisplay(100000000), "1.00000000 ORU");
-    assert.equal(atomsToResDisplay(1000000), "1.000000 RES");
+    assert.equal(atomsToResDisplay(100000000), "1.00000000 RES");
   });
 
   it("readonly notice forbids transaction creation", () => {

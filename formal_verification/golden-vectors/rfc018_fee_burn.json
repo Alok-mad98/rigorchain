@@ -7,9 +7,9 @@
     "num": 1,
     "den": 2
   },
-  "res_coin": 1000000,
+  "res_coin": 100000000,
   "res_atomic_unit": 1,
-  "res_display_decimals": 6,
+  "res_display_decimals": 8,
   "share": [
     {
       "id": "FB-SHARE-0",
@@ -116,22 +116,22 @@
     {
       "id": "FB-DISP-0",
       "atoms": 0,
-      "display": "0.000000"
+      "display": "0.00000000"
     },
     {
-      "id": "FB-DISP-1000000",
-      "atoms": 1000000,
-      "display": "1.000000"
+      "id": "FB-DISP-100000000",
+      "atoms": 100000000,
+      "display": "1.00000000"
     },
     {
-      "id": "FB-DISP-100000",
-      "atoms": 100000,
-      "display": "0.100000"
+      "id": "FB-DISP-10000000",
+      "atoms": 10000000,
+      "display": "0.10000000"
     },
     {
       "id": "FB-DISP-1",
       "atoms": 1,
-      "display": "0.000001"
+      "display": "0.00000001"
     }
   ],
   "mixed_block": {
@@ -141,8 +141,8 @@
     "burn": 3000,
     "fees": 10000,
     "claimable_without_subsidy": 7000,
-    "subsidy": 12500000000,
-    "circulating_delta": 12499997000,
+    "subsidy": 12800000000,
+    "circulating_delta": 12799997000,
     "res_unchanged": true
   },
   "replay": {
@@ -158,10 +158,10 @@
   },
   "isolation": {
     "id": "FB-RES-000",
-    "pre_res": 40000000,
-    "post_res": 40000000,
+    "pre_res": 4000000000,
+    "post_res": 4000000000,
     "minted_res": 0,
-    "res_cap": 21000000000000,
+    "res_cap": 419430400000000,
     "res_cap_unchanged": true
   }
 }

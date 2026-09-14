@@ -2,7 +2,7 @@
 
 Mirrors ``Consensus::OruResTransferFeeBurnShare`` in
 ``core/src/consensus/rigor_consensus_lock.h`` and
-``formal_verification/coq/fee-burn/``.
+``formal_verification/coq/FeeBurn/``.
 
 Fees are ORU-denominated. The burn share never mints, burns, or recaps RES.
 Circulating ORU change for a transfer-only block is:
@@ -27,9 +27,9 @@ ORU_COIN = 100_000_000
 MAX_MONEY = 10_000_000_000 * ORU_COIN  # matches core/src/consensus/amount.h; not an ORU supply cap
 
 RES_ATOMIC_UNIT = 1
-RES_COIN = 1_000_000
-RES_DISPLAY_DECIMALS = 6
-RES_MAX_SUPPLY = 21_000_000 * RES_COIN
+RES_COIN = 100_000_000
+RES_DISPLAY_DECIMALS = 8
+RES_MAX_SUPPLY = 419_430_400_000_000
 
 TX_FEE_ORU_ONLY = "oru_only"
 TX_FEE_RES_TRANSFER = "res_transfer"
@@ -76,9 +76,9 @@ def ledger_oru_delta(subsidy: int, converge: int = 0) -> int:
 
 
 def format_res_amount(atoms: int) -> str:
-    """Six-decimal RES display matching C++ ``FormatResAmount``.
+    """Eight-decimal RES display matching C++ ``FormatResAmount``.
 
-    1 RES → ``1.000000``; 0.1 RES → ``0.100000``.
+    1 RES → ``1.00000000``; 0.1 RES → ``0.10000000``.
     """
     neg = atoms < 0
     if atoms == -(1 << 63):
@@ -155,7 +155,7 @@ def rollback(state: FeeBurnState, snap: FeeBurnState) -> FeeBurnState:
 
 
 # ---------------------------------------------------------------------------
-# Golden pins (must match Coq fee-burn/Accounting.v + Precision.v)
+# Golden pins (must match Coq FeeBurn/Accounting.v + Precision.v)
 # ---------------------------------------------------------------------------
 
 COQ_BURN_PINS: List[Tuple[int, int]] = [
@@ -179,10 +179,10 @@ COQ_CLASS_PINS: List[Tuple[int, str, int, int]] = [
 ]
 
 COQ_DISPLAY_PINS: List[Tuple[int, str]] = [
-    (0, "0.000000"),
-    (RES_COIN, "1.000000"),
-    (RES_COIN // 10, "0.100000"),
-    (RES_ATOMIC_UNIT, "0.000001"),
+    (0, "0.00000000"),
+    (RES_COIN, "1.00000000"),
+    (RES_COIN // 10, "0.10000000"),
+    (RES_ATOMIC_UNIT, "0.00000001"),
 ]
 
 
@@ -224,7 +224,7 @@ def golden_vectors() -> dict:
     res_xfer = 6000
     mixed_burn = calculate_fee_burn(res_xfer, TX_FEE_RES_TRANSFER)
     mixed_fees = oru_only + res_xfer
-    subsidy = 125 * ORU_COIN
+    subsidy = 128 * ORU_COIN
     pre = FeeBurnState(oru=10 * ORU_COIN, res=40 * RES_COIN)
     txs = [
         FeeTx(TX_FEE_ORU_ONLY, oru_only),
@@ -283,10 +283,11 @@ def golden_vectors() -> dict:
     }
 
 
-assert RES_COIN == 1_000_000
+assert RES_COIN == 100_000_000
 assert RES_COIN != 100
-assert format_res_amount(RES_COIN) == "1.000000"
-assert format_res_amount(RES_COIN // 10) == "0.100000"
+assert RES_COIN != 1_000_000
+assert format_res_amount(RES_COIN) == "1.00000000"
+assert format_res_amount(RES_COIN // 10) == "0.10000000"
 assert oru_res_transfer_fee_burn_share(0) == 0
 assert oru_res_transfer_fee_burn_share(1) == 0
 assert oru_res_transfer_fee_burn_share(2) == 1

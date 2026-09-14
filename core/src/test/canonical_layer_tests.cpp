@@ -9,7 +9,6 @@
 #include <consensus/consensus.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
-#include <consensus/rigor_math.h>
 #include <consensus_rigor/sigma_hash.h>
 #include <crypto/sha256.h>
 #include <hash.h>
@@ -225,110 +224,12 @@ BOOST_AUTO_TEST_CASE(hash256_is_double_sha256)
 BOOST_AUTO_TEST_SUITE_END()
 
 // =============================================================================
-// T5: Math Tests (no overflow, cross multiplication)
-// =============================================================================
-
-BOOST_AUTO_TEST_SUITE(canonical_math_tests)
-
-// CASE 5.1 — basic comparison
-// H1 = 10, f1 = 2
-// H2 = 15, f2 = 3
-// CHECK: 10*3 < 15*2 → 30 < 30 → FALSE
-BOOST_AUTO_TEST_CASE(cross_multiplication_basic)
-{
-    uint256 h1(10);
-    uint256 h2(15);
-    CAmount f1 = 2;
-    CAmount f2 = 3;
-    
-    // H1 * f2 = 10 * 3 = 30
-    // H2 * f1 = 15 * 2 = 30
-    // 30 < 30 should be FALSE
-    
-    const Consensus::uint512 right1(Consensus::rigor_math_detail::Mul256x256Full(UintToArith256(h1), arith_uint256(f2)));
-    const Consensus::uint512 right2(Consensus::rigor_math_detail::Mul256x256Full(UintToArith256(h2), arith_uint256(f1)));
-    
-    // 30 < 30 should be false
-    BOOST_CHECK(!(right1 < right2));
-}
-
-// CASE 5.2 — tie
-// H1 * f2 == H2 * f1, so neither candidate precedes the other and the argmin must fall through
-// to the txid comparison. That fall-through itself is exercised on real draw sets by
-// `winner_is_strict_argmin` in convergence_consensus_tests; what is pinned here is that the
-// arithmetic reports a tie rather than an ordering.
-BOOST_AUTO_TEST_CASE(cross_multiplication_tie)
-{
-    uint256 h1(10);
-    uint256 h2(25);
-    CAmount f1 = 4;
-    CAmount f2 = 10;
-
-    // H1 * f2 = 10 * 10 = 100
-    // H2 * f1 = 25 *  4 = 100
-    const Consensus::uint512 right1(Consensus::rigor_math_detail::Mul256x256Full(UintToArith256(h1), arith_uint256(f2)));
-    const Consensus::uint512 right2(Consensus::rigor_math_detail::Mul256x256Full(UintToArith256(h2), arith_uint256(f1)));
-
-    // Both strict comparisons must be false; asserting only one would pass on a comparator that
-    // reported every pair as ordered.
-    BOOST_CHECK(!(right1 < right2));
-    BOOST_CHECK(!(right2 < right1));
-}
-
-// CASE 5.3 — overflow test
-// H = 2^256 - 1, f = 10^12
-// EXPECTED: the full product survives, i.e. (2^256 - 1) * f == f * 2^256 - f
-BOOST_AUTO_TEST_CASE(cross_multiplication_no_overflow)
-{
-    const arith_uint256 h = ~arith_uint256(0); // 2^256 - 1
-    const CAmount f = 1000000000000LL;         // 10^12
-
-    const Consensus::uint512 result(
-        Consensus::rigor_math_detail::Mul256x256Full(h, arith_uint256(static_cast<uint64_t>(f))));
-
-    // Reaching this line proves nothing on its own: a 256-bit truncating multiply also returns.
-    // The product itself has to be checked. (2^256 - 1)·f = f·2^256 - f, so the low 256 bits are
-    // 2^256 - f — the two's complement of f in the bottom word with the borrow filling the three
-    // above it — and the high 256 bits are f - 1.
-    const uint64_t fw = static_cast<uint64_t>(f);
-    Consensus::uint512 expected;
-    expected.m_w[0] = ~fw + 1;
-    expected.m_w[1] = expected.m_w[2] = expected.m_w[3] = ~uint64_t{0};
-    expected.m_w[4] = fw - 1;
-    BOOST_CHECK(result == expected);
-}
-
-// Test the actual inequality function
-BOOST_AUTO_TEST_CASE(inequality_holds_basic)
-{
-    // RFC-014 Conv-Decouple-01: inequality RHS is the constitutional constant
-    // `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017 shipping).
-    // This test does not use the BasicTestingSetup fixture, so the constant is read from
-    // its definition rather than from Params().
-    const uint256& T = Consensus::RES_PROBABILITY_TARGET_CONST;
-    const CAmount f_min = Consensus::MIN_CONVERGENCE_AMOUNT;
-
-    // A tiny σ clears T·f for any admissible weight; σ = 2^256 - 1 clears nothing, since T·f is
-    // below 2^256 for the minimum weight (that bound is itself the A-6 invariant, asserted in
-    // res_proof_math_tests). Calling the function and asserting nothing, as this case used to,
-    // could not have failed for any implementation.
-    BOOST_CHECK(Consensus::ConvergenceDrawInequalityHolds(uint256(10), T, f_min));
-    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(ArithToUint256(~arith_uint256(0)), T, f_min));
-
-    // f below 1 satoshi, and f outside MoneyRange, are rejects rather than comparisons.
-    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(uint256(10), T, 0));
-    BOOST_CHECK(!Consensus::ConvergenceDrawInequalityHolds(uint256(10), T, MAX_MONEY + 1));
-}
-
-BOOST_AUTO_TEST_SUITE_END()
-
-// =============================================================================
-// T6: Sorting Tests (unsigned byte order)
+// T5: Sorting Tests (unsigned byte order)
 // =============================================================================
 
 BOOST_AUTO_TEST_SUITE(canonical_sorting_tests)
 
-// CASE 6.1
+// CASE 5.1
 // INPUT: [ff00, 00ff]
 // EXPECTED: 00ff, ff00
 BOOST_AUTO_TEST_CASE(unsigned_byte_sort_case1)
@@ -353,7 +254,7 @@ BOOST_AUTO_TEST_CASE(unsigned_byte_sort_case1)
     BOOST_CHECK_EQUAL(txids[1].begin()[0], 0xff);
 }
 
-// CASE 6.2
+// CASE 5.2
 // INPUT: [80, 7f]
 // EXPECTED: 7f, 80
 // This tests that we use unsigned comparison, not signed
@@ -383,14 +284,14 @@ BOOST_AUTO_TEST_CASE(unsigned_byte_sort_case2)
 BOOST_AUTO_TEST_SUITE_END()
 
 // =============================================================================
-// T7: Execution Trace Tests (exact output)
+// T6: Execution Trace Tests (exact output)
 // =============================================================================
 
 BOOST_AUTO_TEST_SUITE(canonical_trace_tests)
 
-// CASE 7.1
+// CASE 6.1
 // INPUT: 2 tx
-// EXPECTED TRACE with txid, f_i, H_i, sigma, eligible
+// EXPECTED TRACE with txid, f_i, H_i, sigma
 BOOST_AUTO_TEST_CASE(execution_trace_structure)
 {
     // This test verifies the execution flow produces the required fields
@@ -405,13 +306,8 @@ BOOST_AUTO_TEST_CASE(execution_trace_structure)
     // Compute Sigma hash (Sigma-PoW-01: seeded by the parent block hash).
     uint256 sigma = rigor::ComputeSigmaHash(txid, convergence_root, prev_block_hash, height);
 
-    // Check inequality (RFC-014: RHS = constitutional constant).
-    CAmount f_sats = 100000000;
-    const uint256& res_probability_target = Consensus::RES_PROBABILITY_TARGET_CONST;
-    Consensus::ConvergenceDrawInequalityHolds(sigma, res_probability_target, f_sats);
-    
-    // If we got here, the trace fields are computable
-    BOOST_CHECK(true);
+    // Verify we got a valid hash
+    BOOST_CHECK(sigma != uint256());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -491,7 +387,7 @@ BOOST_AUTO_TEST_SUITE(block_space_lock_tests)
 BOOST_AUTO_TEST_CASE(serialized_and_weight_caps_match_consensus_headers)
 {
     // Lock version and BLOCK_*_LIMIT / MAX_BLOCK_* live in headers; guard drift.
-    BOOST_CHECK_EQUAL(Consensus::RIGOR_CONSENSUS_LOCK_VERSION, 2);
+    BOOST_CHECK_EQUAL(Consensus::RIGOR_CONSENSUS_LOCK_VERSION, 3);
     BOOST_CHECK_EQUAL(Consensus::BLOCK_SERIALIZED_SIZE_LIMIT, 1000000u);
     BOOST_CHECK_EQUAL(Consensus::BLOCK_WEIGHT_LIMIT, 1000000u);
     BOOST_CHECK_EQUAL(Consensus::BLOCK_SIGOPS_COST_LIMIT, 20000);

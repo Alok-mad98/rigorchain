@@ -1,15 +1,12 @@
 # SPEC-005: RIGOR Consensus Invariants
 
-> **SECURITY-001-A8 (Sigma-PoW-01):** the draw paid at height `h` is resolved over the set committed by block `h-1`, seeded by that block's hash. At most one RES mint per paying block remains an invariant. See `docs/security/SECURITY_001_A8_REPORT.md`.
-
-
-**Task:** `TASK-SPEC-006`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, flat 128 ORU)  
 **Parents:** [SPEC-000](./SPEC-000-CONSENSUS-SPECIFICATION.md), [SPEC-001](./SPEC-001-STATE-MODEL.md), [SPEC-002](./SPEC-002-ECONOMIC-MODEL.md), [SPEC-003](./SPEC-003-CONSENSUS-RULES.md), [SPEC-004](./SPEC-004-TRUST-ANCHORS.md)  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015`  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-020`  
+**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`
 
 ---
 
@@ -57,7 +54,7 @@ Invariants are **falsifiable**: each MUST admit a concrete counterexample
 | **CI-CONSENSUS** | CI-001 … CI-003 | Chain selection, validation determinism |
 | **CI-STATE** | CI-010 … CI-014 | UTXO, transition, replay, reorg |
 | **CI-ECONOMIC** | CI-020 … CI-024 | ORU and RES supply laws |
-| **CI-DRAW** | CI-030 … CI-033 | Convergence draw and mint authorization |
+| **CI-MINT** | CI-030 … CI-033 | Body-tx mint arithmetic and authorization |
 | **CI-FREEZE** | CI-040 … CI-042 | Immutable parameters and protocol freeze |
 
 Each invariant below lists: **statement**, **failure condition**, and **related
@@ -235,10 +232,11 @@ accepted as valid.
 **Statement:** For every valid transition to height `h+1`:
 
 ```
-S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
+S_RES(h+1) = S_RES(h) + body_mint_atoms(h+1)
 ```
 
-where `M(h+1) ∈ {0, 1}` and `S_RES(0) = 0`.
+where `S_RES(0) = 0` and `body_mint_atoms(h+1)` is the sum of Witness v1 RES
+outputs from body transactions that pass `CheckResMintArithmetic`.
 
 **Failure condition:** RES cumulative supply does not satisfy the recurrence.
 
@@ -253,95 +251,87 @@ where `M(h+1) ∈ {0, 1}` and `S_RES(0) = 0`.
 **Statement:**
 
 ```
-∀ h:  S_RES(h) ≤ RES_MAX_SUPPLY
+∀ h:  S_RES(h) ≤ 419430400000000
 ```
 
-**Failure condition:** Total RES supply exceeds `21,000,000 RES` at any height,
-or a mint is accepted when the cap is already reached.
+**Failure condition:** Total RES supply exceeds `419430400000000` atoms at any
+height, or a mint is accepted when the cap is already reached.
 
 **Related rules:** CR-045
 
 ---
 
-### CI-024: Single RES Mint
+### CI-024: RES Mint Predicate
 
 **Category:** CI-ECONOMIC
 
-**Statement:** At most one successful RES mint occurs per block height:
+**Statement:** Every RES-creating output in a valid block belongs to a body
+transaction that satisfies `R · (2²⁵+h)² ≤ B << 40`
+(`CheckResMintArithmetic`). A block MAY contain zero or more such transactions.
 
-```
-∀ h:  M(h) ∈ {0, 1}
-```
+**Failure condition:** RES is created without the mint predicate, or a mint
+output fails `CheckResMintArithmetic`.
 
-**Failure condition:** Two or more successful RES mints in the same block.
-
-**Related rules:** CR-043
+**Related rules:** CR-040, CR-043, CR-044
 
 ---
 
-## 6. Draw Invariants (CI-DRAW)
+## 6. Mint Invariants (CI-MINT)
 
-Draw semantics are specified in [SPEC-003](./SPEC-003-CONSENSUS-RULES.md) §7 and
-[SPEC-004](./SPEC-004-TRUST-ANCHORS.md) §7.
+Mint semantics are specified in [SPEC-003](./SPEC-003-CONSENSUS-RULES.md) §7.
 
-### CI-030: Draw Determinism
+### CI-030: Mint Determinism
 
-**Category:** CI-DRAW
+**Category:** CI-MINT
 
-**Statement:** Identical draw inputs — `State(h)`, `Block(h+1)`, candidate set
-`F`, convergence root `C`, bind material, and digests — always produce the same
-eligibility flags and the same winner (if any).
+**Statement:** Identical mint inputs — `State(h)`, `Block(h+1)`, body
+`(R, B, h)` — always produce the same `CheckResMintArithmetic` accept/reject
+and the same `body_mint_atoms`.
 
-**Failure condition:** Same inputs yield different winner or different eligibility
-on two correct validators.
+**Failure condition:** Same inputs yield different mint verdicts on two correct
+validators.
 
 **Related rules:** CR-041
 
 ---
 
-### CI-031: Single Winner
+### CI-031: Mint Arithmetic Soundness
 
-**Category:** CI-DRAW
+**Category:** CI-MINT
 
-**Statement:** At most one valid draw winner is selected per block. Winner
-selection uses cross-multiply order with txid tie-break; ties resolve uniquely.
+**Statement:** Mint comparison is integer-only. Products in
+`CheckResMintArithmetic` use a 128-bit intermediate and MUST NOT overflow
+into a wraparound accept. Floating-point is forbidden.
 
-**Failure condition:** Multiple winners selected for the same draw, or winner
-violates argmin / tie-break rules.
+**Failure condition:** A mint is accepted or rejected because of overflow,
+wraparound, or non-integer arithmetic.
 
-**Related rules:** CR-042
-
----
-
-### CI-032: Draw Independent of PoW
-
-**Category:** CI-DRAW
-
-**Statement:** The draw probability target MUST be the frozen constant
-`RES_PROBABILITY_TARGET` (RFC-017 shipping: `E = 246`, windowed; mint cost
-`C = 1024` ORU per mint). Historical RFC-014 parameter: `2^240`. It MUST NOT be derived from PoW difficulty,
-header `nBits`, ASERT state, or any variable consensus quantity.
-
-SUPERSEDED by SECURITY-001-A8: `target_prev` is no longer a σ input. Historical
-Sigma-CR-01 `bind_commit` is deleted.
-
-**Failure condition:** Eligibility or winner predicates use PoW difficulty as the
-inequality right-hand side (variable-T or dual-T).
-
-**Related rules:** CR-046, CR-040
+**Related rules:** CR-040, CR-044
 
 ---
 
-### CI-033: Valid Mint Requires Valid Draw
+### CI-032: Price Independent of PoW
 
-**Category:** CI-DRAW
+**Category:** CI-MINT
 
-**Statement:** A successful RES mint at height `h` implies a valid draw context:
-authorized winner, satisfied eligibility, valid convergence proofs, and
-`S_RES(h−1) < RES_MAX_SUPPLY` when `M(h) = 1`.
+**Statement:** `destroy_cost(h)` is a pure height function. It MUST NOT be derived from
+PoW difficulty, header `nBits`, ASERT state, or any variable consensus quantity.
 
-**Failure condition:** RES mint exists in a block without valid draw authorization
-or with draw predicates failed.
+**Failure condition:** A mint predicate uses PoW difficulty as the destroy cost.
+
+**Related rules:** CR-042, CR-046
+
+---
+
+### CI-033: Valid Mint Requires CheckResMintArithmetic
+
+**Category:** CI-MINT
+
+**Statement:** A successful RES mint at height `h` implies
+`CheckResMintArithmetic(R, B, h)` accepted for that body transaction.
+
+**Failure condition:** RES mint exists in a block without
+`CheckResMintArithmetic`.
 
 **Related rules:** CR-040, CR-043, CR-044
 
@@ -354,14 +344,13 @@ or with draw predicates failed.
 **Category:** CI-FREEZE
 
 **Statement:** All validation predicates use only the immutable constitutional
-constant set frozen at mainnet genesis. Parameters including
-`RES_PROBABILITY_TARGET`, `CONVERGENCE_DRAW_WINDOW = 32`, RFC-017 `W(k)` /
-`GetResMintReward`, `RES_MAX_SUPPLY`, draw gate `|F| ≥ 1`, Sigma-PoW-01 parent
-hash σ seed, and genesis-only activation MUST NOT change without Level-5
-governance. Historical `k = 10` / `bind_commit` are superseded.
+constant set frozen at mainnet genesis. Parameters including `RES_COIN`,
+`RES_DESTROY_POLE`, `RES_DESTROY_SHIFT`, `RES_MAX_SUPPLY = 419430400000000`,
+flat 128 ORU, and genesis-only activation MUST NOT change without Level-5
+governance.
 
 **Failure condition:** A validator accepts a block using a non-frozen parameter
-value or deprecated pre-freeze constant set.
+value.
 
 **Related rules:** CR-012
 
@@ -371,12 +360,12 @@ value or deprecated pre-freeze constant set.
 
 **Category:** CI-FREEZE
 
-**Statement:** ORU subsidy schedule and RES issuance rules (per-mint amount, cap,
-draw gate) MUST remain identical to the frozen RFC-015 mainnet economics for all
-valid blocks.
+**Statement:** ORU subsidy schedule and RES issuance rules (flat 128 ORU,
+pole mint predicate, derived cap `2²²`) MUST remain identical to the frozen
+RFC-020 mainnet economics for all valid blocks.
 
-**Failure condition:** Acceptance of blocks under superseded economics (e.g.,
-1 RES per draw, `|F| ≥ 2` gate, 27,182,818 RES cap, variable issuance).
+**Failure condition:** Acceptance of blocks under a different subsidy or mint
+predicate than the frozen RFC-020 set.
 
 **Related rules:** CR-030, CR-044, CR-045, CR-012
 
@@ -387,12 +376,12 @@ valid blocks.
 **Category:** CI-FREEZE
 
 **Statement:** Consensus semantics remain identical to the protocol frozen under
-`MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`. No
+`MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`. No
 consensus rule drift, silent amendment, or implementation-defined behavior may
 replace specified predicates.
 
 **Failure condition:** Valid blocks accepted under semantics outside the frozen
-rule bundle (RFC-014 + RFC-015 mainnet).
+rule bundle (RFC-020 mainnet).
 
 **Related rules:** CR-013, CR-012; see also CO-7 in SPEC-000
 
@@ -411,21 +400,21 @@ others whose truth is required for it to hold or be meaningfully stated.
 - **CI-023** (RES cap) **depends on** **CI-022** (RES recurrence).
   Cap enforcement presumes correct per-block mint accounting.
 
-**Draw–mint chain:**
+**Mint-arithmetic chain:**
 
-- **CI-024** (single RES mint) **depends on** **CI-031** (single winner).
-  At most one mint per height requires at most one authorized draw winner.
+- **CI-024** (mint predicate) **depends on** **CI-031** (arithmetic soundness).
+  The inequality is meaningful only when products do not wrap.
 
-- **CI-033** (valid mint requires valid draw) **depends on** **CI-030** (draw
-  determinism) and **CI-031** (single winner).
+- **CI-033** (valid mint requires `CheckResMintArithmetic`) **depends on**
+  **CI-030** (mint determinism) **and** **CI-031** (arithmetic soundness).
 
 **Freeze chain:**
 
 - **CI-042** (protocol freeze preservation) **depends on** **CI-040** (frozen
   parameters) **and** **CI-041** (monetary policy preservation).
 
-- **CI-032** (draw independent of PoW) **depends on** **CI-040** (frozen
-  parameters), specifically `RES_PROBABILITY_TARGET`.
+- **CI-032** (price independent of PoW) **depends on** **CI-040** (frozen
+  parameters), specifically `destroy_cost(h)`.
 
 **State–consensus chain:**
 
@@ -509,7 +498,7 @@ protocol freeze declaration.
 | No protocol-freeze modifications | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -529,7 +518,7 @@ This document supersedes those placeholders with authoritative **CI-*** invarian
 | SI-007 | CI-024 |
 | SI-008 | CI-002 (chainwork aspect) |
 | SI-009 | CI-033 |
-| SI-010 | CI-032 (bind component) |
+| SI-010 | CI-032 (RATE / height binding) |
 | SI-011 | CR-023 / script-as-compliance (transaction rule) |
 | SI-012 | Identity domain (txid; transaction rule) |
 | SI-013 | CI-012, CI-003 |
@@ -544,7 +533,7 @@ This document supersedes those placeholders with authoritative **CI-*** invarian
 | Consensus Invariants | **ESTABLISHED** |
 | State Invariants | **ESTABLISHED** |
 | Economic Invariants | **ESTABLISHED** |
-| Draw Invariants | **ESTABLISHED** |
+| Mint Invariants | **ESTABLISHED** |
 | Freeze Invariants | **ESTABLISHED** |
 | Consensus Impact | **NONE** |
 | Equivalence Claimed | **false** |
@@ -555,4 +544,5 @@ This document supersedes those placeholders with authoritative **CI-*** invarian
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-006` — initial consensus invariants specification |
+| 0.2 | 2026-09-12 | RFC-020: CI-MINT pole predicate; `body_mint_atoms` cap |
+| 0.1 | 2026-06-05 | `historical verification record` — initial consensus invariants specification |

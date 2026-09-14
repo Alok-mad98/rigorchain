@@ -1,0 +1,23 @@
+[Unit]
+Description=RIGOR Explorer indexer (read-only observer)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=rigor
+Group=rigor
+WorkingDirectory=/opt/rigor/explorer
+EnvironmentFile=/etc/rigor/explorer.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rigor-explorer
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

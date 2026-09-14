@@ -64,20 +64,15 @@ MAX_FUTURE_BLOCK_TIME = 2 * 60 * 60
 # Coinbase transaction outputs can only be spent after this number of new blocks (network rule)
 COINBASE_MATURITY = 100
 
-# Must match CRegTestParams::consensus.nSubsidyHalvingInterval, nBlockSubsidyBase,
-# nBlockSubsidyMaxHalvingShifts, and GetBlockSubsidy (validation.cpp).
-REGTEST_SUBSIDY_HALVING_INTERVAL = 150
-REGTEST_SUBSIDY_BASE_SATS = 1000 * COIN
-REGTEST_SUBSIDY_MAX_HALVING_SHIFTS = 3
+# Must match GetBlockSubsidy (RFC-020: genesis 0, then flat 128 ORU on every net).
+REGTEST_SUBSIDY_BASE_SATS = 128 * COIN
 
 
 def get_regtest_block_subsidy_sats(height):
     """Regtest block subsidy in satoshis (no fees), matching consensus GetBlockSubsidy."""
-    if height == 0:
+    if height <= 0:
         return 0
-    halvings = height // REGTEST_SUBSIDY_HALVING_INTERVAL
-    halvings = min(halvings, REGTEST_SUBSIDY_MAX_HALVING_SHIFTS)
-    return REGTEST_SUBSIDY_BASE_SATS >> halvings
+    return REGTEST_SUBSIDY_BASE_SATS
 
 
 def make_ctxout(n_value, script_pub_key):

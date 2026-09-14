@@ -392,7 +392,7 @@ def emit_edge_cross_neg(P, idx, vid, inp, exp):
         if reject == "unauthorized_mint":
             n = int(mint.get("mint_count", 1))
             parts.append(f"unauthorized_mint_at {h} {n}%nat")
-            parts.append(f"negb (Z.gtb {reward} 0)")
+            parts.append(f"negb (res_mint_authorized_at {h})")
         emit_check(P, idx, vid, _andb(parts))
         return
     if kind == "schedule_cap":
@@ -401,12 +401,13 @@ def emit_edge_cross_neg(P, idx, vid, inp, exp):
         P(f"Definition neg_ins_{idx} : list TxOut := {coq_ins_list(shape['utxo'], shape['tx'])}.")
         P(f"Definition neg_tx_{idx} : TxAbs := {coq_tx(shape['tx'])}.")
         supply = int(cap["res_supply"])
+        attempted = int(cap.get("mint_count", 0))
         expr = _andb(
             [
                 f"Z.gtb {reward} 0",
                 f"negb (res_mint_shape neg_tx_{idx} neg_ins_{idx} {reward})",
                 f"negb (valid_dual_pool_on_ins neg_ins_{idx} neg_tx_{idx} {reward})",
-                f"cap_overshoot_at ({supply}) {reward}",
+                f"cap_overshoot_at ({supply}) ({attempted})",
             ]
         )
         emit_check(P, idx, vid, expr)
@@ -462,8 +463,7 @@ def emit_edge_cross_kernel(P, idx, vid, inp, exp):
         else:
             supply = int(inp["mint"]["res_supply"])
             n = int(inp["mint"]["mint_count"])
-            attempted = "0" if n == 0 else f"(get_res_mint_reward {h})"
-            mint_expr = f"negb (Z.leb ({supply} + {attempted}) RES_MAX_SUPPLY)"
+            mint_expr = f"negb (Z.leb ({supply} + {n}) RES_MAX_SUPPLY)"
         emit_check(P, idx, vid, f"andb ({root_expr}) ({mint_expr})")
         return
     if kind in ("window_dcr_sel", "window_obligation"):
@@ -565,19 +565,20 @@ def emit_negative_core(P, idx, vid, inp, exp):
     if kind in ("dual_pool_tx", "mint_shape"):
         P(f"Definition neg_ins_{idx} : list TxOut := {coq_ins_list(inp['utxo'], inp['tx'])}.")
         P(f"Definition neg_tx_{idx} : TxAbs := {coq_tx(inp['tx'])}.")
+        accepted = bool(exp.get("accepted"))
         if kind == "mint_shape":
-            expr = (
-                f"andb (negb (res_mint_shape neg_tx_{idx} neg_ins_{idx} {reward})) "
-                f"(negb (valid_dual_pool_on_ins neg_ins_{idx} neg_tx_{idx} {reward}))"
-            )
+            shape = f"(res_mint_shape neg_tx_{idx} neg_ins_{idx} {reward})"
+            pool = f"(valid_dual_pool_on_ins neg_ins_{idx} neg_tx_{idx} {reward})"
+            expr = f"andb {shape} {pool}" if accepted else f"andb (negb {shape}) (negb {pool})"
         else:
-            expr = f"negb (valid_dual_pool_on_ins neg_ins_{idx} neg_tx_{idx} {reward})"
+            pool = f"(valid_dual_pool_on_ins neg_ins_{idx} neg_tx_{idx} {reward})"
+            expr = pool if accepted else f"negb {pool}"
         emit_check(P, idx, vid, expr)
         return
     if kind == "connect_cap":
-        P(f"Definition neg_s_{idx} : ReplayState := {coq_state(inp)}.")
-        P(f"Definition neg_b_{idx} : BlockAbs := {coq_block(inp)}.")
-        expr = f"negb (valid_res_cap neg_s_{idx} neg_b_{idx})"
+        supply = int(inp["res_supply"])
+        attempted = int(inp.get("mint_count", 0))
+        expr = f"cap_overshoot_at ({supply}) ({attempted})"
     elif kind == "connect_obligation":
         won = "true" if inp.get("draw_won", False) else "false"
         n = int(inp.get("mint_count", 0))
@@ -644,10 +645,10 @@ def main():
     P("")
     P("Open Scope Z_scope.")
     P("")
-    P("(* Z-height H-1 / without-winner pins for EdgeCross window_obligation rows.")
-    P("   Same forms as NegativeCoreHarness; not a claim that cm_draw_won is the")
+    P("(* Z-height leftover H-1 / without-winner pins for EdgeCross window_obligation.")
+    P("   RFC-020 authorizes every h >= 0. Not a claim that cm_draw_won is the")
     P("   Selection winner (P1-2 remains open). *)")
-    P("Definition res_mint_authorized_at (h : Z) : bool := Z.gtb (get_res_mint_reward h) 0.")
+    P("Definition res_mint_authorized_at (h : Z) : bool := 0 <=? h.")
     P("Definition winner_mismatch_at (h : Z) (won : bool) (n : nat) : bool :=")
     P("  andb (res_mint_authorized_at h) (andb won (negb (Nat.eqb n 1%nat))).")
     P("Definition without_winner_at (won : bool) (n : nat) : bool :=")
@@ -709,11 +710,10 @@ def main():
     NP("Definition cap_overshoot_at (supply reward : Z) : bool :=")
     NP("  negb (Z.leb (supply + reward) RES_MAX_SUPPLY).")
     NP("")
-    NP("(* Z-height forms of ConnectBlockMint obligation paths. hdr_height is nat,")
-    NP("   and a 52_710_000 unary literal would blow vm_compute; the schedule itself")
-    NP("   is a Z function, so these match unauthorized_mint_path / winner_mismatch_path")
-    NP("   / without_winner_mint_path at get_res_mint_reward h. *)")
-    NP("Definition res_mint_authorized_at (h : Z) : bool := Z.gtb (get_res_mint_reward h) 0.")
+    NP("(* Z-height forms of leftover obligation paths. hdr_height is nat,")
+    NP("   and a 52_710_000 unary literal would blow vm_compute. RFC-020")
+    NP("   authorizes every h >= 0; destroy_cost(h) is never 0. *)")
+    NP("Definition res_mint_authorized_at (h : Z) : bool := 0 <=? h.")
     NP("Definition unauthorized_mint_at (h : Z) (n : nat) : bool :=")
     NP("  andb (negb (res_mint_authorized_at h)) (negb (Nat.eqb n 0%nat)).")
     NP("Definition winner_mismatch_at (h : Z) (won : bool) (n : nat) : bool :=")

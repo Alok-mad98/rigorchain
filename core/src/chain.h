@@ -8,7 +8,6 @@
 
 #include <arith_uint256.h>
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <node/supply_monitor/observational_metrics.h>
 #include <consensus/params.h>
 #include <node/supply_monitor/runtime_supply_state.h>
@@ -209,49 +208,13 @@ public:
     uint32_t nTime{0};
     uint32_t nBits{0};
     uint32_t nNonce{0};
-    uint256 m_draw_candidate_root{};
 
-    /** Whether this block's coinbase minted RES (cached; convergence window + RPC). */
+    /** Whether any transaction in this block minted RES (cached; RPC). */
     uint8_t has_res{0};
     /** Last confirmed RES-minting block hash at this height (O(1) cached seed). */
     uint256 last_res_mint_block_hash{};
 
-    /**
-     * SECURITY-001-A9-C / H-1: the convergence txid this block's coinbase RIGOR_MARKER_RES_MINT paid,
-     * or null when this block minted nothing.
-     *
-     * A candidate stays in the draw window for up to W blocks and must be payable only once, so
-     * assembling F requires knowing which txid each window block already paid. That txid is the
-     * PARENT block's draw winner, and it is not recoverable from this block alone: the coinbase
-     * commits to HASH160(owner), which many tickets can share. Deriving it on demand therefore
-     * meant re-resolving the parent draw, which re-assembled the parent's window, which recursed
-     * again — unbounded to genesis, not O(W).
-     *
-     * ConnectBlock already computes this value to validate the mint, so it is recorded here
-     * instead. Reading it makes window assembly a flat W block/undo reads with no recursion.
-     *
-     * NOT a consensus input and NOT part of state_hash: it is a memo of a value ConnectBlock
-     * derives independently. `ValidatePaidWinnerRecord` re-checks it against the block on every
-     * read, so a corrupt or stale record fails the read rather than shifting F.
-     *
-     * INVARIANT (rigor::ConnectEvaluateCoinbaseResMint): a valid block carries an RIGOR_MARKER_RES_MINT
-     * output only if the parent draw named a winner. So for any connected block,
-     * `m_paid_winner_txid.IsNull()` iff its coinbase has no RES mint.
-     */
-    uint256 m_paid_winner_txid{};
-
-    /**
-     * The draw set this block committed (F and C). Written at ConnectBlock and kept when
-     * blk/rev are pruned, so connecting a child can resolve the parent draw without
-     * rereading the window from disk.
-     *
-     * Same memo discipline as `m_paid_winner_txid`: not a consensus input. ConnectBlock
-     * derived it independently and checked it against the coinbase C. Unset
-     * (`source_height < 0`) on headers-only entries that have never been connected.
-     */
-    ConvergenceDrawSet m_draw_set{};
-
-    /** ASSET_RES issued by this block's coinbase mint (0 if none). Index/RPC only; not a draw input. */
+    /** ASSET_RES minted by this block's transactions (0 if none). Index/RPC only. */
     CAmount m_block_res_mint_sum{0};
 
     /** Total ORU converged (destroyed) by valid Converge transactions in this block (C(t)). */
@@ -501,25 +464,10 @@ public:
                 obj.Observational().SetCumulativeConvergence(cumulative);
             }
         }
-        READWRITE(obj.m_draw_candidate_root);
         READWRITE(obj.has_res);
         READWRITE(obj.last_res_mint_block_hash);
         READWRITE(VARINT_MODE(obj.m_block_res_mint_sum, VarIntMode::NONNEGATIVE_SIGNED));
         READWRITE(VARINT_MODE(obj.m_block_converge_sum, VarIntMode::NONNEGATIVE_SIGNED));
-        // H-1: appended last on purpose. A block index written before this field ends the stream
-        // here, so LoadBlockIndexGuts throws and the node reports a database error instead of
-        // silently reading a null txid and assembling the wrong window. Pre-mainnet the recovery
-        // is -reindex; there is no compatibility path and none is wanted.
-        READWRITE(obj.m_paid_winner_txid);
-        // Same fail-closed append: F must survive prune. An index that stops at paid_winner
-        // throws rather than connecting children against an empty reconstructed window.
-        uint8_t has_draw_set = obj.m_draw_set.IsSet() ? 1 : 0;
-        READWRITE(has_draw_set);
-        if (has_draw_set) {
-            READWRITE(obj.m_draw_set);
-        } else {
-            SER_READ(obj, obj.m_draw_set = ConvergenceDrawSet{});
-        }
     }
 
     uint256 ConstructBlockHash() const

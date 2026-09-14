@@ -1,10 +1,10 @@
 # RIGOR Protocol Identity
 
-**Task:** `TASK-RIGOR-FORMAL-VERIFICATION-DESIGN-P0-009`  
-**Date:** 2026-08-22  
-**Type:** Public protocol identity  
-**Code changes:** **NONE**  
-**Consensus changes:** **NONE**
+**Document status:** Production specification  
+**Date:** 2026-09-04  
+
+This paper states protocol purpose, identity, and security assumptions.
+Code facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
 ```
 equivalence_claimed = false
@@ -33,7 +33,7 @@ The other two public cores:
 | Paper | Question |
 |-------|----------|
 | [`RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](./RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md) | How does the mathematics run? |
-| [`RIGOR_FORMAL_VERIFICATION_DESIGN.md`](./RIGOR_FORMAL_VERIFICATION_DESIGN.md) | Why is it trustworthy? |
+| [`RIGOR_FORMAL_VERIFICATION_DESIGN.md`](./RIGOR_FORMAL_VERIFICATION_DESIGN.md) | What is the model, and where does proof stop? |
 
 Explorer is an independent product:
 [`../explorer/EXPLORER_ARCHITECTURE.md`](../explorer/EXPLORER_ARCHITECTURE.md).
@@ -52,9 +52,9 @@ RIGOR =
   +
     Deflationary Mechanisms
   +
-    Probabilistic Selection
+    Same-tx destroy-to-mint at destroy_cost(h)
   +
-    Adaptive Proof-of-Work
+    OpuHash Proof-of-Work
   +
     Cryptographic Ownership
 ```
@@ -65,8 +65,8 @@ RIGOR =
 
 | Asset | Role |
 |-------|------|
-| **ORU** | Base transaction asset, fees, mining subsidy, Convergence commitment cost |
-| **RES** | Reserve asset; deterministic issuance after commitment selection — not a PoW reward |
+| **ORU** | Base transaction asset, fees, mining subsidy, Convergence destroy cost |
+| **RES** | Reserve asset; same-tx body mint at `destroy_cost(h)` — not a PoW reward |
 
 There are exactly two native assets. There is no explorer asset, no
 indexed token, and no third consensus money.
@@ -80,7 +80,7 @@ Monetary architecture is **stateless** in the account-ledger sense:
 - no global asset table
 - no account-balance consensus object
 - no explorer database as ledger of record
-- fee burn is not a UTXO and not a wallet balance
+- fee destroy is not a UTXO and not a wallet balance
 
 Consensus state is the UTXO set plus validation rules. Rebuildable
 indexes do not hold monetary truth.
@@ -110,7 +110,8 @@ There is no `(asset, value, script)` storage field.
 
 Spendable ownership is UTXO transitions: consume old outputs, create new
 ones. Ordinary transfers cannot mint. Authorized mint paths are explicit
-consensus exceptions (ORU coinbase subsidy; RES mint after selection).
+consensus exceptions (ORU coinbase subsidy; RES same-tx body mint at
+`destroy_cost(h)`). Coinbase `OP_RES_MINT` is not the RFC-020 path.
 
 **Consensus defines reality.** Explorer displays consensus-derived data.
 
@@ -118,18 +119,43 @@ consensus exceptions (ORU coinbase subsidy; RES mint after selection).
 
 ## Proof-of-Work
 
-Blocks enter history only if Proof-of-Work is valid. The mix-hash must
-satisfy `pow ≤ target`. Difficulty follows ASERT. PoW orders blocks and
-issues ORU subsidy. PoW does not mint RES.
+Blocks enter history only if Proof-of-Work is valid. The consensus algorithm
+name is **OpuHash**. OpuHash is SHA3-256 over the domain-tagged header:
+
+```
+OpuHash(header) = SHA3-256("RGRPOW01" || header_80)
+valid           ⇔  OpuHash(header) ≤ target
+```
+
+`RGRPOW01` is the 8-byte domain tag. The primitive is FIPS 202 SHA3-256
+(Keccak-f[1600], domain suffix `0x06`). Block identity remains
+`SHA256d(header_80)`. Merkle and txid remain SHA256d. σ is not a live
+mint input.
+
+Difficulty follows ASERT (mainnet half-life 43200 seconds). PoW orders
+blocks and issues ORU subsidy. PoW does not mint RES.
+
+Source: `rigor_kernel::GetRigorPowHash` in `core/src/rigor_kernel/pow_digest.h`;
+`CheckProofOfWork` in `core/src/pow.cpp`.
+
+The retired 64 KiB / 256-round mix in `pow_opus.cpp` is **not** OpuHash
+and is **not** the live `CheckProofOfWork` digest.
 
 ---
 
 ## Convergence
 
-Live Convergence is `OP_CONVERGE`: ORU destruction and draw entry.
-Selection is an integer rule over a committed candidate set. A legal
-winner authorizes Deterministic Reserve Issuance. Witness v1 `CVG2` is
-Historical / retired design.
+Live Convergence is same-tx destroy-to-mint: `OP_CONVERGE` /
+`RIGOR_MARKER_CONVERGE` (`0xbd`, historically `OP_CONVERGE`) destroys
+ORU amount `B`. The **same body transaction** MAY mint Witness v1 RES
+summing to `R` when
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+```
+
+`destroy_cost(h)` is a protocol destroy cost, not a market quote. There is no Script VM.
+Mint-output maturity 100 is reorg protection.
 
 Equations live in the mathematics paper. Invariants and proof boundaries
 live in the verification paper.
@@ -154,7 +180,7 @@ database_reset ≠ monetary_reset
 |-------|------|
 | UTXO conservation | Ordinary transfers cannot create ORU or RES |
 | Script validation | Closed monetary script families; classification ≠ issuance |
-| Proof-of-Work | OpuHash with ASERT difficulty |
+| Proof-of-Work | OpuHash = SHA3-256 (`RGRPOW01`) with ASERT difficulty |
 | Ed25519 | Cryptographic ownership of spendable outputs |
 | Formal protocol properties | Model invariants — not C++ refinement |
 
@@ -176,4 +202,3 @@ Consensus Validation
 equivalence_claimed = false
 ```
 
-**Consensus impact: NONE**

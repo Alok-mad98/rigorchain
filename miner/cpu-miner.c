@@ -23,6 +23,9 @@
 #include <unistd.h>
 #ifndef WIN32
 #include <sys/resource.h>
+#include <sys/stat.h>
+#else
+#include <direct.h>
 #endif
 #include <signal.h>
 #include <errno.h>
@@ -31,7 +34,7 @@
 
 #include "compat.h"
 #include "miner.h"
-#include "opus_hash.h"
+#include "rgrpow.h"
 #include "arith_uint256.h"
 #include "gbt_solo.h"
 
@@ -99,7 +102,7 @@ struct workio_cmd {
 
 enum algos {
 	ALGO_SCRYPT,		/* scrypt(1024,1,1) */
-	ALGO_SHA256D,		/* SHA-256d */
+	ALGO_SHA256D,		/* CLI sha256d/rgrpow01 = SHA3-256 RGRPOW01 */
 };
 
 static const char *algo_names[] = {
@@ -124,11 +127,11 @@ static bool opt_background = false;
 static bool opt_quiet = false;
 static int opt_retries = -1;
 static int opt_fail_pause = 30;
-/** Pause this many seconds after each accepted block (Alpha: keep Qt wallet responsive). */
+/** Pause this many seconds after each accepted block (keeps Qt wallet responsive). */
 static int opt_submit_delay = 0;
 int opt_timeout = 0;
 static int opt_scantime = 5;
-static enum algos opt_algo = ALGO_SHA256D; /* CLI name sha256d = header SHA256d + OpuHash */
+static enum algos opt_algo = ALGO_SHA256D; /* CLI sha256d/rgrpow01 = SHA3-256 RGRPOW01 */
 static int opt_scrypt_n = 1024;
 static int opt_n_threads;
 static int num_processors;
@@ -167,40 +170,19 @@ static double *thr_hashrates;
 
 static pthread_mutex_t ux_print_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static bool opus_hash_selftest(void)
+static bool rgrpow_selftest(void)
 {
-	/* Frozen vectors: core/src/test/pow_tests.cpp OpuHash_v3plus_reference_vectors */
-	static const uint8_t base0[32] = {
-		0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	/* core/src/test/rigor_pow_digest_tests.cpp zero-header vector */
+	static const uint8_t expect[32] = {
+		0xdd, 0x05, 0x7f, 0xc1, 0xdf, 0x8f, 0x5b, 0x94, 0x66, 0xe8, 0x34,
+		0xcc, 0x9d, 0x7b, 0x81, 0x9e, 0x2d, 0x51, 0x1c, 0x75, 0xb4, 0x36,
+		0x75, 0xb5, 0x77, 0xf6, 0xd9, 0xf5, 0xd6, 0xde, 0x04, 0xfc
 	};
-	static const uint8_t expect0[32] = {
-		0x80, 0x57, 0x26, 0x6c, 0x60, 0x4b, 0xe4, 0xfb,
-		0x54, 0x15, 0x5e, 0xfd, 0x9b, 0x79, 0xe8, 0xab,
-		0xc6, 0xb7, 0xcd, 0x06, 0xbd, 0x97, 0x9b, 0x68,
-		0x19, 0x8a, 0x59, 0xb1, 0x55, 0xff, 0xc4, 0x0c
-	};
-	static const uint8_t base1[32] = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-	};
-	static const uint8_t expect1[32] = {
-		0xf7, 0xd4, 0x24, 0x71, 0x43, 0xde, 0x2f, 0x1a,
-		0xd7, 0x93, 0x10, 0x85, 0x41, 0xfc, 0xcb, 0x25,
-		0x7e, 0x1b, 0x26, 0x3a, 0x23, 0xa3, 0x51, 0x30,
-		0x48, 0xb3, 0x48, 0x72, 0xde, 0xac, 0x96, 0x4e
-	};
+	uint8_t header[80];
 	uint8_t got[32];
-
-	opus_hash_from_base_hash(base0, got);
-	if (memcmp(got, expect0, sizeof(got)) != 0)
-		return false;
-	opus_hash_from_base_hash(base1, got);
-	return memcmp(got, expect1, sizeof(got)) == 0;
+	memset(header, 0, sizeof(header));
+	rgrpow_hash80(header, got);
+	return memcmp(got, expect, sizeof(got)) == 0;
 }
 
 #ifdef HAVE_GETOPT_LONG
@@ -218,7 +200,8 @@ static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -a, --algo=ALGO       specify the algorithm to use\n\
-                          sha256d   RIGOR OpuHash (header SHA256d + mix; default / required)\n\
+                          rgrpow01  SHA3-256(RGRPOW01 || header_80) (default)\n\
+                          sha256d   alias for rgrpow01\n\
                           scrypt    disabled for RIGOR SOLO\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
@@ -244,7 +227,7 @@ Options:\n\
       --submit-delay=N  sleep N seconds after each accepted block (eases wallet UI under easy PoW)\n\
   -v, --verbose         developer verbose output (GBT, LONGPOLL, RPC, self-test)\n\
   -D, --debug           enable debug output (implies --verbose)\n\
-      --debug-pow       log header hash and OpuHash digest for each found nonce (vs rigord -debugpowcompare)\n\
+      --debug-pow       log header SHA256d and RGRPOW01 digest for each found nonce\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
 #ifdef HAVE_SYSLOG_H
 "\
@@ -335,7 +318,10 @@ struct work {
 	/* PoW: nBits from GBT (used to construct target via SetCompact) */
 	uint32_t nbits;
 
-	/* Coinbase subsidy+fees from GBT (satoshis); for user-mode reward display */
+	/* Coinbase ORU subsidy+fees from GBT (atoms). Display only.
+	 * Consensus subsidy is RFC-020: 0 at height 0, 128 ORU for every
+	 * h ≥ 1, no halving. The miner copies GBT coinbasevalue; it does
+	 * not recompute GetBlockSubsidy. */
 	int64_t coinbasevalue;
 };
 
@@ -405,6 +391,93 @@ static void ux_emit(const char *text)
 #endif
 }
 
+static void ux_ensure_parent_dir(const char *path)
+{
+	char dir[1024];
+	char *slash;
+
+	if (!path || !path[0])
+		return;
+	snprintf(dir, sizeof(dir), "%s", path);
+	slash = strrchr(dir, '/');
+#ifdef WIN32
+	{
+		char *bslash = strrchr(dir, '\\');
+		if (bslash && (!slash || bslash > slash))
+			slash = bslash;
+	}
+#endif
+	if (!slash || slash == dir)
+		return;
+	*slash = '\0';
+#ifdef WIN32
+	_mkdir(dir);
+#else
+	mkdir(dir, 0755);
+#endif
+}
+
+/* Local dashboard telemetry. No RPC secrets. */
+static void ux_write_status_file(void)
+{
+	char path[1024];
+	char hr[32];
+	const char *env = getenv("RIGOR_MINER_STATUS_FILE");
+	const char *payout = (coinbase_addr && coinbase_addr[0]) ? coinbase_addr : "";
+	FILE *fp;
+	double hs;
+	time_t now = time(NULL);
+
+	if (env && env[0]) {
+		snprintf(path, sizeof(path), "%s", env);
+	} else {
+#ifdef WIN32
+		const char *appdata = getenv("APPDATA");
+		if (appdata && appdata[0])
+			snprintf(path, sizeof(path), "%s\\RIGOR\\miner-status.json", appdata);
+		else
+			snprintf(path, sizeof(path), "miner-status.json");
+#else
+		const char *home = getenv("HOME");
+		if (home && home[0])
+			snprintf(path, sizeof(path), "%s/.rigor/miner-status.json", home);
+		else
+			snprintf(path, sizeof(path), "miner-status.json");
+#endif
+	}
+	ux_ensure_parent_dir(path);
+	fp = fopen(path, "w");
+	if (!fp)
+		return;
+	hs = ux_total_hashrate();
+	ux_format_hashrate(hr, sizeof(hr), hs);
+	fprintf(fp,
+		"{\n"
+		"  \"generated_at\": %ld,\n"
+		"  \"path\": \"SOLO GBT\",\n"
+		"  \"hashrate_hs\": %.6f,\n"
+		"  \"hashrate\": \"%s\",\n"
+		"  \"gbt_height\": %d,\n"
+		"  \"blocks_accepted\": %lu,\n"
+		"  \"blocks_rejected\": %lu,\n"
+		"  \"last_submit\": \"%s\",\n"
+		"  \"payout\": \"%s\",\n"
+		"  \"node_connected\": %s,\n"
+		"  \"mining\": %s\n"
+		"}\n",
+		(long)now,
+		hs,
+		hr,
+		ux_height,
+		accepted_count,
+		rejected_count,
+		ux_last_block[0] ? ux_last_block : "-",
+		payout,
+		ux_node_connected ? "true" : "false",
+		ux_mining_running ? "true" : "false");
+	fclose(fp);
+}
+
 /* Default alpha UX: one atomic status board (aligned, no developer internals). */
 static void user_print_status(void)
 {
@@ -467,6 +540,7 @@ static void user_print_status(void)
 	time(&ux_last_status_print);
 
 	pthread_mutex_unlock(&ux_print_lock);
+	ux_write_status_file();
 }
 
 /* Periodic heartbeat — one line, not a full board reprint. */
@@ -489,6 +563,7 @@ static void user_print_heartbeat(void)
 	ux_emit(buf);
 	time(&ux_last_status_print);
 	pthread_mutex_unlock(&ux_print_lock);
+	ux_write_status_file();
 }
 
 static void user_print_status_throttled(int interval_sec)
@@ -671,7 +746,6 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 {
 	struct gbt_solo_out assembled;
 	char err[256];
-	int has_mint;
 
 	if (!pk_script_size || !gbt_solo_payout_is_oru_v0(pk_script, pk_script_size)) {
 		applog(LOG_ERR, "SOLO requires --coinbase-addr as ORU witness v0 (rg1q... / rgrt1q...)");
@@ -683,7 +757,6 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 		return false;
 	}
 
-	has_mint = assembled.has_mint;
 	free(work->txs);
 	free(work->workid);
 	work->txs = NULL;
@@ -718,8 +791,8 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 	if (opt_debug || opt_debug_pow) {
 		char hexbuf[65];
 		bin2hex(hexbuf, (unsigned char *)(work->data + 9), 32);
-		applog(LOG_DEBUG, "SOLO copy-bytes height=%d nBits=0x%08x merkle=%s mint=%s",
-		       work->height, work->nbits, hexbuf, has_mint ? "copied" : "none");
+		applog(LOG_DEBUG, "SOLO copy-bytes height=%d nBits=0x%08x merkle=%s RES_mint=none",
+		       work->height, work->nbits, hexbuf);
 	}
 	return true;
 }
@@ -1415,7 +1488,7 @@ static void *miner_thread(void *userdata)
 				sleep(opt_submit_delay);
 			/* Stop grinding this header. workio may also invalidate, but
 			 * this thread would otherwise clear work_restart and scan ~2M
-			 * leftover OpuHashes before the next GBT. */
+			 * leftover hashes before the next GBT. */
 			if (!have_stratum) {
 				g_work_time = 0;
 				memset(work.data, 0, 76);
@@ -1760,12 +1833,16 @@ static void parse_arg(int key, char *arg, char *pname)
 
 	switch(key) {
 	case 'a':
+		if (!strcmp(arg, "rgrpow01") || !strcmp(arg, "sha3") || !strcmp(arg, "sha3-256")) {
+			opt_algo = ALGO_SHA256D;
+			break;
+		}
 		for (i = 0; i < ARRAY_SIZE(algo_names); i++) {
 			v = strlen(algo_names[i]);
 			if (!strncmp(arg, algo_names[i], v)) {
 				if (arg[v] == '\0') {
 					if (i == ALGO_SCRYPT) {
-						stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a sha256d (OpuHash)\n",
+						stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a rgrpow01\n",
 							pname);
 						show_usage_and_exit(1);
 					}
@@ -1773,7 +1850,7 @@ static void parse_arg(int key, char *arg, char *pname)
 					break;
 				}
 				if (arg[v] == ':' && i == ALGO_SCRYPT) {
-					stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a sha256d (OpuHash)\n",
+					stderr_msg("%s: scrypt is not a RIGOR SOLO algorithm; use -a rgrpow01\n",
 						pname);
 					show_usage_and_exit(1);
 				}
@@ -2115,12 +2192,12 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&g_work_lock, NULL);
 	pthread_mutex_init(&stratum.sock_lock, NULL);
 	pthread_mutex_init(&stratum.work_lock, NULL);
-	if (!opus_hash_selftest()) {
-		applog(LOG_ERR, "OpusHash self-test failed. Ref hash mismatch.");
+	if (!rgrpow_selftest()) {
+		applog(LOG_ERR, "RGRPOW01 self-test failed. SHA3-256 digest mismatch.");
 		return 1;
 	}
 	if (opt_verbose)
-		applog(LOG_INFO, "OpusHash self-test passed.");
+		applog(LOG_INFO, "RGRPOW01 self-test passed.");
 
 	{
 		unsigned char rigor_magic[4];
@@ -2271,8 +2348,8 @@ int main(int argc, char *argv[])
 	ux_mining_running = true;
 	if (opt_verbose) {
 		if (opt_algo == ALGO_SHA256D) {
-			applog(LOG_INFO, "%d miner threads started, using OpuHash "
-				"(CLI algo name 'sha256d' = header SHA256d + OpuHash mix).",
+			applog(LOG_INFO, "%d miner threads started, using SHA3-256 RGRPOW01 "
+				"(CLI -a rgrpow01 / sha256d).",
 				opt_n_threads);
 		} else {
 			applog(LOG_INFO, "%d miner threads started, using '%s' algorithm.",

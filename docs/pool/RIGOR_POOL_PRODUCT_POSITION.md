@@ -1,6 +1,6 @@
 # RIGOR_POOL_PRODUCT_POSITION
 
-**Task:** `TASK-POOL-RES-BOUNDARY-DECISION-002` · Phase 4  
+**Document status:** Production documentation  
 **Date:** 2026-08-12  
 **Authority:** `docs/pool/POOL_RES_BOUNDARY_ARCHITECTURE_DECISION.md` (Option A)  
 **Audience:** Product, ops, miners, integrators  
@@ -30,7 +30,7 @@
 | Anti-role | Meaning |
 |-----------|---------|
 | **RES issuer** | Does not create, fund-as-issuer, or allocate RES |
-| **Convergence operator** | Does not start, run, or custody user Convergence / W=32 sessions |
+| **Convergence operator** | Does not start, run, or custody user Convergence sessions |
 | **Asset authority** | Does not redefine assets; classification and validity remain script + consensus |
 | **RES market / treasury for miners** | Workers are not paid in RES by the pool |
 
@@ -40,9 +40,10 @@
 
 ```text
 ORU  ←── Proof of work (solo miner or pool coordination)
-RES  ←── User-initiated Convergence in a wallet (eligibility)
-         + consensus body mint when a draw winner exists
-         (assembled by node template path — not by pool product)
+         RFC-020: R(0)=0; then 128 ORU per block forever; no halving
+RES  ←── User-initiated Convergence in a wallet
+         + consensus body-tx mint at destroy_cost(h)
+         (not a coinbase prize; not assembled by the pool)
 ```
 
 | Actor | ORU | RES |
@@ -56,10 +57,10 @@ RES  ←── User-initiated Convergence in a wallet (eligibility)
 
 ## 5. User journey (canonical)
 
-1. Mine (solo or pool) → receive **ORU**.  
+1. Mine (solo or pool) → receive **ORU** (128 per block after genesis).  
 2. Optionally, in **wallet**, start **Convergence** with ORU you control.  
-3. Complete W=32 rules as defined by frozen consensus.  
-4. If selected by the draw, **RES** is minted to your declared owner under consensus — **not** because the pool “granted” it.
+3. Destroy ORU in a body transaction. Consensus may mint RES at `destroy_cost(h)`.  
+4. **RES** is minted to the minting transaction — **not** because the pool “granted” it, and never as a coinbase prize.
 
 ---
 
@@ -69,6 +70,7 @@ RES  ←── User-initiated Convergence in a wallet (eligibility)
 
 - “Mine ORU on the RIGOR pool.”  
 - “Pool pays ORU for valid shares.”  
+- “A found block pays 128 ORU forever; there is no ORU halving.”  
 - “RES comes from Convergence in your wallet.”
 
 **Forbidden**
@@ -109,7 +111,7 @@ A-5 custody rules remain in force. Pool mint construction is **retired as target
 
 ## 9. Implementation status
 
-**`TASK-POOL-RES-BOUNDARY-IMPLEMENT-003` (Option A) is implemented** in the Rust pool stack:
+**`historical verification record` (Option A) is implemented** in the Rust pool stack:
 
 - Stratum / pilot production path is ORU-only (no `mint-engine`, no `try_mint`).
 - RES body mint bytes, when required, come only from `rigord` automint / GBT.

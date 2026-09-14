@@ -1,45 +1,60 @@
-# Rigor miner (minerd / rigor-miner.exe)
+# rigor miner (minerd / rigor-miner.exe)
 
 The miner is a **PoW search client**. The Full Node is the only consensus
-authority. The supported SOLO path is:
+authority.
+
+## RIGOR SOLO mining
+
+Algorithm:
 
 ```
-rigord getblocktemplate → copy canonical material → OpuHash nonce search → submitblock
+SHA3-256("RGRPOW01" || header_80)
 ```
 
-`getwork` is not a RIGOR SOLO path. Stratum is quarantined for a later pool
-task and is refused as a SOLO URL.
+`header_80` is the canonical 80-byte header (little-endian version, time,
+bits, nonce; 32-byte prev/merkle in internal byte order). No padding, no
+midstate, no OpuHash mix, no fallback.
 
-## Canonical GBT copy-bytes (P041)
+Supported SOLO path:
+
+```
+rigord getblocktemplate → copy canonical material → RGRPOW01 nonce search → submitblock
+```
+
+`getwork` is not a RIGOR SOLO path. Stratum is quarantined and is refused
+as a SOLO URL.
+
+| Surface | Function |
+|---------|----------|
+| Node `CheckProofOfWork` | SHA3-256(`"RGRPOW01" \|\| header_80`) |
+| This `minerd` grind path | Same SHA3-256 `RGRPOW01` digest |
+
+CLI: `-a rgrpow01` (default path). `-a sha256d` is an alias for the same
+SHA3-256 function. scrypt is refused.
+
+## Canonical GBT copy-bytes
 
 The node GBT always includes (names from `core/src/rpc/mining.cpp`):
 
 | Field | Role |
 | --- | --- |
-| `default_coinbase_scriptsig` | Exact vin[0].scriptSig: BIP34 height ‖ OP_PUSHBYTES_32(C) ‖ OP_PUSHBYTES_32(paid-winner) |
-| `paid_winner_txid` | Third scriptSig push as RPC hex; zeros when this template does not mint |
+| `default_coinbase_scriptsig` | Exact vin[0].scriptSig: BIP34 height plus OP_0 padding |
 | `default_coinbase_tx` | Witness-serialized canonical coinbase; miner copies these bytes |
 | `default_coinbase_txid` / `merkleroot` | Cross-check only |
-| `default_res_mint` | Optional `{value, scriptPubKey}` already inside `default_coinbase_tx` when a winner exists |
-| `default_witness_commitment` | BIP141 commitment for the unmodified tx set (coinbase wtxid = 0) |
+| `default_witness_commitment` | BIP141 commitment for the unmodified tx set |
 | `rigor_coinbase_immutable` | Must be `true` |
-| `transactions[]` | Consensus tx set (`data` / `txid` / `hash`) |
-| `coinbasevalue` | ORU vout[0] only |
+| `transactions[]` | Consensus tx set |
+| `coinbasevalue` | ORU vout[0] only: RFC-020 subsidy (0 at height 0; **128 ORU** for every `h ≥ 1`; no halving) plus claimable ORU fees. RES is not a coinbase prize |
 | `version`, `previousblockhash`, `curtime`, `bits`, `target`, `height` | Header / job |
 
 `--coinbase-addr` is sent as GBT `coinbase_address`. The node assembles the
 canonical coinbase. The miner copies `default_coinbase_tx` and does not
-rebuild mint, winner, subsidy, or scriptSig.
-
-Missing a required field, a 2-push scriptSig, OP_n mint encoding (e.g. `OP_5`
-instead of `OP_PUSHBYTES_1 0x05`), or a P2PKH/v1 payout **refuses the job**.
-There is no Bitcoin or legacy-RIGR fallback.
+rebuild subsidy, scriptSig, or a RES mint. The miner never applies a
+Bitcoin-style or three-halving schedule. Lottery-era fields
+(`paid_winner_txid`, `convergence_root`, `default_res_mint`) are refused.
 
 Allowed grind fields: **nonce**, and GBT `curtime` as supplied (mutable:
 `["time"]` on the node). `nBits`, prev hash, and version are copied.
-
-CLI name `-a sha256d` means: hash the 80-byte header with SHA256d, then the
-frozen OpuHash mix. scrypt is disabled for SOLO.
 
 ## Building
 
@@ -48,25 +63,33 @@ cd miner
 ./autogen.sh
 ./configure
 make
-make check          # test_gbt_solo
+make check          # test_gbt_solo including SHA3 PoW vectors
 ```
 
-Binary: `./minerd` (Windows installer names it `rigor-miner.exe`).
+Windows installer names it `rigor-miner.exe`. The Windows miner package
+(`scripts/alpha/package_windows_miner.sh`) also ships the local Miner Dashboard
+(`start-miner-dashboard.cmd` → `http://127.0.0.1:18083/`). Official wallet
+installers do **not** include the miner.
 
 ## Running (SOLO)
 
+Mainnet RPC port is **8761**. Address HRP is **`rg`** (regtest `rgrt`).
+
 ```bash
-./minerd -a sha256d -o http://127.0.0.1:8761 \
+./minerd -a rgrpow01 -o http://127.0.0.1:8761 \
   -u RPCUSER -p RPCPASS \
-  --coinbase-addr=rgrt1q... \
+  --coinbase-addr=rg1q... \
   -t 4
 ```
 
-`--coinbase-addr` is required and must be ORU witness v0 (`rg1q…` / `rgrt1q…`).
-`--coinbase-sig` is ignored. `--no-gbt` is refused.
+`--coinbase-addr` is required and must be ORU witness v0 (`rg1q…` /
+`rgrt1q…`). `--coinbase-sig` is ignored. `--no-gbt` is refused.
 
 ## Tests
 
-- `miner/test_gbt_solo.c` — GBT parse, scriptSig/mint/witness/header/OpuHash
+- `miner/test_gbt_solo.c` — GBT parse, scriptSig/mint/witness/header, SHA3 vectors vs node `GetRigorPowHash`, OpuHash digest rejected
 - `miner/fuzz_gbt_solo.c` — fail-closed malformed JSON
 - `core/test/functional/mining_solo_gbt_copy_bytes.py` — live GBT → mine → `submitblock`
+
+Facts: [`docs/audit/CODE_SSOT_PROTOCOL_FACTS_P0_097.md`](../docs/audit/CODE_SSOT_PROTOCOL_FACTS_P0_097.md).
+Alignment: [`docs/security/RIGOR_SOLO_MINER_POW_ALIGNMENT_P0_098.md`](../docs/security/RIGOR_SOLO_MINER_POW_ALIGNMENT_P0_098.md).

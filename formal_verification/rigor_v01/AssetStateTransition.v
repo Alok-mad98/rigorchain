@@ -56,9 +56,9 @@ Proof. intros. reflexivity. Qed.
 
 (** * Proof 4 — supply identity (model)
 
-    [valid_mint] is 0 or the scheduled W(h) after owner/draw authorization
-    (that authorization is *not* this module; see ResMintObligation).
-    [oru_burn] includes converge burns and fee destruction. *)
+    [valid_mint] is RES credited this block by a body-tx burn-to-mint.
+    Authorization is not this module. [oru_burn] includes converge burns
+    and fee destruction. *)
 Record AssetPools := {
   pool_oru : Z;
   pool_res : Z

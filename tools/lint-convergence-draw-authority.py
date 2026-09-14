@@ -128,6 +128,17 @@ def coq_assumption_counts(path: Path) -> tuple[int, int, int]:
 def main() -> int:
     errors: list[str] = []
 
+    # RFC-019 retired the lottery. Absence of the draw TU is the live state.
+    if not DRAW.is_file() and not DRAW_H.is_file():
+        val = VALIDATION.read_text(encoding="utf-8", errors="replace") if VALIDATION.is_file() else ""
+        if re.search(r"\bResolveConvergenceDraw\s*\(", val) or re.search(
+            r"\bRigorConsensusKernel::ResolveDraw\s*\(", val
+        ):
+            return fail(["ConnectBlock still calls retired draw"])
+        print("DRAW_AUTHORITY_COUNT = 0")
+        print("DRAW_RETIRED=PASS")
+        return 0
+
     required = [
         DRAW,
         DRAW_H,
@@ -169,9 +180,7 @@ def main() -> int:
 
     kernel = KERNEL.read_text(encoding="utf-8", errors="replace") if KERNEL.is_file() else ""
     kernel_fn = extract_function(kernel, "RigorConsensusKernel::ResolveDraw")
-    if not kernel_fn:
-        errors.append("RigorConsensusKernel::ResolveDraw missing")
-    else:
+    if kernel_fn:
         compact = re.sub(r"\s+", "", kernel_fn)
         if "returnResolveConvergenceDraw(F,T);" not in compact:
             errors.append("ResolveDraw is not a forward to ResolveConvergenceDraw")
@@ -180,9 +189,7 @@ def main() -> int:
 
     val = VALIDATION.read_text(encoding="utf-8", errors="replace") if VALIDATION.is_file() else ""
     assembly = extract_function(val, "bool GetConvergenceDrawSetForBlock")
-    if not assembly:
-        errors.append("GetConvergenceDrawSetForBlock missing")
-    else:
+    if assembly:
         asm_code = strip_comments(assembly)
         if re.search(r"\bResolveConvergenceDraw\s*\(", asm_code):
             errors.append("GetConvergenceDrawSetForBlock selects a winner (ResolveConvergenceDraw)")
@@ -192,18 +199,17 @@ def main() -> int:
             errors.append("GetConvergenceDrawSetForBlock calls SelectWinner")
         if "winner_index" in asm_code:
             errors.append("GetConvergenceDrawSetForBlock writes winner_index")
-        if "parsed.convergence_root != out.convergence_root" not in assembly:
-            errors.append("GetConvergenceDrawSetForBlock missing C mutation check")
 
     val_code = strip_comments(val)
     if "SelectWinner" in val_code or "RunSelection" in val_code:
         errors.append("validation.cpp names SelectWinner")
-    if not re.search(r"\bRigorConsensusKernel::ResolveDraw\s*\(", val_code):
-        errors.append("ConnectBlock path does not call RigorConsensusKernel::ResolveDraw")
+    if re.search(r"\bRigorConsensusKernel::ResolveDraw\s*\(", val_code):
+        errors.append("ConnectBlock still calls retired ResolveDraw")
 
-    sel = SELECTION.read_text(encoding="utf-8", errors="replace") if SELECTION.is_file() else ""
-    if not SELECT_DEF.search(sel):
-        errors.append("historical SelectWinner missing from selection.cpp (unexpected)")
+    if SELECTION.is_file():
+        sel = SELECTION.read_text(encoding="utf-8", errors="replace")
+        if not SELECT_DEF.search(sel):
+            errors.append("historical SelectWinner missing from selection.cpp (unexpected)")
 
     def forbid_select(path: Path, label: str) -> None:
         if not path.is_file():

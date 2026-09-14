@@ -6,8 +6,8 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <wallet/coincontrol.h>
-#include <consensus/convergence_root.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <kernel/chain.h>
 #include <node/context.h>
 #include <test/util/setup_common.h>
@@ -56,16 +56,7 @@ void generateFakeBlock(const CChainParams& params,
     {
         const int h = tip.tip_height + 1;
         CMutableTransaction cb2(*block.vtx[0]);
-        uint256 convergence_root;
-        {
-            LOCK(::cs_main);
-            convergence_root = Consensus::ComputeConvergenceRootFromConvergenceSet(
-                block.vtx,
-                context.chainman->ActiveChainstate().CoinsTip(),
-                h,
-                params.GetConsensus());
-        }
-        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(h, convergence_root, uint256{});
+        cb2.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(h);
         block.vtx[0] = MakeTransactionRef(std::move(cb2));
     }
 

@@ -20,7 +20,7 @@ Definition RES_CAP : Z := RES_MAX_SUPPLY.
 
 (** Runtime cap-fit, in the same units as [State.RES_supply] (atoms).
 
-    Dual insurance with [max_issuance_within_cap] (finite sum) and the
+    Dual insurance with [cap_is_upper_bound] and the
     replay reject [apply_block = None] on overshoot. Equal-to-cap is
     admitted; one atom over is not. Honesty: not a C++ refinement. *)
 Definition mint_fits_cap (supply amount : Z) : bool :=

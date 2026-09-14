@@ -3,7 +3,7 @@
   "binary_integrity": {
     "USE_SQLITE": true,
     "binary_path": "./core/src/rigord",
-    "git_commit": "c9435a183a88ff6323223ba76428a4ca26821e9e",
+    "git_commit": "a0a470fccc70777202d411d60d088ade413cd094",
     "subversion": "/RigorCore:25.0.0(testnode0)/",
     "version": 250000
   },

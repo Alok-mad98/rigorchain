@@ -42,10 +42,6 @@ struct ExplorerStatusSnapshot {
 };
 
 struct ConvergenceDiagnosticsSnapshot {
-    bool pending{false};
-    QString pending_txid;
-    QString latest_completed_txid;
-    QString latest_mint_txid;
     int mint_lag{-1};
     StatusBadgeColor overall{StatusBadgeColor::Gray};
 };
@@ -70,7 +66,7 @@ public:
     static NodeStatusSnapshot collectNode(ClientModel* clientModel);
     static WalletStatusSnapshot collectWallet(WalletModel* walletModel);
     static ExplorerStatusSnapshot collectExplorer(ClientModel* clientModel);
-    static ConvergenceDiagnosticsSnapshot collectConvergence(ClientModel* clientModel, WalletModel* walletModel);
+    static ConvergenceDiagnosticsSnapshot collectConvergence(ClientModel* clientModel);
     static VerificationStatusSnapshot collectVerification(ClientModel* clientModel);
 
     static QString nodeStatusJson(const NodeStatusSnapshot& snap);

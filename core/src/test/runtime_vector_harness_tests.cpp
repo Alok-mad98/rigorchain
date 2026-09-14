@@ -70,9 +70,8 @@ BOOST_AUTO_TEST_CASE(gv_oru_0001_pass_with_synthetic_witness)
     snapshot.export_data.mirror.oru_converge_burn_block = 0;
     snapshot.export_data.mirror.res_mint_cumulative = 0;
     snapshot.export_data.mirror.res_mint_block = 0;
-    snapshot.export_data.mirror.res_mint_count_block = 0;
+    snapshot.export_data.mirror.res_mint_present_block = 0;
     snapshot.export_data.mirror.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    snapshot.export_data.mirror.res_reward_amount = Consensus::RES_REWARD_GENESIS;
 
     snapshot.export_data.coq_hook = Consensus::ProjectCoqSupplyFieldHook(snapshot.export_data.mirror);
     snapshot.invariants = Consensus::VerifyRuntimeSupplyInvariants(snapshot.export_data.mirror, consensus);
@@ -103,15 +102,23 @@ BOOST_AUTO_TEST_CASE(draw_vector_partial_with_materialized_fixture)
     proof::ResetGoldenVectorFixtureFlagsForTest();
     proof::SetGoldenVectorFixtureMaterializedForTest(7, true);
 
+    // Must equal what GV-DRAW-0002 expects, or the harness reports mismatches instead of
+    // exercising the PARTIAL path. The spec pins 40'000'000 per mint and 80'000'000
+    // cumulative at height 7. That figure originally came from the W(h) schedule constant
+    // RES_REWARD_GENESIS; RFC-019 deleted the schedule, so it is now simply a fixture
+    // number with no derivation behind it. Deliberately written as a literal rather than
+    // read out of the spec: reading the spec back would make the comparison vacuous, which
+    // is the exact failure mode `harness_fails_when_the_observation_disagrees_with_the_vector`
+    // was added to guard against.
+    const CAmount res_mint = 40'000'000;
     proof::RuntimeWitnessSnapshot snapshot;
     snapshot.present = true;
     snapshot.export_data.mirror.height = 7;
-    snapshot.export_data.mirror.res_mint_cumulative = 2 * Consensus::RES_REWARD_GENESIS;
-    snapshot.export_data.mirror.res_mint_parent = Consensus::RES_REWARD_GENESIS;
-    snapshot.export_data.mirror.res_mint_block = Consensus::RES_REWARD_GENESIS;
-    snapshot.export_data.mirror.res_mint_count_block = 1;
+    snapshot.export_data.mirror.res_mint_cumulative = 2 * res_mint;
+    snapshot.export_data.mirror.res_mint_parent = res_mint;
+    snapshot.export_data.mirror.res_mint_block = res_mint;
+    snapshot.export_data.mirror.res_mint_present_block = 1;
     snapshot.export_data.mirror.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    snapshot.export_data.mirror.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     snapshot.export_data.coq_hook = Consensus::ProjectCoqSupplyFieldHook(snapshot.export_data.mirror);
     snapshot.invariants = Consensus::VerifyRuntimeSupplyInvariants(
         snapshot.export_data.mirror, Params().GetConsensus());
@@ -147,9 +154,8 @@ BOOST_AUTO_TEST_CASE(harness_fails_when_the_observation_disagrees_with_the_vecto
         snapshot.export_data.mirror.res_mint_cumulative = spec.expected_res_supply;
         snapshot.export_data.mirror.res_mint_parent = spec.expected_res_parent;
         snapshot.export_data.mirror.res_mint_block = spec.expected_res_mint;
-        snapshot.export_data.mirror.res_mint_count_block = spec.expected_res_mint_count;
+        snapshot.export_data.mirror.res_mint_present_block = spec.expected_res_mint_count;
         snapshot.export_data.mirror.res_max_supply = Consensus::RES_MAX_SUPPLY;
-        snapshot.export_data.mirror.res_reward_amount = Consensus::RES_REWARD_GENESIS;
         snapshot.export_data.coq_hook =
             Consensus::ProjectCoqSupplyFieldHook(snapshot.export_data.mirror);
         snapshot.invariants =
@@ -188,9 +194,8 @@ BOOST_AUTO_TEST_CASE(invariants_diagnostic_mismatch_does_not_fail_harness)
     snapshot.export_data.mirror.oru_converge_burn_block = 0;
     snapshot.export_data.mirror.res_mint_cumulative = 0;
     snapshot.export_data.mirror.res_mint_block = 0;
-    snapshot.export_data.mirror.res_mint_count_block = 0;
+    snapshot.export_data.mirror.res_mint_present_block = 0;
     snapshot.export_data.mirror.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    snapshot.export_data.mirror.res_reward_amount = Consensus::RES_REWARD_GENESIS;
     snapshot.export_data.coq_hook = Consensus::ProjectCoqSupplyFieldHook(snapshot.export_data.mirror);
 
     Consensus::RuntimeInvariantResult inv =

@@ -1,0 +1,11 @@
+From Phase10 Require Import UnliftFeasibility.
+Print Assumptions Semantics2EntryContract.
+Print Assumptions Semantics1EntryContract.
+Print Assumptions bind_parameter_temps_head.
+Print Assumptions function_entry2_param_temp_head.
+Print Assumptions function_entry1_param_block.
+Print Assumptions blocks_of_env_has.
+Print Assumptions exec_sset_step2_vs_step1.
+Print Assumptions exec_sequence_step2_vs_step1.
+Print Assumptions step_return_1_shape.
+Print Assumptions entry1_param_is_in_free_list.

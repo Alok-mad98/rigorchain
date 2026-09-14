@@ -1,6 +1,7 @@
 # Formal Verification — Assumption Boundary
 
-**Task:** `TASK-RIGOR-FORMAL-VERIFICATION-COVERAGE-AUDIT-P0-001`  
+**Document status:** Security audit  
+**Historical verification reference:** P0-001  
 **Date:** 2026-08-20  
 **Honesty flags (must remain false):**
 
@@ -30,17 +31,17 @@ There is **no** theorem `C++ = Python = Coq`.
 
 ## 2. What RIGOR proves (in the model and/or the gate)
 
-### 2.1 Deterministic reward schedule (RES)
+### 2.1 Deterministic RES price (RFC-020)
 
-- Height → epoch → `W(k)` is a pure function (`ResSchedule.v` / Python / C++ `ResRewardForEpoch`).
-- Pins: genesis reward, last positive epoch, post-horizon zero, nonincreasing check, cost-floor rise when `W` falls (`reward_pin_table`, `reward_nonincreasing`, `cost_floor_nondecreasing_along_schedule`).
-- Differential: `test_rfc017_schedule_parity.py` for `k = 0..251`.
+- Height → `destroy_cost(h)` is a pure function (`ResSchedule.v` / Python SSOT / C++ `ResDestroyCostAtHeight`).
+- Pins: `destroy_cost(0) = 1024` ORU, height-1 pin, pole predicate, no free mint (`predicate_equals_destroy_cost`, `destroy_cost_strictly_increasing`, `no_free_mint_anywhere`).
+- Differential: `tools/res_continuous_price_schedule.py` and `core/src/test/res_issuance_tests.cpp`.
 
 ### 2.2 RES supply cap
 
-- Finite-sum identity: `schedule_sum = 99450437`; `max_issuance_within_cap`.
-- Connect / apply-block reject on overshoot (exact-at-cap admitted; one atom over rejected) under model predicates.
-- Cap dual-insurance theorems in `ResMintObligation.v` / `SupplyConservation.v` (model scalars + scheduled mint shape).
+- Closed form: `(128 / 1024) · 2²⁵ · RES_COIN = 2²²` RES (`cap_is_closed_form`).
+- `cumulative_res_at h ≤ RES_MAX_SUPPLY` (`cap_is_upper_bound`).
+- Exact-at-cap admitted; one atom over rejected (`res_cap_atom_boundaries`).
 
 ### 2.3 Convergence / draw properties (model)
 
@@ -57,7 +58,7 @@ There is **no** theorem `C++ = Python = Coq`.
 
 ### 2.5 Asset separation (dual pool, model)
 
-- Ordinary txs: RES in ≥ RES out; mint exception exactly schedule term `W(h)`.
+- Ordinary txs: RES in ≥ RES out; mint exception is a body-tx destroy that satisfies `CheckResMintArithmetic`.
 - Block-level RES net bounded by scheduled mints (`apply_block_res_net_bounded_by_scheduled_mints`).
 - Explicit **non-claims**: asset class is `out_asset`, not derived from `out_script`; `rs_res_supply` ≠ `utxo_res` (`OpaqueBoundary.v`).
 
@@ -119,4 +120,5 @@ Forbidden:
 
 > Fully mathematically proven blockchain / complete production equivalence.
 
-Authority when prose conflicts with code: **code wins** (`formal_verification/README.md`).
+Authority when prose conflicts with the live RFC: **the RFC wins**.
+See [`../formal/SSOT_HIERARCHY.md`](../formal/SSOT_HIERARCHY.md).

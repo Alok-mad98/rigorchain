@@ -22,9 +22,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -77,7 +74,7 @@ void PerformanceBoundaryOne(const uint8_t* data, size_t size)
     in.tx.witness = {in.tx.signature, in.tx.pubkey};
     in.tx.keyhash_match = (kind & 1) == 0;
     in.tx.crypto_accept = (kind & 2) == 0;
-    in.consensus.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
+    in.consensus.draw_target = uint256S("5555555555555555555555555555555555555555555555555555555555555555");
 
     if (kind == 0xff) {
         // malformed transaction

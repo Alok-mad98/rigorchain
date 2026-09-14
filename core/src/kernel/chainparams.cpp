@@ -12,12 +12,15 @@
 #include <hash.h>
 #include <chainparamsbase.h>
 #include <logging.h>
+#include <netaddress.h>
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/predicate_verify.h>
 #include <script/script.h>
+#include <streams.h>
 #include <uint256.h>
 #include <util/strencodings.h>
+#include <version.h>
 
 #include <algorithm>
 #include <array>
@@ -26,11 +29,11 @@
 #include <cstring>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 namespace {
-static_assert(Consensus::ORU_INITIAL_BLOCK_SUBSIDY == 1000 * COIN);
+static_assert(Consensus::ORU_FLAT_BLOCK_SUBSIDY == 128 * COIN);
 static_assert(Consensus::ORU_GENESIS_BLOCK_SUBSIDY == 0);
-static_assert(Consensus::ORU_SUBSIDY_MAX_SHIFTS == 3);
 
 // Mainnet operator pubkey: mechanism is compiled in; the operator key
 // ceremony is pending. This value is not an operational signing key until
@@ -50,6 +53,22 @@ void SetSeedManifestFields(std::array<unsigned char, 32>& pubkey,
     assert(hex.size() == pubkey.size());
     std::copy(hex.begin(), hex.end(), pubkey.begin());
     epochs = {"2026Q3", "2026Q4"};
+}
+
+// ADDRv2 encoding consumed by net.cpp ConvertSeeds. Not consensus.
+std::vector<uint8_t> EncodeIPv4FixedSeed(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint16_t port)
+{
+    struct in_addr ipv4{};
+    const uint8_t bytes[4] = {a, b, c, d};
+    std::memcpy(&ipv4.s_addr, bytes, 4);
+    CService endpoint{ipv4, port};
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
+    ss << endpoint;
+    std::vector<uint8_t> out(ss.size());
+    if (!out.empty()) {
+        std::memcpy(out.data(), ss.data(), out.size());
+    }
+    return out;
 }
 } // namespace
 
@@ -104,9 +123,7 @@ public:
         strNetworkID = CBaseChainParams::MAIN;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
+        // RFC-020: GetBlockSubsidy ignores Params. Observational calendar is RES_REWARD_EPOCH.
         consensus.nCoinbaseMaturity = 100;
         // Rigor mainnet uses a fresh genesis (genesis-lockdown.md). Buried softforks
         // are genesis-active (BIP34/65/66/CSV @1, Segwit @0); script flags are constant.
@@ -117,13 +134,6 @@ public:
         consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
         // 2^231 − 1 (SPEC-008 §8.2): genesis compact 0x1d008000 (2^223) remains legal;
         // the genesis/powLimit separation stays at 2^8, so ASERT keeps 8 half-lives of
         // easing headroom and the startup-time audit's "~47 steps to powLimit" is
@@ -268,9 +278,7 @@ public:
         strNetworkID = CBaseChainParams::TESTNET;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
+        // RFC-020: GetBlockSubsidy ignores Params. Observational calendar is RES_REWARD_EPOCH.
         consensus.nCoinbaseMaturity = 100;
         // Policy: all buried softforks are genesis-active (same as mainnet).
         consensus.BIP34Height = 1;
@@ -280,13 +288,6 @@ public:
         consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 60; // 1 minute nominal inter-block interval
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30-block BIP9 window
@@ -338,8 +339,14 @@ public:
             }
         };
 
-        // Rigor public testnet: DNS seeds only (no Bitcoin bootstrap peers).
-        vFixedSeeds.clear();
+        // Private-testnet bootstrap (TASK-003). Mainnet still clears vFixedSeeds.
+        // EXISTING endpoint: 127.0.0.1:18760 = node-001 when
+        // tools/testnet/start-bootstrap.sh is running. No public operator IP
+        // is compiled here (none exists). DNS names below are historical
+        // strings; this tree does not claim they resolve — configs set dnsseed=0.
+        // addrman skips IsLocal, so joiners also use -seednode/-addnode in
+        // testnet/bootstrap/*.conf.
+        vFixedSeeds = EncodeIPv4FixedSeed(127, 0, 0, 1, nDefaultPort);
         SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
         vSeeds.clear();
         vSeeds.emplace_back("seed1.testnet.rigor.network.");
@@ -377,14 +384,11 @@ public:
         strNetworkID = CBaseChainParams::DEVTEST;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
-        consensus.res_mint_target_bits = 1;
+        // RFC-020: GetBlockSubsidy ignores Params. Observational calendar is RES_REWARD_EPOCH.
         // Align with mainnet/signet: ORU and RES coinbase outputs mature after 100 confirmations.
         consensus.nCoinbaseMaturity = 100;
         // All buried softforks active from genesis / block 1 — no Bitcoin-era delayed heights.
-        // BIP34 @1 also gates coinbase ConvergenceRoot (`bad-cb-convergence-root`).
+        // BIP34 @1 gates the coinbase height push.
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
         consensus.BIP65Height = 1;
@@ -392,13 +396,6 @@ public:
         consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 60; // 1 minute
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30 blocks
@@ -479,9 +476,7 @@ public:
         strNetworkID =  CBaseChainParams::REGTEST;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = 150;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
+        // RFC-020: GetBlockSubsidy ignores Params. Observational calendar is RES_REWARD_EPOCH.
         consensus.nCoinbaseMaturity = 100;
         // Same genesis-active policy as public nets. BIP34/65/66/CSV @1 exempts
         // the genesis coinbase from BIP34 height-encoding; Segwit @0 is from genesis.
@@ -493,13 +488,6 @@ public:
         consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 10 * 60; // 10 minutes
         consensus.nPowTargetTimespan = 288 * consensus.nPowTargetSpacing; // 288 blocks
@@ -614,9 +602,7 @@ public:
         strNetworkID = CBaseChainParams::SLOWTEST;
         consensus.signet_blocks = false;
         consensus.signet_challenge.clear();
-        consensus.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-        consensus.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-        consensus.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
+        // RFC-020: GetBlockSubsidy ignores Params. Observational calendar is RES_REWARD_EPOCH.
         consensus.nCoinbaseMaturity = 1; // Reduced for testing
         consensus.BIP34Height = 1;
         consensus.BIP34Hash = uint256{};
@@ -625,13 +611,6 @@ public:
         consensus.CSVHeight = 1;
         consensus.SegwitHeight = 0;
         consensus.MinBIP9WarningHeight = 0;
-        // RFC-014 v1.1 (Conv-Decouple-01): RES convergence eligibility constant
-        // = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW (RFC-017; C=1024 ORU).
-        // Historical RFC-014 v1.0 specified 2^240, which was
-        // derived at f = 1 while the implemented weight is in satoshis; see SECURITY-001-A
-        // finding A-6 and the derivation in consensus/params.h.
-        // Identical across all networks; per RFC-014 §2.4 no per-network divergence.
-        consensus.RES_PROBABILITY_TARGET = Consensus::RES_PROBABILITY_TARGET_CONST;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 30; // 30 seconds target
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30 blocks

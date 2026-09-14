@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COQ = ROOT / "formal_verification/coq"
-FLAGS = ["-q", "-R", ".", "Rigor", "-R", "fee-burn", "Rigor.FeeBurn", "-R", "../rigor_v01", "RigorV01"]
+FLAGS = ["-q", "-R", ".", "Rigor", "-R", "../rigor_v01", "RigorV01"]
 
 MODULES = (
     "SignatureBoundary.v",
@@ -33,12 +33,11 @@ MODULES = (
 )
 
 THEOREMS = (
-    "ConsensusKernelRefinement.issuance_refinement",
+    "ConsensusKernelRefinement.cpp_flat_oru_pins",
     "ConsensusKernelRefinement.classification_refinement",
     "ConsensusKernelRefinement.draw_refinement",
     "ConsensusKernelRefinement.supply_delta_refinement",
     "ConsensusKernelRefinement.coinbase_boundary_refinement",
-    "ConsensusKernelRefinement.oru_subsidy_constant_after_cap",
     "ConnectBlockKernelBoundary.connectblock_kernel_boundary",
     "ConnectBlockKernelBoundary.connectblock_can_reject",
     "ConnectBlockKernelBoundary.connectblock_rejects_bad_input",

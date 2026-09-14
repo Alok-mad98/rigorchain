@@ -8,9 +8,6 @@
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/amount.h>
-#include <consensus/convergence_commitment.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root.h>
 #include <consensus/convergenceres.h>
 #include <consensus/validation.h>
 #include <core_io.h>
@@ -1761,7 +1758,7 @@ static RPCHelpMan listconvergencehistory()
 {
     return RPCHelpMan{
         "listconvergencehistory",
-        "\nScan active chain and return RES-winning convergence history.\n",
+        "\nScan active chain and return the RES mint history.\n",
         {
             {"start_height", RPCArg::Type::NUM, RPCArg::Default{0}, "Start height (inclusive)"},
             {"end_height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED, "End height (inclusive, default tip)"},
@@ -1772,7 +1769,6 @@ static RPCHelpMan listconvergencehistory()
                     {
                         {RPCResult::Type::NUM, "height", "Block height"},
                         {RPCResult::Type::STR_HEX, "blockhash", "Block hash"},
-                        {RPCResult::Type::STR_HEX, "winner_txid", "Winning txid from CVGE commitment"},
                         {RPCResult::Type::STR_AMOUNT, "res_total", "Cumulative RES total at this block"},
                     }},
             }},
@@ -1784,7 +1780,7 @@ static RPCHelpMan listconvergencehistory()
 
             int start_height = request.params[0].isNull() ? 0 : request.params[0].getInt<int>();
             int end_height{-1};
-            std::vector<const CBlockIndex*> winner_blocks;
+            std::vector<const CBlockIndex*> res_mint_blocks;
             std::vector<CAmount> prefix_res_mint_total;
             {
                 LOCK(cs_main);
@@ -1797,7 +1793,7 @@ static RPCHelpMan listconvergencehistory()
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid start_height/end_height range");
                 }
 
-                winner_blocks.reserve(static_cast<size_t>(end_height - start_height + 1));
+                res_mint_blocks.reserve(static_cast<size_t>(end_height - start_height + 1));
                 prefix_res_mint_total.assign(static_cast<size_t>(end_height + 1), 0);
                 CAmount running = 0;
                 for (int h = 0; h <= end_height; ++h) {
@@ -1811,20 +1807,15 @@ static RPCHelpMan listconvergencehistory()
                     const CBlockIndex* bi = active[h];
                     CHECK_NONFATAL(bi);
                     if (bi->has_res == 0) continue;
-                    winner_blocks.push_back(bi);
+                    res_mint_blocks.push_back(bi);
                 }
             }
 
             UniValue out(UniValue::VARR);
-            for (const CBlockIndex* bi : winner_blocks) {
-                if (!bi->pprev) continue;
-                const std::optional<uint256> w = GetConvergenceWinnerForBlock(*bi, chainman.GetParams().GetConsensus());
-                if (!w.has_value()) continue;
-
+            for (const CBlockIndex* bi : res_mint_blocks) {
                 UniValue one(UniValue::VOBJ);
                 one.pushKV("height", bi->nHeight);
                 one.pushKV("blockhash", bi->GetBlockHash().GetHex());
-                one.pushKV("winner_txid", w->GetHex());
                 CHECK_NONFATAL(bi->nHeight >= 0);
                 CHECK_NONFATAL(static_cast<size_t>(bi->nHeight) < prefix_res_mint_total.size());
                 one.pushKV("res_total", ValueFromAmount(prefix_res_mint_total[static_cast<size_t>(bi->nHeight)]));

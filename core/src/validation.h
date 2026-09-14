@@ -14,7 +14,6 @@
 #include <attributes.h>
 #include <chain.h>
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/replay_snapshot.h>
 #include <consensus/state_snapshot.h>
@@ -85,15 +84,14 @@ static const int DEFAULT_STOPATHEIGHT = 0;
 static const unsigned int MAX_SUPPORTED_REORG_DEPTH = 288;
 /**
  * Block files containing a block-height within MIN_BLOCKS_TO_KEEP of ActiveChain().Tip() will
- * not be pruned.
+ * not be pruned. Must cover MAX_SUPPORTED_REORG_DEPTH; see the static_assert in validation.cpp.
  *
- * Connecting a block costs more than its own data in RIGOR: the convergence draw enumerates F
- * over CONVERGENCE_DRAW_WINDOW blocks, so ConnectBlock reads the block and undo data of the
- * window ending at the parent. A reorg of depth D therefore needs data down to
- * tip - D - CONVERGENCE_DRAW_WINDOW, and the keep window has to cover the sum, not just the
- * deeper of the two. See the static_assert in validation.cpp that ties the three together.
+ * This was 320 = 288 + 32 while the convergence draw made ConnectBlock read the 32-block
+ * candidate window ending at the parent, which pushed the oldest datum a depth-D reorg touches
+ * down to tip - D - 32. RFC-019 removed the window, so connecting a block again costs only its
+ * own data plus the coins view, and the extra 32 blocks had no remaining justification.
  */
-static const unsigned int MIN_BLOCKS_TO_KEEP = 320;
+static const unsigned int MIN_BLOCKS_TO_KEEP = 288;
 static const signed int DEFAULT_CHECKBLOCKS = 6;
 static constexpr int DEFAULT_CHECKLEVEL{3};
 // Minimum -prune target. CheckBlock rejects GetSerializeSize(NO_WITNESS) * 4 > BLOCK_WEIGHT_LIMIT
@@ -376,122 +374,6 @@ bool TestBlockValidity(BlockValidationState& state,
 
 /** Check each header with AlphaPlus CheckProofOfWork (OpuHash vs declared nBits). */
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams);
-
-/**
- * SECURITY-001-A9-C: the buried half of a draw window — the W-1 blocks ending at `parent_index`
- * inclusive. For a source block at height s (whose parent is `parent_index`) that is
- * [s-W+1, s-1], the window [s-W+1, s] minus the source block itself.
- *
- * The source block's own candidates are deliberately absent: callers hold them either as a live
- * coins view (ConnectBlock, the block template builder) or as undo data, and reading them a
- * second time here would create two paths that could disagree. Its own mint exclusion is added by
- * the draw-set builders for the same reason.
- *
- * Pass nullptr for a block whose parent is genesis-side absent; that is a complete empty tail.
- * Returns false only on a storage failure. Near genesis the walk stops early, which is likewise a
- * complete window rather than a truncated one.
- */
-bool BuildConvergenceWindowTail(const CBlockIndex* parent_index,
-    const Consensus::Params& consensus_params,
-    ConvergenceWindowTail& out);
-
-/**
- * SECURITY-001-A8 / A-9-C: the convergence set committed by `block_index` — the set that the
- * block at `block_index.nHeight + 1` draws from and pays out. Served from the draw set
- * recorded on the block index at ConnectBlock (survives prune), then a process-local cache,
- * then a reconstruction from blk/rev of the CONVERGENCE_DRAW_WINDOW ending at `block_index`.
- *
- * Returns false only on a storage failure, which callers must not treat as a statement about
- * the chain.
- */
-bool GetConvergenceDrawSetForBlock(const CBlockIndex& block_index,
-    const Consensus::Params& consensus_params,
-    ConvergenceDrawSet& out);
-
-/**
- * Chain-wide Convergence network statistics (GUI / RPC display only — not consensus).
- *
- * Derived from the tip's W-window contributions + cumulative RES mint index.
- * Cached by tip hash; refreshed on tip connect/disconnect (O(W) worst case, never a full chain scan).
- */
-struct ConvergenceNetworkStats {
-    int64_t active_convergences{0}; //!< All convergence candidates in the tip W-window (paid + unpaid)
-    CAmount active_oru{0};          //!< Sum of their ORU amounts (sat-style atoms)
-    int64_t pending_windows{0};     //!< Unpaid candidates still in tip draw set F
-    CAmount total_res_minted{0};    //!< Cumulative RES minted (RES atoms; 1.000000 RES = 1000000)
-    int best_height{-1};            //!< Active tip height
-    uint256 tip_hash{};
-    bool valid{false};
-};
-
-/**
- * Read Convergence network stats for `tip`, using a process-local tip-hash cache.
- * Rebuilds from window contribution cache / disk when tip changes or cache is cold (restart-safe).
- */
-bool GetConvergenceNetworkStats(const CBlockIndex& tip,
-    const Consensus::Params& consensus_params,
-    ConvergenceNetworkStats& out) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-/** Force recompute for the new tip (ConnectTip). No-op if tip is null. */
-void RefreshConvergenceNetworkStatsCache(const CBlockIndex* tip,
-    const Consensus::Params& consensus_params) EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
-
-/** Mark stats cache stale (DisconnectTip / reorg). */
-void InvalidateConvergenceNetworkStatsCache();
-
-/**
- * SECURITY-001-A9-C: the convergence set a block with this body, built on `parent`, commits — the
- * set that the NEXT block draws from, spanning the whole CONVERGENCE_DRAW_WINDOW.
- *
- * Returns an unset set when the window cannot be read.
- */
-ConvergenceDrawSet GetTemplateConvergenceDrawSet(const CBlock& block,
-    const CBlockIndex* parent,
-    const CCoinsViewCache& view_at_block_entry,
-    const Consensus::Params& consensus_params);
-
-/**
- * Winner this template's coinbase mint pays. `out` is nullopt when the coinbase does not mint
- * or the parent draw has no winner.
- *
- * Returns false only if the coinbase mints and the parent draw cannot be read. Callers must not
- * treat that as "no winner" — it is a storage / window failure, the same signal as an unset
- * `GetTemplateConvergenceDrawSet`.
- */
-bool GetTemplatePaidWinner(const CBlock& block,
-    const CBlockIndex* parent,
-    const Consensus::Params& consensus_params,
-    std::optional<uint256>& out);
-
-/**
- * SECURITY-001-A9-C: the ConvergenceRoot a block with this body, built on `parent`, must commit in
- * its coinbase scriptSig — i.e. the C that ConnectBlock will derive and compare against.
- *
- * C spans the whole draw window, so it is not a function of the block alone. Every producer of a
- * block — the template builder and every test that rebuilds a coinbase — MUST go through this
- * rather than through the block-local `ComputeConvergenceRootFromConvergenceSet`, or the block is
- * rejected as `bad-cb-convergence-root` the moment any block in the window carries a convergence
- * transaction.
- *
- * Returns a null root when the window cannot be read, which will fail validation rather than
- * silently commit to a shortened window.
- */
-uint256 GetTemplateConvergenceRoot(const CBlock& block,
-    const CBlockIndex* parent,
-    const CCoinsViewCache& view_at_block_entry,
-    const Consensus::Params& consensus_params);
-
-/**
- * SECURITY-001-A9-C: the winner the block at `block_index` awarded — the txid the block at
- * `block_index.nHeight + 1` must pay, or nullopt when nothing was eligible.
- *
- * Every read path (RPC, wallet, indexes) MUST resolve winners through this rather than through
- * the block-local `GetBlockWinnerFromBlockUndo`, because under A-9-C the draw is a function of a
- * W-block window and a single block's candidates are never a valid F. nullopt also covers a
- * storage failure, which read paths report as "no winner known" rather than as consensus truth.
- */
-std::optional<uint256> GetConvergenceWinnerForBlock(const CBlockIndex& block_index,
-    const Consensus::Params& consensus_params);
 
 /** Return the sum of the work on a given set of headers */
 arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers);
@@ -1340,15 +1222,6 @@ bool DeploymentEnabled(const ChainstateManager& chainman, DEP dep)
 const AssumeutxoData* ExpectedAssumeutxo(const int height, const CChainParams& params);
 
 class BlockValidationState;
-
-/** Rigor-specific block validation helpers exposed for unit tests. */
-namespace rigor {
-/** Coinbase RIGOR RIGOR_MARKER_RETURN carries parent compact `nBits` (must match `pindex->pprev->nBits` when parent exists). */
-bool CheckRigorDrawTargetCommitment(BlockValidationState& state,
-                                    const CBlock& block,
-                                    const CBlockIndex* pindex,
-                                    const Consensus::Params& consensus_params);
-} // namespace rigor
 
 class CTransaction;
 class CCoinsViewCache;

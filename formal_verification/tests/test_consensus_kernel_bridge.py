@@ -63,7 +63,7 @@ def main() -> int:
     if vecs.get("heights") != HEIGHTS:
         errors.append(f"heights drifted: {vecs.get('heights')}")
     by_id = {v["id"]: v for v in vecs.get("vectors", [])}
-    if by_id["P052-G0-ORU"]["res_schedule"] != 40000000:
+    if by_id["P052-G0-ORU"]["res_schedule"] != 102400000000:
         errors.append("genesis schedule")
     if by_id["P052-G0-ORU"]["res_issued"] != 0:
         errors.append("genesis actual RES")
@@ -103,12 +103,10 @@ def main() -> int:
             ors, crs = run(OCAML, "res-schedule", str(h)), run(CPP, "res-schedule", str(h))
             if ors != crs:
                 errors.append(f"res-schedule({h}) ocaml={ors} cpp={crs}")
-        if run(OCAML, "res-schedule", "0") != "40000000":
-            errors.append("GetResMintReward(0)")
+        if run(OCAML, "res-schedule", "0") != "102400000000":
+            errors.append("ResDestroyCostAtHeight(0)")
         if run(OCAML, "res-issued", "0") != "0":
             errors.append("res_issued_at_height(0)")
-        if run(OCAML, "draw-empty") != "NONE":
-            errors.append("empty F")
         if run(OCAML, "mature", "100", "1") != "false":
             errors.append("immature at 100")
         if run(OCAML, "mature", "101", "1") != "true":

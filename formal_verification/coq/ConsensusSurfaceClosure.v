@@ -67,8 +67,8 @@ Proof. reflexivity. Qed.
 Theorem pow_is_registered : pow_boundary_registered = true.
 Proof. reflexivity. Qed.
 
-Theorem p056_kernel_still_true :
-  ConsensusKernelRefinement.refinement_proved = true.
+Theorem p056_kernel_withdrawn :
+  ConsensusKernelRefinement.refinement_proved = false.
 Proof. reflexivity. Qed.
 
 Theorem p057_connectblock_still_boundary :
@@ -210,7 +210,7 @@ Proof. repeat split; reflexivity. Qed.
 
 Inductive ConsensusAuthority :=
 | AuthGetBlockSubsidy
-| AuthGetResMintReward
+| AuthResDestroyCostAtHeight
 | AuthRigorSupplyDelta
 | AuthResolveConvergenceDraw
 | AuthClassifyRigorTxout
@@ -226,7 +226,7 @@ Definition authority_of (d : ConsensusSurface) : ConsensusAuthority :=
   | CS_SupplyDelta => AuthRigorSupplyDelta
   | CS_Draw => AuthResolveConvergenceDraw
   | CS_Classify => AuthClassifyRigorTxout
-  | CS_Coinbase => AuthGetResMintReward
+  | CS_Coinbase => AuthResDestroyCostAtHeight
   | CS_SpendPredicate => AuthVerifyRigorPredicate
   | CS_Sighash => AuthCanonicalSighash
   | CS_Signature => AuthEd25519Boundary

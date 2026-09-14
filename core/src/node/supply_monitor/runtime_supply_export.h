@@ -58,7 +58,7 @@ UniValue RuntimeSupplyExportToJson(const RuntimeSupplyExport& exp,
                                    const Params& consensus);
 
 /**
- * Phase-5 audit grid: 16 supply observables × 2 sources = 32 cells.
+ * Phase-5 audit grid: 15 supply observables × 2 sources = 30 cells.
  * Sources: `runtime_mirror` (observational) and `authoritative_index` (pindex caches).
  */
 UniValue RuntimeSupplyPhase5CellsToJson(const RuntimeSupplyExport& exp);

@@ -17,10 +17,10 @@
 #include <utility>
 #include <vector>
 
-uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out)
+uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& out, uint32_t nFlags)
 {
     std::vector<unsigned char> raw;
-    raw.reserve(4 + 1 + 8 + 4 + out.scriptPubKey.size());
+    raw.reserve(4 + 1 + 8 + 4 + 4 + out.scriptPubKey.size());
     raw.push_back('R');
     raw.push_back('G');
     raw.push_back('C');
@@ -36,7 +36,35 @@ uint32_t CoinIntegrityChecksum(uint32_t nHeight, bool fCoinBase, const CTxOut& o
         raw.push_back(static_cast<unsigned char>(value_bits >> (8 * i)));
     }
     raw.insert(raw.end(), out.scriptPubKey.begin(), out.scriptPubKey.end());
+    for (int i = 0; i < 4; ++i) {
+        raw.push_back(static_cast<unsigned char>(nFlags >> (8 * i)));
+    }
     return crc32c::Crc32c(raw.data(), raw.size());
+}
+
+bool TxOutputIsBodyResMint(const CTransaction& tx, uint32_t o)
+{
+    if (tx.IsCoinBase() || o >= tx.vout.size()) {
+        return false;
+    }
+    if (AssetTypeFromScriptPubKey(tx.vout[o].scriptPubKey) != ASSET_RES) {
+        return false;
+    }
+    // Same shape as Consensus::IsConvergenceTx, without pulling convergenceres into the DB layer.
+    int n_cvg = 0;
+    for (const CTxOut& out : tx.vout) {
+        if (out.nValue > 0 && IsConvergenceScript(out.scriptPubKey)) {
+            ++n_cvg;
+        }
+    }
+    return n_cvg == 1;
+}
+
+void ApplyBodyResMintFlag(Coin& coin, const CTransaction& tx, uint32_t out_index)
+{
+    if (TxOutputIsBodyResMint(tx, out_index)) {
+        coin.nFlags |= COIN_FLAG_RES_MINT;
+    }
 }
 
 bool CCoinsView::GetCoin(const COutPoint &outpoint, Coin &coin) const { return false; }
@@ -156,6 +184,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, bool 
         }
         bool overwrite = check_for_overwrite && cache.HaveCoin(COutPoint(txid, i));
         Coin coin(tx.vout[i], nHeight, fCoinbase);
+        ApplyBodyResMintFlag(coin, tx, static_cast<uint32_t>(i));
         cache.AddCoin(COutPoint(txid, i), std::move(coin), overwrite);
     }
 }

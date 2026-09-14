@@ -46,14 +46,11 @@ let usage () =
   prerr_endline
     "consensus_kernel_cli (extracted Coq adapter, not a second kernel)\n\
      commands:\n\
-     epoch H | oru H | res-schedule H | res-issued H | issuance H\n\
+     epoch H | oru H | res-schedule H | res-price H | res-issued H | issuance H\n\
      mature SPEND COIN | maturity-const\n\
      classify HEX|- \n\
      claimable FEES BURN SUBSIDY | ledger-delta SUB CONVERGE\n\
-     res-coinbase FEES BOOT MINT\n\
-     apply-delta H SUB MINT CONV BURN ORD AUTH INV\n\
-     draw-empty | draw H C_HEX B_HEX TXID:WEIGHT[,TXID:WEIGHT...]\n\
-     draw-t0 H C_HEX B_HEX TXID:WEIGHT[,TXID:WEIGHT...]\n\
+     res-coinbase FEES BOOT\n\
      sum-oru LO HI";
   exit 2
 
@@ -90,9 +87,9 @@ let () =
   | "oru" ->
       let h = z_of_int (int_of_string Sys.argv.(2)) in
       print_endline (z_to_dec (K.oru_subsidy h))
-  | "res-schedule" ->
+  | "res-schedule" | "res-price" ->
       let h = z_of_int (int_of_string Sys.argv.(2)) in
-      print_endline (z_to_dec (K.get_res_mint_reward h))
+      print_endline (z_to_dec (K.res_destroy_cost_at_height h))
   | "res-issued" ->
       let h = z_of_int (int_of_string Sys.argv.(2)) in
       print_endline (z_to_dec (K.res_issued_at_height h))
@@ -121,75 +118,7 @@ let () =
   | "res-coinbase" ->
       let f = z_of_int (int_of_string Sys.argv.(2)) in
       let b = z_of_int (int_of_string Sys.argv.(3)) in
-      let m = z_of_int (int_of_string Sys.argv.(4)) in
-      print_endline (z_to_dec (K.rigor_res_coinbase_expected f b m))
-  | "apply-delta" ->
-      if Array.length Sys.argv <> 10 then usage ();
-      let d : K.blockDelta =
-        {
-          bd_height = z_of_int (int_of_string Sys.argv.(2));
-          bd_subsidy = z_of_int (int_of_string Sys.argv.(3));
-          bd_valid_mint = z_of_int (int_of_string Sys.argv.(4));
-          bd_converge = z_of_int (int_of_string Sys.argv.(5));
-          bd_fee_burn = z_of_int (int_of_string Sys.argv.(6));
-          bd_ordinary = Sys.argv.(7) <> "0";
-          bd_mint_authorized = Sys.argv.(8) <> "0";
-          bd_has_invalid = Sys.argv.(9) <> "0";
-        }
-      in
-      (match K.apply_delta K.genesis_supply d with
-      | None -> print_endline "REJECT"
-      | Some s ->
-          Printf.printf "%s %s %s %s\n" (z_to_dec s.us_ledger_oru)
-            (z_to_dec s.us_circulating_oru) (z_to_dec s.us_res)
-            (z_to_dec s.us_fee_burn_acc))
-  | "draw-empty" ->
-      (match
-         K.resolve_convergence_draw [] [] [] (z_of_int 0) K.rES_PROBABILITY_TARGET
-       with
-      | None -> print_endline "NONE"
-      | Some _ -> print_endline "WINNER")
-  | "draw" | "draw-t0" as dcmd ->
-      if Array.length Sys.argv <> 6 then usage ();
-      let h = z_of_int (int_of_string Sys.argv.(2)) in
-      let c = hex_to_bytes Sys.argv.(3) in
-      let b = hex_to_bytes Sys.argv.(4) in
-      let spec = Sys.argv.(5) in
-      let target = if dcmd = "draw-t0" then K.Z0 else K.rES_PROBABILITY_TARGET in
-      let rec split_on sep s =
-        match String.index_opt s sep with
-        | None -> if s = "" then [] else [ s ]
-        | Some i ->
-            String.sub s 0 i
-            :: split_on sep (String.sub s (i + 1) (String.length s - i - 1))
-      in
-      let parse_one one =
-        match String.index_opt one ':' with
-        | None -> failwith "draw spec TXID:WEIGHT"
-        | Some i ->
-            let hx = String.sub one 0 i in
-            let w = int_of_string (String.sub one (i + 1) (String.length one - i - 1)) in
-            let bytes = hex_to_bytes hx in
-            ( {
-                K.tx_id = K.Z0;
-                tx_id_bytes = bytes;
-                asset_in = K.ORU;
-                fee = K.Z0;
-                mint_cost = z_of_int w;
-              },
-              hx )
-      in
-      let parsed = List.map parse_one (split_on ',' spec) in
-      let f = List.map fst parsed in
-      (match K.resolve_convergence_draw f c b h target with
-      | None -> print_endline "{\"draw\":\"NONE\"}"
-      | Some w ->
-          let rec find_hex = function
-            | [] -> "unknown"
-            | (t, hx) :: rest ->
-                if t.K.tx_id_bytes = w.K.tx_id_bytes then hx else find_hex rest
-          in
-          Printf.printf "{\"draw\":\"WINNER\",\"txid\":\"%s\"}\n" (find_hex parsed))
+      print_endline (z_to_dec (K.rigor_res_coinbase_expected f b))
   | "sum-oru" ->
       let lo = int_of_string Sys.argv.(2) in
       let hi = int_of_string Sys.argv.(3) in

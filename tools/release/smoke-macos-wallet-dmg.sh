@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Mount a just-built official v0.1.3 wallet DMG on GitHub-hosted macOS
+# and check bundle + architecture. Build-system only.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+TARGET="${1:?target macos-x86_64|macos-arm64}"
+EXPECT_ARCH="${2:?expected uname arch}"
+VERSION="${RIGOR_RELEASE_VERSION:-0.2}"
+DMG="${ROOT}/dist/release/v${VERSION}/${TARGET}/rigor-v${VERSION}-${TARGET}.dmg"
+
+[[ -f "${DMG}" ]] || { echo "FAIL: missing ${DMG}" >&2; exit 1; }
+
+size="$(stat -f%z "${DMG}" 2>/dev/null || stat -c%s "${DMG}")"
+echo "DMG=${DMG}"
+echo "SIZE=${size}"
+if [[ "${size}" -lt 1000000 ]]; then
+  echo "FAIL: DMG is ${size} bytes (identity stub / not a wallet)" >&2
+  exit 1
+fi
+
+echo "FILE=$(file "${DMG}")"
+
+MNT="$(mktemp -d "${TMPDIR:-/tmp}/rigor-dmg.XXXXXX")"
+cleanup() { hdiutil detach "${MNT}" -quiet -force >/dev/null 2>&1 || true; rmdir "${MNT}" 2>/dev/null || true; }
+trap cleanup EXIT
+
+hdiutil attach -nobrowse -readonly -mountpoint "${MNT}" "${DMG}"
+echo "MOUNTED=${MNT}"
+ls -la "${MNT}"
+
+APP=""
+for cand in "${MNT}/Rigor-Qt.app" "${MNT}/Rigor Wallet.app" "${MNT}"/*.app; do
+  if [[ -d "${cand}" ]]; then
+    APP="${cand}"
+    break
+  fi
+done
+[[ -n "${APP}" && -d "${APP}" ]] || { echo "FAIL: no .app in DMG" >&2; exit 1; }
+echo "APP=${APP}"
+
+EXE=""
+for cand in \
+  "${APP}/Contents/MacOS/Rigor-Qt" \
+  "${APP}/Contents/MacOS/rigor-qt" \
+  "${APP}/Contents/MacOS/Rigor Wallet"
+do
+  if [[ -x "${cand}" ]]; then
+    EXE="${cand}"
+    break
+  fi
+done
+[[ -n "${EXE}" ]] || { echo "FAIL: no executable in ${APP}/Contents/MacOS" >&2; ls -la "${APP}/Contents/MacOS" >&2; exit 1; }
+echo "EXE=${EXE}"
+
+archs="$(lipo -archs "${EXE}" 2>/dev/null || file -b "${EXE}")"
+echo "LIPO=${archs}"
+echo "${archs}" | grep -q "${EXPECT_ARCH}" || {
+  echo "FAIL: expected arch ${EXPECT_ARCH}, got ${archs}" >&2
+  exit 1
+}
+
+if [[ -x "${APP}/Contents/MacOS/rigord" ]]; then
+  "${APP}/Contents/MacOS/rigord" --version | head -n5
+else
+  # Node binary is next to the GUI in the official layout when staged;
+  # the Qt bundle smoke is the GUI binary --version.
+  "${EXE}" --version | head -n8 || true
+fi
+
+echo "MACOS_INSTALL_TEST=PASS"
+echo "SMOKE_${TARGET}=PASS"

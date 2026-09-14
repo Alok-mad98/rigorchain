@@ -1,9 +1,9 @@
-use crate::gbt::{ConvergenceDraw, GbtTemplate, GbtTransaction};
+use crate::gbt::{GbtTemplate, GbtTransaction};
 use crate::types::{JobId, RecordId, TemplateState, TemplateVersion, TipHash};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Immutable adapter snapshot (TASK-MINING-004).
+/// Immutable adapter snapshot (TASK-MINING-004). RFC-020 shipping fields only.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GbtRecord {
     pub record_id: RecordId,
@@ -19,24 +19,23 @@ pub struct GbtRecord {
     pub curtime: Option<u64>,
     pub coinbasevalue: i64,
     pub transactions: Vec<GbtTransaction>,
-    /// Set this template commits; the NEXT block draws it. A-9-C: spans the whole draw window,
-    /// so most members are transactions of earlier blocks and are absent from `transactions`.
-    pub convergence_txids: Vec<String>,
-    /// C over `convergence_txids`, as the node published it. `None` for pre-A9C records.
-    #[serde(default)]
-    pub convergence_root: Option<String>,
-    /// Resolved parent draw this template pays (SECURITY-001-A8).
-    pub convergence_draw: Option<ConvergenceDraw>,
     pub default_witness_commitment: Option<String>,
-    pub default_convergence_commitment: Option<String>,
-    #[serde(default)]
-    pub default_res_mint: Option<crate::gbt::GbtResMint>,
-    #[serde(default)]
-    pub default_pcorb_carrier: Option<String>,
     pub weightlimit: Option<u64>,
     pub version: Option<u32>,
     pub gbt_payload_hash: [u8; 32],
     pub raw_json: String,
+    #[serde(default)]
+    pub default_coinbase_scriptsig: Option<String>,
+    #[serde(default)]
+    pub default_coinbase_tx: Option<String>,
+    #[serde(default)]
+    pub default_coinbase_txid: Option<String>,
+    #[serde(default)]
+    pub merkleroot: Option<String>,
+    #[serde(default)]
+    pub rigor_coinbase_immutable: Option<bool>,
+    #[serde(default)]
+    pub coinbase_address: Option<String>,
 }
 
 /// Published work artifact (TASK-MINING-005 §2.5). Populated when Block Assembler publishes.
@@ -53,9 +52,6 @@ pub struct JobSnapshot {
     pub prevhash: Option<String>,
     pub share_diff: Option<f64>,
     pub block_target: Option<String>,
-    pub mint_required: Option<bool>,
-    pub convergence_root: Option<String>,
-    pub body_mint_txid: Option<String>,
     pub assembly_hash: Option<[u8; 32]>,
 }
 
@@ -71,8 +67,6 @@ pub struct TemplateRecord {
     pub height: u64,
     pub template_state: TemplateState,
     pub gbt_payload_hash: [u8; 32],
-    pub mint_required: Option<bool>,
-    pub winner_job_id: Option<String>,
     pub job_id: Option<JobId>,
     pub candidate_block_id: Option<String>,
     pub created_at: u64,
@@ -108,17 +102,17 @@ pub fn normalize_gbt_record(
         curtime: template.curtime,
         coinbasevalue: template.coinbasevalue,
         transactions: template.transactions,
-        convergence_txids: template.convergence_txids,
-        convergence_root: template.convergence_root,
-        convergence_draw: template.convergence_draw,
         default_witness_commitment: template.default_witness_commitment,
-        default_convergence_commitment: template.default_convergence_commitment,
-        default_res_mint: template.default_res_mint,
-        default_pcorb_carrier: template.default_pcorb_carrier,
         weightlimit: template.weightlimit,
         version: template.version,
         gbt_payload_hash: payload_hash,
         raw_json,
+        default_coinbase_scriptsig: template.default_coinbase_scriptsig,
+        default_coinbase_tx: template.default_coinbase_tx,
+        default_coinbase_txid: template.default_coinbase_txid,
+        merkleroot: template.merkleroot,
+        rigor_coinbase_immutable: template.rigor_coinbase_immutable,
+        coinbase_address: template.coinbase_address,
     }
 }
 
@@ -140,8 +134,6 @@ pub fn build_template_record(
         height: gbt.height,
         template_state,
         gbt_payload_hash: gbt.gbt_payload_hash,
-        mint_required: None,
-        winner_job_id: None,
         job_id: None,
         candidate_block_id: None,
         created_at: now,

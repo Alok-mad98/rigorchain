@@ -9,9 +9,9 @@
     <link rel="stylesheet" href="/lineage-graph.css" />
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
-      a { margin-right: 12px; color: #fff; }
+      a { color: #fff; }
       .muted { color: #bbb; font-size: 12px; }
-      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      table { border-collapse: collapse; width: 100%; }
       th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
       th { background: #111; }
       .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; }
@@ -24,8 +24,8 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
@@ -75,12 +75,11 @@
             <p class="mono">Hash: ${s.hash ?? b.block_hash || hash}</p>
             <p>Previous Block: ${prev ? `<a class="mono" href="${ExplorerRoutes.blockPath(prev)}">${prev}</a>` : 'N/A'}</p>
             <section class="consensus-identity-panel">
-              <h3>Draw Identity</h3>
-              <p>Draw Fingerprint:</p>
+              <h3>Block identity</h3>
+              <p>Observational fingerprint:</p>
               <p class="mono consensus-fingerprint-value">${fp}</p>
               <p>Status: ${fpStatus}</p>
             </section>
-            ${ExplorerRoutes.verifyIndependentlyHtml("block", s.hash ?? b.block_hash || hash)}
           </section>
           ${ConvergencePanel.renderBlockPanel(panel, ExplorerRoutes)}
           ${lineageGraph ? LineageGraph.renderLineagePanel(lineageGraph, ExplorerRoutes) : ''}
@@ -90,12 +89,13 @@
             <tbody>
               <tr><th>Height</th><td>${s.height ?? b.height}</td></tr>
               <tr><th>Hash</th><td class="mono">${s.hash ?? b.block_hash}</td></tr>
+              <tr><th>nBits</th><td class="mono">${s.bits ?? b.bits ?? 'N/A'}</td></tr>
+              <tr><th>OpuHash</th><td class="mono">${s.opus_hash ?? b.opus_hash ?? b.pow_hash ?? 'N/A'}</td></tr>
               <tr><th>Time</th><td>${ExplorerRoutes.timeAgo(s.time ?? b.time)}${ExplorerRoutes.timeAbsolute(s.time ?? b.time) ? ` <span class="muted">(${ExplorerRoutes.timeAbsolute(s.time ?? b.time)})</span>` : ""}</td></tr>
               <tr><th>Coinbase</th><td class="mono">${s.coinbase_txid ? `<a href="${ExplorerRoutes.txPath(s.coinbase_txid)}">${s.coinbase_txid}</a>` : ''}</td></tr>
               <tr><th>ORU subsidy</th><td>${s.oru_subsidy_display ?? 'N/A'}</td></tr>
               <tr><th>RES minted</th><td>${s.res_minted_display ?? '0'}</td></tr>
-              ${s.res_award_note ? `<tr><th>RES award</th><td>${s.res_award_note}${s.res_payout_block_hash ? ` (<a href="${ExplorerRoutes.blockPath(s.res_payout_block_hash)}">payout block</a>)` : ""}</td></tr>` : ""}
-              <tr><th>RES probability target</th><td class="mono">${s.res_probability_target_display ?? 'N/A'}</td></tr>
+              ${s.res_destroy_cost_display ? `<tr><th>ORU destroyed to mint 1 RES</th><td>${s.res_destroy_cost_display}</td></tr>` : ""}
               <tr><th>bind_height</th><td>${s.bind_height_display ?? 'Not available'}</td></tr>
             </tbody>
           </table>

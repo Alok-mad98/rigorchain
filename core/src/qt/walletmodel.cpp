@@ -32,7 +32,6 @@
 #include <consensus/rigor_consensus_lock.h>
 #include <wallet/asset_domain.h>
 #include <wallet/coincontrol.h>
-#include <wallet/convergencestate.h>
 #include <wallet/wallet.h> // for CRecipient
 
 #include <stdint.h>
@@ -103,11 +102,6 @@ void WalletModel::pollBalanceChanged()
     // Avoid recomputing wallet balances unless a TransactionChanged or
     // BlockTip notification was received, or wallet state revision changed (reorg/conflicts).
     if (!fForceCheckBalanceChanged && m_cached_last_update_tip == getLastBlockProcessed() && rev == m_cached_wallet_state_revision) return;
-
-    // tryGetBalances / tryGetTxStatus / tryGetConvergenceUiSnapshot share the same cs_wallet
-    // try-lock pattern. Balance polling emits balanceSnapshotStaleChanged after bounded failures;
-    // ConvergencePage refreshes on walletStateRevisionChanged and balanceSnapshotStaleChanged so
-    // tryGetConvergenceUiSnapshot retries without wall-clock sleeps.
 
     // Try to get balances and return early if locks can't be acquired. This
     // avoids the GUI from getting stuck on periodical polls if the core is
@@ -324,7 +318,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sendCoins(WalletModelTransaction& transaction)
+WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction& transaction)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -337,13 +331,13 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction)
         }
 
         auto& newTx = transaction.getWtx();
-        interfaces::WalletValueMap value_map;
-        if (transaction.getConvergeAmount() > 0) {
-            wallet::ConvergenceRecord rec;
-            rec.state = wallet::ConvergenceState::BROADCASTED;
-            wallet::ApplyConvergenceRecordToMapValue(rec, value_map);
+        std::string commit_error;
+        if (!wallet().commitTransaction(newTx, /*value_map=*/{}, std::move(vOrderForm), commit_error)) {
+            // Nothing was relayed and the wallet abandoned the transaction, so the coins
+            // are still available. Do not record it as sent.
+            checkBalanceChanged(m_wallet->getBalances());
+            return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(commit_error));
         }
-        wallet().commitTransaction(newTx, std::move(value_map), std::move(vOrderForm));
 
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << *newTx;
@@ -376,6 +370,7 @@ void WalletModel::sendCoins(WalletModelTransaction& transaction)
     }
 
     checkBalanceChanged(m_wallet->getBalances()); // update balance immediately, otherwise there could be a short noticeable delay until pollBalanceChanged hits
+    return SendCoinsReturn(OK);
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendConvergenceOru(CAmount amount_oru)
@@ -398,11 +393,13 @@ WalletModel::SendCoinsReturn WalletModel::sendConvergenceOru(CAmount amount_oru)
         if (fee_ret > m_wallet->getDefaultMaxTxFee()) {
             return SendCoinsReturn(AbsurdFee);
         }
-        wallet::ConvergenceRecord frec;
-        frec.state = wallet::ConvergenceState::BROADCASTED;
-        interfaces::WalletValueMap convergence_map;
-        wallet::ApplyConvergenceRecordToMapValue(frec, convergence_map);
-        wallet().commitTransaction(*res, std::move(convergence_map), {});
+        std::string commit_error;
+        if (!wallet().commitTransaction(*res, /*value_map=*/{}, /*order_form=*/{}, commit_error)) {
+            // The burn never reached the mempool and has been abandoned: the ORU is
+            // still there. Reporting OK here would claim a destroy that never happened.
+            checkBalanceChanged(m_wallet->getBalances());
+            return SendCoinsReturn(TransactionCommitFailed, QString::fromStdString(commit_error));
+        }
     } catch (const std::runtime_error& err) {
         Q_EMIT message(tr("Convergence"), QString::fromStdString(err.what()), CClientUIInterface::MSG_ERROR);
         return SendCoinsReturn(TransactionCreationFailed);

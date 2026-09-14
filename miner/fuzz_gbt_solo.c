@@ -9,7 +9,7 @@
 
 /*
  * Fail-closed GBT fuzz: malformed JSON must reject, never construct a
- * legacy 2-push coinbase, and must not crash.
+ * lottery-era coinbase mint, and must not crash.
  *
  * Build: same objects as test_gbt_solo, entry fuzz_gbt_solo.c
  * LibFuzzer: -fsanitize=fuzzer (optional).

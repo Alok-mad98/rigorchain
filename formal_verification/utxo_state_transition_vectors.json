@@ -1,13 +1,13 @@
 {
   "task": "TASK-RIGOR-UTXO-STATE-TRANSITION-REFINEMENT-CLOSURE-P0-065",
   "note": "Kernel + Transaction + Ledger composition refinement. Not a full-node, LevelDB, network, wallet, CompCert, or VST proof.",
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "genesis": {
     "height": 0,
     "oru_actual": 0,
     "res_actual": 0,
-    "res_schedule": 40000000,
+    "res_schedule": 102400000000,
     "draw": "none",
     "accept": true
   },
@@ -31,13 +31,13 @@
   "epoch": [
     {
       "height": 209999,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 103685743011
     },
     {
       "height": 210000,
-      "oru": 50000000000,
-      "res_schedule": 14142196
+      "oru": 12800000000,
+      "res_schedule": 103685749152
     }
   ],
   "double_spend": {

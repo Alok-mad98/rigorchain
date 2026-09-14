@@ -1,0 +1,11 @@
+From Phase10 Require Import UnliftOruFacts.
+Print Assumptions f_case_118_env_301_is_param.
+Print Assumptions f_case_118_env_301_not_temp.
+Print Assumptions f_case_118_env_301_not_var.
+Print Assumptions unlift_env_restore_is_sassign.
+Print Assumptions env_restore_rhs_unlift_id.
+Print Assumptions store_params_entry1_stuck_on_f_case_118.
+Print Assumptions store_params_entry2_evar_not_local_on_f_case_118.
+Print Assumptions unlift_function_f_case_118_starts_with_store_params.
+Print Assumptions unlift_function_core_f_case_118_no_store.
+Print Assumptions eval_env_301_temp_vs_var.

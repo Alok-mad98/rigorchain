@@ -5,6 +5,8 @@
 
 #include <pow.h>
 
+#include <consensus/trace/consensus_trace.h>
+
 #include <arith_uint256.h>
 #include <chain.h>
 #include <consensus/rigor_consensus_lock.h>
@@ -314,17 +316,17 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     assert(pindexLast != nullptr);
     const unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
+    unsigned int expected;
     if (params.fPowNoRetargeting) {
-        return pindexLast->nBits;
+        expected = pindexLast->nBits;
+    } else if (params.fPowAllowMinDifficultyBlocks && pblock != nullptr &&
+               pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 2) {
+        expected = nProofOfWorkLimit;
+    } else {
+        expected = GetNextWorkASERT(pindexLast, pblock, params);
     }
-
-    if (params.fPowAllowMinDifficultyBlocks && pblock != nullptr) {
-        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 2) {
-            return nProofOfWorkLimit;
-        }
-    }
-
-    return GetNextWorkASERT(pindexLast, pblock, params);
+    RigorConsensusTraceNoteAsertExpected(expected);
+    return expected;
 }
 
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
@@ -410,12 +412,14 @@ bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Conse
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
 
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit)) {
+        RigorConsensusTraceNotePow(false, "bad-diffbits");
         return false;
     }
 
     const uint256 header_hash = block.GetHash();
 
     if (header_hash == params.hashGenesisBlock) {
+        RigorConsensusTraceNotePow(true, "genesis");
         return true;
     }
 
@@ -428,6 +432,7 @@ bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Conse
         LOCK(g_pow_ok_mutex);
         const auto it = g_pow_ok.find(header_hash);
         if (it != g_pow_ok.end() && it->second == nBits) {
+            RigorConsensusTraceNotePow(true, "cache");
             return true;
         }
     }
@@ -435,6 +440,7 @@ bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Conse
     const uint256 pow_hash = rigor_kernel::GetRigorPowHash(block);
 
     if (UintToArith256(pow_hash) > bnTarget) {
+        RigorConsensusTraceNotePow(false, "high-hash");
         return false;
     }
 
@@ -452,5 +458,6 @@ bool CheckProofOfWork(const CBlockHeader& block, unsigned int nBits, const Conse
         }
     }
 
+    RigorConsensusTraceNotePow(true, nullptr);
     return true;
 }

@@ -11,8 +11,10 @@ import {
 } from "./addressIntelligence";
 import { getOrCreateChainState } from "./db";
 import { rpc } from "./rpcCli";
-import { CIRCULATING_ORU_SQL_PREDICATE } from "./circulating";
+import { matureSpendableOruSql, unlockedOruSql } from "./circulating";
+import { atomsFromSql, reconcileIndexedAsset } from "./accounting";
 import { isConvergenceScriptPubKey } from "./script";
+import { CONVERGENCE_IS_MINT_SQL } from "./rfc020MintSql";
 
 export type AddressIntelligence = Record<string, unknown>;
 
@@ -57,13 +59,16 @@ export async function getAddressIntelligence(
   const oruSummary = await pool.query(
     `
       SELECT
-        COUNT(*)::int AS total_count,
-        COUNT(*) FILTER (WHERE ${CIRCULATING_ORU_SQL_PREDICATE})::int AS spendable_count,
-        COALESCE(SUM(amount_atoms), 0)::text AS total_received_atoms,
-        COALESCE(SUM(amount_atoms) FILTER (WHERE spent = TRUE), 0)::text AS total_spent_atoms,
-        COALESCE(SUM(amount_atoms) FILTER (WHERE ${CIRCULATING_ORU_SQL_PREDICATE}), 0)::text AS balance_atoms
-      FROM oru_utxos
-      WHERE address = $1
+        COUNT(*)::int AS lifetime_count,
+        COUNT(*) FILTER (WHERE ${unlockedOruSql("u")})::int AS utxo_count,
+        COUNT(*) FILTER (WHERE ${matureSpendableOruSql()})::int AS spendable_count,
+        COALESCE(SUM(u.amount_atoms), 0)::text AS total_received_atoms,
+        COALESCE(SUM(u.amount_atoms) FILTER (WHERE u.spent = TRUE), 0)::text AS total_spent_atoms,
+        COALESCE(SUM(u.amount_atoms) FILTER (WHERE ${unlockedOruSql("u")}), 0)::text AS balance_atoms,
+        COALESCE(SUM(u.amount_atoms) FILTER (WHERE u.spent = FALSE AND NOT (${unlockedOruSql("u")})), 0)::text AS locked_atoms
+      FROM oru_utxos u
+      LEFT JOIN transactions t ON t.txid = u.txid
+      WHERE u.address = $1
     `,
     [addr],
   );
@@ -80,7 +85,8 @@ export async function getAddressIntelligence(
         WHERE o.address = $1 AND o.asset_kind = 'RES'
       )
       SELECT
-        COUNT(*)::int AS total_count,
+        COUNT(*)::int AS lifetime_count,
+        COUNT(*) FILTER (WHERE NOT spent)::int AS utxo_count,
         COUNT(*) FILTER (WHERE NOT spent)::int AS spendable_count,
         COALESCE(SUM(value_atoms), 0)::text AS total_received_atoms,
         COALESCE(SUM(value_atoms) FILTER (WHERE spent), 0)::text AS total_spent_atoms,
@@ -106,6 +112,12 @@ export async function getAddressIntelligence(
         FROM oru_utxos u
         JOIN transactions t ON t.txid = u.spending_txid
         WHERE u.address = $1 AND u.spending_txid IS NOT NULL
+        UNION ALL
+        SELECT b.height
+        FROM res_transfers rt
+        JOIN outputs o ON o.txid = rt.res_input_txid AND o.vout_index = rt.res_input_vout_index
+        JOIN blocks b ON b.block_hash = rt.spend_block_hash
+        WHERE o.address = $1
       ) heights
     `,
     [addr],
@@ -187,7 +199,7 @@ export async function getAddressIntelligence(
     `
       SELECT ce.convergence_txid,
              MIN(ce.block_height) AS block_height,
-             BOOL_OR(ce.convergence_txid = b.rigor_winner AND b.rigor_winner <> '') AS is_winner
+             BOOL_OR(${CONVERGENCE_IS_MINT_SQL}) AS is_winner
       FROM convergence_events ce
       JOIN blocks b ON b.block_hash = ce.block_hash
       WHERE ce.convergence_txid IN (
@@ -229,8 +241,8 @@ export async function getAddressIntelligence(
   const res = resSummary.rows[0] ?? {};
   const act = activity.rows[0] ?? {};
 
-  const hasOru = Number(oru.total_count ?? 0) > 0;
-  const hasRes = Number(res.total_count ?? 0) > 0;
+  const hasOru = Number(oru.lifetime_count ?? 0) > 0;
+  const hasRes = Number(res.lifetime_count ?? 0) > 0;
   const hasActivity = hasOru || hasRes || convergence.rows.length > 0 || resMints.rows.length > 0;
   const { address_type, classification } = classifyAddressWithHint(hasOru, hasRes, hasActivity, addr);
 
@@ -278,6 +290,34 @@ export async function getAddressIntelligence(
 
   const resMintTotal = resMints.rows.reduce((acc, r) => acc + BigInt(String(r.mint_amount ?? 0)), 0n);
 
+  const oruLedger = reconcileIndexedAsset({
+    receivedAtoms: atomsFromSql(oru.total_received_atoms),
+    spentAtoms: atomsFromSql(oru.total_spent_atoms),
+    unspentAtoms: atomsFromSql(oru.balance_atoms),
+    unspentCount: Number(oru.utxo_count ?? 0),
+    spendableCount: Number(oru.spendable_count ?? 0),
+    lockedAtoms: atomsFromSql(oru.locked_atoms),
+  });
+  const resLedger = reconcileIndexedAsset({
+    receivedAtoms: atomsFromSql(res.total_received_atoms),
+    spentAtoms: atomsFromSql(res.total_spent_atoms),
+    unspentAtoms: atomsFromSql(res.balance_atoms),
+    unspentCount: Number(res.utxo_count ?? 0),
+    spendableCount: Number(res.spendable_count ?? 0),
+  });
+  if (!oruLedger.consistent || !resLedger.consistent) {
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        component: "address-accounting",
+        address: addr,
+        indexer_height: indexerTipHeight,
+        oru: oruLedger.errors,
+        res: resLedger.errors,
+      }),
+    );
+  }
+
   return {
     oru_utxos: oruUtxos.rows.filter(
       (r) => !r.spent && !isConvergenceScriptPubKey(String(r.script_pubkey ?? "")),
@@ -289,32 +329,41 @@ export async function getAddressIntelligence(
       classification,
       first_seen_block: act.first_seen != null ? Number(act.first_seen) : null,
       latest_activity_block: act.latest_activity != null ? Number(act.latest_activity) : null,
+      indexer_height: indexerTipHeight,
     },
     balances: {
       oru: {
-        atoms: String(oru.balance_atoms ?? "0"),
-        display: atomsToOruDisplay(String(oru.balance_atoms ?? "0")),
+        atoms: oruLedger.currentBalanceAtoms.toString(),
+        display: atomsToOruDisplay(oruLedger.currentBalanceAtoms.toString()),
       },
       res: {
-        atoms: String(res.balance_atoms ?? "0"),
-        display: atomsToResDisplay(String(res.balance_atoms ?? "0")),
+        atoms: resLedger.currentBalanceAtoms.toString(),
+        display: atomsToResDisplay(resLedger.currentBalanceAtoms.toString()),
       },
     },
     utxo_summary: {
       oru: {
-        total_utxo_count: Number(oru.total_count ?? 0),
-        spendable_utxo_count: Number(oru.spendable_count ?? 0),
-        total_received: atomsToOruDisplay(String(oru.total_received_atoms ?? "0")),
-        total_spent: atomsToOruDisplay(String(oru.total_spent_atoms ?? "0")),
-        current_balance: atomsToOruDisplay(String(oru.balance_atoms ?? "0")),
+        total_utxo_count: oruLedger.totalUtxoCount,
+        spendable_utxo_count: oruLedger.spendableUtxoCount,
+        total_received: atomsToOruDisplay(oruLedger.totalReceivedAtoms.toString()),
+        total_spent: atomsToOruDisplay(oruLedger.totalSpentAtoms.toString()),
+        current_balance: atomsToOruDisplay(oruLedger.currentBalanceAtoms.toString()),
       },
       res: {
-        total_utxo_count: Number(res.total_count ?? 0),
-        spendable_utxo_count: Number(res.spendable_count ?? 0),
-        total_received: atomsToResDisplay(String(res.total_received_atoms ?? "0")),
-        total_spent: atomsToResDisplay(String(res.total_spent_atoms ?? "0")),
-        current_balance: atomsToResDisplay(String(res.balance_atoms ?? "0")),
+        total_utxo_count: resLedger.totalUtxoCount,
+        spendable_utxo_count: resLedger.spendableUtxoCount,
+        total_received: atomsToResDisplay(resLedger.totalReceivedAtoms.toString()),
+        total_spent: atomsToResDisplay(resLedger.totalSpentAtoms.toString()),
+        current_balance: atomsToResDisplay(resLedger.currentBalanceAtoms.toString()),
       },
+    },
+    accounting: {
+      indexer_height: indexerTipHeight,
+      node_height: nodeHeight,
+      oru_consistent: oruLedger.consistent,
+      res_consistent: resLedger.consistent,
+      oru_errors: oruLedger.errors,
+      res_errors: resLedger.errors,
     },
     transaction_history: {
       page,
@@ -325,8 +374,10 @@ export async function getAddressIntelligence(
     convergence_activity: {
       participated: convergence.rows.length > 0,
       convergence_transaction_count: convergence.rows.length,
+      mint_count: winnerTxids.length,
       winner_count: winnerTxids.length,
       candidate_count: candidateCount,
+      mint_txids: winnerTxids,
       winner_txids: winnerTxids,
     },
     res_mint_activity: {

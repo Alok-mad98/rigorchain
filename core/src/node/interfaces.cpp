@@ -7,8 +7,6 @@
 #include <blockfilter.h>
 #include <chain.h>
 #include <chainparams.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root.h>
 #include <consensus/convergenceres.h>
 #include <deploymentstatus.h>
 #include <external_signer.h>
@@ -46,6 +44,7 @@
 #include <uint256.h>
 #include <univalue.h>
 #include <util/check.h>
+#include <util/error.h>
 #include <util/system.h>
 #include <util/translation.h>
 #include <validation.h>
@@ -121,42 +120,25 @@ bool FillConvergenceBlockResult(NodeContext& node, int height, const std::vector
     }
 
     const int block_h = pindex->nHeight;
-    const Consensus::Params& consensus_params = chainman.GetParams().GetConsensus();
 
-    std::vector<uint256> convergence_root_txids;
-    uint256 block_convergence_root;
-    {
-        LOCK(::cs_main);
-        convergence_root_txids = Consensus::ListConvergenceRootCommitmentTxids(
-            block.vtx, chainman.ActiveChainstate().CoinsTip(), block_h, consensus_params);
-        block_convergence_root = Consensus::ComputeConvergenceRootFromEligibilityTxids(convergence_root_txids);
+    // RFC-019 has no eligibility set: a convergence transaction is recognised by its own
+    // contents, so this needs neither the coins view nor cs_main.
+    std::vector<uint256> convergence_txids;
+    for (const CTransactionRef& tx : block.vtx) {
+        if (tx && Consensus::IsConvergenceTx(*tx)) {
+            convergence_txids.push_back(tx->GetHash());
+        }
     }
 
     out.ok = true;
     out.height = block_h;
-    out.convergence_root_set_size = static_cast<int64_t>(convergence_root_txids.size());
-    out.candidates_count = block.vtx.size() > 1 ? static_cast<int>(block.vtx.size() - 1) : 0;
+    out.convergence_tx_count = static_cast<int64_t>(convergence_txids.size());
 
     out.is_mine = false;
     for (const uint256& w : wallet_convergence_txids) {
-        for (const uint256& f : convergence_root_txids) {
-            if (w == f) {
-                out.is_mine = true;
-                break;
-            }
-        }
-        if (out.is_mine) {
+        if (std::find(convergence_txids.begin(), convergence_txids.end(), w) != convergence_txids.end()) {
+            out.is_mine = true;
             break;
-        }
-    }
-
-    // SECURITY-001-A8 / A-9-C: the winner a block awards is drawn over the W-block window ending
-    // at that block and paid by the next one, so this must resolve through the chain layer rather
-    // than over this block's candidates alone.
-    out.winner_txid.SetNull();
-    if (pindex->pprev != nullptr) {
-        if (const std::optional<uint256> w = GetConvergenceWinnerForBlock(*pindex, consensus_params)) {
-            out.winner_txid = *w;
         }
     }
     return true;
@@ -707,16 +689,6 @@ public:
         }
         return false;
     }
-    bool convergenceDrawIsWinner(const CBlock& block, int height, const uint256& block_hash, const uint256& convergence_txid) override
-    {
-        LOCK(::cs_main);
-        const CBlockIndex* pindex = chainman().m_blockman.LookupBlockIndex(block_hash);
-        if (!pindex || pindex->nHeight != height) return false;
-        if (block.GetHash() != block_hash) return false;
-        if (!pindex->pprev) return false;
-        const std::optional<uint256> w = GetConvergenceWinnerForBlock(*pindex, chainman().GetParams().GetConsensus());
-        return w.has_value() && *w == convergence_txid;
-    }
     bool getConvergenceBlockResult(int height, const std::vector<uint256>& wallet_convergence_txids, ConvergenceBlockResult& out) override
     {
         return FillConvergenceBlockResult(m_node, height, wallet_convergence_txids, out);
@@ -749,6 +721,11 @@ public:
         // Chain clients only care about failures to accept the tx to the mempool. Disregard non-mempool related failures.
         // Note: this will need to be updated if BroadcastTransactions() is updated to return other non-mempool failures
         // that Chain clients do not need to know about.
+        if (err != TransactionError::OK && err_string.empty()) {
+            // MAX_FEE_EXCEEDED and ALREADY_IN_CHAIN carry no reject reason, and the wallet
+            // now shows this text to the user instead of returning a txid that never confirms.
+            err_string = TransactionErrorString(err).original;
+        }
         return TransactionError::OK == err;
     }
     void getTransactionAncestry(const uint256& txid, size_t& ancestors, size_t& descendants, size_t* ancestorsize, CAmount* ancestorfees) override

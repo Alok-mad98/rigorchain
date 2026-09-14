@@ -152,11 +152,14 @@ pub fn assemble_from_gbt(
         tx_hashes.push(txid_from_tx_bytes(&raw));
     }
 
-    // Option A: never reserve a RES merkle placeholder. GBT txs (including any
-    // node-supplied automint) remain opaque leaves already in `tx_hashes`.
+    if config.mint_required {
+        return Err(AssemblerError::Assembly(
+            "RFC-020: mint_required is refused on the ORU-only assemble path".into(),
+        ));
+    }
     let body_mint = build_body_mint_placeholder(
         gbt.transactions.len(),
-        config.mint_required,
+        false,
         record_seed,
     );
     debug_assert!(!body_mint.reserved);

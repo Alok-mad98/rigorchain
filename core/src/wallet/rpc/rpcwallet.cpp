@@ -13,7 +13,6 @@
 #include <wallet/receive.h>
 #include <wallet/rpc/wallet.h>
 #include <wallet/rpc/util.h>
-#include <wallet/convergencestate.h>
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
@@ -62,7 +61,6 @@ static RPCHelpMan getwalletinfo()
                         {RPCResult::Type::STR_AMOUNT, "paytxfee", "the transaction fee configuration, set in " + CURRENCY_UNIT + "/kvB"},
                         {RPCResult::Type::STR_HEX, "hdseedid", /*optional=*/true, "the Hash160 of the HD seed (only present when HD is enabled)"},
                         {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
-                        {RPCResult::Type::STR, "convergence_status", "Human-readable status of the most recent tagged convergence transaction (empty if none)"},
                         {RPCResult::Type::BOOL, "avoid_reuse", "whether this wallet tracks ORU witness-v0 reuse (clean/dirty ORU coins); RES unaffected"},
                         {RPCResult::Type::OBJ, "scanning", "current scanning details, or false if no scan is in progress",
                         {
@@ -122,26 +120,6 @@ static RPCHelpMan getwalletinfo()
     }
     obj.pushKV("paytxfee", ValueFromAmount(pwallet->m_pay_tx_fee.GetFeePerK()));
     obj.pushKV("private_keys_enabled", !pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS));
-    std::string convergence_status;
-    {
-        LOCK(pwallet->cs_wallet);
-        const CWalletTx* best = nullptr;
-        for (const auto& p : pwallet->mapWallet) {
-            wallet::ConvergenceRecord rec;
-            if (!wallet::LoadConvergenceRecordFromMapValue(p.second, rec)) continue;
-            if (!best || p.second.nTimeReceived > best->nTimeReceived) {
-                best = &p.second;
-            }
-        }
-        if (best) {
-            wallet::ConvergenceRecord rec;
-            if (wallet::LoadConvergenceRecordFromMapValue(*best, rec)) {
-                const int h = pwallet->GetLastBlockHeight();
-                convergence_status = wallet::ConvergenceRecordUiStatus(rec, h);
-            }
-        }
-    }
-    obj.pushKV("convergence_status", convergence_status);
     obj.pushKV("avoid_reuse", pwallet->IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE));
     if (pwallet->IsScanning()) {
         UniValue scanning(UniValue::VOBJ);
@@ -669,6 +647,7 @@ RPCHelpMan encryptwallet();
 // spend
 RPCHelpMan sendtoaddress();
 RPCHelpMan sendres();
+RPCHelpMan destroyoru();
 RPCHelpMan createconvergence();
 RPCHelpMan sendmany();
 RPCHelpMan settxfee();
@@ -743,6 +722,7 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &sendmany},
         {"wallet", &sendtoaddress},
         {"wallet", &sendres},
+        {"wallet", &destroyoru},
         {"wallet", &createconvergence},
         {"wallet", &setlabel},
         {"wallet", &settxfee},

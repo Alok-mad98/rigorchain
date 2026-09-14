@@ -1,0 +1,9 @@
+{
+  "id": "V4",
+  "domain": "script",
+  "expect": "INVALID",
+  "theorem": "recognizer_pairwise_disjoint",
+  "failure_reason": "invalid script class: empty script is not WITNESS_V0",
+  "script": [],
+  "expected": "WITNESS_V0"
+}

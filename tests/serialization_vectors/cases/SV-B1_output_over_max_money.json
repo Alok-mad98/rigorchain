@@ -1,0 +1,97 @@
+{
+  "case_id": "SV-B1_output_over_max_money",
+  "raw_block_hex": null,
+  "raw_tx_hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff01010064a7b3b6e00d160014333333333333333333333333333333333333333300000000",
+  "kind": "tx",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CTransaction",
+    "error": null,
+    "fields": {
+      "nVersion": 1,
+      "nLockTime": 0,
+      "vin": 1,
+      "vout": 1,
+      "has_witness": false,
+      "values": [
+        1000000000000000001
+      ],
+      "script_lens": [
+        22
+      ]
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "reject",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "CheckTransaction",
+    "function": "CheckTransaction",
+    "reject_reason": "bad-txns-vout-toolarge"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": null,
+    "ki_pow_ok": null,
+    "ki_asert_ok": null,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "no_uint64_amount_wrap",
+  "trace": {
+    "raw_bytes": {
+      "hex": "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff00ffffffff01010064a7b3b6e00d160014333333333333333333333333333333333333333300000000",
+      "source": "attack_lab",
+      "entry_function": "UnserializeTransaction"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CTransaction",
+      "error": null,
+      "fields": {
+        "nVersion": 1,
+        "nLockTime": 0,
+        "vin": 1,
+        "vout": 1,
+        "has_witness": false,
+        "values": [
+          1000000000000000001
+        ],
+        "script_lens": [
+          22
+        ]
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "CheckTransaction",
+      "function": "CheckTransaction",
+      "reject_reason": "bad-txns-vout-toolarge"
+    },
+    "decision": "reject",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "no_uint64_amount_wrap"
+  }
+}

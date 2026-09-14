@@ -1,0 +1,29 @@
+{
+  "note": "Internal Qed lemmas only. Not C++. CPP_KERNELINPUT_EQUIVALENCE = NOT PROVED",
+  "theorems": [
+    {
+      "name": "insert_lookup",
+      "file": "formal_verification/consensus_model/UTXOStateProperties.v"
+    },
+    {
+      "name": "remove_lookup",
+      "file": "formal_verification/consensus_model/UTXOStateProperties.v"
+    },
+    {
+      "name": "update_remove_consistency",
+      "file": "formal_verification/consensus_model/UTXOStateProperties.v"
+    },
+    {
+      "name": "well_formed_transaction",
+      "file": "formal_verification/consensus_model/TransactionProperties.v"
+    },
+    {
+      "name": "accepted_validation",
+      "file": "formal_verification/consensus_model/ValidationProperties.v"
+    },
+    {
+      "name": "make_kernel_input_field_consistency",
+      "file": "formal_verification/consensus_model/KernelInputV2Properties.v"
+    }
+  ]
+}

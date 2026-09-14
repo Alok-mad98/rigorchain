@@ -26,7 +26,7 @@ CoqSupplyFieldHook ProjectCoqSupplyFieldHook(const RuntimeSupplyState& mirror)
     hook.cb_oru_burn_delta = mirror.oru_converge_burn_block;
     hook.cb_res_mint_delta = mirror.res_mint_block;
 
-    hook.res_mint_count_M_h = mirror.res_mint_count_block;
+    hook.res_mint_count_M_h = mirror.res_mint_present_block;
 
     hook.rs_oru_supply_parent = mirror.oru_supply_parent;
     hook.rs_res_supply_parent = mirror.res_mint_parent;
@@ -67,8 +67,8 @@ std::vector<std::string> CheckCoqHookMatchesAuthoritativeCaches(const CoqSupplyF
     if (hook.cb_res_mint_delta != mirror.res_mint_block) {
         fail("Coq hook cb_res_mint_delta != mirror.res_mint_block");
     }
-    if (hook.res_mint_count_M_h != mirror.res_mint_count_block) {
-        fail("Coq hook res_mint_count_M_h != mirror.res_mint_count_block");
+    if (hook.res_mint_count_M_h != mirror.res_mint_present_block) {
+        fail("Coq hook res_mint_count_M_h != mirror.res_mint_present_block");
     }
 
     if (pindex.Observational().HasOruCache() && hook.rs_oru_supply != pindex.Observational().GetChainOruTotal()) {

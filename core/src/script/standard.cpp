@@ -130,6 +130,7 @@ std::string GetTxnOutputType(TxoutType t)
     case TxoutType::WITNESS_UNKNOWN: return "witness_unknown";
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return ""; // silence -Wreturn-type (assert may be compiled out)
 }
 
 TxoutType Solver(const CScript& scriptPubKey, std::vector<std::vector<unsigned char>>& vSolutionsRet)
@@ -171,6 +172,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
         return false;
     } // no default case, so the compiler can warn about missing cases
     assert(false);
+    return false; // silence -Wreturn-type (assert may be compiled out)
 }
 
 namespace {

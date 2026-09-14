@@ -1,0 +1,43 @@
+{
+  "before": null,
+  "after": {
+    "case_id": "CE-007a",
+    "block_hash": null,
+    "height": null,
+    "header_result": "reject",
+    "pow_result": false,
+    "asert_result": null,
+    "tx_results": [],
+    "block_result": "reject",
+    "rejection_layer": "CheckProofOfWork",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": false,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": null,
+    "ki_pow_ok": false,
+    "ki_asert_ok": null
+  },
+  "future_refinement_target": "PowValidation.sound"
+}

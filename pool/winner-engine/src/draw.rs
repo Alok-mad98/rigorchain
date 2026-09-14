@@ -109,7 +109,7 @@ pub fn replay_convergence_draw(input: &DrawReplayInput) -> DrawReplayResult {
 /// something to fall back from: the node's answer is not trusted over the pool's, the run is
 /// abandoned.
 pub fn verify_replay_against_node(
-    node_draw: &rigor_gbt::ConvergenceDraw,
+    node_draw: &rigor_gbt::legacy::ConvergenceDraw,
     replay: &crate::types::DrawReplayResult,
 ) -> crate::error::WinnerResult<()> {
     use crate::error::WinnerError;

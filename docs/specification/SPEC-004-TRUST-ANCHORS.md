@@ -1,13 +1,13 @@
 # SPEC-004: RIGOR Trust Anchors
 
-**Task:** `TASK-SPEC-005`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, flat 128 ORU)  
 **Parents:** [SPEC-000](./SPEC-000-CONSENSUS-SPECIFICATION.md), [SPEC-001](./SPEC-001-STATE-MODEL.md), [SPEC-002](./SPEC-002-ECONOMIC-MODEL.md), [SPEC-003](./SPEC-003-CONSENSUS-RULES.md)  
-**Normative sources:** `RFC-000`, `RFC-005`, `RFC-008`, `RFC-014`, `RFC-015`  
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-020`  
 **Operational closure process:** [PROOF-010](../protocol/proof/PROOF-010-AUDIT-ITEM-CLOSURE-FRAMEWORK.md)  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`
 
 ---
 
@@ -139,7 +139,7 @@ and whether `nBits` is the correct ASERT output from frozen difficulty rules.
 |----------|-------|
 | **Work measurement** | Cumulative chainwork increases along the active chain |
 | **ASERT correctness** | Difficulty adjustment matches frozen integer ASERT semantics |
-| **Separation (RFC-014)** | PoW target does **not** define RES draw inequality RHS |
+| **Separation** | PoW target does **not** define the RES mint price |
 | **Integer comparison** | No floating-point on consensus paths |
 
 ### 3.3 Trust boundary
@@ -157,7 +157,7 @@ PoW validation rules are specified in [SPEC-003](./SPEC-003-CONSENSUS-RULES.md)
 |---------|--------|
 | **Insufficient difficulty accepted** | Invalid block accepted → chain integrity break |
 | **ASERT miscalculation** | Divergent `nBits` across validators → consensus fork |
-| **PoW target used as draw RHS** | Variable-T / dual-T violation → economic and consensus spec violation |
+| **PoW target used as mint price** | Economic and consensus spec violation |
 
 ---
 
@@ -269,41 +269,36 @@ For correct operation, validators assume:
 
 ---
 
-## 7. Eligibility and Draw Context
+## 7. Mint context
 
 ### 7.1 Anchor definition
 
-**TA-DRAW:** The RES convergence draw is **fully deterministic** from consensus
-inputs. No external randomness oracle participates.
+**TA-MINT:** RES mint accept/reject is **fully deterministic** from the
+confirming block’s body and height. No external randomness oracle
+participates.
 
-Draw outputs are computed from:
+Mint verdicts are computed from:
 
-- Candidate set `F` (convergence-ticket transactions in the parent window)
-- Convergence root `C` committed by the parent coinbase
-- Parent block hash `B_{h-1}` as the σ seed (Sigma-PoW-01; historical `bind_commit` superseded)
-- Per-candidate σ digests and eligibility inequality
-- Cross-multiply winner selection with txid tie-break
+- Confirming height `h`
+- Destroy `B` on the transaction’s single `OP_CONVERGE` output
+- RES outputs summing to `R`
+- `CheckResMintArithmetic(R, B, h)`
 
-See [SPEC-003](./SPEC-003-CONSENSUS-RULES.md) CR-040..CR-046.
+See [SPEC-003](./SPEC-003-CONSENSUS-RULES.md) CR-040..CR-045.
 
 ### 7.2 External randomness
 
 **There is no external randomness assumption for consensus correctness.**
 
-`H_i = Hash256(σ_i preimage)` is pseudorandom for **economic** arguments only.
-Consensus requires:
+Consensus requires identical `(R, B, h)` → identical accept/reject.
 
-- Identical inputs → identical `H_i`, eligibility, and winner
-- At most one winner (CR-042) and at most one mint (CR-043)
-
-### 7.3 Sub-anchors within draw context
+### 7.3 Sub-anchors within mint context
 
 | Sub-anchor | Issue | Open item |
 |------------|-------|-----------|
-| **σ → integer byte order** | Endianness for inequality comparison | **A-1** (HIGH) |
-| **uint512 cross-multiply** | Overflow bound for `H_i · f_j` | **A-2** (MEDIUM) |
-| **F membership predicate** | Candidate set enumeration equivalence | **A-3** (HIGH) |
-| **Hash primitive** | SHA-256d correctness | **A-4** (MEDIUM) |
+| **128-bit intermediate** | Overflow bound for `R · (2²⁵+h)²` | **A-2** (MEDIUM) |
+| **Height binding** | Mint priced at confirming height only | **A-3** (HIGH) |
+| **Hash primitive** | SHA-256d correctness (txid / merkle / block id) | **A-4** (MEDIUM) |
 
 ### 7.4 Failure conditions
 
@@ -405,7 +400,7 @@ open assumptions; it does not modify consensus, monetary policy, or protocol fre
 | No protocol-freeze modifications | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -430,8 +425,8 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-005` — initial trust anchor specification |
-| 0.2 | 2026-06-05 | Cross-reference PROOF-010 operational audit closure process (TASK-PROOF-011) |
-| 0.3 | 2026-06-05 | A-1 status AI_PARTIAL per PROOF-011 closure procedure (TASK-PROOF-012) |
-| 0.4 | 2026-06-05 | A-2 / A-3 AI_PARTIAL runtime witness per PROOF-013 (TASK-PROOF-014) |
-| 0.5 | 2026-06-05 | A-4 / A-5 AI_PARTIAL runtime witness per PROOF-014 (TASK-PROOF-015) |
+| 0.1 | 2026-06-05 | `historical verification record` — initial trust anchor specification |
+| 0.2 | 2026-06-05 | Cross-reference PROOF-010 operational audit closure process (historical verification record) |
+| 0.3 | 2026-06-05 | A-1 status AI_PARTIAL per PROOF-011 closure procedure (historical verification record) |
+| 0.4 | 2026-06-05 | A-2 / A-3 AI_PARTIAL runtime witness per PROOF-013 (historical verification record) |
+| 0.5 | 2026-06-05 | A-4 / A-5 AI_PARTIAL runtime witness per PROOF-014 (historical verification record) |

@@ -12,72 +12,42 @@
  * ScriptPubKey = RIGOR_PUSH_1 <32 bytes>
  * semantic = f(input_asset_domain)
  * 
- * CONSENSUS_LOCK_CONVERGENCE_V3 — Convergence v3.0 Consensus Lock (Res mint hardening layer)
+ * CONSENSUS_LOCK_CONVERGENCE_V4 — Convergence v4.0 Consensus Lock (RFC-019 RATE(k))
  *
- * Res mint preimage inputs MUST NOT depend on:
- *   - the coinbase transaction (as a whole or truncated),
- *   - any coinbase txid (including "orum-only" or other modified projections),
- *   - coinbase scriptSig,
- *   - block hashMerkleRoot (header transaction merkle root).
+ * A convergence output destroys ORU. Under RFC-017 that bought a lottery ticket and the
+ * prize was paid by the next block's coinbase; under RFC-019 it buys RES outright, in the
+ * same transaction, at the epoch's destroy cost. The burn is unchanged — what it buys is not.
  *
- * Valid consensus Res mint inputs are strictly limited to what `rigor_res.cpp` and
- * `res_proof.cpp` enforce: convergence transaction txid, bind_hash, block context
- * (height, parent compact target), and explicit witness proof pushes — never
- * coinbase-derived material.
- *
- * Normative rules (see also convergence_logic / convergence_commitment / ConnectBlock):
- *   - Structure: at most ONE positive-value convergence output per ORU-classified tx (CountConvergenceOutputs(tx) <= 1); more than one is invalid-convergence-structure. Ordinary ORU transfers may carry zero convergence outputs.
- *   - Draw inequality: H < T · f (RFC-000 §3) where f is the integer convergence amount, untransformed (RFC-000 §7).
- *   - Convergence spends ORU to convergence outputs only: no consensus ORU fee floor on convergence txs (standard relay/min-fee policy only).
- *   - Minimum ORU convergenced per convergence tx is fixed MIN_CONVERGENCE_AMOUNT (1 ORU unit at COIN scale); no height/halving ladder.
- *   - The block's ONLY convergence commitment is the coinbase scriptSig: `<BIP34 height> <OP_PUSHBYTES_32 C> <OP_PUSHBYTES_32 paid-winner-txid>`,
- *     byte-exact with no trailing data (`consensus/convergence_root.cpp`; `bad-cb-convergence-root`).
- *     There is no coinbase CVGE `RIGOR_MARKER_RETURN` check: `bad-convergence-draw-candidate-root` and
- *     `bad-convergence-cumulative` no longer exist. `CBlockIndex::m_draw_candidate_root` is a local
- *     recomputation for RPC / state_snapshot, never compared against producer-supplied data.
- *   - New Res issuance exists ONLY in the **coinbase**, as a single `RIGOR_MARKER_RES_MINT` output evaluated by
- *     `rigor::ConnectEvaluateCoinbaseResMint` (consensus/rigor_res.cpp). `Consensus::CheckTxInputs`
- *     rejects every body transaction that creates RES (`mixed-asset-output`), so the coinbase is the
- *     single issuance gate. There is no body self-proof mint, no PCORB carrier, and no covenant mint.
- *   - Draw eligibility for convergence txs is fully recomputable from block txs + prior headers (bind/target);
- *     not from mempool ordering, coinbase txid, or `hashMerkleRoot`.
- *   - Draw eligibility RHS is the immutable RFC-014 constant
- *     `Consensus::Params::RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017, C=1024 ORU); see
- *     `ConvergenceDrawInequalityHolds`. Parent compact `nBits` is not a σ input
- *     (SECURITY-001-A8 / Sigma-PoW-01). Historical Sigma-CR-01 `bind_commit` is superseded.
+ * Normative rules (see also ConnectBlock / consensus/res_issuance.h):
+ *   - Structure: at most ONE positive-value convergence output per ORU-classified tx
+ *     (CountConvergenceOutputs(tx) <= 1); more than one is invalid-convergence-structure.
+ *     Ordinary ORU transfers may carry zero convergence outputs.
+ *   - Convergence spends ORU to convergence outputs only: no consensus ORU fee floor on
+ *     convergence txs (standard relay/min-fee policy only).
+ *   - Smallest OP_CONVERGE burn is one ORU atom (nValue > 0). There is no
+ *     1 ORU ticket floor. Minting R ≥ 1 is gated only by
+ *     `CheckResMintArithmetic`: the R = 1 case is B ≥ ceil((2^25+h)^2 / 2^40).
+ *   - New RES issuance exists ONLY in the transaction body, priced by `Consensus::CheckTxInputs`
+ *     against `CheckResMintArithmetic` (consensus/res_issuance.h): a tx with no RES inputs may
+ *     create RES iff CheckResMintArithmetic admits (R, B, h).
+ *     There is no coinbase mint, no witness self-proof, no PCORB carrier, and no covenant mint.
+ *   - The burn is DECLARED by the convergence output, not inferred from inputs minus outputs
+ *     minus fee, so the amount minted does not move with fee estimation and burn and fee stay
+ *     separable.
+ *   - The coinbase commits nothing about issuance. Its scriptSig is the BIP34 height push alone.
+ *   - The cap is the closed-form integral (S/P0)·H = 2^22 RES. There is no horizon.
  */
-#define CONSENSUS_LOCK_CONVERGENCE_V3 1
+#define CONSENSUS_LOCK_CONVERGENCE_V4 1
 
-#include <arith_uint256.h>
 #include <consensus/res_amount.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
-#include <uint256.h>
 
 #include <cstdint>
-#include <optional>
 
 class CBlock;
-class CBlockIndex;
 
 namespace Consensus {
-struct Params;
-
-// SECURITY-001-A8 removed `CONVERGENCE_DRAW_BIND_DEPTH` (k = 10) and the RFC-000 §5 bootstrap
-// preimage that went with it. σ now binds to the parent block hash, which is defined at every
-// height from 1 up, so there is no ancestor depth to configure and no bootstrap gap to fill.
-
-/** Heuristic window (in blocks) for Res emission / convergence RPC progress displays (~1 Res mint per this many blocks on average). */
-inline constexpr int RES_TARGET_INTERVAL = 6;
-
-/** Res draw: σ = SelectionDigest(txid,C,B_{h-1},h); valid iff σ < T·f (RFC-000 §3, see convergence_logic). */
-inline constexpr unsigned int RES_MINT_TARGET_BITS = 14;
-
-/** Returns the convergence amount as an untransformed integer weight f (RFC-000 §7). */
-arith_uint256 PowConvergenceAmount(CAmount amount);
-
-/** Truncated uint64 view of f (tests / diagnostics). */
-uint64_t ConvergenceDrawEffectiveWeightU64(CAmount convergence_amount);
 
 /**
  * Default RIGOR_MARKER_CONVERGE burn used by tests: HASH160 of 32 0xa1 bytes.
@@ -95,9 +65,10 @@ bool IsConvergenceTx(const CTransaction& tx);
 int CountConvergenceOutputs(const CTransaction& tx);
 
 /**
- * Value committed to the convergence draw by this transaction. Feeds
- * `ConvergenceDrawCandidate::weight`, **F** membership, the `MIN_CONVERGENCE_AMOUNT` floor,
- * and — because RIGOR_MARKER_CONVERGE is the only convergence form — RFC-002 C(t) as well.
+ * Value of the OP_CONVERGE burn. Feeds RFC-002 C(t) and, when the same
+ * transaction mints RES, CheckResMintArithmetic. The lottery-era F /
+ * `MIN_CONVERGENCE_AMOUNT` ticket floor is retired; live consensus only
+ * requires a positive burn.
  *
  * LOAD-BEARING that those two readings coincide: an RIGOR_MARKER_CONVERGE output never enters the UTXO set
  * (`AddCoins` skips it), so its value is destroyed the moment the block connects, which is
@@ -113,37 +84,19 @@ int CountConvergenceOutputs(const CTransaction& tx);
  */
 CAmount GetConvergenceAmount(const CTransaction& tx);
 
+/**
+ * `GetConvergenceAmount` clamped to unsigned, for the observational prefix sums that accumulate
+ * destroyed ORU into a uint64_t. A non-convergence transaction and a malformed one both
+ * contribute nothing rather than wrapping.
+ */
+inline uint64_t GetTransactionConvergenceAmount(const CTransaction& tx)
+{
+    const CAmount amount = GetConvergenceAmount(tx);
+    if (amount <= 0) return 0;
+    return static_cast<uint64_t>(amount);
+}
+
 CAmount GetOutputValueByAsset(const CTransaction& tx, AssetType asset);
-
-/** Target from compact bits representation (genesis default only). */
-arith_uint256 ResMintTargetArith(uint8_t bits);
-
-/** Fixed draw target T from Params::res_mint_target_bits (same at every height). */
-uint256 InitialResDrawTarget(const Params& consensusParams);
-
-/**
- * Draw target T for validating a block at height H: protocol constant from `InitialResDrawTarget`.
- */
-uint256 ResDrawTargetForBlock(const CBlockIndex* pindex_prev, const Params& consensusParams);
-
-/** Easiest allowed draw target (256-bit max) for tests / bounds. */
-uint256 MaxResDrawTarget();
-
-CAmount ComputeResReward(const CBlock& block, const CBlockIndex* pindex_prev, int nHeight, const Params& consensusParams);
-
-/**
- * @deprecated Dead API — coinbase-derived Res mint program generation is forbidden.
- * These symbols remain only so mistaken link-time references fail loudly at runtime.
- * Consensus Res mint validation uses `rigor_res.cpp` + `res_proof.cpp` only.
- */
-[[deprecated("Consensus forbids coinbase-derived Res mint; use witness proof path (rigor_res / res_proof)")]]
-uint256 GetOruOnlyCoinbaseTxId(const CTransaction& coinbase_tx);
-[[deprecated("Consensus forbids coinbase-derived Res mint; use witness proof path (rigor_res / res_proof)")]]
-uint256 ResMintWitnessProgram(const uint256& oru_only_coinbase_txid, const uint256& parent_block_hash);
-[[deprecated("Consensus forbids coinbase-derived Res mint; use witness proof path (rigor_res / res_proof)")]]
-CScript ResMintScriptPubKey(const uint256& oru_only_coinbase_txid, const uint256& parent_block_hash);
-[[deprecated("Consensus forbids coinbase-derived Res mint; use witness proof path (rigor_res / res_proof)")]]
-bool IsValidResMintOutput(const CTxOut& out, const uint256& oru_only_cb_txid, const uint256& parent_block_hash);
 
 } // namespace Consensus
 

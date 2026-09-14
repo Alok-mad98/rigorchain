@@ -55,10 +55,8 @@ python3 "$ROOT/formal_verification/tools/audit_assumptions.py" \
   --project "$PROJECT" \
   --modules ResSchedule.v \
   --modules OrderIndependence.v \
-  --modules ReplayReorgCore/ResMintObligation.v \
-  --modules ReplayReorgCore/DualPoolConservation.v \
-  --modules ReplayReorgCore/SupplyConservation.v \
-  --modules ReplayReorgCore/OpaqueBoundary.v \
+  --modules FeeBurn/Properties.v \
+  --modules Proofs/Safety.v \
   --strict
 
 echo "protocol-core Coq: PASS"

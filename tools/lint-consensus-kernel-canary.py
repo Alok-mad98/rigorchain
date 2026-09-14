@@ -43,9 +43,8 @@ LEAK = re.compile(
 )
 REQUIRED_CPP = (
     "GetBlockSubsidy",
-    "GetResMintReward",
+    "ResDestroyCostAtHeight",
     "ComputeRigorIssuance",
-    "ResolveConvergenceDraw",
     "ClassifyRigorTxout",
     "ClassifyRigorAsset",
     "RigorSupplyDelta",

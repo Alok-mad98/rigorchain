@@ -4,8 +4,9 @@
 
 #include <coins.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_root.h>
+#include <consensus/rigor_consensus_lock.h>
 #include <consensus/merkle.h>
+#include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>
 #include <key.h>
 #include <node/miner.h>
@@ -234,7 +235,7 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
     entry.nFee = 11;
     entry.nHeight = 11;
 
-    const CAmount BLOCKSUBSIDY = 1000 * COIN;
+    const CAmount BLOCKSUBSIDY = Consensus::ORU_FLAT_BLOCK_SUBSIDY;
     const CAmount LOWFEE = CENT;
     const CAmount HIGHFEE = COIN;
     const CAmount HIGHERFEE = 4 * COIN;
@@ -400,20 +401,6 @@ void MinerTestingSetup::TestBasicMining(const CScript& scriptPubKey, const std::
             m_node.chainman->ActiveChain().SetTip(*next);
         }
         BOOST_CHECK(AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey));
-
-        // R-3: a missing window must not be written as a three-push all-zero C.
-        // Skip-validity (this file's default) leaves the two-push placeholder.
-        {
-            const auto tmpl = AssemblerForTest(tx_mempool).CreateNewBlock(scriptPubKey);
-            BOOST_REQUIRE(tmpl);
-            Consensus::CoinbaseConvergenceRootScriptSig parsed;
-            std::string parse_err;
-            BOOST_CHECK(!Consensus::ParseCoinbaseConvergenceRootScriptSig(
-                tmpl->block.vtx[0]->vin[0].scriptSig, parsed, parse_err));
-        }
-        // Production assembler refuses rather than committing the placeholder as C.
-        BOOST_CHECK_EXCEPTION(AssemblerForTest(tx_mempool, true).CreateNewBlock(scriptPubKey),
-                              std::runtime_error, HasReason("cannot reconstruct convergence window"));
 
         // Delete the dummy blocks again.
         while (m_node.chainman->ActiveChain().Tip()->nHeight > nHeight) {
@@ -658,16 +645,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
             pblock->nTime = m_node.chainman->ActiveChain().Tip()->GetMedianTimePast()+1;
             CMutableTransaction txCoinbase(*pblock->vtx[0]);
             txCoinbase.nVersion = 1;
-            // A-9-C: C spans the draw window, so it must come from the same helper the block
-            // template builder uses; a block-local root is rejected once any block in the window
-            // carries a convergence transaction.
-            const uint256 convergence_root = GetTemplateConvergenceRoot(
-                *pblock,
-                m_node.chainman->ActiveChain().Tip(),
-                m_node.chainman->ActiveChainstate().CoinsTip(),
-                m_node.chainman->GetConsensus());
-            txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseCommitmentScriptSig(
-                m_node.chainman->ActiveChain().Height() + 1, convergence_root, uint256{});
+            txCoinbase.vin[0].scriptSig = Consensus::BuildCoinbaseScriptSig(m_node.chainman->ActiveChain().Height() + 1);
             pblock->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
             RefreshCoinbaseWitnessAndconvergence(*pblock, m_node.chainman->ActiveChain().Tip(), *Assert(m_node.chainman));
             if (txFirst.size() == 0)

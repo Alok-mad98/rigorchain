@@ -99,7 +99,7 @@ impl WinnerTelemetry {
     /// Operational preview when draw replay is unavailable (e.g. devtest FVR-M gap).
     pub fn record_preview_degraded(
         job: &PublishedJobSnapshot,
-        template: &rigor_gbt::TemplateRecord,
+        _template: &rigor_gbt::TemplateRecord,
         degradation_reason: &str,
     ) {
         use crate::types::{DrawReplayResult, ValidationMethod};
@@ -109,7 +109,7 @@ impl WinnerTelemetry {
             draw_winner_txid: None,
             draw_winner_txid_display: Some("0".repeat(64)),
             winner_index: -1,
-            eligible_count: template.gbt.convergence_txids.len() as u32,
+            eligible_count: 0,
             mint_required: false,
             candidates: vec![],
             validation_method: ValidationMethod::Replay,

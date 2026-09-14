@@ -1,9 +1,10 @@
 # Protocol-core cone (F-4 / F-8). Citable theorems live here.
-# Phase-4F/4G/5 catalogs are NOT in this file. Do not cite catalog theorem counts.
-# Full tree remains coq/_CoqProject.
+# Lottery C-class modules were archived to formal_verification/archive/lottery/
+# (RFC-019 Phase 5 step 1). Dependents that still Require them are parked —
+# they remain in the tree but are not listed here until the B-class rewrite.
 -R . Rigor
--R fee-burn Rigor.FeeBurn
 -R ../rigor_v01 RigorV01
+-docroot Rigor
 
 RigorBytes.v
 RigorBytesOrder.v
@@ -18,21 +19,11 @@ SigmaPoW01.v
 Sigma.v
 legacy_account_model/Selection.v
 OrderIndependence.v
-DrawCandidateRoot.v
 InvalidCvg.v
-ScriptMintWitness.v
-WindowExclusion.v
 CanonicalDrawEncoder.v
 CanonicalHashKernel.v
 COQ_SELECTION_CLOSURE.v
 Execution.v
-Kernel/KernelSelection.v
-Kernel/KernelRoot.v
-Kernel/KernelSigma.v
-Kernel/KernelEligibility.v
-Kernel/KernelClosure.v
-Kernel/GoldenHarness.v
-Kernel/NegativeCoreHarness.v
 legacy_account_model/State.v
 legacy_account_model/ConnectBlockScaffold.v
 legacy_account_model/Transition.v
@@ -41,35 +32,17 @@ Properties.v
 ConnectBlock.v
 Proofs/Determinism.v
 Proofs/Safety.v
-Proofs/Correctness.v
 Proofs/Fairness.v
 Proofs/FairnessIdealized.v
 Proofs/SplitInvariance.v
 Extraction.v
-ReplayReorgCore/Hash32Order.v
-ReplayReorgCore/ReplayState.v
-ReplayReorgCore/CvgCovenant.v
-ReplayReorgCore/ScriptShape.v
-ReplayReorgCore/ConnectBlockMint.v
-ReplayReorgCore/StateTransition.v
-ReplayReorgCore/AssetFromScript.v
-ReplayReorgCore/ResMintObligation.v
-ReplayReorgCore/ReorgRules.v
-ReplayReorgCore/ReplayDeterminism.v
-ReplayReorgCore/ReplayInvariants.v
-ReplayReorgCore/DualPoolConservation.v
-fee-burn/Accounting.v
-fee-burn/AssetDomain.v
-fee-burn/ReplaySafety.v
-fee-burn/Precision.v
-fee-burn/BlockSupply.v
-fee-burn/CirculatingSemantics.v
-fee-burn/Properties.v
-ReplayReorgCore/OpaqueBoundary.v
-ReplayReorgCore/ScriptShapeLift.v
-ReplayReorgCore/SupplyConservation.v
-ConnectBlock/ConnectBlockSupply.v
-ReplayReorgCore/SupplyReplayBridge.v
+FeeBurn/Accounting.v
+FeeBurn/AssetDomain.v
+FeeBurn/ReplaySafety.v
+FeeBurn/Precision.v
+FeeBurn/BlockSupply.v
+FeeBurn/CirculatingSemantics.v
+FeeBurn/Properties.v
 ../rigor_v01/AssetClassification.v
 ../rigor_v01/ScriptAssetBoundary.v
 ../rigor_v01/Ed25519Ownership.v
@@ -86,35 +59,18 @@ ReplayReorgCore/SupplyReplayBridge.v
 ../rigor_v01/RigorUpgradeBoundary.v
 ../rigor_v01/NetworkCapabilityBoundary.v
 ../rigor_v01/NetworkSecurityBoundary.v
-../rigor_v01/WindowGeneric.v
-../rigor_v01/WindowTarget.v
-../rigor_v01/WindowSpecialization.v
-../rigor_v01/W32ReorgStability.v
-../rigor_v01/MintSupplyConservation.v
-../rigor_v01/ConnectBlockSupply.v
 ../rigor_v01/CanonicalMintEncoding.v
 ../rigor_v01/ClassifierRefinementBoundary.v
 ../rigor_v01/ClassifierGate.v
-../rigor_v01/ReorgIssuanceBound.v
-../rigor_v01/GenesisZeroIssuance.v
 ../rigor_v01/IssuanceHeightBoundary.v
 ../rigor_v01/CanonicalIssuance.v
-ConsensusKernelAlignment.v
-ConsensusKernelBridge.v
-SupplyDeltaBridge.v
-DrawResolverBridge.v
+../rigor_v01/ReorgIssuanceBound.v
 ClassificationBridge.v
 CoinbaseLayoutBridge.v
-ConsensusKernelRefinement.v
-ConnectBlockInputPreparation.v
-KernelResultApplication.v
-ConnectBlockKernelBoundary.v
 SignatureBoundary.v
 TransactionKernelRefinement.v
 MakeKernelInput.v
-ConsensusSurfaceClosure.v
 LedgerTransitionRefinement.v
-UTXOStateTransitionRefinement.v
 ../rigor_v01/AmountBoundary.v
 ../rigor_v01/SighashByteCorrespondence.v
 ../rigor_v01/SighashPreimage.v

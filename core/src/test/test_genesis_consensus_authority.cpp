@@ -13,7 +13,6 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <test/util/setup_common.h>
-#include <uint256.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -22,9 +21,6 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
 }
@@ -56,8 +52,6 @@ BOOST_AUTO_TEST_CASE(genesis_height_0)
     const Consensus::Params p = FrozenParams();
     const RigorIssuance g = RigorConsensusKernel::Issuance(0, p);
     BOOST_REQUIRE_EQUAL(g.oru_subsidy, 0);
-    BOOST_REQUIRE_EQUAL(g.res_reward, Consensus::RES_REWARD_GENESIS);
-    BOOST_REQUIRE(!RigorConsensusKernel::ResolveDraw(ConvergenceDrawSet{}, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner());
 
     RigorConsensusKernelConnectInput in;
     in.height = 0;
@@ -68,7 +62,6 @@ BOOST_AUTO_TEST_CASE(genesis_height_0)
     BlockValidationState state;
     BOOST_REQUIRE(RigorConsensusKernel::EvaluateConnect(in, out, state));
     BOOST_REQUIRE(out.accept);
-    BOOST_REQUIRE_EQUAL(out.res_mint, 0);
     BOOST_REQUIRE_EQUAL(out.supply.oru_circulating_delta, 0);
     BOOST_REQUIRE_EQUAL(out.supply.res_delta, 0);
 }
@@ -77,8 +70,7 @@ BOOST_AUTO_TEST_CASE(height_1_issuance)
 {
     const Consensus::Params p = FrozenParams();
     const RigorIssuance g = RigorConsensusKernel::Issuance(1, p);
-    BOOST_REQUIRE_EQUAL(g.oru_subsidy, 100000000000LL);
-    BOOST_REQUIRE_EQUAL(g.res_reward, 40000000);
+    BOOST_REQUIRE_EQUAL(g.oru_subsidy, Consensus::ORU_FLAT_BLOCK_SUBSIDY);
     BOOST_REQUIRE_EQUAL(g.epoch, 0);
 }
 
@@ -95,39 +87,8 @@ BOOST_AUTO_TEST_CASE(epoch_boundary)
     const Consensus::Params p = FrozenParams();
     BOOST_REQUIRE_EQUAL(RigorIssuanceEpoch(209999), 0);
     BOOST_REQUIRE_EQUAL(RigorIssuanceEpoch(210000), 1);
-    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(209999, p).oru_subsidy, 100000000000LL);
-    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(210000, p).oru_subsidy, 50000000000LL);
-}
-
-BOOST_AUTO_TEST_CASE(res_schedule)
-{
-    const Consensus::Params p = FrozenParams();
-    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(209999, p).res_reward, 40000000);
-    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(210000, p).res_reward, 14142196);
-}
-
-BOOST_AUTO_TEST_CASE(draw)
-{
-    const uint64_t sat = 209715200000000ULL;
-    ConvergenceDrawSet one;
-    one.source_height = 100;
-    ConvergenceDrawCandidate a, b;
-    a.txid = uint256S("0x01");
-    a.weight = sat;
-    b.txid = uint256S("0x02");
-    b.weight = sat;
-    one.candidates = {a};
-    BOOST_REQUIRE(RigorConsensusKernel::ResolveDraw(one, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner());
-    ConvergenceDrawSet two = one;
-    two.candidates = {a, b};
-    ConvergenceDrawSet swap = one;
-    swap.candidates = {b, a};
-    const auto w2 = RigorConsensusKernel::ResolveDraw(two, Consensus::RES_PROBABILITY_TARGET_CONST);
-    const auto w3 = RigorConsensusKernel::ResolveDraw(swap, Consensus::RES_PROBABILITY_TARGET_CONST);
-    BOOST_REQUIRE(w2.HasWinner() && w3.HasWinner());
-    BOOST_REQUIRE(two.candidates[static_cast<size_t>(w2.winner_index)].txid ==
-        swap.candidates[static_cast<size_t>(w3.winner_index)].txid);
-    BOOST_REQUIRE(!RigorConsensusKernel::ResolveDraw(one, uint256()).HasWinner());
+    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(209999, p).oru_subsidy, Consensus::ORU_FLAT_BLOCK_SUBSIDY);
+    BOOST_REQUIRE_EQUAL(RigorConsensusKernel::Issuance(210000, p).oru_subsidy, Consensus::ORU_FLAT_BLOCK_SUBSIDY);
 }
 
 BOOST_AUTO_TEST_CASE(classification)
@@ -152,7 +113,7 @@ BOOST_AUTO_TEST_CASE(spend_and_ledger_transition)
     BlockValidationState state;
     BOOST_REQUIRE(RigorConsensusKernel::EvaluateConnect(in, out, state));
     BOOST_REQUIRE(out.accept);
-    BOOST_REQUIRE_EQUAL(out.res_mint, 0);
+    BOOST_REQUIRE_EQUAL(out.supply.oru_subsidy, Consensus::ORU_FLAT_BLOCK_SUBSIDY);
 }
 
 BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_null_input)
@@ -176,22 +137,6 @@ BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_negative_height)
     BlockValidationState state;
     BOOST_REQUIRE(!RigorConsensusKernel::EvaluateConnect(in, out, state));
     BOOST_REQUIRE_EQUAL(state.GetRejectReason(), "kernel-negative-height");
-}
-
-BOOST_AUTO_TEST_CASE(evaluate_connect_rejects_winner_mismatch)
-{
-    const Consensus::Params p = FrozenParams();
-    const CTransactionRef cb = EmptyCoinbase();
-    RigorConsensusKernelConnectInput in;
-    in.height = 1;
-    in.coinbase = cb.get();
-    in.params = &p;
-    in.supply.has_winner = true;
-    in.supply.draw_cardinality = 1;
-    RigorConsensusKernelConnectResult out;
-    BlockValidationState state;
-    BOOST_REQUIRE(!RigorConsensusKernel::EvaluateConnect(in, out, state));
-    BOOST_REQUIRE_EQUAL(state.GetRejectReason(), "bad-rigor-res-winner-mismatch");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

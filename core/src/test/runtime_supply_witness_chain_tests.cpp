@@ -120,10 +120,9 @@ BOOST_AUTO_TEST_CASE(build_witness_from_mirror_and_invariants)
     s.oru_supply_cumulative = s.oru_supply_parent + s.oru_subsidy_block;
     s.res_mint_parent = 0;
     s.res_mint_block = 0;
-    s.res_mint_count_block = 0;
+    s.res_mint_present_block = 0;
     s.res_mint_cumulative = 0;
     s.res_max_supply = Consensus::RES_MAX_SUPPLY;
-    s.res_reward_amount = Consensus::RES_REWARD_GENESIS;
 
     const Consensus::RuntimeInvariantResult inv = Consensus::VerifyRuntimeSupplyInvariants(s, consensus);
     const Consensus::RuntimeSupplyWitness w = Consensus::BuildRuntimeSupplyWitness(s, inv);
@@ -141,7 +140,8 @@ BOOST_FIXTURE_TEST_CASE(rpc_export_shape, WitnessChainFixture)
     const UniValue json = WitnessToJsonForTest(w);
     BOOST_CHECK_EQUAL(json["height"].getInt<int>(), 1000);
     BOOST_CHECK_EQUAL(json["invariants_passed"].get_bool(), true);
-    BOOST_CHECK_EQUAL(json["checked_invariants"].getInt<int>(), 10);
+    BOOST_CHECK_EQUAL(json["checked_invariants"].getInt<int>(),
+                      static_cast<int>(Consensus::RUNTIME_SUPPLY_INVARIANT_COUNT));
     BOOST_CHECK(json["violations"].isArray());
     BOOST_CHECK_EQUAL(json["violations"].size(), 0U);
     BOOST_CHECK_EQUAL(json["oru_supply_cumulative"].getValStr(), "0.00123456");

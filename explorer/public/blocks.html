@@ -7,11 +7,13 @@
     <link rel="stylesheet" href="/compliance.css" />
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
-      a { margin-right: 12px; color: #fff; }
-      table { border-collapse: collapse; width: 100%; max-width: 1100px; }
+      a { color: #fff; }
+      table { border-collapse: collapse; width: 100%; }
       th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
       th { background: #111; }
       .muted { color: #bbb; font-size: 12px; }
+      .blocks-pager { margin: 8px 0 12px; }
+      .blocks-pager a { margin-right: 8px; }
       @media (max-width: 800px) { .fp-col { display: none; } }
     </style>
     <script src="/explorer-routes.js"></script>
@@ -20,8 +22,8 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
@@ -39,9 +41,20 @@
       }
 
       async function load() {
-        const r = await ExplorerRoutes.fetchJson('/api/blocks?limit=50');
+        const params = new URLSearchParams(window.location.search);
+        const page = params.get('page') || '1';
+        const r = await ExplorerRoutes.fetchJson('/api/blocks?limit=50&page=' + encodeURIComponent(page));
         const j = await r.json();
         const rows = (j.blocks || []);
+        const pagerHtml = (function () {
+          const cur = Number(j.page || 1);
+          const pages = Number(j.pages || 1);
+          const total = Number(j.total || rows.length);
+          const parts = ['Page ' + cur + ' / ' + pages + ' · ' + total + ' blocks'];
+          if (j.has_prev) parts.push('<a href="/blocks?page=' + (cur - 1) + '">Newer</a>');
+          if (j.has_next) parts.push('<a href="/blocks?page=' + (cur + 1) + '">Older</a>');
+          return '<p class="muted blocks-pager">' + parts.join(' · ') + '</p>';
+        })();
 
         const table = document.createElement('table');
         table.innerHTML = `
@@ -52,12 +65,8 @@
               <th>time</th>
               <th>tx_count</th>
               <th>oru_minted</th>
-              <th>|F|</th>
-              <th>winner</th>
-              <th class="fp-col">Draw Fingerprint</th>
-              <th>C (convergence_root)</th>
-              <th title="draw_candidate_root_committed — pays parent draw">committed</th>
-              <th title="draw_candidate_root_computed — this block awards">computed</th>
+              <th>res_minted</th>
+              <th>converge_destroy</th>
             </tr>
           </thead>
         `;
@@ -71,25 +80,23 @@
             <td>${ExplorerRoutes.timeCellHtml(b.time)}</td>
             <td>${b.tx_count}</td>
             <td>${b.oru_minted_display ?? b.oru_minted ?? "—"}</td>
-            <td>${b.candidate_set_size ?? 0}</td>
-            <td>${shortHash(b.rigor_winner)}</td>
-            <td class="fp-col muted">${b.consensus_fingerprint_short ?? 'N/A'}</td>
-            <td class="muted">${shortHash(b.c_root)}</td>
-            <td class="muted">${shortHash(b.committed_root || b.draw_candidate_root)}</td>
-            <td class="muted">${shortHash(b.computed_root)}</td>
+            <td>${b.res_minted_display ?? "—"}</td>
+            <td>${b.converge_burn_display ?? "—"}</td>
           `;
           tbody.appendChild(tr);
         }
         table.appendChild(tbody);
 
         const el = document.getElementById('root');
-        el.innerHTML = '';
+        el.innerHTML = pagerHtml;
         el.appendChild(table);
+        el.insertAdjacentHTML('beforeend', pagerHtml);
       }
 
+      const params = new URLSearchParams(window.location.search);
       const ssrRoot = document.getElementById('root');
-      if (ssrRoot && ssrRoot.getAttribute('data-ssr') === '1') {
-        /* server already filled the table */
+      if (ssrRoot && ssrRoot.getAttribute('data-ssr') === '1' && !params.get('page')) {
+        /* first page already filled */
       } else {
         load().catch((e) => {
           document.getElementById('root').textContent = 'Failed: ' + String(e);

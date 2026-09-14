@@ -179,7 +179,7 @@
           <item>
            <widget class="QLabel" name="labelSectionRoundTable">
             <property name="text">
-             <string>One block, one round</string>
+             <string>Per-block convergence set</string>
             </property>
            </widget>
           </item>
@@ -189,7 +189,7 @@
              <bool>true</bool>
             </property>
             <property name="text">
-             <string>Each mined block settles one convergence draw: the commitment set F, then a single winner. The tip is the latest result; the row below is the prior block. Converge ORU in the next section to enter a later round.</string>
+             <string>Each mined block commits a convergence set F. The tip is the latest block; the row below is the prior block.</string>
             </property>
            </widget>
           </item>
@@ -264,53 +264,13 @@
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QLabel" name="labelTipRoundCandTitle">
-                 <property name="text">
-                  <string>Non-coinbase txs</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="1">
-                <widget class="QLabel" name="labelTipRoundCand">
-                 <property name="text">
-                  <string notr="true">—</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="0">
-                <widget class="QLabel" name="labelTipRoundWinnerTitle">
-                 <property name="text">
-                  <string>Winner txid</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="1">
-                <widget class="QLabel" name="labelTipRoundWinner">
-                 <property name="text">
-                  <string notr="true">—</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                 <property name="textInteractionFlags">
-                  <set>Qt::TextSelectableByMouse</set>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="0">
                 <widget class="QLabel" name="labelTipRoundYouTitle">
                  <property name="text">
                   <string>Your convergence entry on this table</string>
                  </property>
                 </widget>
                </item>
-               <item row="4" column="1">
+               <item row="2" column="1">
                 <widget class="QLabel" name="labelTipRoundYou">
                  <property name="text">
                   <string notr="true">—</string>
@@ -412,53 +372,13 @@
                 </widget>
                </item>
                <item row="2" column="0">
-                <widget class="QLabel" name="labelPrevRoundCandTitle">
-                 <property name="text">
-                  <string>Non-coinbase txs</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="1">
-                <widget class="QLabel" name="labelPrevRoundCand">
-                 <property name="text">
-                  <string notr="true">—</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="0">
-                <widget class="QLabel" name="labelPrevRoundWinnerTitle">
-                 <property name="text">
-                  <string>Winner txid</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="3" column="1">
-                <widget class="QLabel" name="labelPrevRoundWinner">
-                 <property name="text">
-                  <string notr="true">—</string>
-                 </property>
-                 <property name="alignment">
-                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                 </property>
-                 <property name="wordWrap">
-                  <bool>true</bool>
-                 </property>
-                 <property name="textInteractionFlags">
-                  <set>Qt::TextSelectableByMouse</set>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="0">
                 <widget class="QLabel" name="labelPrevRoundYouTitle">
                  <property name="text">
                   <string>Your convergence entry on this table</string>
                  </property>
                 </widget>
                </item>
-               <item row="4" column="1">
+               <item row="2" column="1">
                 <widget class="QLabel" name="labelPrevRoundYou">
                  <property name="text">
                   <string notr="true">—</string>
@@ -487,107 +407,6 @@
               </widget>
              </item>
             </layout>
-           </widget>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <widget class="QFrame" name="frameDraw">
-         <property name="frameShape">
-          <enum>QFrame::StyledPanel</enum>
-         </property>
-         <layout class="QFormLayout" name="formLayoutDraw">
-          <property name="horizontalSpacing">
-           <number>12</number>
-          </property>
-          <property name="verticalSpacing">
-           <number>6</number>
-          </property>
-          <property name="leftMargin">
-           <number>12</number>
-          </property>
-          <property name="topMargin">
-           <number>12</number>
-          </property>
-          <property name="rightMargin">
-           <number>12</number>
-          </property>
-          <property name="bottomMargin">
-           <number>12</number>
-          </property>
-          <item row="0" column="0" colspan="2">
-           <widget class="QLabel" name="labelSectionDraw">
-            <property name="text">
-             <string>Draw bind</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="0">
-           <widget class="QLabel" name="labelDrawNextTitle">
-            <property name="text">
-             <string>Next block height</string>
-            </property>
-           </widget>
-          </item>
-          <item row="1" column="1">
-           <widget class="QLabel" name="labelDrawNextHeight">
-            <property name="text">
-             <string notr="true">—</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="0">
-           <widget class="QLabel" name="labelDrawBindHTitle">
-            <property name="text">
-             <string>Bind block height</string>
-            </property>
-           </widget>
-          </item>
-          <item row="2" column="1">
-           <widget class="QLabel" name="labelDrawBindHeight">
-            <property name="text">
-             <string notr="true">—</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="0">
-           <widget class="QLabel" name="labelDrawBindHashTitle">
-            <property name="text">
-             <string>Bind block hash</string>
-            </property>
-           </widget>
-          </item>
-          <item row="3" column="1">
-           <widget class="QLabel" name="labelDrawBindHash">
-            <property name="text">
-             <string notr="true">—</string>
-            </property>
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-            </property>
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-            <property name="textInteractionFlags">
-             <set>Qt::TextSelectableByMouse</set>
-            </property>
-           </widget>
-          </item>
-          <item row="4" column="0" colspan="2">
-           <widget class="QLabel" name="labelDrawHint">
-            <property name="wordWrap">
-             <bool>true</bool>
-            </property>
-            <property name="text">
-             <string>Draw preimage: H(txid ‖ bind ‖ height). Winner = eligible convergence tx with minimum h (convergence_logic). This is not a mempool-share probability.</string>
-            </property>
            </widget>
           </item>
          </layout>
@@ -649,7 +468,7 @@
             <item row="1" column="0">
              <widget class="QLabel" name="labelMarketWindowTitle">
               <property name="text">
-               <string>Window progress</string>
+               <string>Confirming height</string>
               </property>
              </widget>
             </item>
@@ -666,7 +485,7 @@
             <item row="2" column="0">
              <widget class="QLabel" name="labelMarketMintCostTitle">
               <property name="text">
-               <string>Convergence since last RES</string>
+               <string>Display cost (price(h))</string>
               </property>
              </widget>
             </item>
@@ -681,36 +500,13 @@
              </widget>
             </item>
             <item row="3" column="0">
-             <widget class="QLabel" name="labelMarketWinnerTitle">
-              <property name="text">
-               <string>Last winner txid</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="1">
-             <widget class="QLabel" name="labelMarketWinner">
-              <property name="text">
-               <string notr="true">—</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-              <property name="textInteractionFlags">
-               <set>Qt::TextSelectableByMouse</set>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="0">
              <widget class="QLabel" name="labelMarketTipTitle">
               <property name="text">
                <string>Tip height</string>
               </property>
              </widget>
             </item>
-            <item row="4" column="1">
+            <item row="3" column="1">
              <widget class="QLabel" name="labelMarketTip">
               <property name="text">
                <string notr="true">—</string>
@@ -720,14 +516,14 @@
               </property>
              </widget>
             </item>
-            <item row="5" column="0">
+            <item row="4" column="0">
              <widget class="QLabel" name="labelMarketLastResTitle">
               <property name="text">
                <string>Last RES height</string>
               </property>
              </widget>
             </item>
-            <item row="5" column="1">
+            <item row="4" column="1">
              <widget class="QLabel" name="labelMarketLastRes">
               <property name="text">
                <string notr="true">—</string>
@@ -789,7 +585,7 @@
             <item row="0" column="0">
              <widget class="QLabel" name="labelMinConvergeTitle">
               <property name="text">
-               <string>Minimum convergence</string>
+               <string>Minimum to mint 1 RES atom</string>
               </property>
              </widget>
             </item>
@@ -813,7 +609,7 @@
             <item row="2" column="0">
              <widget class="QLabel" name="labelQuadraticFeeTitle">
               <property name="text">
-               <string>Min. fee (5% floor)</string>
+               <string>RES this mint will create</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -869,92 +665,6 @@
               </property>
              </widget>
             </item>
-            <item row="5" column="0">
-             <widget class="QLabel" name="labelConvergeStatusTitle">
-              <property name="text">
-               <string>Convergence tx status</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="1">
-             <widget class="QLabel" name="labelConvergeStatus">
-              <property name="text">
-               <string notr="true">—</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-              <property name="minimumWidth">
-               <number>180</number>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="0">
-             <widget class="QLabel" name="labelConvergeCompetitionTitle">
-              <property name="text">
-               <string>Competition</string>
-              </property>
-             </widget>
-            </item>
-            <item row="6" column="1">
-             <widget class="QLabel" name="labelConvergeCompetition">
-              <property name="text">
-               <string notr="true">—</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-              <property name="minimumWidth">
-               <number>180</number>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="0">
-             <widget class="QLabel" name="labelConvergeMaturityTitle">
-              <property name="text">
-               <string>Maturity</string>
-              </property>
-             </widget>
-            </item>
-            <item row="7" column="1">
-             <widget class="QLabel" name="labelConvergeMaturity">
-              <property name="text">
-               <string notr="true">—</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-              <property name="minimumWidth">
-               <number>180</number>
-              </property>
-             </widget>
-            </item>
-            <item row="8" column="0">
-             <widget class="QLabel" name="labelConvergeMaturityCountdownTitle">
-              <property name="text">
-               <string>RES maturity</string>
-              </property>
-             </widget>
-            </item>
-            <item row="8" column="1">
-             <widget class="QLabel" name="labelConvergeMaturityCountdown">
-              <property name="text">
-               <string notr="true">—</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-              </property>
-              <property name="minimumWidth">
-               <number>180</number>
-              </property>
-             </widget>
-            </item>
              </layout>
             </item>
            </layout>
@@ -968,7 +678,7 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>RES mint outcomes follow deterministic consensus rules. This wallet does not estimate selection probability or expected value.</string>
+          <string>Destroyed ORU cannot be recovered.</string>
          </property>
         </widget>
        </item>

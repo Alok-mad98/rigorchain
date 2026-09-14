@@ -12,11 +12,7 @@ export function SubNav() {
         {section.title}
       </Link>
       {section.children.map((child) => (
-        <Link
-          key={child.path}
-          to={child.path}
-          className={pathname === child.path ? "active" : ""}
-        >
+        <Link key={child.path} to={child.path} className={pathname === child.path ? "active" : ""}>
           {child.title}
         </Link>
       ))}

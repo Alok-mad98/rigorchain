@@ -3,43 +3,54 @@ import { Button } from "../components/Button";
 import { DarkCard } from "../components/DarkCard";
 import { SectionTitle } from "../components/SectionTitle";
 import { ThreeLayerModel } from "../components/ThreeLayerModel";
+import { Rfc020LivePanel } from "../components/Rfc020LivePanel";
 import { useSystemState } from "../context/SystemStateContext";
+import { readRfc020Live } from "../lib/rfc020Status";
+import {
+  ASERT_HALF_LIFE_S,
+  COQ_ENFORCED_VECTORS,
+  MAINNET_GENESIS,
+  MAINNET_HRP,
+  MAINNET_RPC_PORT,
+  OPUHASH,
+  SHARED_GOLDEN_VECTORS,
+  TARGET_SPACING_S,
+} from "../protocolFacts";
 
 export function LandingPage() {
   const { state } = useSystemState();
+  const live = readRfc020Live(state.convergence_status);
 
   return (
     <div className="page landing-page">
       <section className="hero">
-        <img src="/assets/rigor-mark.png" alt="" className="hero-mark" width={56} height={56} />
         <p className="tag">WWW.RIGORCHAIN.COM</p>
         <h1>RIGOR</h1>
         <p className="hero-sub">
-          A dual-asset UTXO protocol built on script-derived asset classification,
-          stateless monetary architecture, and formally verified consensus invariants.
+          A dual-asset UTXO protocol. Asset class is inferred from scriptPubKey.
+          Formal results are properties of the protocol model, not C++ equivalence.
         </p>
       </section>
 
       <section className="card prose-section">
         <h2>What is RIGOR?</h2>
         <p>
-          RIGOR is a dual-asset UTXO protocol built on script-derived asset
-          classification, stateless monetary architecture, and formally verified
-          consensus invariants. ORU provides PoW security and fees. RES is
-          deterministically issued after protocol-defined Convergence conditions —
-          not mined. Script is the compliance/classification layer. There is no token
-          registry, account ledger, or global asset state. Invariants are properties
-          of the protocol model; the C++ node is not claimed equivalent
-          (<code>equivalence_claimed = false</code>).
+          RIGOR is a dual-asset UTXO protocol. Asset class is inferred from{" "}
+          <code>scriptPubKey</code>. ORU is the fee and PoW-subsidy asset. RES is minted only in
+          Convergence: the same body transaction destroys ORU to mint RES at <code>destroy_cost(h)</code> — not from PoW. There is no Script VM, no token
+          registry, and no account ledger. Code is the source of truth. Formal invariants are
+          properties of the protocol model (
+          <code>equivalence_claimed = false</code>).
         </p>
         <pre className="pipeline-diagram">{`RIGOR =
-    Dual Native Assets
-  + UTXO Monetary Model
-  + Deterministic Issuance
-  + Deflationary Mechanisms
-  + Probabilistic Selection
-  + Adaptive Proof-of-Work
-  + Cryptographic Ownership
+    Dual Native Assets (ORU, RES)
+  + UTXO classification (no Script VM)
+  + Deterministic issuance
+  + Deflationary fee destroy
+  + Convergence destroy-to-mint (destroy_cost(h); cap 2²² RES)
+  + OpuHash = ${OPUHASH}
+  + ASERT (spacing ${TARGET_SPACING_S}s, half-life ${ASERT_HALF_LIFE_S}s)
+  + Ed25519 ownership
 
 equivalence_claimed = false`}</pre>
       </section>
@@ -47,27 +58,24 @@ equivalence_claimed = false`}</pre>
       <SectionTitle>Core identity</SectionTitle>
       <section className="identity-grid">
         <DarkCard title="PoW" to="/mining" linkLabel="Mining">
-          <p>Miners find valid headers and order blocks. Pool policy cannot mint RES.</p>
+          <p>
+            OpuHash = {OPUHASH}. ASERT half-life {ASERT_HALF_LIFE_S / 3600} hours. Pool policy
+            cannot mint RES.
+          </p>
         </DarkCard>
         <DarkCard title="ORU" to="/wallet/oru" linkLabel="Wallet · ORU">
-          <p>Execution and fee resource. Terminal subsidy floor 125 = 5³.</p>
+          <p>Execution and fee resource. Flat subsidy 128 ORU per block (h ≥ 1).</p>
         </DarkCard>
         <DarkCard title="RES" to="/wallet/res" linkLabel="Wallet · RES">
           <p>Reserve asset. Deterministic issuance after Convergence — not mined. Capped supply.</p>
         </DarkCard>
         <DarkCard title="Convergence" to="/wallet/convergence" linkLabel="Wallet · Convergence">
-          <p>Deterministic winner selection over committed set F — not a lottery UI.</p>
-        </DarkCard>
-      </section>
-      <section className="identity-spotlight" aria-label="Zero Trust">
-        <DarkCard title="Zero Trust" to="/zero-trust-verification" linkLabel="Verify">
-          <p>Anyone can verify a TXID or block hash without trusting a server.</p>
+          <p>Destroy ORU via OP_CONVERGE to mint RES at destroy_cost(h).</p>
         </DarkCard>
       </section>
 
       <section className="cta-row">
         <Button to="/download">Download</Button>
-        <Button to="/zero-trust-verification">Verify independently</Button>
         <Button to="/documentation">Documentation</Button>
         <Button to="/documentation/formal-verification">Formal verification</Button>
       </section>
@@ -87,18 +95,22 @@ equivalence_claimed = false`}</pre>
           </li>
           <li>
             Read <Link to="/wallet/convergence">Convergence</Link>, then{" "}
-            <Link to="/zero-trust-verification">verify independently</Link>
+            <Link to="/documentation/formal-verification">formal verification</Link>
           </li>
         </ol>
       </section>
 
       <section className="card prose-section">
-        <h2>Experimental system overview</h2>
+        <h2>Verification model</h2>
         <p>
-          Formal verification covers protocol-model invariants and a correspondence
-          boundary (golden vectors, differential gate). It is{" "}
-          <em>not</em> presented as a finished cryptocurrency, a refinement proof, or production
-          mainnet. Protocol rules are frozen; <span className="mono">equivalence_claimed = false</span>.
+          Formal verification covers protocol-model invariants and a finite correspondence lock (
+          {SHARED_GOLDEN_VECTORS} / {COQ_ENFORCED_VECTORS} in <code>golden_lock.json</code>). It is
+          not a refinement proof. OpuHash and ASERT are implemented in C++ and are not Coq
+          theorems. <span className="mono">equivalence_claimed = false</span>.
+        </p>
+        <p className="muted">
+          Mainnet genesis <code>{MAINNET_GENESIS}</code> · HRP <code>{MAINNET_HRP}</code> · RPC{" "}
+          {MAINNET_RPC_PORT}
         </p>
       </section>
 
@@ -107,35 +119,37 @@ equivalence_claimed = false`}</pre>
 
       <section className="grid-3">
         <article className="card">
-          <h3>Shipping draw economics</h3>
+          <h3>Shipping mint economics</h3>
           <p className="math-block">
-            E = 246 · C = 1024 ORU / mint
+            R · (2²⁵ + h)² ≤ B ≪ 40
           </p>
-          <p className="muted">
-            Expected wins per committed ORU ≈ n / 1024. Historical RFC-014 parameter: 1/65536
-            (C = 65536 ORU) is not the shipping target.
-          </p>
+          <p className="muted">Genesis cost 1024 ORU per 1 RES. Cap 2²² RES. Draw is retired.</p>
         </article>
         <article className="card">
-          <h3>125 convergence constant</h3>
-          <p className="math-block">1000 → 500 → 250 → 125 = 5³</p>
-          <p className="muted">Terminal ORU subsidy floor — frozen protocol constant.</p>
+          <h3>Flat ORU subsidy</h3>
+          <p className="math-block">R(h) = 128 ORU &nbsp; (h ≥ 1)</p>
+          <p className="muted">Genesis pays 0. No halvings. RES mint cost is destroy_cost(h).</p>
         </article>
         <article className="card">
           <h3>Live observation</h3>
           <dl className="kv-grid">
-            <dt>Height</dt>
-            <dd className="mono">{state.chain_height ?? "—"}</dd>
+            <dt>Tip</dt>
+            <dd className="mono">{live.tipHeight ?? state.chain_height ?? "—"}</dd>
+            <dt>Confirm h</dt>
+            <dd className="mono">{live.confirmHeight ?? "—"}</dd>
+            <dt>destroy_cost(h)</dt>
+            <dd className="mono">{live.destroyCostOru} ORU</dd>
             <dt>Status</dt>
             <dd>{state.global_status}</dd>
-            <dt>PROOF-034</dt>
-            <dd>IN_PROGRESS</dd>
+            <dt>equivalence_claimed</dt>
+            <dd className="mono">false</dd>
           </dl>
         </article>
       </section>
+      <Rfc020LivePanel />
 
       <section className="pipeline-diagram mono">
-        DurinHash → Block → FORGE → RES mint → Archive (PROOF-034, provisional)
+        OpuHash → Block → Convergence destroy → same-tx RES mint at destroy_cost(h)
       </section>
     </div>
   );

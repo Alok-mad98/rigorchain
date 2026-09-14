@@ -1,14 +1,13 @@
 # SPEC-002: RIGOR Economic Model (ORU / RES)
 
-**Task:** `TASK-SPEC-003`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program (Formal-Friendly Runtime Refactor compatible)  
 **Status:** ESTABLISHED  
-**Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
+**Baseline:** RFC-020 shipping issuance (continuous `destroy_cost(h)`, flat 128 ORU)  
 **Parents:** `SPEC-000`, `SPEC-001`  
-**Normative sources:** `RFC-000`, `RFC-008`, `RFC-014`, `RFC-015`, `RFC-017` (and the frozen ORU schedule RFCs)  
-**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `TASK-MAINNET-FREEZE-001`
+**Normative sources:** `RFC-000`, `RFC-008`, `RFC-020`  
+**Freeze authority:** `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` / `historical verification record`
 
-> **Parameter boundary.** RFC-015 fixed `100 RES` per mint is a **Historical RFC** value and **not an active consensus parameter**. Active mint: RFC-017 `W(k)` / `GetResMintReward(h)`. RFC-014 `E = 240` / `C = 65536` ORU is likewise **Historical RFC**, **not an active consensus parameter**.
 
 ---
 
@@ -62,8 +61,9 @@ For each block at height `h ≥ 1`:
 - `R(h) ∈ ℤ≥0` is the **ORU block subsidy** at height `h` (from the frozen subsidy schedule).
 - `C(h) ∈ ℤ≥0` is the **ORU converge sum** for block `h`:
   the sum of ORU amounts committed by all valid **convergence transactions** in that block.
-- `M(h) ∈ {0,1}` is the **RES mint indicator** for block `h`:
-  `M(h)=1` iff **RES is minted** (authorized and successfully created) in block `h`.
+- `body_mint_atoms(h) ∈ ℤ≥0` is the sum of Witness v1 RES atoms created by body
+  mint transactions in block `h` that pass `CheckResMintArithmetic`. A block MAY
+  contain zero or more such transactions.
 
 ### 2.3 Immutable economic constants (frozen)
 
@@ -72,18 +72,20 @@ freeze declaration:
 
 | Symbol | Meaning | Frozen value |
 |--------|---------|--------------|
-| `RES_REWARD_GENESIS` | `W(0)` — RES minted per successful draw in epoch 0 | `40.000000 RES` (= `40,000,000` atoms) |
-| `RES_REWARD_EPOCH` | Reward epoch length | `210000` blocks |
-| `RES_REWARD_LAST_EPOCH` | Last epoch with non-zero `W(k)` | `250` |
-| `W(k)` / `GetResMintReward(h)` | Height-dependent mint (RFC-017) | `W(k) = floor(RES_REWARD_GENESIS · (k+1)^(-3/2))` for `0 ≤ k ≤ 250`, else `0`; `k = floor(h / 210000)` |
-| `RES_MAX_SUPPLY` | Maximum total RES supply | `21,000,000 RES` (= `21,000,000,000,000` atoms) |
-| `CONVERGENCE_DRAW_MIN_TXS_FOR_RES` | Draw participation gate on candidate set `F` | `1` (i.e. `|F| ≥ 1`) |
-| `MIN_CONVERGENCE_AMOUNT` | Minimum ORU converged per candidate tx | `1 ORU` |
+| `RES_COIN` | RES atom scale (same as `COIN`) | `100000000` |
+| `ORU_FLAT_BLOCK_SUBSIDY` | ORU subsidy for every `h ≥ 1` | `12800000000` (128 ORU) |
+| `RES_DESTROY_COST_GENESIS` | Display destroy cost at `h = 0` (ORU atoms per whole RES) | `102400000000` (1024 ORU) |
+| `RES_DESTROY_POLE` | Hardening timescale | `2^25` = `33554432` blocks |
+| `RES_DESTROY_SHIFT` | Forced by the genesis destroy cost | `40` |
+| `destroy_cost(h)` | Display destroy cost (not a consensus input) | `P0 · (2^25 + h)^2 >> 50` for `h ≥ 0`, else `0` |
+| Mint predicate | Body-tx destroy-to-mint inequality | `R > 0 → R · (2^25 + h)^2 ≤ B << 40`; `R = 0` unconstrained |
+| `RES_MAX_SUPPLY` | Maximum total RES supply (closed form) | `419430400000000` atoms (`2^22` RES) |
+| `RES_REWARD_EPOCH` | Observational calendar only | `210000` blocks |
+| `MIN_CONVERGENCE_AMOUNT` | Smallest positive OP_CONVERGE destroy | `1` atom (`nValue > 0`). Not a mint price; `R ≥ 1` is gated only by the mint inequality |
 | `MAX_MONEY` | Per-output / per-tx-input-sum / fee-accumulator overflow bound | `10_000_000_000 * COIN` (**not** an ORU supply cap; issuance is uncapped). Constrained by `MAX_MONEY ≤ INT64_MAX / 4` so two in-range amounts are summable |
 
-The ORU subsidy schedule is frozen by the ratified ORU RFC(s) (not restated here);
-its minimum tail-subscription constraint (e.g. `ORU_MIN_BLOCK_SUBSIDY`) is treated
-as a frozen constant if defined by those RFCs.
+The ORU subsidy is the RFC-020 flat schedule in §4.4. `ORU_MIN_BLOCK_SUBSIDY`
+equals the same 128 ORU floor.
 
 ---
 
@@ -95,8 +97,9 @@ These quantities are **authoritative**: they are part of consensus state and may
 affect block validity:
 
 - Spendable ORU and RES as classified UTXO (script → asset class)
-- At most one `OP_RES_MINT` of size `GetResMintReward(h)` (or none)
-- The compile-time identity `RES_REWARD_EPOCH * ResScheduleSum() ≤ RES_MAX_SUPPLY`
+- Body-tx mint via `CheckResMintArithmetic(R, B, h)` (Witness v1 RES outputs)
+- Coinbase `OP_RES_MINT` is **not** the RFC-020 issuance path
+- The closed-form identity `RES_MAX_SUPPLY = 419430400000000` atoms (`2^22` RES)
 - `MAX_MONEY` as a per-output / per-tx-sum overflow bound
 - RFC-018: half of ORU fees on RES-transfer txs is unclaimable by coinbase
 
@@ -130,7 +133,7 @@ observational field is wrong (or incomplete) and must not change consensus.
 S_{\text{ORU}}^{\text{issued}}(h+1) = S_{\text{ORU}}^{\text{issued}}(h) + R(h+1) - C(h+1)
 \]
 
-does **not** include RFC-018 RES-transfer fee burns or unclaimed coinbase.
+does **not** include RFC-018 RES-transfer fee destroys or unclaimed coinbase.
 Circulating UTXO ORU additionally decreases by those amounts. ConnectBlock
 MUST NOT reject on a mismatch between the observational scalar and the UTXO
 sum (`bad-oru-supply-negative` is not a consensus reason).
@@ -158,11 +161,12 @@ in block `h`.
 
 ### 4.4 ORU subsidy schedule (authoritative, parameterized)
 
-`R(h)` is defined by the frozen ORU subsidy schedule RFC(s). This specification
-does not duplicate that schedule, but requires that:
+`R(h)` is the RFC-020 flat subsidy:
 
-- `R(h)` is a pure function of height `h` under frozen constants.
-- Any minimum tail emission constraint (if defined) is preserved.
+- `R(0) = 0`
+- `R(h) = 128` ORU (`12800000000` atoms) for every `h ≥ 1`
+
+`R(h)` is a pure function of height. There are no halvings.
 
 **Falsifiable failure conditions:**
 
@@ -175,49 +179,57 @@ does not duplicate that schedule, but requires that:
 
 ### 5.1 RES supply recurrence (authoritative)
 
-**Normative law (RFC-017):**
+**Normative law (RFC-020):**
 
 \[
 S_{\text{RES}}(0) = 0,\quad
-S_{\text{RES}}(h+1) = S_{\text{RES}}(h) + \texttt{GetResMintReward}(h+1) \cdot M(h+1)
+S_{\text{RES}}(h+1) = S_{\text{RES}}(h) + \texttt{body\_mint\_atoms}(h+1)
 \]
 
-where `M(h) ∈ {0,1}` and `GetResMintReward(h) = W(\lfloor h/210000\rfloor)` is the
-RFC-017 schedule. Historical RFC-015 used a constant `RES_REWARD_AMOUNT = 100 RES`.
+with `S_{\text{RES}}(h) \le 419430400000000`. `body_mint_atoms(h)` is the sum of
+Witness v1 RES outputs from body transactions that pass `CheckResMintArithmetic`
+at height `h`.
 
-### 5.2 Single-mint restriction (authoritative)
+### 5.2 RES mint conservation (authoritative)
 
-**Invariant (RES-I1):**
+**Invariant (RES-I1):** RES enters circulation only through body-tx destroy-to-mint.
+A block MAY contain zero or more mint transactions. Conservation requires
+that every minted atom is accounted in `body_mint_atoms(h)` and that no other
+path creates RES.
 
-\[
-\forall h \ge 1:\ M(h) \in \{0,1\}
-\]
-
-**Falsifiable failure condition:** A block is invalid if it contains two
-successful RES mints at the same height or otherwise forces `M(h) ∉ {0,1}`.
+**Falsifiable failure condition:** A block is invalid if it creates RES outside
+a body transaction that satisfies `CheckResMintArithmetic`, or if
+`body_mint_atoms(h)` disagrees with the sum of those mint outputs.
 
 ### 5.3 RES cap enforcement (authoritative)
 
 **Invariant (RES-I2):**
 
 \[
-\forall h:\ S_{\text{RES}}(h) \le \texttt{RES\_MAX\_SUPPLY}
+\forall h:\ S_{\text{RES}}(h) \le 419430400000000
 \]
 
 **Falsifiable failure conditions:**
 
-- A block is invalid if it causes `S_RES(h)` to exceed `RES_MAX_SUPPLY`.
+- A block is invalid if it causes `S_RES(h)` to exceed `419430400000000`.
 - A block is invalid if it attempts to mint a positive amount when
-  `S_RES(h−1) = RES_MAX_SUPPLY`.
+  `S_RES(h−1) = 419430400000000`.
 
 ### 5.4 RES mint amount (authoritative)
 
-**Invariant (RES-I3):** If `M(h)=1` then the minted quantity is exactly
-`GetResMintReward(h)` from the RFC-017 schedule (not smaller, not larger, not
-an off-schedule constant). Historical RFC-015 used a constant 100 RES.
+**Invariant (RES-I3):** Each mint transaction with RES outputs summing to `R`
+and a single `OP_CONVERGE` destroy `B` MUST satisfy
 
-**Falsifiable failure condition:** A block is invalid if it authorizes a RES
-mint but credits any amount other than `GetResMintReward(h)`.
+\[
+R > 0 \implies R \cdot (2^{25}+h)^{2} \le B \cdot 2^{40}
+\]
+
+at the confirming height (`CheckResMintArithmetic`). `R = 0` is a legal
+plain destroy (`B` unconstrained). The credited amount is **bounded by the
+inequality**.
+
+**Falsifiable failure condition:** A block is invalid if any body mint fails
+`CheckResMintArithmetic`.
 
 ### 5.5 RES monotonicity up to cap (authoritative)
 
@@ -227,7 +239,7 @@ mint but credits any amount other than `GetResMintReward(h)`.
 \forall h \ge 1:\ S_{\text{RES}}(h) \ge S_{\text{RES}}(h-1)
 \]
 
-with strict increase iff `M(h)=1`.
+with strict increase iff `body_mint_atoms(h) > 0`.
 
 **Falsifiable failure condition:** A block is invalid if it decreases total RES
 supply across a valid transition.
@@ -277,7 +289,7 @@ assumptions/trust anchors, cataloged in [SPEC-004 Trust Anchors](./SPEC-004-TRUS
   deterministic (see `SPEC-001` §7).
 - **A-HASH:** Hash evaluation is deterministic for all consensus inputs.
 - **A-POW:** PoW context determines header validity and chain selection, but does
-  not define the RES inequality RHS (RFC-014).
+  not define `destroy_cost(h)` or the mint predicate (RFC-020).
 - **A-NET:** Network propagation affects liveness but not the definition of
   accepted history given the same block sequence.
 - **A-SCHEDULE:** The ORU subsidy schedule `R(h)` is a frozen, ratified
@@ -294,7 +306,7 @@ and invariants are defined (no claim of completion here):
 
 - ORU recurrence correctness given a formal definition of `R(h)` and `C(h)`
 - ORU non-negativity (subject to validity predicates on convergence commitments and outputs)
-- RES recurrence, single-mint restriction, and cap preservation
+- RES recurrence, mint-arithmetic predicate, and cap preservation
 - Monotonicity of cumulative supplies
 
 ### 8.2 Outside scope / trust-anchor dependent
@@ -318,7 +330,7 @@ This document is **specification only**.
 | No protocol-freeze modification | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -340,5 +352,7 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-003` — initial ORU/RES economic model specification |
+| 0.3 | 2026-09-12 | RFC-020 active: continuous `destroy_cost(h)`, flat 128 ORU, cap `2^22` RES |
+| 0.2 | 2026-09-12 | RFC-020: continuous `destroy_cost(h)`, pole predicate, cap `2²²`, flat 128 ORU |
+| 0.1 | 2026-06-05 | `historical verification record` — initial ORU/RES economic model specification |
 

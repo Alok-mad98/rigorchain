@@ -1,0 +1,91 @@
+{
+  "case_id": "SV-C2_illegal_nbits_zero",
+  "raw_block_hex": "00000020ca16f2253c7e45c5af9ed49c68144112075ea1ffbed1b06e1703c5035e3fa1a26770a820843d33325aeebfcbc919148c4ac726c8a0501182f4412b0f72c21104b7529d6a000000000200000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff44017b200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c0000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+  "raw_tx_hex": null,
+  "kind": "block",
+  "source": "attack_lab",
+  "decode_result": {
+    "status": "ok",
+    "cpp_type": "CBlock",
+    "error": null,
+    "fields": {
+      "nVersion": 536870912,
+      "hashPrevBlock": "ca16f2253c7e45c5af9ed49c68144112075ea1ffbed1b06e1703c5035e3fa1a2",
+      "hashMerkleRoot": "6770a820843d33325aeebfcbc919148c4ac726c8a0501182f4412b0f72c21104",
+      "nTime": 1788695223,
+      "nBits": "0x0",
+      "nNonce": 2,
+      "tx_count": 1,
+      "has_witness": true
+    },
+    "leftover_bytes": 0,
+    "roundtrip_equal": true
+  },
+  "consensus_result": "reject",
+  "expected": "reject",
+  "validation_rule": {
+    "layer": "CheckProofOfWork",
+    "function": "CheckProofOfWork",
+    "reject_reason": "high-hash / bad-diffbits"
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": null,
+    "ki_pow_ok": false,
+    "ki_asert_ok": null,
+    "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+  },
+  "future_theorem": "pow_compact_in_range_and_header_time_bounded",
+  "trace": {
+    "raw_bytes": {
+      "hex": "00000020ca16f2253c7e45c5af9ed49c68144112075ea1ffbed1b06e1703c5035e3fa1a26770a820843d33325aeebfcbc919148c4ac726c8a0501182f4412b0f72c21104b7529d6a000000000200000001020000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff44017b200000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000ffffffff0200e8764817000000160014cf329d7c3e7c490da1380f236124c32a05e6124c0000000000000000266a24aa21a9ede2f61c3f71d1defd3fa999dfa36953755c690689799962b48bebd836974e8cf90120000000000000000000000000000000000000000000000000000000000000000000000000",
+      "source": "attack_lab",
+      "entry_function": "DecodeHexBlk"
+    },
+    "decoded_object": {
+      "status": "ok",
+      "cpp_type": "CBlock",
+      "error": null,
+      "fields": {
+        "nVersion": 536870912,
+        "hashPrevBlock": "ca16f2253c7e45c5af9ed49c68144112075ea1ffbed1b06e1703c5035e3fa1a2",
+        "hashMerkleRoot": "6770a820843d33325aeebfcbc919148c4ac726c8a0501182f4412b0f72c21104",
+        "nTime": 1788695223,
+        "nBits": "0x0",
+        "nNonce": 2,
+        "tx_count": 1,
+        "has_witness": true
+      },
+      "leftover_bytes": 0,
+      "roundtrip_equal": true
+    },
+    "validation_rule": {
+      "layer": "CheckProofOfWork",
+      "function": "CheckProofOfWork",
+      "reject_reason": "high-hash / bad-diffbits"
+    },
+    "decision": "reject",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": null,
+      "ki_pow_ok": false,
+      "ki_asert_ok": null,
+      "note": "Coq KernelInput is not a C++ argument. Flags below are a future map only."
+    },
+    "future_theorem": "pow_compact_in_range_and_header_time_bounded"
+  }
+}

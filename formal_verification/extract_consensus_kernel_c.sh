@@ -28,7 +28,7 @@ case "${ver}" in
 esac
 
 echo "== Print Extraction inventory (Coq 8.15 has no Print Extraction vernacular) =="
-sed -n '/^Extraction Language/,/^  resolve_convergence_draw./p' "$V"
+sed -n '/^Extraction Language/,/^  ledger_oru_delta./p' "$V"
 
 if grep -E '^[[:space:]]*(Admitted|Axiom|Parameter)[[:space:]]' "$V"; then
   echo "FAIL: ExtractConsensusKernelC.v contains Axiom/Parameter/Admitted" >&2
@@ -39,7 +39,7 @@ echo "COQ_ADMITTED=0 COQ_AXIOMS=0 COQ_PARAMETERS=0"
 mkdir -p "$OUT"
 cd "$COQ"
 echo "== coqc ExtractConsensusKernelC.v =="
-coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ExtractConsensusKernelC.v
+coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ExtractConsensusKernelC.v
 
 for f in consensus_kernel_c.ml consensus_kernel_c.mli; do
   if [[ -f "$COQ/$f" ]]; then
@@ -74,7 +74,6 @@ echo "== g++ consensus_kernel_c_abi_cli (-DRIGOR_KERNEL_ABI_VERIFY_ONLY) =="
   "$SRC/consensus/bridge/kernel_marshalling.cpp" \
   "$SRC/consensus/bridge/issuance_bridge.cpp" \
   "$SRC/consensus/bridge/classify_bridge.cpp" \
-  "$SRC/consensus/bridge/draw_bridge.cpp" \
   "$SRC/consensus/bridge/supply_bridge.cpp" \
   "$SRC/consensus/rigor_issuance.cpp" \
   "$SRC/consensus/rigor_supply.cpp" \
@@ -82,13 +81,24 @@ echo "== g++ consensus_kernel_c_abi_cli (-DRIGOR_KERNEL_ABI_VERIFY_ONLY) =="
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
   "$SRC/util/strencodings.cpp" \
-  "$SRC/consensus/convergence_logic.cpp" \
-  "$SRC/consensus_rigor/sigma_hash.cpp" \
   "$SRC/crypto/sha256.cpp" \
   "$SRC/arith_uint256.cpp" \
   -Wl,--gc-sections
 
+echo "== g++ cpp_consensus_kernel_cli =="
+"$CXX" -O2 -std=c++17 -Wall -Wextra \
+  -I"$SRC" \
+  -o "$OUT/cpp_consensus_kernel_cli" \
+  "$TOOLS/cpp_consensus_kernel_cli.cpp" \
+  "$SRC/consensus/rigor_issuance.cpp" \
+  "$SRC/script/rigor_classify.cpp" \
+  "$SRC/script/script.cpp" \
+  "$SRC/uint256.cpp" \
+  "$SRC/util/strencodings.cpp"
+
 echo "extracted: $OUT/consensus_kernel_c_cli"
 echo "c abi:     $OUT/consensus_kernel_c_abi_cli"
+echo "cpp adapter: $OUT/cpp_consensus_kernel_cli"
 "$OUT/consensus_kernel_c_cli" issuance 0
 "$OUT/consensus_kernel_c_abi_cli" issuance 0
+"$OUT/cpp_consensus_kernel_cli" res-price 0

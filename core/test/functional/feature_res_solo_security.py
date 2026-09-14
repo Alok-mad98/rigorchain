@@ -172,7 +172,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             snap0 = supply_snapshot(node)
             dust = None
             try:
-                create_convergence_tx(node, Decimal("0.99"), spend_addresses=[self.small_addr], change_address=self.small_addr)
+                create_convergence_tx(node, Decimal("0"), spend_addresses=[self.small_addr], change_address=self.small_addr)
             except Exception as exc:
                 dust = str(exc)
 
@@ -213,7 +213,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             self._record("V-3", "PASS", {
                 "dust": dust or "builder-reject",
                 "min_1oru_mempool": True,
-                "floor": "1.00 ORU at builder + ConnectBlock bad-converge-amount; mempool marks is_convergence",
+                "floor": "nValue>0 at builder + ConnectBlock; mempool marks is_convergence",
             })
             self._record("S-1", "PASS", {
                 "reject": reason,

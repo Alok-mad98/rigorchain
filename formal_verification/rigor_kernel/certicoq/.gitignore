@@ -1,0 +1,33 @@
+# Sidecar installs. CompCert/ccomp must not be committed (I-4).
+.opam-root/
+.opt/
+bin/opam
+# Generated Clight / 8.19 .vo stay untracked. SHA pin is the exception.
+generated/*
+!generated/SHA256
+*.tar.gz
+*.log
+.sidecar-built
+
+# Surface build products (sources stay tracked).
+surface/Makefile
+surface/Makefile.conf
+surface/.coqdeps.d
+surface/.Makefile.d
+surface/**/*.vo
+surface/**/*.glob
+surface/**/*.aux
+surface/**/.*.aux
+surface/**/*.vok
+surface/**/*.vos
+
+proofs/**/*.vo
+proofs/**/*.glob
+proofs/**/*.aux
+proofs/**/.*.aux
+proofs/**/*.vok
+proofs/**/*.vos
+proofs/Makefile
+proofs/Makefile.conf
+proofs/.coqdeps.d
+

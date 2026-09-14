@@ -5,6 +5,9 @@
 // P067 verify-only migration shim. Calls existing authorities only.
 // Not compiled into production. Does not recode formulas.
 // EXTRACTED_KERNEL_PRODUCTION = FALSE; production authority is RigorConsensusKernel(C++)
+//
+// RFC-019: issuance surface is (oru_subsidy, RATE(h), epoch). There is no
+// W(h) schedule and no draw. `res_destroy_cost` is the display destroy cost, not a mint amount.
 
 #ifndef BITCOIN_CONSENSUS_KERNEL_MIGRATION_KERNEL_MIGRATION_H
 #define BITCOIN_CONSENSUS_KERNEL_MIGRATION_KERNEL_MIGRATION_H
@@ -18,9 +21,9 @@
 #endif
 
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/ledger/ledger_transition.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -50,8 +53,6 @@ struct KernelMigrationInput {
     int coin_height{-1};
     int64_t mint_lock{-1};
     int64_t maturity{100};
-    ConvergenceDrawSet draw;
-    uint256 draw_target{};
     RigorSupplyDeltaInput supply;
     TransactionKernelInput tx;
     LedgerKernelInput ledger;
@@ -61,11 +62,10 @@ struct KernelMigrationInput {
 
 struct KernelMigrationResult {
     CAmount oru_subsidy{0};
-    CAmount res_schedule{0};
+    CAmount res_destroy_cost{0};
     CAmount res_issued{0};
     bool oru_mature{true};
     bool res_mature{true};
-    int draw_winner{-1};
     AssetType classification{ASSET_INVALID};
     bool spend_ok{false};
     bool supply_ok{false};
@@ -97,18 +97,15 @@ inline KernelMigrationResult RunProductionAuthorityPath(const KernelMigrationInp
 {
     KernelMigrationResult out;
     out.oru_subsidy = GetBlockSubsidy(in.height, in.params);
-    out.res_schedule = Consensus::GetResMintReward(in.height);
+    out.res_destroy_cost = Consensus::ResDestroyCostAtHeight(in.height);
     const RigorIssuance pack = ComputeRigorIssuance(in.height, in.params);
-    if (pack.oru_subsidy != out.oru_subsidy || pack.res_reward != out.res_schedule) {
+    if (pack.oru_subsidy != out.oru_subsidy) {
         KM_LOG("migration: production issuance pack mismatch\n");
         return out;
     }
-    out.res_issued = (in.height == 0) ? 0 : out.res_schedule;
+    out.res_issued = (in.height == 0) ? 0 : in.ledger.consensus.res_mint;
     out.oru_mature = KernelMigrationMatureOru(in.spend_height, in.coin_height, in.maturity);
     out.res_mature = KernelMigrationMatureRes(in.spend_height, in.mint_lock);
-
-    const ConvergenceDrawOutcome draw = ResolveConvergenceDraw(in.draw, in.draw_target);
-    out.draw_winner = draw.winner_index;
 
     out.classification = KernelMigrationPrimaryAsset(in);
     bool assets_ok = true;
@@ -135,10 +132,9 @@ inline KernelMigrationResult RunProductionAuthorityPath(const KernelMigrationInp
     ledger.consensus.accept = true;
     ledger.consensus.oru_issuance = (in.height == 0) ? 0 : ledger.consensus.oru_issuance;
     ledger.consensus.res_mint = (in.height == 0) ? 0 : ledger.consensus.res_mint;
-    ledger.consensus.res_schedule = out.res_schedule;
+    ledger.consensus.res_schedule = 0;
     out.ledger_ok = assets_ok && LedgerApply(ledger).accept;
     out.accept = out.supply_ok && out.ledger_ok && out.oru_mature && out.res_mature;
-    if (in.height == 0 && draw.HasWinner()) out.accept = false;
     return out;
 }
 
@@ -148,13 +144,10 @@ inline KernelMigrationResult RunKernelBoundaryPath(const KernelMigrationInput& i
     KernelMigrationResult out;
     const RigorIssuance iss = ComputeRigorIssuance(in.height, in.params);
     out.oru_subsidy = iss.oru_subsidy;
-    out.res_schedule = iss.res_reward;
-    out.res_issued = (in.height == 0) ? 0 : iss.res_reward;
+    out.res_destroy_cost = Consensus::ResDestroyCostAtHeight(in.height);
+    out.res_issued = (in.height == 0) ? 0 : in.ledger.consensus.res_mint;
     out.oru_mature = KernelMigrationMatureOru(in.spend_height, in.coin_height, in.maturity);
     out.res_mature = KernelMigrationMatureRes(in.spend_height, in.mint_lock);
-
-    const ConvergenceDrawOutcome draw = ResolveConvergenceDraw(in.draw, in.draw_target);
-    out.draw_winner = draw.winner_index;
     out.classification = KernelMigrationPrimaryAsset(in);
     out.spend_ok = in.ledger.consumed.empty() || VerifyRigorPredicateBoundary(in.tx);
 
@@ -171,8 +164,6 @@ inline KernelMigrationResult RunKernelBoundaryPath(const KernelMigrationInput& i
     u.maturity = in.maturity;
     u.tx = in.tx;
     u.ledger = in.ledger;
-    u.consensus.draw = in.draw;
-    u.consensus.draw_target = in.draw_target;
     u.consensus.height = in.height;
     u.fee = in.ledger.fee;
     u.burn = in.ledger.burn;
@@ -193,11 +184,10 @@ inline bool KernelMigrationResultsEqual(const KernelMigrationResult& a, const Ke
         return false;
     };
     if (a.oru_subsidy != b.oru_subsidy) return fail("issuance.oru");
-    if (a.res_schedule != b.res_schedule) return fail("issuance.res_schedule");
+    if (a.res_destroy_cost != b.res_destroy_cost) return fail("issuance.res_destroy_cost");
     if (a.res_issued != b.res_issued) return fail("issuance.res_issued");
     if (a.oru_mature != b.oru_mature) return fail("maturity.oru");
     if (a.res_mature != b.res_mature) return fail("maturity.res");
-    if (a.draw_winner != b.draw_winner) return fail("draw.winner");
     if (a.classification != b.classification) return fail("classification");
     if (a.spend_ok != b.spend_ok) return fail("spend");
     if (a.supply_ok != b.supply_ok) return fail("supply");

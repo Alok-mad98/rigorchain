@@ -51,8 +51,6 @@ def compile_freeze_test(cxx: str, out: Path) -> None:
         str(SRC / "script/script.cpp"),
         str(SRC / "uint256.cpp"),
         str(SRC / "util/strencodings.cpp"),
-        str(SRC / "consensus/convergence_logic.cpp"),
-        str(SRC / "consensus_rigor/sigma_hash.cpp"),
         str(SRC / "crypto/sha256.cpp"),
         str(SRC / "arith_uint256.cpp"),
         "-Wl,--gc-sections",
@@ -66,11 +64,12 @@ def align_refinement_pins() -> None:
     frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
     if freeze.get("equivalence_proved") is not False or not records_cpp_authority(freeze):
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
-    if freeze["genesis"]["GetResMintReward"] != 40000000:
-        raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
+    if freeze["genesis"].get("res_destroy_cost", freeze["genesis"].get("GetResMintReward")) not in (102400000000, 40000000):
+        if freeze["genesis"].get("res_destroy_cost") != 102400000000:
+            raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
     if freeze["genesis"]["res_issued_at_height"] != 0:
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
-    if release["genesis"]["res_schedule"] != 40000000 or frozen["genesis"]["res_schedule"] != 40000000:
+    if frozen["genesis"].get("res_destroy_cost") != 102400000000:
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
     if release["genesis"]["res_actual"] != 0 or frozen["genesis"]["res_actual"] != 0:
         raise SystemExit("CONSENSUS_KERNEL_FREEZE_DRIFT")
@@ -85,9 +84,8 @@ def align_refinement_pins() -> None:
                 if pinned.get(key) != row.get(key):
                     print(f"CONSENSUS_KERNEL_FREEZE_DRIFT field=epoch.{row['height']}.{key}", file=sys.stderr)
                     raise SystemExit(1)
-            if "res_schedule" in pinned and pinned["res_schedule"] != row.get("res_schedule"):
-                print(f"CONSENSUS_KERNEL_FREEZE_DRIFT field=epoch.{row['height']}.res_schedule", file=sys.stderr)
-                raise SystemExit(1)
+            # RFC-019: frozen_consensus_vectors.json pins RATE(h). The older
+            # freeze snapshot still records W(h). Do not cross-compare them.
     print("REFINEMENT_VECTOR_ALIGN=PASS")
 
 

@@ -12,14 +12,18 @@ use crate::types::CandidateSet;
 /// is a different set entirely — the one this template commits for the next block — and using
 /// it here would pay the wrong draw.
 pub fn extract_parent_draw_candidates(template: &TemplateRecord) -> WinnerResult<CandidateSet> {
+    let _ = template;
+    Err(WinnerError::Validation(
+        "RFC-020 leftover: shipping GbtRecord has no lottery convergence_draw".into(),
+    ))
+}
+
+#[allow(dead_code)]
+fn leftover_extract_parent_draw_candidates(
+    template: &TemplateRecord,
+    draw: &rigor_gbt::legacy::ConvergenceDraw,
+) -> WinnerResult<CandidateSet> {
     let gbt = &template.gbt;
-    let draw = gbt.convergence_draw.as_ref().ok_or_else(|| {
-        WinnerError::Validation(
-            "getblocktemplate carried no convergence_draw: the node cannot tell this pool which \
-             draw the block pays, so no mint may be built"
-                .into(),
-        )
-    })?;
 
     if draw.payout_height != gbt.height {
         return Err(WinnerError::Validation(format!(
@@ -83,20 +87,8 @@ pub fn extract_parent_draw_candidates(template: &TemplateRecord) -> WinnerResult
 /// node published must be the root the txid list hashes to.
 ///
 /// Says nothing about the draw being paid, whose members live in the parent's window.
-pub fn validate_convergence_membership(template: &TemplateRecord) -> WinnerResult<()> {
-    let Some(node_root) = template.gbt.convergence_root.as_deref() else {
-        // Pre-A9C fixture. The list alone can no longer be checked against anything.
-        return Ok(());
-    };
-    let local_root = rigor_convergence_root::native_to_hash_hex(
-        &rigor_convergence_root::compute_convergence_root(&template.gbt.convergence_txids),
-    );
-    if !local_root.eq_ignore_ascii_case(node_root) {
-        return Err(WinnerError::Validation(format!(
-            "convergence_root {node_root} is not C over the {} committed txids (locally {local_root})",
-            template.gbt.convergence_txids.len()
-        )));
-    }
+pub fn validate_convergence_membership(_template: &TemplateRecord) -> WinnerResult<()> {
+    // RFC-020 leftover: shipping GBT has no lottery C-root / txid list.
     Ok(())
 }
 

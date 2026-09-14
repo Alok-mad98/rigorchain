@@ -21,8 +21,8 @@
 namespace Consensus {
 
 /** Hard-forking identifier for this lock bundle (not P2P PROTOCOL_VERSION). */
-inline constexpr int RIGOR_CONSENSUS_LOCK_VERSION = 2;
-static_assert(RIGOR_CONSENSUS_LOCK_VERSION == 2, "Rigor consensus lock version mismatch");
+inline constexpr int RIGOR_CONSENSUS_LOCK_VERSION = 3;
+static_assert(RIGOR_CONSENSUS_LOCK_VERSION == 3, "Rigor consensus lock version mismatch");
 
 // ---------------------------------------------------------------------------
 // On-chain block space (1 MiB hard cap; capacity is entirely on-chain)
@@ -82,90 +82,32 @@ static_assert(MAX_MONEY == static_cast<CAmount>(10000000000LL) * COIN,
 // RES amount scale + supply ceiling (single name: RES_MAX_SUPPLY)
 // ---------------------------------------------------------------------------
 
-/** Smallest RES consensus increment: 1 atom == 0.000001 RES. */
+/** Smallest RES consensus increment: 1 atom == 0.00000001 RES. */
 inline constexpr CAmount RES_ATOMIC_UNIT{1};
-/** RES atoms per 1.000000 RES (six decimal places). */
-inline constexpr CAmount RES_COIN{1000000};
+/** RES atoms per 1.00000000 RES. Same eight-decimal scale as ORU COIN. */
+inline constexpr CAmount RES_COIN{100000000};
 
-/** Maximum RES atoms mintable via the consensus RES draw path (hard cap). */
-inline constexpr CAmount RES_MAX_SUPPLY = static_cast<CAmount>(21000000LL) * RES_COIN;
+/** Derived RES cap (RFC-020): (S / P0) · H = 2^7 / 2^10 · 2^25 = 2^22 RES. */
+inline constexpr CAmount RES_MAX_SUPPLY = 419430400000000LL;
 
 static_assert(RES_ATOMIC_UNIT == 1, "RES atomic unit locked");
-static_assert(RES_COIN == 1000000, "RES display scale locked");
-static_assert(RES_MAX_SUPPLY == static_cast<CAmount>(21000000000000LL), "RES max supply atoms locked");
+static_assert(RES_COIN == 100000000, "RES display scale locked to 1e8");
+static_assert(RES_COIN == COIN, "RES and ORU share the eight-decimal atom");
+static_assert(RES_MAX_SUPPLY == 419430400000000LL, "RES max supply is the RFC-020 closed-form cap");
+static_assert(RES_MAX_SUPPLY == (1LL << 22) * RES_COIN, "cap must be 2^22 RES atoms");
 
 // ---------------------------------------------------------------------------
-// Convergence / RES draw (see convergenceres.cpp / convergence_logic / ConnectBlock)
+// Convergence burn (see convergenceres.h; the OP_CONVERGE burn survives RFC-019)
 // ---------------------------------------------------------------------------
 
-/** Minimum ORU convergenced per valid convergence transaction (structure + draw). */
-inline constexpr CAmount MIN_CONVERGENCE_AMOUNT = COIN;
+/** Smallest positive ORU burn admitted on an OP_CONVERGE output (one atom).
+ *
+ *  This is not a mint price. Whether a burn mints RES is decided only by
+ *  CheckResMintArithmetic. The 1 ORU lottery-ticket floor is retired: the
+ *  R = 1 case of the mint inequality is B ≥ ceil((2^25+h)^2 / 2^40), which
+ *  is 1024 atoms at height 0. Do not re-introduce a second consensus minimum. */
+inline constexpr CAmount MIN_CONVERGENCE_AMOUNT = 1;
 
-/** Minimum count of convergence txs in a block before an RES mint may be considered. */
-inline constexpr int CONVERGENCE_DRAW_MIN_TXS_FOR_RES = 1;
-
-/**
- * SECURITY-001-A9-C: width, in blocks, of the sliding window the draw's candidate set F is
- * drawn from. The draw resolved at height h enumerates F over blocks [h-W, h-1] rather than
- * over block h-1 alone.
- *
- * WHY THIS EXISTS. Under W = 1 the producer of block h-1 chose F unilaterally and at zero
- * marginal cost: excluding a competitor's convergence tx is free, and no consensus rule can
- * compel inclusion (a node cannot prove what was in a mempool). With
- * CONVERGENCE_DRAW_MIN_TXS_FOR_RES == 1, a single self-owned tx was a valid draw, so a miner
- * could win with the MINIMUM 1 ORU burn in every block he produced. RES allocation therefore
- * trended to hashrate rather than to burn, contradicting the rule that PoW does not directly
- * generate RES. See docs/security/TASK-SECURITY-001-A8-DESIGN-REVIEW.md finding F-1.
- *
- * WHAT W FIXES. Widening the window does NOT reduce the fraction of F a large miner controls
- * (a miner with hashrate α still produces ≈ αW of the W blocks). It removes EXCLUSIVITY: he can
- * no longer construct a draw in which he is the only candidate, because the candidates in
- * [h-W, h-2] are already buried and unremovable. He must therefore outbid candidates he cannot
- * censor, which re-couples RES acquisition to burn rather than to hashrate.
- *
- * DERIVATION (exclusivity by hashrate). The binding constraint is that no single producer can
- * supply the entire window. For hashrate share α that probability is α^W. The acceptance
- * criterion is not a bare epsilon: multiply by the number of draws the chain will ever pay,
- * which is bounded by the issuance horizon RES_REWARD_EPOCH * (RES_REWARD_LAST_EPOCH + 1) =
- * 52,710,000 blocks, and require the expected number of fully-captured windows over the whole
- * life of the chain to stay below 0.05. At the design maximum α = 0.5 that is W >= 30:
- *
- *   W:              16        24        30        32        36
- *   α=0.50 → α^W:   1.5e-05   6.0e-08   9.3e-10   2.3e-10   1.5e-11
- *   expected/chain: 804       3.14      0.049     0.012     0.0008
- *   α=0.33 → α^W:   2.3e-08   3.5e-12   4.9e-15   5.4e-16   6.7e-18
- *   α=0.25 → α^W:   2.3e-10   3.6e-15   8.7e-19   5.4e-20   2.1e-22
- *
- * 32 is the smallest power of two satisfying W >= 30, so RES_PROBABILITY_TARGET is a single
- * shift of the pre-windowing target and log2(W) is an integer. W = 16 fails by four orders of
- * magnitude: a 50% miner would capture the whole window ~800 times over the issuance horizon.
- *
- * SECOND, INDEPENDENT LOWER BOUND (exclusivity by sparsity). Because
- * CONVERGENCE_DRAW_MIN_TXS_FOR_RES == 1, an attacker does not have to mine the window at all —
- * it is enough that no one else's convergence tx lands in it. At a third-party arrival rate of
- * λ convergence txs per block that probability is exp(-λW), independent of hashrate:
- *
- *   λ = 0.05/block:  W=16 → 0.449     W=32 → 0.202
- *   λ = 0.10/block:  W=16 → 0.202     W=32 → 0.041
- *   λ = 0.25/block:  W=16 → 0.018     W=32 → 0.00034
- *
- * This bound dominates early in the chain's life, decays in W just as fast, and rejects small
- * windows on its own. Nothing on the cost side pushes W down: the ticket participation period
- * (W blocks), the LRU caps (4*W) and the prune floor (288+W) are all operational.
- *
- * A-8 IS NOT WEAKENED. Every σ input is still fixed the instant block h-1 is found: txid_i was
- * mined earlier, C spans blocks all of which are then fixed, and B_{h-1} is the PoW solution.
- * Re-rolling still costs one block subsidy per sample, and a re-mine can now vary only the
- * source block's own contribution to F.
- */
-inline constexpr int CONVERGENCE_DRAW_WINDOW = 32;
-
-/** log2(CONVERGENCE_DRAW_WINDOW); RES_PROBABILITY_TARGET is T >> this. */
-inline constexpr int CONVERGENCE_DRAW_WINDOW_LOG2 = 5;
-
-static_assert(CONVERGENCE_DRAW_WINDOW == (1 << CONVERGENCE_DRAW_WINDOW_LOG2),
-    "Draw window must be a power of two so T/W is an exact shift");
-static_assert(CONVERGENCE_DRAW_WINDOW == 32, "RES convergence draw window locked to 32 blocks");
 
 /**
  * Nominal public-network block spacing (seconds) used in convergence/RES cadence docs.
@@ -174,144 +116,46 @@ static_assert(CONVERGENCE_DRAW_WINDOW == 32, "RES convergence draw window locked
 inline constexpr int TARGET_BLOCK_TIME = 600;
 
 // ---------------------------------------------------------------------------
-// RES mint reward schedule (RFC-017)
+// RFC-020 destroy-cost pole + observational epoch calendar
 //
-// The reward decays on a height schedule while the draw target T stays constant. The ORU cost
-// of one mint is therefore the protocol constant C = 2^(256-E), and the cost floor per RES is
-// C / W(k): a constant divided by a protocol function, with no dependence on demand, on the ORU
-// subsidy, or on any chain state. See docs/rfc/RFC-017-SCHEDULED-RES-REWARD.md.
+// Consensus minting is R · (RES_DESTROY_POLE + h)^2 ≤ B << RES_DESTROY_SHIFT.
+// There is no issuance horizon and no epoch in that predicate.
 //
-// TERMINATION IS EXPLICIT. `W(k) := 0 for k > RES_REWARD_LAST_EPOCH` is a stated rule, not a
-// consequence of the reward flooring away at the atomic unit. Under the implicit form the
-// horizon was an artifact of RES_COIN — raising the display precision would have silently
-// extended issuance, overflowed the isqrt intermediate, and breached the cap. With the cutoff
-// stated, the admissible genesis reward is scale-invariant:
-//
-//   W0 * SUM_{k=0..250} (k+1)^(-3/2) <= RES_MAX_SUPPLY / RES_REWARD_EPOCH = 100 * RES_COIN
-//   SUM = 2.486262  =>  W0 <= 40.221 RES, independent of RES_COIN.
+// RES_REWARD_EPOCH is an observational calendar (RPC / ComputeRigorIssuance)
+// only. It is not a mint argument.
 // ---------------------------------------------------------------------------
 
-/** W(0): reward for the first epoch (40.000000 RES). */
-inline constexpr CAmount RES_REWARD_GENESIS = 40 * RES_COIN;
+/** Hardening timescale H = 2^25 blocks. destroy_cost(h) = P0 · (H + h)^2 / 2^50. */
+inline constexpr uint64_t RES_DESTROY_POLE = 1ULL << 25;
 
-/** Reward epoch length in blocks; bridged to ORU_SUBSIDY_HALVING_INTERVAL below. */
+/** Forced by P0 = 1024 ORU: 50 − log2(1024) = 40. Not an independent choice. */
+inline constexpr int RES_DESTROY_SHIFT = 40;
+
+/** Observational calendar length in blocks; not a mint argument. */
 inline constexpr int RES_REWARD_EPOCH = 210000;
 
-/** Last epoch paying a non-zero reward. Issuance stops at the start of the next one. */
-inline constexpr int RES_REWARD_LAST_EPOCH = 250;
-
-/**
- * Exact integer square root, floor(sqrt(n)), by Newton's method on uint64. constexpr so the cap
- * identity below folds at compile time. The largest argument the schedule produces is
- * (251^3 << 32) = 6.79e16, a factor of ~272 below 2^64.
- */
-inline constexpr uint64_t ResIntegerSqrt(uint64_t n)
-{
-    if (n < 2) return n;
-    uint64_t x = n;
-    uint64_t y = (x + 1) / 2;
-    while (y < x) {
-        x = y;
-        y = (x + n / x) / 2;
-    }
-    return x;
-}
-
-/**
- * W(k) = floor(RES_REWARD_GENESIS * (k+1)^(-3/2)), evaluated in fixed point at 2^-16:
- * isqrt(x << 32) == floor(sqrt(x) * 2^16), so the two shifts cancel through the division.
- * Integer only — no floating point and no fixed-point pow — hence bit-identical on every
- * platform. Division floors, so W_int(k) <= W_real(k) pointwise and the cap bound below is
- * one-sided in the safe direction.
- */
-inline constexpr CAmount ResRewardForEpoch(int k)
-{
-    if (k < 0 || k > RES_REWARD_LAST_EPOCH) return 0;
-    const uint64_t e = static_cast<uint64_t>(k) + 1;
-    const uint64_t scale = ResIntegerSqrt((e * e * e) << 32);
-    return static_cast<CAmount>((static_cast<uint64_t>(RES_REWARD_GENESIS) << 16) / scale);
-}
-
-/** Consensus RES mint reward for a block at `height`. Zero once the schedule is exhausted. */
-inline constexpr CAmount GetResMintReward(int height)
-{
-    if (height < 0) return 0;
-    return ResRewardForEpoch(height / RES_REWARD_EPOCH);
-}
-
-/** Sum of the whole reward schedule in atoms; finite by construction (251 terms). */
-inline constexpr CAmount ResScheduleSum()
-{
-    CAmount sum = 0;
-    for (int k = 0; k <= RES_REWARD_LAST_EPOCH; ++k) sum += ResRewardForEpoch(k);
-    return sum;
-}
-
-static_assert(MIN_CONVERGENCE_AMOUNT == COIN, "Convergence minimum locked to 1 ORU");
-static_assert(CONVERGENCE_DRAW_MIN_TXS_FOR_RES == 1, "RES convergence draw minimum cardinality locked to 1");
-static_assert(RES_REWARD_GENESIS == 40 * RES_COIN, "RES genesis mint reward locked to 40.000000 RES");
-static_assert(RES_REWARD_LAST_EPOCH == 250, "RES reward schedule length locked");
-static_assert(ResRewardForEpoch(0) == RES_REWARD_GENESIS, "W(0) must reproduce the genesis reward");
-static_assert(ResRewardForEpoch(RES_REWARD_LAST_EPOCH) > 0, "the last scheduled epoch must still pay");
-static_assert(ResRewardForEpoch(RES_REWARD_LAST_EPOCH + 1) == 0, "issuance must stop after the last epoch");
-static_assert(GetResMintReward(0) == RES_REWARD_GENESIS, "height 0 sits in epoch 0");
-static_assert(GetResMintReward(RES_REWARD_EPOCH) < RES_REWARD_GENESIS, "reward must decay across an epoch boundary");
-static_assert(RES_MAX_SUPPLY >= RES_REWARD_GENESIS, "RES cap must admit at least one draw mint");
-static_assert(RES_MAX_SUPPLY % RES_REWARD_EPOCH == 0,
-    "cap must divide evenly by the epoch length for the bound below to be exact");
-
-/**
- * THE CAP IDENTITY (RFC-017 §4). At most one mint may occur per block and each epoch is exactly
- * RES_REWARD_EPOCH blocks, so maximum conceivable issuance is RES_REWARD_EPOCH * ResScheduleSum()
- * — with no assumption whatsoever about demand, burn rate, or participant behaviour.
- *
- * This replaces the former `RES_MAX_SUPPLY % RES_REWARD_AMOUNT == 0` assertion, which was a
- * statement about a fixed reward and is meaningless once the reward varies. The cap thereby
- * stops being an inductive invariant maintained by a runtime check and becomes a compile-time
- * arithmetic fact: no reachable chain, honest or adversarial, can approach RES_MAX_SUPPLY.
- *
- * ConnectBlock does not re-check the cap at runtime. ObservationalMetrics ledgers are
- * post-validation index/explorer state only.
- */
-static_assert(ResScheduleSum() <= RES_MAX_SUPPLY / RES_REWARD_EPOCH,
-    "reward schedule cannot exhaust RES_MAX_SUPPLY even if every block from genesis mints");
-
-/** Pins the folded value so any drift in the schedule is a compile error, not a silent change. */
-static_assert(ResScheduleSum() == 99450437,
-    "RES reward schedule sum changed; regenerate golden vectors and the Coq cap lemma");
+static_assert(MIN_CONVERGENCE_AMOUNT == 1, "Convergence minimum locked to one ORU atom");
+static_assert(RES_DESTROY_POLE == 33554432ULL, "RES destroy pole locked to 2^25");
+static_assert(RES_DESTROY_SHIFT == 40, "RES destroy shift locked; forced by genesis destroy cost");
+static_assert(RES_REWARD_EPOCH == 210000, "observational epoch length locked");
 
 // ---------------------------------------------------------------------------
-// ORU block subsidy (Rigor networks; GetBlockSubsidy + chainparams)
+// ORU block subsidy (RFC-020: flat 128 ORU for every height >= 1)
+//
+// GetBlockSubsidy reads ORU_FLAT_BLOCK_SUBSIDY only. FrozenKernelParams.cpp_base
+// must equal this value.
 // ---------------------------------------------------------------------------
 
-/** Initial subsidy base before halving shifts (1000 ORU). Height >= 1 only. */
-inline constexpr CAmount ORU_INITIAL_BLOCK_SUBSIDY = 1000 * COIN;
+/** Per-block subsidy for every height >= 1. */
+inline constexpr CAmount ORU_FLAT_BLOCK_SUBSIDY = 128 * COIN;
 
 /** Height-0 coinbase / GetBlockSubsidy(0). Not a premine; ConnectBlock still skips genesis UTXO. */
 inline constexpr CAmount ORU_GENESIS_BLOCK_SUBSIDY = 0;
 
 static_assert(ORU_GENESIS_BLOCK_SUBSIDY == 0, "genesis must issue 0 ORU");
-static_assert(ORU_INITIAL_BLOCK_SUBSIDY == 1000 * COIN, "h>=1 ORU base must stay 1000");
-static_assert(ORU_INITIAL_BLOCK_SUBSIDY == 100000000000LL,
+static_assert(ORU_FLAT_BLOCK_SUBSIDY == 128 * COIN, "h>=1 ORU subsidy is flat 128");
+static_assert(ORU_FLAT_BLOCK_SUBSIDY == 12800000000LL,
     "FrozenKernelParams.cpp_base in ConsensusKernelRefinement.v");
-
-/** Standard halving interval on Rigor public networks using ORU_SUBSIDY_HALVING_INTERVAL. */
-inline constexpr int ORU_SUBSIDY_HALVING_INTERVAL = 210000;
-
-/** Maximum halving shifts (subsidy floor at 125 ORU). */
-inline constexpr int ORU_SUBSIDY_MAX_SHIFTS = 3;
-
-static_assert(ORU_SUBSIDY_HALVING_INTERVAL == 210000,
-    "FrozenKernelParams.cpp_interval in ConsensusKernelRefinement.v");
-static_assert(ORU_SUBSIDY_MAX_SHIFTS == 3,
-    "FrozenKernelParams.cpp_max_shifts in ConsensusKernelRefinement.v");
-
-/** Subsidy after ORU_SUBSIDY_MAX_SHIFTS right-shifts of ORU_INITIAL_BLOCK_SUBSIDY. */
-inline constexpr CAmount ORU_MIN_BLOCK_SUBSIDY = (ORU_INITIAL_BLOCK_SUBSIDY >> ORU_SUBSIDY_MAX_SHIFTS);
-
-static_assert(ORU_MIN_BLOCK_SUBSIDY == 125 * COIN, "ORU post-halving floor locked");
-static_assert(RES_REWARD_EPOCH == ORU_SUBSIDY_HALVING_INTERVAL,
-    "RES reward epoch and ORU halving interval share one cadence");
 
 // ---------------------------------------------------------------------------
 // RES-transfer ORU fee burn (RFC-018)
@@ -348,8 +192,8 @@ static_assert(ORU_RES_TRANSFER_FEE_BURN_NUM <= ORU_RES_TRANSFER_FEE_BURN_DEN,
 static_assert(OruResTransferFeeBurnShare(0) == 0, "zero fee burns nothing");
 static_assert(OruResTransferFeeBurnShare(1) == 0, "odd-satoshi floor burns nothing at 1/2");
 static_assert(OruResTransferFeeBurnShare(2) == 1, "1/2 share burns one satoshi of a two-satoshi fee");
-static_assert(OruResTransferFeeBurnShare(125 * COIN) == (125 * COIN) / 2,
-    "half of one post-halving subsidy block of fees is claimable as burn example");
+static_assert(OruResTransferFeeBurnShare(ORU_FLAT_BLOCK_SUBSIDY) == ORU_FLAT_BLOCK_SUBSIDY / 2,
+    "half of one flat-subsidy block of fees is claimable as burn example");
 
 // ---------------------------------------------------------------------------
 // Convergence draw weight f_i (RFC-000 §3, §7): f MUST be integer, ≥ 1, NOT transformed.

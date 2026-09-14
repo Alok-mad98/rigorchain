@@ -1,12 +1,12 @@
 # RIGOR Mathematical Consensus Design
 
-**Task:** `TASK-RIGOR-DOCUMENTATION-CONSOLIDATION-P0-003`  
-**Canonical name:** `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`  
+**Document status:** Production specification  
 **Date:** 2026-08-22  
-**Type:** Technical mathematical specification  
-**Scope:** Whitepaper / protocol mathematics / consensus engineers  
-**Code changes:** **NONE**  
-**Consensus changes:** **NONE**
+
+This paper is the mathematical model of consensus: issuance, Convergence,
+Proof-of-Work, and UTXO conservation. It does not claim C++ equivalence.
+
+Code facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
 ```
 equivalence_claimed = false
@@ -17,8 +17,8 @@ refinement_proved = false
 This document is the **unique mathematical technical authority** for
 “How does the mathematics run?”
 
-Public contents: `R(h)`, `W(k)`, `burn()`, `σ`, winner comparator,
-OpuHash, ASERT.
+Public contents: `R(h)`, `destroy_cost(h)`, `CheckResMintArithmetic`, `destroy()`,
+OpuHash (SHA3-256 / `RGRPOW01`), ASERT. σ is not a live mint input.
 
 It is a **mathematical extraction** from the current repository.
 
@@ -44,69 +44,77 @@ Archived RFC corpus:
 ### ORU — Height-indexed subsidy
 
 ```
-R(h) = 1000 ORU >> min(⌊h / 210000⌋, 3)
+R(0) = 0
+R(h) = 128 ORU    for h ≥ 1
 ```
 
-Height-based subsidy. Three halvings, then a perpetual tail.
+Height-based subsidy. Genesis issues nothing. Flat forever. No halvings.
 
 | Parameter | Value |
 |-----------|-------|
-| Initial subsidy | 1000 ORU |
-| Halving interval | 210000 blocks |
-| Maximum shifts | 3 |
-| Tail subsidy | 125 ORU |
+| Genesis subsidy | 0 ORU |
+| Flat subsidy (h ≥ 1) | 128 ORU |
+| Halving interval | none |
+| Maximum shifts | 0 |
+| Tail subsidy | 128 ORU |
 
 | Height band | `R(h)` |
 |-------------|--------|
-| `0 ≤ h < 210000` | 1000 ORU |
-| `210000 ≤ h < 420000` | 500 ORU |
-| `420000 ≤ h < 630000` | 250 ORU |
-| `h ≥ 630000` | 125 ORU forever |
+| `h = 0` | 0 ORU |
+| `h ≥ 1` | 128 ORU forever |
 
 There is no absolute ORU supply cap. `MAX_MONEY` is a per-value sanity
 bound, not an ORU cap.
 
-Source: `GetBlockSubsidy` in `core/src/validation.cpp`;
+Source: `GetBlockSubsidy` in `core/src/consensus/rigor_issuance.cpp`;
 `core/src/consensus/rigor_consensus_lock.h`;
 `core/src/consensus/amount.h`.
 
-### RES — Deterministic issuance
+### RES — Continuous destroy cost (RFC-020)
 
 ```
-k = ⌊h / 210000⌋
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (>> 50)
+R · (2²⁵ + h)² ≤ B << 40                   consensus
 ```
 
-```
-W(k) = floor(W0 · (k+1)^(−3/2))    for 0 ≤ k ≤ 250
-W(k) = 0                           otherwise
-```
+Integer only. `destroy_cost(h)` is a **protocol cost**, not a market quote.
+The price never hits zero; there is no mint horizon.
 
-Bounded schedule. Integer evaluation (the only shipping form):
+| Parameter | Value |
+|-----------|-------|
+| `RES_COIN` | 100000000 |
+| `destroy_cost(0)` | 102400000000 (1024 ORU / 1 RES) |
+| `destroy_cost(210000)` | 103685749152 |
+| `destroy_cost(420000)` | 104979520049 |
+| `RES_DESTROY_POLE` | `2²⁵` = 33554432 |
+| `RES_DESTROY_SHIFT` | 40 |
+| `RES_MAX_SUPPLY` | 419430400000000 atoms (`2²²` RES) |
 
-```
-e     = k + 1
-scale = floor(sqrt(e³ · 2^32))
-W(k)  = floor( (W0 · 2^16) / scale )
-```
+From block 210000 the destroy cost becomes 1036.85749152 ORU per RES.
 
-```
-W(0) = 40 RES
-S_RES ≤ 21,000,000 RES
-```
-
-Mint authorization: a non-zero mint occurs only if the parent draw names
-a winner and `W(h) > 0`. Amount, if minted, is exactly `W(h)`. RES is not
-a Proof-of-Work block reward.
-
-Source: `ResRewardForEpoch`, `GetResMintReward` in
-`core/src/consensus/rigor_consensus_lock.h`;
-`core/src/consensus/rigor_res.cpp`.
-
-### Fee-burn operator
+Mint predicate (`CheckResMintArithmetic`):
 
 ```
-burn(fee) = floor(fee / 2)     if fee > 0
-burn(fee) = 0                  if fee ≤ 0
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+R = 0  →  unconstrained
+```
+
+`R = 0` is a legal plain destroy. A non-zero mint occurs only in a **body
+transaction** that destroys ORU (`OP_CONVERGE`, amount `B`) and creates
+Witness v1 RES outputs (sum `R`) in the **same transaction**. RES is not
+a Proof-of-Work block reward. Mint-output maturity 100 is reorg protection.
+
+The cap is closed form: `(S / P0) · H = 2⁷ / 2¹⁰ · 2²⁵ = 2²²` RES =
+`419430400000000` atoms (`4194304` RES).
+
+Source: `CheckResMintArithmetic`, `ResDerivedMaxSupply` in
+`core/src/consensus/res_issuance.h`.
+
+### Fee-destroy operator
+
+```
+destroy(fee) = floor(fee / 2)     if fee > 0
+destroy(fee) = 0                  if fee ≤ 0
 ```
 
 Transaction-derived. Not a UTXO. Not global monetary state.
@@ -118,138 +126,114 @@ Source: `OruResTransferFeeBurnShare` in
 
 ## 2. Convergence mathematics
 
-Live mechanism: `OP_CONVERGE`.
+Live mechanism: same-tx destroy-to-mint. `OP_CONVERGE` /
+`RIGOR_MARKER_CONVERGE` (`0xbd`) destroys ORU amount `B`. The same
+body transaction MAY mint Witness v1 RES summing to `R`.
 
 Pipeline:
 
 ```
-Commitment
+ORU destroyed (OP_CONVERGE, amount B)
         ↓
-Candidate set F
+same body transaction
         ↓
-Root C
+CheckResMintArithmetic(R, B, h)
         ↓
-σ_i
-        ↓
-Eligibility
-        ↓
-Winner comparator
-        ↓
-RES mint authorization
+Witness v1 RES outputs (sum R), if authorized
 ```
 
 ### Commitment
 
 ```
-scriptPubKey = OP_PUSHBYTES_20 || HASH160(RES program) || OP_CONVERGE
+scriptPubKey = OP_PUSHBYTES_20 || HASH160(RES program) || 0xbd
 ```
 
-`nValue ≥ 1 ORU`. The output is unspendable and is not inserted into the
-UTXO set.
+The output is unspendable and is not inserted into the UTXO set. `R = 0`
+(plain destroy) is legal. Positive `R` requires the mint predicate at the
+confirming height.
 
-Source: `IsConvergeScript` in `core/src/script/interpreter.cpp`;
-`AddCoins` skip in `core/src/coins.cpp`.
+Source: `IsConvergeScript` / `ParseConvergeScript` in
+`core/src/script/rigor_classify.cpp`; `AddCoins` skip in `core/src/coins.cpp`.
+There is no `interpreter.cpp`.
 
-### Candidate set F
-
-```
-F ⊆ [h − 32, h − 1]
-```
-
-A draw may run when `|F| ≥ 1`. Weight `f_i` is the integer Convergence
-amount.
-
-Source: `CONVERGENCE_DRAW_WINDOW` in
-`core/src/consensus/rigor_consensus_lock.h`;
-`core/src/consensus/convergence_root.cpp`.
-
-### Root C
+### Mint arithmetic
 
 ```
-Hash256(x) = SHA256(SHA256(x))
+mint_authorized(h)  ⇔  h ≥ 0
+CheckResMintArithmetic(R, B, h)  ⇔
+    R = 0
+    ∨  (h ≥ 0 ∧ R · (2²⁵ + h)² ≤ B << 40
+        ∧ R ≤ RES_MAX_SUPPLY)
 ```
 
-```
-if |F| = 0:   C = 32 zero bytes
-if |F| ≥ 1:   C = Hash256(concat(sort(txid)))
-```
+Cross-multiplication only. No division in consensus. The display destroy cost
+is not a live mint input from σ, a candidate window, or a winner comparator.
 
-A singleton is hashed.
+Source: `CheckResMintArithmetic` in `core/src/consensus/res_issuance.h`.
 
-Source: `core/src/consensus/convergence_root_eligibility.cpp`.
-
-### Selection digest σ_i
+### Mint locus
 
 ```
-σ_i = Hash256( txid_i || C || B_{h−1} || LE32(h) )
+inputs        ORU only
+outputs       exactly one OP_CONVERGE output, value B
+              one or more RES outputs, total R
+              optionally ORU change
 ```
 
-Preimage length: 100 bytes. `B_{h−1}` is the parent block hash.
+Coinbase `OP_RES_MINT` is not the RFC-020 path.
 
-Source: `core/src/consensus/consensus_rigor/sigma_hash.h`;
-`core/src/consensus/selection.cpp`.
+### Retired mechanism (historical RFC-017 / RFC-014)
 
-### Eligibility
+Not live consensus: draw, σ, window 32, winner selection, `W(k)`,
+`draw_candidate_root` as a consensus issuance object, coinbase mint
+prize. σ is not a live mint input.
 
-```
-eligible  ⇔  |F| ≥ 1  ∧  f_i ≥ 1  ∧  σ_i < T · f_i
-```
-
-`T` is the frozen windowed probability target. `T` is not the ASERT /
-`nBits` PoW target.
-
-Source: `IsEligible` in `core/src/consensus/selection.cpp`;
-`RES_PROBABILITY_TARGET` in `core/src/consensus/params.h`.
-
-### Winner comparator
-
-The only legal consensus form:
-
-```
-i ≺ j   iff   H_i · f_j  <  H_j · f_i
-```
-
-Tie: `txid_i < txid_j` (unsigned byte-wise). Floating-point ratio order
-is not the consensus form.
-
-If a winner exists and `W(h) > 0`, block `h` must contain exactly one
-`OP_RES_MINT` paying `W(h)` RES to the winner’s declared HASH160.
-
-Source: `core/src/consensus/convergence_logic.cpp`;
-`core/src/consensus/rigor_math.h`; `core/src/consensus/rigor_res.cpp`.
+---
 
 ---
 
 ## 3. Proof of Work
 
-### OpuHash
+### OpuHash (SHA3-256 / `RGRPOW01`)
+
+OpuHash is the consensus Proof-of-Work name. The digest is FIPS 202 SHA3-256:
 
 ```
-base   = SHA256d(header)
-mixed  = OpusMix(base)
-pow    = SHA256d(base || mixed)
-valid  ⇔  pow ≤ target
+preimage = "RGRPOW01" || header_80
+OpuHash  = SHA3-256(preimage)
+valid    ⇔  OpuHash ≤ target
 ```
 
-Buffer = 65536 bytes. Mix rounds = 256.
+Block identifier remains `SHA256d(header_80)`. Merkle and txid remain
+SHA256d. σ is not a live mint input.
 
-Source: `core/src/pow_opus.cpp`; `CheckProofOfWork` in `core/src/pow.cpp`.
+Source: `rigor_kernel::GetRigorPowHash` in
+`core/src/rigor_kernel/pow_digest.h`; `CheckProofOfWork` in
+`core/src/pow.cpp`.
+
+The retired 64 KiB / 256-round mix in `pow_opus.cpp` is not OpuHash and is
+not the live digest.
 
 ### ASERT next target
 
+Anchor is genesis while producing height 1, then height 1 thereafter.
+Evaluation uses the **parent** header only.
+
 ```
-time_error  = (eval_time − genesis_time) − eval_height · spacing
-next_target = anchor_target × 2^(time_error / half_life)
+time_error  = (parent_time − anchor_time) − (parent_height − anchor_height) · spacing
+next_target = clamp_to_prev(anchor_target × 2^(time_error / half_life))
 ```
 
 | Parameter | Value |
 |-----------|-------|
 | Spacing | 600 seconds |
-| Half-life | 172800 seconds |
+| Half-life | **43200 seconds** (12 hours) |
+| Per-block clamp | ±12.5% |
 
-Integer realization is Q16.16.
+Integer realization is Q16.16 (`aserti3-2d`).
 
-Source: `GetNextWorkASERT` in `core/src/pow.cpp`.
+Source: `GetNextWorkASERT` in `core/src/pow.cpp`;
+`MAINNET_POW_ASERT_HALF_LIFE` in `core/src/consensus/rigor_consensus_lock.h`.
 
 ---
 
@@ -274,7 +258,8 @@ oru_in ≥ oru_out
 res_in ≥ res_out
 ```
 
-Create exception: authorized `OP_RES_MINT`.
+Create exception: authorized same-tx body mint at `destroy_cost(h)` (Witness v1
+RES with `OP_CONVERGE`). Coinbase `OP_RES_MINT` is not this path.
 
 **Transition**
 
@@ -282,7 +267,7 @@ Create exception: authorized `OP_RES_MINT`.
 UTXO_after = (UTXO_before ∪ outputs) \ spent
 ```
 
-except `OP_CONVERGE` outputs are not inserted, and fee-burn never becomes
+except `OP_CONVERGE` outputs are not inserted, and fee-destroy never becomes
 an output.
 
 Source: `core/src/primitives/transaction.h`;
@@ -320,4 +305,3 @@ hash_kernel_shared_binary_with_cpp = false
 refinement_proved = false
 ```
 
-**Consensus impact: NONE**

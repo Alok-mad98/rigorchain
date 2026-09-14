@@ -1,0 +1,14 @@
+{
+  "id": "V8",
+  "domain": "oru",
+  "expect": "INVALID",
+  "theorem": "runtime_step_refines_executable_step",
+  "failure_reason": "invalid transition ordering: oru_out > oru_in",
+  "dom": "ORU",
+  "oru_in": 1,
+  "oru_out": 2,
+  "res_in": 0,
+  "res_out": 0,
+  "old_supply": 10,
+  "subsidy": 0
+}

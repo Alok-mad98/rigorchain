@@ -12,19 +12,15 @@
 
 namespace interfaces {
 
-//! Convergence draw / ConvergenceRoot set summary for one block (GUI; mirrors getconvergenceresult core fields).
+//! Convergence burn summary for one block (GUI).
 struct ConvergenceBlockResult {
     //! True when the block was resolved and fields below are valid for that height.
     bool ok{false};
     int height{-1};
-    //! N = |F| from Consensus::ListConvergenceRootCommitmentTxids (same as getconvergenceresult).
-    int64_t convergence_root_set_size{0};
-    //! ConvergenceDrawCandidates tie-break winner txid; null when none (genesis, no undo, or no unique winner).
-    uint256 winner_txid{};
-    //! True if any of the caller-supplied wallet convergence txids is in F.
+    //! Convergence transactions in the block, by Consensus::IsConvergenceTx.
+    int64_t convergence_tx_count{0};
+    //! True if any of the caller-supplied wallet convergence txids is one of them.
     bool is_mine{false};
-    //! Non-coinbase transactions in the block (same count basis as getconvergenceresult candidates array).
-    int candidates_count{0};
     //! Set when ok is false: out-of-range height, missing block data, read failure, etc.
     std::string error_message;
 };

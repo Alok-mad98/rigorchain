@@ -1,4 +1,6 @@
-(** Extract classify / parse_canonical_mint. Not in the default _CoqProject. *)
+(** Extract classify / apply_delta / sighash_preimage.
+    Not in the default _CoqProject. apply_delta is the RFC-020 conservation
+    slice (authorized mint ≤ RES_MAX_SUPPLY); it is not the pole predicate. *)
 From Coq Require Import Extraction ExtrOcamlBasic ExtrOcamlNatInt.
 Require Import RigorV01.AssetClassification.
 Require Import RigorV01.MintSupplyConservation.

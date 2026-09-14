@@ -1,13 +1,13 @@
 # SPEC-007: RIGOR Equivalence Boundaries and Future Closure Conditions
 
-**Task:** `TASK-SPEC-008`  
+**Document status:** Production specification  
 **Track:** Formal Specification Program  
 **Status:** ESTABLISHED  
 **Baseline:** `mainnet-freeze-rfc015-2026-05-26`  
 **Parents:** SPEC-000 … SPEC-006  
 **Normative sources:** Phase-5 equivalence catalogs; `MAINNET_PROTOCOL_FREEZE_DECLARATION.md`  
 **Proof obligation registry:** [PROOF-009](../protocol/proof/PROOF-009-PROOF-OBLIGATION-REGISTRY.md) (operationalizes §7 pending items)  
-**Freeze authority:** `TASK-MAINNET-FREEZE-001`
+**Freeze authority:** `historical verification record`
 
 ---
 
@@ -420,7 +420,7 @@ does not modify consensus, monetary policy, or protocol freeze.
 | No protocol-freeze modifications | **Confirmed** |
 
 Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
-`TASK-MAINNET-FREEZE-001`.
+`historical verification record`.
 
 ---
 
@@ -445,5 +445,5 @@ Nothing in this document supersedes `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` or
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1 | 2026-06-05 | `TASK-SPEC-008` — initial equivalence boundaries specification |
-| 0.2 | 2026-06-05 | Cross-reference PROOF-009 proof obligation registry (TASK-PROOF-010) |
+| 0.1 | 2026-06-05 | `historical verification record` — initial equivalence boundaries specification |
+| 0.2 | 2026-06-05 | Cross-reference PROOF-009 proof obligation registry (historical verification record) |

@@ -1,5 +1,5 @@
 import { useSystemState } from "../context/SystemStateContext";
-
+import { readRfc020Live } from "../lib/rfc020Status";
 export type ProtocolCardVariant = "overview" | "oru" | "res" | "forge" | "live";
 
 type Props = {
@@ -33,7 +33,7 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Execution &amp; fee resource</h3>
         </header>
         <p className="math-block">Σ ORU<sub>in</sub> = Σ ORU<sub>out</sub> + fee</p>
-        <p>Subsidy decay: 1000 → 500 → 250 → 125 ORU per block (terminal floor 125 = 5³).</p>
+        <p>Subsidy: R(0) = 0; then 128 ORU per block forever. No halvings.</p>
         <LiveStrip height={state.chain_height} label="chain height" />
       </article>
     );
@@ -47,7 +47,7 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Scarce settlement asset</h3>
         </header>
         <p className="math-block">Σ RES<sub>in</sub> ≥ Σ RES<sub>out</sub></p>
-        <p>Mint emission under frozen 21M <strong>maximum</strong> cap (Deterministic Reserve Issuance schedule `W(h)`). Circulation depends on Convergence — 21M is not a fill guarantee. RES is not mined.</p>
+        <p>Mint emission under closed-form <strong>2²² RES</strong> cap. Circulation depends on Convergence — the cap is not a fill guarantee. RES is not mined.</p>
         <MintLiveSummary count={state.mint_state.res_mints?.length ?? null} error={state.mint_state.mint_error} />
       </article>
     );
@@ -57,11 +57,17 @@ export function ProtocolCard({ variant }: Props) {
     return (
       <article className="card">
         <header className="card-header">
-          <span className="tag">FORGE</span>
+          <span className="tag">CONVERGENCE</span>
           <h3>Convergence pathway</h3>
         </header>
-        <p>ORU burn (convergence) → deterministic eligibility → consensus winner → RES mint when predicates pass. RES is not mined.</p>
-        <p className="math-block">P(eligible) uses frozen T (Deterministic Reserve Issuance: E = 246, C = 1024 ORU per expected mint)</p>
+        <p>
+          Convergence destroys ORU (marker <code>0xbd</code>) and may mint Witness v1 RES in the same
+          body transaction when <code>R · (2²⁵ + h)² ≤ B ≪ 40</code>. Coinbase <code>0xbb</code> is
+          not this path. RES is not mined.
+        </p>
+        <p className="math-block">
+          destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰ · cap = 2²² RES
+        </p>
         <ForgeStatus convergence={state.convergence_status} />
       </article>
     );
@@ -114,10 +120,12 @@ function ForgeStatus({ convergence }: { convergence: Record<string, unknown> | n
   if (!convergence) {
     return <p className="degraded-text">Convergence status unavailable</p>;
   }
-  const tip = convergence.tip_height ?? convergence.height ?? "—";
+  const live = readRfc020Live(convergence);
   return (
     <p className="live-strip mono">
-      convergence tip: {String(tip)} <span className="muted">(rpc)</span>
+      tip {live.tipHeight ?? "—"} · confirm h={live.confirmHeight ?? "—"} · destroy_cost(h){" "}
+      {live.destroyCostOru} ORU/RES · ORU destroyed to mint 1 RES: {live.minWholeResBurnOru} ORU{" "}
+      <span className="muted">(rpc)</span>
     </p>
   );
 }

@@ -17,11 +17,10 @@
 # Without a live rigord on [node] RPC, jobs/shares may stay at 0 — connect still works.
 
 [node]
-# rpc_port 8332 is a PLACEHOLDER — there is usually no rigord there.
-# If miners connect but hashes/shares stay 0, point [node] at a live node
-# (see example.local-lms.toml for LMS Node-0 on :27811).
+# Local/devtest rigord RPC (chainparamsbase: 48761). Never Bitcoin 8332.
+network = "devtest"
 rpc_host = "127.0.0.1"
-rpc_port = 8332
+rpc_port = 48761
 rpc_user = "rigor"
 rpc_password = "change-me"
 

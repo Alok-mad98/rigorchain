@@ -7,7 +7,6 @@
 #include <chainparams.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
@@ -35,11 +34,8 @@ BOOST_AUTO_TEST_CASE(single_entry_issuance)
         const RigorIssuance got = ComputeRigorIssuance(h, c);
         BOOST_CHECK_EQUAL(got.epoch, RigorIssuanceEpoch(h));
         BOOST_CHECK_EQUAL(got.oru_subsidy, GetBlockSubsidy(h, c));
-        BOOST_CHECK_EQUAL(got.res_reward, Consensus::GetResMintReward(h));
     }
     BOOST_CHECK_EQUAL(ComputeRigorIssuance(0, c).oru_subsidy, 0);
-    BOOST_CHECK_EQUAL(ComputeRigorIssuance(0, c).res_reward, Consensus::RES_REWARD_GENESIS);
-    BOOST_CHECK_NE(Consensus::GetResMintReward(0), 0);
 }
 
 BOOST_AUTO_TEST_CASE(single_entry_classify)
@@ -55,15 +51,6 @@ BOOST_AUTO_TEST_CASE(single_entry_classify)
     BOOST_CHECK_EQUAL(ClassifyRigorAsset(res), AssetTypeFromScriptPubKey(res));
     BOOST_CHECK_EQUAL(ClassifyRigorAsset(empty), ASSET_INVALID);
     BOOST_CHECK_EQUAL(Solver(oru, sols), ClassifyRigorTxout(oru, sols));
-}
-
-BOOST_AUTO_TEST_CASE(single_entry_draw)
-{
-    ConvergenceDrawSet empty;
-    empty.source_height = 0;
-    const ConvergenceDrawOutcome none =
-        ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST);
-    BOOST_CHECK(!none.HasWinner());
 }
 
 BOOST_AUTO_TEST_CASE(single_entry_supply)
@@ -95,7 +82,6 @@ BOOST_AUTO_TEST_CASE(connectblock_orchestration_genesis)
     BOOST_CHECK_EQUAL(out.oru_subsidy, 0);
     BOOST_CHECK_EQUAL(out.oru_circulating_delta, 0);
     BOOST_CHECK_EQUAL(out.res_delta, 0);
-    BOOST_CHECK_EQUAL(out.res_reward_scheduled, Consensus::RES_REWARD_GENESIS);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -1,8 +1,8 @@
 # Witness V1 Display Rules (Explorer)
 
-**Task:** `TASK-EXPLORER-BOOTSTRAP-001`  
+**Document status:** Production documentation  
 **Baseline:** `mainnet-freeze-rfc014-2026-05-25`  
-**Sources:** RFC-008, RFC008_ERRATUM_RESERVED_ZERO.md, TASK-WITNESS-EXT-001 freeze, `interpreter.cpp`.
+**Sources:** [`../archive/rfc/RFC-008-canonical-mathematical-specification.md`](../archive/rfc/RFC-008-canonical-mathematical-specification.md), [`../SCRIPT_STRUCTURE.md`](../SCRIPT_STRUCTURE.md).
 
 ---
 
@@ -11,7 +11,7 @@
 | Use in UI/docs | Do NOT use |
 |----------------|------------|
 | Witness **v1** | Taproot, BIP341, x-only pubkey path |
-| **OP_CONVERGE** | Convergence burn / draw-entry (not a witness v1 program) |
+| **OP_CONVERGE** | Convergence destroy (not a witness v1 program); same tx MAY mint RES |
 | **RES** program | “P2TR”, “Taproot address” |
 | **PCORB** mint proof | “Tapscript”, “control block”, “script path” (Bitcoin sense) |
 | **ORU** witness v0 | — |
@@ -39,7 +39,7 @@ RIGOR witness v1 is **not** Bitcoin Taproot. Display MUST NOT imply BIP341 seman
 
 | Class | Prefix / rule | Asset domain | Display label |
 |-------|---------------|--------------|---------------|
-| **OP_CONVERGE** | 22-byte lock: `OP_PUSHBYTES_20 \|\| HASH160 \|\| OP_CONVERGE (0xbd)` | ORU | Script: `OP_CONVERGE`. Asset: ORU. State: Unspendable burn output / draw participation |
+| **OP_CONVERGE** | 22-byte lock: `OP_PUSHBYTES_20 \|\| HASH160 \|\| OP_CONVERGE (0xbd)` | ORU | Script: `OP_CONVERGE`. Asset: ORU. State: Unspendable destroy; same tx MAY mint RES |
 | **RES2** | Witness v1, wire prefix `RES2` | RES | “RES (RES2)” |
 | **Native RES** | Witness v1, 32-byte Ed25519 pubkey | RES | “RES (native)” |
 | **Retired CVG2 v1** | Historical RFC-014 / retired design: first 4 bytes `CVG2` | NONE (not a third asset) | “Historical RFC-014 / retired Witness v1 CVG2 (not OP_CONVERGE)” |
@@ -69,12 +69,14 @@ devtest P2WSH-funded mint the trailing push is the redeem script (`OP_DROP×6 + 
 `75757575757551`), giving 7 witness items in total. Render such a trailing push as
 “funding redeem script”, not as a proof field.
 
-σ (`ConvergeProofDigest`) is unchanged and is still the draw digest. It is simply never signed, so
-there is no signature to display or verify.
+PCORB / σ / `res_probability_target` belong to the retired lottery. Live mint
+is `CheckResMintArithmetic` on a body transaction. Do not display a draw
+digest as issuance authority.
 
 **Sidebar disclaimer (required on mint pages):**
 
-> `target_prev` binds the proof to parent proof-of-work compact bits for replay (Sigma-CR-01). RES draw inequality uses the constant `res_probability_target` (RFC-017 shipping `E = 246`, windowed; Historical RFC-014: `2^240`), not `target_prev`.
+> Mint cost is `destroy_cost(h)` at the confirming height (`R · (2²⁵+h)² ≤ B << 40`).
+> Parent `nBits` is not a mint price. Lottery `res_probability_target` is retired.
 
 ---
 

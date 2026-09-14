@@ -39,22 +39,14 @@ inline RigorIssuance IssuanceMemo(int height, const Consensus::Params& params)
     struct Slot {
         bool ready{false};
         int height{0};
-        CAmount base{0};
-        int interval{0};
-        int max_shifts{0};
         RigorIssuance value{};
     };
     static thread_local Slot slot;
-    if (slot.ready && slot.height == height && slot.base == params.nBlockSubsidyBase &&
-        slot.interval == params.nSubsidyHalvingInterval &&
-        slot.max_shifts == params.nBlockSubsidyMaxHalvingShifts) {
+    if (slot.ready && slot.height == height) {
         return slot.value;
     }
     slot.value = ComputeRigorIssuance(height, params);
     slot.height = height;
-    slot.base = params.nBlockSubsidyBase;
-    slot.interval = params.nSubsidyHalvingInterval;
-    slot.max_shifts = params.nBlockSubsidyMaxHalvingShifts;
     slot.ready = true;
     return slot.value;
 }

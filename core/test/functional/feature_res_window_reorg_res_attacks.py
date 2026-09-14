@@ -251,12 +251,14 @@ class ResWindowReorgResAttacksTest(BitcoinTestFramework):
             dust_txid = None
             dust_status = "ineligible"
             try:
-                dust_txid = self._broadcast_conv(Decimal("0.99"))
+                dust_txid = self._broadcast_conv(Decimal("0.00001023"))
                 dust_hash = self._mine_only([dust_txid])
                 fr_d = draw_of(node, dust_hash)
                 window_self_check(fr_d, "M-5-dust")
+                # 1023 atoms is a legal plain burn; lottery F is retired so it
+                # must not be treated as a draw candidate.
                 assert dust_txid not in candidate_txids(fr_d), (
-                    self._dump(case, {"dust": dust_txid}) + "\n0.99 ORU burn entered F"
+                    self._dump(case, {"dust": dust_txid}) + "\n1023-atom burn entered F"
                 )
             except Exception as exc:
                 dust_status = f"rejected:{type(exc).__name__}"

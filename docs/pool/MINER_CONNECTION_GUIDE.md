@@ -12,8 +12,8 @@ Canonical product position: [`RIGOR_POOL_PRODUCT_POSITION.md`](./RIGOR_POOL_PROD
 
 | Asset | Source |
 |-------|--------|
-| **ORU** | Proof-of-work shares on this pool (PPLNS accounting) |
-| **RES** | **Not from the pool.** Optional later via wallet Convergence |
+| **ORU** | Proof-of-work shares on this pool (PPLNS accounting). Consensus coinbase subsidy is RFC-020: **0** at genesis, **128 ORU** per block forever, no halving. `coinbasevalue` is that subsidy plus claimable ORU fees. |
+| **RES** | **Not from the pool.** Optional later via wallet Convergence (body-tx destroy at `destroy_cost(h)`). |
 
 Do not configure the miner “for RES.” There is no pool RES endpoint.
 
@@ -114,7 +114,9 @@ Default Alpha listen (see `pool/config/example.toml`):
 0.0.0.0:3333
 ```
 
-Algo / user-agent expectation: **opushash** (RIGOR OpuHash). Stock altcoin miners that do not speak this path will not work.
+Algo / user-agent expectation: **rgrpow01** (SHA3-256 `RGRPOW01`).
+Historical OpuHash agents are rejected. Stock altcoin miners that do not
+speak this path will not work.
 
 ---
 

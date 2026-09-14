@@ -12,15 +12,15 @@
     "pack": "ComputeRigorIssuance"
   },
   "res_schedule": {
-    "authority": "GetResMintReward",
-    "file": "core/src/consensus/rigor_consensus_lock.h"
+    "authority": "CheckResMintArithmetic",
+    "file": "core/src/consensus/res_issuance.h"
   },
   "supply": {
     "authority": "RigorSupplyDelta",
     "file": "core/src/consensus/rigor_supply.cpp"
   },
   "draw": {
-    "authority": "ResolveConvergenceDraw",
+    "authority": "retired",
     "file": "core/src/consensus/convergence_logic.cpp",
     "assembly": "GetConvergenceDrawSetForBlock"
   },

@@ -16,15 +16,16 @@ IMPORTANT: WALLET DESIGN LOCK V1
 - Change output MUST match input asset
 - Network fee (POOL-F) MUST be paid in ORU only; transfer pool (POOL-T) is ORU or RES
 
-CONVERGENCE RULES:
-- Convergence consumes ORU ONLY (to convergence outputs); consensus does not require a positive ORU tx fee on convergence txs
-- Convergence does NOT guarantee RES
-- Wallet MUST NOT calculate or display probability
-- Wallet MUST NOT simulate consensus outcome
+CONVERGENCE (MINT) RULES:
+- Mint inputs are ORU ONLY; the burn is one explicit OP_CONVERGE output of value B
+- R RES is minted when R · (2^25+h)^2 <= B << 40 at the CONFIRMING height; R = 0 is a legal plain burn
+- Wallet MUST take destroy_cost(h) from the node, never hardcode or re-derive it
+- Wallet MUST maximise R for the chosen B, or show the slack explicitly
+- Wallet MUST handle height invalidation: destroy_cost(h) is strictly increasing, so an exact-fit mint dies if it confirms later
 
 ARCHITECTURE:
 - Wallet constructs transactions ONLY
-- Consensus decides RES outcome
+- Consensus defines destroy_cost(h) and mint authorization
 - No policy logic inside wallet
 
 CRYPTO (Rigor):
@@ -43,7 +44,6 @@ CRYPTO (Rigor):
 #include <chain.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergenceres.h>
 #include <consensus/validation.h>
 #include <consensus/res_proof.h>
 #include <crypto/common.h>
@@ -83,7 +83,6 @@ CRYPTO (Rigor):
 #include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/context.h>
-#include <wallet/convergencestate.h>
 #include <wallet/wallet_extreme_safety.h>
 #include <wallet/wallet_hd_v1.h>
 #include <wallet/external_signer_scriptpubkeyman.h>
@@ -1498,123 +1497,7 @@ void CWallet::blockConnected(const interfaces::BlockInfo& block)
         SyncTransaction(block.data->vtx[index], TxStateConfirmed{block.hash, block.height, static_cast<int>(index)});
         transactionRemovedFromMempool(block.data->vtx[index], MemPoolRemovalReason::BLOCK);
     }
-    UpdateConvergenceStateForBlock(block);
     BumpWalletStateRevision();
-}
-
-void CWallet::UpdateConvergenceStateForBlock(const interfaces::BlockInfo& block)
-{
-    AssertLockHeld(cs_wallet);
-    assert(block.data);
-
-    const int tip_height = block.height;
-    const int maturity_delta = Params().GetConsensus().nCoinbaseMaturity;
-    const int W = Consensus::CONVERGENCE_DRAW_WINDOW;
-
-    WalletBatch batch(GetDatabase());
-
-    auto persist = [&](CWalletTx& wtx, const ConvergenceRecord& rec) {
-        ApplyConvergenceRecordToMapValue(rec, wtx.mapValue);
-        wtx.MarkDirty();
-        batch.WriteTx(wtx);
-    };
-
-    // Mark inclusion for convergences that land in this block (competition starts; no LOST yet).
-    // Draw paid at height h uses F over [h-W, h-1], so a tx included at h is not eligible in h's draw.
-    for (const CTransactionRef& ptx : block.data->vtx) {
-        auto wit = mapWallet.find(ptx->GetHash());
-        if (wit == mapWallet.end()) continue;
-        ConvergenceRecord rec;
-        if (!LoadConvergenceRecordFromMapValue(wit->second, rec)) continue;
-        if (!Consensus::IsConvergenceTx(*ptx)) continue;
-
-        if (rec.state == ConvergenceState::WON_PENDING || rec.state == ConvergenceState::WON_CONFIRMED) {
-            continue;
-        }
-        bool dirty = false;
-        if (rec.included_height != tip_height) {
-            rec.included_height = tip_height;
-            dirty = true;
-        }
-        if (rec.state == ConvergenceState::CREATED ||
-            rec.state == ConvergenceState::BROADCASTED ||
-            rec.state == ConvergenceState::LOST ||
-            rec.state == ConvergenceState::MATURING) {
-            // LOST heals premature loss from pre-window wallet logic.
-            rec.state = ConvergenceState::INCLUDED;
-            rec.maturity_height = -1;
-            dirty = true;
-        }
-        if (dirty) persist(wit->second, rec);
-    }
-
-    // Advance every tracked convergence: heal premature LOST, detect win in-window, finalize LOST.
-    for (auto& item : mapWallet) {
-        CWalletTx& wtx = item.second;
-        ConvergenceRecord rec;
-        if (!LoadConvergenceRecordFromMapValue(wtx, rec)) continue;
-
-        if (rec.state == ConvergenceState::WON_PENDING) {
-            if (rec.maturity_height >= 0 && tip_height >= rec.maturity_height) {
-                rec.state = ConvergenceState::WON_CONFIRMED;
-                persist(wtx, rec);
-            }
-            continue;
-        }
-        if (rec.state == ConvergenceState::WON_CONFIRMED) continue;
-        if (rec.included_height < 0) continue;
-
-        const int final_height = rec.included_height + W;
-
-        // Heal stale LOST while the W-window is still open.
-        if (rec.state == ConvergenceState::LOST && tip_height < final_height) {
-            rec.state = ConvergenceState::INCLUDED;
-            rec.maturity_height = -1;
-            persist(wtx, rec);
-        }
-
-        if (rec.state != ConvergenceState::INCLUDED && rec.state != ConvergenceState::MATURING) {
-            continue; // LOST past finalization, or other terminal/non-competing states
-        }
-
-        if (chain().convergenceDrawIsWinner(*block.data, block.height, block.hash, item.first)) {
-            rec.state = ConvergenceState::WON_PENDING;
-            rec.maturity_height = tip_height + maturity_delta;
-            persist(wtx, rec);
-            continue;
-        }
-
-        // Last payout height that can still include this candidate is inclusion + W.
-        if (tip_height >= final_height) {
-            rec.state = ConvergenceState::LOST;
-            persist(wtx, rec);
-        }
-    }
-}
-
-void CWallet::UpdateConvergenceStateOnDisconnect(const interfaces::BlockInfo& block)
-{
-    AssertLockHeld(cs_wallet);
-    assert(block.data);
-
-    WalletBatch batch(GetDatabase());
-
-    for (const CTransactionRef& ptx : block.data->vtx) {
-        auto wit = mapWallet.find(ptx->GetHash());
-        if (wit == mapWallet.end()) continue;
-
-        wallet::ConvergenceRecord rec;
-        if (!wallet::LoadConvergenceRecordFromMapValue(wit->second, rec)) continue;
-        if (!Consensus::IsConvergenceTx(*ptx)) continue;
-
-        // Reorg removed this convergence from the chain — treat as broadcast-only again (INCLUDED → BROADCASTED, etc.).
-        rec.state = wallet::ConvergenceState::BROADCASTED;
-        rec.included_height = -1;
-        rec.maturity_height = -1;
-        wallet::ApplyConvergenceRecordToMapValue(rec, wit->second.mapValue);
-        wit->second.MarkDirty();
-        batch.WriteTx(wit->second);
-    }
 }
 
 void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
@@ -1631,7 +1514,6 @@ void CWallet::blockDisconnected(const interfaces::BlockInfo& block)
     for (const CTransactionRef& ptx : Assert(block.data)->vtx) {
         SyncTransaction(ptx, TxStateInactive{});
     }
-    UpdateConvergenceStateOnDisconnect(block);
     BumpWalletStateRevision();
 }
 
@@ -2633,7 +2515,7 @@ OutputType CWallet::TransactionChangeType(const std::optional<OutputType>& chang
     return m_default_address_type;
 }
 
-void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm)
+bool CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::vector<std::pair<std::string, std::string>> orderForm, std::string* broadcast_error)
 {
     LOCK(cs_wallet);
     WalletLogPrintf("CommitTransaction:\n%s", tx->ToString()); /* Continued */
@@ -2664,14 +2546,26 @@ void CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
 
     if (!fBroadcastTransactions) {
         // Don't submit tx to the mempool
-        return;
+        return true;
     }
 
     std::string err_string;
     if (!SubmitTxMemoryPoolAndRelay(*wtx, err_string, true)) {
-        WalletLogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", err_string);
-        // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+        // The transaction never reached the mempool, so nothing was relayed and no peer
+        // can mine it. Leaving it here unabandoned keeps its inputs in mapTxSpends, and
+        // IsSpent() then hides the whole input from AvailableCoins and from the per-asset
+        // balances until the user finds abandontransaction by hand. Abandon it so the
+        // inputs stay spendable, and let the caller report the rejection.
+        const uint256 txid = wtx->GetHash();
+        if (AbandonTransaction(txid)) {
+            WalletLogPrintf("CommitTransaction(): Transaction %s was rejected and has been abandoned; its inputs remain spendable, %s\n", txid.ToString(), err_string);
+        } else {
+            WalletLogPrintf("CommitTransaction(): Transaction %s was rejected and could not be abandoned; its inputs stay locked until abandontransaction succeeds, %s\n", txid.ToString(), err_string);
+        }
+        if (broadcast_error) *broadcast_error = err_string;
+        return false;
     }
+    return true;
 }
 
 DBErrors CWallet::LoadWallet()
@@ -3738,11 +3632,12 @@ int CWallet::GetTxBlocksToResMintMaturity(const CWalletTx& wtx) const
         return 0;
     }
 
-    // WALLET DESIGN LOCK: body RES *mint* is immature until nCoinbaseMaturity;
-    // RES transfers / change are not. Mis-applying mint maturity to transfers hid
-    // mempool RES change from both AvailableCredit and ImmatureCredit (not in chain yet).
-    // Incoming payments lack prevouts → ClassifyWalletTxSemantic falls back to ResTransfer
-    // (never ResMint); do not re-infer mint from "RES out, no wallet RES in".
+    // WALLET_DESIGN_LOCK_V2 III.2(e): body RES *mint* is locked until
+    // nCoinbaseMaturity; RES transfers / change are not. Mis-applying mint maturity
+    // to transfers hid mempool RES change from both AvailableCredit and ImmatureCredit
+    // (not in chain yet).
+    // Incoming mints without prevouts still classify as ResMint when the tx has
+    // Convergence+RES outputs (ClassifyTxSemanticFromOutputs).
     const TxSemanticKind kind = ClassifyWalletTxSemantic(*this, wtx);
     if (kind != TxSemanticKind::ResMint) {
         return 0;

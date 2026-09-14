@@ -15,7 +15,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
                 {{"data": "0100000000010000000001", "txid": "{a}", "hash": "{a}"}},
                 {{"data": "0100000000020000000001", "txid": "{b}", "hash": "{b}"}}
             ],
-            "coinbasevalue": 5000000000,
+            "coinbasevalue": 12800000000,
             "longpollid": "{longpoll}",
             "weightlimit": 1000000,
             "bits": "207fffff",
@@ -23,9 +23,7 @@ fn fixture(longpoll: &str) -> (GbtTemplate, String) {
             "height": 300,
             "version": 536870912,
             "curtime": 1700000300,
-            "default_witness_commitment": "6a24aa21a9ed",
-            "default_convergence_commitment": "6a2d",
-            "convergence_txids": ["{a}", "{b}"]
+            "default_witness_commitment": "6a24aa21a9ed"
         }}"#,
         prev = "00".repeat(32),
         a = "aa".repeat(32),
@@ -192,5 +190,5 @@ fn rejects_non_opushash_agent_on_subscribe() {
     };
     let mut client = StratumClient::connect(&endpoint).unwrap();
     let err = client.subscribe(Some("bad-miner/1.0")).unwrap_err();
-    assert!(err.to_string().contains("opushash"));
+    assert!(err.to_string().contains("rgrpow01"));
 }

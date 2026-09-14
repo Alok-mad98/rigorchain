@@ -1,6 +1,7 @@
+use rigor_gbt::legacy::{ConvergenceDraw, ConvergenceDrawCandidate};
 use rigor_gbt::{
-    build_template_record, ConvergenceDraw, ConvergenceDrawCandidate, GbtRecord, GbtTransaction,
-    RecordId, TemplateState, TemplateVersion, TipHash,
+    build_template_record, GbtRecord, GbtTransaction, RecordId, TemplateState, TemplateVersion,
+    TipHash,
 };
 use winner_engine::{
     authorize_mint, extract_parent_draw_candidates, invalidate_winner, replay_convergence_draw,
@@ -20,7 +21,7 @@ fn sample_parent_draw(candidates: Vec<(&str, u64)>) -> ConvergenceDraw {
             eligible: true,
         })
         .collect();
-    let winner = list.first().map(|c| rigor_gbt::ConvergenceDrawWinner {
+    let winner = list.first().map(|c| rigor_gbt::legacy::ConvergenceDrawWinner {
         index: 0,
         txid: c.txid.clone(),
         weight: c.weight,
@@ -53,7 +54,7 @@ fn sample_template(convergence: Vec<&str>) -> rigor_gbt::TemplateRecord {
             weight: None,
         })
         .collect();
-    let draw_candidates: Vec<(&str, u64)> = convergence.iter().map(|t| (*t, 100_000_000u64)).collect();
+    let _draw_candidates: Vec<(&str, u64)> = convergence.iter().map(|t| (*t, 100_000_000u64)).collect();
     let gbt = GbtRecord {
         record_id: RecordId::new_v4(),
         fetched_at: 0,
@@ -69,17 +70,17 @@ fn sample_template(convergence: Vec<&str>) -> rigor_gbt::TemplateRecord {
         coinbasevalue: 50,
         transactions: txs,
         // Committed set for the *next* draw — distinct from the paid parent draw.
-        convergence_txids: convergence.into_iter().map(|s| s.to_string()).collect(),
-        convergence_root: None,
-        convergence_draw: Some(sample_parent_draw(draw_candidates)),
         default_witness_commitment: None,
-        default_convergence_commitment: None,
-                default_res_mint: None,
-                default_pcorb_carrier: None,
         weightlimit: Some(1_000_000),
         version: None,
         gbt_payload_hash: [0; 32],
         raw_json: "{}".into(),
+        default_coinbase_scriptsig: None,
+        default_coinbase_tx: None,
+        default_coinbase_txid: None,
+        merkleroot: None,
+        rigor_coinbase_immutable: None,
+        coinbase_address: None,
     };
     build_template_record(gbt, None, TemplateVersion::INITIAL, TemplateState::Active)
 }
@@ -183,7 +184,7 @@ fn reorg_invalidates_winner_job() {
     };
     let cid = CandidateRepository::insert_candidate(&mut store, block).unwrap();
     let draw = winner_engine::DrawReplayResult {
-        convergence_root: [0; 32],
+        convergence_root: [0u8; 32],
         convergence_root_display: "00".repeat(64),
         draw_winner_txid: Some([1; 32]),
         draw_winner_txid_display: Some("aa".repeat(64)),

@@ -25,6 +25,9 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
+#include <qt/convergencepage.h>
+#include <qt/rigorwallet/widgets/convergence_wizard.h>
+#include <consensus/res_issuance.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
 #include <wallet/wallet.h>
@@ -41,6 +44,7 @@
 #include <QClipboard>
 #include <QObject>
 #include <QPushButton>
+#include <QLabel>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QTextEdit>
@@ -265,7 +269,8 @@ std::shared_ptr<CWallet> SetupDescriptorsWallet(interfaces::Node& node, TestChai
     if (!wallet->AddWalletDescriptor(w_desc, provider, "", false)) assert(false);
     CTxDestination dest = GetDestinationForKey(test.coinbaseKey.GetPubKey(), wallet->m_default_address_type);
     wallet->SetAddressBook(dest, "", wallet::AddressPurpose::RECEIVE);
-    wallet->SetLastBlockProcessed(105, WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip()->GetBlockHash()));
+    const CBlockIndex* tip = WITH_LOCK(node.context()->chainman->GetMutex(), return node.context()->chainman->ActiveChain().Tip());
+    wallet->SetLastBlockProcessed(tip->nHeight, tip->GetBlockHash());
     SyncUpWallet(wallet, node);
     wallet->SetBroadcastTransactions(true);
     return wallet;
@@ -517,6 +522,113 @@ void TestGUIWatchOnly(interfaces::Node& node, TestChain100Setup& test)
     QVERIFY(DecodeRawPSBT(psbt, MakeByteSpan(*decoded_psbt), err));
 }
 
+void TestConvergenceClicks(interfaces::Node& node)
+{
+    TestChain100Setup test;
+    // RFC-020: 128 ORU/block. Need ≥9 mature coinbases to burn ~1024 ORU for 1 RES.
+    for (int i = 0; i < 15; ++i) {
+        test.CreateAndProcessBlock({}, GetTestMiningCoinbaseScript(test.coinbaseKey));
+    }
+    auto wallet_loader = interfaces::MakeWalletLoader(*test.m_node.chain, *Assert(test.m_node.args));
+    test.m_node.wallet_loader = wallet_loader.get();
+    node.setContext(&test.m_node);
+
+    const std::shared_ptr<CWallet>& wallet = SetupDescriptorsWallet(node, test);
+    std::unique_ptr<const PlatformStyle> platformStyle(PlatformStyle::instantiate("other"));
+    MiniGUI mini_gui(node, platformStyle.get());
+    mini_gui.initModelForWallet(node, wallet, platformStyle.get());
+    WalletModel& walletModel = *mini_gui.walletModel;
+    walletModel.pollBalanceChanged();
+
+    ConvergencePage page(platformStyle.get());
+    page.setClientModel(mini_gui.clientModel.get());
+    page.setWalletModel(&walletModel);
+    page.show();
+    QVERIFY(QTest::qWaitFor([&]() {
+        auto* price = page.findChild<QLabel*>("labelCurrentPrice");
+        return price && price->text().contains(QStringLiteral("1024"));
+    }, 4000));
+
+    auto* price = page.findChild<QLabel*>("labelCurrentPrice");
+    QVERIFY(price);
+    QVERIFY2(price->text().contains(QStringLiteral("Current cost")), qPrintable(price->text()));
+    QVERIFY2(price->text().contains(QStringLiteral("ORU per RES")), qPrintable(price->text()));
+    QVERIFY2(!price->text().contains(QStringLiteral("price"), Qt::CaseInsensitive), qPrintable(price->text()));
+    QVERIFY2(!price->text().contains(QStringLiteral("Won"), Qt::CaseInsensitive), qPrintable(price->text()));
+
+    auto* next_cost = page.findChild<QLabel*>("labelNextEpochCost");
+    QVERIFY(next_cost);
+    QVERIFY2(next_cost->text().contains(QStringLiteral("From block")), qPrintable(next_cost->text()));
+    QVERIFY2(next_cost->text().contains(QStringLiteral("1024.")), qPrintable(next_cost->text()));
+    QVERIFY2(!next_cost->text().contains(QStringLiteral("210000")), qPrintable(next_cost->text()));
+    QVERIFY2(next_cost->text().contains(QStringLiteral("cost becomes"), Qt::CaseInsensitive), qPrintable(next_cost->text()));
+    QVERIFY2(!next_cost->text().contains(QStringLiteral("price"), Qt::CaseInsensitive), qPrintable(next_cost->text()));
+    QVERIFY2(!next_cost->text().contains(QStringLiteral("last chance"), Qt::CaseInsensitive), qPrintable(next_cost->text()));
+    QVERIFY2(!next_cost->text().contains(QStringLiteral("last issuance"), Qt::CaseInsensitive), qPrintable(next_cost->text()));
+
+    auto* title = page.findChild<QLabel*>("labelQuadraticFeeTitle");
+    QVERIFY(title);
+    QCOMPARE(title->text(), QStringLiteral("RES this mint will create"));
+    const int confirm_height = WITH_LOCK(test.m_node.chainman->GetMutex(),
+        return test.m_node.chainman->ActiveChain().Height() + 1);
+    const CAmount one_res_burn =
+        Consensus::ResMinBurnForAtoms(Consensus::RES_COIN, confirm_height);
+    QVERIFY(one_res_burn > 0);
+    auto* converge_amount = page.findChild<BitcoinAmountField*>("convergeAmount");
+    QVERIFY(converge_amount);
+    converge_amount->setValue(one_res_burn);
+    qApp->processEvents(QEventLoop::AllEvents, 50);
+    auto* minted = page.findChild<QLabel*>("labelQuadraticFee");
+    QVERIFY(minted);
+    QVERIFY2(minted->text().contains(QStringLiteral("1.00000000 RES")), qPrintable(minted->text()));
+
+    RigorWallet::ConvergenceWizard wizard(&walletModel, mini_gui.clientModel.get());
+    wizard.show();
+    auto* amount = wizard.findChild<BitcoinAmountField*>("wizardAmountField");
+    QVERIFY(amount);
+    amount->setValue(one_res_burn);
+    auto* next_btn = wizard.findChild<QPushButton*>("wizardNextButton");
+    QVERIFY(next_btn);
+    QTest::mouseClick(next_btn, Qt::LeftButton);
+    qApp->processEvents(QEventLoop::AllEvents, 50);
+
+    auto* review = wizard.findChild<QLabel*>("wizardReviewLabel");
+    QVERIFY(review);
+    QVERIFY2(review->text().contains(QStringLiteral("RES this transaction will create")), qPrintable(review->text()));
+    QVERIFY2(review->text().contains(QStringLiteral("1.00000000 RES")) || review->text().contains(QStringLiteral("1 RES")),
+             qPrintable(review->text()));
+    QVERIFY2(review->text().contains(QStringLiteral("1024")), qPrintable(review->text()));
+    QVERIFY2(review->text().contains(QStringLiteral("cannot be recovered")), qPrintable(review->text()));
+
+    QTest::mouseClick(next_btn, Qt::LeftButton);
+    qApp->processEvents(QEventLoop::AllEvents, 50);
+    auto* confirm = wizard.findChild<QLabel*>("wizardConfirmLabel");
+    QVERIFY(confirm);
+    QVERIFY2(confirm->text().contains(QStringLiteral("destroys ORU")), qPrintable(confirm->text()));
+    QVERIFY2(!confirm->text().contains(QStringLiteral("Won"), Qt::CaseInsensitive), qPrintable(confirm->text()));
+
+    QTimer::singleShot(0, []() {
+        for (QWidget* widget : QApplication::topLevelWidgets()) {
+            auto* box = qobject_cast<QMessageBox*>(widget);
+            if (!box) continue;
+            QAbstractButton* button = box->button(QMessageBox::Ok);
+            if (!button) button = box->button(QMessageBox::Yes);
+            if (!button) continue;
+            button->setEnabled(true);
+            button->click();
+        }
+    });
+    auto* finish_btn = wizard.findChild<QPushButton*>("wizardFinishButton");
+    QVERIFY(finish_btn);
+    QTest::mouseClick(finish_btn, Qt::LeftButton);
+    for (int i = 0; i < 50; ++i) {
+        qApp->processEvents(QEventLoop::AllEvents, 20);
+        QTest::qWait(20);
+        if (wizard.result() == QDialog::Accepted) break;
+    }
+    QCOMPARE(wizard.result(), int(QDialog::Accepted));
+}
+
 void TestGUI(interfaces::Node& node)
 {
     // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
@@ -549,4 +661,9 @@ void WalletTests::walletTests()
         return;
     }
     TestGUI(m_node);
+}
+
+void WalletTests::convergenceClickTests()
+{
+    TestConvergenceClicks(m_node);
 }

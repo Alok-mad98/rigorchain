@@ -8,7 +8,7 @@
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .muted { color: #bbb; font-size: 12px; }
-      a { margin-right: 12px; color: #fff; }
+      a { color: #fff; }
       input { font-family: ui-monospace, monospace; padding: 8px; width: min(100%, 520px); }
       .error { color: #ff6b6b; margin-top: 12px; }
     </style>
@@ -18,13 +18,13 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
     <h1>Search</h1>
-    <p class="muted">Block height, block hash, txid, or RIGOR bech32 address (trg1… / rg1…). Block results include Draw Fingerprint on the block page.</p>
+    <p class="muted">Block height, block hash, or txid. wtxid is informational only — search the canonical txid. RIGOR bech32 address (rg1… / trg1… / rgrt1…).</p>
     <form id="form" method="get" action="/search">
       <p>
         <input id="q" name="q" placeholder="height, txid, block hash, or address" autocomplete="off" />

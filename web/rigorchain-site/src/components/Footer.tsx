@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { COQ_ENFORCED_VECTORS, SHARED_GOLDEN_VECTORS } from "../protocolFacts";
 
 const FOOTER_LINKS = [
   { to: "/download", label: "Download" },
@@ -6,7 +7,6 @@ const FOOTER_LINKS = [
   { to: "/documentation/whitepaper", label: "Whitepaper" },
   { to: "/documentation/security", label: "Security Architecture" },
   { to: "/documentation/formal-verification", label: "Formal Verification" },
-  { to: "/zero-trust-verification", label: "Zero-Trust" },
   { to: "/about", label: "About" },
 ] as const;
 
@@ -15,7 +15,6 @@ export function Footer() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <nav className="footer-nav" aria-label="Footer">
-          <img src="/assets/rigor-mark.png" alt="" className="footer-mark" width={28} height={28} />
           {FOOTER_LINKS.map((item) => (
             <Link key={item.to} to={item.to}>
               {item.label}
@@ -23,11 +22,16 @@ export function Footer() {
           ))}
         </nav>
         <p>
-          RIGOR is a read-only observer. Trust is established by independent verification
-          of public bytes and reproducible artifacts, not by this website.
+          Read-only observer. No signing, no transaction submission, no consensus control.
+          Trust is established by independent verification of public bytes, not by this website.
         </p>
         <p className="footer-muted">
-          equivalence_claimed = false · Not an investment offering · Native assets: ORU and RES
+          Coq model properties · {SHARED_GOLDEN_VECTORS} shared golden vectors ·{" "}
+          {COQ_ENFORCED_VECTORS} Coq-enforced · equivalence_claimed = false · Not a refinement
+          proof
+        </p>
+        <p className="footer-muted">
+          Not an investment offering · Native assets: ORU and RES
         </p>
         <p className="footer-muted">
           Build: {import.meta.env.VITE_SITE_VERSION ?? "dev"} · www.rigorchain.com

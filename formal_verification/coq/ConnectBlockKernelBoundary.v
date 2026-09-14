@@ -17,7 +17,7 @@
 
       ConnectBlockBoundaryRefinement = PASS
       connectblock_full_proof        = false
-      refinement_proved              = true   (P056 kernel, unchanged)
+      refinement_proved              = false  (P056 issuance withdrawn for RFC-020)
       equivalence_proved             = false
 
     No [Admitted] / [Axiom] / [Parameter] / [Extract Constant]. *)
@@ -44,8 +44,8 @@ Theorem connectblock_boundary_flag :
   ConnectBlockBoundaryRefinement = true.
 Proof. reflexivity. Qed.
 
-Theorem p056_refinement_still_true :
-  ConsensusKernelRefinement.refinement_proved = true.
+Theorem p056_refinement_withdrawn :
+  ConsensusKernelRefinement.refinement_proved = false.
 Proof. reflexivity. Qed.
 
 Theorem p056_equivalence_still_false :

@@ -221,8 +221,31 @@ struct CreatedTransactionResult
  */
 util::Result<CreatedTransactionResult> CreateTransaction(CWallet& wallet, const std::vector<CRecipient>& vecSend, int change_pos, const CCoinControl& coin_control, bool sign = true);
 
-/** Spend ORU to the consensus RIGOR_MARKER_CONVERGE burn (draw entry). Same CreateTransaction path as send. */
+/** RFC-020 mint construction result: the ORU burn plus the explicit RES out. */
+struct CreatedMintTransactionResult {
+    CreatedTransactionResult txr;
+    CAmount burn_oru{0};
+    CAmount res_out{0};
+    CAmount destroy_cost{0};
+    int confirm_height{-1};
+    int destroy_cost_height{-1};
+    int unlock_height{-1};
+};
+
+/** Spend ORU to one RIGOR_MARKER_CONVERGE burn. Used as a building block of a mint. */
 util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amount_oru, bool subtract_fee_from_convergence);
+
+/**
+ * RFC-020 burn-to-mint: ORU inputs, one OP_CONVERGE(B), an explicit native RES
+ * output of R = ResMintAtomsFromBurn(B, h), optional ORU change.
+ *
+ * Dedicated path — CreateTransaction refuses mixed assets, and a mint is not a
+ * mixed transfer. subtract_fee_from_convergence is rejected: shrinking B after
+ * R is computed would silently under-mint.
+ */
+util::Result<CreatedMintTransactionResult> CreateMintTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+
+/** Same as CreateMintTransaction; keeps the historical name for Qt / RPC wrappers. */
 util::Result<CreatedTransactionResult> CreateConvergenceTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true, bool subtract_fee_from_convergence = false);
 
 /**

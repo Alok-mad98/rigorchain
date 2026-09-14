@@ -4,6 +4,8 @@
 
 #include <consensus/tx_check.h>
 
+#include <consensus/trace/consensus_trace.h>
+
 #include <consensus/amount.h>
 #include <consensus/res_amount.h>
 #include <consensus/res_proof.h>
@@ -14,8 +16,16 @@
 #include <script/standard.h>
 
 #include <algorithm>
+#include <string>
 
 namespace Consensus {
+
+CScript BuildCoinbaseScriptSig(int height)
+{
+    // See the note on the declaration: the trailing push exists so heights 1..16 clear
+    // COINBASE_SCRIPTSIG_MIN_SIZE. ConnectBlock checks the height prefix only.
+    return CScript() << height << RIGOR_PUSH_0;
+}
 
 /**
  * RIGOR consensus: Only witness v0 P2WPKH (ORU), witness v1 32-byte RES,
@@ -44,6 +54,20 @@ bool CheckTxOutAssetWitnessBinding(const CTxOut& out, TxValidationState& state)
 
 bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 {
+    struct RigorCheckTxTrace {
+        const CTransaction& tx;
+        TxValidationState& state;
+        ~RigorCheckTxTrace()
+        {
+            const bool ok = !state.IsInvalid();
+            const std::string r = state.GetRejectReason();
+            const bool amount_ok = ok || (r.find("vout") == std::string::npos && r.find("overflow") == std::string::npos &&
+                                          r.find("toolarge") == std::string::npos && r.find("negative") == std::string::npos);
+            const bool script_ok = ok || (r.find("script") == std::string::npos && r.find("asset") == std::string::npos);
+            RigorConsensusTraceNoteTx(tx.GetHash(), "CheckTransaction", false, true, script_ok, amount_ok && ok, 0, r.c_str());
+        }
+    } rigor_checktx_trace{tx, state};
+
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-vin-empty");
@@ -136,7 +160,8 @@ bool CheckTransaction(const CTransaction& tx, TxValidationState& state)
 
     if (tx.IsCoinBase())
     {
-        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+        if (tx.vin[0].scriptSig.size() < Consensus::COINBASE_SCRIPTSIG_MIN_SIZE ||
+            tx.vin[0].scriptSig.size() > Consensus::COINBASE_SCRIPTSIG_MAX_SIZE)
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cb-length");
     }
     else

@@ -19,6 +19,28 @@ class CTxOut;
 class TxValidationState;
 
 namespace Consensus {
+/** Coinbase scriptSig bounds enforced by CheckTransaction as `bad-cb-length`. */
+inline constexpr size_t COINBASE_SCRIPTSIG_MIN_SIZE = 2;
+inline constexpr size_t COINBASE_SCRIPTSIG_MAX_SIZE = 100;
+
+/**
+ * The coinbase scriptSig for `height`: the BIP34 height push plus one padding byte.
+ *
+ * The padding is not decorative. `CScript() << height` is a single OP_N byte for
+ * heights 1..16, which is below COINBASE_SCRIPTSIG_MIN_SIZE, so the height alone is
+ * not a legal coinbase scriptSig during the first sixteen blocks of any chain — every
+ * regtest fixture starts there.
+ *
+ * Before RFC-019 the height was the first of three pushes (height, convergence root,
+ * paid winner) and the triple cleared the minimum on its own. RFC-019 issues RES in the
+ * body against the epoch price, so the coinbase commits to nothing and the height stands
+ * alone; this restores the minimum without reintroducing a commitment.
+ *
+ * ConnectBlock compares only the height prefix, so the trailing byte is consensus-neutral
+ * and a miner may replace it with a longer extra-nonce field up to the maximum.
+ */
+CScript BuildCoinbaseScriptSig(int height);
+
 /** Enforce allowed script forms via ClassifyRigorTxout (script-as-asset). */
 [[nodiscard]] bool CheckTxOutAssetWitnessBinding(const CTxOut& out, TxValidationState& state);
 

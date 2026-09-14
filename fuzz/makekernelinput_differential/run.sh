@@ -20,6 +20,8 @@ ITERS="${MAKEKERNELINPUT_FUZZ_ITERS:-200000}"
   "$ROOT/fuzz/makekernelinput_differential/makekernelinput_fuzz.cpp" \
   "$SRC/test/predicate_boundary_ed25519_stub.cpp" \
   "$SRC/script/predicate_verify.cpp" \
+  "$SRC/script/script_error.cpp" \
+  "$SRC/consensus/trace/consensus_trace.cpp" \
   "$SRC/script/rigor_classify.cpp" \
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \

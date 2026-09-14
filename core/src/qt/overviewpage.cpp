@@ -15,32 +15,30 @@ IMPORTANT: WALLET DESIGN LOCK V1
 - Change output MUST match input asset
 - Network fees are always ORU (POOL-F); transfer asset is separate (POOL-T)
 
-CONVERGENCE RULES:
-- Convergence consumes ORU ONLY (to convergence outputs); consensus does not require a positive ORU tx fee on convergence txs
-- Convergence does NOT guarantee RES
-- Wallet MUST NOT calculate or display probability
-- Wallet MUST NOT simulate consensus outcome
+CONVERGENCE (MINT) RULES:
+- Mint inputs are ORU ONLY; the burn is one explicit OP_CONVERGE output of value B
+- R RES is minted when R · (2^25+h)^2 <= B << 40 at the CONFIRMING height; R = 0 is a legal plain burn
+- Wallet MUST take destroy_cost(h) from the node, never hardcode or re-derive it
 
 ARCHITECTURE:
 - Wallet constructs transactions ONLY
-- Consensus decides RES outcome
+- Consensus defines destroy_cost(h) and mint authorization
 - No policy logic inside wallet
 
 RES RULES LOCK
 
-- Convergence can happen in any block
-- RES is NOT guaranteed per block
-- At most ONE RES per block
-- Body RES mint is immature until nCoinbaseMaturity (same depth as ORU coinbase); transfers are not
-
-WALLET MUST:
-
-- NOT assume RES generation
-- NOT assume winning
+- A mint is an ordinary transaction: no coinbase involvement and no payment lag
+- Minted RES stays time-locked until RES_MINT_MATURITY (reorg protection on new supply, NOT an outcome wait);
+  the lock applies to mints only, never to RES transfers or RES change
+- Any number of mints may appear in one block, bounded only by block weight
+- Fractional purchase is permitted: R is any positive number of RES atoms
 
 UI MUST:
 
-- distinguish convergence status vs wallet RES balances (AVAILABLE / IMMATURE; mempool RES folded into Total only)
+- show the exact R the mint will create, and that the burned ORU is unrecoverable
+- distinguish AVAILABLE vs locked RES (mempool RES change folded into Total only)
+- NOT present the rising destroy_cost(h) curve as gain, appreciation or timing pressure
+- NOT show any outcome state (Won / Lost / Not selected); none exists
 
 WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 */

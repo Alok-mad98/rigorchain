@@ -195,20 +195,10 @@ public:
     virtual bool hasBlocks(const uint256& block_hash, int min_height = 0, std::optional<int> max_height = {}) = 0;
 
     /**
-     * Convergence draw (CONSENSUS_LOCK_CONVERGENCE_V3): true iff convergence_txid is the unique
-     * argmin σ among the convergence set this block commits — `GetBlockWinner`'s rules exactly.
-     * block must match block_hash; height must match the active index for block_hash.
-     *
-     * SECURITY-001-A8: a winner is awarded by the block that contains its convergence and paid
-     * by the block after it, so a true answer here means the RES mint appears at height + 1.
-     */
-    virtual bool convergenceDrawIsWinner(const CBlock& block, int height, const uint256& block_hash, const uint256& convergence_txid) = 0;
-
-    /**
-     * Active-chain convergence summary for a block height (same F / convergence_root / winner path as getconvergenceresult).
+     * Active-chain convergence summary for a block height.
      * On failure (invalid height, pruned / unreadable block), clears \p out, sets error_message, returns false.
-     * On success, sets ok=true; convergence_root_set_size may be 0 when the block has no ConvergenceRoot members.
-     * \p wallet_convergence_txids txids to test for membership in F (typically the wallet's convergence txs); may be empty.
+     * On success, sets ok=true; convergence_tx_count is 0 when the block contains no convergence burn.
+     * \p wallet_convergence_txids txids to look for in the block (typically the wallet's convergence txs); may be empty.
      */
     virtual bool getConvergenceBlockResult(int height, const std::vector<uint256>& wallet_convergence_txids, ConvergenceBlockResult& out) = 0;
 

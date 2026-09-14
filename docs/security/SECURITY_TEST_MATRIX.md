@@ -1,5 +1,13 @@
 # SECURITY_TEST_MATRIX (fragment) — window / reorg / RES monopoly
 
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
 Subset of pre-mainnet tests for miner exclusivity, `already_paid`, and reorg undo.
 Full narrative: [PRE-MAINNET-WINDOW-REORG-RES-ATTACKS.md](./PRE-MAINNET-WINDOW-REORG-RES-ATTACKS.md).  
 Harness inventory: `core/test/functional/res_security/README.md`.
@@ -46,7 +54,7 @@ Pool / stratum / web are **not shipped**.
 | V-4 | RBF | same | Replaced ticket leaves mempool and F | none |
 | V-5 | Mempool reorg | same | Re-accept after disconnect; no extra mint | none |
 | S-1 | Forged mint | same | No winner binding; `mint_count=0` | none |
-| S-2 | Owner binding | same + `res_proof_math_tests` | Live mint `GetResMintReward(h)` (genesis 40.000000 RES); unit `bad-rigor-res-owner-mismatch` | none |
+| S-2 | Mint predicate | `res_issuance_tests` | Live mint `CheckResMintArithmetic`; genesis destroy cost 1024 ORU/RES | none |
 | S-3 | RES cap | same + `runtime_supply_invariant_tests` | Snapshot supply; `bad-rigor-res-max-supply` pin | none |
 | S-4 | Duplicate pay | same | Saturating win; `distinct_paid=1` | none |
 | S-5 | Automint vs generateblock | same | JSONRPCError when automint already in template | RPC only (`mining.cpp`) |

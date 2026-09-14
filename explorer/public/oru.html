@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ORU amount</title>
+    <title>ORU</title>
     <link rel="stylesheet" href="/compliance.css" />
     <link rel="stylesheet" href="/status-dashboard.css" />
     <style>
       body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; background: #000; color: #fff; }
       .muted { color: #bbb; font-size: 12px; }
-      a { margin-right: 12px; color: #fff; }
-      table { border-collapse: collapse; width: 100%; max-width: 1200px; margin-top: 16px; }
+      a { color: #fff; }
+      table { border-collapse: collapse; width: 100%; margin-top: 16px; }
       th, td { border: 1px solid #333; padding: 8px; font-size: 13px; }
       th { background: #111; text-align: left; }
     </style>
@@ -20,8 +20,8 @@
     <nav class="site-nav" id="nav" aria-label="Explorer">
       <a href="/">Home</a>
       <a href="/blocks">Blocks</a>
-      <a href="/oru.html">ORU amount</a>
-      <a href="/res.html">RES amount</a>
+      <a href="/oru.html">ORU</a>
+      <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
       <a href="/search">Search</a>
     </nav>
@@ -45,39 +45,44 @@
 
       async function load() {
         const [statusRes, blocksRes] = await Promise.all([
-          fetch("/api/status"),
-          fetch("/api/blocks?limit=15"),
+          fetch("/api/status", { cache: "no-store" }),
+          fetch("/api/blocks?limit=15", { cache: "no-store" }),
         ]);
         if (!statusRes.ok) throw new Error("HTTP " + statusRes.status);
         const j = await statusRes.json();
         const eco = j.economic_snapshot ?? {};
-        const ch = j.convergence_health ?? {};
+        const bh = j.block_health ?? {};
+        const id = j.chain_identity ?? {};
         const blocks = ((await blocksRes.json()).blocks) || [];
 
-        const burn = eco.rfc018_fee_burn ?? {};
+        const fees = eco.rfc018_fee_burn ?? {};
         const chart = eco.supply_chart ?? {};
+        const acc = eco.accounting ?? {};
+        const scheduleNote =
+          esc(id.network) +
+          " · issued at node " +
+          esc(bh.current_height_node) +
+          " · circulating at indexer " +
+          esc(bh.current_height_indexer) +
+          " · " +
+          esc(eco.oru_subsidy_schedule_display ?? "Genesis 0; then 128 ORU/block forever");
         const supply = card("ORU supply", [
-          row("Tip height", val(eco.tip_height)),
           row("Total issued ORU", val((chart.total_issued_oru && chart.total_issued_oru.display) || eco.oru_supply_cumulative_display)),
-          row("Convergence destroyed ORU", val(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
-          row("Deflationary Fee Burn ORU", val(burn.cumulative_burned_oru_display)),
           row("Circulating spendable ORU", val(eco.oru_circulating_spendable_display)),
           row("Mature transferable ORU", val(eco.oru_mature_transferable_display)),
           row("Immature coinbase ORU", val(eco.oru_immature_coinbase_display)),
           row("This block subsidy", val(eco.oru_subsidy_tip_display)),
           row("Mature transferable outputs", val(eco.oru_mature_transferable_count)),
+          row("Supply split", acc.oru_supply_consistent === false ? "inconsistent" : "mature + immature = unlocked unspent"),
         ]);
-        const conv = card("ORU convergence", [
-          row("Convergence destroyed ORU", val(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
-          row("ORU burned this block (Convergence)", val(eco.oru_burn_block_display)),
-          row("Deflationary Fee Burn (this block)", val(burn.block_burned_oru_display)),
-          row("Deflationary Fee Burn (cumulative)", val(burn.cumulative_burned_oru_display)),
-          row("ORU in current window", val(eco.oru_in_current_window_display)),
-          row("ORU since last mint", val(eco.oru_since_last_mint_display)),
-          row("Active convergences", val(eco.active_convergences ?? ch.active_convergences)),
-          row("Pending in F", val(eco.pending_windows ?? ch.pending_windows)),
-          row("Indexed convergence events", val(eco.convergence_event_count)),
-          row("Eligible events", val(eco.convergence_eligible_count)),
+        const conv = card("ORU Convergence", [
+          row("Convergence destroyed", val(eco.cumulative_convergence_display ?? eco.oru_burned_lifetime_display)),
+          row("Of which plain destroy", val(eco.oru_plain_destroy_display)),
+          row("Destroyed this block", val(eco.oru_burn_block_display)),
+          row("Fees destroyed this block", val(fees.block_burned_oru_display)),
+          row("Fees destroyed (cumulative)", val(fees.cumulative_burned_oru_display)),
+          row("Since last mint", val(eco.oru_since_last_mint_display)),
+          row("Convergence events", val(eco.convergence_event_count)),
         ]);
 
         const rows = blocks.map((b) =>
@@ -87,13 +92,29 @@
         ).join("");
 
         document.getElementById("root").innerHTML =
-          '<div class="status-grid">' + supply + conv + "</div>" +
+          '<p class="muted">' + scheduleNote + "</p>" +
+          '<div class="status-grid status-grid--pair">' + supply + conv + "</div>" +
           "<h2>Recent ORU issuance</h2>" +
           "<table><thead><tr><th>height</th><th>hash</th><th>oru_minted</th></tr></thead><tbody>" +
           (rows || '<tr><td colspan="3" class="muted">No blocks indexed.</td></tr>') +
           "</tbody></table>";
       }
-      load().catch((e) => { document.getElementById("root").textContent = "Failed: " + String(e); });
+      let loading = false;
+      async function refresh() {
+        if (loading) return;
+        loading = true;
+        try {
+          await load();
+        } catch (e) {
+          if (!document.querySelector("#root .status-card")) {
+            document.getElementById("root").textContent = "Failed: " + String(e);
+          }
+        } finally {
+          loading = false;
+        }
+      }
+      refresh();
+      setInterval(refresh, 5000);
     </script>
     <script src="/compliance.js"></script>
   </body>

@@ -1,6 +1,6 @@
 /**
  * RIGOR Explorer compliance layer (TASK-EXPLORER-002).
- * Read-only display: footer, chain badge, global mismatch banner.
+ * Read-only display: footer and global mismatch banner.
  */
 (function () {
   "use strict";
@@ -26,18 +26,9 @@
       document.body.insertBefore(banner, document.body.firstChild);
     }
 
-    var header = document.getElementById("rigor-compliance-header");
-    if (!header) {
-      header = document.createElement("div");
-      header.id = "rigor-compliance-header";
-      var badge = document.createElement("div");
-      badge.id = "rigor-compliance-badge";
-      header.appendChild(badge);
-      if (banner.nextSibling) {
-        document.body.insertBefore(header, banner.nextSibling);
-      } else {
-        document.body.appendChild(header);
-      }
+    var leftoverHeader = document.getElementById("rigor-compliance-header");
+    if (leftoverHeader && leftoverHeader.parentNode) {
+      leftoverHeader.parentNode.removeChild(leftoverHeader);
     }
 
     var footer = document.getElementById("rigor-compliance-footer");
@@ -47,23 +38,7 @@
       document.body.appendChild(footer);
     }
 
-    return { banner: banner, header: header, footer: footer };
-  }
-
-  function renderBadge(badgeEl, data) {
-    badgeEl.innerHTML =
-      '<span class="rigor-badge-label">Chain</span>' +
-      "<span>" +
-      esc(data.product || data.chain_name) +
-      "</span>" +
-      '<span class="rigor-badge-label">Network</span>' +
-      "<span>" +
-      esc(data.codename || data.network_type) +
-      "</span>" +
-      '<span class="rigor-badge-label">Genesis</span>' +
-      "<span>" +
-      esc(data.genesis_hash_short || "—") +
-      "</span>";
+    return { banner: banner, footer: footer };
   }
 
   function renderFooter(footerEl, data) {
@@ -124,6 +99,24 @@
       return;
     }
 
+    if (data.catchup_active) {
+      var catchupItems = (data.catchup_messages || [])
+        .map(function (msg) {
+          return "<li>" + esc(msg) + "</li>";
+        })
+        .join("");
+      bannerEl.innerHTML =
+        "<strong>Indexer catching up — not a chain fork.</strong>" +
+        "<ul>" +
+        catchupItems +
+        "</ul>" +
+        "<span>Tip hash at the indexed height still matches the node. Refresh; this banner clears when the indexer reaches the tip.</span>";
+      bannerEl.classList.add("rigor-compliance-banner--active");
+      bannerEl.classList.add("rigor-compliance-banner--warn");
+      document.body.classList.add("rigor-compliance-has-banner");
+      return;
+    }
+
     bannerEl.classList.remove("rigor-compliance-banner--active");
     bannerEl.classList.remove("rigor-compliance-banner--warn");
     bannerEl.innerHTML = "";
@@ -132,7 +125,6 @@
 
   function applyCompliance(data) {
     var shell = ensureShell();
-    renderBadge(document.getElementById("rigor-compliance-badge"), data);
     renderFooter(shell.footer, data);
     renderBanner(shell.banner, data);
   }

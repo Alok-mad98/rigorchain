@@ -12,8 +12,9 @@ pub struct StratumJobEnvelope {
     pub convergence_root_hex: String,
     pub prev_nbits_hex: String,
     pub block_target: String,
-    /// Authoritative draw winner from Winner Engine (TASK-MINING-018).
+    /// Leftover wire field; RFC-020 never previews a lottery winner.
     pub preview_winner_txid: Option<String>,
+    /// Always false on the RFC-020 ORU-only path (kept for wire compat).
     pub mint_required: bool,
 }
 
@@ -58,14 +59,14 @@ impl JobAssignmentEngine {
     }
 
     fn envelope_from_job(&self, job: &PublishedJobSnapshot) -> StratumResult<StratumJobEnvelope> {
-        self.envelope_from_job_inner(job, None, job.body_mint.mint_required)
+        self.envelope_from_job_inner(job, None, false)
     }
 
     fn envelope_from_job_inner(
         &self,
         job: &PublishedJobSnapshot,
         preview_winner_txid: Option<String>,
-        mint_required: bool,
+        _mint_required: bool,
     ) -> StratumResult<StratumJobEnvelope> {
         if !job.state.is_servable() {
             return Err(StratumError::Job(format!("job {:?} not active", job.state)));
@@ -92,7 +93,7 @@ impl JobAssignmentEngine {
             prev_nbits_hex: job.commitments.prev_nbits_hex.clone(),
             block_target: job.block_target.clone(),
             preview_winner_txid,
-            mint_required,
+            mint_required: false,
         })
     }
 

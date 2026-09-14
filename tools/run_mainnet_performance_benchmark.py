@@ -40,8 +40,6 @@ SOURCES = [
     SRC / "script/script.cpp",
     SRC / "uint256.cpp",
     SRC / "util/strencodings.cpp",
-    SRC / "consensus/convergence_logic.cpp",
-    SRC / "consensus_rigor/sigma_hash.cpp",
     SRC / "crypto/sha256.cpp",
     SRC / "arith_uint256.cpp",
 ]

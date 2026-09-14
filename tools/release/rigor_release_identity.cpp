@@ -1,7 +1,7 @@
-// RIGOR v0.1.3 release-matrix identity binary.
-// Release engineering / artifact reproducibility only.
-// Standalone: does not include Consensus Kernel, Transaction Kernel, Ledger,
-// ConnectBlock, wallet schema, classifier, PoW, or ASERT sources.
+// TASK-002: NOT A RELEASE ARTIFACT.
+// This file only prints RIGOR_RELEASE_IDENTITY=PASS. It is not rigord.
+// tools/release/run-release-build-job.sh must not compile this into a
+// user-facing package. Kept only so leftover references can be found.
 #include <cstdio>
 
 #ifndef RIGOR_RELEASE_VERSION

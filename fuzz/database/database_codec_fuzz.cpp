@@ -84,6 +84,7 @@ void DecodeCoin(const uint8_t* buf, size_t len)
     const uint64_t amt = DecompressAmount(ReadVarInt(buf, len, pos));
     if (amt > 10000000000ull * 100000000ull) throw CodecError("money");
     DecodeScript(buf, len, pos);
+    (void)ReadVarInt(buf, len, pos); // nFlags
     if (pos + 4 > len) throw Truncated("checksum");
     pos += 4;
     if (pos != len) throw CodecError("trailing");

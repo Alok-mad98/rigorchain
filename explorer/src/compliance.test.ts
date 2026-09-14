@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { INDEXER_LAG_CRITICAL_BLOCKS, isIntegrityIndexerLag, isRpcWorkQueueError } from "./compliance";
+import { isCatchupIndexerLag, isIntegrityIndexerLag, isRpcWorkQueueError } from "./compliance";
 
 describe("compliance integrity vs RPC load", () => {
   it("treats work-queue overflow as operational, not an integrity mismatch", () => {
@@ -11,9 +11,11 @@ describe("compliance integrity vs RPC load", () => {
     assert.equal(isRpcWorkQueueError(new Error("connection refused")), false);
   });
 
-  it("does not flag indexer lag inside one draw window as CRITICAL", () => {
+  it("never treats catch-up lag as CRITICAL integrity", () => {
     assert.equal(isIntegrityIndexerLag(1), false);
-    assert.equal(isIntegrityIndexerLag(INDEXER_LAG_CRITICAL_BLOCKS), false);
-    assert.equal(isIntegrityIndexerLag(INDEXER_LAG_CRITICAL_BLOCKS + 1), true);
+    assert.equal(isIntegrityIndexerLag(32), false);
+    assert.equal(isIntegrityIndexerLag(434), false);
+    assert.equal(isCatchupIndexerLag(0), false);
+    assert.equal(isCatchupIndexerLag(434), true);
   });
 });

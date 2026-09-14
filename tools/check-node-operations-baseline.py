@@ -34,6 +34,8 @@ ISSUANCE = SRC / "consensus/rigor_issuance.cpp"
 FORBIDDEN_CALLS = (
     "GetBlockSubsidy",
     "GetResMintReward",
+    "CheckResMintArithmetic",
+    "ResDestroyCostAtHeight",
     "ResolveConvergenceDraw",
     "RigorSupplyDelta",
     "LedgerApply",

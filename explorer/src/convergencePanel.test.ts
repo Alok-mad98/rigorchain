@@ -87,6 +87,25 @@ describe("buildBlockConvergencePanel", () => {
     assert.equal(payout.eligible_count, 0);
   });
 
+  it("treats an RFC-020 same-tx mint as a mint block even when rigor_winner is empty", () => {
+    const panel = buildBlockConvergencePanel(
+      { rigor_winner: "", rigor_res_minted: 1, mint_txid: "minttx" },
+      [{ convergence_txid: "minttx", draw_eligible: true }],
+    );
+    assert.equal(panel.status, "Convergence Winner Block");
+    assert.equal(panel.winner_txid, "minttx");
+  });
+
+  it("treats a same-tx RES mint as Winner when is_winner was not set", () => {
+    const panel = buildTxConvergencePanel(
+      [{ block_hash: "h527", block_height: 527, is_winner: false }],
+      { block_hash: "h527", block_height: 527 },
+      { isResMint: true },
+    );
+    assert.equal(panel.role, "Winner");
+    assert.equal(panel.block_height, 527);
+  });
+
   it("does not fall back to the draw root when C is missing", () => {
     const panel = buildBlockConvergencePanel(
       { rigor_winner: "", committed_root: "56944c5d" + "aa".repeat(28) },

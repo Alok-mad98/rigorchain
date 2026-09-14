@@ -1,0 +1,54 @@
+{
+  "before": null,
+  "after": {
+    "case_id": "CE-006a",
+    "block_hash": null,
+    "height": null,
+    "header_result": "not_reached",
+    "pow_result": null,
+    "asert_result": null,
+    "tx_results": [
+      {
+        "txid": "",
+        "function": "VerifyRigorPredicate",
+        "inputs_checked": true,
+        "utxo_result": true,
+        "script_result": false,
+        "amount_result": true,
+        "fee_result": 0,
+        "reason": "Witness program hash mismatch"
+      }
+    ],
+    "block_result": "reject",
+    "rejection_layer": "VerifyWitnessProgram",
+    "kernel_candidate": {
+      "status": "oracle_only",
+      "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+      "ki_utxo_ok": null,
+      "ki_incoming": null,
+      "ki_outgoing": null,
+      "ki_fees": null,
+      "ki_burn": null,
+      "ki_subsidy": null,
+      "ki_res_mint": null,
+      "ki_script_ok": false,
+      "ki_pow_ok": null,
+      "ki_asert_ok": null
+    }
+  },
+  "kernel_candidate": {
+    "status": "oracle_only",
+    "note": "Reconstructed from C++ decisions. Not MakeKernelInput. Not Coq KernelInput.",
+    "ki_utxo_ok": null,
+    "ki_incoming": null,
+    "ki_outgoing": null,
+    "ki_fees": null,
+    "ki_burn": null,
+    "ki_subsidy": null,
+    "ki_res_mint": null,
+    "ki_script_ok": false,
+    "ki_pow_ok": null,
+    "ki_asert_ok": null
+  },
+  "future_refinement_target": "WitnessValidation.sound"
+}

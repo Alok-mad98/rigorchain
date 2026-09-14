@@ -89,6 +89,31 @@ BOOST_AUTO_TEST_CASE(semantic_res_mint)
     BOOST_CHECK(ClassifyTxSemantic(*MakeTransactionRef(tx), view) == TxSemanticKind::ResMint);
 }
 
+BOOST_AUTO_TEST_CASE(semantic_rfc019_convergence_plus_res_is_mint)
+{
+    CCoinsView empty;
+    CCoinsViewCache view(&empty);
+    CKey key;
+    key.MakeNewKey(true);
+    const CScript oru_spk = GetScriptForDestination(WitnessV0KeyHash(key.GetPubKey().GetID()));
+    std::array<unsigned char, 32> res_prog{};
+    res_prog.fill(0x44);
+    const CScript res_spk = GetScriptForDestination(WitnessV1Res{XOnlyPubKey{res_prog}});
+
+    CMutableTransaction prev;
+    prev.vout.emplace_back(2 * COIN, oru_spk);
+    const CTransactionRef prev_tx = MakeTransactionRef(prev);
+    AddPrevout(view, prev_tx, 0);
+
+    CMutableTransaction tx;
+    tx.vin.emplace_back(COutPoint(prev_tx->GetHash(), 0), CScript{});
+    tx.vout.emplace_back(RES_COIN, res_spk);
+    tx.vout.emplace_back(COIN, Consensus::ConvergenceOutputScript());
+
+    BOOST_CHECK(ClassifyTxSemantic(*MakeTransactionRef(tx), view) == TxSemanticKind::ResMint);
+    BOOST_CHECK(ClassifyTxSemanticFromOutputs(CTransaction(tx)) == TxSemanticKind::ResMint);
+}
+
 BOOST_AUTO_TEST_CASE(semantic_oru_convergence)
 {
     CCoinsView empty;

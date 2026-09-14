@@ -97,7 +97,7 @@ class WalletTest(BitcoinTestFramework):
         assert_equal(len(self.nodes[0].listunspent(query_options={'include_immature_coinbase': False})), 1 if self.options.descriptors else 2)
         assert_equal(len(self.nodes[0].listunspent(query_options={'include_immature_coinbase': True})), 1 if self.options.descriptors else COINBASE_MATURITY + 2)
 
-        # Upstream Bitcoin Core assumes regtest subsidy 50 BTC; Rigor uses nBlockSubsidyBase (1000 ORU).
+        # Upstream Bitcoin Core assumes regtest subsidy 50 BTC; Rigor pays flat 128 ORU (RFC-020).
         spendable0 = [u for u in self.nodes[0].listunspent(minconf=1) if u["spendable"]]
         assert len(spendable0) >= 1
         self.subsidy = Decimal(str(spendable0[0]["amount"]))

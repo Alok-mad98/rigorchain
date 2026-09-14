@@ -1,9 +1,19 @@
 # RFC path
 
-The RFC corpus was moved to [`../archive/rfc/`](../archive/rfc/).
+Live RFCs are under [`../protocol/`](../protocol/).
 
-**Historical.** Not the public protocol specification. Not public identity.
+| Document | Role |
+|----------|------|
+| [`../protocol/RFC-020.md`](../protocol/RFC-020.md) | Live issuance |
+| [`../protocol/RFC-018.md`](../protocol/RFC-018.md) | RES-transfer ORU fee burn |
 
 ```
 equivalence_claimed = false
+documentation_consensus_authority = false
+ARCHIVE_NOT_NORMATIVE = true
 ```
+
+Historical RFCs (RFC-019 and earlier): [`../../archive/rfc/`](../../archive/rfc/).  
+Those files are not protocol authority.
+
+C++ comments that still say `docs/rfc/` should be read as this pointer.

@@ -1,15 +1,15 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-AUDIT-PACKAGE-P0-062",
   "freeze_id": "P0-062-release",
-  "note": "Release freeze of already-closed Kernel pins. Does not invent protocol values. P053 finite-vector JSON refinement_proved stays false.",
-  "refinement_proved": true,
+  "note": "RFC-020: flat 128 ORU. Issuance refinement withdrawn. P053 finite-vector JSON refinement_proved stays false.",
+  "refinement_proved": false,
   "equivalence_proved": false,
   "p053_vector_refinement_proved": false,
   "genesis": {
     "height": 0,
     "oru_actual": 0,
     "res_actual": 0,
-    "res_schedule": 40000000,
+    "res_schedule": 102400000000,
     "draw": "none"
   },
   "epoch": [
@@ -17,49 +17,49 @@
       "height": 0,
       "epoch": 0,
       "oru": 0,
-      "res_schedule": 40000000
+      "res_schedule": 102400000000
     },
     {
       "height": 1,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400006103
     },
     {
       "height": 99,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400604248
     },
     {
       "height": 100,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400610352
     },
     {
       "height": 101,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 102400616456
     },
     {
       "height": 209999,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000
+      "oru": 12800000000,
+      "res_schedule": 103685743011
     },
     {
       "height": 210000,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196
+      "oru": 12800000000,
+      "res_schedule": 103685749152
     },
     {
       "height": 419999,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196
+      "oru": 12800000000,
+      "res_schedule": 104979513869
     }
   ],
   "transaction": [

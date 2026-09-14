@@ -8,8 +8,8 @@
 #include <arith_uint256.h>
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
@@ -32,26 +32,8 @@
 static Consensus::Params FrozenParams()
 {
     Consensus::Params p;
-    p.nBlockSubsidyBase = Consensus::ORU_INITIAL_BLOCK_SUBSIDY;
-    p.nSubsidyHalvingInterval = Consensus::ORU_SUBSIDY_HALVING_INTERVAL;
-    p.nBlockSubsidyMaxHalvingShifts = Consensus::ORU_SUBSIDY_MAX_SHIFTS;
     p.nCoinbaseMaturity = 100;
     return p;
-}
-
-static uint256 uint256_from_hex(const char* hex)
-{
-    uint256 out;
-    std::vector<unsigned char> raw;
-    const std::string s(hex);
-    for (size_t i = 0; i < s.size(); i += 2) {
-        unsigned v = 0;
-        std::sscanf(s.c_str() + static_cast<int>(i), "%2x", &v);
-        raw.push_back(static_cast<unsigned char>(v));
-    }
-    if (raw.size() != 32) std::exit(2);
-    std::memcpy(out.begin(), raw.data(), 32);
-    return out;
 }
 
 static int fail(const char* msg)
@@ -84,7 +66,9 @@ int main()
     {
         const RigorIssuance g = ComputeRigorIssuance(0, p);
         if (g.oru_subsidy != 0) return fail("genesis ORU actual != 0");
-        if (Consensus::GetResMintReward(0) != 40000000) return fail("genesis RES schedule");
+        if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS) {
+            return fail("genesis RATE");
+        }
         RigorSupplyDeltaInput in;
         in.height = 0;
         BlockValidationState st;
@@ -92,25 +76,19 @@ int main()
         if (!RigorSupplyDelta(in, p, out, st)) return fail("genesis supply");
         if (out.oru_circulating_delta != 0) return fail("genesis ORU actual");
         if (out.res_delta != 0) return fail("genesis RES actual");
-        if (out.res_reward_scheduled != 40000000) return fail("genesis RES schedule field");
-        ConvergenceDrawSet empty;
-        empty.source_height = 0;
-        if (ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("genesis draw must be none");
-        }
     }
 
     // --- Issuance pins ---
-    if (GetBlockSubsidy(1, p) != 100000000000LL) return fail("ORU h=1");
-    if (Consensus::GetResMintReward(1) != 40000000) return fail("RES h=1");
+    if (GetBlockSubsidy(1, p) != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU h=1");
+    if (Consensus::ResDestroyCostAtHeight(1) != 102400006103LL) return fail("RATE h=1");
     if ((100 - 1) >= p.nCoinbaseMaturity) return fail("maturity 100");
     if ((101 - 1) < p.nCoinbaseMaturity) return fail("maturity 101");
     if (RigorIssuanceEpoch(209999) != 0) return fail("epoch 209999");
     if (RigorIssuanceEpoch(210000) != 1) return fail("epoch 210000");
-    if (GetBlockSubsidy(209999, p) != 100000000000LL) return fail("ORU 209999");
-    if (GetBlockSubsidy(210000, p) != 50000000000LL) return fail("ORU 210000");
-    if (Consensus::GetResMintReward(209999) != 40000000) return fail("RES 209999");
-    if (Consensus::GetResMintReward(210000) != 14142196) return fail("RES 210000");
+    if (GetBlockSubsidy(209999, p) != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU 209999");
+    if (GetBlockSubsidy(210000, p) != Consensus::ORU_FLAT_BLOCK_SUBSIDY) return fail("ORU 210000");
+    if (Consensus::ResDestroyCostAtHeight(209999) != 103685743011LL) return fail("RATE 209999");
+    if (Consensus::ResDestroyCostAtHeight(210000) != 103685749152LL) return fail("RATE 210000");
 
     // --- Spend predicate boundary ---
     {
@@ -150,45 +128,6 @@ int main()
         if (VerifyRigorPredicateBoundary(sighash_a)) return fail("bad sighash accept");
     }
 
-    // --- Draw: empty / winner / tie-break ---
-    {
-        const uint64_t sat = 209715200000000ULL;
-        ConvergenceDrawSet one;
-        one.source_height = 100;
-        one.convergence_root = uint256_from_hex(
-            "1111111111111111111111111111111111111111111111111111111111111111");
-        one.source_block_hash = uint256_from_hex(
-            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-        ConvergenceDrawCandidate a, b;
-        a.txid = uint256_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000001");
-        a.weight = sat;
-        b.txid = uint256_from_hex(
-            "0000000000000000000000000000000000000000000000000000000000000002");
-        b.weight = sat;
-        one.candidates = {a};
-        const auto w1 = ResolveConvergenceDraw(one, Consensus::RES_PROBABILITY_TARGET_CONST);
-        if (!w1.HasWinner()) return fail("draw winner");
-
-        ConvergenceDrawSet two = one;
-        two.candidates = {a, b};
-        ConvergenceDrawSet swap = one;
-        swap.candidates = {b, a};
-        const auto w2 = ResolveConvergenceDraw(two, Consensus::RES_PROBABILITY_TARGET_CONST);
-        const auto w3 = ResolveConvergenceDraw(swap, Consensus::RES_PROBABILITY_TARGET_CONST);
-        if (!w2.HasWinner() || !w3.HasWinner()) return fail("draw tie-break");
-        if (two.candidates[static_cast<size_t>(w2.winner_index)].txid !=
-            swap.candidates[static_cast<size_t>(w3.winner_index)].txid) {
-            return fail("draw order independence");
-        }
-
-        ConvergenceDrawSet empty;
-        empty.source_height = 0;
-        if (ResolveConvergenceDraw(empty, Consensus::RES_PROBABILITY_TARGET_CONST).HasWinner()) {
-            return fail("draw empty");
-        }
-    }
-
     // --- PoW boundary: digest interface + target decision. Do not recode PoW. ---
     {
         CBlockHeader header;
@@ -213,7 +152,6 @@ int main()
     std::printf("genesis: PASS\n");
     std::printf("issuance: PASS\n");
     std::printf("spend: PASS\n");
-    std::printf("draw: PASS\n");
     std::printf("pow boundary: PASS\n");
     return 0;
 }

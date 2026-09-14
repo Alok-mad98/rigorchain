@@ -1,0 +1,236 @@
+[
+  {
+    "case_id": "SV-GENESIS-REGTEST",
+    "kind": "block",
+    "source": "genesis",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "accept",
+    "expected": "accept"
+  },
+  {
+    "case_id": "SV-MINED-REGTEST-H1",
+    "kind": "block",
+    "source": "regtest_getblock",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "accept",
+    "expected": "accept"
+  },
+  {
+    "case_id": "SV-GENESIS-TESTNET",
+    "kind": "block",
+    "source": "genesis",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "accept",
+    "expected": "accept"
+  },
+  {
+    "case_id": "SV-TESTNET-H1",
+    "kind": "block",
+    "source": "testnet_getblock",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "accept",
+    "expected": "accept"
+  },
+  {
+    "case_id": "SV-A1_connectblock_double_spend",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B1_output_over_max_money",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B1_output_negative",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B1_output_sum_overflow",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B2_p2pkh",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B2_p2wsh",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B2_empty_script",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B2_op_return",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B3_empty_or_unsigned_witness",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-B3_mutated_witness_or_tx",
+    "kind": "tx",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C2_illegal_nbits_zero",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C2_illegal_nbits_overflow",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C2_target_above_powlimit",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C2_future_timestamp",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C2_nonce_flip",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-C1_truncated_block",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "fail",
+    "roundtrip_equal": null,
+    "consensus_result": "decode_fail",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-FV-valid_height1_coinbase_only",
+    "kind": "block",
+    "source": "constructed",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "accept",
+    "expected": "accept"
+  },
+  {
+    "case_id": "SV-FV-invalid_stale_merkle_extra_tx",
+    "kind": "block",
+    "source": "constructed",
+    "decode": "ok",
+    "roundtrip_equal": true,
+    "consensus_result": "reject",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-NONCANONICAL-COMPACTSIZE-VTX",
+    "kind": "block",
+    "source": "constructed",
+    "decode": "fail",
+    "roundtrip_equal": null,
+    "consensus_result": "decode_fail",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-TRAILING-BYTE-AFTER-BLOCK",
+    "kind": "block",
+    "source": "constructed",
+    "decode": "ok",
+    "roundtrip_equal": false,
+    "consensus_result": "accept",
+    "expected": "observe"
+  },
+  {
+    "case_id": "SV-SUPERFLUOUS-WITNESS-RECORD",
+    "kind": "tx",
+    "source": "constructed",
+    "decode": "fail",
+    "roundtrip_equal": null,
+    "consensus_result": "decode_fail",
+    "expected": "reject"
+  },
+  {
+    "case_id": "SV-TRUNCATED-HEADER",
+    "kind": "block",
+    "source": "attack_lab",
+    "decode": "fail",
+    "roundtrip_equal": null,
+    "consensus_result": "decode_fail",
+    "expected": "reject"
+  }
+]

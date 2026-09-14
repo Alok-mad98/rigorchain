@@ -1,0 +1,23 @@
+# Six-checker compile surface. Definitions only. No Category A proofs.
+# Built with cone Coq 8.15.0 (Phase 2) or sidecar 8.19 (Phase 3).
+# Do not add the CertiCoq plugin here.
+-R . RigorSurface
+
+Core/Bytes.v
+Core/Amount.v
+Supply/ORUModel.v
+Supply/KernelTx.v
+Supply/Poles.v
+Supply/RESTx.v
+Script/ScriptTypes.v
+Script/Classify.v
+Pow/Compact.v
+Pow/ASERTQ.v
+Kernel/TxBool.v
+Kernel/UTXO.v
+Kernel/ORU.v
+Kernel/RES.v
+Kernel/Script.v
+Kernel/Pow.v
+Kernel/ASERT.v
+Kernel/Validate.v

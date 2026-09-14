@@ -1,162 +1,331 @@
-# Chapter 2 — Why RIGOR Uses Two Assets
+# Chapter 2 — The Rules That Implement the Split
 
-RIGOR maps the two economic roles onto two native assets.
-
-| Role | Asset | Rule |
-|------|-------|------|
-| Medium of exchange | **ORU** | Circulates; pays miners and fees; tail emission never goes to zero |
-| Store of value | **RES** | Hard-capped; created only through ORU Convergence |
+Chapter 1 assigned the three vertices to two assets. This chapter writes
+that split as frozen rules. The claim is still architectural: the protocol
+fixes a **transform**, not a price and not a participation rate.
 
 ```
-PoW  →  ORU  →  Convergence  →  RES
+PoW discovers and orders
+        ↓
+ORU enters circulation (coinbase, 128 per block)
+        ↓
+ORU is destroyed (OP_CONVERGE)
+        ↓
+the same body transaction MAY mint RES
 ```
 
-Proof-of-work discovers blocks and orders history. Proof-of-work **does not**
-create RES. RES is created only when ORU is committed through Convergence and
-the frozen selection function authorizes a mint.
+Proof-of-work discovers blocks and gives irreversible height order. It
+**does not** create RES. No Convergence → no new RES.
 
 ---
 
-## ORU — medium of exchange
+## 2.1 One mechanism, not two isolated tickers
 
-**ORU** is the work-backed circulating asset.
+For Chapter 1’s triangle to hold, the two assets must be tied by a
+one-way transform. Free convertibility would re-merge them into one
+asset. No coupling at all would again detach the miner budget from the
+scarce stock.
 
-| Property | Frozen rule |
-|----------|-------------|
-| Role | Medium of exchange; miner security budget; transaction utility |
-| Script path | Witness v0 |
-| Unit | `1 ORU = 100,000,000` base units |
-| Initial subsidy | **1000 ORU** per block |
-| Halving | Every **210,000** blocks |
-| Sequence | **1000 → 500 → 250 → 125** |
-| Tail emission | **125 ORU** per block forever — no further halving |
-| Supply law | `S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)` |
+The protocol admits only this path:
 
-**Miner security budget.** After three halvings, `R(h)` remains 125 ORU. That
-tail is explicit: miners are paid in the **exchange** asset, not by inflating
-the reserve.
+```
+work → ORU
+ORU destroy → (may) RES
+RES → ORU    illegal
+```
 
-**Transaction utility.** ORU is what users transfer and what they pay as fees.
-It is meant to move.
+`destroy_cost(h)` is a protocol destroy requirement, not a market quote.
+While minting is open, a secondary RES/ORU ratio above that requirement
+is bounded by mint arbitrage; a ratio below it simply stops minting. The
+protocol does not publish a quote. It publishes the destroy cost at the
+confirming height.
 
-**Convergence cost.** A convergence transaction commits ORU under consensus
-rules. Committed ORU is removed from circulating supply (`C(h)`). That is how
-exchange-asset use becomes reserve-asset eligibility.
+| Role | Asset | Frozen job |
+|------|-------|------------|
+| Medium of exchange, fees, miner cash-flow | **ORU** | Circulate; permanent subsidy; sole Convergence input |
+| Store of value | **RES** | Finite stock; created only by destroying ORU; never reverse-converted |
 
-Minimum commitment: **1 ORU**.
+Users **mine ORU**. Users **destroy ORU**. The same transaction **may**
+mint RES. That sentence must not be shortened to “mine RES”.
 
 ---
 
-## RES — store of value
+## 2.2 ORU — rules for the flow
 
-**RES** is the scarce settlement asset.
+ORU carries the vertex that must be paid forever: the miner budget. It
+is also the everyday medium of exchange. Issuance must therefore be
+predictable, must not halve to zero, and must not carry a declared hard
+cap — a cap would lock the store-of-value story back onto the flow
+asset.
 
-| Property | Frozen rule |
-|----------|-------------|
-| Role | Store of value |
-| Script path | Witness v1 |
-| Unit | `1 RES = 1,000,000` atoms |
-| Maximum supply | **21,000,000 RES** |
-| Creation | **Only** through ORU Convergence |
-| Per successful mint | **`W(h)`** (40.000000 RES at genesis) |
-| Per block | At most one successful mint (`M(h) ∈ {0,1}`) |
-| Not mined | Pool policy and PoW cannot mint RES |
+```
+subsidy(0) = 0
+subsidy(h) = 128 ORU          for every h ≥ 1
+```
+
+| Item | Frozen rule | Why |
+|------|-------------|-----|
+| Script path | Witness v0 | Classification is identity, not a registry |
+| Unit | `1 ORU = 100 000 000` atoms | Same decimals as RES; integer arithmetic |
+| Genesis subsidy | `0` | Height 0 pays no subsidy |
+| Every later block | `128 = 2⁷` ORU | Protocol floor for miner payment, independent of RES demand and of fees |
+| Halving | None | Halving hands security back to the hope that fees appear |
+| Declared cap | None | Hardness must be endogenous in `ρ`, not a number written at genesis |
+
+Supply law:
+
+```
+S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
+```
+
+`R(h)` is that block’s subsidy. `C(h)` is that block’s Convergence
+destroy. Destroyed ORU leaves circulation. It does not become RES 1:1.
+
+The inflation **rate** decays as `1/t`: about 1.00% at year 100, 0.100%
+at year 1 000, monotonically toward zero and never reaching it. Residual
+inflation **level** is not a schedule. It is `1 − ρ`. Under `ρ = 100%` —
+every newly emitted ORU destroyed for RES — circulating ORU is exactly
+constant. No fixed cap can express that. That is why ORU does not get
+one.
+
+Minimum destroy: a positive atom (`nValue > 0`) is a legal plain
+destroy. The destroy that mints one RES atom at genesis is 1 024 ORU
+atoms.
+
+ORU is meant to move. Spending it is not spending the scarce stock.
+
+---
+
+## 2.3 RES — rules for the stock
+
+RES carries the vertex that must remain scarce. It is therefore not
+mined, not issued by governance, not swapped 1:1 for ORU, and not
+convertible back. It is born only in a body transaction that destroys
+ORU and mints Witness v1 RES in the same transaction.
+
+Consensus never evaluates the display formula. It evaluates the same
+relation with the division cleared:
+
+```
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40
+R = 0  →  B unconstrained              a plain destroy stays legal
+```
+
+`R` is RES atoms minted, `B` is the ORU atoms in the single
+`OP_CONVERGE` output, `h` is the confirming height. Display form:
+
+```
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰
+destroy_cost(0) = 1024 ORU per whole RES
+```
+
+`R = 0` is a legal plain destroy: ORU is removed and no RES is minted.
+When `R > 0`, a failing inequality invalidates the whole transaction.
+
+| Item | Frozen rule | Why |
+|------|-------------|-----|
+| Script path | Witness v1 | Isolated from ORU classification |
+| Unit | `1 RES = 100 000 000` atoms | Aligned with ORU |
+| Birth | Body-tx destroy-to-mint; never coinbase | Mining pays the flow, not the stock |
+| Receiver | The transaction’s RES outputs, **not** the miner | Miners sell order and security; they do not pre-issue the reserve |
+| Premine / admin mint | None | Entry must be a verifiable ORU destroy |
+| Reverse conversion | Illegal | Otherwise the two assets re-merge |
+| Per-block mint cap | None | Demand should be absorbable in a single block |
+| Mint maturity | 100 blocks | Reorg protection, not a draw wait |
+| Ceiling | `2²² = 4 194 304` RES | Derived; see 2.4 |
 
 ```
 S_RES(0) = 0
-S_RES(h+1) = S_RES(h) + GetResMintReward(h+1) · M(h+1)
-S_RES(h) ≤ 21,000,000
+S_RES(h+1) = S_RES(h) + body_mint_atoms(h+1)
+S_RES(h) ≤ 419 430 400 000 000 atoms
 ```
 
-There is no premine of RES. There is no administrative mint.
+The cost is **strictly increasing** in height. That is not decoration.
+It does two jobs. First, it writes Chapter 1’s duration-proportional
+payment as a height function: an earlier mint pays less per RES for a
+longer remaining span of protection. Second, it makes the ceiling need
+no consensus counter — see the next section.
 
-RES is **not** taken from coinbase and **not** a 1:1 swap for ORU. It is a
-new Witness v1 UTXO minted in the **block body** when the draw has a
-winner. Full noun list and issuance guarantees:
-[Chapter 9 — Glossary](./09-glossary.md).
+Whether a mint occurs is demand-driven. The cost **if** it occurs is a
+pure function of height, not a market quote, and it does not move with
+difficulty.
 
-### Where each asset is born
+---
+
+## 2.4 Where the parameters come from
+
+Every issuance parameter is a power of two. That is not decoration. The
+cap is the product of three of them, so checking the cap is checking
+exponents:
+
+```
+RES_MAX_SUPPLY = Σ_{h≥0} S / destroy_cost(h)
+               = (S / P0) · H
+               = 2⁷ / 2¹⁰ · 2²⁵
+               = 2²²
+               = 4 194 304 RES
+```
+
+`S = 128`, `P0 = 1024`, `H = 2²⁵ = 33 554 432` blocks (about 638 years).
+The exponent being exactly 2 is what makes the integral exactly
+`(S / P0) · H` with no residual, and therefore what makes the cap land
+*on* a power of two rather than near one. Edit any one constant and a
+visible identity breaks, rather than a curve quietly shifting.
+
+`RES_DESTROY_SHIFT = 40` is not chosen independently. It is forced by
+the genesis destroy cost:
+
+```
+R · 1024 · (2²⁵ + h)²  ≤  B · 2⁵⁰
+R · (2²⁵ + h)²         ≤  B · 2⁴⁰
+```
+
+so `40 = 50 − log₂(1024)`. A different genesis cost moves the shift and
+nothing else.
+
+**Why this is an upper bound, and why it needs no consensus
+enforcement.** ORU cannot be destroyed before it exists, so destroy
+through any height cannot exceed emission through that height.
+`destroy_cost` is strictly increasing, so `1 / destroy_cost` is strictly
+decreasing. The standard exchange argument says the sum is maximised by
+destroying every ORU at the height it appears. That schedule is exactly
+the closed-form integral above. Delaying a destroy can only ever yield
+less RES. No hoarding strategy reaches the bound from above. Block
+validation does not consult a running counter.
+
+Cumulative issuance through any height also has a closed form:
+
+```
+cumulative(h) = RES_MAX_SUPPLY · h / (h + 2²⁵)
+```
+
+The operational meaning of the pole `h = 2²⁵` is that, at `ρ = 100%`,
+the median of the issuance distribution sits at year 638. Cumulative RES
+is then half the cap, and destroy cost is about 4 096 ORU per RES.
+
+Realised stock equals participation times the ceiling, exactly:
+
+| ρ | Realised issuance | Utilisation |
+|--:|------------------:|------------:|
+| 5% | 209 715 RES | 5.0% |
+| 20% | 838 861 RES | 20.0% |
+| 50% | 2 097 152 RES | 50.0% |
+| 100% | 4 194 304 RES | 100.0% |
+
+Minting ends when a whole block’s subsidy no longer buys a single RES
+atom. Integer arithmetic decides the height: `118 599 277 598` (about
+year 2 254 957). That is a consequence of the parameters, not a
+parameter.
+
+---
+
+## 2.5 The schedule is an upper bound, not a calendar promise
+
+The table below is the `ρ = 100%` ceiling. Numbers are printed by the
+RFC-020 numeric SSOT. None was computed by hand.
+
+| Year | Height | ORU / RES | Cumulative ORU | Cumulative RES | % of cap |
+|-----:|-------:|----------:|---------------:|---------------:|---------:|
+| 1 | 52 594 | 1 027.21 | 6 732 032 | 6 564 | 0.16% |
+| 4 | 210 379 | 1 036.88 | 26 928 512 | 26 134 | 0.62% |
+| 10 | 525 949 | 1 056.35 | 67 321 472 | 64 729 | 1.54% |
+| 16 | 841 518 | 1 076.01 | 107 714 304 | 102 616 | 2.45% |
+| 32 | 1 683 037 | 1 129.30 | 215 428 736 | 200 331 | 4.78% |
+| 50 | 2 629 746 | 1 190.80 | 336 607 488 | 304 828 | 7.27% |
+| 100 | 5 259 492 | 1 370.17 | 673 214 976 | 568 350 | 13.55% |
+| 250 | 13 148 730 | 1 983.78 | 1 683 037 440 | 1 180 857 | 28.15% |
+| 500 | 26 297 460 | 3 258.04 | 3 366 074 880 | 1 842 875 | 43.94% |
+| 638 | 33 555 558 | 4 096.14 | 4 295 111 424 | 2 097 187 | 50.00% |
+| 1 000 | 52 594 920 | 6 750.01 | 6 732 149 760 | 2 560 659 | 61.05% |
+| 2 000 | 105 189 840 | 17 507.75 | 13 464 299 520 | 3 179 938 | 75.82% |
+
+Even at full participation, year 1 issues about 6 564 RES. Thin early
+float pins any working secondary ratio to the mint ceiling — the
+intended transmission of RES demand into ORU destroy. A market too thin
+to discover any ratio cannot start that transmission. The RFC asserts
+the mechanism, not the threshold.
+
+Destroy cost changes by about 0.000 089% per block. Wallets construct at
+the confirm height plus a flat margin; an over-generous margin is a
+rounding error, not a strategy.
+
+Selected pins (atoms, display only):
+
+| Height | Atoms | ORU / 1 RES |
+|-------:|------:|------------:|
+| 0 | 102 400 000 000 | 1 024 |
+| 210 000 | 103 685 749 152 | 1 036.857 491 52 |
+| 420 000 | 104 979 520 049 | 1 049.795 200 49 |
+
+---
+
+## 2.6 The second sink — RFC-018
+
+RFC-020 prices RES **creation**. RFC-018 keeps absorbing ORU when RES
+**moves**. The two sinks must not be collapsed into one “supply”
+number.
+
+RES transfers still pay network fees on the ORU leg. Half of that fee is
+unclaimable in coinbase, never enters the UTXO set, and is therefore
+destroyed:
+
+```
+destroy_RES_transfer = Σ floor(fee(tx) · 1 / 2)
+```
+
+The other half remains claimable, so miners still want to include RES
+transfers. Pure ORU spends, Convergence itself, and body mints do not
+take this half — Convergence is already destroyed on the `OP_CONVERGE`
+path.
+
+Four ORU quantities that must stay separate:
+
+| Quantity | What it is | What it is not |
+|----------|------------|----------------|
+| ORU ledger supply | Issued subsidy minus Convergence `C(h)` | Circulating UTXO, fee destroy, or a wallet balance |
+| Circulating UTXO | Spendable Witness v0 ORU still in the UTXO set | The ledger path, or either destroy |
+| Convergence destroy | ORU in an unspendable `OP_CONVERGE` | Fee destroy |
+| Fee destroy | Unclaimed half of RES-transfer ORU fees | Convergence `C(h)`, or a destroy UTXO |
+
+Explorers may display each separately. None is a global asset-state
+table. Consensus does not keep a “total supply” registry.
+
+---
+
+## 2.7 Where each asset is born
 
 | | **ORU** | **RES** |
 |--|---------|---------|
-| Ledger origin | Coinbase subsidy `R(h)` | Non-coinbase body mint |
-| Who receives it | Miner | Draw winner’s RES program — not the miner |
-| Per block | 1000 → 500 → 250 → 125 forever | `W(h)` RES or 0 |
-| Cap | No hard cap (tail inflation) | 21,000,000 RES (schedule cannot exhaust the cap even if every block mints) |
-| Calendar | Height-indexed subsidy | Amount `W(h)` is height-indexed; occurrence of a mint is not |
+| Job | Hashpower payment, fees, Convergence input | Independent scarce stock |
+| Classification | Witness v0 | Witness v1 |
+| Ledger origin | Coinbase subsidy `R(h)` | Body-tx destroy-to-mint |
+| Per block | 128 ORU (`R(0) = 0`) | Any `R` the predicate admits |
+| Who receives it | The miner | The minting transaction’s RES outputs, not the miner |
+| Cap | No declared hard cap | Derived `2²²` RES |
+| Calendar | Subsidy is a height function | Cost is a height function; occurrence of a mint is not |
 
-**ORU = created in coinbase. RES = created in the body after Convergence.**
+**Protocol-enforced:** a mint MUST satisfy the predicate or the
+transaction is invalid; `S_RES` MUST NOT exceed the derived ceiling
+(runtime defence; §2.4 shows it is unreachable).
 
-Protocol-enforced: `S_RES ≤ 21,000,000`, and a winner **must** be paid `W(h)` RES
-or the block is invalid.  
-Not guaranteed: a mint in every block, or that 21 million is filled on a
-date.
-
-**RES has a maximum supply of 21,000,000. Actual circulating supply depends on
-Convergence participation.** The schedule cannot exhaust the cap even if every
-block mints; that does **not** mean 21 million will necessarily be reached.
-
-**Deterministic Reserve Issuance:** constant draw target `T`; reward `W(h)`
-decays as `floor(40·RES_COIN·(k+1)^(-3/2))` with `k = height/210000`, then
-`W = 0` for `k > 250`. RES is not mined. Occurrence of a mint is
-demand-driven; the amount if minted is deterministic; the cost floor
-`C/W(k)` weakly rises as rewards decay.
-Formally verified monetary invariants (not a refinement proof): see
-`docs/security/RES_MONETARY_POLICY_FINAL_AUDIT_REPORT.md`.
+**Not guaranteed:** that anyone destroys ORU; that the ceiling is
+filled; that a secondary market exists; that `ρ` lands in any band.
 
 ---
 
-## Closed economic loop
+## 2.8 What this chapter does not claim
 
-```
-        ┌───────────────┐
-        │   ORU (PoW)   │
-        │ Medium of     │
-        │ Exchange      │
-        └───────┬───────┘
-                │
-                ▼
-        ┌───────────────┐
-        │ Convergence   │
-        │ ORU committed │
-        └───────┬───────┘
-                │
-                ▼
-        ┌───────────────┐
-        │  Selection    │
-        │     (σ)       │
-        └───────┬───────┘
-                │
-                ▼
-        ┌───────────────┐
-        │  RES (scarce) │
-        │  window W=32  │
-        └───────┬───────┘
-                │
-                ▼
-        ┌───────────────┐
-        │ Market demand │
-        └───────┬───────┘
-                │
-                ▼
-          (back to ORU)
-```
+- It does not target an external price for either asset.
+  `destroy_cost(h)` is not a quote.
+- It does not assert that `ρ` will be high, or that the schedule will be
+  walked.
+- It does not assert that a usable RES/ORU secondary market exists at
+  launch.
+- It does not collapse the four ORU quantities into one “float” story.
+- It does not claim C++ equivalence to the kernel model. The Coq model
+  proves selected invariants (including the ORU fold identity
+  `n · 128`). It does not prove `ConnectBlock`.
 
-**No Convergence → No RES.**  
-**More demand → more Convergence → harder to win.**
-
-Demand for RES is expressed by committing ORU. More committed ORU increases
-competition in the draw. The protocol does not print RES to meet demand.
-
----
-
-## Separation, not duplication
-
-| Job | Asset |
-|-----|-------|
-| Circulate, pay fees, pay miners | ORU |
-| Remain scarce; enter only by Convergence | RES |
-
-Users **mine ORU**. They **converge ORU**. They may receive **RES** if the
-deterministic draw selects their eligible commitment. That sentence must not
-be shortened to “mine RES”.
+**The rules fix the transform. Whether demand arrives is not a rule.**
+Chapter 3 states how the two identities exist on the ledger as native
+UTXO scripts — not as a registry, and not as an overlay.

@@ -19,11 +19,12 @@ is enough.
 Highest priority, in order:
 
 1. **Consensus** — anything that lets two honest nodes disagree about the valid chain, or
-   that lets a block violate the rules in `core/src/consensus/`. This includes the RES
-   draw: grinding the digest, biasing candidate selection, winning twice within the draw
-   window, or minting RES without a corresponding ORU burn.
-2. **Supply** — minting ORU beyond the per-block subsidy, minting RES beyond the
-   21,000,000 cap, or creating spendable value from a convergence burn.
+   that lets a block violate the rules in `core/src/consensus/`. This includes RES mint
+   arithmetic: paying less than the RFC-020 pole predicate for minted atoms, or
+   creating RES without a corresponding `OP_CONVERGE` burn.
+2. **Supply** — minting ORU beyond the per-block subsidy (128 ORU for `h ≥ 1`),
+   minting RES beyond the cap `419430400000000` atoms (`2²²` RES), or creating
+   spendable value from a convergence burn.
 3. **Funds** — anything that spends an output without satisfying its script, or that makes
    a correctly-formed output unspendable.
 4. **Node availability** — remote crashes, unbounded memory or disk growth, and consensus

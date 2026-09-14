@@ -345,10 +345,18 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
         else if (!(fIsMine & filter))
             continue;
 
+        // Destroyed outputs (OP_RETURN / OP_CONVERGE) never enter the UTXO set
+        // and have no address. Do not treat them as an unknown spendable type —
+        // that logged "Unknown transaction type" and left a CNoDestination that
+        // later wallet scans mis-handled.
+        if (!EntersUtxoSet(txout.scriptPubKey)) {
+            continue;
+        }
+
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable())
+        if (!ExtractDestination(txout.scriptPubKey, address))
         {
             wallet.WalletLogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
                                     wtx.GetHash().ToString());

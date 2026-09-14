@@ -4,6 +4,8 @@
 
 #include <consensus/tx_verify.h>
 
+#include <consensus/trace/consensus_trace.h>
+
 #include <chain.h>
 #include <coins.h>
 #include <consensus/amount.h>
@@ -14,6 +16,7 @@
 #include <consensus/validation.h>
 #include <primitives/transaction.h>
 #include <consensus/tx_check.h>
+#include <consensus/res_issuance.h>
 #include <consensus/res_proof.h>
 #include <script/predicate_verify.h>
 #include <script/script.h>
@@ -23,6 +26,7 @@
 
 #include <cassert>
 #include <optional>
+#include <string>
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -187,9 +191,13 @@ bool AccumulateTxInputPools(const CTransaction& tx, TxValidationState& state, co
             return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-spend-non-asset-input");
         }
 
-        if (coin.IsCoinBase()) {
+        if (coin.RequiresMaturity()) {
             const int coin_height = static_cast<int>(coin.nHeight);
             if (nSpendHeight - coin_height < consensus_params.nCoinbaseMaturity) {
+                if (coin.IsResMint() && !coin.IsCoinBase()) {
+                    return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "bad-txns-premature-spend-of-res-mint",
+                        strprintf("tried to spend RES mint at depth %d", nSpendHeight - coin_height));
+                }
                 return state.Invalid(TxValidationResult::TX_PREMATURE_SPEND, "bad-txns-premature-spend-of-coinbase",
                     strprintf("tried to spend coinbase at depth %d", nSpendHeight - coin_height));
             }
@@ -346,7 +354,23 @@ std::optional<AssetType> Consensus::GetTransactionInputAsset(const CTransaction&
 
 bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, const CCoinsViewCache& inputs, int nSpendHeight, const Consensus::Params& consensus_params, CAmount& txfee)
 {
-    if (!inputs.HaveInputs(tx)) {
+    struct RigorCheckTxInputsTrace {
+        const CTransaction& tx;
+        TxValidationState& state;
+        CAmount& txfee;
+        bool have_inputs;
+        ~RigorCheckTxInputsTrace()
+        {
+            const bool ok = !state.IsInvalid();
+            const std::string r = state.GetRejectReason();
+            const bool utxo_ok = have_inputs && r != "bad-txns-inputs-missingorspent";
+            RigorConsensusTraceNoteTx(tx.GetHash(), "CheckTxInputs", true, utxo_ok && (ok || have_inputs), ok, ok, ok ? txfee : 0, r.c_str());
+        }
+    } rigor_inputs_trace{tx, state, txfee, false};
+
+    const bool have_inputs = inputs.HaveInputs(tx);
+    rigor_inputs_trace.have_inputs = have_inputs;
+    if (!have_inputs) {
         return state.Invalid(TxValidationResult::TX_MISSING_INPUTS, "bad-txns-inputs-missingorspent",
                          strprintf("%s: inputs missing/spent", __func__));
     }
@@ -363,6 +387,17 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
 
     const bool has_res_in = pools.res_in > 0;
     const bool has_oru_in = pools.oru_in > 0;
+
+    // RFC-019. A transaction with no RES inputs that creates RES is a mint: the
+    // ORU it destroys buys the RES it creates, at the epoch's destroy cost. The
+    // burn is declared by the OP_CONVERGE output rather than inferred from
+    // inputs minus outputs minus fee, so that the mint amount does not move
+    // with fee estimation and so that burn and fee stay separable.
+    //
+    // Checked in aggregate after the loop; per-output it is only knowable that
+    // *some* burn must exist.
+    const CAmount res_mint_out = has_res_in ? 0 : tx.GetValueOut(ASSET_RES);
+    const CAmount convergence_burn = Consensus::GetConvergenceAmount(tx);
 
     for (const auto& out : tx.vout) {
         if (IsPcorbCarrierScript(out.scriptPubKey) || IsPcorbCarrierOutput(out)) {
@@ -384,11 +419,10 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
 
         if (out_asset == ASSET_RES) {
-            if (!has_res_in) {
-                // No body transaction creates RES. There is no ORU-funded mint shape to make an
-                // exception for: the only new RES in a block is in its coinbase, authorized by
-                // the parent's resolved draw.
-                return state.Invalid(TxValidationResult::TX_CONSENSUS, "mixed-asset-output");
+            if (!has_res_in && convergence_burn <= 0) {
+                // A body transaction creates RES only by paying for it. With no
+                // RES on the input side and no ORU destroyed, nothing funds it.
+                return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-mint-no-burn");
             }
             continue;
         }
@@ -398,6 +432,22 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
                 return state.Invalid(TxValidationResult::TX_CONSENSUS, "illegal-res-to-oru-conversion");
             }
             continue;
+        }
+    }
+
+    if (res_mint_out > 0) {
+        // RFC-020: there is no mint horizon. Height < 0 is rejected by
+        // CheckResMintArithmetic (and by ResMintAuthorizedAtHeight).
+        if (nSpendHeight < 0 || !Consensus::ResMintAuthorizedAtHeight(nSpendHeight)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-mint-negative-height");
+        }
+        if (res_mint_out > Consensus::ResDerivedMaxSupply()) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-mint-cap-overshoot");
+        }
+        if (!Consensus::CheckResMintArithmetic(res_mint_out, convergence_burn, nSpendHeight)) {
+            return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-txns-res-mint-underpaid",
+                strprintf("RES out (%s atoms) exceeds what %s ORU buys at height %d",
+                          FormatMoney(res_mint_out), FormatMoney(convergence_burn), nSpendHeight));
         }
     }
 

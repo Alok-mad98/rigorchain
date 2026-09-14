@@ -1,15 +1,15 @@
 {
   "task": "TASK-RIGOR-GENESIS-CONSENSUS-FREEZE-AND-RELEASE-INTEGRITY-P0-074",
-  "note": "Frozen genesis consensus pins. Does not prove C++ = Coq = Python.",
-  "refinement_proved": true,
+  "note": "Frozen genesis consensus pins for RFC-020 continuous destroy_cost(h). Does not prove C++ = Coq = Python. No automatic RES mint.",
+  "refinement_proved": false,
   "equivalence_proved": false,
   "genesis": {
     "height": 0,
     "oru_issuance": 0,
     "res_issuance": 0,
-    "GetResMintReward": 40000000,
+    "ResDestroyCost": 102400000000,
     "res_issued_at_height": 0,
-    "draw": "none"
+    "automatic_res_mint": "none"
   },
   "issuance_heights": [
     0,
@@ -27,64 +27,64 @@
       "height": 0,
       "epoch": 0,
       "oru": 0,
-      "res_schedule": 40000000,
+      "res_destroy_cost": 102400000000,
       "res_issued": 0
     },
     {
       "height": 1,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru": 12800000000,
+      "res_destroy_cost": 102400006103,
+      "res_issued": 0
     },
     {
       "height": 99,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru": 12800000000,
+      "res_destroy_cost": 102400604248,
+      "res_issued": 0
     },
     {
       "height": 100,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru": 12800000000,
+      "res_destroy_cost": 102400610352,
+      "res_issued": 0
     },
     {
       "height": 101,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru": 12800000000,
+      "res_destroy_cost": 102400616456,
+      "res_issued": 0
     },
     {
       "height": 209999,
       "epoch": 0,
-      "oru": 100000000000,
-      "res_schedule": 40000000,
-      "res_issued": 40000000
+      "oru": 12800000000,
+      "res_destroy_cost": 103685743011,
+      "res_issued": 0
     },
     {
       "height": 210000,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196,
-      "res_issued": 14142196
+      "oru": 12800000000,
+      "res_destroy_cost": 103685749152,
+      "res_issued": 0
     },
     {
       "height": 419999,
       "epoch": 1,
-      "oru": 50000000000,
-      "res_schedule": 14142196,
-      "res_issued": 14142196
+      "oru": 12800000000,
+      "res_destroy_cost": 104979513869,
+      "res_issued": 0
     },
     {
       "height": 420000,
       "epoch": 2,
-      "oru": 25000000000,
-      "res_schedule": 7698004,
-      "res_issued": 7698004
+      "oru": 12800000000,
+      "res_destroy_cost": 104979520049,
+      "res_issued": 0
     }
   ],
   "maturity": {
@@ -98,11 +98,11 @@
       101
     ]
   },
-  "draw": [
-    "empty_F",
-    "single_candidate",
-    "equal_weight_tie_break",
-    "T_eq_0"
+  "mint": [
+    "zero_burn_zero_res",
+    "exact_genesis_rate",
+    "underpay_rejected",
+    "rate_zero_disabled"
   ],
   "mismatch_policy": "GENESIS_CONSENSUS_FREEZE_DRIFT; never auto-correct",
   "production_consensus_authority": "RigorConsensusKernel(C++)",

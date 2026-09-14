@@ -1,11 +1,11 @@
 {
   "task": "TASK-RIGOR-CONSENSUS-KERNEL-PRODUCTION-MIGRATION-READINESS-P0-067",
   "note": "Migration readiness vectors. Production switch remains OFF. Does not modify golden vectors.",
-  "refinement_proved": true,
+  "refinement_proved": false,
   "equivalence_proved": false,
   "genesis": {
     "height": 0,
-    "res_schedule": 40000000,
+    "res_schedule": 102400000000,
     "actual_issuance_oru": 0,
     "actual_issuance_res": 0,
     "draw": "none"

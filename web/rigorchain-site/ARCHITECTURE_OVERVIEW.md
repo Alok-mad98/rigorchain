@@ -7,7 +7,8 @@
 **Domain:** [https://www.rigorchain.com](https://www.rigorchain.com)  
 **Repository:** [https://github.com/rigorchain/rigorchain](https://github.com/rigorchain/rigorchain)  
 **Parent specs:** [web/public-site/](../public-site) (TASK-PUBLICATION-002)  
-**Content authority:** [RIGOR_PROTOCOL_IDENTITY.md](../../docs/whitepaper/RIGOR_PROTOCOL_IDENTITY.md)
+**Content authority:** [RIGOR_PROTOCOL_IDENTITY.md](../../docs/whitepaper/RIGOR_PROTOCOL_IDENTITY.md)  
+OpuHash / AlphaPlus wording in older site specs is historical.
 
 | Field | Value |
 |-------|-------|

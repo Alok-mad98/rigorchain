@@ -1,6 +1,15 @@
 # Formal Claim Traceability Matrix
 
-**Task:** `TASK-RIGOR-FORMAL-VERIFICATION-COVERAGE-AUDIT-P0-001`  
+
+> **Shipping issuance (RFC-020).** Continuous `destroy_cost(h)`, pole predicate
+> `R · (2²⁵+h)² ≤ B << 40`, cap `2²²` RES, flat 128 ORU. Numeric SSOT:
+> `tools/res_continuous_price_schedule.py`. Formal status:
+> `audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`
+> (`REFINEMENT_PROVED=false`).
+
+
+**Document status:** Security audit  
+**Historical verification reference:** P0-001  
 **Date:** 2026-08-20  
 **Source under review:** `docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md` (+ linked status pages)  
 **Honesty:** `equivalence_claimed = false`
@@ -10,8 +19,8 @@ Status vocabulary: **VERIFIED** (Coq model, Closed), **VECTOR** (finite L1/L2/L3
 | Claim (paraphrase) | Location | Proof / evidence artifact | Status |
 |--------------------|----------|---------------------------|--------|
 | Dual native assets ORU / RES | Ch.2; site Protocol | RFC-001 + C++ asset tags; Coq `AssetKind` / dual-pool | PARTIAL (model + impl; no refinement) |
-| RES hard cap 21,000,000 | Ch.2 monetary table | `ResSchedule.max_issuance_within_cap`; C++ `RES_MAX_SUPPLY` | VERIFIED (model) + VECTOR (NEG/SUP) |
-| RES schedule decays; stops after epoch 250 | Ch.2 RFC-017 summary | `schedule_terminates`; `reward_after_last_epoch_is_zero`; parity test `k=0..251` | VERIFIED + VECTOR |
+| RES hard cap `2²²` | Ch.2 monetary table | `cap_is_closed_form`, `cap_is_upper_bound`; C++ `RES_MAX_SUPPLY` | VERIFIED (Coq model only) + VECTOR |
+| RES `destroy_cost(h)` rises; no per-block grant | Ch.2 RFC-020 | `destroy_cost_strictly_increasing`, `predicate_equals_destroy_cost` | VERIFIED (Coq model only) + VECTOR |
 | Formally verified monetary invariants (not complete monetary correctness) | Ch.2 | `ResSchedule.v`; assumption boundary | VERIFIED (scoped) |
 | ORU no hard cap / tail inflation | Ch.2 | `ConnectBlockMint` + `oru_supply_bounded_by_block_count` | PARTIAL (bound verified; no absolute cap by design) |
 | Convergence mint only after Convergence | Ch.2–3 | Selection + mint obligation model; C++ mint path | PARTIAL (`cm_draw_won` abstract) |

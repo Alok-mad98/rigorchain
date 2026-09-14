@@ -1,0 +1,9 @@
+{
+  "domain": "utxo",
+  "expect": "INVALID",
+  "theorem": "utxo_soundness",
+  "tx_id": [1],
+  "inputs": [],
+  "outputs": [{"value": 1, "spk": []}],
+  "coinbase": false
+}

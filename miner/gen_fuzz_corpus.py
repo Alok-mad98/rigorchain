@@ -25,7 +25,10 @@ COMMIT_SPK = bytes.fromhex(
 MINT_SPK = bytes.fromhex("0105141111111111111111111111111111111111111111bb")
 ROOT = "11" * 32
 ZERO = "00" * 32
-COINBASE_VALUE = 100000000000
+# RFC-020 height ≥ 1 subsidy: 128 ORU. Fuzz seeds are reject-path
+# mutations, not shipping templates, but the amount must not look like
+# the retired 1000 ORU / three-halving schedule.
+COINBASE_VALUE = 12800000000
 MINT_VALUE = 40000000
 
 

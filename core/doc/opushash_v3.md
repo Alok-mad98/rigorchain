@@ -1,5 +1,11 @@
 # OpuHash (Proof-of-Work)
 
+> **Historical design notes (P0-097).** Production `CheckProofOfWork` uses
+> SHA3-256(`"RGRPOW01" || header_80`). This file documents the earlier
+> OpuHash mix. It is not the live node digest. See
+> `docs/specification/SPEC-008-PROOF-OF-WORK.md` and
+> `docs/audit/CODE_SSOT_PROTOCOL_FACTS_P0_097.md`.
+
 OpuHash is a **compute-heavy** PoW: a **64 KiB** ChaCha20-filled buffer (fits typical **CPU L2 cache**) plus **256** rounds of hashing-based mixing. Consensus changes require a coordinated network upgrade.
 
 ## Architecture goals

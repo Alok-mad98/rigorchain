@@ -26,7 +26,7 @@ namespace Consensus {
 namespace {
 
 //! Domain-separation tag. Bump the suffix on any leaf / preamble / trailer change.
-constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v4"};
+constexpr std::string_view kStateHashDomainTag{"RIGOR/STATE_HASH/v5"};
 
 //! Build the canonical leaf bytes for one (outpoint, coin) pair.
 //! Layout (Coin::Serialize leaf; disk adds CRC-32C via CoinDiskFormatter):
@@ -66,7 +66,6 @@ void WritePindexConsensusTrailer(HashWriter& hw, const CBlockIndex* pindex)
 {
     if (pindex != nullptr) {
         hw << pindex->Observational().GetCumulativeConvergence();
-        hw << pindex->m_draw_candidate_root;
         hw << static_cast<uint8_t>(pindex->has_res);
         hw << pindex->last_res_mint_block_hash;
         hw << static_cast<int64_t>(pindex->m_block_res_mint_sum);
@@ -76,7 +75,6 @@ void WritePindexConsensusTrailer(HashWriter& hw, const CBlockIndex* pindex)
     } else {
         const uint256 zero_hash;
         hw << uint64_t{0};
-        hw << zero_hash;
         hw << uint8_t{0};
         hw << zero_hash;
         hw << int64_t{0};
@@ -121,7 +119,7 @@ uint256 ComputeDeterministicStateHash(const CCoinsViewCache& view, const CBlockI
     UtxoAggregates agg{};
 
     // Pre-genesis: fixed preamble with zero tip / zero UTXO MuHash and an
-    // all-zero 141-byte trailer (105-byte index projection + aggregates).
+    // all-zero 109-byte trailer (73-byte index projection + aggregates).
     if (pindex == nullptr) {
         return FinalizeDigestV2(/*height_le=*/uint32_t{0},
                                 /*tip_hash=*/uint256{},

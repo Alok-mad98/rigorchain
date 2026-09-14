@@ -69,25 +69,34 @@ BOOST_FIXTURE_TEST_SUITE(state_snapshot_tests, BasicTestingSetup)
 
 namespace {
 
-//! Pre-genesis pre-image (STEP-0101 v4):
-//!   ASCII "RIGOR/STATE_HASH/v4" (19 bytes)
+//! Pre-genesis pre-image (STEP-0101 v5):
+//!   ASCII "RIGOR/STATE_HASH/v5" (19 bytes)
 //! || 4 zero bytes (height LE32 == 0)
 //! || 32 zero bytes (tip hash)
 //! || 32 zero bytes (UTXO MuHash slot — zero sentinel at pre-genesis)
-//! || 105 zero bytes (index projection trailer)
+//! || 73 zero bytes (index projection trailer)
 //! || 36 zero bytes (aggregate trailer)
 //!
-//! Total length: 228 bytes.
+//! Total length: 196 bytes.
+//!
+//! The index projection shrank from 105 to 73 bytes when the CONVERGENCE draw
+//! was removed: `CBlockIndex::m_draw_candidate_root` (32 bytes) is no longer a
+//! field, so the trailer is now
+//!   LE64(cumulative convergence) || u8(has_res) || last_res_mint_block_hash
+//!   || LE64(block RES mint) || LE64(chain RES mint) || LE64(block converge)
+//!   || LE64(chain ORU)
+//! = 8 + 1 + 32 + 4*8 = 73 bytes. The domain tag was bumped v4 -> v5 for that
+//! layout change, which is itself part of the pre-image.
 //!
 //! Expected SHA256d (raw / big-endian byte order, NOT uint256 display form),
-//! recomputed offline with Python `hashlib` (double SHA-256 over the 228-byte
+//! recomputed offline with Python `hashlib` (double SHA-256 over the 196-byte
 //! vector above).
 //!
 constexpr unsigned char kExpectedRawSHA256d[32] = {
-    0xb1, 0x9e, 0x45, 0x51, 0xf9, 0x6f, 0x8a, 0xe3,
-    0xae, 0x8d, 0x8b, 0xb0, 0x98, 0x98, 0x9f, 0x79,
-    0x88, 0x05, 0xec, 0x7b, 0x74, 0xf4, 0xa0, 0x67,
-    0x67, 0x54, 0xaf, 0xfd, 0x2a, 0x3b, 0x14, 0xec,
+    0x0e, 0xe3, 0x58, 0x25, 0x9a, 0xcb, 0x33, 0xcb,
+    0x07, 0xb4, 0x98, 0xfc, 0xa6, 0xb7, 0x10, 0x4d,
+    0x23, 0x44, 0x97, 0xd3, 0xb3, 0x07, 0xb0, 0x45,
+    0xed, 0xe4, 0xae, 0xf1, 0x64, 0x17, 0x5c, 0x4f,
 };
 
 //! Independent reference SHA256d implementation that does NOT share
@@ -115,13 +124,13 @@ BOOST_AUTO_TEST_CASE(state_hash_pre_genesis_byte_vector)
     // state_snapshot.h. We construct it from raw byte primitives, NOT from
     // any helper that the production code also uses, so any divergence in
     // the production code's encoding will surface here.
-    static constexpr char kTag[] = "RIGOR/STATE_HASH/v4";
+    static constexpr char kTag[] = "RIGOR/STATE_HASH/v5";
     constexpr size_t kTagLen = sizeof(kTag) - 1; // exclude trailing NUL
     BOOST_REQUIRE_EQUAL(kTagLen, 19u);
 
-    unsigned char preimage[19 + 4 + 32 + 32 + 105 + 36] = {};
+    unsigned char preimage[19 + 4 + 32 + 32 + 73 + 36] = {};
     std::memcpy(preimage, kTag, kTagLen);
-    // Remaining 209 bytes are zero: height, tip, utxo hash, index trailer,
+    // Remaining 177 bytes are zero: height, tip, utxo hash, index trailer,
     // aggregate trailer.
 
     unsigned char ref_digest[32];
@@ -225,6 +234,11 @@ inline bool ReferenceHasV1LockShape(const CScript& spk)
 //! post-genesis path, intentionally NOT calling any helper from
 //! `consensus/state_snapshot.cpp`. Drift in either side breaks the equality
 //! in `state_hash_inmem_chain_matches_independent_reference`.
+//!
+//! Mirrors the v5 layout: the CONVERGENCE-draw removal dropped
+//! `CBlockIndex::m_draw_candidate_root` from the index projection (105 -> 73
+//! bytes) and bumped the domain tag v4 -> v5. Any further production change
+//! must be mirrored here by hand, field by field.
 uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
                                       const CBlockIndex& pindex)
 {
@@ -262,7 +276,7 @@ uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
     uint256 utxo_hash;
     muhash.Finalize(utxo_hash);
 
-    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v4"};
+    static constexpr std::string_view kTag{"RIGOR/STATE_HASH/v5"};
     HashWriter hw;
     hw.write(Span<const std::byte>{
         reinterpret_cast<const std::byte*>(kTag.data()),
@@ -271,7 +285,6 @@ uint256 ReferenceStateHashPostGenesis(const std::vector<InMemEntry>& entries,
     hw << pindex.GetBlockHash();
     hw << utxo_hash;
     hw << pindex.Observational().GetCumulativeConvergence();
-    hw << pindex.m_draw_candidate_root;
     hw << static_cast<uint8_t>(pindex.has_res);
     hw << pindex.last_res_mint_block_hash;
     hw << static_cast<int64_t>(pindex.m_block_res_mint_sum);

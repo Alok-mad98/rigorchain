@@ -1,0 +1,21 @@
+{
+  "task": "P0-093-V0.1.3-CI-AUTHORITY",
+  "commit": "8743c509d9273b19c431df2f4f0ee630ccd810f8",
+  "tag": "v0.1.3",
+  "date": "2026-09-03",
+  "delete_failed_github_actions_runs": false,
+  "historical_failures_preserved": true,
+  "hosted_consensus_kernel_integrity": "PASS",
+  "hosted_consensus_kernel_integrity_runs": [
+    "33696501299",
+    "33696496656"
+  ],
+  "hosted_genesis_release_guardian": "EXPECTED_FAIL_NO_RIGORD",
+  "hosted_genesis_release_guardian_run": "33696501312",
+  "hosted_blocked_reason": "missing or non-executable production binary: core/src/rigord",
+  "hosted_rigord_provision": "tools/ci/build-ci-rigord.sh before Guardian; Guardian BINARY_INTEGRITY unchanged",
+  "local_release_guardian_full_pipeline": "PASS",
+  "local_evidence": "docs/release/RIGOR_RELEASE_GUARDIAN_MTIME_REVALIDATION_P0_093_FIX.md",
+  "consensus_code_changed": false,
+  "wsl_operator_action_required": false
+}

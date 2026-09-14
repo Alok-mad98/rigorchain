@@ -3,12 +3,51 @@
 # Do not apt-install Ubuntu Coq. Do not use job-level container: (coqorg/coq:8.15.0
 # is not a published Docker Hub tag; pull failures become ContainerId=null).
 # Pin Coq 8.15.0 + OCaml 4.13.1 via opam on ubuntu-latest.
+#
+# Path-filtered: Coq jobs are expensive. Docs / wallet / web changes must not
+# start this workflow. Push is main-only so a PR does not also pay for a
+# branch-push duplicate.
 
 name: consensus-kernel-integrity
 
 on:
   pull_request:
+    paths: &kernel-integrity-paths
+      - "formal_verification/**"
+      - "core/src/consensus/**"
+      - "core/src/kernel/**"
+      - "core/src/rigor_kernel/**"
+      - "core/src/script/**"
+      - "core/src/primitives/**"
+      - "core/src/validation.cpp"
+      - "core/src/validation.h"
+      - "core/src/pow.cpp"
+      - "core/src/pow.h"
+      - "core/src/Makefile.am"
+      - "core/src/Makefile.test.include"
+      - "core/src/test/predicate_boundary*"
+      - "core/src/test/test_predicate_boundary*"
+      - "fuzz/predicate_boundary_differential/**"
+      - "fuzz/makekernelinput_differential/**"
+      - "tools/lint-consensus-*.py"
+      - "tools/lint-kernel-*.py"
+      - "tools/lint-frozen-kernel-params.py"
+      - "tools/lint-predicate-boundary-differential.py"
+      - "tools/lint-ledger-kernel-boundary.py"
+      - "tools/lint-utxo-state-transition-boundary.py"
+      - "tools/lint-coq-claim-strength.py"
+      - "tools/lint-extracted-oracle-and-vst-scope.py"
+      - "tools/lint-audit-scope.py"
+      - "tools/check-coq-consensus-assumptions.py"
+      - "tools/refinement_status.py"
+      - "tools/tests/test_lint_kernel_switch.py"
+      - "tools/ci/**"
+      - ".github/workflows/consensus-kernel-integrity.yml"
+      - ".github/actions/setup-coq/**"
   push:
+    branches:
+      - main
+    paths: *kernel-integrity-paths
 
 jobs:
   authority-lock:

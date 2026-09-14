@@ -17,7 +17,7 @@ function pcorbStack(): string[] {
 }
 
 describe("convergeProofPanel", () => {
-  it("is visible for coinbase OP_RES_MINT without a PCORB stack", () => {
+  it("is visible for a body mint without a PCORB stack", () => {
     const txid = "coinbase";
     const convPanel = buildTxConvergencePanel([]);
     const witness = buildTxWitnessPanel(

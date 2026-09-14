@@ -1,0 +1,10 @@
+{
+  "id": "V5",
+  "domain": "pow",
+  "expect": "INVALID",
+  "theorem": "pow_valid_rejects_above_target",
+  "failure_reason": "invalid PoW target: compact_t < 0",
+  "digest": 1,
+  "target": 100,
+  "compact_t": -1
+}

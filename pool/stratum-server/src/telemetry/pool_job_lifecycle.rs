@@ -86,7 +86,7 @@ impl PoolJobTelemetry {
     ) {
         let ts = now_record_timestamps();
         let (record_id, f_set_size) = template
-            .map(|t| (t.record_id.to_string(), t.gbt.convergence_txids.len() as u64))
+            .map(|t| (t.record_id.to_string(), t.gbt.transactions.len() as u64))
             .unwrap_or_else(|| (job.record_id.to_string(), 0));
         let row = PoolJobValue {
             schema_version: SCHEMA_VERSION,
@@ -143,7 +143,7 @@ impl<'a> PoolJobRow<'a> {
             job_state: self.job_state.to_string(),
             convergence_root_hex: Some(self.job.coinbase.convergence_root_hex.clone()),
             mint_required: self.mint_required,
-            f_set_size: Some(self.template.gbt.convergence_txids.len() as u64),
+            f_set_size: Some(self.template.gbt.transactions.len() as u64),
             assembly_hash: Some(hex::encode(self.job.assembly_hash)),
             template_height: self.job.height,
             clean_jobs: self.clean_jobs,

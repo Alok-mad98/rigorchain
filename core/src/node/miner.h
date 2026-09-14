@@ -216,14 +216,11 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 void RegenerateCommitments(CBlock& block, ChainstateManager& chainman);
 
 /**
- * Rewrite coinbase scriptSig to height ‖ C ‖ paid-winner, then regenerate the
- * BIP141 witness commitment and merkle root. Paid-winner is the parent-draw
- * winner iff the coinbase already carries RIGOR_MARKER_RES_MINT, else 32 zero bytes.
+ * Rewrite coinbase scriptSig to the BIP34 height push, then regenerate the
+ * BIP141 witness commitment and merkle root.
  *
  * Requires cs_main, held continuously since the template was created:
- * `block.hashPrevBlock` must still be the active tip. Returns false without
- * writing scriptSig if the window cannot be reconstructed (never commits an
- * all-zero C as if it were a real root).
+ * `block.hashPrevBlock` must still be the active tip.
  */
 [[nodiscard]] bool RebuildTemplateCommitments(CBlock& block, ChainstateManager& chainman, std::string& err)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main);

@@ -20,23 +20,21 @@ pub fn encode_bip34_height(height: u64) -> Vec<u8> {
     out
 }
 
-/// Build coinbase `scriptSig`: height ‖ ConvergenceRoot (exactly two pushes).
+/// Build coinbase `scriptSig` like core `BuildCoinbaseScriptSig`: height << OP_0.
 ///
-/// RIGOR consensus rejects any trailing scriptSig bytes
-/// (`convergence-root-cb-trailing-script-data`). Stratum extranonces must live
-/// elsewhere (see [`build_extranonce_op_return`]).
-pub fn build_coinbase_scriptsig(height: u64, convergence_root: &[u8; 32]) -> Vec<u8> {
+/// RFC-020: never append a 32-byte convergence root. Shipping coinbase is
+/// BIP34 height plus a trailing `OP_0` so heights 1..=16 clear the minimum size.
+pub fn build_coinbase_scriptsig(height: u64) -> Vec<u8> {
     let height_push = encode_bip34_height(height);
-    let mut script = Vec::with_capacity(height_push.len() + 33);
+    let mut script = Vec::with_capacity(height_push.len() + 1);
     script.extend_from_slice(&height_push);
-    script.push(0x20);
-    script.extend_from_slice(convergence_root);
+    script.push(0x00); // OP_0
     script
 }
 
 /// OP_RETURN holding the stratum extranonce gap (`en1‖en2` as opaque bytes).
 ///
-/// Keeps ConvergenceRoot `scriptSig` consensus-exact while preserving the classic
+/// Keeps scriptSig consensus-exact (height + OP_0) while preserving the classic
 /// Stratum `coinb1|en1|en2|coinb2` splice (gap is the push payload).
 pub fn build_extranonce_op_return(en_gap: usize) -> Vec<u8> {
     assert!((1..=75).contains(&en_gap), "extranonce gap must fit OP_PUSHDATA");
@@ -47,7 +45,7 @@ pub fn build_extranonce_op_return(en_gap: usize) -> Vec<u8> {
     script
 }
 
-/// RIGOR draw-target commitment: OP_RETURN + 8-byte payload (RIGOR tag + prev_nbits LE32).
+/// Leftover RIGR commitment builder. Not used on the RFC-020 coinbase path.
 pub fn build_rigor_commitment_script(prev_nbits: u32) -> Vec<u8> {
     let mut script = Vec::with_capacity(10);
     script.push(0x6a); // OP_RETURN
@@ -76,6 +74,18 @@ mod tests {
     fn bip34_small_height_uses_opcodes() {
         assert_eq!(encode_bip34_height(1), vec![0x51]);
         assert_eq!(encode_bip34_height(16), vec![0x60]);
+    }
+
+    #[test]
+    fn scriptsig_is_height_plus_op_0() {
+        assert_eq!(build_coinbase_scriptsig(1), vec![0x51, 0x00]);
+        assert_eq!(build_coinbase_scriptsig(100), {
+            let mut s = encode_bip34_height(100);
+            s.push(0x00);
+            s
+        });
+        assert_eq!(build_coinbase_scriptsig(100).len(), encode_bip34_height(100).len() + 1);
+        assert_ne!(build_coinbase_scriptsig(100).len(), encode_bip34_height(100).len() + 33);
     }
 
     #[test]

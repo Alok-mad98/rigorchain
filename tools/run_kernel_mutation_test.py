@@ -185,19 +185,19 @@ def main() -> int:
 
     constant_mutants = [
         (
-            "ORU_INITIAL_BLOCK_SUBSIDY+1",
-            "inline constexpr CAmount ORU_INITIAL_BLOCK_SUBSIDY = 1000 * COIN;",
-            "inline constexpr CAmount ORU_INITIAL_BLOCK_SUBSIDY = 1001 * COIN;",
+            "ORU_FLAT_BLOCK_SUBSIDY+1",
+            "inline constexpr CAmount ORU_FLAT_BLOCK_SUBSIDY = 128 * COIN;",
+            "inline constexpr CAmount ORU_FLAT_BLOCK_SUBSIDY = 129 * COIN;",
         ),
         (
-            "ORU_SUBSIDY_HALVING_INTERVAL-1",
-            "inline constexpr int ORU_SUBSIDY_HALVING_INTERVAL = 210000;",
-            "inline constexpr int ORU_SUBSIDY_HALVING_INTERVAL = 209999;",
+            "RES_REWARD_EPOCH-1",
+            "inline constexpr int RES_REWARD_EPOCH = 210000;",
+            "inline constexpr int RES_REWARD_EPOCH = 209999;",
         ),
         (
-            "ORU_SUBSIDY_MAX_SHIFTS+1",
-            "inline constexpr int ORU_SUBSIDY_MAX_SHIFTS = 3;",
-            "inline constexpr int ORU_SUBSIDY_MAX_SHIFTS = 4;",
+            "RES_DESTROY_SHIFT+1",
+            "inline constexpr int RES_DESTROY_SHIFT = 40;",
+            "inline constexpr int RES_DESTROY_SHIFT = 41;",
         ),
         (
             "ORU_GENESIS_BLOCK_SUBSIDY+1",

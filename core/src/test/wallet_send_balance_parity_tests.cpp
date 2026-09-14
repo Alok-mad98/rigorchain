@@ -317,6 +317,47 @@ BOOST_AUTO_TEST_CASE(available_oru_p2wpkh_input_bytes_known)
     BOOST_CHECK_GT(n, 0);
 }
 
+// A transaction the node refuses must not leave its inputs marked spent. Keeping the
+// local spend made IsSpent() hide the whole input from AvailableCoins and from the
+// per-asset balances, with no error to the caller and no way back except a manual
+// abandontransaction (docs/audit/ORU_DESTROY_DUST_SPENDMAP_AUDIT.md).
+BOOST_AUTO_TEST_CASE(rejected_broadcast_keeps_inputs_spendable)
+{
+    CreateAndProcessBlock({}, GetTestMiningCoinbaseScript(coinbaseKey));
+    auto wallet = CreateSyncedWallet(*m_node.chain, WITH_LOCK(Assert(m_node.chainman)->GetMutex(), return m_node.chainman->ActiveChain()), coinbaseKey);
+    constexpr CAmount BALANCE = 100000;
+    FundExactOruBalance(*wallet, *this, BALANCE);
+    BOOST_CHECK_EQUAL(AvailableOru(*wallet), BALANCE);
+    wallet->SetBroadcastTransactions(true);
+
+    const auto dest = wallet->GetNewDestination(OutputType::BECH32, "recv");
+    BOOST_REQUIRE(dest);
+    CRecipient recipient{GetScriptForDestination(*dest), 40000, /*subtract_fee=*/false, ASSET_ORU};
+    CCoinControl cc = DefaultOruFeeControl();
+    auto res = CreateTransaction(*wallet, {recipient}, /*change_pos=*/-1, cc);
+    BOOST_REQUIRE_MESSAGE(res, util::ErrorString(res).original);
+    const CTransactionRef tx = res->tx;
+    BOOST_REQUIRE(!tx->vin.empty());
+
+    // Cap the fee below what this transaction already pays, but only now that it is
+    // built, so the refusal happens at broadcast instead of in CreateTransaction.
+    wallet->m_default_max_tx_fee = 1;
+
+    std::string broadcast_error;
+    BOOST_CHECK(!wallet->CommitTransaction(tx, {}, {}, &broadcast_error));
+    BOOST_CHECK(!broadcast_error.empty());
+
+    {
+        LOCK(wallet->cs_wallet);
+        BOOST_CHECK(wallet->mapWallet.at(tx->GetHash()).isAbandoned());
+        for (const CTxIn& txin : tx->vin) {
+            BOOST_CHECK(!wallet->IsSpent(txin.prevout));
+        }
+    }
+    // The whole selected input is back, not just the amount that would have been change.
+    BOOST_CHECK_EQUAL(AvailableOru(*wallet), BALANCE);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace wallet

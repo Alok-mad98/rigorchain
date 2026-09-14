@@ -7,7 +7,7 @@
 	"user": "rpcuser",
 	"pass": "rpcpass",
 
-	"algo": "sha256d",
+	"algo": "rgrpow01",
 	"threads": "4",
 	"coinbase-addr": "rgrt1q...",
 

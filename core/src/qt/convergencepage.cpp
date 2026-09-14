@@ -6,19 +6,14 @@
 #include <qt/forms/ui_convergencepage.h>
 
 #include <qt/rigorwallet/widgets/convergence_educationpanel.h>
-#include <qt/rigorwallet/widgets/convergence_overviewpanel.h>
-#include <qt/rigorwallet/widgets/convergence_lifecyclepanel.h>
-#include <qt/rigorwallet/widgets/convergence_startpanel.h>
 #include <qt/rigorwallet/widgets/convergence_networkpanel.h>
-#include <qt/rigorwallet/widgets/convergence_resprobabilitypanel.h>
-#include <qt/rigorwallet/widgets/convergence_historypanel.h>
 #include <qt/rigorwallet/widgets/warningbanner.h>
 #include <qt/rigorwallet/rigortheme.h>
-#include <qt/rigorwallet/convergence/convergence_wallet_data.h>
 
 #include <chainparams.h>
 #include <consensus/amount.h>
-#include <consensus/convergenceres.h>
+#include <consensus/consensus.h>
+#include <consensus/res_issuance.h>
 #include <interfaces/convergence_block_result.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
@@ -34,7 +29,6 @@
 #include <univalue.h>
 
 #include <QApplication>
-#include <QCoreApplication>
 #include <QDebug>
 #include <QDialog>
 #include <QElapsedTimer>
@@ -53,24 +47,16 @@
 #include <string>
 
 namespace {
-QString TruncateMiddleHex(const QString& hex, int head = 10, int tail = 10)
-{
-    if (hex.size() <= head + tail + 1) return hex;
-    return hex.left(head) + QStringLiteral("\u2026") + hex.right(tail);
-}
-
-QString WinnerDisplay(const uint256& w)
-{
-    if (w.IsNull()) {
-        return QObject::tr("None (no unique winner)");
-    }
-    return TruncateMiddleHex(QString::fromStdString(w.GetHex()));
-}
-
 void ClearHighlight(QLabel* label)
 {
     if (!label) return;
     label->setStyleSheet(QString());
+}
+
+QString FormatMintedRes(CAmount res_atoms)
+{
+    return BitcoinUnits::formatAmountForAsset(
+        ASSET_RES, res_atoms, BitcoinUnit::ORU, false, BitcoinUnits::SeparatorStyle::STANDARD, true);
 }
 } // namespace
 
@@ -83,40 +69,34 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
 
     applyConvergenceTheme();
 
-    // Legacy .ui spend form is replaced by ConvergenceStartPanel (Bitcoin-simple UX).
-    if (ui->frameConverge) ui->frameConverge->setVisible(false);
-    if (ui->labelConvergeDisclaimer) ui->labelConvergeDisclaimer->setVisible(false);
     connect(ui->pushButtonConverge, &QPushButton::clicked, this, &ConvergencePage::onSendConvergenceClicked);
-    connect(ui->convergeAmount, &BitcoinAmountField::valueChanged, this, &ConvergencePage::updateQuadraticFeeHint);
+    connect(ui->convergeAmount, &BitcoinAmountField::valueChanged, this, &ConvergencePage::updateMintedResPreview);
 
-    // User Convergence page: My Convergence → Network → warnings → Start → history.
+    // User Convergence page: price stats → amount entry → start.
+    // ConvergenceStartPanel was removed; keep the .ui spend form visible.
     m_educationPanel = new RigorWallet::ConvergenceEducationPanel(this);
     m_educationPanel->setVisible(false);
-    m_lifecyclePanel = new RigorWallet::ConvergenceLifecyclePanel(this);
     m_networkPanel = new RigorWallet::ConvergenceNetworkPanel(this);
-    m_startPanel = new RigorWallet::ConvergenceStartPanel(this);
-    m_overviewPanel = new RigorWallet::ConvergenceOverviewPanel(this);
-    m_overviewPanel->setVisible(false);
-    m_resProbabilityPanel = new RigorWallet::ConvergenceResProbabilityPanel(this);
-    m_resProbabilityPanel->setVisible(false);
     m_warningBanner = new RigorWallet::WarningBanner(this);
-    m_historyPanel = new RigorWallet::ConvergenceHistoryPanel(this);
 
     if (ui->verticalLayoutConvergeScroll) {
-        ui->verticalLayoutConvergeScroll->insertWidget(0, m_lifecyclePanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(1, m_networkPanel);
-        ui->verticalLayoutConvergeScroll->insertWidget(2, m_warningBanner);
-        ui->verticalLayoutConvergeScroll->insertWidget(3, m_startPanel);
-        ui->verticalLayoutConvergeScroll->addWidget(m_historyPanel);
+        ui->verticalLayoutConvergeScroll->insertWidget(0, m_networkPanel);
+        ui->verticalLayoutConvergeScroll->insertWidget(1, m_warningBanner);
+        if (ui->frameConverge) {
+            ui->frameConverge->setVisible(true);
+            ui->verticalLayoutConvergeScroll->insertWidget(2, ui->frameConverge);
+        }
+        if (ui->labelConvergeDisclaimer) {
+            ui->labelConvergeDisclaimer->setVisible(true);
+            ui->verticalLayoutConvergeScroll->insertWidget(3, ui->labelConvergeDisclaimer);
+        }
+        ui->verticalLayoutConvergeScroll->addStretch(1);
         ui->verticalLayoutConvergeScroll->addWidget(m_educationPanel);
-        ui->verticalLayoutConvergeScroll->addWidget(m_overviewPanel);
-        ui->verticalLayoutConvergeScroll->addWidget(m_resProbabilityPanel);
     }
 
     // Hide explorer-style / protocol frames from the user Convergence page.
     if (ui->frameNetwork) ui->frameNetwork->setVisible(false);
     if (ui->frameRoundTable) ui->frameRoundTable->setVisible(false);
-    if (ui->frameDraw) ui->frameDraw->setVisible(false);
     if (ui->frameMarket) ui->frameMarket->setVisible(false);
 
     m_refreshDebounce = new QTimer(this);
@@ -125,9 +105,6 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
     m_refreshDebounce->setInterval(1500);
     connect(m_refreshDebounce, &QTimer::timeout, this, &ConvergencePage::refreshVisibleUi);
 
-    connect(m_startPanel, &RigorWallet::ConvergenceStartPanel::convergenceSubmitted, this, [this]() {
-        refreshVisibleUi();
-    });
 }
 
 void ConvergencePage::showEvent(QShowEvent* event)
@@ -165,7 +142,6 @@ void ConvergencePage::refreshVisibleUi()
     }
     if (ui->frameConverge && ui->frameConverge->isVisible()) {
         updateMinConvergenceDisplay();
-        updateConvergenceStatusDisplay();
     }
     updateConvergenceNetworkSafety();
     refreshPhaseCPanels();
@@ -201,7 +177,6 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QLabel#labelSectionRoundTable,"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundSection,"
         "QWidget#ConvergencePageRoot QLabel#labelPrevRoundSection,"
-        "QWidget#ConvergencePageRoot QLabel#labelSectionDraw,"
         "QWidget#ConvergencePageRoot QLabel#labelSectionMarket,"
         "QWidget#ConvergencePageRoot QLabel#labelSectionConverge {"
         "  font-weight: 600; font-size: 13px; color: %2;"
@@ -210,7 +185,6 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QFrame#frameRoundTable,"
         "QWidget#ConvergencePageRoot QFrame#frameTipRound,"
         "QWidget#ConvergencePageRoot QFrame#framePrevRound,"
-        "QWidget#ConvergencePageRoot QFrame#frameDraw,"
         "QWidget#ConvergencePageRoot QFrame#frameMarket,"
         "QWidget#ConvergencePageRoot QFrame#frameConverge {"
         "  background-color: %1;"
@@ -223,36 +197,23 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QLabel#labelNetPeersTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelNetHeightTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelNetSyncTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelDrawNextTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelDrawBindHTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelDrawBindHashTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelMinConvergeTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelConvergeAmountTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelQuadraticFeeTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelTotalDeductionTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeStatusTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeCompetitionTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeMaturityTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeMaturityCountdownTitle { color: %5; }"
+        "QWidget#ConvergencePageRoot QLabel#labelTotalDeductionTitle { color: %5; }"
         "QWidget#ConvergencePageRoot QLabel#labelRoundNarrative,"
-        "QWidget#ConvergencePageRoot QLabel#labelDrawHint,"
         "QWidget#ConvergencePageRoot QLabel#labelConvergeDisclaimer { color: %5; font-size: 11px; }"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundHeightTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundNTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelTipRoundCandTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelTipRoundWinnerTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundYouTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelPrevRoundHeightTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelPrevRoundNTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelPrevRoundCandTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelPrevRoundWinnerTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelPrevRoundYouTitle { color: %5; }"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundError,"
         "QWidget#ConvergencePageRoot QLabel#labelPrevRoundError { color: %6; font-size: 11px; }"
         "QWidget#ConvergencePageRoot QLabel#labelMarketResTotalTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelMarketWindowTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelMarketMintCostTitle,"
-        "QWidget#ConvergencePageRoot QLabel#labelMarketWinnerTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelMarketTipTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelMarketLastResTitle { color: %5; }"
         "QWidget#ConvergencePageRoot QLabel#labelConvergeUnavailable { color: %2; padding: 12px; background: %3; border: 1px solid %4; border-radius: 8px; }"
@@ -266,8 +227,6 @@ void ConvergencePage::applyConvergenceTheme()
         "}"
         "QWidget#ConvergencePageRoot QPushButton#pushButtonConverge:hover { background-color: %8; }"
         "QWidget#ConvergencePageRoot QPushButton#pushButtonConverge:disabled { background-color: %4; color: %5; }"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeMaturity,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeMaturityCountdown { color: %7; font-weight: 600; }"
         ).arg(bg, text, surface, border, muted, critical,
               RigorWallet::RigorTheme::colorHex(p.accent),
               RigorWallet::RigorTheme::colorHex(p.accentHover),
@@ -301,12 +260,7 @@ void ConvergencePage::setClientModel(ClientModel* model)
             setMonospacedConvergenceFont(model->getOptionsModel()->getUseEmbeddedMonospacedFont());
         }
     }
-    if (m_resProbabilityPanel) m_resProbabilityPanel->setClientModel(model);
-    if (m_lifecyclePanel) m_lifecyclePanel->setClientModel(model);
     if (m_networkPanel) m_networkPanel->setClientModel(model);
-    if (m_startPanel) m_startPanel->setClientModel(model);
-    if (m_overviewPanel) m_overviewPanel->setClientModel(model);
-    if (m_historyPanel) m_historyPanel->setClientModel(model);
     scheduleUiRefresh();
 }
 
@@ -326,16 +280,12 @@ void ConvergencePage::setWalletModel(WalletModel* model)
         connect(model, &WalletModel::notifyWatchonlyChanged, this, [this](bool) {
             updateConvergenceAvailability();
             if (isVisible()) {
-                updateQuadraticFeeHint();
+                updateMintedResPreview();
                 scheduleUiRefresh();
             }
         });
-        updateQuadraticFeeHint();
+        updateMintedResPreview();
     }
-    if (m_lifecyclePanel) m_lifecyclePanel->setWalletModel(model);
-    if (m_startPanel) m_startPanel->setWalletModel(model);
-    if (m_overviewPanel) m_overviewPanel->setWalletModel(model);
-    if (m_historyPanel) m_historyPanel->setWalletModel(model);
     scheduleUiRefresh();
 }
 
@@ -347,23 +297,15 @@ void ConvergencePage::setMonospacedConvergenceFont(bool use_embedded_font)
     ui->labelQuadraticFee->setFont(f);
     ui->labelTotalDeduction->setFont(f);
     ui->labelNetHeight->setFont(f);
-    ui->labelDrawNextHeight->setFont(f);
-    ui->labelDrawBindHeight->setFont(f);
-    ui->labelDrawBindHash->setFont(f);
     ui->labelMarketResTotal->setFont(f);
     ui->labelMarketWindow->setFont(f);
     ui->labelMarketMintCost->setFont(f);
-    ui->labelMarketWinner->setFont(f);
     ui->labelMarketTip->setFont(f);
     ui->labelMarketLastRes->setFont(f);
     ui->labelTipRoundHeight->setFont(f);
     ui->labelTipRoundN->setFont(f);
-    ui->labelTipRoundCand->setFont(f);
-    ui->labelTipRoundWinner->setFont(f);
     ui->labelPrevRoundHeight->setFont(f);
     ui->labelPrevRoundN->setFont(f);
-    ui->labelPrevRoundCand->setFont(f);
-    ui->labelPrevRoundWinner->setFont(f);
 }
 
 void ConvergencePage::updateContextPanels()
@@ -372,9 +314,6 @@ void ConvergencePage::updateContextPanels()
         ui->labelNetPeers->setText(tr("—"));
         ui->labelNetHeight->setText(tr("—"));
         ui->labelNetSync->setText(tr("—"));
-        ui->labelDrawNextHeight->setText(tr("—"));
-        ui->labelDrawBindHeight->setText(tr("—"));
-        ui->labelDrawBindHash->setText(tr("—"));
         return;
     }
 
@@ -395,25 +334,6 @@ void ConvergencePage::updateContextPanels()
         sync_txt = tr("Synced");
     }
     ui->labelNetSync->setText(sync_txt);
-
-    // SECURITY-001-A8: the draw resolved by the next block is seeded by the current tip's hash,
-    // so the bind is always the tip rather than an ancestor ten blocks back.
-    const int next_h = tip + 1;
-    ui->labelDrawNextHeight->setText(QString::number(next_h));
-    ui->labelDrawBindHeight->setText(QString::number(tip));
-
-    QString hash_display = tr("—");
-    try {
-        UniValue params(UniValue::VARR);
-        params.push_back(tip);
-        UniValue r = clientModel->node().executeRpc("getblockhash", params, "/");
-        if (r.isStr()) {
-            hash_display = TruncateMiddleHex(QString::fromStdString(r.get_str()));
-        }
-    } catch (...) {
-        hash_display = tr("unavailable");
-    }
-    ui->labelDrawBindHash->setText(hash_display);
 }
 
 void ConvergencePage::updateMarketPanel()
@@ -422,7 +342,6 @@ void ConvergencePage::updateMarketPanel()
         ui->labelMarketResTotal->setText(tr("—"));
         ui->labelMarketWindow->setText(tr("—"));
         ui->labelMarketMintCost->setText(tr("—"));
-        ui->labelMarketWinner->setText(tr("—"));
         ui->labelMarketTip->setText(tr("—"));
         ui->labelMarketLastRes->setText(tr("—"));
     };
@@ -438,17 +357,19 @@ void ConvergencePage::updateMarketPanel()
             return;
         }
         ui->labelMarketResTotal->setText(QString::fromStdString(r["res_total"].getValStr()));
-        const std::string wp = r["window_progress"].getValStr();
-        const double wpp = r["window_progress_percent"].get_real();
-        ui->labelMarketWindow->setText(QStringLiteral("%1 (%2%)")
-            .arg(QString::fromStdString(wp))
-            .arg(wpp, 0, 'f', 2));
-        ui->labelMarketMintCost->setText(QString::fromStdString(r["current_convergence_sum"].getValStr()));
-        const QString win_hex = QString::fromStdString(r["last_winner_txid"].getValStr());
-        const QString win_disp = (win_hex == QStringLiteral("0000000000000000000000000000000000000000000000000000000000000000"))
-            ? QStringLiteral("—")
-            : TruncateMiddleHex(win_hex);
-        ui->labelMarketWinner->setText(win_disp);
+        if (r.exists("confirm_height")) {
+            ui->labelMarketWindow->setText(QString::number(r["confirm_height"].getInt<int>()));
+        } else {
+            ui->labelMarketWindow->setText(tr("—"));
+        }
+        if (r.exists("destroy_cost")) {
+            // Display destroy_cost(h) only. Do not feed this value back as the burn B.
+            ui->labelMarketMintCost->setText(
+                BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, r["destroy_cost"].getInt<int64_t>())
+                + QStringLiteral(" / RES"));
+        } else {
+            ui->labelMarketMintCost->setText(tr("—"));
+        }
         ui->labelMarketTip->setText(QString::number(r["tip_height"].getInt<int>()));
         ui->labelMarketLastRes->setText(QString::number(r["last_res_height"].getInt<int>()));
     } catch (...) {
@@ -463,8 +384,6 @@ void ConvergencePage::updateConvergenceRoundPanels()
     auto dash_tip = [this]() {
         ui->labelTipRoundHeight->setText(tr("—"));
         ui->labelTipRoundN->setText(tr("—"));
-        ui->labelTipRoundCand->setText(tr("—"));
-        ui->labelTipRoundWinner->setText(tr("—"));
         ui->labelTipRoundYou->setText(tr("—"));
         ClearHighlight(ui->labelTipRoundYou);
         ui->labelTipRoundError->clear();
@@ -473,8 +392,6 @@ void ConvergencePage::updateConvergenceRoundPanels()
     auto dash_prev = [this]() {
         ui->labelPrevRoundHeight->setText(tr("—"));
         ui->labelPrevRoundN->setText(tr("—"));
-        ui->labelPrevRoundCand->setText(tr("—"));
-        ui->labelPrevRoundWinner->setText(tr("—"));
         ui->labelPrevRoundYou->setText(tr("—"));
         ClearHighlight(ui->labelPrevRoundYou);
         ui->labelPrevRoundError->clear();
@@ -501,16 +418,12 @@ void ConvergencePage::updateConvergenceRoundPanels()
                          QLabel* err_label,
                          QLabel* height_l,
                          QLabel* n_l,
-                         QLabel* cand_l,
-                         QLabel* winner_l,
                          QLabel* you_l) {
         err_label->clear();
         err_label->setVisible(false);
         if (!got || !r.ok) {
             height_l->setText(height >= 0 ? QString::number(height) : tr("—"));
             n_l->setText(tr("—"));
-            cand_l->setText(tr("—"));
-            winner_l->setText(tr("—"));
             you_l->setText(tr("—"));
             ClearHighlight(you_l);
             const QString msg = r.error_message.empty()
@@ -521,12 +434,10 @@ void ConvergencePage::updateConvergenceRoundPanels()
             return;
         }
         height_l->setText(QString::number(r.height));
-        n_l->setText(QString::number(r.convergence_root_set_size));
-        cand_l->setText(QString::number(r.candidates_count));
-        winner_l->setText(WinnerDisplay(r.winner_txid));
+        n_l->setText(QString::number(r.convergence_tx_count));
         if (walletModel) {
             if (r.is_mine) {
-                you_l->setText(tr("Yes — your convergence transaction is in F for this block."));
+                you_l->setText(tr("Yes — your convergence transaction is in this block."));
                 you_l->setStyleSheet(QStringLiteral("QLabel { color: #8CD892; font-weight: 600; }"));
             } else {
                 ClearHighlight(you_l);
@@ -544,8 +455,6 @@ void ConvergencePage::updateConvergenceRoundPanels()
         ui->labelTipRoundError,
         ui->labelTipRoundHeight,
         ui->labelTipRoundN,
-        ui->labelTipRoundCand,
-        ui->labelTipRoundWinner,
         ui->labelTipRoundYou);
 
     if (tip < 1) {
@@ -560,12 +469,42 @@ void ConvergencePage::updateConvergenceRoundPanels()
         ui->labelPrevRoundError,
         ui->labelPrevRoundHeight,
         ui->labelPrevRoundN,
-        ui->labelPrevRoundCand,
-        ui->labelPrevRoundWinner,
         ui->labelPrevRoundYou);
 }
 
-void ConvergencePage::updateQuadraticFeeHint()
+void ConvergencePage::loadMintPreviewParams()
+{
+    m_mint_preview_ok = false;
+    m_mint_authorized = false;
+    m_mint_destroy_cost_height = 0;
+    if (!clientModel) {
+        m_mint_preview_tip = -2;
+        return;
+    }
+    const int tip = clientModel->getNumBlocks();
+    try {
+        UniValue params(UniValue::VARR);
+        UniValue r = clientModel->node().executeRpc("getconvergencestatus", params, "/");
+        if (!r.isObject()) {
+            return;
+        }
+        if (!r.exists("confirm_height")) {
+            return;
+        }
+        const int confirm_height = r["confirm_height"].getInt<int>();
+        m_mint_authorized = r.exists("issuance_authorized")
+            ? r["issuance_authorized"].get_bool()
+            : (confirm_height >= 0);
+        // RFC-020: destroy_cost(h) at the confirming height. No epoch pad.
+        m_mint_destroy_cost_height = confirm_height;
+        m_mint_preview_tip = tip;
+        m_mint_preview_ok = true;
+    } catch (...) {
+        m_mint_preview_tip = -2;
+    }
+}
+
+void ConvergencePage::updateMintedResPreview()
 {
     if (!walletModel || !walletModel->getOptionsModel()) {
         ui->labelQuadraticFee->setText(tr("—"));
@@ -580,15 +519,27 @@ void ConvergencePage::updateQuadraticFeeHint()
         return;
     }
     const BitcoinUnit unit = walletModel->getOptionsModel()->getDisplayUnit();
-    ui->labelQuadraticFee->setText(tr("None (convergence only)"));
     ui->labelTotalDeduction->setText(BitcoinUnits::formatWithUnit(unit, amt));
+
+    const int tip = clientModel ? clientModel->getNumBlocks() : -2;
+    if (!m_mint_preview_ok || m_mint_preview_tip != tip) {
+        loadMintPreviewParams();
+    }
+    if (!m_mint_preview_ok) {
+        ui->labelQuadraticFee->setText(tr("—"));
+        return;
+    }
+    if (!m_mint_authorized || m_mint_destroy_cost_height < 0) {
+        // RFC-020 has no mint horizon. A missing price is a node/sync failure, not "ended".
+        ui->labelQuadraticFee->setText(tr("Unable to price this mint"));
+        return;
+    }
+    const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
+    ui->labelQuadraticFee->setText(FormatMintedRes(minted));
 }
 
 void ConvergencePage::updateConvergenceNetworkSafety()
 {
-    // Offline / sync gating is owned by ConvergenceStartPanel; keep page banner in sync.
-    // Single refresh here — refreshPhaseCPanels must not call startPanel->refresh again.
-    if (m_startPanel && m_startPanel->isVisible()) m_startPanel->refresh();
     updateRecoveryWarnings();
 }
 
@@ -597,12 +548,8 @@ void ConvergencePage::refreshPhaseCPanels()
     auto refresh_if_visible = [](QWidget* w, const auto& fn) {
         if (w && w->isVisible()) fn();
     };
-    refresh_if_visible(m_lifecyclePanel, [this] { m_lifecyclePanel->refresh(); });
     refresh_if_visible(m_networkPanel, [this] { m_networkPanel->refresh(); });
     // startPanel already refreshed in updateConvergenceNetworkSafety when visible
-    refresh_if_visible(m_overviewPanel, [this] { m_overviewPanel->refresh(); });
-    refresh_if_visible(m_resProbabilityPanel, [this] { m_resProbabilityPanel->refresh(); });
-    refresh_if_visible(m_historyPanel, [this] { m_historyPanel->refresh(); });
     // updateRecoveryWarnings already ran from updateConvergenceNetworkSafety in refreshVisibleUi.
 }
 
@@ -628,24 +575,8 @@ void ConvergencePage::updateRecoveryWarnings()
     } else if (walletModel->wallet().privateKeysDisabled()) {
         msg = tr("Wallet locked for spending — unlock to start Convergence.");
         level = RigorWallet::WarningLevel::Warning;
-    } else {
-        const int tip = clientModel->getNumBlocks();
-        const auto rows = RigorWallet::ConvergenceWalletData::buildHistory(walletModel, tip);
-        if (const auto* pending = RigorWallet::ConvergenceWalletData::pendingRow(rows)) {
-            msg = tr("Convergence in progress: %1").arg(pending->txid.left(16) + QStringLiteral("…"));
-            level = RigorWallet::WarningLevel::Verification;
-        } else {
-            interfaces::ConvergenceUiSnapshot snap;
-            if (walletModel->wallet().tryGetConvergenceUiSnapshot(snap) && snap.has_convergence) {
-                const QString st = QString::fromStdString(snap.status_text);
-                if (st.contains(QLatin1String("Locked"), Qt::CaseInsensitive)) {
-                    msg = tr("RES not ready yet: %1").arg(st);
-                    level = RigorWallet::WarningLevel::Warning;
-                }
-            }
-        }
-        // Amount entry / insufficient-ORU validation lives in ConvergenceStartPanel.
     }
+    // Amount entry / insufficient-ORU validation lives in frameConverge.
 
     if (msg.isEmpty()) {
         m_warningBanner->hideBanner();
@@ -654,64 +585,36 @@ void ConvergencePage::updateRecoveryWarnings()
     }
 }
 
-namespace {
-QString humanizeConvergenceStatus(const QString& raw)
-{
-    const QString upper = raw.trimmed().toUpper();
-    if (upper.isEmpty()) return QString();
-    if (upper == QLatin1String("MATURING") || upper.contains(QLatin1String("LOCK"))) {
-        return QCoreApplication::translate("ConvergencePage", "Awaiting maturity");
-    }
-    if (upper.contains(QLatin1String("WON"))) {
-        return QCoreApplication::translate("ConvergencePage", "Mint in progress");
-    }
-    if (upper == QLatin1String("INCLUDED")) {
-        return QCoreApplication::translate("ConvergencePage", "Included in block");
-    }
-    if (upper == QLatin1String("PENDING") || upper == QLatin1String("BROADCASTED")) {
-        return QCoreApplication::translate("ConvergencePage", "Pending confirmation");
-    }
-    if (upper == QLatin1String("LOST")) {
-        return QCoreApplication::translate("ConvergencePage", "No RES minted");
-    }
-    return raw;
-}
-} // namespace
-
-void ConvergencePage::updateConvergenceStatusDisplay()
-{
-    if (!walletModel) return;
-    interfaces::ConvergenceUiSnapshot snap;
-    if (!walletModel->wallet().tryGetConvergenceUiSnapshot(snap)) return;
-    if (!snap.has_convergence) {
-        ui->labelConvergeStatus->setText(tr("—"));
-        ui->labelConvergeCompetition->setText(tr("—"));
-        ui->labelConvergeMaturity->setText(tr("—"));
-        ui->labelConvergeMaturityCountdown->setText(tr("—"));
-        ui->labelConvergeMaturityCountdownTitle->setVisible(false);
-        ui->labelConvergeMaturityCountdown->setVisible(false);
-        return;
-    }
-    ui->labelConvergeStatus->setText(humanizeConvergenceStatus(QString::fromStdString(snap.status_text)));
-    ui->labelConvergeCompetition->setText(QString::fromStdString(snap.competition_progress));
-    ui->labelConvergeMaturity->setText(QString::fromStdString(snap.maturity_progress));
-    const QString cd = QString::fromStdString(snap.maturity_countdown);
-    const bool show_cd = !cd.isEmpty();
-    ui->labelConvergeMaturityCountdownTitle->setVisible(show_cd);
-    ui->labelConvergeMaturityCountdown->setVisible(show_cd);
-    ui->labelConvergeMaturityCountdown->setText(show_cd ? cd : QString());
-}
-
 void ConvergencePage::updateMinConvergenceDisplay()
 {
     if (!clientModel) {
         ui->labelMinConverge->setText(tr("—"));
         return;
     }
-    // Always show consensus minimum in ORU (1 ORU); do not use mORU/Tharn display units here.
-    const CAmount min_amt = Consensus::MIN_CONVERGENCE_AMOUNT;
-    ui->labelMinConverge->setText(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt));
-    updateQuadraticFeeHint();
+    CAmount min_amt = Consensus::ResMinMintBurnAtoms(0);
+    int confirm_height = -1;
+    try {
+        UniValue params(UniValue::VARR);
+        UniValue r = clientModel->node().executeRpc("getconvergencestatus", params, "/");
+        if (r.isObject() && r.exists("confirm_height")) {
+            confirm_height = r["confirm_height"].getInt<int>();
+        }
+        if (r.isObject() && r.exists("min_atom_burn")) {
+            min_amt = r["min_atom_burn"].getInt<int64_t>();
+        } else if (confirm_height >= 0) {
+            min_amt = Consensus::ResMinMintBurnAtoms(confirm_height);
+        }
+    } catch (...) {
+    }
+    if (confirm_height >= 0) {
+        ui->labelMinConverge->setText(
+            tr("%1 at height %2")
+                .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt))
+                .arg(confirm_height));
+    } else {
+        ui->labelMinConverge->setText(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt));
+    }
+    updateMintedResPreview();
 }
 
 void ConvergencePage::onSendConvergenceClicked()
@@ -730,11 +633,22 @@ void ConvergencePage::onSendConvergenceClicked()
             tr("Enter a valid convergence amount. Reason: amount must be positive. Suggestion: enter a value above zero."));
         return;
     }
-    const CAmount min_amt = Consensus::MIN_CONVERGENCE_AMOUNT;
+    loadMintPreviewParams();
+    if (!m_mint_preview_ok) {
+        QMessageBox::warning(this, tr("Convergence"),
+            tr("Unable to read the current mint cost from the node. Try again after the wallet is synced."));
+        return;
+    }
+    if (!m_mint_authorized || m_mint_destroy_cost_height < 0) {
+        QMessageBox::warning(this, tr("Convergence"),
+            tr("Unable to read the confirming-height mint cost from the node. Try again after the wallet is synced."));
+        return;
+    }
+    const CAmount min_amt = Consensus::ResMinMintBurnAtoms(m_mint_destroy_cost_height);
     if (amt < min_amt) {
         QMessageBox::warning(this, tr("Convergence"),
-            tr("Amount is below the minimum convergence (%1). Reason: consensus requires at least 1.00 ORU per convergence transaction. Suggestion: increase the amount.")
-                .arg(BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), min_amt)));
+            tr("Amount is below the ORU that mints 1 RES atom (%1). Increase the amount.")
+                .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt)));
         return;
     }
 
@@ -754,8 +668,10 @@ void ConvergencePage::onSendConvergenceClicked()
         if (r != QMessageBox::Yes) return;
     }
 
+    const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
     const auto r2 = QMessageBox::question(this, tr("Confirm Convergence"),
-        tr("Convergence uses ORU permanently. RES is not guaranteed. This cannot be undone after broadcast.\n\nContinue?"),
+        tr("This mint will create %1.\nConvergence uses ORU permanently. This cannot be undone after broadcast.\n\nContinue?")
+            .arg(FormatMintedRes(minted)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (r2 != QMessageBox::Yes) return;
 
@@ -768,11 +684,10 @@ void ConvergencePage::onSendConvergenceClicked()
     const auto ret = walletModel->sendConvergenceOru(amt);
     if (ret.status == WalletModel::OK) {
         QMessageBox::information(this, tr("Convergence"),
-            tr("Convergence submitted. Track progress and the result on this page. RES is not guaranteed."));
+            tr("Convergence submitted."));
         ui->convergeAmount->clear();
-        updateQuadraticFeeHint();
+        updateMintedResPreview();
         updateConvergenceRoundPanels();
-        updateConvergenceStatusDisplay();
         refreshPhaseCPanels();
         updateRecoveryWarnings();
     }

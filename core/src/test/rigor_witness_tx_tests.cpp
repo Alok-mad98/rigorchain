@@ -5,8 +5,6 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <coins.h>
-#include <consensus/convergence_commitment.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/convergenceres.h>
 #include <consensus/tx_check.h>
 #include <consensus/tx_verify.h>

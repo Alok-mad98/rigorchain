@@ -16,10 +16,10 @@ from typing import Any, Iterable, Optional
 ZERO_TXID = "0" * 64
 
 # Locked with consensus/consensus.h and consensus/rigor_consensus_lock.h.
-# RES uses six decimal places (RES_COIN = 1e6). ORU uses eight (COIN = 1e8).
+# RES and ORU both use eight decimal places (RES_COIN = COIN = 1e8).
 COINBASE_MATURITY = 100  # ORU coinbase *and* coinbase RIGOR_MARKER_RES_MINT; consensus CheckTxInputs depth
-RES_COIN = 1_000_000
-RES_REWARD_ATOMS = 40 * RES_COIN  # W(0) = 40.000000 RES; epoch-0 tests (devtest << 210_000)
+RES_COIN = 100_000_000
+RES_REWARD_ATOMS = 40 * RES_COIN  # historical W(0) atom count used by leftover lottery-era fixtures
 MIN_CONVERGENCE_ORU = Decimal("1.0")
 CONVERGENCE_DRAW_WINDOW = 32
 CONVERGENCE_DRAW_MIN_TXS_FOR_RES = 1

@@ -49,8 +49,13 @@
     },
     "get_res_mint_reward": {
       "ocaml": "z -> z",
-      "cpp_twin": "GetResMintReward",
-      "error": "none; schedule value; height 0 → 40000000"
+      "cpp_twin": "ResDestroyCostAtHeight",
+      "error": "none; RATE(h); height 0 → 102400000000"
+    },
+    "res_destroy_cost_at_height": {
+      "ocaml": "z -> z",
+      "cpp_twin": "ResDestroyCostAtHeight",
+      "error": "none; RATE(h); height 0 → 102400000000"
     },
     "res_issued_at_height": {
       "ocaml": "z -> z",
@@ -59,8 +64,8 @@
     },
     "compute_rigor_issuance": {
       "ocaml": "z -> (z * z) * z",
-      "cpp_twin": "ComputeRigorIssuance",
-      "error": "none"
+      "cpp_twin": "ComputeRigorIssuance + ResDestroyCostAtHeight",
+      "error": "none; third component is RATE(h), not a mint quantity"
     },
     "coinbase_mature": {
       "ocaml": "z -> z -> bool",
@@ -71,12 +76,6 @@
       "ocaml": "int list -> AssetType",
       "cpp_twin": "ClassifyRigorAsset / ClassifyRigorTxout",
       "error": "AssetInvalid fail-closed"
-    },
-    "apply_delta": {
-      "ocaml": "utxoSupply -> blockDelta -> utxoSupply option",
-      "cpp_twin": "not a drop-in for RigorSupplyDelta",
-      "error": "None = REJECT",
-      "boundary": "RFC-018 circulating subtracts burn; C++ oru_circulating_delta does not"
     },
     "coinbase_oru_cap": {
       "ocaml": "z -> z -> z -> z",
@@ -89,22 +88,14 @@
       "error": "none"
     },
     "rigor_res_coinbase_expected": {
-      "ocaml": "z -> z -> z -> z",
+      "ocaml": "z -> z -> z",
       "cpp_twin": "RigorResCoinbaseExpected",
-      "error": "none; predicate, not a builder"
-    },
-    "resolve_convergence_draw": {
-      "ocaml": "tx list -> byte list -> byte list -> z -> z -> tx option",
-      "cpp_twin": "ResolveConvergenceDraw(ConvergenceDrawSet, uint256 T)",
-      "error": "None = no winner",
-      "ffi_blocker": "requires Coq Tx records and Coq Sigma, not C++ candidates + SHA256"
+      "error": "none; fees + bootstrap; no mint term"
     }
   },
   "production_link_blockers": [
     "OCaml runtime is not in core/src Makefile.am / configure",
     "GC and runtime lock are not acceptable on ConnectBlock",
-    "draw input types are not C ABI types",
-    "RigorSupplyDelta reject reasons are not apply_delta",
     "a C adapter that rebuilt formulas would be a second kernel"
   ]
 }

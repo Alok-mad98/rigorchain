@@ -5,7 +5,7 @@ Deterministic regeneration of the RIGOR golden vectors for SECURITY-001-A findin
 Why this exists
 ---------------
 A-6 corrected ``RES_PROBABILITY_TARGET`` from ``2^240`` to
-``floor(2^240 / MIN_CONVERGENCE_AMOUNT)`` (see docs/rfcs/RFC-014-v1.1.md). Under the old
+``floor(2^246 / MIN_CONVERGENCE_AMOUNT)`` (see docs/archive/rfc/RFC-014-frozen-convergence-target.md). Under the old
 value the eligibility filter ``H < T * f`` was unconditionally true, so the two
 WinnerSelection vectors were satisfied by candidates converging the 1 ORU minimum. Under the
 corrected value such a candidate is eligible with probability 2^-16, so both vectors

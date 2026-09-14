@@ -13,8 +13,6 @@
   "connect_block": {
     "role": "prepare input, call Kernel, consume result, apply state",
     "calls": [
-      "GetConvergenceDrawSetForBlock (state assembly)",
-      "RigorConsensusKernel::ResolveDraw",
       "RigorConsensusKernel::EvaluateConnect"
     ],
     "must_not": [
@@ -29,9 +27,9 @@
   },
   "authority_table": {
     "ORU issuance": "GetBlockSubsidy / ComputeRigorIssuance",
-    "RES schedule": "GetResMintReward",
-    "draw": "ResolveConvergenceDraw (via RigorConsensusKernel::ResolveDraw)",
-    "RES mint gate": "ConnectEvaluateCoinbaseResMint (via EvaluateConnect)",
+    "RES mint": "CheckResMintArithmetic",
+    "draw": "retired (RFC-019); ResolveConvergenceDraw remains verify-only ABI",
+    "RES mint gate": "CheckResMintArithmetic (body tx; EvaluateConnect is supply only)",
     "supply": "RigorSupplyDelta (via EvaluateConnect)",
     "classify": "ClassifyRigorTxout / ClassifyRigorAsset",
     "spend": "VerifyRigorPredicate",
@@ -54,7 +52,7 @@
   "genesis_parameters": {
     "height_0_oru_subsidy": 0,
     "height_0_res_actual": 0,
-    "height_0_res_schedule": 40000000,
+    "height_0_res_destroy_cost": 102400000000,
     "nCoinbaseMaturity": 100,
     "halving_interval": 210000
   },

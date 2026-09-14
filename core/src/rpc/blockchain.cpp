@@ -14,10 +14,8 @@
 #include <consensus/amount.h>
 #include <blockfilter.h>
 #include <chain.h>
-#include <consensus/convergence_commitment.h>
-#include <consensus/convergence_logic.h>
-#include <consensus/convergence_root.h>
 #include <consensus/convergenceres.h>
+#include <consensus/res_issuance.h>
 #include <consensus/params.h>
 #include <consensus/replay_snapshot.h>
 #include <node/supply_monitor/runtime_supply_export.h>
@@ -204,18 +202,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("nonce", (uint64_t)blockindex->nNonce);
     result.pushKV("cumulative_convergence", ValueFromAmount(blockindex->Observational().GetCumulativeConvergence()));
-    result.pushKV("draw_candidate_root", blockindex->m_draw_candidate_root.GetHex());
-    {
-        // RFC-014 Conv-Decouple-01 / Naming Update Item §6.3:
-        // The legacy field `rigor_target` (derived at runtime from
-        // `SetCompact(blockindex->pprev->nBits)`) reported the variable-T
-        // value that has been ELIMINATED from RES eligibility derivation.
-        // The new field `res_probability_target` reports the immutable
-        // constitutional constant `RES_PROBABILITY_TARGET` (= floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW; RFC-017 shipping, C=1024 ORU).
-        const uint256& res_probability_target = Params().GetConsensus().RES_PROBABILITY_TARGET;
-        result.pushKV("res_probability_target", res_probability_target.GetHex());
-        result.pushKV("rigor_res_minted", static_cast<int>(blockindex->has_res));
-    }
+    result.pushKV("rigor_res_minted", static_cast<int>(blockindex->has_res));
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
     result.pushKV("difficulty", GetDifficulty(blockindex));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
@@ -231,18 +218,6 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
 UniValue blockToJSON(BlockManager& blockman, const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, ChainstateManager& chainman, const Consensus::Params& consensus_params, TxVerbosity verbosity)
 {
     UniValue result = blockheaderToJSON(tip, blockindex);
-
-    // SECURITY-001-A8 / A-9-C: the winner this block awards, drawn over the W-block window
-    // ending here and paid by the next block.
-    std::optional<uint256> winner_opt;
-    if (blockindex->pprev) {
-        winner_opt = GetConvergenceWinnerForBlock(*blockindex, consensus_params);
-    }
-    if (winner_opt.has_value()) {
-        result.pushKV("rigor_winner", winner_opt->GetHex());
-    } else {
-        result.pushKV("rigor_winner", uint256().GetHex());
-    }
 
     result.pushKV("strippedsize", (int)::GetSerializeSize(block, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS));
     result.pushKV("size", (int)::GetSerializeSize(block, PROTOCOL_VERSION));
@@ -608,8 +583,6 @@ static RPCHelpMan getblockheader()
                             {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
                             {RPCResult::Type::NUM, "nonce", "The nonce"},
                             {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative convergence in commitment (or 0 if absent)"},
-                            {RPCResult::Type::STR_HEX, "draw_candidate_root", "Candidate-set Merkle root (CVGE ConvergenceDrawCandidates hilt) committed for this height"},
-                            {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
                             {RPCResult::Type::NUM, "rigor_res_minted", "1 if this block included a body RES mint (convergence cycle), else 0"},
                             {RPCResult::Type::STR_HEX, "bits", "The bits"},
                             {RPCResult::Type::NUM, "difficulty", "The difficulty"},
@@ -758,10 +731,7 @@ static RPCHelpMan getblock()
                     {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in " + UNIX_EPOCH_TIME},
                     {RPCResult::Type::NUM, "nonce", "The nonce"},
                     {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative convergence in commitment (or 0 if absent)"},
-                    {RPCResult::Type::STR_HEX, "draw_candidate_root", "Candidate-set Merkle root (CVGE ConvergenceDrawCandidates hilt) committed for this height"},
-                    {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
                     {RPCResult::Type::NUM, "rigor_res_minted", "1 if this block included a body RES mint (convergence cycle), else 0"},
-                    {RPCResult::Type::STR_HEX, "rigor_winner", "Recomputed convergence draw winner txid (zero if none); same preimage rules as CVGE / getconvergenceresult"},
                     {RPCResult::Type::STR_HEX, "bits", "The bits"},
                     {RPCResult::Type::NUM, "difficulty", "The difficulty"},
                     {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the chain up to this block (in hex)"},
@@ -977,7 +947,7 @@ static RPCHelpMan gettxoutsetinfo()
                         {RPCResult::Type::STR_HEX, "muhash", /*optional=*/true, "The serialized hash (only present if 'muhash' hash_type is chosen)"},
                         {RPCResult::Type::NUM, "transactions", /*optional=*/true, "The number of transactions with unspent outputs (not available when coinstatsindex is used)"},
                         {RPCResult::Type::NUM, "disk_size", /*optional=*/true, "The estimated size of the chainstate on disk (not available when coinstatsindex is used)"},
-                        {RPCResult::Type::STR_AMOUNT, "total_amount", "Sum of every UTXO nValue with no ORU/RES split (ORU 1e8 mixed with RES 1e6). Not circulating ORU supply. CVG2 is absent from the UTXO set."},
+                        {RPCResult::Type::STR_AMOUNT, "total_amount", "Sum of every UTXO nValue with no ORU/RES split (both 1e8). Not circulating ORU supply. CVG2 is absent from the UTXO set."},
                         {RPCResult::Type::STR_AMOUNT, "total_unspendable_amount", /*optional=*/true, "The total amount of coins permanently excluded from the UTXO set (only available if coinstatsindex is used)"},
                         {RPCResult::Type::OBJ, "block_info", /*optional=*/true, "Info on amounts in the block at this block height (only available if coinstatsindex is used)",
                         {
@@ -1322,8 +1292,6 @@ static void SoftForkDescPushBack(const CBlockIndex* blockindex, UniValue& softfo
     softforks.pushKV(DeploymentName(id), rv);
 }
 
-//! (Removed) `rigor::PrepareContext` was not aligned with ConnectBlock draw (**F** + ORUM weights);
-//! `getchainstatesummary` now uses `BuildConvergenceSelectionContextView` + block-entry coins from undo.
 // Diagnostic-only RPC. Returns a Consensus::ReplaySnapshot (RPL2 wire format,
 // see consensus/replay_snapshot.h). Strictly read-only; never mutates chainstate.
 // All derived counter fields are projections of the UTXO set and are NOT folded
@@ -1376,7 +1344,7 @@ static RPCHelpMan getreplaysnapshot()
             result.pushKV("mint_count", static_cast<uint64_t>(snapshot.mint_count));
             result.pushKV("lock_count", static_cast<uint64_t>(snapshot.lock_count));
             result.pushKV("converge_count", static_cast<uint64_t>(snapshot.converge_count));
-            result.pushKV("res_balance", ValueFromAmount(static_cast<CAmount>(snapshot.res_balance)));
+            result.pushKV("res_balance", ValueFromAmountAsset(static_cast<CAmount>(snapshot.res_balance), ASSET_RES));
             result.pushKV("other_balance", ValueFromAmount(static_cast<CAmount>(snapshot.other_balance)));
 
             std::string serialized = snapshot.Serialize();
@@ -1425,7 +1393,7 @@ UniValue RuntimeSupplyWitnessToJson(const Consensus::RuntimeSupplyWitness& witne
     }
     obj.pushKV("violations", std::move(violations));
     obj.pushKV("oru_supply_cumulative", ValueFromAmount(witness.oru_supply_cumulative));
-    obj.pushKV("res_mint_cumulative", ValueFromAmount(witness.res_mint_cumulative));
+    obj.pushKV("res_mint_cumulative", ValueFromAmountAsset(witness.res_mint_cumulative, ASSET_RES));
     return obj;
 }
 } // namespace
@@ -1435,7 +1403,7 @@ static RPCHelpMan getruntimesupply()
     return RPCHelpMan{
         "getruntimesupply",
         "\nReturns the TASK-FVR-B/D observational ORU/RES supply ledger mirror (read-only).\n"
-        "Includes Coq catalog fields, authoritative pindex caches, and 32 Phase-5 supply audit cells.\n"
+        "Includes Coq catalog fields, authoritative pindex caches, and 30 Phase-5 supply audit cells.\n"
         "Does not affect consensus, replay, or state_hash.\n"
         "\nSupply semantics (do not collapse these fields):\n"
         "  oru_subsidy_cumulative_derived = total issued ORU (Σ R).\n"
@@ -1464,9 +1432,8 @@ static RPCHelpMan getruntimesupply()
                 {RPCResult::Type::STR_AMOUNT, "res_mint_cumulative", "S_RES(h) cumulative mint"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_block", "RES mint in this block"},
                 {RPCResult::Type::STR_AMOUNT, "res_mint_parent", "S_RES(h-1)"},
-                {RPCResult::Type::NUM, "res_mint_count_block", "M(h) in {0,1}"},
+                {RPCResult::Type::NUM, "res_mint_present_block", "M(h) in {0,1}: 1 iff this block minted RES. An indicator, not a count -- RFC-020 puts no cap on mints per block; the amount is res_mint_block"},
                 {RPCResult::Type::STR_AMOUNT, "res_max_supply", "RES_MAX_SUPPLY constant"},
-                {RPCResult::Type::STR_AMOUNT, "res_reward_amount", "Scheduled RES mint reward W(k) at this height (RFC-017)"},
                 {RPCResult::Type::STR_AMOUNT, "utxo_res_balance", "UTXO RES aggregate"},
                 {RPCResult::Type::STR_AMOUNT, "utxo_non_res_balance", "Circulating spendable ORU UTXO proxy (non-RES scripts; includes immature coinbase; CVG2 not in UTXO set)"},
                 {RPCResult::Type::STR_AMOUNT, "oru_subsidy_cumulative_derived", "Total issued ORU: optional sum of R(i), i<=h"},
@@ -1478,7 +1445,7 @@ static RPCHelpMan getruntimesupply()
                 {RPCResult::Type::OBJ, "coq_fields", "Phase-5 Coq catalog names (TASK-FVR-C)"},
                 {RPCResult::Type::ARR, "coq_hook_violations", "Empty when hook matches mirror and pindex",
                  {{RPCResult::Type::STR, "violation", ""}}},
-                {RPCResult::Type::NUM, "phase5_supply_cell_count", "32 (16 observables x 2 sources)"},
+                {RPCResult::Type::NUM, "phase5_supply_cell_count", "30 (15 observables x 2 sources)"},
                 {RPCResult::Type::ARR, "phase5_supply_cells", "Phase-5 audit grid (TASK-FVR-D)",
                  {{RPCResult::Type::OBJ, "cell", "Supply audit cell"}}},
                 {RPCResult::Type::OBJ, "supply_semantics", "Canonical meaning of supply fields; equivalence_claimed remains false",
@@ -1525,7 +1492,7 @@ static RPCHelpMan getruntimesupplyinvariants()
             "",
             {
                 {RPCResult::Type::BOOL, "passed", "True if all formal invariants hold"},
-                {RPCResult::Type::NUM, "checked_invariants", "Always 10 (ORU-L1..L4 + RES-L1..L6)"},
+                {RPCResult::Type::NUM, "checked_invariants", "Always 9 (ORU-L1..L4 + RES-L1, L2, L4, L5, L6)"},
                 {RPCResult::Type::ARR, "violations", "Stable ids e.g. ORU-L3, RES-L5",
                  {{RPCResult::Type::STR, "id", ""}}},
             }},
@@ -1570,7 +1537,7 @@ static RPCHelpMan getruntimesupplywitness()
                 {RPCResult::Type::STR_HEX, "block_hash", "Block hash"},
                 {RPCResult::Type::STR_HEX, "parent_hash", "Parent block hash"},
                 {RPCResult::Type::BOOL, "invariants_passed", "Formal ORU/RES invariants at connect"},
-                {RPCResult::Type::NUM, "checked_invariants", "Always 10"},
+                {RPCResult::Type::NUM, "checked_invariants", "Always 9"},
                 {RPCResult::Type::ARR, "violations", "Stable ids e.g. ORU-L3",
                  {{RPCResult::Type::STR, "id", ""}}},
                 {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "RFC-002 ledger S_ORU(h); not circulating"},
@@ -1617,7 +1584,7 @@ static RPCHelpMan getruntimesupplywitnessbyheight()
                 {RPCResult::Type::STR_HEX, "block_hash", "Block hash"},
                 {RPCResult::Type::STR_HEX, "parent_hash", "Parent block hash"},
                 {RPCResult::Type::BOOL, "invariants_passed", "Formal ORU/RES invariants at connect"},
-                {RPCResult::Type::NUM, "checked_invariants", "Always 10"},
+                {RPCResult::Type::NUM, "checked_invariants", "Always 9"},
                 {RPCResult::Type::ARR, "violations", "Stable ids e.g. RES-L5",
                  {{RPCResult::Type::STR, "id", ""}}},
                 {RPCResult::Type::STR_AMOUNT, "oru_supply_cumulative", "RFC-002 ledger S_ORU(h); not circulating"},
@@ -1664,7 +1631,7 @@ static RPCHelpMan getruntimesupplywitnesscatalog()
                 {RPCResult::Type::STR_HEX, "block_hash", "Block hash"},
                 {RPCResult::Type::STR_HEX, "parent_hash", "Parent block hash"},
                 {RPCResult::Type::BOOL, "invariants_passed", "FVR-E formal invariants at connect"},
-                {RPCResult::Type::NUM, "checked_invariants", "Always 10"},
+                {RPCResult::Type::NUM, "checked_invariants", "Always 9"},
                 {RPCResult::Type::ARR, "violations", "ORU-L* / RES-L* ids",
                  {{RPCResult::Type::STR, "id", ""}}},
                 {RPCResult::Type::BOOL, "mirror_present", "Stored post-ConnectBlock mirror on pindex"},
@@ -2102,32 +2069,59 @@ static RPCHelpMan getruntimevectorstatus()
     };
 }
 
-static RPCHelpMan getdrawclosurestatus()
+static RPCHelpMan res_mint_unit_cost()
 {
     return RPCHelpMan{
-        "getdrawclosurestatus",
-        "\nTASK-FVR-M: Draw closure impossibility status (read-only).\n"
-        "Proves Draw cannot satisfy Phase-5 equivalence closure; no equivalence claimed.\n",
-        {},
-        RPCResult{
-            RPCResult::Type::OBJ,
-            "",
-            "",
+        "res_mint_unit_cost",
+        "\nReturn the continuous height-based destruction cost destroy_cost(h) and the exact burns that mint at this height.\n"
+        "destroy_cost is display-only and may sit one atom below the whole-RES construction burn.\n"
+        "Fails if height < 0. Zero is never returned as a destroy cost for height >= 0.\n",
+        {
+            {"height", RPCArg::Type::NUM, RPCArg::Optional::OMITTED,
+             "Block height (default: the next block, tip + 1)"},
+        },
+        RPCResult{RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::STR, "draw_status", "IMPOSSIBLE on current architecture"},
-                {RPCResult::Type::BOOL, "equivalence_claimed", "Always false"},
-                {RPCResult::Type::ARR, "missing_requirements", "Encoder / hash-kernel / trace gaps",
-                 {{RPCResult::Type::STR, "requirement", ""}}},
-                {RPCResult::Type::ARR, "impossibility_reasons", "018GG + FVR-L audit ids",
-                 {{RPCResult::Type::STR, "reason", ""}}},
+                {RPCResult::Type::NUM, "height", "Height the destruction cost is quoted at"},
+                {RPCResult::Type::NUM, "destroy_cost", "Current destruction cost: display destroy_cost(h) in ORU atoms per whole RES; do not feed this back as B"},
+                {RPCResult::Type::NUM, "destroy_cost_next", "Destruction cost at height + 1 (next block, not an epoch step)"},
+                {RPCResult::Type::NUM, "min_atom_burn", "Smallest ORU burn that mints 1 RES atom at this height"},
+                {RPCResult::Type::NUM, "min_whole_res_burn", "Smallest ORU burn that mints 1 whole RES at this height"},
+                {RPCResult::Type::BOOL, "authorized", "Always true on success"},
             }},
         RPCExamples{
-            HelpExampleCli("getdrawclosurestatus", "") +
-            HelpExampleRpc("getdrawclosurestatus", "")},
+            HelpExampleCli("res_mint_unit_cost", "") +
+            HelpExampleCli("res_mint_unit_cost", "0") +
+            HelpExampleRpc("res_mint_unit_cost", "210000")},
         [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue {
-            (void)self;
-            (void)request;
-            return Consensus::DrawClosureResultToJson(Consensus::ResolveDrawClosureStatus());
+            NodeContext& node = EnsureAnyNodeContext(request.context);
+            ChainstateManager& chainman = EnsureChainman(node);
+            int height = 0;
+            if (request.params[0].isNull()) {
+                LOCK(cs_main);
+                const CBlockIndex* tip = chainman.ActiveChain().Tip();
+                CHECK_NONFATAL(tip);
+                height = tip->nHeight + 1;
+            } else {
+                height = request.params[0].getInt<int>();
+            }
+            if (height < 0 || !Consensus::ResMintAuthorizedAtHeight(height)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                    "mint height must be non-negative");
+            }
+            const CAmount destroy_cost = Consensus::ResDestroyCostAtHeight(height);
+            if (destroy_cost <= 0) {
+                throw JSONRPCError(RPC_MISC_ERROR,
+                    "mint is not authorized at this height");
+            }
+            UniValue result(UniValue::VOBJ);
+            result.pushKV("height", height);
+            result.pushKV("destroy_cost", destroy_cost);
+            result.pushKV("destroy_cost_next", Consensus::ResDestroyCostAtHeight(height + 1));
+            result.pushKV("min_atom_burn", Consensus::ResMinMintBurnAtoms(height));
+            result.pushKV("min_whole_res_burn", Consensus::ResMinBurnForAtoms(Consensus::RES_COIN, height));
+            result.pushKV("authorized", true);
+            return result;
         },
     };
 }
@@ -2304,8 +2298,7 @@ static RPCHelpMan getchainstatesummary()
 {
     return RPCHelpMan{
         "getchainstatesummary",
-        "\nReturns a fixed-size CSM1 diagnostic snapshot of the active chainstate plus the tip\n"
-        "block's selection context (ConvergenceRoot, per-tx sigma hashes, weights, winner).\n"
+        "\nReturns a fixed-size CSM1 diagnostic snapshot of the active chainstate.\n"
         "Read-only; does not alter consensus. The chainstate view is always the **active tip**;\n"
         "if `blockhash` is passed it must equal that tip's hash. Use `diffchainstatesummaries`\n"
         "to compare blobs from two nodes.\n",
@@ -2327,15 +2320,6 @@ static RPCHelpMan getchainstatesummary()
                 {RPCResult::Type::NUM, "mint_count", "RES-shaped UTXO count"},
                 {RPCResult::Type::NUM, "lock_count", "Witness-V1 lock-shape UTXO count"},
                 {RPCResult::Type::NUM, "converge_count", "Convergence-shaped UTXO count (expect 0)"},
-                {RPCResult::Type::BOOL, "selection_present", "Whether selection fields were captured"},
-                {RPCResult::Type::BOOL, "selection_has_winner", "Whether a draw winner exists at tip"},
-                {RPCResult::Type::NUM, "selection_winner_index", "Winner index into **F** (`ListConvergenceRootCommitmentTxids` order), -1 if none"},
-                {RPCResult::Type::NUM, "selection_candidate_count", "Candidate count (sigmas/weights length)"},
-                {RPCResult::Type::NUM, "selection_winner_weight", "Winner convergence ORU weight (`GetConvergenceAmount`)"},
-                {RPCResult::Type::STR_HEX, "selection_convergence_root", "Convergence root at tip"},
-                {RPCResult::Type::STR_HEX, "selection_winner_txid", "Winner txid"},
-                {RPCResult::Type::STR_HEX, "selection_sigmas_hash", "SHA256d over sigma list (**F** order)"},
-                {RPCResult::Type::STR_HEX, "selection_weights_hash", "SHA256d over LE64 weights (**F** order)"},
                 {RPCResult::Type::STR_HEX, "chainstatesummary_hex", "Full CSM1 wire image (hex)"},
             }},
         RPCExamples{HelpExampleCli("getchainstatesummary", "") +
@@ -2357,48 +2341,26 @@ static RPCHelpMan getchainstatesummary()
                 }
             }
             const CBlockIndex* pindex = tip;
-            CBlock block;
-            if (!ReadBlockFromDisk(block, pindex, chainman.GetParams().GetConsensus())) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read block from disk");
-            }
-            CBlockUndo block_undo;
-            if (!pindex->pprev || !UndoReadFromDisk(block_undo, pindex)) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read tip block undo data");
-            }
-            CCoinsViewCache view_at_entry(&chainstate.CoinsTip());
-            if (!ApplyBlockUndoCoinsOnly_SCRATCH(view_at_entry, block, block_undo, pindex)) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to reconstruct coins view at block entry for selection summary");
-            }
-            ConvergenceWindowTail window_tail;
-            if (!BuildConvergenceWindowTail(pindex->pprev, chainman.GetParams().GetConsensus(), window_tail)) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to assemble the convergence draw window");
-            }
-            Consensus::SelectionContextView sel;
-            if (!BuildConvergenceSelectionContextView(block, view_at_entry, pindex, chainman.GetParams().GetConsensus(), window_tail, sel)) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to build convergence selection context");
-            }
+            // The CSM1 trailer hashes the memory-only W1 observational ledgers, which sit
+            // at their -1 default until some path-fold fills them. Warm them here for the
+            // same reason Chainstate::ComputeDeterministicStateHash does: otherwise a
+            // freshly restarted node hashes -1 and reports a different state_hash than
+            // getdeterministicstatehash, and than itself once any supply RPC has run.
+            Consensus::WarmSupplyLedgerCaches(const_cast<CBlockIndex*>(pindex),
+                                              chainman.GetParams().GetConsensus());
             const Consensus::ChainstateSummary summary =
-                Consensus::CaptureChainstateSummary(chainstate.CoinsTip(), pindex, &sel);
+                Consensus::CaptureChainstateSummary(chainstate.CoinsTip(), pindex, nullptr);
 
             UniValue result(UniValue::VOBJ);
             result.pushKV("height", summary.height);
             result.pushKV("block_hash", summary.block_hash.GetHex());
             result.pushKV("state_hash", summary.state_hash.GetHex());
             result.pushKV("utxo_count", static_cast<uint64_t>(summary.utxo_count));
-            result.pushKV("res_balance", ValueFromAmount(static_cast<CAmount>(summary.res_balance)));
+            result.pushKV("res_balance", ValueFromAmountAsset(static_cast<CAmount>(summary.res_balance), ASSET_RES));
             result.pushKV("other_balance", ValueFromAmount(static_cast<CAmount>(summary.other_balance)));
             result.pushKV("mint_count", static_cast<uint64_t>(summary.mint_count));
             result.pushKV("lock_count", static_cast<uint64_t>(summary.lock_count));
             result.pushKV("converge_count", static_cast<uint64_t>(summary.converge_count));
-            result.pushKV("selection_present", summary.selection_present);
-            result.pushKV("selection_has_winner", summary.selection_has_winner);
-            result.pushKV("selection_winner_index", summary.selection_winner_index);
-            result.pushKV("selection_candidate_count", static_cast<uint64_t>(summary.selection_candidate_count));
-            result.pushKV("selection_winner_weight", static_cast<uint64_t>(summary.selection_winner_weight));
-            result.pushKV("selection_convergence_root", summary.selection_convergence_root.GetHex());
-            result.pushKV("selection_winner_txid", summary.selection_winner_txid.GetHex());
-            result.pushKV("selection_sigmas_hash", summary.selection_sigmas_hash.GetHex());
-            result.pushKV("selection_weights_hash", summary.selection_weights_hash.GetHex());
             result.pushKV("chainstatesummary_hex", HexStr(summary.Serialize()));
             return result;
         },
@@ -3917,7 +3879,10 @@ static RPCHelpMan dumptxoutset()
 static RPCHelpMan getblockconvergence()
 {
     return RPCHelpMan{"getblockconvergence",
-        "\nReturn the convergence commitment (CVGE) parsed from the block coinbase.\n",
+        "\nReturn the cumulative destroyed ORU (convergence) as of a block.\n"
+        "\nThis is the chain's own path-fold over the block index, not a coinbase\n"
+        "commitment. The retired CVGE coinbase commitment was never a ConnectBlock\n"
+        "input and is no longer produced.\n",
         {
             {"hash_or_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "The block hash or height of the target block",
              RPCArgOptions{
@@ -3929,10 +3894,7 @@ static RPCHelpMan getblockconvergence()
             {
                 {RPCResult::Type::STR_HEX, "hash", "Block hash"},
                 {RPCResult::Type::NUM, "height", "Block height"},
-                {RPCResult::Type::NUM, "version", "Commitment version (1), or null if absent"},
-                {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative convergence in commitment (or 0 if absent)"},
-                {RPCResult::Type::STR_HEX, "draw_candidate_root", "Candidate-set Merkle root (CVGE ConvergenceDrawCandidates hilt) from coinbase commitment"},
-                {RPCResult::Type::STR_HEX, "winner_txid", "Argmin ConvergenceDrawCandidates digest txid (h ties broken by memcmp(txid XOR convergence_root); zero if none)"},
+                {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Destroyed ORU in this block and all its ancestors"},
             }},
         RPCExamples{
             HelpExampleCli("getblockconvergence", "\"100\"")
@@ -3959,171 +3921,15 @@ static RPCHelpMan getblockconvergence()
             }
             CHECK_NONFATAL(blockindex);
 
-            CBlock block;
-            if (!ReadBlockFromDisk(block, blockindex, chainman.GetConsensus())) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read block");
-            }
-
+            // Reads the index only, so this answers on a pruned node too.
             UniValue result(UniValue::VOBJ);
             result.pushKV("hash", blockindex->GetBlockHash().GetHex());
             result.pushKV("height", blockindex->nHeight);
-            if (const auto fc = FindLastConvergenceCommitmentInCoinbase(*block.vtx[0])) {
-                result.pushKV("version", fc->m_version);
-                result.pushKV("cumulative_convergence", ValueFromAmount(fc->m_cumulative_convergence));
-                result.pushKV("draw_candidate_root", fc->m_draw_candidates.root.GetHex());
-            } else {
-                result.pushKV("version", UniValue());
-                result.pushKV("cumulative_convergence", ValueFromAmount(uint64_t{0}));
-                result.pushKV("draw_candidate_root", uint256().GetHex());
-            }
-            const Consensus::Params& consensus_params = chainman.GetParams().GetConsensus();
-            std::optional<uint256> w_opt;
-            if (blockindex->pprev) {
-                w_opt = GetConvergenceWinnerForBlock(*blockindex, consensus_params);
-            }
-            if (w_opt.has_value()) {
-                result.pushKV("winner_txid", w_opt->GetHex());
-            } else {
-                result.pushKV("winner_txid", uint256().GetHex());
-            }
-            return result;
-        },
-    };
-}
-
-static RPCHelpMan getconvergenceresult()
-{
-    return RPCHelpMan{"getconvergenceresult",
-        "\nReturn the convergence draw a block AWARDS: the set F it commits, the σ over each\n"
-        "candidate, and the winner. Since SECURITY-001-A8 the draw runs one block behind — F, C\n"
-        "and the σ seed all come from this block, and the RES mint paying the winner appears in\n"
-        "the block at height + 1.\n",
-        {
-            {"hash_or_height", RPCArg::Type::NUM, RPCArg::Optional::NO, "The block hash or height of the target block",
-             RPCArgOptions{
-                 .skip_type_check = true,
-                 .type_str = {"", "string or numeric"},
-             }},
-        },
-        RPCResult{RPCResult::Type::OBJ, "", "",
-            {
-                {RPCResult::Type::STR_HEX, "hash", "Block hash"},
-                {RPCResult::Type::NUM, "height", "Block height"},
-                {RPCResult::Type::STR_HEX, "sigma_seed", "B_{h-1} in the σ preimage — this block's own hash"},
-                {RPCResult::Type::NUM, "payout_height", "Height of the block that pays this draw (height + 1)"},
-                {RPCResult::Type::STR_HEX, "convergence_root", "C over F, as committed in this block's coinbase scriptSig"},
-                {RPCResult::Type::STR_HEX, "res_probability_target", "RES convergence inequality RHS (constitutional constant `RES_PROBABILITY_TARGET` = floor(2^246 / MIN_CONVERGENCE_AMOUNT) / CONVERGENCE_DRAW_WINDOW, RFC-017 shipping; mint cost C=1024 ORU)"},
-                {RPCResult::Type::STR_AMOUNT, "min_convergence", "Fixed consensus minimum ORU convergenced per convergence tx (1.00 ORU)"},
-                {RPCResult::Type::NUM, "convergence_root_set_size", "N = |F|: number of candidates in the ConvergenceRoot set F, taken over the whole draw window"},
-                {RPCResult::Type::STR_HEX, "draw_candidate_root_committed", "ConvergenceDrawCandidates hilt from this block's coinbase CVGE commitment — which commits the draw this block PAYS, i.e. the parent's (or zero)"},
-                {RPCResult::Type::STR_HEX, "draw_candidate_root_computed", "The same commitment for the draw awarded here; the block at height + 1 must carry it"},
-                {RPCResult::Type::STR_HEX, "draw_winner_txid", "Argmin selection-digest txid (σ ties: smaller txid; zero if none)"},
-                {RPCResult::Type::ARR, "candidates", "The candidate set F this draw ran over, spanning the whole window and not just this block",
-                    {
-                        {RPCResult::Type::OBJ, "", "",
-                            {
-                                {RPCResult::Type::STR_HEX, "txid", ""},
-                                {RPCResult::Type::STR_AMOUNT, "convergence_amount", "Draw weight f: the ORU marked as convergence on this candidate's outputs"},
-                                {RPCResult::Type::NUM, "source_height", "Height of the block that introduced this candidate; within [window_first_height, window_last_height]"},
-                                {RPCResult::Type::STR_HEX, "h", "σ = Hash256(txid || C || sigma_seed || LE32(payout_height))"},
-                                {RPCResult::Type::BOOL, "draw_eligible", "Satisfies σ < T · f"},
-                                {RPCResult::Type::STR, "convergence_type", "Convergence encoding; always v1_cvg2, since membership in F requires it"},
-                            }},
-                    }},
-                {RPCResult::Type::NUM, "window_size", "SECURITY-001-A9-C: width in blocks of the sliding window F is enumerated over (CONVERGENCE_DRAW_WINDOW)"},
-                {RPCResult::Type::NUM, "window_first_height", "Oldest block contributing to F, clamped at genesis"},
-                {RPCResult::Type::NUM, "window_last_height", "Newest block contributing to F; equals this block's height"},
-            }},
-        RPCExamples{
-            HelpExampleCli("getconvergenceresult", "\"100\"")
-            + HelpExampleRpc("getconvergenceresult", "\"100\"")},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-        {
-            NodeContext& node = EnsureAnyNodeContext(request.context);
-            ChainstateManager& chainman = EnsureChainman(node);
-            const CBlockIndex* blockindex;
             {
                 LOCK(cs_main);
-                if (request.params[0].isStr()) {
-                    const std::string in = request.params[0].get_str();
-                    const bool all_digits = !in.empty() && std::all_of(in.begin(), in.end(), [](unsigned char c) { return c >= '0' && c <= '9'; });
-                    if (all_digits) {
-                        UniValue as_num(UniValue::VNUM, in);
-                        blockindex = ParseHashOrHeight(as_num, chainman);
-                    } else {
-                        blockindex = ParseHashOrHeight(request.params[0], chainman);
-                    }
-                } else {
-                    blockindex = ParseHashOrHeight(request.params[0], chainman);
-                }
+                result.pushKV("cumulative_convergence",
+                    ValueFromAmount(static_cast<CAmount>(blockindex->Observational().GetCumulativeConvergence())));
             }
-            CHECK_NONFATAL(blockindex);
-
-            CBlock block;
-            if (!ReadBlockFromDisk(block, blockindex, chainman.GetConsensus())) {
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read block");
-            }
-
-            const Consensus::Params& consensus_params = chainman.GetParams().GetConsensus();
-            // RFC-014 Conv-Decouple-01 / Naming Update Item §6.3: the legacy `res_draw_target`
-            // reported a difficulty-derived T that no longer exists anywhere in eligibility.
-            const uint256& res_probability_target = consensus_params.RES_PROBABILITY_TARGET;
-
-            // The whole answer is `ResolveConvergenceDraw` over the set this block commits. Under
-            // A-9-C that set spans a W-block window, so it is recovered through the chain layer
-            // rather than from this block's undo data alone.
-            ConvergenceDrawSet draw_set;
-            ConvergenceDrawOutcome outcome;
-            const bool have_draw = blockindex->pprev != nullptr &&
-                GetConvergenceDrawSetForBlock(*blockindex, consensus_params, draw_set);
-            if (have_draw) {
-                outcome = ResolveConvergenceDraw(draw_set, res_probability_target);
-            }
-
-            UniValue result(UniValue::VOBJ);
-            result.pushKV("hash", blockindex->GetBlockHash().GetHex());
-            result.pushKV("height", blockindex->nHeight);
-            result.pushKV("sigma_seed", blockindex->GetBlockHash().GetHex());
-            result.pushKV("payout_height", blockindex->nHeight + 1);
-            result.pushKV("convergence_root", draw_set.convergence_root.GetHex());
-            result.pushKV("res_probability_target", res_probability_target.GetHex());
-            result.pushKV("min_convergence", ValueFromAmount(Consensus::MIN_CONVERGENCE_AMOUNT));
-            result.pushKV("convergence_root_set_size", static_cast<int64_t>(draw_set.candidates.size()));
-            if (const auto fc = FindLastConvergenceCommitmentInCoinbase(*block.vtx[0])) {
-                result.pushKV("draw_candidate_root_committed", fc->m_draw_candidates.root.GetHex());
-            } else {
-                result.pushKV("draw_candidate_root_committed", uint256().GetHex());
-            }
-            result.pushKV("draw_winner_txid",
-                outcome.HasWinner()
-                    ? draw_set.candidates[static_cast<size_t>(outcome.winner_index)].txid.GetHex()
-                    : uint256().GetHex());
-            result.pushKV("draw_candidate_root_computed",
-                have_draw ? ConvergenceDrawEligibleRoot(draw_set, outcome).GetHex() : uint256().GetHex());
-
-            // A-9-C: enumerate F itself, not the source block's transactions. Most of the window
-            // now comes from earlier blocks, so walking `block.vtx` would report a strict subset of
-            // the set the draw actually ran over — and any consumer recomputing the winner from
-            // this list would disagree with the node.
-            UniValue candidates(UniValue::VARR);
-            for (size_t i = 0; i < draw_set.candidates.size(); ++i) {
-                const ConvergenceDrawCandidate& candidate = draw_set.candidates[i];
-                UniValue one(UniValue::VOBJ);
-                one.pushKV("txid", candidate.txid.GetHex());
-                one.pushKV("convergence_amount", ValueFromAmount(static_cast<CAmount>(candidate.weight)));
-                one.pushKV("source_height", candidate.source_height);
-                one.pushKV("h", i < outcome.sigmas.size() ? outcome.sigmas[i].GetHex() : uint256().GetHex());
-                one.pushKV("draw_eligible", i < outcome.eligible.size() && outcome.eligible[i]);
-                // Membership in F already required IsConvergenceTx (one RIGOR_MARKER_CONVERGE output).
-                // "v1_cvg2" is a wire-stable historical spelling, not a live CVG2 program.
-                one.pushKV("convergence_type", "v1_cvg2");
-                candidates.push_back(one);
-            }
-            result.pushKV("candidates", candidates);
-            result.pushKV("window_size", Consensus::CONVERGENCE_DRAW_WINDOW);
-            result.pushKV("window_first_height",
-                std::max<int>(0, blockindex->nHeight - Consensus::CONVERGENCE_DRAW_WINDOW + 1));
-            result.pushKV("window_last_height", blockindex->nHeight);
             return result;
         },
     };
@@ -4148,16 +3954,21 @@ bool FillTipConvergenceChainSummary(const CBlockIndex& tip, ChainstateManager& c
 static RPCHelpMan getconvergencestatus()
 {
     return RPCHelpMan{"getconvergencestatus",
-        "\nReturn current convergence cycle status (average cadence: ~1 RES mint per 6 blocks via dynamic retarget).\n",
+        "\nReturn the current continuous RES destruction cost and cumulative issuance.\n"
+        "No draw window remains. destroy_cost(h) is a protocol cost, not a valuation.\n",
         {},
         RPCResult{RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::STR_AMOUNT, "res_total", "Current cumulative RES minted on active chain"},
-                {RPCResult::Type::STR, "window_progress", "Progress string in expected cadence units, e.g. 2.50/6"},
-                {RPCResult::Type::NUM, "window_progress_percent", "Progress percentage against expected 6-block cadence"},
-                {RPCResult::Type::STR_AMOUNT, "current_convergence_sum", "Cumulative ORU convergenced since last RES mint block (same as tip fields on getblockchaininfo / getmempoolinfo)"},
-                {RPCResult::Type::STR_HEX, "last_winner_txid", "Winner txid recorded in the last RES mint block (zero if none)"},
                 {RPCResult::Type::NUM, "tip_height", "Current active tip height"},
+                {RPCResult::Type::NUM, "confirm_height", "Height a new mint would confirm at (tip + 1)"},
+                {RPCResult::Type::NUM, "destroy_cost", /*optional=*/true, "Current destruction cost at confirm_height; do not feed this back as B"},
+                {RPCResult::Type::NUM, "min_atom_burn", /*optional=*/true, "Smallest ORU burn that mints 1 RES atom at confirm_height"},
+                {RPCResult::Type::NUM, "min_whole_res_burn", /*optional=*/true, "Smallest ORU burn that mints 1 whole RES at confirm_height"},
+                {RPCResult::Type::NUM, "destroy_cost_next", /*optional=*/true, "Destruction cost at confirm_height + 1"},
+                {RPCResult::Type::NUM, "next_height", /*optional=*/true, "confirm_height + 1"},
+                {RPCResult::Type::BOOL, "issuance_authorized", "Always true for confirm_height >= 0 under RFC-020"},
+                {RPCResult::Type::STR_AMOUNT, "res_total", "Cumulative RES minted on the active chain"},
+                {RPCResult::Type::STR_AMOUNT, "cumulative_convergence", "Cumulative ORU destroyed on the active chain"},
                 {RPCResult::Type::NUM, "last_res_height", "Height of the last RES mint block, or -1 if never minted"},
             }},
         RPCExamples{HelpExampleCli("getconvergencestatus", "")},
@@ -4168,13 +3979,13 @@ static RPCHelpMan getconvergencestatus()
 
             const CBlockIndex* tip{nullptr};
             const CBlockIndex* pindex_last_res_mint{nullptr};
-            CAmount current_convergence_sum{0};
+            CAmount cumulative_convergence{0};
             {
                 LOCK(cs_main);
                 tip = chainman.ActiveChain().Tip();
                 CHECK_NONFATAL(tip);
-                CAmount cumulative_tmp{0};
-                if (!FillTipConvergenceChainSummary(*tip, chainman, cumulative_tmp, current_convergence_sum)) {
+                CAmount unused_window{0};
+                if (!FillTipConvergenceChainSummary(*tip, chainman, cumulative_convergence, unused_window)) {
                     throw JSONRPCError(RPC_INTERNAL_ERROR, "inconsistent cumulative convergence state");
                 }
                 if (!tip->last_res_mint_block_hash.IsNull()) {
@@ -4185,77 +3996,23 @@ static RPCHelpMan getconvergencestatus()
                 }
             }
 
-            int last_res_height{-1};
-            uint256 last_winner_txid{};
-            if (pindex_last_res_mint != nullptr) {
-                last_res_height = pindex_last_res_mint->nHeight;
-
-                // SECURITY-001-A8: the winner a block PAYS was drawn from its parent's set, so
-                // the winner behind the last RES mint is read off that parent.
-                const CBlockIndex* const pindex_drawn = pindex_last_res_mint->pprev;
-                if (pindex_drawn != nullptr && pindex_drawn->pprev != nullptr) {
-                    if (const auto w = GetConvergenceWinnerForBlock(*pindex_drawn, chainman.GetParams().GetConsensus())) {
-                        last_winner_txid = *w;
-                    }
-                }
-            }
-
-            const double expected_interval = static_cast<double>(Consensus::RES_TARGET_INTERVAL);
-            const int blocks_since_last_res_mint = last_res_height >= 0 ? (tip->nHeight - last_res_height) : (tip->nHeight + 1);
-            const double progress_units = static_cast<double>(blocks_since_last_res_mint);
-            const double progress_percent = expected_interval > 0 ? (progress_units * 100.0 / expected_interval) : 0.0;
+            const int confirm_height = tip->nHeight + 1;
+            const bool authorized = Consensus::ResMintAuthorizedAtHeight(confirm_height);
 
             UniValue result(UniValue::VOBJ);
-            result.pushKV("res_total", ValueFromAmount(CachedActiveTipCumulativeResMinted(tip)));
-            result.pushKV("window_progress", strprintf("%.2f/%.0f", progress_units, expected_interval));
-            result.pushKV("window_progress_percent", progress_percent);
-            result.pushKV("current_convergence_sum", ValueFromAmount(current_convergence_sum));
-            result.pushKV("last_winner_txid", last_winner_txid.GetHex());
             result.pushKV("tip_height", tip->nHeight);
-            result.pushKV("last_res_height", last_res_height);
-            return result;
-        },
-    };
-}
-
-static RPCHelpMan getconvergencestats()
-{
-    return RPCHelpMan{"getconvergencestats",
-        "\nReturn chain-wide Convergence network statistics for the active tip.\n"
-        "\nPresentation / wallet Network Statistics only. Does not change consensus rules.\n"
-        "\nCounts are derived from the tip W-window (node state; W = CONVERGENCE_DRAW_WINDOW).\n"
-        "ORU amounts are sat-style atoms; RES amounts are RES atoms (RES_COIN = 1e6; 1.000000 RES = 1000000).\n",
-        {},
-        RPCResult{RPCResult::Type::OBJ, "", "",
-            {
-                {RPCResult::Type::NUM, "active_convergences", "Convergence candidates in the tip W-window (paid + unpaid)"},
-                {RPCResult::Type::NUM, "active_oru", "Sum of ORU committed by those candidates (sat-style atoms)"},
-                {RPCResult::Type::NUM, "pending_windows", "Unpaid candidates still in the tip draw set F"},
-                {RPCResult::Type::NUM, "total_res_minted", "Cumulative RES minted on the active chain (RES atoms)"},
-                {RPCResult::Type::NUM, "best_height", "Active tip height"},
-            }},
-        RPCExamples{HelpExampleCli("getconvergencestats", "")},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-        {
-            NodeContext& node = EnsureAnyNodeContext(request.context);
-            ChainstateManager& chainman = EnsureChainman(node);
-
-            ConvergenceNetworkStats stats;
-            {
-                LOCK(cs_main);
-                const CBlockIndex* tip = chainman.ActiveChain().Tip();
-                CHECK_NONFATAL(tip);
-                if (!GetConvergenceNetworkStats(*tip, chainman.GetParams().GetConsensus(), stats) || !stats.valid) {
-                    throw JSONRPCError(RPC_INTERNAL_ERROR, "unable to compute convergence network statistics");
-                }
+            result.pushKV("confirm_height", confirm_height);
+            result.pushKV("issuance_authorized", authorized);
+            if (authorized) {
+                result.pushKV("destroy_cost", Consensus::ResDestroyCostAtHeight(confirm_height));
+                result.pushKV("min_atom_burn", Consensus::ResMinMintBurnAtoms(confirm_height));
+                result.pushKV("min_whole_res_burn", Consensus::ResMinBurnForAtoms(Consensus::RES_COIN, confirm_height));
+                result.pushKV("destroy_cost_next", Consensus::ResDestroyCostAtHeight(confirm_height + 1));
+                result.pushKV("next_height", confirm_height + 1);
             }
-
-            UniValue result(UniValue::VOBJ);
-            result.pushKV("active_convergences", static_cast<int64_t>(stats.active_convergences));
-            result.pushKV("active_oru", static_cast<int64_t>(stats.active_oru));
-            result.pushKV("pending_windows", static_cast<int64_t>(stats.pending_windows));
-            result.pushKV("total_res_minted", static_cast<int64_t>(stats.total_res_minted));
-            result.pushKV("best_height", stats.best_height);
+            result.pushKV("res_total", ValueFromAmountAsset(CachedActiveTipCumulativeResMinted(tip), ASSET_RES));
+            result.pushKV("cumulative_convergence", ValueFromAmount(cumulative_convergence));
+            result.pushKV("last_res_height", pindex_last_res_mint ? pindex_last_res_mint->nHeight : -1);
             return result;
         },
     };
@@ -4398,35 +4155,7 @@ static RPCHelpMan getassetbalance()
         pcursor->Next();
     }
 
-    // Format balance according to asset type.
-    // ORU uses ValueFromAmount (8 decimals). RES display is FormatResAmount (6 decimals)
-    // via ValueFromAmountAsset at other call sites; this helper returns native atoms as ORU-scale JSON.
-    return ValueFromAmount(balance);
-},
-    };
-}
-
-static RPCHelpMan getconvergeinfo()
-{
-    return RPCHelpMan{"getconvergeinfo", "\nReturns convergence information.\n",
-        {{"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED, "The block hash"}},
-        RPCResult{RPCResult::Type::STR_HEX, "blockhash", "The block hash"},
-        RPCExamples{HelpExampleCli("getconvergeinfo", "")},
-        [&](const RPCHelpMan& self, const JSONRPCRequest& request) -> UniValue
-{
-    NodeContext& node = EnsureAnyNodeContext(request.context);
-    ChainstateManager& chainman = EnsureChainman(node);
-    LOCK(cs_main);
-    const CBlockIndex* pindex = request.params[0].isNull() ? chainman.ActiveChain().Tip() : chainman.m_blockman.LookupBlockIndex(ParseHashV(request.params[0], "blockhash"));
-    if (!pindex) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-    UniValue result(UniValue::VOBJ);
-    result.pushKV("blockhash", pindex->GetBlockHash().ToString());
-    result.pushKV("height", pindex->nHeight);
-    CBlock block;
-    if (!ReadBlockFromDisk(block, pindex, chainman.GetParams().GetConsensus())) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to read block from disk");
-    }
-    return result;
+    return ValueFromAmountAsset(balance, asset_type);
 },
     };
 }
@@ -4459,7 +4188,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &exportruntimeequivalencecandidate},
         {"blockchain", &exportruntimeglobalcandidateequivalence},
         {"blockchain", &getruntimeequivalenceclosure},
-        {"blockchain", &getdrawclosurestatus},
+        {"blockchain", &res_mint_unit_cost},
         {"blockchain", &getphase5summary},
         {"blockchain", &getphase5summaryfinal},
         {"blockchain", &getruntimevectorstatus},
@@ -4468,7 +4197,6 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &diffchainstatesummaries},
         {"blockchain", &getreplaysnapshot},
         {"blockchain", &getassetbalance},
-        {"blockchain", &getconvergeinfo},
         {"blockchain", &waitfornewblock},
         {"blockchain", &waitforblock},
         {"blockchain", &waitforblockheight},
@@ -4484,9 +4212,7 @@ void RegisterBlockchainRPCCommands(CRPCTable& t)
         {"blockchain", &getblockfilter},
         {"blockchain", &dumptxoutset},
         {"blockchain", &getblockconvergence},
-        {"blockchain", &getconvergenceresult},
         {"blockchain", &getconvergencestatus},
-        {"blockchain", &getconvergencestats},
     };
     for (const auto& c : commands) {
         t.appendCommand(c.name, &c);

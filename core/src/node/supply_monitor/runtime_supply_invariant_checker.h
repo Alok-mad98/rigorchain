@@ -17,8 +17,13 @@ struct Params;
 
 namespace Consensus {
 
-/** Number of formal supply invariants verified (ORU-L1..L4 + RES-L1..L6). */
-inline constexpr uint32_t RUNTIME_SUPPLY_INVARIANT_COUNT = 10;
+/**
+ * Number of formal supply invariants verified (ORU-L1..L4 + RES-L1, L2, L4, L5, L6).
+ *
+ * RES-L3 retired with RFC-019: it pinned res_mint_block to the W(h) schedule, and there
+ * is no schedule any more. RES-L6 survived in rewritten form; see the checker.
+ */
+inline constexpr uint32_t RUNTIME_SUPPLY_INVARIANT_COUNT = 9;
 
 /**
  * TASK-FVR-E: runtime-executable formal invariant verification (observation only).
@@ -33,7 +38,7 @@ struct RuntimeInvariantResult {
 };
 
 /**
- * Verify ORU-L1..L4 and RES-L1..L6 on a captured mirror.
+ * Verify ORU-L1..L4 and RES-L1, L2, L4, L5 on a captured mirror.
  *
  * ORU-L4 requires `consensus` to evaluate `GetBlockSubsidy(height)`.
  * Violation labels are stable catalog ids (e.g. `"ORU-L3"`, `"RES-L5"`).

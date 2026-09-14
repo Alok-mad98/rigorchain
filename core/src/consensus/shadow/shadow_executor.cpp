@@ -3,6 +3,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
 // Verify-only. Calls production Kernel and C ABI. Does not recode formulas.
+//
+// RFC-019: issuance surface is (oru_subsidy, RATE(h), epoch). Draw
+// surfaces report no winner.
 
 #ifndef RIGOR_KERNEL_SHADOW_VERIFY_ONLY
 #error "consensus/shadow is verify-only; compile with -DRIGOR_KERNEL_SHADOW_VERIFY_ONLY"
@@ -16,8 +19,8 @@
 
 #include <consensus/bridge/consensus_kernel_c_api.h>
 #include <consensus/bridge/kernel_marshalling.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/rigor_supply.h>
 #include <consensus/validation.h>
@@ -64,10 +67,10 @@ std::string IssuanceJson(const rigor_issuance_result& r)
 {
     char buf[256];
     std::snprintf(buf, sizeof(buf),
-        "{\"epoch\":%u,\"oru_subsidy\":%llu,\"res_reward_schedule\":%llu}",
+        "{\"epoch\":%u,\"oru_subsidy\":%llu,\"res_destroy_cost\":%llu}",
         r.epoch,
         static_cast<unsigned long long>(r.oru_subsidy),
-        static_cast<unsigned long long>(r.res_reward_schedule));
+        static_cast<unsigned long long>(r.res_destroy_cost));
     return buf;
 }
 
@@ -111,7 +114,7 @@ std::string OutputJson(ConsensusKernelSurface surface, const ConsensusKernelShad
 bool SameIssuance(const rigor_issuance_result& a, const rigor_issuance_result& b)
 {
     return a.epoch == b.epoch && a.oru_subsidy == b.oru_subsidy &&
-           a.res_reward_schedule == b.res_reward_schedule;
+           a.res_destroy_cost == b.res_destroy_cost;
 }
 
 bool SameDraw(const rigor_draw_result& a, const rigor_draw_result& b)
@@ -156,7 +159,8 @@ bool ConsensusKernelShadowExecutor::RunCpp(const ConsensusKernelInput& in,
     case CK_SURFACE_ISSUANCE: {
         const RigorIssuance g = ComputeRigorIssuance(static_cast<int>(in.height), KernelFrozenParams());
         out.issuance.oru_subsidy = static_cast<uint64_t>(g.oru_subsidy);
-        out.issuance.res_reward_schedule = static_cast<uint64_t>(g.res_reward);
+        out.issuance.res_destroy_cost = static_cast<uint64_t>(
+            Consensus::ResDestroyCostAtHeight(static_cast<int>(in.height)));
         out.issuance.epoch = static_cast<uint32_t>(g.epoch);
         return true;
     }
@@ -166,26 +170,7 @@ bool ConsensusKernelShadowExecutor::RunCpp(const ConsensusKernelInput& in,
         return true;
     }
     case CK_SURFACE_DRAW: {
-        if (in.candidate_count > 0 && !in.candidates) return false;
-        ConvergenceDrawSet set;
-        set.source_height = static_cast<int>(in.draw_ctx.payout_height) - 1;
-        set.convergence_root = RigorU256ToUint256(in.draw_ctx.convergence_root);
-        set.source_block_hash = RigorU256ToUint256(in.draw_ctx.source_block_hash);
-        set.candidates.reserve(in.candidate_count);
-        for (size_t i = 0; i < in.candidate_count; ++i) {
-            ConvergenceDrawCandidate c;
-            c.txid = RigorU256ToUint256(in.candidates[i].txid);
-            c.weight = in.candidates[i].value;
-            set.candidates.push_back(c);
-        }
-        const uint256 target = RigorU256ToUint256(in.draw_ctx.target);
-        const ConvergenceDrawOutcome o = ResolveConvergenceDraw(set, target);
-        if (!o.HasWinner()) {
-            out.draw.has_winner = 0;
-            return true;
-        }
-        out.draw.has_winner = 1;
-        Uint256ToRigorU256(set.candidates[static_cast<size_t>(o.winner_index)].txid, &out.draw.winner);
+        out.draw.has_winner = 0;
         return true;
     }
     case CK_SURFACE_SUPPLY: {
@@ -195,12 +180,10 @@ bool ConsensusKernelShadowExecutor::RunCpp(const ConsensusKernelInput& in,
         din.fee_burn = static_cast<CAmount>(in.supply.burn);
         din.converge_sum = static_cast<CAmount>(in.supply.converge);
         din.res_mint = static_cast<CAmount>(in.supply.mint);
-        din.has_winner = in.supply.has_winner != 0;
-        din.draw_cardinality = static_cast<int>(in.supply.card);
         din.oru_coinbase = static_cast<CAmount>(in.supply.oru_coinbase);
         din.res_bootstrap = 0;
         din.fees_res = 0;
-        din.res_coinbase = RigorResCoinbaseExpected(din.fees_res, din.res_bootstrap, din.res_mint);
+        din.res_coinbase = RigorResCoinbaseExpected(din.fees_res, din.res_bootstrap);
         BlockValidationState state;
         RigorSupplyDeltaResult dout;
         out.supply_ok = RigorSupplyDelta(din, KernelFrozenParams(), dout, state);
@@ -287,9 +270,8 @@ int ConsensusKernelShadowExecutor::RunDeterministicBattery(int iterations,
     }
     tx1.bytes[31] = 0x01;
     tx2.bytes[31] = 0x02;
-    const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
     rigor_u256 tprod{};
-    std::memcpy(tprod.bytes, T.begin(), 32);
+    for (int i = 0; i < 32; ++i) tprod.bytes[i] = 0x55;
     const uint64_t sat = 209715200000000ULL;
     rigor_candidate one{tx1, sat};
     rigor_candidate two[2] = {{tx1, sat}, {tx2, sat}};

@@ -1,0 +1,45 @@
+# Changelog
+
+All notable **product** releases are listed here. Consensus-rule history is
+not rewritten in this file; frozen parameters live in
+[`docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md).
+
+```
+equivalence_claimed = false
+```
+
+## [0.1.3] — 2026-09-03
+
+Production **stable** channel (`ALPHAPLUS_RELEASE=false`).
+
+- Display identity `v0.1.3` on `rigord`, Qt wallet, Windows installer, and
+  macOS `CFBundleShortVersionString`. Packed `CLIENT_VERSION` remains `25.0.0`.
+- Official artifacts: Windows `.exe` / `.zip`, Linux `.tar.gz`, macOS Intel
+  and Apple Silicon `.dmg`. Wallet packages do not include `rigor-miner`.
+- Integrity: GitHub Release `SHA256SUMS` plus per-artifact `.sha256` sidecars.
+- No Consensus Kernel, Transaction Kernel, Ledger, ConnectBlock,
+  DisconnectBlock, CoinsDB, wallet SQLite schema, classifier, PoW, ASERT, or
+  protocol-parameter changes.
+
+Full notes: [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md).  
+GitHub: https://github.com/rigorchain/rigorchain/releases/tag/v0.1.3
+
+## [0.1.2-alphaplus] — 2026-08-23
+
+Historical AlphaPlus channel. Artifact names containing `alphaplus` are
+**not** official v0.1.3 assets.
+
+Tag: `v0.1.2-alphaplus`.
+
+## [0.1.1-alphaplus] — 2026-08-17
+
+Historical AlphaPlus channel. Tag: `v0.1.1-alphaplus`.
+
+## [0.1.0-alpha] — 2026-08-12
+
+First public alpha tag. Companion freeze tag: `v0.1.0-alpha-stable`.
+
+---
+
+Build from source: [`docs/INSTALL.md`](docs/INSTALL.md).  
+Security reporting: [`SECURITY.md`](SECURITY.md).

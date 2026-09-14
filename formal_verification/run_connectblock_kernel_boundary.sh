@@ -29,12 +29,12 @@ fi
 
 echo "== coqc boundary modules =="
 (cd "$COQ" && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ConnectBlockInputPreparation.v && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 KernelResultApplication.v && \
-  coqc -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 ConnectBlockKernelBoundary.v)
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ConnectBlockInputPreparation.v && \
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 KernelResultApplication.v && \
+  coqc -q -R . Rigor -R ../rigor_v01 RigorV01 ConnectBlockKernelBoundary.v)
 
 echo "== Print Assumptions =="
-ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R fee-burn Rigor.FeeBurn -R ../rigor_v01 RigorV01 <<'EOF'
+ASSUME="$(cd "$COQ" && coqtop -q -R . Rigor -R ../rigor_v01 RigorV01 <<'EOF'
 Require ConnectBlockKernelBoundary.
 Print Assumptions ConnectBlockKernelBoundary.connectblock_kernel_boundary.
 Print Assumptions ConnectBlockKernelBoundary.input_preparation_alignment.
@@ -66,8 +66,6 @@ echo "== g++ test_connectblock_kernel_boundary =="
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
   "$SRC/util/strencodings.cpp" \
-  "$SRC/consensus/convergence_logic.cpp" \
-  "$SRC/consensus_rigor/sigma_hash.cpp" \
   "$SRC/crypto/sha256.cpp" \
   "$SRC/arith_uint256.cpp" \
   -Wl,--gc-sections

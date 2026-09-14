@@ -1,0 +1,184 @@
+{
+  "task": "TASK-RIGOR-MAINNET-READINESS-CROSS-COMPONENT-ALIGNMENT-AUDIT-P0-096",
+  "date": "2026-09-03",
+  "nature": "Audit-first. No bug fix. No consensus modification. No protocol modification.",
+  "command": "bash tools/run-mainnet-readiness-alignment-audit.sh",
+  "git_describe": "v0.1.3-18-gbdc7ad7-dirty",
+  "git_head": "bdc7ad7204f1808482be28e89447ab0c652668e0",
+  "git_tag_v0_1_3": "8743c509d9273b19c431df2f4f0ee630ccd810f8",
+  "commits_past_tag": "18",
+  "core": {
+    "alignment": "PASS",
+    "release_version": "v0.1.3",
+    "packed_client_version": "25.0.0",
+    "binary_present": true,
+    "binary_banner": "RIGOR version v0.1.3",
+    "mainnet_genesis": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+    "mainnet_magic": "ce f1 db fa",
+    "mainnet_p2p_port": 8760,
+    "mainnet_rpc_port": 8761,
+    "mainnet_hrp": "rg",
+    "nCoinbaseMaturity": 100,
+    "subversion_reports_25_0_0": true,
+    "vFixedSeeds_empty": true,
+    "nMinimumChainWork_bootstrap_floor": true
+  },
+  "wallet": {
+    "alignment": "PASS",
+    "linux_banner": "Rigor Wallet version v0.1.3",
+    "windows_zip_contains_qt": false,
+    "macos_runtime_verification": "SKIPPED_NO_HDIUTIL_ON_WSL",
+    "oru_res_panels": true,
+    "backup_restore": true
+  },
+  "browser": {
+    "alignment": "PASS",
+    "explorer_product": "RIGOR v0.1.3",
+    "explorer_mainnet_genesis": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+    "node_mainnet_genesis": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+    "genesis_match": true,
+    "explorer_testnet_genesis": "0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce",
+    "node_testnet_genesis": "0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce",
+    "oru_decimals": 8,
+    "res_decimals": 6,
+    "coinbase_maturity_display": 100
+  },
+  "miner": {
+    "alignment": "PASS",
+    "algo_cli": "sha256d",
+    "algo_actual": "OpuHash",
+    "stratum_solo_refused": true,
+    "gbt_copy_bytes_test": true
+  },
+  "pool": {
+    "alignment": "PASS",
+    "example_rpc_port": null,
+    "node_rpc_port": 8761,
+    "yaamp_tree_present": true,
+    "oru_only_res_boundary": true
+  },
+  "release": {
+    "alignment": "PASS",
+    "official_names": [
+      "rigor-v0.1.3-windows-x86_64.exe",
+      "rigor-v0.1.3-windows-x86_64.zip",
+      "rigor-v0.1.3-linux-x86_64.tar.gz",
+      "rigor-v0.1.3-macos-x86_64.dmg",
+      "rigor-v0.1.3-macos-arm64.dmg"
+    ],
+    "sha256": {
+      "rigor-v0.1.3-windows-x86_64.exe": "be9a5e137d559571f4ffbc4ba31ed6840646091171c5d6415de3e1fc5a54e03d",
+      "rigor-v0.1.3-windows-x86_64.zip": "92f3717a63cf376eac8dfb16f2d74948fb94082a51ea20955eef63cb7137d866",
+      "rigor-v0.1.3-linux-x86_64.tar.gz": "bf85b3ae1c13e10aa4a986e52402dba8a2289771df6b62c561df54c53485052b",
+      "rigor-v0.1.3-macos-x86_64.dmg": "9efbb8e9886669801b84a150f409671b6f3a22c7d1deb9905de767dbf2e6266f",
+      "rigor-v0.1.3-macos-arm64.dmg": "6abadd5b9804fc94003fcac61b5b7d432d97a1271102b4ffd6cc3a8e7e243daa"
+    },
+    "sha256_verified_local": true,
+    "tag": "v0.1.3",
+    "macos_signed": false
+  },
+  "documentation": {
+    "alignment": "PASS"
+  },
+  "ci": {
+    "alignment": "PASS",
+    "release_build_matrix": [
+      "windows-x86_64",
+      "linux-x86_64",
+      "macos-x86_64",
+      "macos-arm64"
+    ],
+    "guardian_workflow": ".github/workflows/genesis-release-guardian.yml",
+    "guardian_enforced_on_release_build": false,
+    "dual_macos_pipelines": true
+  },
+  "MAINNET_ALIGNMENT_AUDIT": "PASS",
+  "CORE_ALIGNMENT": "PASS",
+  "WALLET_ALIGNMENT": "PASS",
+  "BROWSER_ALIGNMENT": "PASS",
+  "MINER_ALIGNMENT": "PASS",
+  "POOL_ALIGNMENT": "PASS",
+  "RELEASE_ALIGNMENT": "PASS",
+  "DOCUMENTATION_ALIGNMENT": "PASS",
+  "CI_ALIGNMENT": "PASS",
+  "CONSENSUS_CODE_CHANGED": false,
+  "DATABASE_FORMAT_CHANGED": false,
+  "PROTOCOL_PARAMETERS_CHANGED": false,
+  "findings": [
+    {
+      "component": "CORE",
+      "severity": "INFO",
+      "title": "in-tree rigord --version is v0.1.3",
+      "evidence": "RIGOR version v0.1.3"
+    },
+    {
+      "component": "CORE",
+      "severity": "INFO",
+      "title": "P2P subversion still derived from packed CLIENT_VERSION 25.0.0 (documented split)",
+      "evidence": "init.cpp FormatSubVersion + configure.ac 25.0.0"
+    },
+    {
+      "component": "CORE",
+      "severity": "INFO",
+      "title": "mainnet vFixedSeeds is empty until a signed seed snapshot",
+      "evidence": "chainparams.cpp vFixedSeeds.clear()"
+    },
+    {
+      "component": "CORE",
+      "severity": "INFO",
+      "title": "nMinimumChainWork is still the 2^35 bootstrap floor; source asks to raise before each mainnet release",
+      "evidence": "chainparams.cpp"
+    },
+    {
+      "component": "WALLET",
+      "severity": "INFO",
+      "title": "windows zip is node-only (no rigor-qt.exe); GUI is the NSIS installer",
+      "evidence": "['rigor-v0.1.3-windows-x86_64.exe', 'README.txt', 'rigord.exe', 'rigor-cli.exe']"
+    },
+    {
+      "component": "WALLET",
+      "severity": "INFO",
+      "title": "macos-x86_64 dmg present (~wallet size); WSL cannot hdiutil-attach",
+      "evidence": "size=21314949"
+    },
+    {
+      "component": "WALLET",
+      "severity": "INFO",
+      "title": "macos-arm64 dmg present (~wallet size); WSL cannot hdiutil-attach",
+      "evidence": "size=19968331"
+    },
+    {
+      "component": "WALLET",
+      "severity": "INFO",
+      "title": "overview comment still says rig1\u2026; live HRP is rg1\u2026",
+      "evidence": "overviewpage.cpp:9"
+    },
+    {
+      "component": "BROWSER",
+      "severity": "INFO",
+      "title": "explorer architecture doc still scoped to closed testnet / RFC-014 freeze tag",
+      "evidence": "docs/explorer/EXPLORER_ARCHITECTURE.md"
+    },
+    {
+      "component": "POOL",
+      "severity": "INFO",
+      "title": "legacy yaamp/yiimp tree still present (documented quarantine)",
+      "evidence": "pool/web/yaamp"
+    },
+    {
+      "component": "RELEASE",
+      "severity": "INFO",
+      "title": "HEAD is 18 commits past tag v0.1.3; tag was not moved after P0-094/P0-095",
+      "evidence": "HEAD=bdc7ad7204f1808482be28e89447ab0c652668e0 tag=8743c509d9273b19c431df2f4f0ee630ccd810f8 describe=v0.1.3-18-gbdc7ad7-dirty"
+    },
+    {
+      "component": "RELEASE",
+      "severity": "INFO",
+      "title": "official macOS DMGs are unsigned; P0-095 deferred signing and does not block release",
+      "evidence": "macos_signing_p0_095_manifest.json"
+    }
+  ],
+  "errors": [],
+  "final_verdict": "PASS",
+  "final_verdict_reason": "All eight alignment surfaces matched the v0.1.3 node identity."
+}

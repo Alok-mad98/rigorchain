@@ -1,3 +1,9 @@
+# Note — Research and Verification (older chapter file)
+
+Narrative Chapter 8 is now
+[`08-formal-boundary.md`](./08-formal-boundary.md)
+(Chinese: [`08-formal-boundary.zh.md`](./08-formal-boundary.zh.md)).
+
 # Chapter 8 — Research and Verification
 
 Research artifacts have grades. They must not be collapsed into one
@@ -10,9 +16,10 @@ Research artifacts have grades. They must not be collapsed into one
 | Runtime archive | What a specific execution produced | Equivalence or mainnet completion |
 | Observer UI | Display | Authority |
 
-```
-equivalence_claimed = false
-```
+Live issuance under verification is RFC-020: continuous `destroy_cost(h)`, the mint
+inequality `R · (2²⁵ + h)² ≤ B << 40`, and the closed-form cap
+`419430400000000` atoms. The lottery cone (`W(k)`, 21M, draw, σ, window
+32, `p_draw`) is **archived Category C**. It is not shipping issuance.
 
 ---
 
@@ -25,9 +32,11 @@ heights, including:
 
 | Height | Vector | Phenomenon |
 |--------|--------|------------|
-| 630,000 | GV-ORU-0003 | ORU halving / floor region |
-| 2,100,000 | GV-RES-0003 | RES cap boundary |
-| 2,100,001 | GV-DRAW-0003 | DRAW reject fixture |
+| 630,000 | GV-ORU-0003 | Historical ORU-halving fixture (live ORU is flat 128) |
+| 2,100,000 | GV-RES-0003 | Historical RES-cap fixture (archived) |
+| 2,100,001 | GV-DRAW-0003 | Historical DRAW reject fixture (archived Category C) |
+
+Those DRAW / 21M-era fixtures are **not** live issuance rules.
 
 **PROOF-034 is not:**
 
@@ -46,6 +55,10 @@ strengthen that language.
 See `docs/verification/FORMAL-VERIFICATION-VERDICT.md` for what the Coq
 model proves. The model is not a claim that every runtime binary is
 identical to the proof.
+
+Live targets: `destroy_cost(h)` integer schedule, `CheckResMintArithmetic`,
+closed-form cap `419430400000000`, UTXO / ORU conservation. Lottery-cone
+lemmas stay in archive (Category C).
 
 ---
 

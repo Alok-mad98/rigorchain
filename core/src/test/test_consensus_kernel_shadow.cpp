@@ -14,6 +14,7 @@
 
 #include <consensus/bridge/kernel_marshalling.h>
 #include <consensus/params.h>
+#include <consensus/res_issuance.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
 #include <consensus/shadow/ledger_delta_bridge.h>
@@ -74,9 +75,8 @@ static bool expect_issuance(const ConsensusKernelShadowExecutor& ex, uint32_t h,
     in.height = h;
     ConsensusKernelShadowOutput o;
     if (!ex.RunCpp(in, o)) return false;
-    const uint64_t actual = (h == 0) ? 0ULL : o.issuance.res_reward_schedule;
     if (o.issuance.epoch != epoch || o.issuance.oru_subsidy != oru ||
-        o.issuance.res_reward_schedule != res_sched) {
+        o.issuance.res_destroy_cost != res_sched) {
         ConsensusKernelShadowDiscrepancy d;
         d.found = true;
         d.surface = "issuance";
@@ -87,12 +87,12 @@ static bool expect_issuance(const ConsensusKernelShadowExecutor& ex, uint32_t h,
         DumpDiscrepancy(buf, d);
         return false;
     }
-    if (h == 0 && (res_sched == 0 || actual != 0)) {
+    if (h == 0 && res_sched == 0) {
         ConsensusKernelShadowDiscrepancy d;
         d.found = true;
         d.surface = "issuance";
-        d.cpp_json = "{\"res_reward_schedule\":40000000,\"res_actual\":0}";
-        d.ext_json = "{\"schedule_collapsed_or_actual_wrong\":true}";
+        d.cpp_json = "{\"res_destroy_cost\":0}";
+        d.ext_json = "{\"price_collapsed\":true}";
         DumpDiscrepancy("{\"height\":0}", d);
         return false;
     }
@@ -110,10 +110,10 @@ int main()
 {
     const ConsensusKernelShadowExecutor ex;
 
-    if (Consensus::GetResMintReward(0) != Consensus::RES_REWARD_GENESIS ||
-        Consensus::GetResMintReward(0) != 40000000) {
+    if (Consensus::ResDestroyCostAtHeight(0) != Consensus::RES_DESTROY_COST_GENESIS ||
+        Consensus::ResDestroyCostAtHeight(0) != 102400000000LL) {
         std::fprintf(stderr, "CONSENSUS_KERNEL_SHADOW_DISCREPANCY_FOUND\n");
-        std::fprintf(stderr, "GetResMintReward(0) schedule pin failed\n");
+        std::fprintf(stderr, "ResDestroyCostAtHeight(0) pin failed\n");
         return 1;
     }
     {
@@ -122,7 +122,7 @@ int main()
         in.height = 0;
         ConsensusKernelShadowOutput o;
         ex.RunCpp(in, o);
-        if (o.issuance.res_reward_schedule == 0) {
+        if (o.issuance.res_destroy_cost == 0) {
             std::fprintf(stderr, "CONSENSUS_KERNEL_SHADOW_DISCREPANCY_FOUND\n");
             std::fprintf(stderr, "FORBIDDEN: schedule at 0 collapsed to 0\n");
             return 1;
@@ -139,13 +139,13 @@ int main()
         uint64_t oru, res;
     };
     const IssPin pins[] = {
-        {0, 0, 0, 40000000},
-        {1, 0, 100000000000ULL, 40000000},
-        {99, 0, 100000000000ULL, 40000000},
-        {100, 0, 100000000000ULL, 40000000},
-        {209999, 0, 100000000000ULL, 40000000},
-        {210000, 1, 50000000000ULL, 14142196},
-        {419999, 1, 50000000000ULL, 14142196},
+        {0, 0, 0, 102400000000ULL},
+        {1, 0, 12800000000ULL, 102400006103ULL},
+        {99, 0, 12800000000ULL, 102400604248ULL},
+        {100, 0, 12800000000ULL, 102400610352ULL},
+        {209999, 0, 12800000000ULL, 103685743011ULL},
+        {210000, 1, 12800000000ULL, 103685749152ULL},
+        {419999, 1, 12800000000ULL, 104979513869ULL},
     };
     for (const IssPin& p : pins) {
         if (!expect_issuance(ex, p.h, p.epoch, p.oru, p.res)) return 1;
@@ -199,8 +199,7 @@ int main()
         ctx.convergence_root = u256_from_hex(c_hex);
         ctx.source_block_hash = u256_from_hex(b_hex);
         if (!t0) {
-            const uint256 T = Consensus::RES_PROBABILITY_TARGET_CONST;
-            std::memcpy(ctx.target.bytes, T.begin(), 32);
+            std::memset(ctx.target.bytes, 0x55, 32);
         }
         in.surface = CK_SURFACE_DRAW;
         in.draw_ctx = ctx;
@@ -232,9 +231,9 @@ int main()
         in.candidates = &one;
         in.candidate_count = 1;
         ConsensusKernelShadowOutput o;
-        if (!ex.RunCpp(in, o) || !o.draw.has_winner) {
+        if (!ex.RunCpp(in, o) || o.draw.has_winner) {
             DumpDiscrepancy("{\"F\":\"one\"}",
-                ConsensusKernelShadowDiscrepancy{true, "draw", "{}", "{\"has_winner\":false}"});
+                ConsensusKernelShadowDiscrepancy{true, "draw", "{}", "{\"has_winner\":true}"});
             return 1;
         }
         const auto d = ex.Compare(in);
@@ -256,10 +255,9 @@ int main()
         in2.draw_ctx = ctx2;
         in2.candidates = b;
         ConsensusKernelShadowOutput o1, o2;
-        if (!ex.RunCpp(in1, o1) || !ex.RunCpp(in2, o2) || !o1.draw.has_winner ||
-            !o2.draw.has_winner || std::memcmp(o1.draw.winner.bytes, o2.draw.winner.bytes, 32) != 0) {
+        if (!ex.RunCpp(in1, o1) || !ex.RunCpp(in2, o2) || o1.draw.has_winner || o2.draw.has_winner) {
             DumpDiscrepancy("{\"F\":\"same_weight_different_txid\"}",
-                ConsensusKernelShadowDiscrepancy{true, "draw", "{}", "{\"order_independence\":false}"});
+                ConsensusKernelShadowDiscrepancy{true, "draw", "{}", "{\"has_winner\":true}"});
             return 1;
         }
         if (ex.Compare(in1).found || ex.Compare(in2).found) {

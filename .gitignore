@@ -118,6 +118,9 @@ src/qt/bitcoin-qt.includes
 Makefile
 !depends/Makefile
 !core/depends/Makefile
+!core/src/qt/Makefile
+!core/src/qt/test/Makefile
+!core/src/test/Makefile
 src/qt/bitcoin-qt
 Bitcoin-Qt.app
 
@@ -229,7 +232,7 @@ docs/freeze/task_res_core_functional_artifacts/
 # Local runtime data (chain datadirs, soak logs, devtest artifacts)
 .runtime/
 
-# Cursor / IDE local state (never publish)
+# Local editor / IDE state (never publish).
 .cursor/
 .cursorignore
 *.code-workspace
@@ -373,6 +376,80 @@ formal_verification/wallet_sqlite_audit/
 
 # P0-092 generated full-pipeline Guardian log (local evidence; not a substitute for PASS)
 formal_verification/release_guardian_pipeline_audit/
+
+# P0-100 generated launch-candidate logs (local evidence; not a substitute for PASS)
+formal_verification/mainnet_launch_candidate_audit/
+
+# Coq build artifacts (formal_verification/rigor_kernel)
+formal_verification/rigor_kernel/**/*.vo
+formal_verification/rigor_kernel/**/*.vos
+formal_verification/rigor_kernel/**/*.vok
+formal_verification/rigor_kernel/**/*.glob
+formal_verification/rigor_kernel/**/*.aux
+formal_verification/rigor_kernel/**/.*.aux
+formal_verification/rigor_kernel/**/.lia.cache
+formal_verification/rigor_kernel/**/*.cmx
+formal_verification/rigor_kernel/**/*.cmi
+formal_verification/rigor_kernel/**/*.cmo
+formal_verification/rigor_kernel/Makefile
+formal_verification/rigor_kernel/Makefile.conf
+formal_verification/rigor_kernel/**/.Makefile*.d
+formal_verification/rigor_kernel/kernel_binary/rigor-kernel-checker
+formal_verification/rigor_kernel/extracted/extracted-kernel-checker
+formal_verification/rigor_kernel/extracted/diff_work/
+formal_verification/rigor_kernel/verified_compiler/fragment-checker
+
+# TASK-003 private testnet runtime datadirs
+testnet/data/
+
+# TASK-004 attack-lab runtime datadirs
+tests/attack_lab/data/
+tests/attack_lab/data_task007/
+tests/attack_lab/data_task008/
+tests/attack_lab/data_task010/
+tools/testnet/private_fault_net/data/
+evidence/
+# Phase 6 CompCert report is a published artifact, not a runtime dump.
+!formal_verification/rigor_kernel/evidence/
+!formal_verification/rigor_kernel/evidence/CertiCoqCompCertReport.md
+tests/formal_bridge/data_identity/
+tests/formal_bridge/data_differential/
+tests/formal_bridge/data_local_trial/
+tests/serialization_vectors/data/
+
+# Coq build artifacts (consensus_model / refinement)
+formal_verification/consensus_model/**/*.vo
+formal_verification/consensus_model/**/*.vos
+formal_verification/consensus_model/**/*.vok
+formal_verification/consensus_model/**/*.glob
+formal_verification/consensus_model/**/*.aux
+formal_verification/consensus_model/**/.*.aux
+formal_verification/refinement/**/*.vo
+formal_verification/refinement/**/*.vos
+formal_verification/refinement/**/*.vok
+formal_verification/refinement/**/*.glob
+formal_verification/refinement/**/*.aux
+formal_verification/refinement/**/.*.aux
+# Archived lottery Coq cone (git mv out of coq/, so the coq/ globs no longer apply)
+formal_verification/archive/**/*.vo
+formal_verification/archive/**/*.vos
+formal_verification/archive/**/*.vok
+formal_verification/archive/**/*.glob
+formal_verification/archive/**/*.aux
+formal_verification/archive/**/.*.aux
+formal_verification/archive/**/.lia.cache
+
+# Standalone formal-bridge Coq (sources stay tracked; build products do not)
+audit/formal_bridge/**/*.vo
+audit/formal_bridge/**/*.vos
+audit/formal_bridge/**/*.vok
+audit/formal_bridge/**/*.glob
+audit/formal_bridge/**/*.aux
+audit/formal_bridge/**/.*.aux
+
+# Local Vite RPC/explorer URLs
+web/rigorchain-site/.env.development
+web/rigorchain-site/.env.local
 # public-history candidate: keep source hidden by generic rules
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch

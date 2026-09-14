@@ -27,7 +27,7 @@ FORMULA = re.compile(
 REQUIRED_CALLS = (
     "ComputeRigorIssuance",
     "ClassifyRigorAsset",
-    "ResolveConvergenceDraw",
+    "ResDestroyCostAtHeight",
     "RigorSupplyDelta",
     "LedgerDeltaBridge",
     "rigor_compute_issuance",

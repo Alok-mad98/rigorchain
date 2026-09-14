@@ -7,6 +7,8 @@ parameters, formal proofs, or Release Guardian stages.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 VERSION = "0.1.3"
 VERSION_TAG = f"v{VERSION}"
 
@@ -48,16 +50,16 @@ MATRIX = (
         "os_name": "macos",
         "arch": "x86_64",
         "runner": "macos-15-intel",
-        "runner_notes": "GitHub-hosted Intel macOS (macos-15-intel; macos-26-intel allowed)",
-        "artifacts": ("rigor-v0.1.3-macos-x86_64.dmg",),
+        "runner_notes": "NOT_RELEASE_READY: no forged DMG; wallet DMGs stay on release-wallet-macos.yml",
+        "artifacts": ("NOT_RELEASE_READY.txt",),
     },
     {
         "target": "macos-arm64",
         "os_name": "macos",
         "arch": "arm64",
         "runner": "macos-15",
-        "runner_notes": "GitHub-hosted Apple Silicon (macos-15 / macos-latest are arm64)",
-        "artifacts": ("rigor-v0.1.3-macos-arm64.dmg",),
+        "runner_notes": "NOT_RELEASE_READY: no forged DMG; wallet DMGs stay on release-wallet-macos.yml",
+        "artifacts": ("NOT_RELEASE_READY.txt",),
     },
 )
 
@@ -78,6 +80,27 @@ def artifact_for(os_name: str, arch: str, kind: str) -> str:
 
 def is_official_name(name: str) -> bool:
     return name in OFFICIAL_ARTIFACTS
+
+
+def is_release_build_artifact_name(name: str) -> bool:
+    """Names produced by release-build.yml after TASK-002 (real node or NOT_RELEASE_READY)."""
+    if is_forbidden_legacy_name(name):
+        return False
+    if "identity" in name.lower():
+        return False
+    if name == "NOT_RELEASE_READY.txt":
+        return True
+    if name in OFFICIAL_ARTIFACTS and not name.endswith(".dmg"):
+        return True
+    return False
+
+
+def expected_release_build_names(target: str, out_dir: Path | None = None) -> tuple[str, ...]:
+    """Filenames this job must produce for verify/checksum."""
+    row = TARGETS[target]
+    if out_dir is not None and (Path(out_dir) / "NOT_RELEASE_READY.txt").is_file():
+        return ("NOT_RELEASE_READY.txt",)
+    return tuple(row["artifacts"])
 
 
 def is_forbidden_legacy_name(name: str) -> bool:

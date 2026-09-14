@@ -16,10 +16,11 @@ namespace Consensus {
 struct Params;
 }
 
-/** RES coinbase identity: fees + bootstrap + accepted mint. */
-[[nodiscard]] inline CAmount RigorResCoinbaseExpected(CAmount fees_res, CAmount bootstrap, CAmount mint)
+/** RES coinbase identity: fees + bootstrap. RFC-019 leaves no mint term — issuance
+ *  is a body transaction, so a coinbase that pays RES it did not collect is invalid. */
+[[nodiscard]] inline CAmount RigorResCoinbaseExpected(CAmount fees_res, CAmount bootstrap)
 {
-    return fees_res + bootstrap + mint;
+    return fees_res + bootstrap;
 }
 
 struct RigorSupplyDeltaInput {
@@ -29,27 +30,23 @@ struct RigorSupplyDeltaInput {
     CAmount fees_res{0};
     CAmount oru_coinbase{0};
     CAmount res_coinbase{0};
+    /** RFC-019: RES minted by this block's body transactions, each priced against the
+     *  epoch by CheckTxInputs. Observational only here — the gate is per transaction. */
     CAmount res_mint{0};
     CAmount res_bootstrap{0};
     CAmount converge_sum{0};
-    bool has_winner{false};
-    int draw_cardinality{0};
 };
 
 struct RigorSupplyDeltaResult {
     CAmount oru_subsidy{0};
-    CAmount res_reward_scheduled{0};
     CAmount oru_claimable{0};
     CAmount oru_circulating_delta{0};
     CAmount res_delta{0};
-    bool res_mint_authorized{false};
 };
 
 /**
- * Coinbase ORU/RES budgets, winner-must-mint gates, and the circulating Δ.
- * Reject reasons match ConnectBlock: bad-cb-amount, bad-cb-res-amount,
- * bad-rigor-res-winner-mismatch, bad-rigor-res-trigger-underflow,
- * bad-rigor-res-without-winner, bad-rigor-res-amount.
+ * Coinbase ORU/RES budgets and the circulating Δ.
+ * Reject reasons match ConnectBlock: bad-cb-amount, bad-cb-res-amount.
  */
 bool RigorSupplyDelta(const RigorSupplyDeltaInput& in, const Consensus::Params& params,
                       RigorSupplyDeltaResult& out, BlockValidationState& state);

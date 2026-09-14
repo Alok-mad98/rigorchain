@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::error::{MinerError, MinerResult};
 
-pub const DEFAULT_AGENT: &str = "rigor-miner/1.0-opushash";
+pub const DEFAULT_AGENT: &str = "rigor-miner/1.0-rgrpow01";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StratumRequest {
@@ -72,8 +72,12 @@ pub fn params_as_strings(params: &Value) -> MinerResult<Vec<String>> {
     }
 }
 
+pub fn requires_rgrpow01_agent(agent: &str) -> bool {
+    agent.to_ascii_lowercase().contains("rgrpow01")
+}
+
 pub fn requires_opushash_agent(agent: &str) -> bool {
-    agent.contains("opushash")
+    agent.to_ascii_lowercase().contains("opushash")
 }
 
 #[cfg(test)]
@@ -82,7 +86,8 @@ mod tests {
 
     #[test]
     fn agent_gate() {
+        assert!(requires_rgrpow01_agent("rigor-miner/1.0-rgrpow01"));
+        assert!(!requires_rgrpow01_agent("legacy-miner"));
         assert!(requires_opushash_agent("rigor-miner/1.0-opushash"));
-        assert!(!requires_opushash_agent("legacy-miner"));
     }
 }

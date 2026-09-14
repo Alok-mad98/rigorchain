@@ -314,8 +314,8 @@ static std::vector<RPCResult> MempoolEntryDescription()
             {
                 RPCResult{RPCResult::Type::BOOL, "is_convergence", "True if transaction is a convergence transaction"},
                 RPCResult{RPCResult::Type::STR_AMOUNT, "convergence_amount", /*optional=*/true, "ORU locked in witness-v1 convergence output in " + CURRENCY_UNIT},
-                RPCResult{RPCResult::Type::STR_AMOUNT, "min_convergence", /*optional=*/true, "Consensus minimum convergence amount in " + CURRENCY_UNIT},
-                RPCResult{RPCResult::Type::BOOL, "meets_min_convergence", /*optional=*/true, "True if convergence_amount is at least min_convergence"},
+                RPCResult{RPCResult::Type::STR_AMOUNT, "min_convergence", /*optional=*/true, "Smallest positive OP_CONVERGE burn in " + CURRENCY_UNIT + " (one atom; not a mint price)"},
+                RPCResult{RPCResult::Type::BOOL, "meets_min_convergence", /*optional=*/true, "True if convergence_amount is a positive burn"},
                 RPCResult{RPCResult::Type::NUM, "descendant_feerate", /*optional=*/true, "Descendant package feerate in " + CURRENCY_ATOM + "/kvB (primary economic signal)"},
                 RPCResult{RPCResult::Type::NUM, "eviction_score", /*optional=*/true, "Score used for mempool size eviction (CONVERGENCE_POLICY_V1_LOCK; feerate-only or feerate boost with -convmempoolboost)"},
                 RPCResult{RPCResult::Type::STR, "policy", /*optional=*/true, "feerate_only or feerate_convergence_boost"},

@@ -7,12 +7,6 @@
 
 #include <consensus/kernel/genesis_authority.h>
 
-#include <consensus/rigor_res.h>
-
-ConvergenceDrawOutcome RigorConsensusKernel::ResolveDraw(const ConvergenceDrawSet& F, const uint256& T)
-{
-    return ResolveConvergenceDraw(F, T);
-}
 
 RigorIssuance RigorConsensusKernel::Issuance(int height, const Consensus::Params& params)
 {
@@ -41,14 +35,8 @@ bool RigorConsensusKernel::EvaluateConnect(const RigorConsensusKernelConnectInpu
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "kernel-negative-height");
     }
 
-    if (!rigor::ConnectEvaluateCoinbaseResMint(*in.coinbase, in.height, *in.params,
-            in.parent_draw, in.parent_draw_outcome, state, out.res_mint)) {
-        return false;
-    }
-
     RigorSupplyDeltaInput supply = in.supply;
     supply.height = in.height;
-    supply.res_mint = out.res_mint;
     if (!RigorSupplyDelta(supply, *in.params, out.supply, state)) {
         return false;
     }

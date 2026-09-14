@@ -70,7 +70,6 @@ def build_shadow() -> None:
         str(SRC / "consensus/bridge/kernel_marshalling.cpp"),
         str(SRC / "consensus/bridge/issuance_bridge.cpp"),
         str(SRC / "consensus/bridge/classify_bridge.cpp"),
-        str(SRC / "consensus/bridge/draw_bridge.cpp"),
         str(SRC / "consensus/bridge/supply_bridge.cpp"),
         str(SRC / "consensus/rigor_issuance.cpp"),
         str(SRC / "consensus/rigor_supply.cpp"),
@@ -78,8 +77,6 @@ def build_shadow() -> None:
         str(SRC / "script/script.cpp"),
         str(SRC / "uint256.cpp"),
         str(SRC / "util/strencodings.cpp"),
-        str(SRC / "consensus/convergence_logic.cpp"),
-        str(SRC / "consensus_rigor/sigma_hash.cpp"),
         str(SRC / "crypto/sha256.cpp"),
         str(SRC / "arith_uint256.cpp"),
         "-Wl,--gc-sections",
@@ -107,7 +104,6 @@ def build_cabi() -> None:
         str(SRC / "consensus/bridge/kernel_marshalling.cpp"),
         str(SRC / "consensus/bridge/issuance_bridge.cpp"),
         str(SRC / "consensus/bridge/classify_bridge.cpp"),
-        str(SRC / "consensus/bridge/draw_bridge.cpp"),
         str(SRC / "consensus/bridge/supply_bridge.cpp"),
         str(SRC / "consensus/rigor_issuance.cpp"),
         str(SRC / "consensus/rigor_supply.cpp"),
@@ -115,8 +111,6 @@ def build_cabi() -> None:
         str(SRC / "script/script.cpp"),
         str(SRC / "uint256.cpp"),
         str(SRC / "util/strencodings.cpp"),
-        str(SRC / "consensus/convergence_logic.cpp"),
-        str(SRC / "consensus_rigor/sigma_hash.cpp"),
         str(SRC / "crypto/sha256.cpp"),
         str(SRC / "arith_uint256.cpp"),
         "-Wl,--gc-sections",
@@ -176,12 +170,8 @@ def main() -> int:
         if o != c:
             stop({"surface": "issuance", "height": pin["height"]}, c, o)
             return 1
-        if pin["height"] == 0 and o["res_reward_schedule"] == 0:
+        if pin["height"] == 0 and o.get("res_destroy_cost", 0) == 0:
             stop({"height": 0}, c, o)
-            return 1
-        actual = 0 if pin["height"] == 0 else o["res_reward_schedule"]
-        if pin["height"] == 0 and actual != 0:
-            stop({"height": 0, "actual": actual}, c, o)
             return 1
 
     for pin in vec["classify"]:
