@@ -13,17 +13,25 @@ export type ExplorerFetchResult<T> = {
 const EXPLORER_TIMEOUT_MS = 10000;
 
 const DEFAULT_EXPLORER_URL = "https://explorer.rigorchain.com";
+const SAME_ORIGIN = new Set(["same-origin", "/", "."]);
+
+function envExplorerUrl(): string {
+  return (import.meta.env.VITE_EXPLORER_API_URL ?? "").trim();
+}
 
 function baseUrl(): string | null {
-  const url = import.meta.env.VITE_EXPLORER_API_URL?.trim() || DEFAULT_EXPLORER_URL;
-  return url.replace(/\/$/, "");
+  const raw = envExplorerUrl();
+  if (SAME_ORIGIN.has(raw)) return "";
+  if (raw) return raw.replace(/\/$/, "");
+  return DEFAULT_EXPLORER_URL.replace(/\/$/, "");
 }
 
 async function explorerGet<T>(path: string): Promise<ExplorerFetchResult<T>> {
   const fetched_at = new Date().toISOString();
   const base = baseUrl();
 
-  if (!base) {
+  // "" is same-origin (VITE_EXPLORER_API_URL=same-origin). Only null means unset.
+  if (base === null) {
     return {
       body: null,
       status: 0,
@@ -72,15 +80,36 @@ export type ApiStatus = {
 
 export type ResMintRow = {
   txid?: string;
+  mint_txid?: string;
   block_hash?: string;
-  height?: number;
+  height?: number | string;
+  block_height?: number | string;
   amount?: string | number;
-  confirmations?: number;
+  mint_amount?: string | number;
+  confirmations?: number | string;
   [key: string]: unknown;
 };
 
 export type ResMintsResponse = {
   mints?: ResMintRow[];
+  [key: string]: unknown;
+};
+
+export type ExplorerBlockRow = {
+  height?: number | string;
+  block_hash?: string;
+  hash?: string;
+  oru_minted?: string | number;
+  oru_minted_display?: string;
+  oru_minted_atoms?: string | number;
+  converge_burn_display?: string;
+  converge_burn_atoms?: string | number;
+  tx_count?: number | string;
+  [key: string]: unknown;
+};
+
+export type BlocksResponse = {
+  blocks?: ExplorerBlockRow[];
   [key: string]: unknown;
 };
 
@@ -93,7 +122,7 @@ export function getBlock(hash: string) {
 }
 
 export function getBlocks(limit = 50) {
-  return explorerGet<{ blocks?: Record<string, unknown>[] }>(`/api/blocks?limit=${encodeURIComponent(String(limit))}`);
+  return explorerGet<BlocksResponse>(`/api/blocks?limit=${encodeURIComponent(String(limit))}`);
 }
 
 export function getTx(txid: string) {
@@ -109,7 +138,8 @@ export function getLineage(txid: string) {
 }
 
 export function isExplorerConfigured(): boolean {
-  return Boolean(baseUrl());
+  if (SAME_ORIGIN.has(envExplorerUrl())) return true;
+  return baseUrl() !== null;
 }
 
 export function explorerBaseUrl(): string | null {

@@ -306,7 +306,8 @@ void InterruptRPC()
         g_rpc_running = false;
         // Wake getblocktemplate longpoll waiters immediately. Without this, wait_until
         // can block until its 1-minute timeout while StopHTTPServer waits for the
-        // request — GUI shows "shutting down" forever (solo miner + -server=1).
+        // request. A killed miner still needs the HTTP request-wait timeout in
+        // StopHTTPServer — notify alone does not complete a half-open connection.
         g_best_block_cv.notify_all();
     });
 }

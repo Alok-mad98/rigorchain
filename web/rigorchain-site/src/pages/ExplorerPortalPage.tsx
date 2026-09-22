@@ -1,13 +1,12 @@
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
 import { explorerBaseUrl } from "../lib/explorerClient";
-import { ResIssuanceCharts } from "../components/ResIssuanceCharts";
-
 const SURFACES = [
-  { href: "", title: "Home", note: "Chain identity, height, ASERT / OpuHash" },
+  { href: "", title: "Home", note: "Chain identity and height" },
   { href: "/blocks", title: "Blocks", note: "Height, hash, indexed blocks" },
   { href: "/oru.html", title: "ORU", note: "Indexed ORU amounts" },
-  { href: "/res.html", title: "RES", note: "Mint cost curve and derived issuance ceiling" },
+  { href: "/res.html", title: "RES", note: "Reserve operations and created RES" },
+  { href: "/res-events.html", title: "RES events", note: "ORU destroyed and RES created" },
 ] as const;
 
 export function ExplorerPortalPage() {
@@ -18,13 +17,21 @@ export function ExplorerPortalPage() {
       <header className="page-header">
         <h1>Explorer</h1>
         <p className="muted">
-          Read-only indexer. RES mints in the same body transaction as an OP_CONVERGE destroy.
-          Not a validation authority.
+          Read-only indexer. RES events display protocol-defined reserve operations. Each event
+          records transparent ORU destruction and corresponding RES creation according to consensus
+          rules. The Explorer is not a validation authority.
         </p>
       </header>
 
-      <SectionTitle>RES issuance schedule</SectionTitle>
-      <ResIssuanceCharts />
+      <section className="card prose-section">
+        <h2>What the Explorer shows</h2>
+        <p>
+          RES issuance follows deterministic protocol rules designed to balance participation,
+          scarcity, and long-term reserve behavior. This portal does not publish the issuance
+          equation or a projected ceiling. The complete specification will be published with
+          mainnet launch.
+        </p>
+      </section>
 
       <SectionTitle>Surfaces</SectionTitle>
       <section className="card-grid">

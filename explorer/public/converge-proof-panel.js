@@ -1,5 +1,5 @@
 /**
- * ConvergeProof visualization panel (TASK-EXPLORER-007). Display only.
+ * Convergence proof visualization panel. Display only.
  */
 (function () {
   function escapeHtml(s) {

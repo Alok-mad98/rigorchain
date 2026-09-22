@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>RIGOR TESTNET downloads</title></head>
+<body>
+<h1>RIGOR TESTNET downloads</h1>
+<p>Official website. TESTNET ONLY. No monetary value.</p>
+<p>Network TESTNET · chain test · trg1q · P2P 18760 · peers seed1.testnet.rigor.network:18760 and seed2.testnet.rigor.network:18760</p>
+<ul>
+__ITEMS__
+</ul>
+<p>Verify with SHA256SUMS. Do not use rigor-v0.2-* Mainnet files.</p>
+<p>SOLO mining: <a href="MINER-TESTNET-README.txt">English</a> · <a href="MINER-TESTNET-README-CN.txt">中文</a></p>
+<p><a href="/download">Back to Download</a></p>
+</body></html>

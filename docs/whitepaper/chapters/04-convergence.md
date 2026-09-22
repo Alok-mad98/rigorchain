@@ -23,7 +23,7 @@ No Convergence → no new RES.
 
 ---
 
-## 4.1 The bridge must be one-way, atomic, and replayable
+## 4.1 The bridge is one-way, atomic, and replayable
 
 Chapter 1 assigned the three vertices to two assets. Chapter 2 wrote the
 transform as rules. Chapter 3 wrote the identities as classification.
@@ -34,9 +34,10 @@ decision.
 If destroy is in one transaction and mint in another, the ledger has a
 window in which RES is credited and the destroy is “to follow.” That is
 credit, not destroy. If destroy is inferred from
-`inputs − outputs − fee`, destroy collapses into the fee remainder and
-a verifier cannot point at the output that was burned. If a miner mints
-RES in coinbase, the bridge becomes miner discretion.
+`inputs − outputs − fee`, it may become indistinguishable from ordinary
+fee accounting, and a verifier cannot point at the output that was
+burned. If a miner mints RES in coinbase, the bridge becomes miner
+discretion.
 
 Convergence therefore has three requirements that do not come apart:
 
@@ -136,8 +137,10 @@ to ORU.
 
 ## 4.5 An integer predicate, not a quote
 
-Consensus never evaluates the display formula. It evaluates the same
-relation with the division cleared:
+Consensus never evaluates the display formula. The integer predicate
+is the exact integer form of the mint condition, algebraically
+equivalent to the display-cost condition. No rounding or truncation
+occurs. Consensus evaluates that relation with the division cleared:
 
 ```
 R > 0  →  R · (2²⁵ + h)² ≤ B << 40
@@ -151,6 +154,11 @@ Display form, for reading only:
 destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰
 destroy_cost(0) = 1024 ORU per whole RES
 ```
+
+`2⁵⁰` is the curve normalization denominator. It is not a consensus
+shift. `2⁴⁰` in `B << 40` is the integer consensus scaling factor. It
+is not the `destroy_cost` denominator. Display rounding/floor from a
+`/ 2⁵⁰` helper do not enter consensus.
 
 Same height, same `B`, same `R` ⇒ every honest node admits or rejects
 alike. No miner discretion. No unpublished rate. No division, square
@@ -174,9 +182,10 @@ absorbable in a single block, not queued by the protocol.
 
 ## 4.6 Why it is not a 1:1 counter
 
-A 1:1 swap would re-merge the two identities: destroy this much flow,
-appear that much stock. That is a rename, not a transform. Chapter 1’s
-triangle would collapse back to one asset.
+A 1:1 swap would weaken the intended separation between the two
+identities: destroy this much flow, appear that much stock. That is a
+rename, not a transform. Chapter 1’s triangle would no longer assign
+the three vertices to two distinct assets.
 
 The protocol cost rises with height. An earlier mint pays less per RES
 for a longer remaining span of protection. Destroyed ORU leaves
@@ -203,8 +212,9 @@ A miner cannot write RES into coinbase. A miner cannot assign RES to
 their own address as a block prize. Pool policy cannot allocate RES.
 Changing a miner payout address cannot create RES.
 
-Fairness is: **the same public inequality, the same decision.** The
-mathematics is Chapter 5. This chapter only fixes the verification act.
+Fairness within the consensus rule is defined as deterministic
+evaluation of the same public inequality. The mathematics is Chapter 5.
+This chapter only fixes the verification act.
 
 ---
 
@@ -242,5 +252,18 @@ not a `ConnectBlock` equivalence proof.
 
 **Destroy is visible. Mint is an integer predicate in the same
 transaction.** Chapter 5 unfolds that predicate as checkable
-mathematics: the closed-form integral, the forced shift, and why “same
+mathematics: the closed-form integral, the forced consensus scaling
+factor, and why “same
 inputs, same decision” is the fairness claim.
+
+This chapter states the conceptual mechanism. Algebraic derivation,
+the integer-predicate transformation, ceiling derivation, and the
+fairness interpretation are in Appendix D:
+[`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](../RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md).
+That Mathematical Design Note is explanatory documentation. It does
+not introduce new consensus rules.
+
+The Convergence curve defines deterministic protocol issuance cost.
+It does not define market price, profitability, or future demand.
+Differences in issuance cost across height do not constitute a protocol
+guarantee of economic return.

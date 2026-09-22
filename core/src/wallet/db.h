@@ -23,8 +23,6 @@ namespace wallet {
 /** SQLite wallet payload filename. Not BDB. Leftover wallet.dat is not opened or renamed. */
 static constexpr const char* WALLET_DATABASE_FILENAME = "rigor-wallet.sqlite";
 
-void SplitWalletPath(const fs::path& wallet_path, fs::path& env_directory, std::string& database_filename);
-
 class DatabaseCursor
 {
 public:
@@ -118,6 +116,8 @@ public:
     virtual bool TxnBegin() = 0;
     virtual bool TxnCommit() = 0;
     virtual bool TxnAbort() = 0;
+    /** True only if this batch started the active db transaction. Default false. */
+    virtual bool HasActiveTxn() { return false; }
 };
 
 /** An instance of this class represents one database.
@@ -239,6 +239,12 @@ enum class DatabaseStatus {
 
 /** Recursively list database paths in directory. */
 std::vector<fs::path> ListDatabases(const fs::path& path);
+
+/** Delete only the SQLite file (and sidecars) created at wallet_path.
+ *  Never recursive-delete a directory: an empty wallet name makes
+ *  wallet_path == GetWalletDir(), and remove_all would erase every wallet
+ *  (bitcoin/bitcoin#34156, #34215). */
+void RemoveCreatedWalletDatabase(const fs::path& wallet_path);
 
 void ReadDatabaseArgs(const ArgsManager& args, DatabaseOptions& options);
 std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const DatabaseOptions& options, DatabaseStatus& status, bilingual_str& error);

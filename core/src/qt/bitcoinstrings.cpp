@@ -298,7 +298,7 @@ QT_TRANSLATE_NOOP("rigor-core", "Error: Unable to parse version %u as a uint32_t
 QT_TRANSLATE_NOOP("rigor-core", "Error: Unable to read all records in the database"),
 QT_TRANSLATE_NOOP("rigor-core", "Error: Unable to remove watchonly address book data"),
 QT_TRANSLATE_NOOP("rigor-core", "Error: Unable to write record to new wallet"),
-QT_TRANSLATE_NOOP("rigor-core", "Failed to listen on any port. Use -listen=0 if you want this."),
+QT_TRANSLATE_NOOP("rigor-core", "Failed to listen on all configured binds. Use -listen=0 if you want this."),
 QT_TRANSLATE_NOOP("rigor-core", "Failed to rescan the wallet during initialization"),
 QT_TRANSLATE_NOOP("rigor-core", "Failed to verify database"),
 QT_TRANSLATE_NOOP("rigor-core", "Fee rate (%s) is lower than the minimum fee rate setting (%s)"),

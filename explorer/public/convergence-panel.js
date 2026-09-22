@@ -1,5 +1,5 @@
 /**
- * Convergence detail panel rendering (TASK-EXPLORER-004). Presentation only.
+ * Convergence detail panel rendering. Presentation only.
  */
 (function () {
   function escapeHtml(s) {

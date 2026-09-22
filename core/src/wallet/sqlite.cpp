@@ -8,6 +8,7 @@
 #include <crypto/common.h>
 #include <logging.h>
 #include <sync.h>
+#include <util/check.h>
 #include <util/fs_helpers.h>
 #include <util/strencodings.h>
 #include <util/translation.h>
@@ -84,7 +85,13 @@ Mutex SQLiteDatabase::g_sqlite_mutex;
 int SQLiteDatabase::g_sqlite_count = 0;
 
 SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_path, const DatabaseOptions& options, bool mock)
-    : WalletDatabase(), m_mock(mock), m_dir_path(fs::PathToString(dir_path)), m_file_path(fs::PathToString(file_path)), m_use_unsafe_sync(options.use_unsafe_sync)
+    : WalletDatabase(),
+      m_mock(mock),
+      m_dir_path(fs::PathToString(dir_path)),
+      m_file_path(fs::PathToString(file_path)),
+      m_additional_flags(mock ? SQLITE_OPEN_MEMORY : 0),
+      m_write_semaphore(1),
+      m_use_unsafe_sync(options.use_unsafe_sync)
 {
     {
         LOCK(g_sqlite_mutex);
@@ -110,7 +117,7 @@ SQLiteDatabase::SQLiteDatabase(const fs::path& dir_path, const fs::path& file_pa
     }
 
     try {
-        Open();
+        OpenWithFlags(m_additional_flags);
     } catch (const std::runtime_error&) {
         // If open fails, cleanup this object and rethrow the exception
         Cleanup();
@@ -217,14 +224,26 @@ bool SQLiteDatabase::Verify(bilingual_str& error)
 
 void SQLiteDatabase::Open()
 {
-    int flags = SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-    if (m_mock) {
-        flags |= SQLITE_OPEN_MEMORY; // In memory database for mock db
+    // bitcoin/bitcoin ee43743: reopening an in-memory DB would create an empty
+    // connection and silently drop all records.
+    if (m_mock || (m_additional_flags & SQLITE_OPEN_MEMORY)) {
+        throw std::runtime_error("SQLiteDatabase: Cannot reopen an in-memory database");
     }
+    OpenWithFlags(m_additional_flags);
+}
+
+void SQLiteDatabase::OpenWithFlags(int additional_flags)
+{
+    int flags = SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | additional_flags;
 
     if (m_db == nullptr) {
-        if (!m_mock) {
+        if (!(flags & SQLITE_OPEN_MEMORY)) {
             TryCreateDirectories(fs::PathFromString(m_dir_path));
+            if (!DirIsWritable(fs::PathFromString(m_dir_path))) {
+                throw std::runtime_error(strprintf(
+                    "SQLiteDatabase: Failed to open database in directory '%s': directory is not writable",
+                    m_dir_path));
+            }
         }
         int ret = sqlite3_open_v2(m_file_path.c_str(), &m_db, flags, nullptr);
         if (ret != SQLITE_OK) {
@@ -360,12 +379,20 @@ SQLiteBatch::SQLiteBatch(SQLiteDatabase& database)
 
 void SQLiteBatch::Close()
 {
-    // If m_db is in a transaction (i.e. not in autocommit mode), then abort the transaction in progress
-    if (m_database.m_db && sqlite3_get_autocommit(m_database.m_db) == 0) {
+    bool force_conn_refresh = false;
+
+    // Only abort a txn this batch started. Aborting any connection-level txn
+    // (old behavior) rolls back another batch's send/TopUp work and then throws
+    // "committing descriptor top-up failed" on the scheduler (bitcoin#29110).
+    if (m_txn) {
         if (TxnAbort()) {
             LogPrintf("SQLiteBatch: Batch closed unexpectedly without the transaction being explicitly committed or aborted\n");
         } else {
-            LogPrintf("SQLiteBatch: Batch closed and failed to abort transaction\n");
+            // bitcoin/bitcoin#29253: a failed ROLLBACK must not leave a dangling
+            // txn that a later write would COMMIT. Closing the connection rolls
+            // it back (https://www.sqlite.org/c3ref/close.html).
+            force_conn_refresh = true;
+            LogPrintf("SQLiteBatch: Batch closed and failed to abort transaction, resetting db connection..\n");
         }
     }
 
@@ -384,6 +411,21 @@ void SQLiteBatch::Close()
                       stmt_description, sqlite3_errstr(res));
         }
         *stmt_prepared = nullptr;
+    }
+
+    if (force_conn_refresh) {
+        m_txn = false;
+        if (m_database.m_additional_flags & SQLITE_OPEN_MEMORY) {
+            throw std::runtime_error("SQLiteDatabase: Cannot recover in-memory database connection");
+        }
+        m_database.Close();
+        try {
+            m_database.Open();
+            m_database.m_write_semaphore.post();
+        } catch (const std::runtime_error&) {
+            m_database.Close();
+            throw;
+        }
     }
 }
 
@@ -431,6 +473,8 @@ bool SQLiteBatch::WriteKey(DataStream&& key, DataStream&& value, bool overwrite)
     if (!BindBlobToStatement(stmt, 1, key, "key")) return false;
     if (!BindBlobToStatement(stmt, 2, value, "value")) return false;
 
+    if (!m_txn) m_database.m_write_semaphore.wait();
+
     // Execute
     int res = sqlite3_step(stmt);
     sqlite3_clear_bindings(stmt);
@@ -438,6 +482,9 @@ bool SQLiteBatch::WriteKey(DataStream&& key, DataStream&& value, bool overwrite)
     if (res != SQLITE_DONE) {
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
+
+    if (!m_txn) m_database.m_write_semaphore.post();
+
     return res == SQLITE_DONE;
 }
 
@@ -449,6 +496,8 @@ bool SQLiteBatch::EraseKey(DataStream&& key)
     // Bind: leftmost parameter in statement is index 1
     if (!BindBlobToStatement(m_delete_stmt, 1, key, "key")) return false;
 
+    if (!m_txn) m_database.m_write_semaphore.wait();
+
     // Execute
     int res = sqlite3_step(m_delete_stmt);
     sqlite3_clear_bindings(m_delete_stmt);
@@ -456,6 +505,9 @@ bool SQLiteBatch::EraseKey(DataStream&& key)
     if (res != SQLITE_DONE) {
         LogPrintf("%s: Unable to execute statement: %s\n", __func__, sqlite3_errstr(res));
     }
+
+    if (!m_txn) m_database.m_write_semaphore.post();
+
     return res == SQLITE_DONE;
 }
 
@@ -518,32 +570,50 @@ std::unique_ptr<DatabaseCursor> SQLiteBatch::GetNewCursor()
     return cursor;
 }
 
+bool SQLiteDatabase::HasActiveTxn() const
+{
+    return m_db && sqlite3_get_autocommit(m_db) == 0;
+}
+
 bool SQLiteBatch::TxnBegin()
 {
-    if (!m_database.m_db || sqlite3_get_autocommit(m_database.m_db) == 0) return false;
+    if (!m_database.m_db || m_txn) return false;
+    m_database.m_write_semaphore.wait();
+    Assert(!m_database.HasActiveTxn());
     int res = sqlite3_exec(m_database.m_db, "BEGIN TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to begin the transaction\n");
+        m_database.m_write_semaphore.post();
+    } else {
+        m_txn = true;
     }
     return res == SQLITE_OK;
 }
 
 bool SQLiteBatch::TxnCommit()
 {
-    if (!m_database.m_db || sqlite3_get_autocommit(m_database.m_db) != 0) return false;
+    if (!m_database.m_db || !m_txn) return false;
+    Assert(m_database.HasActiveTxn());
     int res = sqlite3_exec(m_database.m_db, "COMMIT TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to commit the transaction\n");
+    } else {
+        m_txn = false;
+        m_database.m_write_semaphore.post();
     }
     return res == SQLITE_OK;
 }
 
 bool SQLiteBatch::TxnAbort()
 {
-    if (!m_database.m_db || sqlite3_get_autocommit(m_database.m_db) != 0) return false;
+    if (!m_database.m_db || !m_txn) return false;
+    Assert(m_database.HasActiveTxn());
     int res = sqlite3_exec(m_database.m_db, "ROLLBACK TRANSACTION", nullptr, nullptr, nullptr);
     if (res != SQLITE_OK) {
         LogPrintf("SQLiteBatch: Failed to abort the transaction\n");
+    } else {
+        m_txn = false;
+        m_database.m_write_semaphore.post();
     }
     return res == SQLITE_OK;
 }

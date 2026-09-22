@@ -8,6 +8,7 @@
 #include <script/script.h>
 #include <script/standard.h>
 #include <stdexcept>
+#include <util/time.h>
 #include <wallet/receive.h>
 #include <wallet/reuse_domain.h>
 #include <wallet/transaction.h>
@@ -33,12 +34,24 @@ bool AllInputsMine(const CWallet& wallet, const CTransaction& tx, const isminefi
     return true;
 }
 
+static CAmount OutputGetCreditUnlocked(const CWallet& wallet, const CTxOut& txout, const isminefilter& filter)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet)
+{
+    AssertLockHeld(wallet.cs_wallet);
+    if (!MoneyRange(txout.nValue))
+        throw std::runtime_error(std::string("OutputGetCredit") + ": value out of range");
+    // OP_CONVERGE / OP_RETURN never enter the UTXO set. Counting them as credit
+    // would overstate spendable ORU if IsMine were ever true (watch-only import).
+    if (!EntersUtxoSet(txout.scriptPubKey)) {
+        return 0;
+    }
+    return ((wallet.IsMine(txout) & filter) ? txout.nValue : 0);
+}
+
 CAmount OutputGetCredit(const CWallet& wallet, const CTxOut& txout, const isminefilter& filter)
 {
-    if (!MoneyRange(txout.nValue))
-        throw std::runtime_error(std::string(__func__) + ": value out of range");
     LOCK(wallet.cs_wallet);
-    return ((wallet.IsMine(txout) & filter) ? txout.nValue : 0);
+    return OutputGetCreditUnlocked(wallet, txout, filter);
 }
 
 CAmount TxGetCredit(const CWallet& wallet, const CTransaction& tx, const isminefilter& filter)
@@ -63,6 +76,9 @@ bool ScriptIsChange(const CWallet& wallet, const CScript& script)
     // 'the change' will need to be implemented (maybe extend CWalletTx to remember
     // which output, if any, was change).
     AssertLockHeld(wallet.cs_wallet);
+    if (!EntersUtxoSet(script)) {
+        return false;
+    }
     if (wallet.IsMine(script))
     {
         CTxDestination address;
@@ -161,6 +177,22 @@ CAmount CachedTxGetImmatureCredit(const CWallet& wallet, const CWalletTx& wtx, c
     return 0;
 }
 
+static CWalletTx::AmountType ImmatureCreditAmountType(AssetType asset)
+{
+    return asset == ASSET_RES ? CWalletTx::IMMATURE_CREDIT_RES : CWalletTx::IMMATURE_CREDIT_ORU;
+}
+
+static CWalletTx::AmountType AvailableCreditAmountType(AssetType asset)
+{
+    return asset == ASSET_RES ? CWalletTx::AVAILABLE_CREDIT_RES : CWalletTx::AVAILABLE_CREDIT_ORU;
+}
+
+static bool AllowAmountCache(const isminefilter& filter)
+{
+    // Match CachedTxGetAvailableCredit: never cache ISMINE_NO or ISMINE_ALL.
+    return (filter & ISMINE_ALL) && (filter & ISMINE_ALL) != ISMINE_ALL;
+}
+
 CAmount CachedTxGetImmatureCreditForAsset(const CWallet& wallet, const CWalletTx& wtx, AssetType asset, const isminefilter& filter)
 {
     AssertLockHeld(wallet.cs_wallet);
@@ -171,6 +203,12 @@ CAmount CachedTxGetImmatureCreditForAsset(const CWallet& wallet, const CWalletTx
         return 0;
     }
 
+    const CWalletTx::AmountType amount_type = ImmatureCreditAmountType(asset);
+    const bool allow_cache = AllowAmountCache(filter);
+    if (allow_cache && wtx.m_amounts[amount_type].m_cached[filter]) {
+        return wtx.m_amounts[amount_type].m_value[filter];
+    }
+
     CAmount nCredit = 0;
     const uint256 hashTx = wtx.GetHash();
     for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
@@ -178,9 +216,14 @@ CAmount CachedTxGetImmatureCreditForAsset(const CWallet& wallet, const CWalletTx
         if (AssetTypeFromScriptPubKey(txout.scriptPubKey) != asset) continue;
         // Spent mint outputs must not remain in Pending while change is also counted.
         if (wallet.IsSpent(COutPoint(hashTx, i))) continue;
-        nCredit += OutputGetCredit(wallet, txout, filter);
+        nCredit += OutputGetCreditUnlocked(wallet, txout, filter);
         if (!MoneyRange(nCredit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
+    }
+
+    if (allow_cache) {
+        wtx.m_amounts[amount_type].Set(filter, nCredit);
+        wtx.m_is_cache_empty = false;
     }
     return nCredit;
 }
@@ -269,7 +312,7 @@ CAmount CachedTxGetAvailableCredit(const CWallet& wallet, const CWalletTx& wtx, 
         }
         if (!wallet.IsSpent(COutPoint(hashTx, i))
             && !OutputBlockedByOruReuse(wallet, txout.scriptPubKey, allow_used_addresses)) {
-            nCredit += OutputGetCredit(wallet, txout, filter);
+            nCredit += OutputGetCreditUnlocked(wallet, txout, filter);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
         }
@@ -288,10 +331,18 @@ static CAmount CachedTxGetAvailableCreditForAsset(const CWallet& wallet, const C
 {
     AssertLockHeld(wallet.cs_wallet);
 
+    // Immature amounts must not be written into the available-credit cache:
+    // maturity flips on later blocks without MarkDirty().
     if (wallet.IsTxImmatureCoinBase(wtx))
         return 0;
     if (asset == ASSET_RES && wallet.IsTxImmatureResMint(wtx))
         return 0;
+
+    const CWalletTx::AmountType amount_type = AvailableCreditAmountType(asset);
+    const bool allow_cache = AllowAmountCache(filter);
+    if (allow_cache && wtx.m_amounts[amount_type].m_cached[filter]) {
+        return wtx.m_amounts[amount_type].m_value[filter];
+    }
 
     const bool avoid_reuse_active = EffectiveAvoidReuseForAsset(
         wallet.IsWalletFlagSet(WALLET_FLAG_AVOID_REUSE), asset);
@@ -303,12 +354,16 @@ static CAmount CachedTxGetAvailableCreditForAsset(const CWallet& wallet, const C
         if (AssetTypeFromScriptPubKey(txout.scriptPubKey) != asset) continue;
         if (!wallet.IsSpent(COutPoint(hashTx, i))
             && !OutputBlockedByOruReuse(wallet, txout.scriptPubKey, allow_used_addresses)) {
-            nCredit += OutputGetCredit(wallet, txout, filter);
+            nCredit += OutputGetCreditUnlocked(wallet, txout, filter);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error(std::string(__func__) + " : value out of range");
         }
     }
 
+    if (allow_cache) {
+        wtx.m_amounts[amount_type].Set(filter, nCredit);
+        wtx.m_is_cache_empty = false;
+    }
     return nCredit;
 }
 
@@ -321,6 +376,7 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
     listReceived.clear();
     listSent.clear();
 
+    LOCK(wallet.cs_wallet);
     // Network fee is always paid in ORU (see CachedTxGetOruNetworkFee).
     CAmount nDebit = CachedTxGetDebit(wallet, wtx, filter);
     if (nDebit > 0) // debit>0 means we signed/sent this transaction
@@ -328,7 +384,6 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
         nFee = CachedTxGetOruNetworkFee(wallet, wtx, filter);
     }
 
-    LOCK(wallet.cs_wallet);
     // Sent/received.
     for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i)
     {
@@ -346,17 +401,21 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
             continue;
 
         // Destroyed outputs (OP_RETURN / OP_CONVERGE) never enter the UTXO set
-        // and have no address. Do not treat them as an unknown spendable type —
-        // that logged "Unknown transaction type" and left a CNoDestination that
-        // later wallet scans mis-handled.
+        // and have no address. Do not call ExtractDestination — that logged
+        // "Unknown transaction type" and stuffed CNoDestination into later scans.
+        // When we funded a positive burn, list it as a send so details show B
+        // separately from the ORU network fee. Zero-value markers are not funds.
         if (!EntersUtxoSet(txout.scriptPubKey)) {
+            if (nDebit > 0 && txout.nValue > 0) {
+                listSent.push_back({CNoDestination(), txout.nValue, (int)i});
+            }
             continue;
         }
 
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (!ExtractDestination(txout.scriptPubKey, address))
+        if (!ExtractDestination(txout.scriptPubKey, address) || !IsValidDestination(address))
         {
             wallet.WalletLogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
                                     wtx.GetHash().ToString());
@@ -383,6 +442,7 @@ bool CachedTxIsFromMe(const CWallet& wallet, const CWalletTx& wtx, const isminef
 
 CAmount CachedTxGetOruNetworkFee(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
 {
+    AssertLockHeld(wallet.cs_wallet);
     if (!CachedTxIsFromMe(wallet, wtx, filter) || wtx.IsCoinBase()) {
         return 0;
     }
@@ -408,7 +468,12 @@ CAmount CachedTxGetOruNetworkFee(const CWallet& wallet, const CWalletTx& wtx, co
     }
     // POOL-F: network fee is ORU-only; RES inputs never fund the fee.
     (void)res_in;
-    return oru_in - wtx.tx->GetValueOut(ASSET_ORU);
+    const CAmount oru_out = wtx.tx->GetValueOut(ASSET_ORU);
+    // Incomplete prevouts must not surface as a negative fee (a displayed credit).
+    if (oru_in < oru_out) {
+        return 0;
+    }
+    return oru_in - oru_out;
 }
 
 bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx, std::set<uint256>& trusted_parents)
@@ -488,6 +553,75 @@ CAmount GetAssetImmatureBalance(const CWallet& wallet, AssetType asset, const is
     return total;
 }
 
+static isminefilter AssetCreditFilter(AssetType asset, bool avoid_reuse, isminefilter credit_base)
+{
+    const bool effective_avoid_reuse = EffectiveAvoidReuseForAsset(avoid_reuse, asset);
+    return credit_base | (effective_avoid_reuse ? ISMINE_NO : ISMINE_USED);
+}
+
+static void AccumulateTrustedPending(const CAmount credit, const bool is_trusted, const int tx_depth, const bool in_mempool,
+                                     CAmount& trusted_min1, CAmount& trusted_min0, CAmount& pending)
+{
+    if (is_trusted && tx_depth >= 1) trusted_min1 += credit;
+    if (is_trusted && tx_depth >= 0) trusted_min0 += credit;
+    if (!is_trusted && tx_depth == 0 && in_mempool) pending += credit;
+}
+
+DualAssetWalletBalances GetDualAssetWalletBalances(const CWallet& wallet, const bool include_watch_only)
+{
+    DualAssetWalletBalances ret;
+    const isminefilter oru_mine = AssetCreditFilter(ASSET_ORU, /*avoid_reuse=*/true, ISMINE_SPENDABLE);
+    const isminefilter res_mine = AssetCreditFilter(ASSET_RES, /*avoid_reuse=*/true, ISMINE_SPENDABLE);
+    const isminefilter oru_watch = AssetCreditFilter(ASSET_ORU, /*avoid_reuse=*/true, ISMINE_WATCH_ONLY);
+    const isminefilter res_watch = AssetCreditFilter(ASSET_RES, /*avoid_reuse=*/true, ISMINE_WATCH_ONLY);
+
+    const auto t0{SteadyClock::now()};
+    size_t n_txs = 0;
+    {
+        LOCK(wallet.cs_wallet);
+        n_txs = wallet.mapWallet.size();
+        std::set<uint256> trusted_parents;
+        for (const auto& entry : wallet.mapWallet) {
+            const CWalletTx& wtx = entry.second;
+            const bool is_trusted{CachedTxIsTrusted(wallet, wtx, trusted_parents)};
+            const int tx_depth{wallet.GetTxDepthInMainChain(wtx)};
+            const bool in_mempool{wtx.InMempool()};
+
+            AccumulateTrustedPending(CachedTxGetAvailableCreditForAsset(wallet, wtx, ASSET_ORU, oru_mine),
+                                     is_trusted, tx_depth, in_mempool,
+                                     ret.oru_trusted_min1, ret.oru_trusted_min0, ret.oru_pending);
+            AccumulateTrustedPending(CachedTxGetAvailableCreditForAsset(wallet, wtx, ASSET_RES, res_mine),
+                                     is_trusted, tx_depth, in_mempool,
+                                     ret.res_trusted_min1, ret.res_trusted_min0, ret.res_pending);
+            ret.oru_immature += CachedTxGetImmatureCreditForAsset(wallet, wtx, ASSET_ORU, ISMINE_SPENDABLE);
+            ret.res_immature += CachedTxGetImmatureCreditForAsset(wallet, wtx, ASSET_RES, ISMINE_SPENDABLE);
+            if (!MoneyRange(ret.oru_immature) || !MoneyRange(ret.res_immature)) {
+                throw std::runtime_error(std::string(__func__) + ": value out of range");
+            }
+
+            if (!include_watch_only) continue;
+
+            AccumulateTrustedPending(CachedTxGetAvailableCreditForAsset(wallet, wtx, ASSET_ORU, oru_watch),
+                                     is_trusted, tx_depth, in_mempool,
+                                     ret.wo_oru_trusted_min1, ret.wo_oru_trusted_min0, ret.wo_oru_pending);
+            AccumulateTrustedPending(CachedTxGetAvailableCreditForAsset(wallet, wtx, ASSET_RES, res_watch),
+                                     is_trusted, tx_depth, in_mempool,
+                                     ret.wo_res_trusted_min1, ret.wo_res_trusted_min0, ret.wo_res_pending);
+            ret.wo_oru_immature += CachedTxGetImmatureCreditForAsset(wallet, wtx, ASSET_ORU, ISMINE_WATCH_ONLY);
+            ret.wo_res_immature += CachedTxGetImmatureCreditForAsset(wallet, wtx, ASSET_RES, ISMINE_WATCH_ONLY);
+            if (!MoneyRange(ret.wo_oru_immature) || !MoneyRange(ret.wo_res_immature)) {
+                throw std::runtime_error(std::string(__func__) + ": value out of range");
+            }
+        }
+    }
+    const auto elapsed_ms = Ticks<std::chrono::milliseconds>(SteadyClock::now() - t0);
+    if (elapsed_ms >= 50) {
+        wallet.WalletLogPrintf("GetDualAssetWalletBalances %dms txs=%d watchonly=%s\n",
+                               elapsed_ms, n_txs, include_watch_only ? "yes" : "no");
+    }
+    return ret;
+}
+
 Balance GetBalance(const CWallet& wallet, const int min_depth, bool avoid_reuse)
 {
     Balance ret;
@@ -540,13 +674,16 @@ std::map<CTxDestination, AddressNativeBalances> GetAddressBalancesByAsset(const 
 
             for (unsigned int i = 0; i < wtx.tx->vout.size(); i++) {
                 const auto& output = wtx.tx->vout[i];
+                if (!EntersUtxoSet(output.scriptPubKey)) {
+                    continue;
+                }
                 if (AssetTypeFromScriptPubKey(output.scriptPubKey) == ASSET_RES && wallet.IsTxImmatureResMint(wtx)) {
                     continue;
                 }
                 CTxDestination addr;
                 if (!wallet.IsMine(output))
                     continue;
-                if(!ExtractDestination(output.scriptPubKey, addr))
+                if(!ExtractDestination(output.scriptPubKey, addr) || !IsValidDestination(addr))
                     continue;
 
                 const CAmount n = wallet.IsSpent(COutPoint(walletEntry.first, i)) ? 0 : output.nValue;

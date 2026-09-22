@@ -29,7 +29,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 # which is both enough to move the floor at the wrap and enough to push
 # the polynomial past the unsigned 64-bit ceiling it currently clears by
 # less than one part in 10^5.
-run_mutation M90 "asert_poly_fits_uint64 factor_wrap_continuous" \
+run_mutation M90 "asert_poly_fits_uint64 factor_wrap_continuous factor_wrap_step_is_one" \
   Pow/ASERTModel.v \
   'Definition ASERT_POLY_P3 : Z := 5127.' \
   'Definition ASERT_POLY_P3 : Z := 5128.' \

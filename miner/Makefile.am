@@ -39,8 +39,8 @@ minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@
 minerd_CFLAGS	= -fno-strict-aliasing
 minerd_CPPFLAGS	= @LIBCURL_CPPFLAGS@ $(JANSSON_INCLUDES) $(PTHREAD_FLAGS)
 
-check_PROGRAMS	= test_gbt_solo fuzz_gbt_solo
-TESTS		= test_gbt_solo replay_fuzz_corpus.sh
+check_PROGRAMS	= test_gbt_solo fuzz_gbt_solo test_work_copy
+TESTS		= test_gbt_solo replay_fuzz_corpus.sh test_work_copy
 TEST_EXTENSIONS	= .sh
 AM_TESTS_ENVIRONMENT = FUZZ_CORPUS='$(srcdir)/fuzz_corpus/gbt_solo'; export FUZZ_CORPUS;
 
@@ -54,6 +54,9 @@ fuzz_gbt_solo_SOURCES	= fuzz_gbt_solo.c gbt_solo.c sha256d_only.c rgrpow.c arith
 fuzz_gbt_solo_LDADD	= @JANSSON_LIBS@
 fuzz_gbt_solo_CPPFLAGS	= $(JANSSON_INCLUDES)
 fuzz_gbt_solo_CFLAGS	= -fno-strict-aliasing
+
+test_work_copy_SOURCES	= test_work_copy.c
+test_work_copy_CFLAGS	= -fno-strict-aliasing
 
 # Re-run configure then rebuild. Default ./configure has stderr log lock OFF (production).
 .PHONY: debug release

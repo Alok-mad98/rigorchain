@@ -1,4 +1,4 @@
-# Chapter 5 — Checkable Mathematics: Predicate, Forced Shift, Derived Ceiling
+# Chapter 5 — Checkable Mathematics: Predicate, Forced Scaling Factor, Derived Ceiling
 
 Chapter 4 fixed the verification act. This chapter unfolds the predicate
 so anyone can check it with paper or an integer program: the display
@@ -35,8 +35,10 @@ rewrite.
 
 So fairness can be checked on the spot. Given a confirmed transaction,
 anyone who re-evaluates the inequality must get the same yes or no as
-the network. That is not “the outcomes look even.” It is that **the
-decision function is public, deterministic, and exact**.
+the network. In this chapter, fairness means a deterministic and
+publicly reproducible admit-or-reject. It does not mean equal mint
+amount, equal timing, or equal economic outcome. Within the consensus
+rule, that decision is a public, exact function of `(R, B, h)`.
 
 ---
 
@@ -48,17 +50,32 @@ The destroy cost for reading is
 destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰
 ```
 
+`2⁵⁰` is the **curve normalization denominator** in `destroy_cost(h)`:
+`(2²⁵)² = 2⁵⁰`. It is not a consensus shift.
+
+A display helper may evaluate that quotient with integer division by
+`2⁵⁰` (a right-shift by 50). That floor is for reading only. Display
+rounding and floor **do not enter consensus**. Consensus never divides
+by `2⁵⁰`. It evaluates `B << 40`.
+
 At genesis it is exactly 1024 ORU per whole RES. Consensus never
-performs that division. It evaluates the same relation with the
-division cleared:
+performs that division. The integer predicate is the exact integer
+form of the mint condition, not an approximation, a simplified
+estimate, or an optimisation formula. It is algebraically equivalent
+to the display-cost condition. No rounding or truncation occurs.
+Consensus evaluates that relation with the division cleared:
 
 ```
 R > 0  →  R · (2²⁵ + h)² ≤ B << 40
 R = 0  →  B unconstrained
 ```
 
-The step from display form to consensus form is an identity in exact
-arithmetic, not an approximation:
+`2⁴⁰` is the **integer consensus scaling factor** after `1024 = 2¹⁰`
+is cancelled (`50 − 10 = 40`). It is not the `destroy_cost`
+denominator. The display denominator remains `2⁵⁰`.
+
+The step from display form to consensus form is an exact
+integer-preserving equivalence, not an approximation:
 
 ```
 R · destroy_cost(h)                 ≤  B · RES_COIN
@@ -68,17 +85,17 @@ R · 2¹⁰    · (2²⁵+h)²              ≤  B · 2⁴⁰ · 2¹⁰
 R          · (2²⁵+h)²              ≤  B · 2⁴⁰
 ```
 
-`RES_COIN = 10⁸` cancels. `1024 = 2¹⁰`. The shift is therefore forced
-by the genesis destroy cost:
+`RES_COIN = 10⁸` cancels. `1024 = 2¹⁰`. The consensus scaling factor
+is therefore forced by the genesis destroy cost:
 
 ```
 RES_DESTROY_SHIFT = 50 − log₂(1024) = 40
 ```
 
-A different genesis cost moves the shift and nothing else. `40` is not
-an independently chosen “nice number.” Change the genesis cost and
-leave the shift, and the identity breaks: the predicate no longer
-expresses that display curve.
+A different genesis cost moves the scaling factor and nothing else.
+`40` is not an independently chosen “nice number.” Change the genesis
+cost and leave the scaling factor, and the identity breaks: the
+predicate no longer expresses that display curve.
 
 Consensus evaluates one multiplication, one squaring, and one shift.
 No division, no floor, no square root, no epoch index, no price table.
@@ -90,7 +107,7 @@ and the minimum destroy that mints one atom is at least 1.
 
 ---
 
-## 5.3 Why the exponent must be 2
+## 5.3 Why the exponent is 2
 
 Write `S = 128 = 2⁷` (ORU subsidy per block), `P0 = 1024 = 2¹⁰`
 (genesis cost of one whole RES), `H = 2²⁵` (the pole). The display form
@@ -120,9 +137,10 @@ RES_MAX_SUPPLY = 2⁷ / 2¹⁰ · 2²⁵
                = 419 430 400 000 000 atoms
 ```
 
-Every issuance parameter is a power of two. Checking the cap is
-checking exponents. Edit any one constant and a visible identity
-breaks, rather than a curve quietly shifting.
+The primary issuance constants are selected as powers of two to
+simplify arithmetic verification. The derivation of the cap follows
+directly from the exponent relationships. Edit any one constant and a
+visible identity breaks, rather than a curve quietly shifting.
 
 Cumulative issuance through any height also has a closed form:
 
@@ -180,14 +198,14 @@ subsidy(h) = 128 ORU          for every h ≥ 1
 ```
 
 `128 = 2⁷` is not decoration. It is the numerator of the cap identity.
-Change it, and `2²²` fails unless `P0` or `H` moves with it. The
+Change it, and `2²²` does not hold unless `P0` or `H` moves with it. The
 protocol floor for miner payment and the closed ceiling on the scarce
 stock are two places in the same list of powers of two.
 
 The inflation rate decays as `1/t` toward zero and never reaches it.
 Residual inflation level remains `1 − ρ`. The mathematics does not
-create `ρ`. It only guarantees that if `ρ` is observed, realised RES
-and residual ORU inflation can be read off the definition on the spot.
+create `ρ`. It only implies that if `ρ` is observed, realised RES and
+residual ORU inflation can be read off the definition on the spot.
 
 ---
 
@@ -236,8 +254,11 @@ must be updated.
 
 This is not equality of outcomes. Earlier minters enter at a lower unit
 cost. That is Chapter 1’s duration-proportional payment in mathematical
-form, not a hole. Fairness is that later arrivals face the same public
-curve, not a private table that was edited.
+form, not a hole. This creates a duration-sensitive cost schedule:
+earlier participation receives a lower protocol-defined destroy cost
+because it commits capital earlier in the height timeline. Fairness
+within the consensus rule remains deterministic public evaluation of
+that curve, not a private table that was edited.
 
 Height `h` itself comes from the order that proof-of-work produces. The
 mathematics assumes the confirming height is the one the network
@@ -256,6 +277,13 @@ shares. How that height is discovered and ordered is Chapter 6.
 - It does not write `128`, `1024`, or `2²⁵` as independent lucky
   numbers. They are three exponents in one identity.
 
-**The decision is public. The ceiling is derived. The shift is
-forced.** Chapter 6 states how proof-of-work supplies the height
-everyone shares — mining pays ORU and does not mint RES.
+**The decision is public. The ceiling is derived. The consensus
+scaling factor is forced.** The algebraic derivation is in Appendix D:
+[`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](../RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md).
+That note is explanatory documentation. It does not introduce new
+consensus rules. The Convergence curve defines deterministic protocol
+issuance cost. It does not define market price, profitability, or
+future demand. Differences in issuance cost across height do not
+constitute a protocol guarantee of economic return. Chapter 6 states
+how proof-of-work supplies the height everyone shares — mining pays
+ORU and does not mint RES.

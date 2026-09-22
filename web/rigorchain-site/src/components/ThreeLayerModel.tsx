@@ -1,33 +1,31 @@
-import { COQ_ENFORCED_VECTORS, SHARED_GOLDEN_VECTORS } from "../protocolFacts";
-
-/** Three-layer model — consistent across narrative pages. */
+/** Public three-layer description. Consistent across narrative pages. */
 export function ThreeLayerModel({ compact = false }: { compact?: boolean }) {
   const layers = [
     {
       id: "protocol",
-      title: "Layer 1 — Production consensus",
+      title: "Production software",
       points: [
-        "C++ node (core/src/) is the source of truth",
-        "Lock headers: params.h / rigor_consensus_lock.h",
-        "RFC / SPEC / documentation do not supersede code",
+        "The running node is the operational consensus implementation",
+        "Wallets and this website do not override it",
+        "Public documentation does not replace the software that validates blocks",
       ],
     },
     {
       id: "science",
-      title: "Layer 2 — Scientific Model",
+      title: "Coq model",
       points: [
-        "State machine formalization",
-        "PowDigest.v models the live digest; ASERT is C++ only",
-        "Model properties, not C++ equivalence",
+        "Selected consensus properties are machine-checked",
+        "The model can be replayed independently of this website",
+        "Checked results are properties of the model",
       ],
     },
     {
       id: "runtime",
-      title: "Layer 3 — Runtime Verification",
+      title: "What is not claimed",
       points: [
-        `Finite golden-vector / differential gate (${SHARED_GOLDEN_VECTORS} / ${COQ_ENFORCED_VECTORS})`,
-        "ASERT and CheckProofOfWork are not Coq theorems",
-        "NOT a Coq⇄C++ refinement proof",
+        "Verification does not claim full binary equivalence",
+        "The effort is ongoing",
+        "Cryptography, networking, and wallets sit outside the checked model",
       ],
     },
   ];
@@ -35,7 +33,7 @@ export function ThreeLayerModel({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
       <div className="layer-compact mono">
-        Code SSOT → Coq model properties → Runtime differential verification (not refinement)
+        Production software → Coq model of selected properties → no binary-equivalence claim
       </div>
     );
   }

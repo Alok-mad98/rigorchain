@@ -33,7 +33,7 @@ Do not replace it with the stale C fragment.
 | `Kernel/Script.v` | `ScriptState`, `check_script` |
 | `Kernel/Pow.v` | `PowHeader`, `check_pow` |
 | `Kernel/ASERT.v` | `ASERTInput`, `check_asert` |
-| `Kernel/Validate.v` | `KernelInput`, `validate_kernel` |
+| `Kernel/Validate.v` | `KernelValidationRequest`, `validate_kernel` |
 
 ## Cone sources the copies were taken from
 
@@ -54,7 +54,7 @@ Do not replace it with the stale C fragment.
 | `compact_decode`, `compact_encode` | `Pow/CompactBits.v` | `Pow/Compact.v` |
 | `check_asert`, `ASERTInput` | `Kernel/ASERTValidator.v` | `Kernel/ASERT.v` |
 | `ASERT_RADIX`, `exp_q_raw` | `Pow/ASERTModel.v` | `Pow/ASERTQ.v` |
-| `validate_kernel`, `KernelInput` | `Kernel/KernelSoundness.v` | `Kernel/Validate.v` |
+| `validate_kernel`, `KernelValidationRequest` | `Kernel/KernelSoundness.v` | `Kernel/Validate.v` |
 | `byte`, `split_at` | `Core/Bytes.v` | `Core/Bytes.v` |
 | `COIN`, `MAX_MONEY`, `money_range_b` | `Core/Amount.v` | `Core/Amount.v` |
 

@@ -678,7 +678,8 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>Destroyed ORU cannot be recovered.</string>
+          <string>Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.
+Destroyed ORU cannot be recovered.</string>
          </property>
         </widget>
        </item>

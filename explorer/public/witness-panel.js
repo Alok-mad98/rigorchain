@@ -1,5 +1,5 @@
 /**
- * Witness + RES mint proof panel (TASK-EXPLORER-005). Presentation only.
+ * Witness and RES creation panel. Presentation only.
  */
 (function () {
   function escapeHtml(s) {

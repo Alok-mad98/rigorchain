@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 # Drop "- burn" from the conservation equation.
-run_mutation M3 oru_conservation_extended proofs/ORU_Conservation/ORUConservation.v \
+run_mutation M3 "oru_conservation_extended check_oru_sound" proofs/ORU_Conservation/ORUConservation.v \
   '    old_supply tx + subsidy tx + fees tx - burn tx.' \
   '    old_supply tx + subsidy tx + fees tx.' \
   proofs/ORU_Conservation/ORUConservation || true

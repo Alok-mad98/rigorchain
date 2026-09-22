@@ -9,6 +9,7 @@
 #include <policy/fees.h> // for FeeCalculation
 #include <util/result.h>
 #include <wallet/coinselection.h>
+#include <wallet/mint_height_pad.h>
 #include <wallet/transaction.h>
 #include <wallet/wallet.h>
 
@@ -226,10 +227,18 @@ struct CreatedMintTransactionResult {
     CreatedTransactionResult txr;
     CAmount burn_oru{0};
     CAmount res_out{0};
+    CAmount exact_res_out{0};
+    CAmount slack_res{0};
     CAmount destroy_cost{0};
+    int current_height{-1};
     int confirm_height{-1};
+    /** Wallet construction height only.
+     *  Consensus validation uses actual confirming block height. */
     int destroy_cost_height{-1};
+    int target_height{-1};
     int unlock_height{-1};
+    int height_pad{0};
+    int valid_until_height{-1};
 };
 
 /** Spend ORU to one RIGOR_MARKER_CONVERGE burn. Used as a building block of a mint. */
@@ -237,13 +246,19 @@ util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amoun
 
 /**
  * RFC-020 burn-to-mint: ORU inputs, one OP_CONVERGE(B), an explicit native RES
- * output of R = ResMintAtomsFromBurn(B, h), optional ORU change.
+ * output of R = ResMintAtomsFromBurn(B, destroy_cost_height), optional ORU change.
+ * destroy_cost_height is current_height + height_pad (wallet construction only).
+ * Consensus validation uses actual confirming block height.
  *
  * Dedicated path — CreateTransaction refuses mixed assets, and a mint is not a
  * mixed transfer. subtract_fee_from_convergence is rejected: shrinking B after
  * R is computed would silently under-mint.
+ *
+ * height_pad defaults to CONVERGENCE_HEIGHT_PAD (1024). Pass 0 only in tests
+ * that need an exact-fit mint at tip+1 (those are evicted on the next empty
+ * block). Consensus still evaluates the actual confirming height.
  */
-util::Result<CreatedMintTransactionResult> CreateMintTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
+util::Result<CreatedMintTransactionResult> CreateMintTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true, int height_pad = CONVERGENCE_HEIGHT_PAD) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 
 /** Same as CreateMintTransaction; keeps the historical name for Qt / RPC wrappers. */
 util::Result<CreatedTransactionResult> CreateConvergenceTransaction(CWallet& wallet, CAmount amount_oru, int change_pos, const CCoinControl& coin_control, bool sign = true, bool subtract_fee_from_convergence = false);

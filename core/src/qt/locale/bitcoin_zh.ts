@@ -1324,4 +1324,13 @@ Unable to restore backup of wallet.</source>
         <translation type="unfinished">无法写入设置文件</translation>
     </message>
 </context>
+<context>
+    <name>ConvergencePage</name>
+    <message>
+        <source>Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.
+Destroyed ORU cannot be recovered.</source>
+        <translation>钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。链共识仍按照实际确认区块高度计算。
+已销毁的 ORU 无法恢复。</translation>
+    </message>
+</context>
 </TS>

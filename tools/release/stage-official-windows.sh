@@ -53,14 +53,41 @@ command -v makensis >/dev/null || die "makensis not found"
 x86_64-w64-mingw32-strip --strip-unneeded \
   "${PE_STAGING}/rigor-wallet.exe" "${PE_STAGING}/rigord.exe" "${PE_STAGING}/rigor-cli.exe" || true
 
+mkdir -p "${PE_STAGING}/internal"
+if [[ -f "${PE_STAGING}/internal/rigor-qt.exe" ]]; then
+  :
+elif [[ -f "${PE_STAGING}/rigor-qt.exe" ]]; then
+  mv "${PE_STAGING}/rigor-qt.exe" "${PE_STAGING}/internal/rigor-qt.exe"
+elif [[ -f "${PE_STAGING}/rigor-wallet.exe" ]]; then
+  # Existing staging stored the GUI as rigor-wallet.exe.
+  cp -a "${PE_STAGING}/rigor-wallet.exe" "${PE_STAGING}/internal/rigor-qt.exe"
+fi
+[[ -f "${PE_STAGING}/internal/rigor-qt.exe" ]] || die "missing GUI PE for internal/rigor-qt.exe"
+command -v x86_64-w64-mingw32-gcc >/dev/null || die "missing x86_64-w64-mingw32-gcc"
+command -v x86_64-w64-mingw32-windres >/dev/null || die "missing x86_64-w64-mingw32-windres"
+ICO="${ROOT}/core/src/qt/res/icons/rigor.ico"
+[[ -f "${ICO}" ]] || die "missing ${ICO}"
+x86_64-w64-mingw32-windres \
+  -I "${ROOT}/core/src/qt/res/icons" \
+  -O coff \
+  -o "${PE_STAGING}/official-wallet-launcher.res" \
+  "${ROOT}/tools/release/official-wallet-launcher.rc"
+x86_64-w64-mingw32-gcc -O2 -s -mwindows \
+  -o "${PE_STAGING}/rigor-wallet.exe" \
+  "${ROOT}/tools/release/official-wallet-launcher.c" \
+  "${PE_STAGING}/official-wallet-launcher.res"
+
 cat > "${PE_STAGING}/DATADIR.txt" <<EOF
 RIGOR data directory (Windows)
-Default datadir: %APPDATA%\\RIGOR
+Always: <this-install>\\data
+rigor.conf: <this-install>\\data\\rigor.conf
+This follows the wallet program. It does not reuse a previous install path from the registry.
 EOF
 cat > "${PE_STAGING}/README.txt" <<EOF
 Rigor Wallet v${RELEASE_VERSION} (Windows x86_64)
 Official installer name: ${WIN_EXE_NAME}
-Datadir: %APPDATA%\\RIGOR
+ALWAYS start rigor-wallet.exe. Do not open files inside internal\\.
+Datadir: folder named data next to rigor-wallet.exe
 Packed CLIENT_VERSION remains 25.0.0.
 EOF
 cat > "${PE_STAGING}/rigor.conf.template" <<'EOF'

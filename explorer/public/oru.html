@@ -64,8 +64,7 @@
           esc(bh.current_height_node) +
           " · circulating at indexer " +
           esc(bh.current_height_indexer) +
-          " · " +
-          esc(eco.oru_subsidy_schedule_display ?? "Genesis 0; then 128 ORU/block forever");
+          " · ORU is issued as a fixed per-block subsidy after genesis. The complete specification will be published with mainnet launch.";
         const supply = card("ORU supply", [
           row("Total issued ORU", val((chart.total_issued_oru && chart.total_issued_oru.display) || eco.oru_supply_cumulative_display)),
           row("Circulating spendable ORU", val(eco.oru_circulating_spendable_display)),

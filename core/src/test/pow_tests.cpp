@@ -269,24 +269,31 @@ BOOST_AUTO_TEST_CASE(startup_gap_stale_height1_timestamp_is_ordinary_asert_clamp
     BOOST_CHECK(PermittedDifficultyTransition(consensus, 3, b2.nBits, n3));
 }
 
-BOOST_AUTO_TEST_CASE(startup_gap_testnet_min_difficulty_is_not_mainnet)
+BOOST_AUTO_TEST_CASE(startup_gap_testnet_asert_matches_mainnet)
 {
     const auto main = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
     const auto test = CreateChainParams(*m_node.args, CBaseChainParams::TESTNET);
     const CBlock& main_genesis = main->GenesisBlock();
     const CBlock& test_genesis = test->GenesisBlock();
 
+    BOOST_REQUIRE(!test->GetConsensus().fPowAllowMinDifficultyBlocks);
+    BOOST_REQUIRE(!main->GetConsensus().fPowAllowMinDifficultyBlocks);
+    BOOST_CHECK_EQUAL(test->GetConsensus().nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
+    BOOST_CHECK_EQUAL(main->GetConsensus().nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
+    BOOST_CHECK(test->GetConsensus().powLimit != main->GetConsensus().powLimit);
+    BOOST_CHECK_EQUAL(test->GetConsensus().nPowTargetSpacing, 60);
+
     CBlockIndex m0{};
     FillGenesisIndex(m0, main_genesis);
     CBlockIndex t0{};
     FillGenesisIndex(t0, test_genesis);
 
+    // A gap past 2×spacing must not drop testnet to powLimit. Child time is not an ASERT input.
     CBlockHeader late;
     late.nTime = test_genesis.nTime + 10 * 60;
-    BOOST_REQUIRE(test->GetConsensus().fPowAllowMinDifficultyBlocks);
-    BOOST_REQUIRE(!main->GetConsensus().fPowAllowMinDifficultyBlocks);
-    const unsigned test_limit = UintToArith256(test->GetConsensus().powLimit).GetCompact();
-    BOOST_CHECK_EQUAL(GetNextWorkRequired(&t0, &late, test->GetConsensus()), test_limit);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&t0, &late, test->GetConsensus()), t0.nBits);
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(&t0, &late, test->GetConsensus()),
+                      GetNextWorkRequired(&t0, nullptr, test->GetConsensus()));
 
     late.nTime = main_genesis.nTime + static_cast<uint32_t>(180 * 24 * 60 * 60);
     BOOST_CHECK_EQUAL(GetNextWorkRequired(&m0, &late, main->GetConsensus()), m0.nBits);
@@ -676,6 +683,11 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
     if (chainName == CBaseChainParams::MAIN) {
         BOOST_CHECK_EQUAL(consensus.nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
         BOOST_CHECK_EQUAL(UintToArith256(consensus.powLimit).bits(), 231);
+    }
+    if (chainName == CBaseChainParams::TESTNET) {
+        BOOST_CHECK(!consensus.fPowAllowMinDifficultyBlocks);
+        BOOST_CHECK_EQUAL(consensus.nPowASERTHalfLife, Consensus::MAINNET_POW_ASERT_HALF_LIFE);
+        BOOST_CHECK_EQUAL(consensus.nPowTargetSpacing, 60);
     }
 
     // Bitcoin used a very small powLimit so bnNew * (4*timespan) stayed within uint256 in *= (uint32_t).

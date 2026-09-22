@@ -52,8 +52,9 @@ void CachedTxGetAmounts(const CWallet& wallet, const CWalletTx& wtx,
                         CAmount& nFee, const isminefilter& filter,
                         bool include_change);
 bool CachedTxIsFromMe(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter);
-/** Network fee paid in ORU (sum of our ORU inputs minus total ORU outputs). */
-CAmount CachedTxGetOruNetworkFee(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter);
+/** Network fee paid in ORU (sum of our ORU inputs minus total ORU outputs). Never negative. */
+CAmount CachedTxGetOruNetworkFee(const CWallet& wallet, const CWalletTx& wtx, const isminefilter& filter)
+    EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx, std::set<uint256>& trusted_parents) EXCLUSIVE_LOCKS_REQUIRED(wallet.cs_wallet);
 bool CachedTxIsTrusted(const CWallet& wallet, const CWalletTx& wtx);
 
@@ -76,6 +77,29 @@ struct AssetBalanceDetail {
 AssetBalanceDetail GetAssetBalance(const CWallet& wallet, AssetType asset, int min_depth = 0, bool avoid_reuse = true, isminefilter credit_base = ISMINE_SPENDABLE);
 /** Immature coinbase credit for one asset (e.g. locked RES). */
 CAmount GetAssetImmatureBalance(const CWallet& wallet, AssetType asset, const isminefilter& filter = ISMINE_SPENDABLE);
+
+/** One mapWallet walk covering the six GetAssetBalance/GetAssetImmatureBalance
+ *  queries the GUI performs after every block. Watch-only fields are left 0
+ *  when include_watch_only is false. */
+struct DualAssetWalletBalances {
+    CAmount oru_trusted_min1{0};
+    CAmount oru_trusted_min0{0};
+    CAmount oru_pending{0};
+    CAmount oru_immature{0};
+    CAmount res_trusted_min1{0};
+    CAmount res_trusted_min0{0};
+    CAmount res_pending{0};
+    CAmount res_immature{0};
+    CAmount wo_oru_trusted_min1{0};
+    CAmount wo_oru_trusted_min0{0};
+    CAmount wo_oru_pending{0};
+    CAmount wo_oru_immature{0};
+    CAmount wo_res_trusted_min1{0};
+    CAmount wo_res_trusted_min0{0};
+    CAmount wo_res_pending{0};
+    CAmount wo_res_immature{0};
+};
+DualAssetWalletBalances GetDualAssetWalletBalances(const CWallet& wallet, bool include_watch_only = false);
 
 struct AddressNativeBalances {
     CAmount oru{0};

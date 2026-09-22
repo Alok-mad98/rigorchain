@@ -95,3 +95,7 @@ Security
 
 Do not report vulnerabilities through pull requests or public issues. Follow
 [SECURITY.md](./SECURITY.md).
+
+Do not commit operator infrastructure (hosts, SSH, deploy credentials). Public
+documentation rules: [docs/CONTRIBUTING_SECURITY.md](docs/CONTRIBUTING_SECURITY.md).
+Classification: [docs/DOCUMENTATION_CLASSIFICATION.md](docs/DOCUMENTATION_CLASSIFICATION.md).

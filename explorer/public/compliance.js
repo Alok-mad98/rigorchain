@@ -1,5 +1,5 @@
 /**
- * RIGOR Explorer compliance layer (TASK-EXPLORER-002).
+ * RIGOR Explorer compliance layer.
  * Read-only display: footer and global mismatch banner.
  */
 (function () {

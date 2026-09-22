@@ -7,6 +7,7 @@
 #include <util/fs.h>
 #include <util/system.h>
 #include <util/translation.h>
+#include <wallet/db.h>
 #include <wallet/wallet.h>
 
 #include <algorithm>
@@ -118,6 +119,12 @@ static void WalletToolReleaseWallet(CWallet* wallet)
 
 bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::path& wallet_path, bilingual_str& error, std::vector<bilingual_str>& warnings)
 {
+    // bitcoin/bitcoin#34215: empty name makes wallet_path == wallets dir.
+    if (name.empty()) {
+        error = Untranslated("Wallet name cannot be empty");
+        return false;
+    }
+
     // Get the dumpfile
     std::string dump_filename = args.GetArg("-dumpfile", "");
     if (dump_filename.empty()) {
@@ -195,16 +202,16 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
         DBErrors load_wallet_ret = wallet->LoadWallet();
         if (load_wallet_ret != DBErrors::LOAD_OK) {
             error = strprintf(_("Error creating %s"), name);
-            return false;
+            ret = false;
         }
 
         // Get the database handle
         WalletDatabase& db = wallet->GetDatabase();
         std::unique_ptr<DatabaseBatch> batch = db.MakeBatch();
-        batch->TxnBegin();
+        if (ret) batch->TxnBegin();
 
         // Read the records from the dump file and write them to the database
-        while (dump_file.good()) {
+        while (ret && dump_file.good()) {
             std::string key;
             std::getline(dump_file, key, ',');
             std::string value;
@@ -275,9 +282,11 @@ bool CreateFromDump(const ArgsManager& args, const std::string& name, const fs::
     }
     wallet.reset(); // The pointer deleter will close the wallet for us.
 
-    // Remove the wallet dir if we have a failure
+    // bitcoin/bitcoin#34215: never fs::remove_all. Only the sqlite file we
+    // created, then the directory if it is empty.
     if (!ret) {
-        fs::remove_all(wallet_path);
+        RemoveCreatedWalletDatabase(wallet_path);
+        fs::remove(wallet_path);
     }
 
     return ret;

@@ -13,6 +13,10 @@ using namespace std::chrono_literals;
 /* A delay between model updates */
 static constexpr auto MODEL_UPDATE_DELAY{250ms};
 
+/* Coalesce incoming-credit tray balloons (gui#853-style). Solo mining
+   otherwise fires one Windows toast per coinbase. */
+static constexpr auto INCOMING_TX_NOTIFY_DELAY{2s};
+
 /* A delay between shutdown pollings */
 static constexpr auto SHUTDOWN_POLLING_DELAY{200ms};
 

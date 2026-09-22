@@ -190,6 +190,12 @@ public:
       * External wallet code is primarily responsible for topping up prior to fetching new addresses
       */
     virtual bool TopUp(unsigned int size = 0) { return false; }
+    /** Same as TopUp but writes into an existing WalletBatch (no nested TxnBegin). */
+    virtual bool TopUpWithDB(WalletBatch& batch, unsigned int size = 0)
+    {
+        (void)batch;
+        return TopUp(size);
+    }
 
     /** Mark unused addresses as being used
      * Affects all keys up to and including the one determined by provided script.
@@ -198,7 +204,7 @@ public:
      *
      * @return All of the addresses affected
      */
-    virtual std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script) { return {}; }
+    virtual std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script, WalletBatch* batch = nullptr) { (void)batch; return {}; }
 
     /** Sets up the key generation stuff, i.e. generates new HD seeds and sets them as active.
       * Returns false if already setup or setup fails, true if setup is successful
@@ -380,7 +386,7 @@ public:
 
     bool TopUp(unsigned int size = 0) override;
 
-    std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script) override;
+    std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script, WalletBatch* batch = nullptr) override;
 
     //! Upgrade stored CKeyMetadata objects to store key origin info as KeyOriginInfo
     void UpgradeKeyMetadata();
@@ -572,6 +578,10 @@ private:
     /** res(): map output script to descriptor index (exact script or same derived native RES program). */
     std::optional<int32_t> FindCachedDescriptorIndex(const CScript& script) const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
 
+    /** Returns false when the cache already covers the requested range and metadata is unchanged. */
+    bool PrepareDescriptorTopUp(unsigned int size, int32_t& new_range_end, int32_t& expand_from) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
+    bool ApplyDescriptorTopUp(WalletBatch& batch, int32_t new_range_end, int32_t expand_from) EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
+
 protected:
   WalletDescriptor m_wallet_descriptor GUARDED_BY(cs_desc_man);
 
@@ -602,8 +612,10 @@ public:
     // more on ephemeral data than LegacyScriptPubKeyMan. For wallets using unhardened derivation
     // (with or without private keys), the "keypool" is a single xpub.
     bool TopUp(unsigned int size = 0) override;
+    /** Same as TopUp but writes into an existing WalletBatch (no nested TxnBegin). */
+    bool TopUpWithDB(WalletBatch& batch, unsigned int size = 0) override;
 
-    std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script) override;
+    std::vector<WalletDestination> MarkUnusedAddresses(const CScript& script, WalletBatch* batch = nullptr) override;
 
     bool IsHDEnabled() const override;
 

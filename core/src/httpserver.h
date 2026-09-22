@@ -12,6 +12,13 @@
 static const int DEFAULT_HTTP_THREADS=4;
 static const int DEFAULT_HTTP_WORKQUEUE=16;
 static const int DEFAULT_HTTP_SERVER_TIMEOUT=30;
+/** How long StopHTTPServer waits for HTTP on_complete after workers have joined.
+ *  Workers finish first, so wallet/RPC mutations are already committed. This
+ *  wait is only socket teardown. A live reply completes in milliseconds; a
+ *  killed miner's half-open longpoll never fires on_complete. Extra wait
+ *  cannot recover that client and only delays the wallet/chain flush.
+ */
+static const int DEFAULT_HTTP_SHUTDOWN_REQUEST_WAIT_SEC = 2;
 
 struct evhttp_request;
 struct event_base;

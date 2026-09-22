@@ -11,7 +11,7 @@ Display version: `RIGOR_RELEASE_VERSION` in `core/src/clientversion.h`.
 | [GitHub Releases](https://github.com/rigorchain/rigorchain/releases) | Current binaries |
 | [CHANGELOG.md](../../CHANGELOG.md) | Version history |
 | [RIGOR_V0.2_RELEASE_NOTES.md](./RIGOR_V0.2_RELEASE_NOTES.md) | Notes for tag `v0.2` |
-| [WALLET_V0.2_RELEASE_NOTES.md](../releases/WALLET_V0.2_RELEASE_NOTES.md) | Wallet v0.2 channel notes (not mainnet) |
+| [WALLET_V0.2_RELEASE_NOTES.md](../releases/WALLET_V0.2_RELEASE_NOTES.md) | Wallet v0.2 stable mainnet notes |
 | [RIGOR_V0.1.3_RELEASE_NOTES.md](./RIGOR_V0.1.3_RELEASE_NOTES.md) | Notes for tag `v0.1.3` (historical) |
 
 Artifact filenames follow the Git tag for that release (do not hard-code them here).

@@ -382,8 +382,15 @@ public:
             return false;
         }
         num_blocks = m_wallet->GetLastBlockHeight();
-        block_time = -1;
-        CHECK_NONFATAL(m_wallet->chain().findBlock(m_wallet->GetLastBlockHash(), FoundBlock().time(block_time)));
+        const uint256 tip = m_wallet->GetLastBlockHash();
+        if (m_status_tip_hash != tip) {
+            block_time = -1;
+            CHECK_NONFATAL(m_wallet->chain().findBlock(tip, FoundBlock().time(block_time)));
+            m_status_tip_hash = tip;
+            m_status_tip_time = block_time;
+        } else {
+            block_time = m_status_tip_time;
+        }
         tx_status = MakeWalletTxStatus(*m_wallet, mi->second);
         return true;
     }
@@ -419,33 +426,26 @@ public:
         // Confirmed = trusted at depth >= 1. Pending unconfirmed includes own 0-conf
         // (trusted mempool change) as well as untrusted mempool credit — otherwise RES
         // transfer change never appears under Confirmed (min_depth 0) nor Pending.
-        const auto orum_conf = GetAssetBalance(*m_wallet, ASSET_ORU, /*min_depth=*/1);
-        const auto orum_all = GetAssetBalance(*m_wallet, ASSET_ORU, /*min_depth=*/0);
-        const auto res_conf = GetAssetBalance(*m_wallet, ASSET_RES, /*min_depth=*/1);
-        const auto res_all = GetAssetBalance(*m_wallet, ASSET_RES, /*min_depth=*/0);
-        result.balance = orum_conf.trusted;
-        result.unconfirmed_balance = (orum_all.trusted - orum_conf.trusted) + orum_all.pending;
-        result.immature_balance = GetAssetImmatureBalance(*m_wallet, ASSET_ORU, ISMINE_SPENDABLE);
         const bool legacy_watch = haveWatchOnly();
         const bool priv_disabled = m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
         result.have_watch_only = legacy_watch || priv_disabled;
+        const DualAssetWalletBalances b = GetDualAssetWalletBalances(*m_wallet, result.have_watch_only);
+        result.balance = b.oru_trusted_min1;
+        result.unconfirmed_balance = (b.oru_trusted_min0 - b.oru_trusted_min1) + b.oru_pending;
+        result.immature_balance = b.oru_immature;
+        result.oru_balance = b.oru_trusted_min1;
+        result.oru_unconfirmed_balance = result.unconfirmed_balance;
+        result.res_balance = b.res_trusted_min1;
+        result.res_unconfirmed_balance = (b.res_trusted_min0 - b.res_trusted_min1) + b.res_pending;
+        result.res_locked_balance = b.res_immature;
         if (result.have_watch_only) {
-            const auto wo_origo_conf = GetAssetBalance(*m_wallet, ASSET_ORU, 1, true, ISMINE_WATCH_ONLY);
-            const auto wo_origo_all = GetAssetBalance(*m_wallet, ASSET_ORU, 0, true, ISMINE_WATCH_ONLY);
-            result.watch_only_balance = wo_origo_conf.trusted;
-            result.unconfirmed_watch_only_balance = (wo_origo_all.trusted - wo_origo_conf.trusted) + wo_origo_all.pending;
-            result.immature_watch_only_balance = GetAssetImmatureBalance(*m_wallet, ASSET_ORU, ISMINE_WATCH_ONLY);
-            const auto wo_res_conf = GetAssetBalance(*m_wallet, ASSET_RES, 1, true, ISMINE_WATCH_ONLY);
-            const auto wo_res_all = GetAssetBalance(*m_wallet, ASSET_RES, 0, true, ISMINE_WATCH_ONLY);
-            result.res_watch_only_balance = wo_res_conf.trusted;
-            result.res_unconfirmed_watch_only_balance = (wo_res_all.trusted - wo_res_conf.trusted) + wo_res_all.pending;
-            result.res_immature_watch_only_balance = GetAssetImmatureBalance(*m_wallet, ASSET_RES, ISMINE_WATCH_ONLY);
+            result.watch_only_balance = b.wo_oru_trusted_min1;
+            result.unconfirmed_watch_only_balance = (b.wo_oru_trusted_min0 - b.wo_oru_trusted_min1) + b.wo_oru_pending;
+            result.immature_watch_only_balance = b.wo_oru_immature;
+            result.res_watch_only_balance = b.wo_res_trusted_min1;
+            result.res_unconfirmed_watch_only_balance = (b.wo_res_trusted_min0 - b.wo_res_trusted_min1) + b.wo_res_pending;
+            result.res_immature_watch_only_balance = b.wo_res_immature;
         }
-        result.oru_balance = orum_conf.trusted;
-        result.oru_unconfirmed_balance = (orum_all.trusted - orum_conf.trusted) + orum_all.pending;
-        result.res_balance = res_conf.trusted;
-        result.res_unconfirmed_balance = (res_all.trusted - res_conf.trusted) + res_all.pending;
-        result.res_locked_balance = GetAssetImmatureBalance(*m_wallet, ASSET_RES, ISMINE_SPENDABLE);
         return result;
     }
     uint64_t getWalletStateRevision() const override { return m_wallet->GetWalletStateRevision(); }
@@ -625,6 +625,8 @@ public:
 
     WalletContext& m_context;
     std::shared_ptr<CWallet> m_wallet;
+    uint256 m_status_tip_hash{};
+    int64_t m_status_tip_time{-1};
 };
 
 class WalletLoaderImpl : public WalletLoader
@@ -635,7 +637,7 @@ public:
         m_context.chain = &chain;
         m_context.args = &args;
     }
-    ~WalletLoaderImpl() override { UnloadWallets(m_context); }
+    ~WalletLoaderImpl() override { stop(); }
 
     //! ChainClient methods
     void registerRpcs() override
@@ -653,7 +655,7 @@ public:
     bool load() override { return LoadWallets(m_context); }
     void start(CScheduler& scheduler) override { return StartWallets(m_context, scheduler); }
     void flush() override { return FlushWallets(m_context); }
-    void stop() override { return StopWallets(m_context); }
+    void stop() override { return UnloadWallets(m_context); }
     void setMockTime(int64_t time) override { return SetMockTime(time); }
 
     //! WalletLoader methods

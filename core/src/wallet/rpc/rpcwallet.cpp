@@ -49,7 +49,7 @@ static RPCHelpMan getwalletinfo()
                         {
                         {RPCResult::Type::STR, "walletname", "the wallet name"},
                         {RPCResult::Type::NUM, "walletversion", "the wallet version"},
-                        {RPCResult::Type::STR, "format", "the database format (bdb or sqlite)"},
+                        {RPCResult::Type::STR, "format", "the database format (sqlite)"},
                         {RPCResult::Type::STR_AMOUNT, "balance", "DEPRECATED. Trusted spendable ORU only (same as getbalances().orum.trusted / mine.trusted)"},
                         {RPCResult::Type::STR_AMOUNT, "unconfirmed_balance", "DEPRECATED. ORU mempool credit only (getbalances().orum.untrusted_pending)"},
                         {RPCResult::Type::STR_AMOUNT, "immature_balance", "DEPRECATED. Immature ORU coinbase only (getbalances().orum.immature)"},

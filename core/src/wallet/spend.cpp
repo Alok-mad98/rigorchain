@@ -1874,7 +1874,8 @@ util::Result<CreatedMintTransactionResult> CreateMintTransaction(
     CAmount amount_oru,
     int change_pos,
     const CCoinControl& coin_control,
-    bool sign)
+    bool sign,
+    int height_pad)
 {
     AssertLockHeld(wallet.cs_wallet);
 
@@ -1893,13 +1894,24 @@ util::Result<CreatedMintTransactionResult> CreateMintTransaction(
         cc.m_feerate = std::max(GetRequiredFeeRate(wallet), wallet.chain().mempoolMinFee());
     }
 
+    const int current_height = wallet.GetLastBlockHeight();
     const int confirm_height = MintConfirmHeight(wallet);
     if (confirm_height < 0 || !Consensus::ResMintAuthorizedAtHeight(confirm_height)) {
         return util::Error{_("mint height must be non-negative")};
     }
 
-    // RFC-020: destroy_cost(h) at the confirming height.
-    const int destroy_cost_height = confirm_height;
+    // Wallet construction only: never build an exact-fit mint at tip+1.
+    // destroy_cost(h) is strictly increasing. Price R at
+    // current_height + CONVERGENCE_HEIGHT_PAD so the transaction stays
+    // consensus-valid if later empty blocks move the confirming height.
+    // Pass height_pad=0 only in tests that need the old exact-fit window.
+    const int pad = std::max(0, height_pad);
+    const int target_height = (pad == 0)
+        ? confirm_height
+        : ConvergenceTargetHeight(current_height, pad);
+    // Wallet construction height only.
+    // Consensus validation uses actual confirming block height.
+    const int destroy_cost_height = target_height;
     const CAmount destroy_cost = Consensus::ResDestroyCostAtHeight(destroy_cost_height);
     if (destroy_cost <= 0) {
         return util::Error{_("unable to price this mint at the confirming height")};
@@ -1912,6 +1924,7 @@ util::Result<CreatedMintTransactionResult> CreateMintTransaction(
     if (res_out <= 0) {
         return util::Error{strprintf(_("Burn amount must be at least %s ORU to mint 1 RES atom"), FormatMoney(min_mint_burn))};
     }
+    const CAmount exact_res_out = Consensus::ResMintAtomsFromBurn(amount_oru, confirm_height);
     const int unlock_height = confirm_height + RES_MINT_MATURITY;
 
     auto prepared = MakeMintBurnAndOwner(wallet, amount_oru);
@@ -1947,10 +1960,16 @@ util::Result<CreatedMintTransactionResult> CreateMintTransaction(
     CreatedMintTransactionResult out{std::move(*built)};
     out.burn_oru = amount_oru;
     out.res_out = res_out;
+    out.exact_res_out = exact_res_out;
+    out.slack_res = exact_res_out > res_out ? exact_res_out - res_out : 0;
     out.destroy_cost = destroy_cost;
+    out.current_height = current_height;
     out.confirm_height = confirm_height;
     out.destroy_cost_height = destroy_cost_height;
+    out.target_height = target_height;
     out.unlock_height = unlock_height;
+    out.height_pad = pad;
+    out.valid_until_height = destroy_cost_height;
     return out;
 }
 

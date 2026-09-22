@@ -9,10 +9,12 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-# Flip RATE monotonicity on the authorized ray.
+# Flip destroy-cost monotonicity on the authorized ray. This lands on
+# res_destroy_cost_mono_nonneg, the first match; res_height_monotonic is
+# proved by applying it, so the flip is what breaks the theorem.
 run_mutation M95 res_height_monotonic Supply/SupplySchedule.v \
-  '    RATE h1 <= RATE h2.' \
-  '    RATE h2 <= RATE h1.' \
+  '    res_destroy_cost_at_height h1 <= res_destroy_cost_at_height h2.' \
+  '    res_destroy_cost_at_height h2 <= res_destroy_cost_at_height h1.' \
   Supply/SupplySchedule || true
 
 # Shrink the 128-bit product bound below the legal envelope.

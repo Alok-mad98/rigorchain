@@ -6,7 +6,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 # Drop the intra-block duplicate-input guard. An accepted block no
 # longer implies NoDup (collect_inputs b).
-run_mutation M11 apply_block_accepted_inputs_unique proofs/UTXO_Soundness/UTXOSoundness.v \
+run_mutation M11 "apply_block_accepted_inputs_unique apply_block_rejects_duplicate_input" proofs/UTXO_Soundness/UTXOSoundness.v \
   'Definition apply_block (u : utxo_set) (b : list tx) : option utxo_set :=
   if nodupb (collect_inputs b)
   then fold_left apply_tx_opt b (Some u)

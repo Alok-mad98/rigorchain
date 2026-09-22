@@ -361,6 +361,8 @@ miner/fuzz_gbt_solo
 miner/test-driver
 core/build-mingw-alpha/
 core/build-linux-alpha/
+core/build-linux-*/
+core/build-mingw-*/
 
 # Configure-generated files with absolute paths. Tracking them appends -dirty
 # to BUILD_GIT_COMMIT (NEW-3). Sources are *.in.
@@ -446,10 +448,39 @@ audit/formal_bridge/**/*.vok
 audit/formal_bridge/**/*.glob
 audit/formal_bridge/**/*.aux
 audit/formal_bridge/**/.*.aux
+audit/formal_bridge/staging/
+
+# Local packaging blobs and unpacked extracts
+audit/**/*.zip
+audit/wallet_packaging/rigor-wallet-*-linux/
+
+# Operator disclosure audits (local review; not published)
+audit/release/
 
 # Local Vite RPC/explorer URLs
 web/rigorchain-site/.env.development
 web/rigorchain-site/.env.local
+
+# Internal operations (never GitHub)
+/ops-internal/
+/ops/
+/internal/
+/private/
+
+# Secrets
+.env
+*.env
+!*.example.env
+!**/*.example.env
+*.key
+*.pem
+*.secret
+credentials.json
+
+# Deployment files
+docker-compose.production.yml
+/deployment/*.yaml
+/deployment/*.yml
 # public-history candidate: keep source hidden by generic rules
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch

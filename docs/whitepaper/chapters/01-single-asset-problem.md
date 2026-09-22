@@ -1,7 +1,8 @@
-# Chapter 1 — Why Two Assets Must Exist
+# Chapter 1 — Why RIGOR Separates Two Monetary Functions
 
-This chapter states **why RIGOR exists** before later chapters state how it
-works. The claim is architectural, not a market forecast.
+This chapter states **why RIGOR separates two native assets** before later
+chapters state how the protocol works. The claim is a protocol design
+rationale, not a market forecast.
 
 A public proof-of-work chain must do three jobs at once:
 
@@ -16,14 +17,28 @@ Security Incentive
 A typical single-asset design, especially one with a declared finite supply,
 asks **one** native unit to perform all three. Those jobs are not the same
 job. Their users do not share a time horizon, a fee tolerance, or a reason
-to transact. The result is the **security-budget problem**: after the subsidy
-ends, nobody who benefits from long-run security is the party who generates
-the fees that are supposed to pay for it.
+to transact. The result is a **security-budget tension**: after the subsidy
+ends, the users who benefit most from long-term security are not necessarily
+the users generating transaction fees.
 
-RIGOR’s answer is not a hope that price will rise forever, and not a hope
-that fee volume will appear after issuance stops. It is an **asset split at
-consensus**. ORU takes exchange and miner payment. RES takes scarcity.
-Neither role is optional. The pair is the reason the protocol exists.
+RIGOR’s response is not an assumption that price will rise forever, and not
+an assumption that fee volume will appear after issuance stops. It is an
+**asset split at consensus**. ORU is assigned exchange and miner payment.
+RES is assigned scarcity. Neither role is optional within this architecture.
+The pair is the structural reason the protocol uses two native assets.
+
+### Design context
+
+RIGOR is motivated by a broader cryptoeconomic observation: a single
+monetary asset may face competing pressures when required to serve as
+medium of exchange, store of value, and security budget at once.
+
+Related design context includes Bitcoin (Nakamoto, 2008), Nervos CKB
+Cryptoeconomics RFC-0015, and later fee security-budget discussions.
+RIGOR shares the observation that monetary functions may create
+conflicting incentives when assigned to one asset. RIGOR applies this
+observation through a separate dual-asset UTXO design. It does not
+copy those models.
 
 ---
 
@@ -36,8 +51,9 @@ about fee cost in an external unit, confirmation, and whether the asset is
 easy to obtain just in time to pay. Their exposure to network-security risk
 is often momentary. Many never hold the native unit as a reserve: payment
 services can buy, send, and sell in one motion. For them, the asset must
-**circulate**. Price level and price volatility are secondary. They will not
-voluntarily fund a security budget whose benefit they barely consume.
+**circulate**. Price level and price volatility are secondary. They have
+little incentive to fund a security budget whose benefit they barely
+consume.
 
 A **store of value** (SoV) is the unit people hold because it is scarce and
 the rules are stable.
@@ -45,11 +61,11 @@ the rules are stable.
 SoV users treat the network as the protocol that protects a scarce native
 stock across time. Transfer is only the on-ramp and off-ramp. They care
 about long-term security and decentralisation: if the chain becomes cheap to
-attack, the stock is no longer a store of value; if validation and mining
-centralise, the stock carries counterparty risk and is no longer independent.
+attack, the stock is a weaker store of value; if validation and mining
+centralise, the stock carries counterparty risk and is less independent.
 Transaction costs can be amortised over long holding periods. Circulation is
-secondary. These users **would** pay for continuous protection — but they
-almost never transact.
+secondary. These users have the strongest incentive to pay for continuous
+protection — but they transact infrequently.
 
 | Role | Time horizon | What they want | What they contribute to miner payment |
 |------|--------------|----------------|---------------------------------------|
@@ -64,32 +80,36 @@ A single unit is then asked to be, at once:
 3. the thing that pays for hashpower
 
 Those incentives conflict. Making the unit “something people are willing to
-spend” fights making it “something people are willing to hold and pay to
-secure.”
+spend” pulls against making it “something people are willing to hold and
+pay for hashpower under the stated miner-payment mechanism.”
 
 ---
 
 ## 1.2 Finite supply locks the store-of-value story
 
 A declared hard cap does not merely limit issuance. It **selects a
-narrative**. Once the market treats the unit as a scarce reserve, rational
-holders prefer to accumulate rather than spend. Velocity falls. The fee
-market that was supposed to replace the subsidy never appears at the scale
-the security budget requires.
+narrative**. Once the market treats the unit as a scarce reserve, long-term
+holders may prefer holding over spending when expected future appreciation
+exceeds transactional utility. Velocity falls. The fee market that was
+supposed to replace the subsidy then tends not to appear at the scale the
+security budget requires.
 
-This is sometimes described as Gresham’s law. The mechanism is different.
-Classical Gresham requires a legally fixed exchange rate between two monies.
-Here there is only one unit. The suppression of circulation comes from an
-**appreciation expectation**: the same object is more valuable held than
-spent. The observable result is the same — the “good” money leaves the
-payment circuit — but the cause is SoV pricing, not a mint ratio.
+This is sometimes described as Gresham’s law. The mechanism is not classical
+Gresham. Classical Gresham requires a legally fixed exchange rate between
+two monies, under which the legally overvalued (“bad”) money drives the
+undervalued (“good”) money out of circulation. Here there is only one unit
+and no legal mint ratio. The suppression of circulation, if it occurs, comes
+from **appreciation expectation and incentive preference**: the same object
+may be more valuable held than spent. The observable result can resemble
+“good” money leaving the payment circuit, but the cause is SoV pricing, not
+a legally fixed exchange rate.
 
 The deeper mismatch is temporal. Miner hashpower does not protect only
 today’s block. It protects the immutability of every prior block. A
 store-of-value user consumes that protection for as long as they hold. A
-one-shot inclusion fee cannot cover a perpetual service. Asking SoV users to
-pay for continuous security with a payment that only occurs when they
-*stop* holding is incentive-incompatible.
+one-shot inclusion fee is a poor instrument for a perpetual service. Asking
+SoV users to pay for continuous security with a payment that only occurs
+when they *stop* holding is incentive-incompatible.
 
 ---
 
@@ -97,8 +117,8 @@ pay for continuous security with a payment that only occurs when they
 
 Bitcoin is the canonical single-asset, finite-supply design. It has been
 asked to become a medium of exchange and, separately, a store of value. Both
-paths are visible. They fail for complementary reasons. They are two faces
-of the same constraint.
+paths are visible. Both paths face unresolved trade-offs under a single
+finite-supply asset model. They are two faces of the same constraint.
 
 ### Path A — Bitcoin as a medium of exchange
 
@@ -109,8 +129,8 @@ sender nor receiver keeps a long position. These users do not price
 volatility. They price the external cost of the fee.
 
 If block time and block size are fixed, successful adoption rations scarce
-block space and raises fees. That is fatal to MoE competitiveness against
-other chains and against forks that offer cheaper inclusion.
+block space and raises fees. That creates a competitiveness trade-off
+against other chains and against forks that offer cheaper inclusion.
 
 If the protocol instead raises throughput — faster blocks or larger blocks —
 it buys cheaper inclusion at the cost of security and decentralisation:
@@ -132,7 +152,7 @@ question — especially because a successful SoV culture is exactly a culture
 that does not transact. Fee share of miner revenue has, for long stretches,
 been a small fraction of the block subsidy. The post-cap hypothesis is that
 fees will grow enough to replace issuance. That hypothesis is not a protocol
-rule. It is a hope.
+rule. It is an unresolved empirical question.
 
 ### The same coin
 
@@ -140,9 +160,9 @@ The large-block attempt to force Path A does not escape Path B. Supply is
 still finite, so the market still attaches some reserve premium. The unit is
 then valued as “cash that is trying not to be digital gold”: not enough
 organic transfer demand to fill the extra block space, and a persistent
-valuation discount relative to the scarce-reserve story. Fees still do not
-appear. The security budget is still a problem. The empty block space is
-the symptom, not a separate disease.
+valuation discount relative to the scarce-reserve story. Fees still may not
+appear at the required scale. The security-budget tension remains. Unused
+block space is a symptom of the same constraint, not an independent problem.
 
 ```
 finite supply + one asset
@@ -155,10 +175,11 @@ finite supply + one asset
                                    nor a clean reserve
 ```
 
-A single finite-supply asset cannot simultaneously make people willing to
-spend it and willing to hold it for decades. Either transactions are too
-few to pay for security, or scarcity is diluted to stimulate transactions
-and both stories fail.
+A single finite-supply asset faces a structural tension: making people
+willing to spend it and willing to hold it for decades pulls in opposite
+directions. Either transactions tend to be too few to pay for security, or
+scarcity is diluted to stimulate transactions and neither function is fully
+resolved.
 
 ---
 
@@ -169,8 +190,8 @@ operators, every block, without a calendar on which the need ends.
 
 In the single-asset fee-only model:
 
-- MoE users have almost no duration of security exposure, so they will not
-  pay for it.
+- MoE users have almost no duration of security exposure, so they have
+  little incentive to pay for it.
 - SoV users have the duration, so they are the natural payers — but they
   produce almost no transactions.
 
@@ -181,9 +202,9 @@ holders pay, in proportion to how long they enjoy the service, by accepting
 dilution of the unit they hold.
 
 That instrument, placed on the **same** unit that is supposed to be the
-store of value, destroys the store-of-value story. Placed on no unit at
-all, it leaves miners unpaid after the subsidy. This is the triangle a
-single finite-supply asset cannot occupy:
+store of value, weakens the store-of-value story. Placed on no unit at
+all, it leaves miners unpaid after the subsidy. This is the incentive
+triangle under a single finite-supply asset:
 
 ```
             cheap circulation
@@ -194,10 +215,12 @@ single finite-supply asset cannot occupy:
         scarcity    miner budget
 ```
 
-Pick two. Bitcoin picks finite scarcity and hopes the third vertex appears
-as fees. Perpetual issuance on the same ticker picks the miner budget and
-gives up the reserve. RIGOR refuses to pick two on one ticker. It assigns
-the vertices to two assets and couples them.
+Under this constraint, a design may select two vertices. A finite-scarcity
+single-asset design selects finite scarcity and treats the third vertex as
+a fee-market outcome. Perpetual issuance on the same ticker selects the
+miner budget and forgoes a terminal reserve. RIGOR does not select two
+vertices on one ticker. It assigns the vertices to two assets and couples
+them.
 
 ---
 
@@ -206,7 +229,9 @@ the vertices to two assets and couples them.
 **ORU** is the medium of exchange and the miner-payment asset.
 
 - Flat subsidy: `subsidy(0) = 0`, `subsidy(h ≥ 1) = 128` ORU. No halvings.
-  No declared ORU cap.
+  ORU has no fixed supply cap because its primary role is continuous
+  security payment rather than terminal scarcity. It is a **flow asset**:
+  the protocol pays a constant per-block quantity for work, indefinitely.
 - Inflation *rate* decays as `1/t` and never reaches zero. The **level** of
   residual inflation is not a schedule. It is `1 − ρ`, where `ρ` is the
   fraction of emitted ORU that is ever destroyed to create RES.
@@ -216,7 +241,7 @@ the vertices to two assets and couples them.
   is destroyed and circulating supply falls. Hardness is a function of
   demand, not of a number written at genesis.
 
-**RES** is the store of value.
+**RES** is designed as the store-of-value asset within the protocol.
 
 - RES is not mined. Coinbase never creates it. There is no reverse
   conversion (RFC-020 §6).
@@ -228,8 +253,11 @@ the vertices to two assets and couples them.
   ```
 
   Display form: `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole
-  RES. Genesis cost is 1024 ORU per RES. The cost is strictly increasing
-  in height.
+  RES. `2⁵⁰` is the curve normalization denominator, not a consensus
+  shift. `2⁴⁰` in `B << 40` is the integer consensus scaling factor, not
+  the `destroy_cost` denominator. Display rounding/floor do not enter
+  consensus. Genesis cost is 1024 ORU per RES. The cost is strictly
+  increasing in height.
 - The unit cost rises with confirmation height, so an earlier mint pays
   less per RES for a longer remaining span of protection, and a later mint
   pays more. That is duration-proportional payment, encoded as a height
@@ -240,7 +268,8 @@ the vertices to two assets and couples them.
   because `destroy_cost` is strictly increasing, any delay yields strictly
   less RES. No hoarding schedule reaches the bound from above. Realised
   stock is `ρ · 2²²`. The cap is a hard bound, not a promise that it will
-  be filled.
+  be filled. The issuance curve has no artificial expiration horizon and
+  asymptotically approaches the supply limit.
 
 The coupling is one mechanism, not two isolated tickers:
 
@@ -283,17 +312,18 @@ The two user groups stop dragging each other. They meet at Convergence:
 MoE users keep a unit they can spend; SoV users pay, in ORU destroyed, a
 height-rising cost to enter a stock that is never inflated.
 
-ORU addresses insufficient transaction velocity. RES addresses the
-post-subsidy security budget. Each is incomplete alone:
+ORU is assigned circulation and continuous work payment. RES is assigned
+the scarce-stock function under a derived ceiling. Each is incomplete
+alone:
 
 | If only ORU exists | If only RES exists |
 |--------------------|--------------------|
 | Perpetual work payment, no scarce stock, no endogenous hardness from reserve demand | A capped stock with no work-payment asset and no way to pay hashpower |
 | A medium of exchange without a store of value | A store of value without a security budget |
 
-The pair is not an optional optimisation of a single-asset chain. It is the
-exit from a structural defect. That is the existence reason for the
-protocol.
+The pair is not an optional optimisation of a single-asset chain. It is an
+alternative protocol architecture that assigns conflicting monetary
+functions to two coupled native assets.
 
 ---
 
@@ -307,6 +337,11 @@ protocol.
   too thin to discover any ratio cannot transmit RES demand into ORU
   destroy. That is an adoption risk, not a consensus hole.
 - It does not claim that C++ is formally equivalent to the kernel model.
+
+RIGOR does not assume that protocol design alone creates market demand.
+The protocol separates monetary functions and provides mechanisms that
+translate demand, when it exists, into security-related flows.
+Market adoption remains an external factor.
 
 **RIGOR’s answer is not a market promise. It is an asset split at
 consensus.** Chapter 2 states the rules that implement the split.

@@ -29,6 +29,9 @@ From Coq Require Import Lia.
 From RigorKernel Require Import Kernel.UnifiedState.
 From RigorKernel Require Import Kernel.UnifiedTransition.
 From RigorKernel Require Import Kernel.InvariantBundle.
+From RigorKernel Require Import Kernel.KernelInputBridge.
+From RigorKernel Require Import Supply.SupplySchedule.
+From RigorKernel Require Import Core.Amount.
 From RigorKernel.proofs Require Import KernelTransitionSoundness.
 
 Import ListNotations.
@@ -354,52 +357,56 @@ Qed.
 
     A theorem of the form [chain_ok s is -> P] is worth nothing if
     nothing satisfies [chain_ok], and worth little if everything does.
-    Both directions are checked here rather than assumed. *)
+    Both directions are checked here rather than assumed.
 
-(** All flags set, all amounts zero: the smallest input the kernel
-    accepts. *)
-Definition idle_input : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 0;
-     ki_outgoing := 0;
-     ki_fees := 0;
-     ki_burn := 0;
-     ki_subsidy := 0;
-     ki_res_mint := 0;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := true |}.
+    Inputs are computed by [kernel_input_of], not by writing Path B
+    records. *)
 
-(** A block that issues [n] units of subsidy and spends nothing. *)
-Definition subsidy_input (n : Z) : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 0;
-     ki_outgoing := 0;
-     ki_fees := 0;
-     ki_burn := 0;
-     ki_subsidy := n;
-     ki_res_mint := 0;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := true |}.
+Definition idle_input : KernelInput := kernel_input_of idle_witness.
+Definition issuance_input : KernelInput := kernel_input_of issuance_witness.
+Definition overspend_input : KernelInput := kernel_input_of overspend_witness.
 
 Lemma idle_input_ok :
   forall s : KernelState, kernel_invariants s -> input_ok s idle_input.
 Proof.
   intros s Hinv.
   apply invariants_numeric in Hinv as [Ho [Hr0 Hrc]].
-  unfold input_ok, idle_input. simpl.
-  repeat split; try reflexivity; lia.
+  pose proof (flags_of_passing_asert_witness zero_ktx (zero_flow_rtx 0 0 0))
+    as [Hu [Hs [Hp Ha]]].
+  pose proof idle_witness_flow as [Hin [Hout [Hfee [Hburn [Hsub Hmint]]]]].
+  unfold idle_input, idle_witness, input_ok in *.
+  rewrite Hu, Hs, Hp, Ha, Hin, Hout, Hfee, Hburn, Hsub, Hmint.
+  repeat split; lia.
 Qed.
 
-Lemma subsidy_input_ok :
-  forall (s : KernelState) (n : Z),
-    kernel_invariants s -> 0 <= n -> input_ok s (subsidy_input n).
+Lemma issuance_input_ok :
+  forall s : KernelState, kernel_invariants s -> input_ok s issuance_input.
 Proof.
-  intros s n Hinv Hn.
+  intros s Hinv.
   apply invariants_numeric in Hinv as [Ho [Hr0 Hrc]].
-  unfold input_ok, subsidy_input. simpl.
-  repeat split; try reflexivity; lia.
+  pose proof (flags_of_passing_asert_witness zero_ktx (zero_flow_rtx 1 0 0))
+    as [Hu [Hs [Hp Ha]]].
+  pose proof issuance_witness_flow as [Hin [Hout [Hfee [Hburn [Hsub Hmint]]]]].
+  pose proof (subsidy_nonneg 1) as Hsn.
+  unfold issuance_input, issuance_witness, input_ok in *.
+  rewrite Hu, Hs, Hp, Ha, Hin, Hout, Hfee, Hburn, Hsub, Hmint.
+  repeat split; lia.
+Qed.
+
+Lemma overspend_input_ok_if_funded :
+  forall s : KernelState,
+    kernel_invariants s ->
+    1 <= oru_stock (ks_oru s) ->
+    input_ok s overspend_input.
+Proof.
+  intros s Hinv Hstock.
+  apply invariants_numeric in Hinv as [Ho [Hr0 Hrc]].
+  pose proof (flags_of_passing_asert_witness zero_ktx (zero_flow_rtx 0 0 1))
+    as [Hu [Hs [Hp Ha]]].
+  pose proof overspend_witness_flow as [Hin [Hout [Hfee [Hburn [Hsub Hmint]]]]].
+  unfold overspend_input, overspend_witness, input_ok in *.
+  rewrite Hu, Hs, Hp, Ha, Hin, Hout, Hfee, Hburn, Hsub, Hmint.
+  repeat split; lia.
 Qed.
 
 (** Runs of every length exist. Without this, everything above could
@@ -418,53 +425,48 @@ Qed.
 Theorem chain_ok_inhabited_with_issuance :
   forall (n : nat) (s : KernelState),
     kernel_invariants s ->
-    chain_ok s (repeat (subsidy_input 50) n) /\
-    oru_stock (ks_oru (chain_step_of s (repeat (subsidy_input 50) n)))
-      = oru_stock (ks_oru s) + 50 * Z.of_nat n.
+    chain_ok s (repeat issuance_input n) /\
+    oru_stock (ks_oru (chain_step_of s (repeat issuance_input n)))
+      = oru_stock (ks_oru s)
+        + ki_subsidy issuance_input * Z.of_nat n.
 Proof.
   intros n s Hinv. split.
   - revert s Hinv.
     induction n as [| n IH]; intros s Hinv; simpl; [exact I |].
-    split; [apply subsidy_input_ok; [exact Hinv | lia] |].
+    split; [apply issuance_input_ok, Hinv |].
     apply IH, step_of_preserves;
-      [exact Hinv | apply subsidy_input_ok; [exact Hinv | lia]].
+      [exact Hinv | apply issuance_input_ok, Hinv].
   - rewrite chain_oru_conservation.
+    pose proof issuance_witness_flow as [Hin [Hout [_ [Hburn [Hsub _]]]]].
     assert (Hsum : forall m : nat,
-               sum_oru_delta (repeat (subsidy_input 50) m)
-                 = 50 * Z.of_nat m).
+               sum_oru_delta (repeat issuance_input m)
+                 = ki_subsidy issuance_input * Z.of_nat m).
     { induction m as [| m IHm]; [cbn; lia |].
       rewrite Nat2Z.inj_succ.
       cbn [repeat sum_oru_delta].
-      rewrite IHm. unfold oru_delta.
-      cbn [ki_subsidy ki_incoming ki_outgoing ki_burn subsidy_input].
-      lia. }
+      rewrite IHm. unfold oru_delta, issuance_input.
+      rewrite Hin, Hout, Hburn. lia. }
     rewrite Hsum. reflexivity.
 Qed.
 
 (** The other direction: the hypothesis rejects things. A block that
-    spends more than the stock it is applied to is not acceptable, and
+    burns more than the stock it is applied to is not acceptable, and
     critically it is the RUNNING stock that decides, which is the
     property a [Forall (input_ok s0) is] formulation would lose. *)
 Theorem chain_ok_rejects_overspend :
   forall s : KernelState,
     oru_stock (ks_oru s) = 0 ->
-    ~ chain_ok s [subsidy_input 0;
-                  {| ki_utxo_ok := true;
-                     ki_incoming := 0;
-                     ki_outgoing := 1;
-                     ki_fees := 0;
-                     ki_burn := 0;
-                     ki_subsidy := 0;
-                     ki_res_mint := 0;
-                     ki_script_ok := true;
-                     ki_pow_ok := true;
-                     ki_asert_ok := true |}].
+    ~ chain_ok s [idle_input; overspend_input].
 Proof.
   intros s Hzero [_ [Hbad _]].
-  unfold input_ok in Hbad. simpl in Hbad.
+  pose proof overspend_witness_flow as [Hin [Hout [_ [Hburn [Hsub _]]]]].
+  pose proof idle_witness_flow as [Hin0 [Hout0 [_ [Hburn0 [Hsub0 _]]]]].
+  unfold input_ok, overspend_input in Hbad.
   destruct Hbad as [_ [_ [_ [_ [_ [_ [_ [_ [_ [_ [Hbal _]]]]]]]]]]].
-  unfold kernel_step_of, oru_transition, oru_delta in Hbal. simpl in Hbal.
-  rewrite Hzero in Hbal. lia.
+  rewrite Hout, Hburn, Hsub, Hin in Hbal.
+  unfold kernel_step_of, oru_transition, oru_delta, idle_input in Hbal.
+  rewrite Hin0, Hout0, Hburn0, Hsub0, Hzero in Hbal.
+  simpl in Hbal. lia.
 Qed.
 
 (** The same overspend becomes acceptable once an earlier block has
@@ -474,37 +476,26 @@ Qed.
 Theorem chain_ok_accepts_funded_spend :
   forall s : KernelState,
     kernel_invariants s ->
-    chain_ok s [subsidy_input 1;
-                {| ki_utxo_ok := true;
-                   ki_incoming := 0;
-                   ki_outgoing := 1;
-                   ki_fees := 0;
-                   ki_burn := 0;
-                   ki_subsidy := 0;
-                   ki_res_mint := 0;
-                   ki_script_ok := true;
-                   ki_pow_ok := true;
-                   ki_asert_ok := true |}].
+    chain_ok s [issuance_input; overspend_input].
 Proof.
   intros s Hinv.
-  assert (Hfst : input_ok s (subsidy_input 1))
-    by (apply subsidy_input_ok; [exact Hinv | lia]).
+  assert (Hfst : input_ok s issuance_input)
+    by (apply issuance_input_ok, Hinv).
   split; [exact Hfst |].
-  set (s1 := kernel_step_of s (subsidy_input 1)).
+  set (s1 := kernel_step_of s issuance_input).
   assert (Hnext : kernel_invariants s1)
     by (apply step_of_preserves; assumption).
-  apply invariants_numeric in Hnext as [_ [Hr0 Hrc]].
-  apply invariants_numeric in Hinv as [Ho _].
-  (* The funding block raised the stock by exactly one unit, which is
-     what makes the spend below fit. *)
-  assert (Hstock : oru_stock (ks_oru s1) = oru_stock (ks_oru s) + 1).
-  { unfold s1, kernel_step_of, oru_transition, oru_delta.
-    cbn [ks_oru oru_stock ki_subsidy ki_incoming ki_outgoing ki_burn
-         subsidy_input].
+  pose proof (subsidy_nonneg 1) as Hsn.
+  assert (Hstock : oru_stock (ks_oru s1)
+                   = oru_stock (ks_oru s) + oru_delta issuance_input).
+  { unfold s1, kernel_step_of, oru_transition. reflexivity. }
+  unfold issuance_input in Hstock.
+  rewrite issuance_witness_delta in Hstock.
+  assert (Hfunded : 1 <= oru_stock (ks_oru s1)).
+  { apply invariants_numeric in Hinv as [Ho _].
+    assert (Hone : 1 <= oru_subsidy 1).
+    { unfold oru_subsidy, ORU_FLAT_BLOCK_SUBSIDY, COIN. simpl. lia. }
     lia. }
   split; [| exact I].
-  unfold input_ok.
-  cbn [ki_utxo_ok ki_script_ok ki_pow_ok ki_asert_ok ki_incoming
-       ki_outgoing ki_fees ki_burn ki_subsidy ki_res_mint].
-  repeat split; try reflexivity; lia.
+  apply overspend_input_ok_if_funded; assumption.
 Qed.

@@ -6,6 +6,7 @@
 
 #include <consensus/convergenceres.h>
 #include <consensus/res_issuance.h>
+#include <wallet/mint_height_pad.h>
 #include <qt/bitcoinamountfield.h>
 #include <qt/bitcoinunits.h>
 #include <interfaces/node.h>
@@ -142,16 +143,29 @@ void ConvergenceWizard::refreshReviewStep()
         m_reviewLabel->setText(tr("Unable to read the confirming-height mint cost from the node."));
         return;
     }
-    const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
+    const int current_height = m_clientModel ? m_clientModel->getNumBlocks() : confirm_height - 1;
+    const int target_height = wallet::ConvergenceTargetHeight(current_height);
+    const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, target_height);
+    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
+    const CAmount slack = exact > minted ? exact - minted : 0;
     m_reviewLabel->setText(
         tr("ORU destroyed: %1\n"
            "RES this transaction will create: %2\n"
-           "Confirming height: %3\n"
-           "Display cost at that height: %4 ORU per RES\n"
+           "Kept unused so the mint stays valid for %3 blocks: %4\n"
+           "current_height: %5\n"
+           "target_height: %6\n"
+           "height_pad: %3\n"
+           "Confirming height: %7\n"
+           "Display cost at that height: %8 ORU per RES\n"
+           "Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.\n"
            "Destroyed ORU cannot be recovered.\n"
            "Minted RES unlocks after the reorg-protection lock.")
             .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, amt))
             .arg(BitcoinUnits::formatRes(minted) + QStringLiteral(" RES"))
+            .arg(wallet::CONVERGENCE_HEIGHT_PAD)
+            .arg(BitcoinUnits::formatRes(slack) + QStringLiteral(" RES"))
+            .arg(current_height)
+            .arg(target_height)
             .arg(confirm_height)
             .arg(QString::fromStdString(FormatMoney(destroy_cost))));
 }
@@ -169,11 +183,9 @@ CAmount ConvergenceWizard::minMintBurn() const
     if (m_clientModel) {
         try {
             UniValue r = m_clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
-            if (r.isObject() && r.exists("min_atom_burn")) {
-                return r["min_atom_burn"].getInt<int64_t>();
-            }
             if (r.isObject() && r.exists("confirm_height")) {
-                return Consensus::ResMinMintBurnAtoms(r["confirm_height"].getInt<int>());
+                const int current_height = m_clientModel->getNumBlocks();
+                return Consensus::ResMinMintBurnAtoms(wallet::ConvergenceTargetHeight(current_height));
             }
         } catch (...) {
         }

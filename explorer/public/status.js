@@ -1,5 +1,5 @@
 /**
- * Chain status dashboard (TASK-EXPLORER-006). Read-only rigord + indexer snapshot.
+ * Chain status dashboard. Read-only node and indexer snapshot.
  */
 (function () {
   function escapeHtml(s) {

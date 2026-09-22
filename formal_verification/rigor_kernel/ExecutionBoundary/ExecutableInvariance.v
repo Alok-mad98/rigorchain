@@ -20,6 +20,8 @@ From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
 From RigorKernel Require Import Kernel.UnifiedState.
 From RigorKernel Require Import Kernel.UnifiedTransition.
+From RigorKernel Require Import Kernel.KernelInputBridge.
+From RigorKernel Require Import Supply.SupplySchedule.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelState.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelMapping.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelTransition.
@@ -100,38 +102,32 @@ Definition sample_state : ExecutableKernelState :=
      ek_fees := 0;
      ek_burn := 0;
      ek_subsidy := 0;
-     ek_res_stock := 0;
-     ek_res_cap := 100;
-     ek_oru_stock := 50;
+     ek_res_stock := res_stock (ks_res sample_kstate);
+     ek_res_cap := res_cap (ks_res sample_kstate);
+     ek_oru_stock := oru_stock (ks_oru sample_kstate);
      ek_script_ok := true;
      ek_pow_ok := true;
      ek_asert_ok := true |}.
 
-Definition sample_input : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 10;
-     ki_outgoing := 5;
-     ki_fees := 1;
-     ki_burn := 2;
-     ki_subsidy := 3;
-     ki_res_mint := 7;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := true |}.
+Definition sample_input : KernelInput := kernel_input_of sample_witness.
 
 Theorem sample_state_satisfies_invariants :
   executable_invariants sample_state.
 Proof.
-  unfold executable_invariants, sample_state. simpl.
-  repeat split; try reflexivity; lia.
+  unfold executable_invariants, sample_state, sample_kstate. simpl.
+  repeat split; try reflexivity;
+    unfold RES_MAX_SUPPLY; lia.
 Qed.
 
 Theorem sample_input_is_accepted :
   input_ok (kernel_projection (execution_projection sample_state)) sample_input.
 Proof.
-  unfold input_ok, kernel_projection, execution_projection,
-         exec_project_utxo, sample_state, sample_input. simpl.
-  repeat split; try reflexivity; lia.
+  replace (kernel_projection (execution_projection sample_state))
+    with sample_kstate
+    by (unfold sample_state, sample_kstate, kernel_projection,
+               execution_projection, exec_project_utxo, project_utxo_flag;
+        reflexivity).
+  unfold sample_input. exact bridge_is_inhabited.
 Qed.
 
 Theorem executable_preservation_hypotheses_are_inhabited :
@@ -154,17 +150,8 @@ Theorem oru_flow_condition_is_necessary :
     executable_invariants e /\
     ek_oru_stock e + oru_delta i < 0.
 Proof.
-  exists sample_state,
-    {| ki_utxo_ok := true;
-       ki_incoming := 0;
-       ki_outgoing := 1000;
-       ki_fees := 0;
-       ki_burn := 0;
-       ki_subsidy := 0;
-       ki_res_mint := 0;
-       ki_script_ok := true;
-       ki_pow_ok := true;
-       ki_asert_ok := true |}.
+  exists sample_state, (kernel_input_of drain_witness).
   split; [exact sample_state_satisfies_invariants |].
-  unfold oru_delta, sample_state. simpl. lia.
+  unfold sample_state, sample_kstate.
+  rewrite drain_witness_delta. simpl. lia.
 Qed.

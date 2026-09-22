@@ -42,16 +42,51 @@ SKIP_PARTS = ("mutation", "extracted", "extraction", "evidence", "certicoq")
 
 # Tactics that only pass an existing result along. Anything else means
 # the proof does work of its own and must be killed by a real mutant.
+#
+# `unfold` and `exists` are here; `simpl`, `cbn`, `destruct`, `tauto`,
+# `rewrite` and `eapply` are not. The line is whether the tactic can
+# discharge a goal. `unfold` replaces a name by its definition and
+# `exists w` instantiates a binder; both always leave the goal open, so
+# a proof that reaches `Qed` through them reached it on the strength of
+# the lemmas it applied. The others can close goals, and `simpl`/`cbn`
+# followed by `reflexivity` is proof by computation, which is how the
+# witness lemmas in the chain cone are proved. Letting them in was
+# measured: four names out of eighty-six, in exchange for the reason
+# the exemption is allowed at all.
+#
+# `exists w` only looks like content. Supplying a witness is the work
+# in an existence proof, but a step that supplies one and then closes
+# with `exact L` has put the work in `L`, which names the same witness
+# and is checked on its own. `exists w. vm_compute. reflexivity.` is
+# the version that does the work inline, and it is still rejected --
+# `vm_compute` is not listed, and a proof with no `exact`/`apply` has
+# no components, which is not a deferral either.
 DEFERRAL_TACTIC = re.compile(r"""^(?:
       intros?(?:\s+\S.*)?
     | split
     | subst
     | assumption
     | reflexivity
+    | unfold\s+.*
+    | symmetry
+    | exists\s+[A-Za-z_][A-Za-z0-9_']*
+      (?:\s*,\s*[A-Za-z_][A-Za-z0-9_']*)*
     | exact\s+[A-Za-z_][A-Za-z0-9_']*
     | apply\s+[A-Za-z_][A-Za-z0-9_']*(?:\s+in\s+[A-Za-z_][A-Za-z0-9_']*)?
   )$""", re.X)
 NAME_REF = re.compile(r"(?:exact|apply)\s+([A-Za-z_][A-Za-z0-9_']*)")
+# `symmetry` and a multi-witness `exists a, b` are on the list for the
+# same reason as the rest of it: neither can close a goal. `symmetry`
+# rewrites `a = b` to `b = a` and leaves it open; `exists` supplies
+# witnesses and leaves the body to be proved. A proof made only of
+# those still has to reach an `exact` or `apply` naming a lemma that is
+# checked on its own, or it has no components and is not a deferral.
+# `Qed.` is routinely written on the same line as the last tactic. Anchoring
+# it to the start of a line reads past the end of the proof and swallows the
+# following lemmas, which is how a real deferral gets reported as doing work
+# of its own. Frontier 2.4 fixed the same anchor in mutation/admit_proof.py;
+# this gate kept it. 244 proofs in the cone use the one-line form.
+PROOF_END = re.compile(r"\b(?:Qed|Defined|Admitted)\s*\.")
 DECL = re.compile(
     r"^\s*(?:Theorem|Lemma|Corollary|Remark|Fact|Example|Proposition)\s+"
     r"([A-Za-z_][A-Za-z0-9_']*)", re.M)
@@ -60,6 +95,45 @@ DECL = re.compile(
 def source_files() -> list[pathlib.Path]:
     return [p for p in sorted(ROOT.rglob("*.v"))
             if not any(part in SKIP_PARTS for part in p.relative_to(ROOT).parts)]
+
+
+def strip_comments(text: str) -> str:
+    """Blank out `(* ... *)`, keeping offsets and line structure.
+
+    Prose inside a comment reads like source to a regex. `Theorem names
+    that the kernel inventory already cites` in Supply/SupplySchedule.v
+    is one sentence of documentation, and a scanner that allows leading
+    whitespace will emit `Print Assumptions names.` for it. Replacing
+    comment bodies with spaces rather than deleting them keeps line and
+    column numbers usable for reporting.
+    """
+    out = list(text)
+    depth = 0
+    i = 0
+    in_string = False
+    while i < len(text):
+        two = text[i:i + 2]
+        if not in_string and two == "(*":
+            depth += 1
+            out[i] = out[i + 1] = " "
+            i += 2
+            continue
+        if not in_string and two == "*)" and depth:
+            depth -= 1
+            out[i] = out[i + 1] = " "
+            i += 2
+            continue
+        if depth:
+            if text[i] != "\n":
+                out[i] = " "
+        elif text[i] == '"':
+            in_string = not in_string
+        i += 1
+    return "".join(out)
+
+
+def read_source(path: pathlib.Path) -> str:
+    return strip_comments(path.read_text())
 
 
 def category_a() -> set[str]:
@@ -85,11 +159,11 @@ def collect_proofs() -> tuple[dict[str, str], set[str]]:
     """Map every global proof name to its proof script."""
     proofs: dict[str, str] = {}
     for path in source_files():
-        text = path.read_text()
+        text = read_source(path)
         for m in DECL.finditer(text):
             name = m.group(1)
             tail = text[m.end():]
-            stop = re.search(r"^(?:Qed|Defined|Admitted)\.", tail, re.M)
+            stop = PROOF_END.search(tail)
             body = tail[:stop.start()] if stop else tail
             proofs[name] = body[body.find("Proof."):] if "Proof." in body else ""
     return proofs, set(proofs)
@@ -110,7 +184,14 @@ def deferral_components(proof: str, known: set[str]) -> list[str] | None:
     # proof content.
     flat = re.sub(r"[\[\]|]", ";", body)
     flat = re.sub(r"^\s*[-+*]+", ";", flat, flags=re.M)
-    steps = [s.strip() for s in re.split(r"[;.]", flat) if s.strip()]
+    # A Coq terminator is a period followed by whitespace. Splitting on
+    # every period cuts `SurfUTXO.check_utxo` in half and leaves
+    # `SurfUTXO` standing alone as a step, which matches no tactic, so
+    # any proof naming a module-qualified constant was reported as
+    # doing work of its own. The error was one-sided -- it overstated
+    # the debt and never excused anything -- but it hid which proofs
+    # are deferrals.
+    steps = [s.strip() for s in re.split(r";|\.(?=\s|$)", flat) if s.strip()]
     if not steps:
         return None
     for step in steps:

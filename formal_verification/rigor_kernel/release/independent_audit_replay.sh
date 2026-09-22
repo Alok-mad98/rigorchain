@@ -115,7 +115,7 @@ make -j"$(nproc 2>/dev/null || echo 2)"
 [[ -f Kernel/KernelSoundness.vo ]] || fail "KernelSoundness.vo missing"
 [[ -f Kernel/VerifiedCompilerBoundary.vo ]] || fail "VerifiedCompilerBoundary.vo missing"
 
-echo "== theorem classification grep + Print Assumptions (A/B table) =="
+echo "== theorem classification grep + Print Assumptions (whole cone) =="
 ASSUME_V="$OUTDIR/print_assumptions.v"
 python3 "$WORK/scripts/check_theorem_classification.py" \
   --md "$WORK/release/TheoremClassification.md" \
@@ -134,7 +134,7 @@ CLOSED_COUNT="$(grep -c 'Closed under the global context' "$ASSUME_OUT" || true)
 EXPECTED_CLOSED="$(grep -c '^Print Assumptions' "$ASSUME_V" || true)"
 [[ "$CLOSED_COUNT" -eq "$EXPECTED_CLOSED" ]] \
   || fail "expected $EXPECTED_CLOSED Closed theorems, got $CLOSED_COUNT"
-echo "ALL_ASSUMPTIONS=CLOSED closed_count=$CLOSED_COUNT (A/B table)"
+echo "ALL_ASSUMPTIONS=CLOSED closed_count=$CLOSED_COUNT (whole cone)"
 
 echo "== extract + vectors + differential verify (in out-dir copy) =="
 export RIGOR_KERNEL_OUTDIR="$OUTDIR"
@@ -163,7 +163,7 @@ DIFF_LINE="$(grep -E '^Vectors:' "$OUTDIR/DiffVerifyReport.md" || true)"
   echo ""
   echo "$DIFF_LINE"
   echo ""
-  echo "\`ALL_ASSUMPTIONS=CLOSED\` (closed_count=$CLOSED_COUNT, A/B table)"
+  echo "\`ALL_ASSUMPTIONS=CLOSED\` (closed_count=$CLOSED_COUNT, whole cone)"
   echo "\`EXTRACT_AND_TEST=PASS\`"
   echo "\`DIFF_VERIFY=PASS\`  (MATCH = implementation agreement only)"
   echo "\`VERIFIED_COMPILER=$CCOMP_STATE\`"

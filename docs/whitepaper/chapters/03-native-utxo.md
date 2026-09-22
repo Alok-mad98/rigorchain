@@ -7,7 +7,7 @@ off-chain registry and not a colour painted on a single UTXO.
 
 If ORU and RES were only annotations on one output, Chapter 1’s split
 would not have happened. Annotations can be ignored, rewritten by an
-indexer, or re-merged by another contract. The split must be the same
+indexer, or re-merged by another contract. The split is the same
 classification every full node reads from the same bytes.
 
 ```
@@ -18,20 +18,21 @@ consensus predicates   →  whether that output was born legally, and who may sp
 
 ---
 
-## 3.1 Why the identities must be native
+## 3.1 Why the identities are native
 
 Overlays are cheaper. Colouring an existing UTXO, keeping balances in a
 side table, or issuing a “reserve” from a contract does not require a
 consensus change. That is also why dual-asset designs are rare: one
 ticker, one listing, one UTXO type is easier to explain and to operate.
 
-The cost of that ease is Chapter 1. If the two identities are not in
-consensus, the miner budget and the scarce stock can be tied back to the
-same object off the ledger. A registry can credit RES without anyone
-destroying ORU. An inscription can stick a store-of-value story back
-onto the medium of exchange. A contract can make conversion two-way.
+The cost of that ease is Chapter 1’s incentive tension. If the two
+identities are not in consensus, the miner budget and the scarce stock
+can be tied back to the same object off the ledger. A registry can
+credit RES without anyone destroying ORU. An inscription can stick a
+store-of-value story back onto the medium of exchange. A contract can
+make conversion two-way.
 
-The protocol therefore refuses three shortcuts:
+The protocol therefore does not adopt three shortcuts:
 
 | Shortcut | What it looks like | What it breaks |
 |----------|--------------------|----------------|
@@ -40,8 +41,8 @@ The protocol therefore refuses three shortcuts:
 | General VM | Arbitrary contracts that redefine “ORU / RES” | Identity becomes writable; the verification surface is no longer closed |
 
 RIGOR accepts a harder public story — two native identities, one one-way
-transform — so medium of exchange and store of value are not the same
-consensus object.
+transform — so the medium-of-exchange and store-of-value functions are
+not assigned to the same consensus object.
 
 ---
 
@@ -127,10 +128,10 @@ Production has **no Script VM**. There is no `EvalScript` and no
 Coinbase `<maturity> <HASH160> 0xbb` is **not** the RFC-020 mint path.
 RES is not born in coinbase.
 
-Consensus rejects as new monetary outputs: P2PKH, P2SH, P2WSH, bare
-multisig, unknown witness versions, Taproot control-block spends.
-Spend signatures
-are Ed25519 only. secp256k1 / ECDSA CHECKSIG hard-fails.
+In the production protocol profile, P2PKH, P2SH, P2WSH, Taproot, and
+secp256k1 spend paths are not accepted as new monetary outputs. Bare
+multisig and unknown witness versions are likewise not accepted. Spend
+signatures are Ed25519 only.
 
 **Witness v1 is not Bitcoin Taproot.** It reuses the BIP141 version byte
 as a native RES container. No control blocks, no annex, no tapscript.
@@ -215,9 +216,9 @@ unforgeability proof.
 ## 3.8 Narrow capability is a prerequisite for verification
 
 This chapter does not compete with programmable platforms. Monetary
-integrity does not require unlimited programmability. More paths create
-more failures. A smaller execution surface makes stronger verification
-possible.
+integrity does not require unlimited programmability. More execution
+paths enlarge the validation surface. A smaller execution surface makes
+stronger verification possible.
 
 ```
 Less capability

@@ -56,15 +56,8 @@ public:
     WalletController(ClientModel& client_model, const PlatformStyle* platform_style, QObject* parent);
     ~WalletController();
 
-    /**
-     * Wrap a loaded interfaces::Wallet in a WalletModel.
-     * @param emit_added  When false, skip walletAdded (caller notifies after UI progress closes).
-     * @param start_poll  When false, skip startPollBalance (defer until after walletAdded UI work).
-     */
-    WalletModel* getOrCreateWallet(std::unique_ptr<interfaces::Wallet> wallet, bool emit_added = true, bool start_poll = true);
-
-    //! After LoadWallets progress dialog closes: emit walletAdded + start balance polling.
-    void finishLoadWallets(const std::vector<WalletModel*>& models);
+    //! Wrap a loaded interfaces::Wallet in a WalletModel (Bitcoin Core Qt path).
+    WalletModel* getOrCreateWallet(std::unique_ptr<interfaces::Wallet> wallet);
 
     //! Returns all wallet names in the wallet dir mapped to whether the wallet
     //! is loaded.

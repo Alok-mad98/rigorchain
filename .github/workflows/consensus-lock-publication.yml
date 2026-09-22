@@ -1,0 +1,37 @@
+# consensus-lock-publication
+
+# Publication-boundary lock only. Same three-lock family, separate path filter.
+# Docs / site copy must not start identity vectors or Coq.
+# Cheap merge guard. No compile, no Coq, no apt.
+name: consensus-lock-publication
+
+on:
+  pull_request:
+    paths:
+      - "tools/check-publication-boundary.py"
+      - "docs/consensus/CONSENSUS_LOCK_POLICY.md"
+      - "docs/WHITEPAPER.md"
+      - "docs/whitepaper/**"
+      - "README.md"
+      - "web/rigorchain-site/src/**"
+      - ".github/workflows/consensus-lock-publication.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/check-publication-boundary.py"
+      - "docs/consensus/CONSENSUS_LOCK_POLICY.md"
+      - "docs/WHITEPAPER.md"
+      - "docs/whitepaper/**"
+      - "README.md"
+      - "web/rigorchain-site/src/**"
+      - ".github/workflows/consensus-lock-publication.yml"
+
+jobs:
+  publication_boundary_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Publication boundary check
+        run: python3 tools/check-publication-boundary.py

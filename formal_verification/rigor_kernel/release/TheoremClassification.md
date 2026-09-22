@@ -68,8 +68,11 @@ runtime trust boundaries.
 | `golden_negative_vectors_rejected` | `ExtractionBoundary/GoldenNegatives.v` | Extraction |
 | `immature_coinbase_rejected` | `Kernel/Tx/Maturity.v` | Coinbase spends below depth 100 are rejected. Not ConnectBlock. M117 |
 | `input_over_max_rejected` | `Kernel/Tx/Maturity.v` | An input above MAX_MONEY is rejected. Overflow sanity bound, not an ORU supply cap. M121 |
+| `input_ok_of_checks` | `Kernel/KernelInputBridge.v` | Restated over `computed_ok_b`: if the six Path A checks and the three state bools pass, Path B `input_ok` holds on `kernel_input_of w`. One way only. Not a production-authority claim. M129 |
+| `input_ok_reflect` | `Kernel/UnifiedTransition.v` | Path B `input_ok` is decidable: `input_ok s i ↔ input_ok_b s i = true` on any record. Reflection of the existing predicate, not a new rule. Not a production checker. M130 |
 | `integer_range_safe` | `RuntimeModel/IntegerBoundary.v` | Runtime |
 | `invalid_kernel_input_rejected` | `Runtime/RuntimeFailure.v` | Runtime |
+| `kernel_apply_of_checks` | `Kernel/KernelInputBridge.v` | Deferral to `input_ok_of_checks` and `kapp_fun`: a computed input that passes the checks is related by `kernel_apply` to the step-function result. Coverage is the parent mutant. Not a production-authority claim |
 | `kernel_chain_is_graph` | `Kernel/Chain/ChainTransition.v` | The chain relation is exactly the chain fold on acceptable runs. M77 mis-evaluates acceptability at the initial state and this stops proving |
 | `kernel_chain_preserves_invariants` | `Kernel/Chain/ChainTransition.v` | The six kernel invariants survive a run of arbitrary length, by induction on the run rather than by iterating the single-step result at the call site. M78 |
 | `kernel_chain_states_invariant` | `Kernel/Chain/ChainTransition.v` | Every state the run passes through satisfies the invariants, not only the tip. Strictly stronger than the preceding row. M79 |
@@ -156,9 +159,9 @@ Kept. Not the public soundness result for the domain.
 | `apply_block_accepted_inputs_unique` | `Kernel/SafetyExtensions.v` | Converse of the `nodupb` guard: accepted block ⇒ unique inputs. Definitional; Category-A UTXO content remains `utxo_soundness` |
 | `apply_block_rejects_duplicate_input` | `Kernel/SafetyExtensions.v` | Definitional unfolding of the `nodupb` guard in `apply_block`; the real Category-A UTXO content remains `utxo_soundness` |
 | `asert_extract_reflects_quot` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `asert_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
 | `asert_poly_fits_uint64_on_exponent` | `proofs/Pow_Correctness/ASERTCorrectness.v` | `asert_poly_fits_uint64` with the domain hypothesis discharged by `exp_rem_range`, hence holding for every exponent including a hostile one. Forwards; the killable content is in the parent |
 | `asert_poly_pos_on_exponent` | `proofs/Pow_Correctness/ASERTCorrectness.v` | `asert_poly_pos` with the domain hypothesis discharged by `exp_rem_range`. Forwards |
+| `bridge_is_inhabited` | `Kernel/KernelInputBridge.v` | Non-vacuity: the hypotheses of `input_ok_of_checks` are jointly satisfiable, so the bridge is not an empty implication |
 | `burn_is_monotonic_supply_decrease` | `Economic/ORU/ORUSoundness.v` | ORU |
 | `burn_only_removal` | `Kernel/EconomicInvariant/Economic.v` | Economic |
 | `chain_ok_accepts_funded_spend` | `Kernel/Chain/ChainTransition.v` | Non-vacuity: the spend rejected above is accepted once an earlier block funds it. The pair is what shows acceptability reads the running state and not the initial one. M88 covers the rejection half |
@@ -169,7 +172,6 @@ Kept. Not the public soundness result for the domain.
 | `check_econ_false_iff` | `Kernel/EconomicInvariant/Economic.v` | Economic |
 | `check_econ_is_not_constant` | `Kernel/EconomicInvariant/Economic.v` | Economic |
 | `check_executable_kernel_false_iff` | `CheckerContract/CheckerSpecification.v` | Checker contract |
-| `check_pow_deterministic` | `Kernel/PowValidator.v` | Function-ness of the executable check |
 | `check_res_mint_bounded_by_genesis` | `Kernel/SafetyExtensions.v` | Executable form of the per-mint genesis cap (includes `0 <`) |
 | `check_value_flow_false_iff` | `Kernel/Transaction/Validity.v` | Transaction |
 | `check_value_flow_is_not_constant` | `Kernel/Transaction/Validity.v` | Transaction |
@@ -179,16 +181,16 @@ Kept. Not the public soundness result for the domain.
 | `classify_payload_independent` | `Script/ScriptClassifier.v` | Payload independence at the script-type level. Same forwarding, same source of content |
 | `collapsing_boundary_is_not_injective` | `ExtractionBoundary/ExtractionModel.v` | Extraction boundary |
 | `collapsing_boundary_is_not_surjective` | `ExtractionBoundary/ExtractionModel.v` | Extraction boundary |
+| `computed_ok_reflect` | `Kernel/KernelInputBridge.v` | Boolean packaging of the six Path A checks plus three state checks reflects the Prop `computed_ok`. Not a reflection of `input_ok`. Not a production-authority claim |
 | `concrete_state_preserves_invariant` | `Refinement/ConcreteKernel/ConcreteKernelMapping.v` | Concrete Refinement |
 | `decode_encode_identity` | `Kernel/SerializationBoundary.v` | ORU list encode/decode identity |
 | `empty_transaction_has_no_fee` | `Kernel/Transaction/Validity.v` | Transaction |
-| `encoding_deterministic` | `Kernel/SerializationBoundary.v` | Encoding is a function |
+| `encode_oru_injective` | `Kernel/SerializationBoundary.v` | No two distinct ORU states share a wire encoding. Proved from the encoded list, not through `decode_encode_identity`, so a collapsed field is caught here and not only one level below. M54 |
 | `executable_apply_is_graph` | `ExecutionBoundary/ExecutableTransition.v` | Execution Boundary |
 | `executable_chain_refines_kernel_chain` | `Kernel/Chain/ChainRefinement.v` | Executable run projects to the abstract run. Composes `executable_chain_commute` and `concrete_chain_commute`; the killable content is in those two |
 | `executable_preservation_hypotheses_are_inhabited` | `ExecutionBoundary/ExecutableInvariance.v` | Execution boundary |
 | `executable_transition_deterministic` | `ExecutionBoundary/ExecutableTransition.v` | Execution Boundary |
 | `extraction_boundary_aligned` | `ExtractionBoundary/ExtractionModel.v` | Extraction boundary |
-| `extraction_source_equivalence` | `Kernel/ExtractionBoundary.v` | Extracted names = Coq validators (definitional). **Not** compiler equivalence |
 | `factor_range_on_exponent` | `proofs/Pow_Correctness/ASERTCorrectness.v` | `factor_range` with the domain hypothesis discharged by `exp_rem_range`. Forwards |
 | `factor_wrap_step_is_one` | `proofs/Pow_Correctness/ASERTCorrectness.v` | Quantifies `factor_wrap_continuous`: the step taken at the wrap is one unit, the same as an ordinary interior step, so the seam is not merely absent but invisible |
 | `fees_only_transfer` | `Kernel/EconomicInvariant/Economic.v` | Economic |
@@ -203,34 +205,27 @@ Kept. Not the public soundness result for the domain.
 | `machine_chain_sound` | `Kernel/Chain/ChainRefinement.v` | End to end: a completed machine run decodes, projects onto the abstract run, and satisfies the invariants there. A bundle of the four Category A results it composes; no mutation can make its own proof fail |
 | `machine_decode_is_partial` | `Runtime/MachineState.v` | Runtime boundary |
 | `machine_refinement_is_partial` | `Runtime/MachineState.v` | Runtime refinement |
-| `machine_step_deterministic_real` | `Runtime/MachineState.v` | Runtime refinement |
 | `machine_step_is_graph` | `Execution/KernelMachine.v` | Execution |
 | `mint_shape_classifies` | `Script/ScriptClassifier.v` | Every 20-byte mint payload lands in `T_MINT` |
 | `no_shape_is_nonstandard` | `Script/ScriptClassifier.v` | A script matching any recognizer is never `T_NONSTANDARD` |
 | `oru_domain_conservation` | `Economic/ORU/ORUSoundness.v` | ORU |
 | `oru_extract_reflects_conservation` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `oru_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
 | `oru_fees_are_transfer_only` | `Economic/ORU/ORUSoundness.v` | ORU |
 | `oru_flow_condition_is_necessary` | `ExecutionBoundary/ExecutableInvariance.v` | Execution boundary |
-| `pow_asert_correctness` | `proofs/Pow_Correctness/ASERTCorrectness.v` | Function-ness packaging only. Class A is `negative_time_error_preserved` |
 | `pow_extract_reflects_target` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `pow_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
-| `pow_hash_deterministic` | `proofs/Pow_Correctness/PowCorrectness.v` | `H` is a function; no concrete hash |
-| `pow_valid_deterministic` | `proofs/Pow_Correctness/PowCorrectness.v` | Abstract PoW relation only. **NOT** a digest implementation proof |
 | `prefix_work_cancels` | `Kernel/Chain/ForkChoice.v` | Common-prefix work cannot flip the two-tip verdict, because work is a sum. Forwards to `chain_work_app` |
 | `representable_does_not_imply_valid` | `Runtime/MachineState.v` | Runtime boundary |
 | `res_extract_reflects_issuance` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `res_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
 | `res_mint_bounded_by_genesis` | `Kernel/SafetyExtensions.v` | Transitive corollary of `res_created` and Category-A `res_schedule_finite` |
 | `runtime_apply_is_graph` | `Runtime/RuntimeTransition.v` | Runtime |
 | `runtime_rejection_is_not_constant` | `Runtime/RuntimeFailure.v` | Runtime failure |
 | `runtime_state_can_be_unrepresentable` | `Runtime/RuntimeState.v` | Runtime boundary |
 | `runtime_step_deterministic` | `Runtime/RuntimeTransition.v` | Runtime |
-| `same_state_same_encoding` | `Kernel/SerializationBoundary.v` | Equal states encode equally |
+| `sample_computed_ok` | `Kernel/KernelInputBridge.v` | Non-vacuity: `computed_ok_b` holds of the sample state and witness, so T2 is not an empty implication. Not a production-authority claim |
+| `sample_witness_passes_every_check` | `Kernel/KernelInputBridge.v` | Non-vacuity: one witness passes all six Path A checks at once |
 | `script_correctness` | `proofs/Script_Correctness/ScriptCorrectness.v` | Bundles the classifier range, surjectivity, payload independence and recognizer disjointness. The Class-A content is in those four |
 | `script_execution_preserves_class` | `Script/Semantics/Execution.v` | Script |
 | `script_extract_reflects_classify` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `script_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
 | `script_invalid_state_rejected` | `Script/Semantics/Execution.v` | Reject state stays rejected. Kernel subset only; not a Script VM |
 | `script_trace_deterministic` | `Script/Semantics/ScriptTrace.v` | Kernel-subset classifier step is a function. Not a Script VM |
 | `select_by_total_eq_suffix` | `Kernel/Chain/ForkChoice.v` | Comparing full-chain work equals comparing suffix work. Forwards to `prefix_work_cancels` |
@@ -247,11 +242,9 @@ Kept. Not the public soundness result for the domain.
 | `target_domain_restriction_is_necessary` | `RuntimeModel/IntegerBoundary.v` | Runtime integer domain |
 | `time_error_domain_restriction_is_necessary` | `RuntimeModel/IntegerBoundary.v` | Runtime integer domain |
 | `transaction_totals_nonneg` | `Kernel/Transaction/Validity.v` | Transaction |
-| `u256_add_assoc` | `Pow/Uint256Model.v` | u256 arithmetic helper |
-| `u256_add_comm` | `Pow/Uint256Model.v` | u256 arithmetic helper |
-| `u256_shr_le` | `Pow/Uint256Model.v` | u256 arithmetic helper |
+| `u256_shr_le` | `Pow/Uint256Model.v` | A right shift does not increase a non-negative value. Killed by M151, which implements the shift in the other direction |
+| `u256_add_wrap_ok` | `Pow/Uint256Model.v` | Wrap-add lands in `[0, 2^256)`. The only theorem in the file that says anything about the 256-bit range rather than about `Z`. Killed by M152, which drops the reduction |
 | `utxo_extract_reflects_valid_tx` | `Kernel/ExtractionBoundary.v` | Checker reflects the Coq predicate |
-| `utxo_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Per-domain source identity |
 | `w_add_negative_result_rejected` | `Runtime/MachineWord.v` | Runtime integer domain |
 | `w_add_overflow_reachable` | `Runtime/MachineWord.v` | Runtime integer domain |
 | `word_domain_strictly_smaller_than_Z` | `Runtime/MachineWord.v` | Runtime integer domain |
@@ -260,6 +253,22 @@ Kept. Not the public soundness result for the domain.
 
 | Theorem | File | Honest description |
 |---|---|---|
+| `u256_add_assoc` | `Pow/Uint256Model.v` | Commutativity and associativity of `Z.add` under a `u256` name. In this model `u256` is `Z` and `u256_add` is `Z.add`, so the statement is a fact about the integers and says nothing about 256-bit arithmetic; no mutation of a kernel rule breaks it without redefining addition to be something other than addition. The range is carried by `u256_add_wrap_ok`, which is Category B and killed by M152 |
+| `u256_add_comm` | `Pow/Uint256Model.v` | Commutativity and associativity of `Z.add` under a `u256` name. In this model `u256` is `Z` and `u256_add` is `Z.add`, so the statement is a fact about the integers and says nothing about 256-bit arithmetic; no mutation of a kernel rule breaks it without redefining addition to be something other than addition. The range is carried by `u256_add_wrap_ok`, which is Category B and killed by M152 |
+| `check_pow_deterministic` | `Kernel/PowValidator.v` | Holds of any function, so it is not evidence about the one it names: `check_pow h = check_pow h`. `PowHeader` carries exactly the three fields `check_pow` reads, so there is no stronger depends-only-on statement available either. Kept as a boundary marker: the determinism that is in question is the C++ implementation's, which Coq cannot see |
+| `encoding_deterministic` | `Kernel/SerializationBoundary.v` | Holds of any function, so it is not evidence about the one it names: `encode_oru s = encode_oru s`. The direction with content is `encode_oru_injective`, which is Category B and killed by M54 |
+| `machine_step_deterministic_real` | `Runtime/MachineState.v` | Holds of any function, so it is not evidence about the one it names: it states that `machine_step_of` is a function, which is what `Definition` already means. The runtime nondeterminism it gestures at is outside the model; `machine_refinement_is_partial` is the statement that carries that boundary |
+| `pow_asert_correctness` | `proofs/Pow_Correctness/ASERTCorrectness.v` | Holds of any function, so it is not evidence about the one it names: `deterministic_asert` unfolds to `anchor = parent -> asert_next_target anchor = asert_next_target parent`. Function-ness packaging only, as the inventory prose already said; Class A content is `negative_time_error_preserved` |
+| `pow_hash_deterministic` | `proofs/Pow_Correctness/PowCorrectness.v` | Holds of any function, so it is not evidence about the one it names: congruence for the uninterpreted digest `H`. Over an abstract function the free facts are the only facts; `kernel_does_not_assume_sha3_security` is the honest marker |
+| `pow_valid_deterministic` | `proofs/Pow_Correctness/PowCorrectness.v` | Holds of any function, so it is not evidence about the one it names: `pow_valid h 0 = pow_valid h 0`, inside the same abstract section |
+| `same_state_same_encoding` | `Kernel/SerializationBoundary.v` | Holds of any function, so it is not evidence about the one it names: `s1 = s2 -> encode_oru s1 = encode_oru s2` is `f_equal`. Content is in `encode_oru_injective` |
+| `asert_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_asert` is *defined as* `ASERTValidator.check_asert`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
+| `extraction_source_equivalence` | `Kernel/ExtractionBoundary.v` | Conjunction of the six alias identities above, proved by `reflexivity`. Records that all six extraction entry points are the kernel functions. **Not** compiler equivalence, and no semantic content of its own |
+| `oru_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_oru` is *defined as* `ORUValidator.check_oru`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
+| `pow_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_pow` is *defined as* `PowValidator.check_pow`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
+| `res_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_res` is *defined as* `RESValidator.check_res`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
+| `script_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_script` is *defined as* `ScriptValidator.check_script`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
+| `utxo_extraction_source_eq` | `Kernel/ExtractionBoundary.v` | Alias identity, proved by `reflexivity`: `extracted_check_utxo` is *defined as* `UTXOValidator.check_utxo`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names |
 | `asert_child_time_irrelevant` | `proofs/Pow_Correctness/ASERTCorrectness.v` | documentation-only, no semantic content (`asert_next_target i = asert_next_target i`) |
 | `asert_poly_exceeds_int64` | `proofs/Pow_Correctness/ASERTCorrectness.v` | Implementation constraint, not a kernel invariant: at the top of the domain the polynomial exceeds 2^63, so the `__int128` promotion in `core/src/pow.cpp` is load-bearing and an `int64_t` evaluation would be signed overflow. Recorded so the requirement cannot be optimised away silently. M93 |
 | `check_econ_accepts_something` | `Kernel/EconomicInvariant/Economic.v` | Economic |

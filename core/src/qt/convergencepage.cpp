@@ -14,6 +14,7 @@
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
 #include <consensus/res_issuance.h>
+#include <wallet/mint_height_pad.h>
 #include <interfaces/convergence_block_result.h>
 #include <interfaces/node.h>
 #include <interfaces/wallet.h>
@@ -25,10 +26,12 @@
 #include <qt/optionsmodel.h>
 #include <qt/platformstyle.h>
 #include <qt/walletmodel.h>
+#include <util/system.h>
 
 #include <univalue.h>
 
 #include <QApplication>
+#include <QLocale>
 #include <QDebug>
 #include <QDialog>
 #include <QElapsedTimer>
@@ -47,6 +50,27 @@
 #include <string>
 
 namespace {
+bool ConvergenceUiIsChinese()
+{
+    const QString lang = QString::fromStdString(gArgs.GetArg("-lang", ""));
+    if (lang.startsWith(QLatin1String("zh"), Qt::CaseInsensitive)) return true;
+    const QString translated_convergence = QCoreApplication::translate("ConvergencePage", "Convergence");
+    if (translated_convergence == QString::fromUtf8("汇聚")) return true;
+    return QLocale().name().startsWith(QLatin1String("zh"), Qt::CaseInsensitive);
+}
+
+QString ConvergenceDisclaimerText()
+{
+    if (ConvergenceUiIsChinese()) {
+        return QString::fromUtf8(
+            "钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。链共识仍按照实际确认区块高度计算。\n"
+            "已销毁的 ORU 无法恢复。");
+    }
+    return QCoreApplication::translate("ConvergencePage",
+        "Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.\n"
+        "Destroyed ORU cannot be recovered.");
+}
+
 void ClearHighlight(QLabel* label)
 {
     if (!label) return;
@@ -88,6 +112,8 @@ ConvergencePage::ConvergencePage(const PlatformStyle* platformStyle, QWidget* pa
         }
         if (ui->labelConvergeDisclaimer) {
             ui->labelConvergeDisclaimer->setVisible(true);
+            ui->labelConvergeDisclaimer->setText(ConvergenceDisclaimerText());
+            ui->labelConvergeDisclaimer->setStyleSheet(QStringLiteral("color: #FFFFFF; font-size: 13px;"));
             ui->verticalLayoutConvergeScroll->insertWidget(3, ui->labelConvergeDisclaimer);
         }
         ui->verticalLayoutConvergeScroll->addStretch(1);
@@ -201,8 +227,8 @@ void ConvergencePage::applyConvergenceTheme()
         "QWidget#ConvergencePageRoot QLabel#labelConvergeAmountTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelQuadraticFeeTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelTotalDeductionTitle { color: %5; }"
-        "QWidget#ConvergencePageRoot QLabel#labelRoundNarrative,"
-        "QWidget#ConvergencePageRoot QLabel#labelConvergeDisclaimer { color: %5; font-size: 11px; }"
+        "QWidget#ConvergencePageRoot QLabel#labelRoundNarrative { color: %5; font-size: 11px; }"
+        "QWidget#ConvergencePageRoot QLabel#labelConvergeDisclaimer { color: #FFFFFF; font-size: 13px; }"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundHeightTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundNTitle,"
         "QWidget#ConvergencePageRoot QLabel#labelTipRoundYouTitle,"
@@ -495,8 +521,8 @@ void ConvergencePage::loadMintPreviewParams()
         m_mint_authorized = r.exists("issuance_authorized")
             ? r["issuance_authorized"].get_bool()
             : (confirm_height >= 0);
-        // RFC-020: destroy_cost(h) at the confirming height. No epoch pad.
-        m_mint_destroy_cost_height = confirm_height;
+        // Wallet construction: price at current tip + CONVERGENCE_HEIGHT_PAD.
+        m_mint_destroy_cost_height = wallet::ConvergenceTargetHeight(tip);
         m_mint_preview_tip = tip;
         m_mint_preview_ok = true;
     } catch (...) {
@@ -535,7 +561,18 @@ void ConvergencePage::updateMintedResPreview()
         return;
     }
     const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
-    ui->labelQuadraticFee->setText(FormatMintedRes(minted));
+    const int confirm_height = clientModel ? clientModel->getNumBlocks() + 1 : m_mint_destroy_cost_height;
+    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
+    const CAmount slack = exact > minted ? exact - minted : 0;
+    if (slack > 0) {
+        ui->labelQuadraticFee->setText(
+            tr("%1 (kept unused so the mint stays valid for %2 blocks: %3)")
+                .arg(FormatMintedRes(minted))
+                .arg(wallet::CONVERGENCE_HEIGHT_PAD)
+                .arg(FormatMintedRes(slack)));
+    } else {
+        ui->labelQuadraticFee->setText(FormatMintedRes(minted));
+    }
 }
 
 void ConvergencePage::updateConvergenceNetworkSafety()
@@ -599,18 +636,17 @@ void ConvergencePage::updateMinConvergenceDisplay()
         if (r.isObject() && r.exists("confirm_height")) {
             confirm_height = r["confirm_height"].getInt<int>();
         }
-        if (r.isObject() && r.exists("min_atom_burn")) {
-            min_amt = r["min_atom_burn"].getInt<int64_t>();
-        } else if (confirm_height >= 0) {
-            min_amt = Consensus::ResMinMintBurnAtoms(confirm_height);
+        if (confirm_height >= 0) {
+            const int current_height = clientModel->getNumBlocks();
+            min_amt = Consensus::ResMinMintBurnAtoms(wallet::ConvergenceTargetHeight(current_height));
         }
     } catch (...) {
     }
     if (confirm_height >= 0) {
         ui->labelMinConverge->setText(
-            tr("%1 at height %2")
+            tr("%1 (valid for %2 blocks)")
                 .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt))
-                .arg(confirm_height));
+                .arg(wallet::CONVERGENCE_HEIGHT_PAD));
     } else {
         ui->labelMinConverge->setText(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, min_amt));
     }
@@ -669,9 +705,16 @@ void ConvergencePage::onSendConvergenceClicked()
     }
 
     const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
+    const int confirm_height = clientModel ? clientModel->getNumBlocks() + 1 : m_mint_destroy_cost_height;
+    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
+    const CAmount slack = exact > minted ? exact - minted : 0;
     const auto r2 = QMessageBox::question(this, tr("Confirm Convergence"),
-        tr("This mint will create %1.\nConvergence uses ORU permanently. This cannot be undone after broadcast.\n\nContinue?")
-            .arg(FormatMintedRes(minted)),
+        tr("This mint will create %1.\n"
+           "Kept unused so the mint stays valid for %2 blocks: %3.\n"
+           "Convergence uses ORU permanently. This cannot be undone after broadcast.\n\nContinue?")
+            .arg(FormatMintedRes(minted))
+            .arg(wallet::CONVERGENCE_HEIGHT_PAD)
+            .arg(FormatMintedRes(slack)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (r2 != QMessageBox::Yes) return;
 

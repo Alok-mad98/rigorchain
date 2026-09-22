@@ -57,8 +57,9 @@ WalletFrame::WalletFrame(const PlatformStyle* _platformStyle, QWidget* parent)
         "Create or open a wallet to continue.\n"
         "Initial synchronization is required before ORU balances and RES Convergence status appear.\n\n"
         "Blockchain Status: Waiting for synchronization…\n"
-        "Network: RIGOR Mainnet\n"
-        "RES Convergence: Available after ORU acquisition"));
+        "Network: %1\n"
+        "RES Convergence: Available after ORU acquisition")
+        .arg(RigorWallet::WalletIdentity::networkDisplayName()));
     empty->setActionText(tr("Create a new wallet"));
     connect(empty, &RigorWallet::EmptyStateWidget::actionTriggered, this, &WalletFrame::createWalletButtonClicked);
     no_wallet_layout->addWidget(empty, 0, Qt::AlignCenter);

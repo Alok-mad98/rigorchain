@@ -1,0 +1,21 @@
+# Lightweight secret / operator-leak gate.
+# Developer machines catch mistakes on commit. CI is the last check on PRs
+# into main only — never on every push.
+name: security-audit
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Self-test scanner
+        run: python3 tests/security_scan/test_security_scan.py
+      - name: Scan tracked tree
+        run: python3 scripts/security_scan.py --all

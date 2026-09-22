@@ -1,145 +1,89 @@
 import { Link } from "react-router-dom";
-import { Rfc020LivePanel } from "../components/Rfc020LivePanel";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
-import {
-  CUMULATIVE_ISSUANCE_CAPTION,
-  RES_COIN,
-  RES_DERIVED_MAX_SUPPLY,
-  UNIT_PRICE_CURVE_CAPTION,
-  resDestroyCostForHeight,
-} from "../lib/resIssuanceSchedule";
 
 /**
- * Public Documentation → Continuous Reserve Issuance (RFC-020).
- * Keep equivalence_claimed = false. Do not claim “complete monetary correctness.”
+ * Public pre-mainnet overview of native assets.
+ * Exact issuance mathematics stays unpublished until mainnet.
  */
 
-const HEIGHT_PINS = [0, 210000, 420000, 630000] as const;
-
-function formatUnits(atoms: bigint, coin: bigint): string {
-  const whole = atoms / coin;
-  const frac = atoms % coin;
-  if (frac === 0n) return whole.toString();
-  return `${whole}.${frac.toString().padStart(8, "0").replace(/0+$/, "")}`;
-}
-
 export function MonetaryPolicyPage() {
-  const derivedRes = formatUnits(RES_DERIVED_MAX_SUPPLY, RES_COIN);
-
   return (
     <div className="page">
       <SubNav />
       <header className="page-header">
-        <p className="tag">Continuous Reserve Issuance</p>
-        <h1>Continuous Reserve Issuance</h1>
+        <p className="tag">NATIVE ASSETS</p>
+        <h1>ORU and RES</h1>
         <p className="muted">
-          RES is minted in a body transaction at the confirming-height protocol cost. ORU is flat 128 per block after
-          genesis. Formally verified monetary invariants — not a refinement proof.
+          Two native assets, one ledger. Issuance follows deterministic protocol rules. The
+          complete specification will be published with mainnet launch.
         </p>
       </header>
-      <Rfc020LivePanel title="This node (regtest / RPC)" />
 
       <aside className="whitepaper-banner card" role="note">
         <p>
-          <span className="mono">equivalence_claimed = false</span>
+          RES issuance follows deterministic protocol rules designed to balance participation,
+          scarcity, and long-term reserve behavior.
         </p>
-        <p>
-          Allowed claim: <strong>formally verified monetary invariants</strong>. Forbidden claim:
-          “mathematically proven complete monetary correctness.”
-        </p>
+        <p>The complete specification will be published with mainnet launch.</p>
       </aside>
 
-      <SectionTitle>1. Two assets</SectionTitle>
+      <SectionTitle>Two native assets</SectionTitle>
       <section className="card prose-section">
         <p>
-          <strong>ORU</strong> is the PoW / fee / Convergence-destroy asset (
-          <code>R(0) = 0</code>; then <code>128</code> ORU/block forever; no hard cap).{" "}
-          <strong>RES</strong> is the scarce settlement asset. Its maximum supply is the closed form{" "}
-          <code>2²²</code> RES: <code>{RES_DERIVED_MAX_SUPPLY.toString()}</code> atoms (
-          {derivedRes} RES).
+          <strong>ORU</strong> is the fee and proof-of-work subsidy asset. It pays for transactions
+          and for chain security. <strong>RES</strong> is the reserve asset. RES is not a mining
+          reward and not a separate token registry.
         </p>
         <p>
-          Actual circulating supply equals participation times that ceiling. The cap is a hard bound
-          — not a promise that the ceiling will be filled.
+          Both assets live in the same UTXO set. Asset class is determined by the output script.
+          There is no account ledger and no global token table.
         </p>
       </section>
 
-      <SectionTitle>2. Continuous destroy cost</SectionTitle>
+      <SectionTitle>Destroy to create</SectionTitle>
       <section className="card prose-section">
-        <p className="math-block">destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰</p>
         <p>
-          Convergence destroys ORU to mint RES. Display <code>destroy_cost(h)</code> is ORU destroyed to
-          mint 1 RES (C++ <code>&gt;&gt; 50</code>). Consensus never evaluates the price. It
-          evaluates one inequality:
+          Convergence is a destroy-to-create rule. A body transaction destroys ORU and may create
+          RES in the same transaction when the protocol admits the operation. Destroyed ORU is not
+          reassigned to the miner. Created RES is a reserve output of that transaction.
         </p>
-        <p className="math-block">R · (2²⁵ + h)² ≤ B &lt;&lt; 40</p>
         <p>
-          <code>R = 0</code> is a legal plain destroy. The price never hits zero, so there is no mint
-          horizon. <code>RES_COIN = {RES_COIN.toString()}</code> (eight decimals).{" "}
-          <code>destroy_cost(0) = 102400000000</code> (1024 ORU destroyed to mint 1 RES). The cost
-          hardens every height. There is no epoch step.
+          A destroy that does not create RES remains a valid destruction. Creation is optional and
+          bounded by consensus. It is not a market quote and not a governance vote.
         </p>
-        <p className="muted">{UNIT_PRICE_CURVE_CAPTION}</p>
-      </section>
-
-      <SectionTitle>3. Selected height pins</SectionTitle>
-      <section className="card prose-section">
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Height</th>
-              <th>destroy_cost(h) atoms</th>
-              <th>destroy_cost(h) ORU per 1 RES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {HEIGHT_PINS.map((h) => {
-              const atoms = resDestroyCostForHeight(h);
-              return (
-                <tr key={h}>
-                  <td>{h}</td>
-                  <td>{atoms.toString()}</td>
-                  <td>{formatUnits(atoms, RES_COIN)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <p className="muted">
-          Mint-output maturity 100 is reorg protection. Shipping issuance uses continuous{" "}
-          <code>destroy_cost(h)</code>.
+        <p>
+          RES issuance follows deterministic protocol rules designed to balance participation,
+          scarcity, and long-term reserve behavior. The complete specification will be published
+          with mainnet launch.
         </p>
       </section>
 
-      <SectionTitle>4. Closed-form cap</SectionTitle>
+      <SectionTitle>Transparent accounting</SectionTitle>
       <section className="card prose-section">
         <p>
-          <code>RES_MAX_SUPPLY = (S / P0) · H = 2⁷ / 2¹⁰ · 2²⁵ = 2²²</code> RES. Cumulative ceiling
-          through height <code>h</code> is <code>cap · h / (h + 2²⁵)</code>.
+          Every admitted operation is a transaction on the public chain. Observers can see ORU
+          destroyed and RES created. The Explorer records those events. It does not authorize them.
         </p>
-        <p className="math-block">
-          {RES_DERIVED_MAX_SUPPLY.toString()} atoms = {derivedRes} RES
+        <p>
+          Circulating supply depends on participation. A scarcity bound is a ceiling on what the
+          rules can create. It is not a promise that the ceiling will be filled.
         </p>
-        <p className="muted">{CUMULATIVE_ISSUANCE_CAPTION}</p>
       </section>
 
-      <SectionTitle>5. Formal verification status</SectionTitle>
+      <SectionTitle>Fair launch</SectionTitle>
       <section className="card prose-section">
-        <ul>
-          <li>
-            Shipping issuance is Convergence: destroy ORU to mint RES at{" "}
-            <code>R · (2²⁵+h)² ≤ B &lt;&lt; 40</code>
-          </li>
-          <li>
-            <code>equivalence_claimed = false</code> — shipping C++ is not proved equivalent to the
-            Coq model
-          </li>
-        </ul>
         <p>
-          Details:{" "}
-          <Link to="/documentation/formal-verification">Formal Verification</Link> · adoption record
-          under the economics adoption record.
+          There is no premine and no public sale on this website. ORU enters circulation through
+          the proof-of-work subsidy and fees. RES enters circulation only through Convergence.
+        </p>
+        <p>
+          This network is a public test network. Coins have no monetary value. Mainnet parameters
+          will be released at mainnet launch.
+        </p>
+        <p>
+          Verification overview:{" "}
+          <Link to="/documentation/formal-verification">Formal verification</Link>.
         </p>
       </section>
     </div>

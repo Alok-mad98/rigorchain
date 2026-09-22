@@ -1,4 +1,5 @@
 import { useSystemState } from "../context/SystemStateContext";
+import { oruFromExplorerStatus } from "../lib/explorerDisplay";
 import { readRfc020Live } from "../lib/rfc020Status";
 export type ProtocolCardVariant = "overview" | "oru" | "res" | "forge" | "live";
 
@@ -26,6 +27,7 @@ export function ProtocolCard({ variant }: Props) {
   }
 
   if (variant === "oru") {
+    const oru = oruFromExplorerStatus(state.explorer_snapshot);
     return (
       <article className="card">
         <header className="card-header">
@@ -33,8 +35,18 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Execution &amp; fee resource</h3>
         </header>
         <p className="math-block">Σ ORU<sub>in</sub> = Σ ORU<sub>out</sub> + fee</p>
-        <p>Subsidy: R(0) = 0; then 128 ORU per block forever. No halvings.</p>
-        <LiveStrip height={state.chain_height} label="chain height" />
+        <p>ORU is issued as a fixed per-block subsidy after genesis. There is no premine.</p>
+        <LiveStrip
+          height={state.chain_height}
+          label="chain height"
+          source={state.rpc_status.reachable ? "rpc" : "explorer"}
+        />
+        {oru && (
+          <p className="live-strip mono">
+            issued {oru.issued} · circulating {oru.circulating} · subsidy {oru.subsidyTip}{" "}
+            <span className="muted">(explorer)</span>
+          </p>
+        )}
       </article>
     );
   }
@@ -47,7 +59,10 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Scarce settlement asset</h3>
         </header>
         <p className="math-block">Σ RES<sub>in</sub> ≥ Σ RES<sub>out</sub></p>
-        <p>Mint emission under closed-form <strong>2²² RES</strong> cap. Circulation depends on Convergence — the cap is not a fill guarantee. RES is not mined.</p>
+        <p>
+          Reserve asset created through Convergence. Circulation depends on participation. RES is
+          not mined. The complete issuance specification will be published with mainnet launch.
+        </p>
         <MintLiveSummary count={state.mint_state.res_mints?.length ?? null} error={state.mint_state.mint_error} />
       </article>
     );
@@ -61,14 +76,18 @@ export function ProtocolCard({ variant }: Props) {
           <h3>Convergence pathway</h3>
         </header>
         <p>
-          Convergence destroys ORU (marker <code>0xbd</code>) and may mint Witness v1 RES in the same
-          body transaction when <code>R · (2²⁵ + h)² ≤ B ≪ 40</code>. Coinbase <code>0xbb</code> is
-          not this path. RES is not mined.
+          Convergence destroys ORU and may create RES in the same body transaction when consensus
+          admits the operation. RES is not mined.
         </p>
-        <p className="math-block">
-          destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰ · cap = 2²² RES
+        <p className="muted">
+          RES issuance follows deterministic protocol rules designed to balance participation,
+          scarcity, and long-term reserve behavior. The complete specification will be published
+          with mainnet launch.
         </p>
-        <ForgeStatus convergence={state.convergence_status} />
+        <ForgeStatus
+          convergence={state.convergence_status}
+          source={state.rpc_status.reachable ? "rpc" : "explorer"}
+        />
       </article>
     );
   }
@@ -97,10 +116,18 @@ export function ProtocolCard({ variant }: Props) {
   );
 }
 
-function LiveStrip({ height, label }: { height: number | null; label: string }) {
+function LiveStrip({
+  height,
+  label,
+  source,
+}: {
+  height: number | null;
+  label: string;
+  source: string;
+}) {
   return (
     <p className="live-strip mono">
-      {label}: {height ?? "—"} <span className="muted">(rpc)</span>
+      {label}: {height ?? "—"} <span className="muted">({source})</span>
     </p>
   );
 }
@@ -116,16 +143,21 @@ function MintLiveSummary({ count, error }: { count: number | null; error: string
   );
 }
 
-function ForgeStatus({ convergence }: { convergence: Record<string, unknown> | null }) {
+function ForgeStatus({
+  convergence,
+  source,
+}: {
+  convergence: Record<string, unknown> | null;
+  source: string;
+}) {
   if (!convergence) {
     return <p className="degraded-text">Convergence status unavailable</p>;
   }
   const live = readRfc020Live(convergence);
   return (
     <p className="live-strip mono">
-      tip {live.tipHeight ?? "—"} · confirm h={live.confirmHeight ?? "—"} · destroy_cost(h){" "}
-      {live.destroyCostOru} ORU/RES · ORU destroyed to mint 1 RES: {live.minWholeResBurnOru} ORU{" "}
-      <span className="muted">(rpc)</span>
+      tip {live.tipHeight ?? "—"} · confirming height {live.confirmHeight ?? "—"} · ORU
+      destroyed and RES created are recorded on chain <span className="muted">({source})</span>
     </p>
   );
 }

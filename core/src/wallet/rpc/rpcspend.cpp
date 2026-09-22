@@ -640,7 +640,7 @@ RPCHelpMan createconvergence()
     return RPCHelpMan{"createconvergence",
         "\nDestroy ORU to mint RES at the continuous destroy cost destroy_cost(h).\n"
         "Spends ORU inputs, writes exactly one RIGOR_MARKER_CONVERGE output of B, and writes an explicit RES mint of "
-        "R = ResMintAtomsFromBurn(B, h). The destroyed ORU cannot be recovered. "
+        "R = ResMintAtomsFromBurn(B, current_height + height_pad). The destroyed ORU cannot be recovered. "
         "Network fee is paid in ORU from change. This is destroy-to-mint, not a conversion, swap or exchange.\n"
         "To destroy ORU without minting RES, use destroyoru." +
             HELP_REQUIRING_PASSPHRASE,
@@ -662,11 +662,17 @@ RPCHelpMan createconvergence()
                 {
                     {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
                     {RPCResult::Type::NUM, "burn_oru", "ORU atoms destroyed by the OP_CONVERGE output"},
-                    {RPCResult::Type::NUM, "res_out", "RES atoms minted (RFC-020 destroy-to-mint)"},
-                    {RPCResult::Type::NUM, "destroy_cost", "Display destroy_cost(confirm_height) in ORU atoms per whole RES"},
+                    {RPCResult::Type::NUM, "res_out", "RES atoms minted (priced at destroy_cost_height so the mint survives later blocks)"},
+                    {RPCResult::Type::NUM, "exact_res_out", "RES atoms an exact-fit mint at confirm_height would have created"},
+                    {RPCResult::Type::NUM, "slack_res", "exact_res_out minus res_out (WALLET_DESIGN_LOCK_V2 III.2(a) slack line)"},
+                    {RPCResult::Type::NUM, "destroy_cost", "Display destroy_cost(destroy_cost_height) in ORU atoms per whole RES"},
                     {RPCResult::Type::NUM, "unlock_height", "Height at which the minted RES becomes spendable"},
-                    {RPCResult::Type::NUM, "confirm_height", "Expected confirming height (tip + 1)"},
-                    {RPCResult::Type::NUM, "destroy_cost_height", "Height whose destroy cost was used (always confirm_height)"},
+                    {RPCResult::Type::NUM, "current_height", "Wallet tip when this mint was constructed"},
+                    {RPCResult::Type::NUM, "confirm_height", "Expected first confirming height (tip + 1)"},
+                    {RPCResult::Type::NUM, "target_height", "Wallet construction height (current_height + height_pad)"},
+                    {RPCResult::Type::NUM, "destroy_cost_height", "Wallet construction height only. Consensus validation uses actual confirming block height."},
+                    {RPCResult::Type::NUM, "height_pad", "Wallet confirmation-height margin. Default CONVERGENCE_HEIGHT_PAD=1024"},
+                    {RPCResult::Type::NUM, "valid_until_height", "Last spend height at which this mint remains consensus-valid"},
                     {RPCResult::Type::STR, "fee_reason", /*optional=*/true, "Present when verbose=true"},
                 }},
         },
@@ -731,10 +737,16 @@ RPCHelpMan createconvergence()
             entry.pushKV("txid", tx->GetHash().GetHex());
             entry.pushKV("burn_oru", res->burn_oru);
             entry.pushKV("res_out", res->res_out);
+            entry.pushKV("exact_res_out", res->exact_res_out);
+            entry.pushKV("slack_res", res->slack_res);
             entry.pushKV("destroy_cost", res->destroy_cost);
             entry.pushKV("unlock_height", res->unlock_height);
+            entry.pushKV("current_height", res->current_height);
             entry.pushKV("confirm_height", res->confirm_height);
+            entry.pushKV("target_height", res->target_height);
             entry.pushKV("destroy_cost_height", res->destroy_cost_height);
+            entry.pushKV("height_pad", res->height_pad);
+            entry.pushKV("valid_until_height", res->valid_until_height);
             const bool verbose{request.params[9].isNull() ? false : request.params[9].get_bool()};
             if (verbose) {
                 entry.pushKV("fee_reason", StringForFeeReason(res->txr.fee_calc.reason));

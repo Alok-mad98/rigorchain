@@ -8,6 +8,8 @@
 
 #include <qt/rigorwallet/walletidentity.h>
 
+#include <chainparams.h>
+#include <chainparamsbase.h>
 #include <clientversion.h>
 
 #ifdef HAVE_BUILD_INFO
@@ -54,6 +56,24 @@ BuildInfo WalletIdentity::build()
     info.buildSuffix = QString();
 #endif
     return info;
+}
+
+QString WalletIdentity::networkDisplayName()
+{
+    const std::string id = Params().NetworkIDString();
+    if (id == CBaseChainParams::TESTNET) {
+        return QCoreApplication::translate("WalletIdentity", "RIGOR Testnet");
+    }
+    if (id == CBaseChainParams::REGTEST) {
+        return QCoreApplication::translate("WalletIdentity", "RIGOR Regtest");
+    }
+    if (id == CBaseChainParams::DEVTEST) {
+        return QCoreApplication::translate("WalletIdentity", "RIGOR Devtest");
+    }
+    if (id == CBaseChainParams::SLOWTEST) {
+        return QCoreApplication::translate("WalletIdentity", "RIGOR Slowtest");
+    }
+    return QCoreApplication::translate("WalletIdentity", "RIGOR Mainnet");
 }
 
 QString WalletIdentity::equivalenceDisclaimer()

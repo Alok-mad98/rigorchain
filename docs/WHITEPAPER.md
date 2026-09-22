@@ -5,6 +5,7 @@
 
 ```
 equivalence_claimed = false
+cpp_formal_equivalence = false
 documentation_consensus_authority = false
 ```
 
@@ -106,10 +107,15 @@ overflow bound.
 ### RES
 
 ```
-destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display only
-R > 0  →  R · (2²⁵ + h)² ≤ B << 40         consensus
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (curve denominator 2⁵⁰)
+R > 0  →  R · (2²⁵ + h)² ≤ B << 40         consensus (scaling factor 2⁴⁰)
 R = 0  →  unconstrained
 ```
+
+`2⁵⁰` is the curve normalization denominator, not a consensus shift.
+Display rounding/floor from a `/ 2⁵⁰` helper do not enter consensus.
+`2⁴⁰` is the integer consensus scaling factor, not the `destroy_cost`
+denominator.
 
 `RES_COIN = 100000000` (eight decimals, same as ORU). Closed-form cap
 `RES_MAX_SUPPLY = 419430400000000` atoms (`2²²` RES = `4194304` RES). It is

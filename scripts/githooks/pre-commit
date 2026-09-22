@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Optional hook. Enable with: git config core.hooksPath scripts/githooks
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "${ROOT}/scripts/security_scan.py"

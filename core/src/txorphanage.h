@@ -29,6 +29,9 @@ public:
     /** Check if we already have an orphan transaction (by txid or wtxid) */
     bool HaveTx(const GenTxid& gtxid) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
+    /** Look up an orphan by txid or wtxid. */
+    CTransactionRef GetTx(const uint256& hash) const EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+
     /** Extract a transaction from a peer's work set
      *  Returns nullptr if there are no transactions to work on.
      *  Otherwise returns the transaction reference, and removes
@@ -45,8 +48,12 @@ public:
     /** Erase all orphans included in or invalidated by a new block */
     void EraseForBlock(const CBlock& block) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
-    /** Limit the orphanage to the given maximum */
+    /** Limit the orphanage to the given maximum unique transactions.
+     *  Evicts announcements from the DoSiest peer first (Bitcoin Core #31829). */
     void LimitOrphans(unsigned int max_orphans) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
+
+    /** Apply announcement + weight DoS limits (Bitcoin Core v30 #31829). */
+    void LimitOrphans() EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);
 
     /** Add any orphans that list a particular tx as a parent into the from peer's work set */
     void AddChildrenToWorkSet(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(!m_mutex);;
@@ -75,8 +82,7 @@ protected:
         size_t list_pos;
     };
 
-    /** Map from txid to orphan transaction record. Limited by
-     *  -maxorphantx/DEFAULT_MAX_ORPHAN_TRANSACTIONS */
+    /** Map from txid to orphan transaction record. */
     std::map<uint256, OrphanTx> m_orphans GUARDED_BY(m_mutex);
 
     /** Which peer provided the orphans that need to be reconsidered */
@@ -106,6 +112,11 @@ protected:
 
     /** Erase an orphan by txid */
     int _EraseTx(const uint256& txid) EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+
+    void ExpireOrphans() EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+    bool ExceedsGlobalLimits() const EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+    NodeId PickDoSiestPeer() const EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
+    bool EvictOneAnnouncement(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(m_mutex);
 };
 
 #endif // BITCOIN_TXORPHANAGE_H

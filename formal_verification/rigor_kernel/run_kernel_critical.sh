@@ -8,11 +8,7 @@ cd "$ROOT"
 fail() { echo "FAIL: $*" >&2; exit 1; }
 
 echo "== G-1 forbidden tokens in *.v =="
-if grep -nE 'Admitted|[[:space:]]admit[[:space:]]|[[:space:]]admit\.|^[[:space:]]*Axiom\b|^[[:space:]]*Parameter\b|refinement_proved|equivalence_proved' \
-     --include='*.v' -R . --exclude-dir=certicoq --exclude-dir=.git --exclude-dir=_build ; then
-  fail "forbidden token present in a .v file"
-fi
-echo "OK: no Admitted / admit / Axiom / Parameter / refinement_proved / equivalence_proved"
+python3 scripts/check_forbidden_tokens.py || fail "forbidden token present in a .v file"
 echo "NO_ADMITTED=true"
 echo "NO_ADMITTED=TRUE"
 echo "NO_AXIOMS=true"
@@ -35,7 +31,13 @@ python3 scripts/check_mutation_coverage.py || fail "Category A mutation coverage
 echo "== no mutation-only switches in the kernel (frontier 1.2) =="
 python3 scripts/check_no_mutation_switches.py || fail "mutation-only switch reintroduced"
 
-echo "== Print Assumptions (Category A/B table; must be Closed) =="
+echo "== Category B adversarial coverage (deferral or mutant) =="
+python3 scripts/check_category_b_coverage.py || fail "Category B coverage debt changed"
+
+echo "== no statement that holds of any function (frontier 1.4, tree-wide) =="
+python3 scripts/check_null_content.py || fail "null-content statement added or inventory stale"
+
+echo "== Print Assumptions (whole cone: A/B/C + allowlist; must be Closed) =="
 OUT="$(mktemp)"
 coqtop -R . RigorKernel -R certicoq/surface RigorSurface -batch -l "$ASSUME_V" > "$OUT" 2>&1 || {
   cat "$OUT"
@@ -51,10 +53,10 @@ CLOSED_COUNT="$(grep -c 'Closed under the global context' "$OUT" || true)"
 EXPECTED_CLOSED="$(grep -c '^Print Assumptions' "$ASSUME_V" || true)"
 if [[ "$CLOSED_COUNT" -ne "$EXPECTED_CLOSED" ]]; then
   rm -f "$ASSUME_V" "$OUT"
-  fail "expected $EXPECTED_CLOSED closed theorems from Category A/B, got $CLOSED_COUNT"
+  fail "expected $EXPECTED_CLOSED closed statements from the cone, got $CLOSED_COUNT"
 fi
 rm -f "$ASSUME_V" "$OUT"
-echo "OK: Category A/B theorems Closed (count=$CLOSED_COUNT)"
+echo "OK: every classified and allowlisted statement Closed (count=$CLOSED_COUNT)"
 echo "ALL_ASSUMPTIONS=CLOSED"
 echo "FORMAL_KERNEL_PHASE_PROOFS=PASS"
 

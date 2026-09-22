@@ -89,16 +89,20 @@ Section "Rigor Wallet (required)" SEC_MAIN
   Delete "$INSTDIR\minerd.exe"
   Delete "$INSTDIR\README-ALPHA.txt"
   Delete "$INSTDIR\rigor-wallet-boot.exe"
+  Delete "$INSTDIR\rigor-qt.exe"
   Delete "$SMPROGRAMS\Rigor Wallet\Rigor Miner.lnk"
   Delete "$SMPROGRAMS\Rigor Alpha\Rigor Miner.lnk"
   Delete "$DESKTOP\Rigor Miner.lnk"
 
-  ; Product PE binaries (must be real PE32+). Wallet package is wallet + node + CLI only.
+  ; Launcher at root. Real GUI is internal\rigor-qt.exe with -datadir=<install>\data.
   File "${STAGING_DIR}/rigor-wallet.exe"
   File "${STAGING_DIR}/rigord.exe"
   File "${STAGING_DIR}/rigor-cli.exe"
   File /oname=README.txt "${STAGING_DIR}/README.txt"
   File /oname=LICENSE.txt "${REPO_ROOT}/installer/windows/RIGOR_LICENSE.txt"
+
+  SetOutPath "$INSTDIR\internal"
+  File "${STAGING_DIR}/internal/rigor-qt.exe"
 
   ; Config template + datadir guidance
   SetOutPath "$INSTDIR\config"
@@ -111,9 +115,8 @@ Section "Rigor Wallet (required)" SEC_MAIN
   File /r "${STAGING_DIR}/qt-runtime/"
 !endif
 
-  ; Default data directory (created empty; wallet/node create chainstate on first run)
-  CreateDirectory "${DATADIR_HINT}"
-  ; AlphaPlus production: do not create testnet3/regtest datadirs (CSW-8).
+  ; Portable data directory next to the program (Litecoin-style). Not %APPDATA%.
+  CreateDirectory "$INSTDIR\data"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
@@ -128,7 +131,7 @@ Section "Rigor Wallet (required)" SEC_MAIN
 
   WriteRegStr HKLM "${REGKEY}" "Path" "$INSTDIR"
   WriteRegStr HKLM "${REGKEY}" "Version" "${PRODUCT_VERSION}"
-  WriteRegStr HKLM "${REGKEY}" "DataDir" "${DATADIR_HINT}"
+  WriteRegStr HKLM "${REGKEY}" "DataDir" "$INSTDIR\data"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "DisplayName" "Rigor Wallet"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorWallet" "DisplayIcon" "$INSTDIR\rigor-wallet.exe"
@@ -145,6 +148,8 @@ SectionEnd
 
 Section "Uninstall"
   Delete "$INSTDIR\rigor-wallet.exe"
+  Delete "$INSTDIR\rigor-qt.exe"
+  RMDir /r "$INSTDIR\internal"
   Delete "$INSTDIR\rigord.exe"
   Delete "$INSTDIR\rigor-miner.exe"
   Delete "$INSTDIR\rigor-cli.exe"

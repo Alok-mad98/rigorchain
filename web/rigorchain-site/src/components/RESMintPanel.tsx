@@ -1,4 +1,5 @@
 import { explorerBaseUrl } from "../lib/explorerClient";
+import { displayMintAmount, displayMintHeight, displayMintTxid } from "../lib/explorerDisplay";
 import { useSystemState } from "../context/SystemStateContext";
 
 export function RESMintPanel() {
@@ -21,14 +22,9 @@ export function RESMintPanel() {
         </div>
       )}
 
-      <p className="panel-intro">Observer mode — mint list from explorer API only. rigord RPC mint status shown when available.</p>
-
-      {state.mint_state.res_mint_status && (
-        <details className="rpc-details">
-          <summary>getresmintstatus (RPC)</summary>
-          <pre className="mono-json">{JSON.stringify(state.mint_state.res_mint_status, null, 2)}</pre>
-        </details>
-      )}
+      <p className="panel-intro">
+        Observer mode. Each row is RES created on chain. This list does not authorize creation.
+      </p>
 
       {!mints && !explorerDown && <p className="muted">Loading mint index…</p>}
 
@@ -49,14 +45,23 @@ export function RESMintPanel() {
           </thead>
           <tbody>
             {mints.map((m, i) => {
-              const txid = String(m.txid ?? "");
+              const txid = displayMintTxid(m);
               const base = explorerBaseUrl();
+              const heightLabel = displayMintHeight(m);
+              const heightNum = Number(heightLabel);
+              const tip = state.chain_height;
+              const confirmations =
+                m.confirmations != null
+                  ? String(m.confirmations)
+                  : tip != null && Number.isFinite(heightNum)
+                    ? String(tip - heightNum + 1)
+                    : "—";
               return (
                 <tr key={txid || `mint-row-${i}`}>
                   <td className="mono truncate">{txid || "—"}</td>
-                  <td className="mono">{m.amount != null ? String(m.amount) : "—"}</td>
-                  <td className="mono">{m.height != null ? String(m.height) : "—"}</td>
-                  <td className="mono">{m.confirmations != null ? String(m.confirmations) : "—"}</td>
+                  <td className="mono">{displayMintAmount(m)}</td>
+                  <td className="mono">{heightLabel}</td>
+                  <td className="mono">{confirmations}</td>
                   <td>
                     {txid && base ? (
                       <a href={`${base}/api/lineage/${txid}`} target="_blank" rel="noreferrer">

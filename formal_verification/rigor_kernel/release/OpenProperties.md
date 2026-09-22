@@ -74,7 +74,7 @@ binary) and the TCB OPEN row.
 | Cost | **HIGH** |
 | Depends on | Hashrate, fee market, draw-eligibility interpretation (C-4 remains a hypothesis) |
 | Priority | P1 |
-| Relation | `pow_asert_correctness` is Category B function-ness of the ASERT *model*, not fairness of mining. Class A is `negative_time_error_preserved`. `rt_draw_ok` is an input bit, not a proved lottery |
+| Relation | `pow_asert_correctness` is Category C function-ness of the ASERT *model*, not fairness of mining. Class A is `negative_time_error_preserved`. `rt_draw_ok` is an input bit, not a proved lottery |
 
 ### OP-L3 — Liveness under a network assumption
 

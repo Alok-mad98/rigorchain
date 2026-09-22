@@ -141,7 +141,7 @@ Definition asert_of_cone (i : ASERTInput) : SurfASERT.ASERTInput :=
      SurfASERT.asert_tau := asert_tau i;
      SurfASERT.asert_expected_q := asert_expected_q i |}.
 
-Definition input_of_cone (input : KernelInput) : SurfVal.KernelInput :=
+Definition input_of_cone (input : KernelValidationRequest) : SurfVal.KernelValidationRequest :=
   match input with
   | KI_UTXO s => SurfVal.KI_UTXO (utxo_of_cone s)
   | KI_ORU s => SurfVal.KI_ORU (oru_of_cone s)

@@ -49,6 +49,9 @@ public:
 
     /** Plain-text equivalence disclaimer. */
     static QString equivalenceDisclaimer();
+
+    /** User-facing chain label (Mainnet / Testnet / …). Not a consensus value. */
+    static QString networkDisplayName();
 };
 
 } // namespace RigorWallet

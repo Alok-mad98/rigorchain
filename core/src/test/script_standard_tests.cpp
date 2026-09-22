@@ -15,12 +15,26 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <map>
+
 BOOST_FIXTURE_TEST_SUITE(script_standard_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(dest_default_is_no_dest)
 {
     CTxDestination dest;
     BOOST_CHECK(!IsValidDestination(dest));
+}
+
+BOOST_AUTO_TEST_CASE(cno_destination_strict_weak_ordering)
+{
+    // a < a must be false; otherwise std::map find/insert is undefined.
+    BOOST_CHECK(!(CNoDestination() < CNoDestination()));
+    BOOST_CHECK(CNoDestination() == CNoDestination());
+
+    std::map<CTxDestination, int> m;
+    m[CNoDestination()] = 1;
+    BOOST_CHECK_EQUAL(m[CNoDestination()], 1);
+    BOOST_CHECK(m.find(CNoDestination()) != m.end());
 }
 
 BOOST_AUTO_TEST_CASE(script_standard_Solver_success)

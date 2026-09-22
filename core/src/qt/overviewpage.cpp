@@ -51,6 +51,7 @@ WALLET_SAFETY_BOUNDARY_V1 (see wallet/wallet_safety_boundary.h)
 #include <qt/rigorwallet/assetbadge.h>
 #include <qt/rigorwallet/assetcontext.h>
 #include <qt/rigorwallet/rigortheme.h>
+#include <qt/rigorwallet/walletidentity.h>
 
 #include <primitives/transaction.h>
 #include <qt/bitcoinamountfield.h>
@@ -213,8 +214,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     m_syncStatusBanner->setText(tr(
         "<b>Blockchain Status</b><br>"
         "Waiting for synchronization…<br>"
-        "Network: <b>RIGOR Mainnet</b><br>"
-        "RES Convergence: Available after ORU acquisition"));
+        "Network: <b>%1</b><br>"
+        "RES Convergence: Available after ORU acquisition")
+        .arg(RigorWallet::WalletIdentity::networkDisplayName()));
     m_syncStatusBanner->setStyleSheet(QStringLiteral(
         "QLabel#RigorSyncStatusBanner {"
         "  background: #111111; color: #FFFFFF; border: 1px solid #333333;"

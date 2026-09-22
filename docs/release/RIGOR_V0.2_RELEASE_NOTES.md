@@ -6,7 +6,8 @@
 | **Tag** | `v0.2` |
 | **Title** | RIGOR v0.2 |
 | **Date** | 2026-09-15 |
-| **Nature** | Release engineering / distribution. **Not** a consensus change. **Not** a mainnet launch. |
+| **Channel** | `stable` |
+| **Nature** | First stable mainnet distribution. **Not** a consensus-parameter change. |
 
 ```
 refinement_proved=false
@@ -28,9 +29,6 @@ Retired AlphaPlus names (`rigor-v0.1.2-alphaplus-*`) are not v0.2 assets.
 - SOLO miner is RFC-020 copy-bytes GBT (128 ORU coinbase, RES is not mined).
 - Official wallet packages do **not** include `rigor-miner`.
 - Miner is a parallel product with its own Windows / Linux assets.
-- macOS wallet DMGs are **not** produced on WSL. Placeholders below; attach
-  real DMGs from GitHub-hosted `macos-15-intel` / `macos-15` when CI finishes.
-  Do not ship stub `.dmg` files.
 
 ---
 
@@ -100,9 +98,12 @@ shasum -a 256 -c SHA256SUMS
 
 ## Known limitations
 
+These are packaging and signing facts. They do **not** mark v0.2 as a test
+or experimental channel.
+
 - Not a Guix-reproducible signed/notarized build.
 - Windows installers are unsigned.
-- macOS DMGs are pending CI at first publish.
+- macOS DMGs attach when the GitHub-hosted macOS jobs finish.
 - Formal verification of the running C++ binary is **not** claimed.
 
 ## What this is not
@@ -110,4 +111,3 @@ shasum -a 256 -c SHA256SUMS
 - Not a consensus-parameter change
 - Not CPP verified
 - Not Level 5
-- Not a mainnet launch announcement

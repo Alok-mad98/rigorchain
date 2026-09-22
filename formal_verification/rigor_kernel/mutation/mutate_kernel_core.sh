@@ -15,7 +15,13 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 # --- kernel_sound: bypass a domain validator entirely ---------------
 # validate_kernel accepts every RES input without consulting the RES
 # validator, so a passing check no longer implies the RES invariant.
-run_mutation M42 kernel_sound Kernel/KernelSoundness.v \
+#
+# It also breaks the dispatch table, and the two results that pin the
+# table -- `validate_kernel_res` and `surface_validate_kernel_eq` --
+# were falling here all along without being named. Nothing else in the
+# suite touches the dispatch, so undeclared they were uncovered.
+run_mutation M42 "kernel_sound surface_validate_kernel_eq validate_kernel_res" \
+  Kernel/KernelSoundness.v \
   '| KI_RES s => RESValidator.check_res s' \
   '| KI_RES s => true' \
   Kernel/KernelSoundness || true
@@ -55,7 +61,7 @@ run_mutation M46 integer_range_safe RuntimeModel/IntegerBoundary.v \
 # --- machine_step_refines_executable_step: drop the overflow check --
 # The RES accumulator is computed unbounded, so the stepped machine
 # state can leave the word domain and no longer decodes.
-run_mutation M47 machine_step_refines_executable_step \
+run_mutation M47 "machine_step_refines_executable_step machine_refinement_is_partial" \
   Runtime/MachineState.v \
   '    match w_add (mk_res_stock m) (Z.max 0 (ki_res_mint i)) with' \
   '    match Some (mk_res_stock m + Z.max 0 (ki_res_mint i)) with' \

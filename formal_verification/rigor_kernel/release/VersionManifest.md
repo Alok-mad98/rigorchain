@@ -63,10 +63,10 @@ contains the cone `.v` files. Do not cite a commit that does not.
 ## Dynamic (filled by check_release.sh)
 
 ```
-Build timestamp: 2026-09-14T03:47:55Z
+Build timestamp: 2026-09-22T13:26:33Z
 Proof provenance: see release/SourceManifest.sha256
-Git HEAD (host only; not a proof-file commit unless tracked): 6886171f1537f6101decb2b1b304de71fc8cfd7a
-ExtractedKernel.ml sha256: f2349792f91eff91aad51b9baf58d16e265b7c723804702792e74f8bbb42feb1
+Git HEAD (host only; not a proof-file commit unless tracked): 38356df9362324fcdb4a3a253a1397cb12fe1a24
+ExtractedKernel.ml sha256: 94782ad1f404d66adaaf405c39af6f52545415835f5d486f33d78d091c7aeadf
 ```
 
 The native binary hash is **not** a cross-host identity. Auditors
@@ -82,10 +82,19 @@ Extraction and the binary are generated test artifacts.
 ## Source lock (filled by freeze_source_manifest.sh)
 
 ```
-SourceManifest.sha256 sha256: 210409dfb109362b38d1497698d0d2e9702ba6d0bfc081ac18353753c790fbbe
-Freeze timestamp: 2026-09-14T03:47:09Z
+SourceManifest.sha256 sha256: 4348b84663da29c846da39ffb753c5ca8cbb8d148538180dac33a50c708e468a
+Freeze timestamp: 2026-09-22T13:26:00Z
 ```
 
 This hash is the lock of the lock file. Auditors run
 `check_source_manifest.sh` (read-only). Re-freeze only when
 publishing an intentional source change.
+
+## Last freeze note
+
+Free Path B `KernelInput` records banned in the gated cone (D-16 item 3);
+examples go through `kernel_input_of`. `input_ok` and `kernel_input_of`
+field equations are unchanged. The naive biconditional is not proved.
+Unique-entry is not started. ND-01 / ND-02 remain closed (D-15 / D-16).
+The KernelInputBridge construction is still not a production-authority
+claim.

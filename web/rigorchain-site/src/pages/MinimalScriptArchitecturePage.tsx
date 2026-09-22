@@ -3,8 +3,6 @@ import { DarkCard } from "../components/DarkCard";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
 
-const GH = "https://github.com/rigorchain/rigorchain/blob/main";
-
 export function MinimalScriptArchitecturePage() {
   return (
     <div className="page whitepaper-page">
@@ -22,11 +20,9 @@ export function MinimalScriptArchitecturePage() {
 
       <aside className="whitepaper-banner card" role="note">
         <p>
-          Architecture documentation. No consensus rules are changed by this page.
-          <br />
-          <span className="mono">
-            cpp_equivalence = false · refinement_proved = false · maturity 4.9
-          </span>
+          Architecture documentation. No consensus rules are changed by this page. Formal
+          verification covers selected properties of a Coq model and does not claim full binary
+          equivalence with production software.
         </p>
       </aside>
 
@@ -45,7 +41,7 @@ export function MinimalScriptArchitecturePage() {
         <DarkCard
           title="Formal Verification"
           to="/documentation/formal-verification"
-          linkLabel="Kernel status"
+          linkLabel="Overview"
         >
           <p>
             Classifier range, partition, and spendability by class are proved in the Coq kernel.
@@ -165,7 +161,7 @@ Validation Rules`}</pre>
                   <td>RES</td>
                   <td>Store of Value</td>
                   <td>
-                    Scarcity asset, cap 2²² RES, created only by a body-tx destroy at destroy_cost(h)
+                    Scarce reserve asset, created only when a body transaction destroys ORU under consensus rules
                   </td>
                   <td>Witness v1 32-byte Ed25519; mint is same-tx with OP_CONVERGE</td>
                 </tr>
@@ -229,8 +225,7 @@ Validation Rules`}</pre>
                 <tr>
                   <td>Convergence 0xbd</td>
                   <td>
-                    &lt;HASH160&gt; 0xbd; ORU destroy; not a UTXO. Same body tx MAY mint Witness v1 RES
-                    when R · (2²⁵ + h)² ≤ B ≪ 40
+                    ORU destroy. Not a spendable output. The same body transaction may create RES when consensus admits it
                   </td>
                 </tr>
                 <tr>
@@ -250,10 +245,8 @@ Validation Rules`}</pre>
           </div>
           <SectionTitle>No Script VM</SectionTitle>
           <p>
-            There is no <code>EvalScript</code> and no <code>interpreter.cpp</code>. Bytes are
-            classified by <code>ClassifyRigorTxout</code>; spends go through{" "}
-            <code>VerifyRigorPredicate</code>. Witness is a two-item stack:{" "}
-            <code>&lt;sig64&gt; &lt;pk32&gt;</code>.
+            There is no general-purpose script interpreter. Outputs are classified, and spends are
+            checked against a fixed ownership rule. A witness carries a signature and a public key.
           </p>
           <SectionTitle>Witness v0</SectionTitle>
           <p>
@@ -279,22 +272,19 @@ Validation Rules`}</pre>
             Convergence is not a smart contract and not a selection among candidates. It is a
             deterministic destroy-to-mint rule at the confirming height.
           </p>
-          <pre className="pipeline-diagram">{`ORU destroy  <HASH160> 0xbd  (amount B)
+          <pre className="pipeline-diagram">{`ORU destroy
         ↓
 same body transaction
         ↓
-Witness v1 RES outputs (sum R)
-        if R = 0  or  R · (2²⁵ + h)² ≤ B << 40`}</pre>
+RES outputs, only when consensus admits creation`}</pre>
           <p>
-            <code>h</code> is the confirming height. Display <code>destroy_cost(h)</code> is not a
-            consensus argument. The 0xbd output does not enter the UTXO set. The kernel proves{" "}
-            <code>converge_unspendable</code>, <code>mint_not_converge</code>, and{" "}
-            <code>ladder_order_immaterial</code>: mint, converge, and null-data first bytes are
-            disjoint, so classifier order does not choose the class.
+            The confirming height selects the rule instance. The destroy output is not spendable.
+            Classification separates reserve creation, destruction, and data outputs so that order
+            of checks does not change the asset class.
           </p>
           <p>
-            Coinbase <code>0xbb</code> does not mint RES. A miner cannot issue RES. Mint-output
-            maturity 100 matches coinbase depth.
+            A miner cannot create RES. Newly created RES becomes spendable after the same style of
+            confirmation depth used for the block subsidy.
           </p>
         </section>
 
@@ -336,20 +326,12 @@ Stronger mathematical verification`}</pre>
             stronger mathematical assurance.
           </p>
           <p>
-            The Coq kernel proves classifier totality and exact range, pairwise disjoint mint /
-            converge / null-data shapes, and spendability by class: converge, null-data, and
-            nonstandard are unspendable; witness v0 / v1 and mint require abstract{" "}
-            <code>sig_ok</code>. That is not a Script VM and not Ed25519 unforgeability.
+            The Coq model checks that script classes are disjoint and that destruction outputs are
+            not spendable. That is not a general-purpose virtual machine, and it is not a claim of
+            full binary equivalence with production software.
           </p>
-          <pre className="math-block">{`cpp_equivalence = false
-refinement_proved = false
-EXTRACTION_FORMAL_PROOF = source_identity_only`}</pre>
           <p>
-            Source chapter: protocol whitepaper Chapter 3. GitHub:{" "}
-            <a href={`${GH}/docs/security/minimal-script-architecture.md`}>
-              docs/security/minimal-script-architecture.md
-            </a>
-            . Status: <Link to="/documentation/formal-verification">Formal Verification</Link>.
+            <Link to="/documentation/formal-verification">Formal verification overview</Link>.
           </p>
         </section>
       </article>

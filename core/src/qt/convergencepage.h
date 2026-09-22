@@ -56,7 +56,7 @@ private:
     bool m_mint_preview_ok{false};
     bool m_mint_authorized{false};
     int m_mint_preview_tip{-2};
-    /** Confirming height h for R · (2^25+h)^2 ≤ B << 40. Refreshed every tip. */
+    /** Wallet construction height (current_height + CONVERGENCE_HEIGHT_PAD). Consensus uses the confirming height. */
     int m_mint_destroy_cost_height{0};
 
     void applyConvergenceTheme();

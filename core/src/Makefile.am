@@ -343,6 +343,7 @@ BITCOIN_CORE_H = \
   wallet/rpc/util.h \
   wallet/rpc/wallet.h \
   wallet/scriptpubkeyman.h \
+  wallet/mint_height_pad.h \
   wallet/spend.h \
   wallet/fee_domain.h \
   wallet/psbt_domain.h \

@@ -3724,18 +3724,25 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 if (!fAlreadyHave && !m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
                     AddTxAnnouncement(pfrom, gtxid, current_time);
                 } else if (fAlreadyHave && m_orphanage.HaveTx(gtxid) && !m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
-                    // If this is an orphan transaction, add this peer as an announcer and request missing parents from them
-                    const uint256& txid = gtxid.GetHash();
-                    if (m_orphanage.AddAnnouncer(txid, pfrom.GetId())) {
-                        // Get the orphan transaction to request its parents
-                        std::set<NodeId> announcers = m_orphanage.GetAnnouncers(txid);
-                        if (!announcers.empty()) {
-                            // We need to find the orphan transaction to get its parents
-                            // For now, we'll rely on the fact that if this peer is a new announcer,
-                            // they might have the parents. The actual parent request will happen
-                            // when we process the orphan in ProcessOrphanTx.
-                            LogPrint(BCLog::MEMPOOL, "added peer=%d as announcer for orphan %s\n", pfrom.GetId(), txid.ToString());
+                    // Bitcoin Core v29: request missing parents from every announcer.
+                    const CTransactionRef porphan = m_orphanage.GetTx(inv.hash);
+                    if (porphan && m_orphanage.AddAnnouncer(porphan->GetHash(), pfrom.GetId())) {
+                        std::vector<uint256> unique_parents;
+                        unique_parents.reserve(porphan->vin.size());
+                        for (const CTxIn& txin : porphan->vin) {
+                            unique_parents.push_back(txin.prevout.hash);
                         }
+                        std::sort(unique_parents.begin(), unique_parents.end());
+                        unique_parents.erase(std::unique(unique_parents.begin(), unique_parents.end()), unique_parents.end());
+                        for (const uint256& parent_txid : unique_parents) {
+                            if (m_recent_rejects.contains(parent_txid)) continue;
+                            const auto parent_gtxid{GenTxid::Txid(parent_txid)};
+                            AddKnownTx(*peer, parent_txid);
+                            if (!AlreadyHaveTx(parent_gtxid)) AddTxAnnouncement(pfrom, parent_gtxid, current_time);
+                        }
+                        LogPrint(BCLog::MEMPOOL, "added peer=%d as announcer for orphan %s and requested parents\n",
+                                 pfrom.GetId(), porphan->GetHash().ToString());
+                        m_orphanage.LimitOrphans();
                     }
                 }
             } else {
@@ -4152,9 +4159,13 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
                 m_txrequest.convergencetTxHash(tx.GetHash());
                 m_txrequest.convergencetTxHash(tx.GetWitnessHash());
 
-                // DoS prevention: do not allow m_orphanage to grow unbounded (see CVE-2012-3789)
-                unsigned int nMaxOrphanTx = (unsigned int)std::max((int64_t)0, gArgs.GetIntArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-                m_orphanage.LimitOrphans(nMaxOrphanTx);
+                // DoS prevention: announcement + weight caps (Bitcoin Core #31829 / v30).
+                // -maxorphantx remains an optional unique-tx ceiling.
+                m_orphanage.LimitOrphans();
+                const int64_t max_unique = gArgs.GetIntArg("-maxorphantx", 0);
+                if (max_unique > 0) {
+                    m_orphanage.LimitOrphans(static_cast<unsigned int>(max_unique));
+                }
             } else {
                 LogPrint(BCLog::MEMPOOL, "not keeping orphan with rejected parents %s\n",tx.GetHash().ToString());
                 // We will continue to reject this tx since it has rejected
@@ -5088,6 +5099,8 @@ void PeerManagerImpl::EvictExtraOutboundPeers(std::chrono::seconds now)
             if (state == nullptr) return; // shouldn't be possible, but just in case
             // Don't evict our protected peers
             if (state->m_chain_sync.m_protect) return;
+            // Bitcoin Core #27213: keep the only full-relay/manual peer on each network.
+            if (m_connman.CountFullOutboundOrManual(pnode->addr.GetNetwork()) <= 1) return;
             if (state->m_last_block_announcement < oldest_block_announcement || (state->m_last_block_announcement == oldest_block_announcement && pnode->GetId() > worst_peer)) {
                 worst_peer = pnode->GetId();
                 oldest_block_announcement = state->m_last_block_announcement;

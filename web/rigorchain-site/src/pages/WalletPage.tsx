@@ -1,5 +1,6 @@
 import { ConvergencePanel } from "../components/ConvergencePanel";
 import { DarkCard } from "../components/DarkCard";
+import { ORUSupplyPanel } from "../components/ORUSupplyPanel";
 import { RESMintPanel } from "../components/RESMintPanel";
 import { SectionTitle } from "../components/SectionTitle";
 import { SubNav } from "../components/SubNav";
@@ -22,7 +23,7 @@ export function WalletPage() {
           <p>Confirmation and spendability are observations, not a verdict.</p>
         </DarkCard>
         <DarkCard title="Convergence" to="/wallet/convergence" linkLabel="Convergence">
-          <p>Destroy ORU at destroy_cost(h) to mint RES. The miner does not receive the RES.</p>
+          <p>Destroy ORU to create RES. The miner does not receive that RES as a subsidy.</p>
         </DarkCard>
         <DarkCard title="RES" to="/wallet/res" linkLabel="RES detail">
           <p>Scarce settlement asset. Mint linkage is distinct from ORU balance.</p>
@@ -30,6 +31,7 @@ export function WalletPage() {
       </section>
 
       <SectionTitle>Live observer panels</SectionTitle>
+      <ORUSupplyPanel />
       <ConvergencePanel />
       <RESMintPanel />
 

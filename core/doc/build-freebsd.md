@@ -27,38 +27,10 @@ git clone https://github.com/arda/arda.git
 #### Wallet Dependencies
 It is not necessary to build wallet functionality to run either `rigord` or `rigor-qt`.
 
-###### Descriptor Wallet Support
-
-`sqlite3` is required to support [descriptor wallets](./descriptors.md).
-Skip if you don't intend to use descriptor wallets.
+###### Wallet Support
+`sqlite3` is required. RIGOR wallets are SQLite descriptor wallets only; Berkeley DB is not supported.
 ``` bash
 pkg install sqlite3
-```
-
-###### Legacy Wallet Support
-BerkeleyDB is only required if legacy wallet support is required.
-
-It is required to use Berkeley DB 4.8. You **cannot** use the BerkeleyDB library
-from ports. However, you can build DB 4.8 yourself [using depends](../depends).
-
-```
-gmake -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_NATPMP=1 NO_UPNP=1 NO_ZMQ=1 NO_USDT=1
-```
-
-When the build is complete, the Berkeley DB installation location will be displayed:
-
-```
-to: /path/to/arda/depends/x86_64-unknown-freebsd[release-number]
-```
-
-Finally, set `BDB_PREFIX` to this path according to your shell:
-
-```
-csh: setenv BDB_PREFIX [path displayed above]
-```
-
-```
-sh/bash: export BDB_PREFIX=[path displayed above]
 ```
 
 #### GUI Dependencies
@@ -99,22 +71,11 @@ pkg install python3 databases/py-sqlite3
 
 There are many ways to configure Rigor Core, here are a few common examples:
 
-##### Descriptor Wallet and GUI:
-This explicitly enables the GUI and disables legacy wallet support, assuming `sqlite` and `qt` are installed.
+##### SQLite Wallet and GUI:
+This explicitly enables the GUI. Wallets are SQLite descriptor wallets only, assuming `sqlite` and `qt` are installed.
 ```bash
 ./autogen.sh
 ./configure --without-bdb --with-gui=yes MAKE=gmake
-```
-
-##### Descriptor & Legacy Wallet. No GUI:
-This enables support for both wallet types and disables the GUI, assuming
-`sqlite3` and `db4` are both installed.
-```bash
-./autogen.sh
-./configure --with-gui=no \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include" \
-    MAKE=gmake
 ```
 
 ##### No Wallet or GUI

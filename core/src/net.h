@@ -60,6 +60,8 @@ static constexpr std::chrono::minutes TIMEOUT_INTERVAL{20};
 static constexpr auto FEELER_INTERVAL = 2min;
 /** Run the extra block-relay-only connection loop once every 5 minutes. **/
 static constexpr auto EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL = 5min;
+/** Attempt an extra full-relay outbound to an under-represented reachable network. Bitcoin Core #27213. */
+static constexpr auto EXTRA_NETWORK_PEER_INTERVAL = 5min;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */
 static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000;
 /** Maximum length of the user agent string in `version` message */
@@ -829,6 +831,8 @@ public:
     int GetExtraFullOutboundCount() const;
     // Count the number of block-relay-only peers we have over our limit.
     int GetExtraBlockRelayCount() const;
+    /** Count full-relay outbound plus manual connections on a given network. */
+    int CountFullOutboundOrManual(Network net) const;
 
     bool AddNode(const std::string& node) EXCLUSIVE_LOCKS_REQUIRED(!m_added_nodes_mutex);
     bool RemoveAddedNode(const std::string& node) EXCLUSIVE_LOCKS_REQUIRED(!m_added_nodes_mutex);
@@ -999,6 +1003,12 @@ private:
      may require loading fixed seeds.
      */
     std::unordered_set<Network> GetReachableEmptyNetworks() const;
+
+    /**
+     * If some reachable network has addrman entries but no full-outbound/manual
+     * connection, pick one at random. Bitcoin Core #27213.
+     */
+    bool MaybePickPreferredNetwork(std::optional<Network>& network);
 
     /**
      * Return vector of current BLOCK_RELAY peers.

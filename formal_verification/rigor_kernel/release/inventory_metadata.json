@@ -401,6 +401,24 @@
   "meaning": "An input above MAX_MONEY is rejected regardless of maturity flags.",
   "statement": "If `MAX_MONEY < sc_value c` then `spend_ok spend_h c = false`."
  },
+ "input_ok_of_checks|Kernel/KernelInputBridge.v": {
+  "assumptions": "computed_ok_b s w = true, i.e. the six Path A checks and the three state bools. `Print Assumptions`: Closed. Not C++ equivalence, not production authority. The converse `input_ok → computed_ok_b` is false and is not claimed.",
+  "dependencies": "`kernel_input_of`, `computed_ok_b`, Path A validators, `oru_subsidy`, `input_ok`",
+  "meaning": "Path B `input_ok` on a computed input, restated over `computed_ok_b`. The four decision fields are the Path A checkers, fees are `oru_in - oru_out`, subsidy is the schedule at the mint height. One way only. Does not ratify Path A as specification authority.",
+  "statement": "If `computed_ok_b s w = true` then `input_ok s (kernel_input_of w)`."
+ },
+ "input_ok_reflect|Kernel/UnifiedTransition.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not a production checker, not a new rule.",
+  "dependencies": "`input_ok`, `input_ok_b`, `Z.leb_le`, `andb_true_iff`",
+  "meaning": "Path B `input_ok` is decidable on any record. Reflection of the existing thirteen-conjunct Prop. Does not change `input_ok`. Does not make Path A a specification authority.",
+  "statement": "`input_ok s i ↔ input_ok_b s i = true`."
+ },
+ "kernel_apply_of_checks|Kernel/KernelInputBridge.v": {
+  "assumptions": "Same as `input_ok_of_checks`. `Print Assumptions`: Closed.",
+  "dependencies": "`input_ok_of_checks`, `kapp_fun`",
+  "meaning": "Deferral: a computed input that satisfies `input_ok` is related by `kernel_apply` to `kernel_step_of`. Killable content is in `input_ok_of_checks` (M129).",
+  "statement": "If `computed_ok_b s w = true` then `kernel_apply s (kernel_input_of w) (kernel_step_of s (kernel_input_of w))`."
+ },
  "mature_coinbase_at_100|Kernel/Tx/Maturity.v": {
   "assumptions": "Coinbase, `money_range`, depth ≥ 100. `Print Assumptions`: Closed.",
   "dependencies": "`spend_ok`, `COINBASE_MATURITY`",
@@ -1132,5 +1150,17 @@
   "dependencies": "`script_spend_ok`, `is_auth_class`",
   "meaning": "An auth-class lock with a passing abstract signature check is accepted.",
   "statement": "If `is_auth_class (classify_script s) = true` and `sig_ok w s = true` then `script_spend_ok = true`."
+ },
+ "computed_ok_reflect|Kernel/KernelInputBridge.v": {
+  "assumptions": "None. `Print Assumptions`: Closed. Not a reflection of `input_ok`.",
+  "dependencies": "`computed_ok`, `computed_ok_b`",
+  "meaning": "The Bridge's composite check Prop matches its bool. Does not imply `input_ok ↔ computed_ok`. Not a production-authority claim.",
+  "statement": "`computed_ok s w ↔ computed_ok_b s w = true`."
+ },
+ "sample_computed_ok|Kernel/KernelInputBridge.v": {
+  "assumptions": "None. `Print Assumptions`: Closed.",
+  "dependencies": "`computed_ok_b`, `sample_kstate`, `sample_witness`",
+  "meaning": "Non-vacuity of T2: the computed checks hold of the sample pair. Not a production-authority claim.",
+  "statement": "`computed_ok_b sample_kstate sample_witness = true`."
  }
 }

@@ -75,8 +75,9 @@ void FirstRunWizard::buildPages()
     auto* syncNote = new QLabel(
         tr("<p><b>Blockchain Status</b></p>"
            "<p>Waiting for synchronization…</p>"
-           "<p>Network: <b>RIGOR Mainnet</b> (or the network you selected).</p>"
-           "<p>ORU balance and RES Convergence status will appear after the chain syncs.</p>"),
+           "<p>Network: <b>%1</b>.</p>"
+           "<p>ORU balance and RES Convergence status will appear after the chain syncs.</p>")
+            .arg(WalletIdentity::networkDisplayName()),
         checks);
     syncNote->setWordWrap(true);
     checksLayout->addWidget(syncNote);

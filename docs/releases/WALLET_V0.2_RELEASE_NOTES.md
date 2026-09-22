@@ -1,9 +1,8 @@
-# RIGOR Wallet v0.2 — Public testnet release notes
+# RIGOR Wallet v0.2 — Stable mainnet release notes
 
 **Product:** Rigor Wallet v0.2  
-**Channel:** First public **testnet** wallet drop  
-**Date:** 2026-09-14  
-**Not a mainnet release.**
+**Channel:** First stable **mainnet** wallet  
+**Date:** 2026-09-15
 
 ```
 refinement_proved=false
@@ -22,13 +21,9 @@ The product tag is **v0.2**.
 
 ## What this release is
 
-Wallet v0.2 is the first intended **public GitHub** installable for the
+Wallet v0.2 is the first stable **mainnet** GitHub installable for the
 current RFC-020 / RFC-018 wallet source. There is no v0.2.1 upgrade
 history. Do not look for a v0.2.1 package.
-
-Use this build to exercise Convergence and dual-asset flows on
-**testnet** (or a dedicated test chain). It is not a mainnet launch
-announcement.
 
 ---
 
@@ -66,11 +61,9 @@ not by a second wallet formula.
 
 ## Known limitations
 
-- **Not mainnet.** Do not treat balances or test coins as mainnet value.
-- **Unsigned** Windows installer (testnet drop).
+- **Unsigned** Windows installer (not a test-channel marker).
 - About / `--version` may still print the compiled codename
-  “Production Release”; this **channel** is testnet — trust these notes
-  for purpose.
+  “Production Release”; the product tag is v0.2.
 - RFC-018 half-fee burn is not explained in the Send dialog.
 - Qt internal widget names may still contain “Epoch” / “rate”; on-screen
   mint cost is destroy_cost at height.

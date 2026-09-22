@@ -826,14 +826,14 @@ let check_oru s =
 
 type block_height = z
 
-(** val rES_PRICE_POLE : z **)
+(** val rES_DESTROY_POLE : z **)
 
-let rES_PRICE_POLE =
+let rES_DESTROY_POLE =
   Z.shiftl (Zpos XH) (Zpos (XI (XO (XO (XI XH)))))
 
-(** val rES_PRICE_SHIFT : z **)
+(** val rES_DESTROY_SHIFT : z **)
 
-let rES_PRICE_SHIFT =
+let rES_DESTROY_SHIFT =
   Zpos (XO (XO (XO (XI (XO XH)))))
 
 (** val rES_MAX_SUPPLY : z **)
@@ -852,7 +852,7 @@ let res_mint_authorized h =
 (** val res_destroy_pole_sq : z -> z **)
 
 let res_destroy_pole_sq h =
-  Z.mul (Z.add rES_PRICE_POLE h) (Z.add rES_PRICE_POLE h)
+  Z.mul (Z.add rES_DESTROY_POLE h) (Z.add rES_DESTROY_POLE h)
 
 type res_tx = { rt_coinbase : bool; rt_mint_ok : bool; rt_mint_amount : 
                 z; rt_height : z; rt_burn_oru : z; rt_dom : input_domain;
@@ -884,8 +884,9 @@ let check_res s =
         ((&&) (Z.leb (mint_amount s) rES_MAX_SUPPLY)
           ((&&) (res_mint_authorized s.rt_height)
             ((&&) (Z.leb Z0 (burn_oru s))
-              (Z.leb (Z.mul (mint_amount s) (res_destroy_pole_sq s.rt_height))
-                (Z.shiftl (burn_oru s) rES_PRICE_SHIFT)))))))
+              (Z.leb
+                (Z.mul (mint_amount s) (res_destroy_pole_sq s.rt_height))
+                (Z.shiftl (burn_oru s) rES_DESTROY_SHIFT)))))))
 
 type script = byte list
 
@@ -1626,7 +1627,7 @@ let check_asert i =
         (Z.eqb (exp_q_raw i.asert_te i.asert_tau)
           (Z.quot (Z.mul i.asert_te aSERT_RADIX) i.asert_tau))))
 
-type kernelInput =
+type kernelValidationRequest =
 | KI_UTXO of uTXOState
 | KI_ORU of oRUState
 | KI_RES of rESState
@@ -1634,7 +1635,7 @@ type kernelInput =
 | KI_Pow of powHeader
 | KI_ASERT of aSERTInput
 
-(** val validate_kernel : kernelInput -> bool **)
+(** val validate_kernel : kernelValidationRequest -> bool **)
 
 let validate_kernel = function
 | KI_UTXO s -> check_utxo s

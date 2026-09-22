@@ -1,18 +1,6 @@
 import { Link } from "react-router-dom";
 import { SubNav } from "../components/SubNav";
-import {
-  ASERT_HALF_LIFE_S,
-  CHAIN_NAME,
-  CODENAME,
-  MAINNET_GENESIS,
-  MAINNET_HRP,
-  MAINNET_MAGIC,
-  MAINNET_P2P_PORT,
-  MAINNET_RPC_PORT,
-  OPUHASH,
-  PRODUCT,
-  TARGET_SPACING_S,
-} from "../protocolFacts";
+import { CHAIN_NAME, CODENAME, MAINNET_GENESIS, PRODUCT } from "../protocolFacts";
 
 export function AboutPage() {
   return (
@@ -27,13 +15,13 @@ export function AboutPage() {
       <section className="card prose-section">
         <h2>What is RIGOR?</h2>
         <p>
-          RIGOR is a dual-asset UTXO protocol. Asset class is inferred from{" "}
-          <code>scriptPubKey</code>. <strong>ORU</strong> is the fee and PoW-subsidy asset.{" "}
-          <strong>RES</strong> is minted only in a body transaction that destroys ORU at{" "}
-          <code>destroy_cost(h)</code> — not a PoW reward. Proof-of-work is <strong>OpuHash</strong>: <code>{OPUHASH}</code>. Difficulty is
-          ASERT (spacing {TARGET_SPACING_S}s, half-life {ASERT_HALF_LIFE_S}s). There is no Script
-          VM. Formal verification covers a model and a finite differential lock; the C++ node is
-          not claimed equivalent (<code>equivalence_claimed = false</code>).
+          RIGOR is a dual-asset UTXO protocol. Asset class is inferred from the output script.{" "}
+          <strong>ORU</strong> is the fee and proof-of-work subsidy asset. <strong>RES</strong> is
+          created only when a body transaction destroys ORU under consensus rules. RES is not a
+          mining reward. Proof-of-work is <strong>OpuHash</strong>. Difficulty adjustment is ASERT.
+          There is no general-purpose script machine. Formal verification covers selected
+          consensus properties through a machine-checked Coq model. The production implementation
+          remains the operational consensus implementation.
         </p>
       </section>
 
@@ -56,28 +44,12 @@ export function AboutPage() {
               <td className="mono">{MAINNET_GENESIS}</td>
             </tr>
             <tr>
-              <td>Magic</td>
-              <td className="mono">{MAINNET_MAGIC}</td>
+              <td>Proof-of-work</td>
+              <td className="mono">OpuHash · ASERT</td>
             </tr>
             <tr>
-              <td>P2P / RPC</td>
-              <td className="mono">
-                {MAINNET_P2P_PORT} / {MAINNET_RPC_PORT}
-              </td>
-            </tr>
-            <tr>
-              <td>Bech32 HRP</td>
-              <td className="mono">{MAINNET_HRP}</td>
-            </tr>
-            <tr>
-              <td>PoW</td>
-              <td className="mono">{OPUHASH}</td>
-            </tr>
-            <tr>
-              <td>ASERT</td>
-              <td className="mono">
-                spacing {TARGET_SPACING_S}s · half-life {ASERT_HALF_LIFE_S}s
-              </td>
+              <td>Public network</td>
+              <td>RIGOR Testnet. Connection details are on the testnet page.</td>
             </tr>
           </tbody>
         </table>
@@ -86,7 +58,7 @@ export function AboutPage() {
       <section className="grid-3">
         <article className="card">
           <h3>No premine</h3>
-          <p>Issuance follows frozen subsidy and mint rules. This site does not sell allocation.</p>
+          <p>Issuance follows consensus rules. This site does not sell an allocation.</p>
         </article>
         <article className="card">
           <h3>Proof of Work</h3>
@@ -97,8 +69,8 @@ export function AboutPage() {
         <article className="card">
           <h3>Formal Verification</h3>
           <p>
-            <Link to="/documentation/formal-verification">Protocol-model invariants</Link> with
-            explicit verification boundaries.
+            <Link to="/documentation/formal-verification">A public verification overview</Link> of
+            selected consensus properties.
           </p>
         </article>
       </section>

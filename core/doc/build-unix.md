@@ -61,14 +61,9 @@ Now, you can either build from self-compiled [depends](../depends/README.md) or 
 
     sudo apt-get install libevent-dev libboost-dev
 
-SQLite is required for the descriptor wallet:
+SQLite is required for the wallet (descriptor SQLite only; Berkeley DB is not supported):
 
     sudo apt install libsqlite3-dev
-
-Berkeley DB is required for the legacy wallet. Ubuntu and Debian have their own `libdb-dev` and `libdb++-dev` packages,
-but these will install Berkeley DB 5.1 or later. This will break binary wallet compatibility with the distributed
-executables, which are based on BerkeleyDB 4.8. If you do not care about wallet compatibility, pass
-`--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
 
 To build Rigor Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
@@ -118,18 +113,9 @@ Now, you can either build from self-compiled [depends](../depends/README.md) or 
 
     sudo dnf install libevent-devel boost-devel
 
-SQLite is required for the descriptor wallet:
+SQLite is required for the wallet (descriptor SQLite only; Berkeley DB is not supported):
 
     sudo dnf install sqlite-devel
-
-Berkeley DB is required for the legacy wallet:
-
-    sudo dnf install libdb4-devel libdb4-cxx-devel
-
-Newer Fedora releases, since Fedora 33, have only `libdb-devel` and `libdb-cxx-devel` packages, but these will install
-Berkeley DB 5.3 or later. This will break binary wallet compatibility with the distributed executables, which
-are based on Berkeley DB 4.8. If you do not care about wallet compatibility,
-pass `--with-incompatible-bdb` to configure. Otherwise, you can build Berkeley DB [yourself](#berkeley-db).
 
 To build Rigor Core without wallet, see [*Disable-wallet mode*](#disable-wallet-mode)
 
@@ -185,28 +171,6 @@ libnatpmp
 from [here](https://miniupnp.tuxfamily.org/files/). NAT-PMP support is compiled in and
 turned off by default.
 
-Berkeley DB
------------
-
-The legacy wallet uses Berkeley DB. To ensure backwards compatibility it is
-recommended to use Berkeley DB 4.8. If you have to build it yourself, and don't
-want to use any other libraries built in depends, you can do:
-```bash
-make -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_NATPMP=1 NO_UPNP=1 NO_ZMQ=1 NO_USDT=1
-...
-to: /path/to/arda/depends/x86_64-pc-linux-gnu
-```
-and configure using the following:
-```bash
-export BDB_PREFIX="/path/to/arda/depends/x86_64-pc-linux-gnu"
-
-./configure \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include"
-```
-
-**Note**: You only need Berkeley DB if the legacy wallet is enabled (see [*Disable-wallet mode*](#disable-wallet-mode)).
-
 Security
 --------
 To help make your Rigor Core installation more secure by making certain attacks impossible to
@@ -260,7 +224,7 @@ be compiled in disable-wallet mode with:
 
     ./configure --disable-wallet
 
-In this case there is no dependency on SQLite or Berkeley DB.
+In this case there is no dependency on SQLite.
 
 Mining is also possible in disable-wallet mode using the `getblocktemplate` RPC call.
 
@@ -282,5 +246,3 @@ This example lists the steps necessary to setup and build a command line only di
     ./configure
     make check
     ./src/rigord
-
-If you intend to work with legacy Berkeley DB wallets, see [Berkeley DB](#berkeley-db) section.

@@ -9,15 +9,15 @@ From RigorSurface Require Import Kernel.Script.
 From RigorSurface Require Import Kernel.Pow.
 From RigorSurface Require Import Kernel.ASERT.
 
-Inductive KernelInput :=
-| KI_UTXO : UTXOState -> KernelInput
-| KI_ORU : ORUState -> KernelInput
-| KI_RES : RESState -> KernelInput
-| KI_Script : ScriptState -> KernelInput
-| KI_Pow : PowHeader -> KernelInput
-| KI_ASERT : ASERTInput -> KernelInput.
+Inductive KernelValidationRequest :=
+| KI_UTXO : UTXOState -> KernelValidationRequest
+| KI_ORU : ORUState -> KernelValidationRequest
+| KI_RES : RESState -> KernelValidationRequest
+| KI_Script : ScriptState -> KernelValidationRequest
+| KI_Pow : PowHeader -> KernelValidationRequest
+| KI_ASERT : ASERTInput -> KernelValidationRequest.
 
-Definition validate_kernel (input : KernelInput) : bool :=
+Definition validate_kernel (input : KernelValidationRequest) : bool :=
   match input with
   | KI_UTXO s => check_utxo s
   | KI_ORU s => check_oru s

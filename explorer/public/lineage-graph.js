@@ -1,5 +1,5 @@
 /**
- * Convergence lineage graph (TASK-EXPLORER-009). Read-only indexed relationships.
+ * Convergence lineage graph. Read-only indexed relationships.
  */
 (function () {
   function escapeHtml(s) {

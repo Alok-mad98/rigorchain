@@ -133,7 +133,7 @@ names. Current set (13):
 P0-120 local corollaries (`apply_block_accepted_inputs_unique`,
 `apply_block_rejects_duplicate_input`, `res_mint_bounded_by_genesis`,
 `check_res_mint_bounded_by_genesis`) are **Category B**.
-`pow_asert_correctness` is **Category B**.
+`pow_asert_correctness` is **Category C**: its statement holds of any function.
 
 ## Explicitly not claimed
 

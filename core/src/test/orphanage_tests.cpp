@@ -4,6 +4,7 @@
 
 #include <arith_uint256.h>
 #include <pubkey.h>
+#include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
@@ -13,6 +14,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -138,6 +140,50 @@ BOOST_AUTO_TEST_CASE(DoS_mapOrphans)
     BOOST_CHECK(orphanage.CountOrphans() <= 10);
     orphanage.LimitOrphans(0);
     BOOST_CHECK(orphanage.CountOrphans() == 0);
+}
+
+static CTransactionRef MakeUnsignedOrphan()
+{
+    CMutableTransaction tx;
+    tx.vin.resize(1);
+    tx.vin[0].prevout.n = 0;
+    tx.vin[0].prevout.hash = InsecureRand256();
+    tx.vout.resize(1);
+    tx.vout[0].nValue = 1 * CENT;
+    tx.vout[0].scriptPubKey = CScript() << RIGOR_PUSH_1;
+    return MakeTransactionRef(tx);
+}
+
+BOOST_AUTO_TEST_CASE(orphanage_peer_dos_eviction)
+{
+    TxOrphanageTest orphanage;
+    constexpr NodeId honest = 1;
+    constexpr NodeId attacker = 2;
+
+    std::vector<uint256> honest_txids;
+    for (int i = 0; i < 5; ++i) {
+        const auto tx = MakeUnsignedOrphan();
+        BOOST_CHECK(orphanage.AddTx(tx, honest));
+        honest_txids.push_back(tx->GetHash());
+        BOOST_CHECK(orphanage.GetTx(tx->GetHash()) != nullptr);
+        BOOST_CHECK(orphanage.GetTx(tx->GetWitnessHash()) != nullptr);
+    }
+    for (int i = 0; i < 40; ++i) {
+        BOOST_CHECK(orphanage.AddTx(MakeUnsignedOrphan(), attacker));
+    }
+    BOOST_CHECK_EQUAL(orphanage.CountOrphans(), 45U);
+
+    orphanage.LimitOrphans(10);
+    BOOST_CHECK(orphanage.CountOrphans() <= 10);
+
+    size_t honest_remaining = 0;
+    for (const uint256& txid : honest_txids) {
+        if (orphanage.GetAnnouncers(txid).count(honest)) {
+            ++honest_remaining;
+        }
+    }
+    // Eviction must come from the attacker, not randomly from the honest peer.
+    BOOST_CHECK_EQUAL(honest_remaining, 5U);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

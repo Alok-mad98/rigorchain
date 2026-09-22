@@ -73,9 +73,18 @@ Source: `GetBlockSubsidy` in `core/src/consensus/rigor_issuance.cpp`;
 ### RES — Continuous destroy cost (RFC-020)
 
 ```
-destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (>> 50)
-R · (2²⁵ + h)² ≤ B << 40                   consensus
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (curve denominator 2⁵⁰)
+R · (2²⁵ + h)² ≤ B << 40                   consensus (scaling factor 2⁴⁰)
 ```
+
+`2⁵⁰` is the curve normalization denominator. It is not a consensus
+shift. A display helper may evaluate the quotient with integer division
+by `2⁵⁰` (`>> 50`). That floor is for reading only. Display
+rounding/floor do not enter consensus.
+
+`2⁴⁰` is the integer consensus scaling factor after `1024 = 2¹⁰` is
+cancelled. It is not the `destroy_cost` denominator. Consensus never
+divides by `2⁵⁰`; it evaluates `B << 40`.
 
 Integer only. `destroy_cost(h)` is a **protocol cost**, not a market quote.
 The price never hits zero; there is no mint horizon.
@@ -87,7 +96,7 @@ The price never hits zero; there is no mint horizon.
 | `destroy_cost(210000)` | 103685749152 |
 | `destroy_cost(420000)` | 104979520049 |
 | `RES_DESTROY_POLE` | `2²⁵` = 33554432 |
-| `RES_DESTROY_SHIFT` | 40 |
+| `RES_DESTROY_SHIFT` | 40 (integer consensus scaling factor `B << 40`; not the `destroy_cost` denominator `2⁵⁰`) |
 | `RES_MAX_SUPPLY` | 419430400000000 atoms (`2²²` RES) |
 
 From block 210000 the destroy cost becomes 1036.85749152 ORU per RES.
@@ -182,14 +191,6 @@ outputs       exactly one OP_CONVERGE output, value B
 
 Coinbase `OP_RES_MINT` is not the RFC-020 path.
 
-### Retired mechanism (historical RFC-017 / RFC-014)
-
-Not live consensus: draw, σ, window 32, winner selection, `W(k)`,
-`draw_candidate_root` as a consensus issuance object, coinbase mint
-prize. σ is not a live mint input.
-
----
-
 ---
 
 ## 3. Proof of Work
@@ -210,9 +211,6 @@ SHA256d. σ is not a live mint input.
 Source: `rigor_kernel::GetRigorPowHash` in
 `core/src/rigor_kernel/pow_digest.h`; `CheckProofOfWork` in
 `core/src/pow.cpp`.
-
-The retired 64 KiB / 256-round mix in `pow_opus.cpp` is not OpuHash and is
-not the live digest.
 
 ### ASERT next target
 

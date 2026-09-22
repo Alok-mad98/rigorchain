@@ -46,7 +46,7 @@ run_mutation M51 "checker_rejects_unrepresentable_state checker_decides_kernel_v
 # --- checker: stops consulting the decision procedure ----------------
 # Every decodable state is accepted, so acceptance no longer implies
 # the kernel invariant.
-run_mutation M52 "checker_accepts_valid_kernel_state checker_rejects_invalid_kernel_state" \
+run_mutation M52 "checker_accepts_valid_kernel_state checker_rejects_invalid_kernel_state checker_survives_machine_step" \
   CheckerContract/CheckerSpecification.v \
   '  | Some e => check_executable_kernel e' \
   '  | Some e => true' \
@@ -63,8 +63,10 @@ run_mutation M53 "econ_chain_no_supply_loss economic_net_issuance_is_subsidy eco
 
 # --- serialization: two input domains share a code -------------------
 # DomRES and DomORU both encode to 0, so decoding cannot recover which
-# one was written.
-run_mutation M54 decode_encode_identity Kernel/SerializationBoundary.v \
+# one was written, and two states differing only in domain now share a
+# wire form -- which is what `encode_oru_injective` forbids.
+run_mutation M54 "decode_encode_identity encode_oru_injective" \
+  Kernel/SerializationBoundary.v \
   '  | DomRES => 1' \
   '  | DomRES => 0' \
   Kernel/SerializationBoundary || true
@@ -140,7 +142,7 @@ run_mutation M63 no_hidden_inflation proofs/ORU_Conservation/ORUConservation.v \
   proofs/ORU_Conservation/ORUConservation || true
 
 # --- transactions: validity stops requiring non-negative values ------
-run_mutation M64 transaction_no_negative_value Kernel/Transaction/Validity.v \
+run_mutation M64 "transaction_no_negative_value empty_transaction_has_no_fee transaction_totals_nonneg" Kernel/Transaction/Validity.v \
   '  values_nonneg t /\ outputs_bounded_by_inputs t.' \
   '  outputs_bounded_by_inputs t.' \
   Kernel/Transaction/Validity || true

@@ -73,8 +73,9 @@ public:
     }
 };
 
-/** Functions to keep track of adjusted P2P time */
+/** Median peer clock offset in seconds, for RPC and skew warnings only. */
 int64_t GetTimeOffset();
+/** Unadjusted system/node clock. Peer samples do not shift this value. */
 NodeClock::time_point GetAdjustedTime();
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 

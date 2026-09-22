@@ -21,6 +21,7 @@
 #include <util/threadnames.h>
 #include <util/translation.h>
 
+#include <chrono>
 #include <condition_variable>
 #include <cstdio>
 #include <cstdlib>
@@ -219,8 +220,7 @@ static void http_request_cb(struct evhttp_request* req, void* arg)
         WITH_LOCK(g_requests_mutex, g_requests.insert(req));
         g_requests_cv.notify_all();
         evhttp_request_set_on_complete_cb(req, [](struct evhttp_request* req, void*) {
-            auto n{WITH_LOCK(g_requests_mutex, return g_requests.erase(req))};
-            assert(n == 1);
+            WITH_LOCK(g_requests_mutex, g_requests.erase(req));
             g_requests_cv.notify_all();
         }, nullptr);
     }
@@ -464,6 +464,9 @@ void StopHTTPServer()
 {
     LogPrint(BCLog::HTTP, "Stopping HTTP server\n");
     if (g_work_queue) {
+        // Join first: each worker finishes its current handler (send, sign,
+        // GBT, …). SQLite wallet batches commit inside those handlers. The
+        // timed wait below must not cut that work short.
         LogPrint(BCLog::HTTP, "Waiting for HTTP worker threads to exit\n");
         for (auto& thread : g_thread_http_workers) {
             thread.join();
@@ -481,24 +484,42 @@ void StopHTTPServer()
         if (!g_requests.empty()) {
             LogPrint(BCLog::HTTP, "Waiting for %d requests to stop HTTP server\n", g_requests.size());
         }
-        g_requests_cv.wait(lock, []() EXCLUSIVE_LOCKS_REQUIRED(g_requests_mutex) {
+        const auto wait_for = std::chrono::seconds{DEFAULT_HTTP_SHUTDOWN_REQUEST_WAIT_SEC};
+        const bool drained = g_requests_cv.wait_for(lock, wait_for, []() EXCLUSIVE_LOCKS_REQUIRED(g_requests_mutex) {
             return g_requests.empty();
         });
+        if (!drained) {
+            // Dead client (miner already gone): on_complete may never fire.
+            // Abandon the HTTP objects only. Do not roll back wallet or chain
+            // state; Shutdown() still flushes wallets and ForceFlushStateToDisk.
+            LogPrintf("HTTP: abandoning %d in-flight request(s) after %ds (client gone or longpoll stalled); proceeding to wallet/chain flush\n",
+                      g_requests.size(), DEFAULT_HTTP_SHUTDOWN_REQUEST_WAIT_SEC);
+        }
     }
-    if (eventHTTP) {
-        // Schedule a callback to call evhttp_free in the event base thread, so
-        // that evhttp_free does not need to be called again after the handling
-        // of unfinished request connections that follows.
+    if (eventHTTP && eventBase) {
+        // Free evhttp on the event thread when possible.
         event_base_once(eventBase, -1, EV_TIMEOUT, [](evutil_socket_t, short, void*) {
             evhttp_free(eventHTTP);
             eventHTTP = nullptr;
         }, nullptr, nullptr);
     }
     if (eventBase) {
+        // Half-open connections keep event_base_dispatch running. Break out so
+        // join cannot block after the request wait timed out.
+        event_base_loopbreak(eventBase);
         LogPrint(BCLog::HTTP, "Waiting for HTTP event thread to exit\n");
         if (g_thread_http.joinable()) g_thread_http.join();
+        if (eventHTTP) {
+            evhttp_free(eventHTTP);
+            eventHTTP = nullptr;
+        }
         event_base_free(eventBase);
         eventBase = nullptr;
+    }
+    {
+        LOCK(g_requests_mutex);
+        g_requests.clear();
+        g_requests_cv.notify_all();
     }
     g_work_queue.reset();
     LogPrint(BCLog::HTTP, "Stopped HTTP server\n");

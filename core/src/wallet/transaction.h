@@ -209,7 +209,22 @@ public:
     std::multimap<int64_t, CWalletTx*>::const_iterator m_it_wtxOrdered;
 
     // memory only
-    enum AmountType { DEBIT, CREDIT, IMMATURE_CREDIT, AVAILABLE_CREDIT, AMOUNTTYPE_ENUM_ELEMENTS };
+    // Dual-native GUI getBalances used to walk mapWallet six times with no
+    // per-asset cache (AVAILABLE_CREDIT is a blended ORU+RES total). A mining
+    // wallet with ~12k coinbases then blocked the Qt thread for ~1 minute on
+    // every new block. Keep blended AVAILABLE_CREDIT for GetBalance() and
+    // cache ORU/RES available + immature credits separately.
+    enum AmountType {
+        DEBIT,
+        CREDIT,
+        IMMATURE_CREDIT,
+        AVAILABLE_CREDIT,
+        AVAILABLE_CREDIT_ORU,
+        AVAILABLE_CREDIT_RES,
+        IMMATURE_CREDIT_ORU,
+        IMMATURE_CREDIT_RES,
+        AMOUNTTYPE_ENUM_ELEMENTS
+    };
     mutable CachableAmount m_amounts[AMOUNTTYPE_ENUM_ELEMENTS];
     /**
      * This flag is true if all m_amounts caches are empty. This is particularly
@@ -300,6 +315,10 @@ public:
         m_amounts[CREDIT].Reset();
         m_amounts[IMMATURE_CREDIT].Reset();
         m_amounts[AVAILABLE_CREDIT].Reset();
+        m_amounts[AVAILABLE_CREDIT_ORU].Reset();
+        m_amounts[AVAILABLE_CREDIT_RES].Reset();
+        m_amounts[IMMATURE_CREDIT_ORU].Reset();
+        m_amounts[IMMATURE_CREDIT_RES].Reset();
         fChangeCached = false;
         m_is_cache_empty = true;
     }

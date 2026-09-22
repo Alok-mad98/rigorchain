@@ -49,6 +49,11 @@ collect "$DIR/mutate_rfc020.sh"
 collect "$DIR/mutate_block_proof.sh"
 collect "$DIR/mutate_maturity.sh"
 collect "$DIR/mutate_script_spend.sh"
+collect "$DIR/mutate_validator_soundness.sh"
+collect "$DIR/mutate_surface_translation.sh"
+collect "$DIR/mutate_non_vacuity.sh"
+collect "$DIR/mutate_classifier_shapes.sh"
+collect "$DIR/mutate_integer_model.sh"
 
 echo "---- mutation summary ----"
 echo "EXPECTED_FAILURES=$EXPECT_FAIL_COUNT"
@@ -58,8 +63,8 @@ if [[ "$MUTATION_PASS_COUNT" -ne 0 ]]; then
   echo "FAIL: mutation_passed is forbidden" >&2
   exit 1
 fi
-if [[ "$EXPECT_FAIL_COUNT" -ne 127 ]]; then
-  echo "FAIL: expected 127 EXPECTED_FAILURE lines, got $EXPECT_FAIL_COUNT" >&2
+if [[ "$EXPECT_FAIL_COUNT" -ne 152 ]]; then
+  echo "FAIL: expected 152 EXPECTED_FAILURE lines, got $EXPECT_FAIL_COUNT" >&2
   exit 1
 fi
 

@@ -8,12 +8,20 @@
 #include <logging.h>
 #include <policy/policy.h>
 
+#include <algorithm>
 #include <cassert>
+#include <limits>
+#include <map>
+#include <random.h>
 
 /** Expiration time for orphan transactions in seconds */
 static constexpr int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
 /** Minimum time between orphan transactions expire time checks in seconds */
 static constexpr int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
+/** Bitcoin Core #31829: announcements + unique inputs/10 must stay under this. */
+static constexpr unsigned int MAX_ORPHANAGE_LATENCY_SCORE = 3000;
+/** Bitcoin Core #31829: 404,000 WU reserved per announcing peer. */
+static constexpr int64_t MAX_ORPHANAGE_WEIGHT_PER_PEER = 404'000;
 
 
 bool TxOrphanage::AddTx(const CTransactionRef& tx, NodeId peer)
@@ -22,10 +30,14 @@ bool TxOrphanage::AddTx(const CTransactionRef& tx, NodeId peer)
 
     const uint256& hash = tx->GetHash();
     
-    // If orphan already exists, add peer as announcer
+    // If orphan already exists, add peer as announcer (lock is already held).
     auto it = m_orphans.find(hash);
     if (it != m_orphans.end()) {
-        return AddAnnouncer(hash, peer);
+        const auto ret = it->second.announcers.insert(peer);
+        if (ret.second) {
+            LogPrint(BCLog::MEMPOOL, "added peer=%d as announcer of orphan tx %s\n", peer, hash.ToString());
+        }
+        return ret.second;
     }
 
     // Ignore big transactions, to avoid a
@@ -147,40 +159,136 @@ void TxOrphanage::EraseForPeer(NodeId peer)
     if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx from peer=%d\n", nErased, peer);
 }
 
+void TxOrphanage::ExpireOrphans()
+{
+    AssertLockHeld(m_mutex);
+
+    static int64_t nNextSweep;
+    int64_t nNow = GetTime();
+    if (nNextSweep > nNow) return;
+
+    int nErased = 0;
+    int64_t nMinExpTime = nNow + ORPHAN_TX_EXPIRE_TIME - ORPHAN_TX_EXPIRE_INTERVAL;
+    auto iter = m_orphans.begin();
+    while (iter != m_orphans.end()) {
+        auto maybeErase = iter++;
+        if (maybeErase->second.nTimeExpire <= nNow) {
+            nErased += _EraseTx(maybeErase->second.tx->GetHash());
+        } else {
+            nMinExpTime = std::min(maybeErase->second.nTimeExpire, nMinExpTime);
+        }
+    }
+    nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
+    if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx due to expiration\n", nErased);
+}
+
+bool TxOrphanage::ExceedsGlobalLimits() const
+{
+    AssertLockHeld(m_mutex);
+
+    size_t announcements = 0;
+    size_t unique_inputs = 0;
+    int64_t total_weight = 0;
+    std::set<NodeId> peers;
+    for (const auto& entry : m_orphans) {
+        announcements += entry.second.announcers.size();
+        unique_inputs += entry.second.tx->vin.size();
+        total_weight += GetTransactionWeight(*entry.second.tx);
+        peers.insert(entry.second.announcers.begin(), entry.second.announcers.end());
+    }
+    const size_t n_peers = std::max<size_t>(peers.size(), 1);
+    const int64_t max_weight = MAX_ORPHANAGE_WEIGHT_PER_PEER * static_cast<int64_t>(n_peers);
+    const unsigned int latency = static_cast<unsigned int>(announcements + unique_inputs / 10);
+    return latency > MAX_ORPHANAGE_LATENCY_SCORE || total_weight > max_weight;
+}
+
+NodeId TxOrphanage::PickDoSiestPeer() const
+{
+    AssertLockHeld(m_mutex);
+
+    std::map<NodeId, size_t> announcements;
+    std::map<NodeId, int64_t> weight;
+    for (const auto& entry : m_orphans) {
+        const int64_t w = GetTransactionWeight(*entry.second.tx);
+        for (NodeId peer : entry.second.announcers) {
+            announcements[peer] += 1;
+            weight[peer] += w;
+        }
+    }
+    NodeId worst = -1;
+    double worst_score = -1;
+    for (const auto& [peer, n_ann] : announcements) {
+        const double cpu = static_cast<double>(n_ann);
+        const double mem = static_cast<double>(weight[peer]) / static_cast<double>(MAX_ORPHANAGE_WEIGHT_PER_PEER);
+        const double score = std::max(cpu, mem);
+        if (score > worst_score) {
+            worst_score = score;
+            worst = peer;
+        }
+    }
+    return worst;
+}
+
+bool TxOrphanage::EvictOneAnnouncement(NodeId peer)
+{
+    AssertLockHeld(m_mutex);
+
+    uint256 victim;
+    int64_t oldest = std::numeric_limits<int64_t>::max();
+    bool found = false;
+    for (const auto& entry : m_orphans) {
+        if (!entry.second.announcers.count(peer)) continue;
+        if (entry.second.nTimeExpire < oldest) {
+            oldest = entry.second.nTimeExpire;
+            victim = entry.first;
+            found = true;
+        }
+    }
+    if (!found) return false;
+
+    auto it = m_orphans.find(victim);
+    if (it == m_orphans.end()) return false;
+    it->second.announcers.erase(peer);
+    m_peer_work_set[peer].erase(victim);
+    if (it->second.announcers.empty()) {
+        _EraseTx(victim);
+    }
+    return true;
+}
+
+void TxOrphanage::LimitOrphans()
+{
+    LOCK(m_mutex);
+    ExpireOrphans();
+    unsigned int nEvicted = 0;
+    while (ExceedsGlobalLimits()) {
+        const NodeId worst = PickDoSiestPeer();
+        if (worst == -1) break;
+        if (!EvictOneAnnouncement(worst)) break;
+        ++nEvicted;
+    }
+    if (nEvicted > 0) LogPrint(BCLog::MEMPOOL, "orphanage DoS trim, removed %u announcements\n", nEvicted);
+}
+
 void TxOrphanage::LimitOrphans(unsigned int max_orphans)
 {
     LOCK(m_mutex);
 
+    ExpireOrphans();
     unsigned int nEvicted = 0;
-    static int64_t nNextSweep;
-    int64_t nNow = GetTime();
-    if (nNextSweep <= nNow) {
-        // Sweep out expired orphan pool entries:
-        int nErased = 0;
-        int64_t nMinExpTime = nNow + ORPHAN_TX_EXPIRE_TIME - ORPHAN_TX_EXPIRE_INTERVAL;
-        std::map<uint256, OrphanTx>::iterator iter = m_orphans.begin();
-        while (iter != m_orphans.end())
-        {
-            std::map<uint256, OrphanTx>::iterator maybeErase = iter++;
-            if (maybeErase->second.nTimeExpire <= nNow) {
-                nErased += _EraseTx(maybeErase->second.tx->GetHash());
-            } else {
-                nMinExpTime = std::min(maybeErase->second.nTimeExpire, nMinExpTime);
-            }
+    while (m_orphans.size() > max_orphans) {
+        const NodeId worst = PickDoSiestPeer();
+        if (worst == -1) {
+            // Fall back to random eviction if scores are empty.
+            FastRandomContext rng;
+            size_t randompos = rng.randrange(m_orphan_list.size());
+            _EraseTx(m_orphan_list[randompos]->first);
+        } else if (!EvictOneAnnouncement(worst)) {
+            break;
         }
-        // Sweep again 5 minutes after the next entry that expires in order to batch the linear scan.
-        nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
-        if (nErased > 0) LogPrint(BCLog::MEMPOOL, "Erased %d orphan tx due to expiration\n", nErased);
-    }
-    FastRandomContext rng;
-    while (m_orphans.size() > max_orphans)
-    {
-        // Evict a random orphan:
-        size_t randompos = rng.randrange(m_orphan_list.size());
-        _EraseTx(m_orphan_list[randompos]->first);
         ++nEvicted;
     }
-    if (nEvicted > 0) LogPrint(BCLog::MEMPOOL, "orphanage overflow, removed %u tx\n", nEvicted);
+    if (nEvicted > 0) LogPrint(BCLog::MEMPOOL, "orphanage overflow, removed %u announcements\n", nEvicted);
 }
 
 void TxOrphanage::AddChildrenToWorkSet(const CTransaction& tx)
@@ -210,6 +318,16 @@ bool TxOrphanage::HaveTx(const GenTxid& gtxid) const
     } else {
         return m_orphans.count(gtxid.GetHash());
     }
+}
+
+CTransactionRef TxOrphanage::GetTx(const uint256& hash) const
+{
+    LOCK(m_mutex);
+    auto it = m_orphans.find(hash);
+    if (it != m_orphans.end()) return it->second.tx;
+    auto wit = m_wtxid_to_orphan_it.find(hash);
+    if (wit != m_wtxid_to_orphan_it.end()) return wit->second->second.tx;
+    return nullptr;
 }
 
 CTransactionRef TxOrphanage::GetTxToReconsider(NodeId peer)

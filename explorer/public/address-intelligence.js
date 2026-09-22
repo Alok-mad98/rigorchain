@@ -1,5 +1,5 @@
 /**
- * Address intelligence page (TASK-EXPLORER-008). Read-only indexed data.
+ * Address intelligence page. Read-only indexed data.
  */
 (function () {
   function escapeHtml(s) {

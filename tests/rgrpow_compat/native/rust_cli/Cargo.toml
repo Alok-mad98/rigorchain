@@ -1,0 +1,12 @@
+[package]
+name = "hash80_rust"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "hash80_rust"
+path = "src/main.rs"
+
+[dependencies]
+sha3 = "0.10"

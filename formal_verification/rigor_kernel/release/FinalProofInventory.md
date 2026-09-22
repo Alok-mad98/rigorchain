@@ -19,10 +19,10 @@ global context**. Category C is documentation / non-claim; it is not
 invariant evidence.
 
 ```
-THEOREM_COUNT=254
-CATEGORY_A_COUNT=119
-CATEGORY_B_COUNT=102
-CATEGORY_C_COUNT=33
+THEOREM_COUNT=263
+CATEGORY_A_COUNT=122
+CATEGORY_B_COUNT=92
+CATEGORY_C_COUNT=49
 MATURITY_LEVEL=4.9
 ```
 
@@ -32,10 +32,10 @@ a level.
 
 | Class | Count | Claim level |
 |---|---|---|
-| A | 119 | public |
-| B | 102 | supporting |
-| C | 33 | boundary |
-| **Total classified** | **254** | |
+| A | 122 | public |
+| B | 92 | supporting |
+| C | 49 | boundary |
+| **Total classified** | **263** | |
 
 Unclassified names in the cone live in
 `release/UnclassifiedAllowlist.md` and are **not** public-claim
@@ -446,7 +446,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** `decode_kernel_state (encode_kernel_state e) = Some e` (executable kernel state).
 - **Assumptions:** Coq encode/decode only. Not an ABI / wire format proof. `Print Assumptions`: Closed.
 - **Dependencies:** KernelSerialization
-- **Mutation Coverage:** M54
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** Coq-model serialization of executable kernel state is a left inverse. Category B has a same-named ORU-list lemma.
 
@@ -684,6 +684,32 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** public
 - **Meaning:** An input above MAX_MONEY is rejected regardless of maturity flags.
 
+### input_ok_of_checks
+
+- **Name:** `input_ok_of_checks`
+- **File:** `Kernel/KernelInputBridge.v`
+- **Category:** A
+- **Domain:** Restated over `computed_ok_b`: if the six Path A checks and the three state bools pass, Path B `input_ok` holds on `kernel_input_of w`. One way only. Not a production-authority claim. M129
+- **Statement:** If `computed_ok_b s w = true` then `input_ok s (kernel_input_of w)`.
+- **Assumptions:** computed_ok_b s w = true, i.e. the six Path A checks and the three state bools. `Print Assumptions`: Closed. Not C++ equivalence, not production authority. The converse `input_ok → computed_ok_b` is false and is not claimed.
+- **Dependencies:** `kernel_input_of`, `computed_ok_b`, Path A validators, `oru_subsidy`, `input_ok`
+- **Mutation Coverage:** M129
+- **Claim Level:** public
+- **Meaning:** Path B `input_ok` on a computed input, restated over `computed_ok_b`. The four decision fields are the Path A checkers, fees are `oru_in - oru_out`, subsidy is the schedule at the mint height. One way only. Does not ratify Path A as specification authority.
+
+### input_ok_reflect
+
+- **Name:** `input_ok_reflect`
+- **File:** `Kernel/UnifiedTransition.v`
+- **Category:** A
+- **Domain:** Path B `input_ok` is decidable: `input_ok s i ↔ input_ok_b s i = true` on any record. Reflection of the existing predicate, not a new rule. Not a production checker. M130
+- **Statement:** `input_ok s i ↔ input_ok_b s i = true`.
+- **Assumptions:** None. `Print Assumptions`: Closed. Not a production checker, not a new rule.
+- **Dependencies:** `input_ok`, `input_ok_b`, `Z.leb_le`, `andb_true_iff`
+- **Mutation Coverage:** M130
+- **Claim Level:** public
+- **Meaning:** Path B `input_ok` is decidable on any record. Reflection of the existing thirteen-conjunct Prop. Does not change `input_ok`. Does not make Path A a specification authority.
+
 ### integer_range_safe
 
 - **Name:** `integer_range_safe`
@@ -709,6 +735,19 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** A kernel input with `ki_utxo_ok = false` is never `input_ok`.
+
+### kernel_apply_of_checks
+
+- **Name:** `kernel_apply_of_checks`
+- **File:** `Kernel/KernelInputBridge.v`
+- **Category:** A
+- **Domain:** Deferral to `input_ok_of_checks` and `kapp_fun`: a computed input that passes the checks is related by `kernel_apply` to the step-function result. Coverage is the parent mutant. Not a production-authority claim
+- **Statement:** If `computed_ok_b s w = true` then `kernel_apply s (kernel_input_of w) (kernel_step_of s (kernel_input_of w))`.
+- **Assumptions:** Same as `input_ok_of_checks`. `Print Assumptions`: Closed.
+- **Dependencies:** `input_ok_of_checks`, `kapp_fun`
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** public
+- **Meaning:** Deferral: a computed input that satisfies `input_ok` is related by `kernel_apply` to `kernel_step_of`. Killable content is in `input_ok_of_checks` (M129).
 
 ### kernel_chain_is_graph
 
@@ -758,7 +797,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** `validate_kernel input = true → consensus_invariant input`.
 - **Assumptions:** Bridge packaging. Does not close compiler / node / crypto. `Print Assumptions`: Closed.
 - **Dependencies:** KernelInterface / domain validators
-- **Mutation Coverage:** M42
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** Bridge: the packaged kernel validator implies the bundled invariant.
 
@@ -849,7 +888,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** If a machine state decodes to an executable state (`machine_decode m = Some e`) and the bounded machine step succeeds (`machine_step_of m i = Some m'`), then `m'` decodes and equals `executable_step_of e i`.
 - **Assumptions:** The machine layer is defined independently over a 63-bit word domain with checked arithmetic; it does not call `executable_step_of`. Decode is partial. This is a Coq-model simulation, not OCaml or CPU semantics. `Print Assumptions`: Closed.
 - **Dependencies:** Runtime/MachineWord.v (w_add), ExecutionBoundary/ExecutableInvariance.v (executable_step_fields)
-- **Mutation Coverage:** M47
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** The runtime layer computes the same consensus result as the model whenever it can represent the values at all. Replaces the former definitional layering, where the runtime step was defined AS the model step and the refinement held by construction.
 
@@ -914,7 +953,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** If `chain_work b < chain_work a` then `select_suffix a b = a`.
 - **Assumptions:** `chain_work b < chain_work a`. `Print Assumptions`: Closed. Not k-deep, not OP-R1.
 - **Dependencies:** `select_suffix`, `chain_work`
-- **Mutation Coverage:** M103
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** The strictly heavier suffix is selected, regardless of how many blocks it has. Longest-chain is a different rule.
 
@@ -927,7 +966,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** `exp_q_raw` uses `Z.quot`; negative time error keeps the signed quotient direction.
 - **Assumptions:** ASERT `Z.quot` / `Z.div` split. Not C++ `__int128`. `Print Assumptions`: Closed.
 - **Dependencies:** ASERTModel
-- **Mutation Coverage:** M5
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** ASERT integer model does not erase the sign of a negative time error via `Z.div`.
 
@@ -992,7 +1031,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** If `valid_tx tx` then `new_supply = old_supply + subsidy + fees - burn` (FeeDomain identity cited as Category A).
 - **Assumptions:** Supply transition is the FeeDomain identity, not a live UTXO reconstruction. `Print Assumptions`: Closed.
 - **Dependencies:** FeeDomain / ORU supply transition
-- **Mutation Coverage:** M3
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** Supply change is only subsidy plus fees minus burn. Same-named packaging exists in ORUConservation.v.
 
@@ -1213,7 +1252,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** If `res_created tx`, `draw_eligible tx`, and `h = rt_height tx`, then the tx is coinbase, a valid mint, `mint_amount <= W h`, and draw-eligible.
 - **Assumptions:** Draw eligibility is a hypothesis (C-4). Bound is `W(h)`, not a running `S_RES` reject. `Print Assumptions`: Closed.
 - **Dependencies:** `res_created`, `res_schedule_finite`
-- **Mutation Coverage:** M2, M10
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** RES creation is coinbase-only and bounded by the schedule `W(h)`.
 
@@ -1434,7 +1473,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** Aside from incoming transfer, subsidy is the only creation source in the ORU domain.
 - **Assumptions:** ORU domain algebra. `Print Assumptions`: Closed.
 - **Dependencies:** ORUSoundness
-- **Mutation Coverage:** M26, M44
+- **Mutation Coverage:** M44
 - **Claim Level:** public
 - **Meaning:** Closes the “fees create coins” attack in-model.
 
@@ -1512,7 +1551,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** Kernel transaction amounts used in the validity predicate are non-negative.
 - **Assumptions:** `money_range` / non-negativity of the transaction fields. `Print Assumptions`: Closed.
 - **Dependencies:** `transaction_value_conservation`
-- **Mutation Coverage:** M64
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** public
 - **Meaning:** Negative money cannot be used as a funding source in-model.
 
@@ -1605,7 +1644,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** `apply_block u b = Some u' → NoDup (collect_inputs b)`.
 - **Assumptions:** Single candidate block. `Print Assumptions`: Closed.
 - **Dependencies:** SafetyExtensions
-- **Mutation Coverage:** M11
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Converse of the `nodupb` guard. Not a reorg bound.
 
@@ -1635,19 +1674,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma.
 
-### asert_extraction_source_eq
-
-- **Name:** `asert_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** ASERT extracted name = Coq ASERT validator (definitional).
-- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
-
 ### asert_poly_fits_uint64_on_exponent
 
 - **Name:** `asert_poly_fits_uint64_on_exponent`
@@ -1667,6 +1693,19 @@ correctness, compiler) are written in prose so they cannot hide.
 - **File:** `proofs/Pow_Correctness/ASERTCorrectness.v`
 - **Category:** B
 - **Domain:** `asert_poly_pos` with the domain hypothesis discharged by `exp_rem_range`. Forwards
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** supporting
+- **Meaning:** n/a
+
+### bridge_is_inhabited
+
+- **Name:** `bridge_is_inhabited`
+- **File:** `Kernel/KernelInputBridge.v`
+- **Category:** B
+- **Domain:** Non-vacuity: the hypotheses of `input_ok_of_checks` are jointly satisfiable, so the bridge is not an empty implication
 - **Statement:** TODO
 - **Assumptions:** TODO
 - **Dependencies:** n/a
@@ -1804,19 +1843,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### check_pow_deterministic
-
-- **Name:** `check_pow_deterministic`
-- **File:** `Kernel/PowValidator.v`
-- **Category:** B
-- **Domain:** Function-ness of the executable check
-- **Statement:** TODO
-- **Assumptions:** TODO
-- **Dependencies:** n/a
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** n/a
-
 ### check_res_mint_bounded_by_genesis
 
 - **Name:** `check_res_mint_bounded_by_genesis`
@@ -1934,6 +1960,19 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
+### computed_ok_reflect
+
+- **Name:** `computed_ok_reflect`
+- **File:** `Kernel/KernelInputBridge.v`
+- **Category:** B
+- **Domain:** Boolean packaging of the six Path A checks plus three state checks reflects the Prop `computed_ok`. Not a reflection of `input_ok`. Not a production-authority claim
+- **Statement:** `computed_ok s w ↔ computed_ok_b s w = true`.
+- **Assumptions:** None. `Print Assumptions`: Closed. Not a reflection of `input_ok`.
+- **Dependencies:** `computed_ok`, `computed_ok_b`
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** supporting
+- **Meaning:** The Bridge's composite check Prop matches its bool. Does not imply `input_ok ↔ computed_ok`. Not a production-authority claim.
+
 ### concrete_state_preserves_invariant
 
 - **Name:** `concrete_state_preserves_invariant`
@@ -1956,7 +1995,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** `decode (encode t) = t` on the ORU-list encoding.
 - **Assumptions:** ORU-list codec only. `Print Assumptions`: Closed.
 - **Dependencies:** Kernel/SerializationBoundary
-- **Mutation Coverage:** M54
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** ORU-list encode/decode identity. Category A same name is executable kernel state.
 
@@ -1973,18 +2012,18 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### encoding_deterministic
+### encode_oru_injective
 
-- **Name:** `encoding_deterministic`
+- **Name:** `encode_oru_injective`
 - **File:** `Kernel/SerializationBoundary.v`
 - **Category:** B
-- **Domain:** Encoding is a function
-- **Statement:** ORU-list / kernel encoding is a function.
-- **Assumptions:** Kernel/SerializationBoundary encode. `Print Assumptions`: Closed.
-- **Dependencies:** SerializationBoundary
+- **Domain:** No two distinct ORU states share a wire encoding. Proved from the encoded list, not through `decode_encode_identity`, so a collapsed field is caught here and not only one level below. M54
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
-- **Meaning:** Supporting serialization lemma (ORU list path).
+- **Meaning:** n/a
 
 ### executable_apply_is_graph
 
@@ -2051,19 +2090,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### extraction_source_equivalence
-
-- **Name:** `extraction_source_equivalence`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Extracted names = Coq validators (definitional). **Not** compiler equivalence
-- **Statement:** The six extracted names are definitionally the Coq validators.
-- **Assumptions:** `EXTRACTION_FORMAL_PROOF=source_identity_only`. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Source identity only. Not Gallina→OCaml operational correspondence.
-
 ### factor_range_on_exponent
 
 - **Name:** `factor_range_on_exponent`
@@ -2099,7 +2125,7 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Statement:** Fees move existing value; they do not increase supply.
 - **Assumptions:** Same economic model as `economic_no_hidden_creation`. `Print Assumptions`: Closed.
 - **Dependencies:** `economic_no_hidden_creation`
-- **Mutation Coverage:** M20
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Fee term is a transfer in the economic algebra.
 
@@ -2246,19 +2272,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### machine_step_deterministic_real
-
-- **Name:** `machine_step_deterministic_real`
-- **File:** `Runtime/MachineState.v`
-- **Category:** B
-- **Domain:** Runtime refinement
-- **Statement:** TODO
-- **Assumptions:** TODO
-- **Dependencies:** n/a
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** n/a
-
 ### machine_step_is_graph
 
 - **Name:** `machine_step_is_graph`
@@ -2324,19 +2337,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma.
 
-### oru_extraction_source_eq
-
-- **Name:** `oru_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** ORU extracted name = Coq ORU validator (definitional).
-- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
-
 ### oru_fees_are_transfer_only
 
 - **Name:** `oru_fees_are_transfer_only`
@@ -2363,19 +2363,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### pow_asert_correctness
-
-- **Name:** `pow_asert_correctness`
-- **File:** `proofs/Pow_Correctness/ASERTCorrectness.v`
-- **Category:** B
-- **Domain:** Function-ness packaging only. Class A is `negative_time_error_preserved`
-- **Statement:** Equal anchor/parent imply equal `asert_next_target` (function-ness).
-- **Assumptions:** ASERT integer model. Child nTime is not an input. `Print Assumptions`: Closed.
-- **Dependencies:** ASERTCorrectness
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Supporting packaging. Class A ASERT content is `negative_time_error_preserved`.
-
 ### pow_extract_reflects_target
 
 - **Name:** `pow_extract_reflects_target`
@@ -2388,45 +2375,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma. Abstract `H`.
-
-### pow_extraction_source_eq
-
-- **Name:** `pow_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** PoW extracted name = Coq PoW validator (definitional).
-- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
-
-### pow_hash_deterministic
-
-- **Name:** `pow_hash_deterministic`
-- **File:** `proofs/Pow_Correctness/PowCorrectness.v`
-- **Category:** B
-- **Domain:** `H` is a function; no concrete hash
-- **Statement:** Equal preimages yield equal `H` results (`H` is a function).
-- **Assumptions:** Uninterpreted `H`. `Print Assumptions`: Closed.
-- **Dependencies:** PowCorrectness
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** No concrete hash. Collision resistance is not proved.
-
-### pow_valid_deterministic
-
-- **Name:** `pow_valid_deterministic`
-- **File:** `proofs/Pow_Correctness/PowCorrectness.v`
-- **Category:** B
-- **Domain:** Abstract PoW relation only. **NOT** a digest implementation proof
-- **Statement:** `pow_valid h 0 = pow_valid h 0` (function-ness of the abstract relation).
-- **Assumptions:** Abstract `H`. `Print Assumptions`: Closed.
-- **Dependencies:** PowCorrectness
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Not a digest implementation proof. Class A is `pow_valid_rejects_above_target`.
 
 ### prefix_work_cancels
 
@@ -2466,19 +2414,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma.
-
-### res_extraction_source_eq
-
-- **Name:** `res_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** RES extracted name = Coq RES validator (definitional).
-- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
 
 ### res_mint_bounded_by_genesis
 
@@ -2545,18 +2480,31 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** Runtime-model apply is deterministic.
 
-### same_state_same_encoding
+### sample_computed_ok
 
-- **Name:** `same_state_same_encoding`
-- **File:** `Kernel/SerializationBoundary.v`
+- **Name:** `sample_computed_ok`
+- **File:** `Kernel/KernelInputBridge.v`
 - **Category:** B
-- **Domain:** Equal states encode equally
-- **Statement:** Equal states encode equally.
-- **Assumptions:** SerializationBoundary. `Print Assumptions`: Closed.
-- **Dependencies:** SerializationBoundary
+- **Domain:** Non-vacuity: `computed_ok_b` holds of the sample state and witness, so T2 is not an empty implication. Not a production-authority claim
+- **Statement:** `computed_ok_b sample_kstate sample_witness = true`.
+- **Assumptions:** None. `Print Assumptions`: Closed.
+- **Dependencies:** `computed_ok_b`, `sample_kstate`, `sample_witness`
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
-- **Meaning:** Function-ness of encode.
+- **Meaning:** Non-vacuity of T2: the computed checks hold of the sample pair. Not a production-authority claim.
+
+### sample_witness_passes_every_check
+
+- **Name:** `sample_witness_passes_every_check`
+- **File:** `Kernel/KernelInputBridge.v`
+- **Category:** B
+- **Domain:** Non-vacuity: one witness passes all six Path A checks at once
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** supporting
+- **Meaning:** n/a
 
 ### script_correctness
 
@@ -2596,19 +2544,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma.
-
-### script_extraction_source_eq
-
-- **Name:** `script_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** Script extracted name = Coq script validator (definitional).
-- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
 
 ### script_invalid_state_rejected
 
@@ -2818,44 +2753,31 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Claim Level:** supporting
 - **Meaning:** n/a
 
-### u256_add_assoc
-
-- **Name:** `u256_add_assoc`
-- **File:** `Pow/Uint256Model.v`
-- **Category:** B
-- **Domain:** u256 arithmetic helper
-- **Statement:** Model u256 addition is associative.
-- **Assumptions:** Uint256Model. `Print Assumptions`: Closed.
-- **Dependencies:** Uint256Model
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Arithmetic helper.
-
-### u256_add_comm
-
-- **Name:** `u256_add_comm`
-- **File:** `Pow/Uint256Model.v`
-- **Category:** B
-- **Domain:** u256 arithmetic helper
-- **Statement:** Model u256 addition is commutative.
-- **Assumptions:** Uint256Model, not a CPU adder. `Print Assumptions`: Closed.
-- **Dependencies:** Uint256Model
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Arithmetic helper for the compact/target model.
-
 ### u256_shr_le
 
 - **Name:** `u256_shr_le`
 - **File:** `Pow/Uint256Model.v`
 - **Category:** B
-- **Domain:** u256 arithmetic helper
+- **Domain:** A right shift does not increase a non-negative value. Killed by M151, which implements the shift in the other direction
 - **Statement:** Model u256 shift-right is monotone (≤).
 - **Assumptions:** Uint256Model. `Print Assumptions`: Closed.
 - **Dependencies:** Uint256Model
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Arithmetic helper for target shifts.
+
+### u256_add_wrap_ok
+
+- **Name:** `u256_add_wrap_ok`
+- **File:** `Pow/Uint256Model.v`
+- **Category:** B
+- **Domain:** Wrap-add lands in `[0, 2^256)`. The only theorem in the file that says anything about the 256-bit range rather than about `Z`. Killed by M152, which drops the reduction
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** supporting
+- **Meaning:** n/a
 
 ### utxo_extract_reflects_valid_tx
 
@@ -2869,19 +2791,6 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Mutation Coverage:** none (see MutationCompletenessAudit.md)
 - **Claim Level:** supporting
 - **Meaning:** Reflection lemma, not a binary proof.
-
-### utxo_extraction_source_eq
-
-- **Name:** `utxo_extraction_source_eq`
-- **File:** `Kernel/ExtractionBoundary.v`
-- **Category:** B
-- **Domain:** Per-domain source identity
-- **Statement:** UTXO extracted name = Coq UTXO validator (definitional).
-- **Assumptions:** Same as `extraction_source_equivalence`. `Print Assumptions`: Closed.
-- **Dependencies:** ExtractionBoundary
-- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
-- **Claim Level:** supporting
-- **Meaning:** Per-domain source identity.
 
 ### w_add_negative_result_rejected
 
@@ -2923,6 +2832,214 @@ correctness, compiler) are written in prose so they cannot hide.
 - **Meaning:** n/a
 
 ## Category C — boundary / documentation lemma
+
+### u256_add_assoc
+
+- **Name:** `u256_add_assoc`
+- **File:** `Pow/Uint256Model.v`
+- **Category:** C
+- **Domain:** Commutativity and associativity of `Z.add` under a `u256` name. In this model `u256` is `Z` and `u256_add` is `Z.add`, so the statement is a fact about the integers and says nothing about 256-bit arithmetic; no mutation of a kernel rule breaks it without redefining addition to be something other than addition. The range is carried by `u256_add_wrap_ok`, which is Category B and killed by M152
+- **Statement:** Model u256 addition is associative.
+- **Assumptions:** Uint256Model. `Print Assumptions`: Closed.
+- **Dependencies:** Uint256Model
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Arithmetic helper.
+
+### u256_add_comm
+
+- **Name:** `u256_add_comm`
+- **File:** `Pow/Uint256Model.v`
+- **Category:** C
+- **Domain:** Commutativity and associativity of `Z.add` under a `u256` name. In this model `u256` is `Z` and `u256_add` is `Z.add`, so the statement is a fact about the integers and says nothing about 256-bit arithmetic; no mutation of a kernel rule breaks it without redefining addition to be something other than addition. The range is carried by `u256_add_wrap_ok`, which is Category B and killed by M152
+- **Statement:** Model u256 addition is commutative.
+- **Assumptions:** Uint256Model, not a CPU adder. `Print Assumptions`: Closed.
+- **Dependencies:** Uint256Model
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Arithmetic helper for the compact/target model.
+
+### check_pow_deterministic
+
+- **Name:** `check_pow_deterministic`
+- **File:** `Kernel/PowValidator.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: `check_pow h = check_pow h`. `PowHeader` carries exactly the three fields `check_pow` reads, so there is no stronger depends-only-on statement available either. Kept as a boundary marker: the determinism that is in question is the C++ implementation's, which Coq cannot see
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** n/a
+
+### encoding_deterministic
+
+- **Name:** `encoding_deterministic`
+- **File:** `Kernel/SerializationBoundary.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: `encode_oru s = encode_oru s`. The direction with content is `encode_oru_injective`, which is Category B and killed by M54
+- **Statement:** ORU-list / kernel encoding is a function.
+- **Assumptions:** Kernel/SerializationBoundary encode. `Print Assumptions`: Closed.
+- **Dependencies:** SerializationBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Supporting serialization lemma (ORU list path).
+
+### machine_step_deterministic_real
+
+- **Name:** `machine_step_deterministic_real`
+- **File:** `Runtime/MachineState.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: it states that `machine_step_of` is a function, which is what `Definition` already means. The runtime nondeterminism it gestures at is outside the model; `machine_refinement_is_partial` is the statement that carries that boundary
+- **Statement:** TODO
+- **Assumptions:** TODO
+- **Dependencies:** n/a
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** n/a
+
+### pow_asert_correctness
+
+- **Name:** `pow_asert_correctness`
+- **File:** `proofs/Pow_Correctness/ASERTCorrectness.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: `deterministic_asert` unfolds to `anchor = parent -> asert_next_target anchor = asert_next_target parent`. Function-ness packaging only, as the inventory prose already said; Class A content is `negative_time_error_preserved`
+- **Statement:** Equal anchor/parent imply equal `asert_next_target` (function-ness).
+- **Assumptions:** ASERT integer model. Child nTime is not an input. `Print Assumptions`: Closed.
+- **Dependencies:** ASERTCorrectness
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Supporting packaging. Class A ASERT content is `negative_time_error_preserved`.
+
+### pow_hash_deterministic
+
+- **Name:** `pow_hash_deterministic`
+- **File:** `proofs/Pow_Correctness/PowCorrectness.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: congruence for the uninterpreted digest `H`. Over an abstract function the free facts are the only facts; `kernel_does_not_assume_sha3_security` is the honest marker
+- **Statement:** Equal preimages yield equal `H` results (`H` is a function).
+- **Assumptions:** Uninterpreted `H`. `Print Assumptions`: Closed.
+- **Dependencies:** PowCorrectness
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** No concrete hash. Collision resistance is not proved.
+
+### pow_valid_deterministic
+
+- **Name:** `pow_valid_deterministic`
+- **File:** `proofs/Pow_Correctness/PowCorrectness.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: `pow_valid h 0 = pow_valid h 0`, inside the same abstract section
+- **Statement:** `pow_valid h 0 = pow_valid h 0` (function-ness of the abstract relation).
+- **Assumptions:** Abstract `H`. `Print Assumptions`: Closed.
+- **Dependencies:** PowCorrectness
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Not a digest implementation proof. Class A is `pow_valid_rejects_above_target`.
+
+### same_state_same_encoding
+
+- **Name:** `same_state_same_encoding`
+- **File:** `Kernel/SerializationBoundary.v`
+- **Category:** C
+- **Domain:** Holds of any function, so it is not evidence about the one it names: `s1 = s2 -> encode_oru s1 = encode_oru s2` is `f_equal`. Content is in `encode_oru_injective`
+- **Statement:** Equal states encode equally.
+- **Assumptions:** SerializationBoundary. `Print Assumptions`: Closed.
+- **Dependencies:** SerializationBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Function-ness of encode.
+
+### asert_extraction_source_eq
+
+- **Name:** `asert_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_asert` is *defined as* `ASERTValidator.check_asert`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** ASERT extracted name = Coq ASERT validator (definitional).
+- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
+
+### extraction_source_equivalence
+
+- **Name:** `extraction_source_equivalence`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Conjunction of the six alias identities above, proved by `reflexivity`. Records that all six extraction entry points are the kernel functions. **Not** compiler equivalence, and no semantic content of its own
+- **Statement:** The six extracted names are definitionally the Coq validators.
+- **Assumptions:** `EXTRACTION_FORMAL_PROOF=source_identity_only`. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Source identity only. Not Gallina→OCaml operational correspondence.
+
+### oru_extraction_source_eq
+
+- **Name:** `oru_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_oru` is *defined as* `ORUValidator.check_oru`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** ORU extracted name = Coq ORU validator (definitional).
+- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
+
+### pow_extraction_source_eq
+
+- **Name:** `pow_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_pow` is *defined as* `PowValidator.check_pow`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** PoW extracted name = Coq PoW validator (definitional).
+- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
+
+### res_extraction_source_eq
+
+- **Name:** `res_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_res` is *defined as* `RESValidator.check_res`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** RES extracted name = Coq RES validator (definitional).
+- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
+
+### script_extraction_source_eq
+
+- **Name:** `script_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_script` is *defined as* `ScriptValidator.check_script`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** Script extracted name = Coq script validator (definitional).
+- **Assumptions:** Source identity only. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
+
+### utxo_extraction_source_eq
+
+- **Name:** `utxo_extraction_source_eq`
+- **File:** `Kernel/ExtractionBoundary.v`
+- **Category:** C
+- **Domain:** Alias identity, proved by `reflexivity`: `extracted_check_utxo` is *defined as* `UTXOValidator.check_utxo`, so the statement is that the alias is the alias. It records that the extraction entry point is the kernel function rather than a re-implementation; it is not evidence about either, and a mutant cannot break it without breaking the definition it names
+- **Statement:** UTXO extracted name = Coq UTXO validator (definitional).
+- **Assumptions:** Same as `extraction_source_equivalence`. `Print Assumptions`: Closed.
+- **Dependencies:** ExtractionBoundary
+- **Mutation Coverage:** none (see MutationCompletenessAudit.md)
+- **Claim Level:** boundary
+- **Meaning:** Per-domain source identity.
 
 ### asert_child_time_irrelevant
 

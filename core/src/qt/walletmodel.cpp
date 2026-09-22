@@ -38,6 +38,7 @@
 #include <functional>
 
 #include <QDebug>
+#include <QElapsedTimer>
 #include <QMessageBox>
 #include <QSet>
 #include <QTimer>
@@ -109,6 +110,8 @@ void WalletModel::pollBalanceChanged()
     // rescan.
     interfaces::WalletBalances new_balances;
     uint256 block_hash;
+    QElapsedTimer bal_timer;
+    bal_timer.start();
     if (!m_wallet->tryGetBalances(new_balances, block_hash)) {
         ++m_consecutiveBalanceTryLockFailures;
         if (m_consecutiveBalanceTryLockFailures >= BALANCE_TRY_LOCK_STALE_THRESHOLD && !m_balanceSnapshotStale) {
@@ -116,6 +119,10 @@ void WalletModel::pollBalanceChanged()
             Q_EMIT balanceSnapshotStaleChanged(true);
         }
         return;
+    }
+    const qint64 bal_ms = bal_timer.elapsed();
+    if (bal_ms >= 50) {
+        qInfo().noquote() << QStringLiteral("[ui-perf] pollBalanceChanged.tryGetBalances %1ms").arg(bal_ms);
     }
     if (m_balanceSnapshotStale) {
         m_balanceSnapshotStale = false;
@@ -537,7 +544,7 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
 
 static void NotifyCanGetAddressesChanged(WalletModel* walletmodel)
 {
-    bool invoked = QMetaObject::invokeMethod(walletmodel, "canGetAddressesChanged");
+    bool invoked = QMetaObject::invokeMethod(walletmodel, "canGetAddressesChanged", Qt::QueuedConnection);
     assert(invoked);
 }
 

@@ -5,6 +5,29 @@
 -R certicoq/surface RigorSurface
 -docroot RigorKernel
 
+# The RigorSurface compile surface, in the order certicoq/surface/_CoqProject
+# gives. Listed here because Kernel/SurfaceCorrespondence.v cites these modules
+# but the -R mapping alone never builds them: without this block the gate is
+# only as fresh as whatever .vo an earlier build happened to leave behind.
+certicoq/surface/Core/Bytes.v
+certicoq/surface/Core/Amount.v
+certicoq/surface/Supply/ORUModel.v
+certicoq/surface/Supply/KernelTx.v
+certicoq/surface/Supply/Poles.v
+certicoq/surface/Supply/RESTx.v
+certicoq/surface/Script/ScriptTypes.v
+certicoq/surface/Script/Classify.v
+certicoq/surface/Pow/Compact.v
+certicoq/surface/Pow/ASERTQ.v
+certicoq/surface/Kernel/TxBool.v
+certicoq/surface/Kernel/UTXO.v
+certicoq/surface/Kernel/ORU.v
+certicoq/surface/Kernel/RES.v
+certicoq/surface/Kernel/Script.v
+certicoq/surface/Kernel/Pow.v
+certicoq/surface/Kernel/ASERT.v
+certicoq/surface/Kernel/Validate.v
+
 Core/Bytes.v
 Core/Amount.v
 Core/Height.v
@@ -99,6 +122,7 @@ Economic/ORU/ORUSoundness.v
 Economic/DomainSeparation.v
 Kernel/UnifiedState.v
 Kernel/UnifiedTransition.v
+Kernel/KernelInputBridge.v
 Kernel/InvariantBundle.v
 proofs/KernelTransitionSoundness.v
 Kernel/Chain/ChainTransition.v

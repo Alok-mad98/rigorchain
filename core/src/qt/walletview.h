@@ -25,6 +25,7 @@ class AddressBookPage;
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QProgressDialog;
+class QTimer;
 QT_END_NAMESPACE
 
 /*
@@ -72,15 +73,18 @@ private:
 
     QProgressDialog* progressDialog{nullptr};
     const PlatformStyle *platformStyle;
-    bool m_deferred_build_started{false};
-    bool m_deferred_pages_ready{false};
 
-    void buildDeferredPages();
-    void ensureHistoryPage();
-    void ensureReceiveSendPages();
-    void ensureConvergencePage();
-    void ensureAllPages();
-    void applyClientModelToPages();
+    struct IncomingNotifyBucket {
+        int count{0};
+        CAmount amount{0};
+        QString date;
+        QString type;
+        QString address;
+        QString label;
+    };
+    IncomingNotifyBucket m_pending_oru;
+    IncomingNotifyBucket m_pending_res;
+    QTimer* m_incoming_notify_timer{nullptr};
 
 public Q_SLOTS:
     /** Switch to overview (home) page */
@@ -105,7 +109,7 @@ public Q_SLOTS:
 
         The new items are those between start and end inclusive, under the given parent item.
     */
-    void processNewTransaction(const QModelIndex& parent, int start, int /*end*/);
+    void processNewTransaction(const QModelIndex& parent, int start, int end);
     /** Encrypt the wallet */
     void encryptWallet();
     /** Backup the wallet */
@@ -127,6 +131,7 @@ public Q_SLOTS:
 
 private Q_SLOTS:
     void disableTransactionView(bool disable);
+    void flushIncomingNotifications();
 
 Q_SIGNALS:
     void setPrivacy(bool privacy);

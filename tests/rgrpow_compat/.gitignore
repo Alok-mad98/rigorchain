@@ -1,0 +1,3 @@
+.build/
+native/rust_cli/target/
+native/rust_cli/Cargo.lock

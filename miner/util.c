@@ -52,6 +52,10 @@ struct data_buffer {
 	struct header_info	*headers;
 };
 
+/* GBT JSON with a full 4 MiB block of tx hex is ~8 MiB plus envelope.
+ * Cap well above that so a bogus Content-Length cannot blow the heap. */
+#define JSON_RPC_MAX_RESPONSE (16u * 1024u * 1024u)
+
 struct tq_ent {
 	void			*data;
 	struct list_head	q_node;
@@ -157,35 +161,58 @@ static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
 			  void *user_data)
 {
 	struct data_buffer *db = user_data;
-	size_t len = size * nmemb;
-	size_t newalloc, reqalloc;
+	size_t len, newalloc, reqalloc;
 	void *newmem;
 	static const unsigned char zero = 0;
 	static const size_t max_realloc_increase = 8 * 1024 * 1024;
 	static const size_t initial_alloc = 16 * 1024;
 
+	if (!db)
+		return 0;
+	if (size && nmemb > SIZE_MAX / size)
+		return 0;
+	len = size * nmemb;
+
+	if (len > JSON_RPC_MAX_RESPONSE ||
+	    db->len > JSON_RPC_MAX_RESPONSE - len)
+		return 0;
+
 	/* minimum required allocation size */
 	reqalloc = db->len + len + 1;
+	if (reqalloc < db->len)
+		return 0;
+	if (reqalloc > JSON_RPC_MAX_RESPONSE + 1)
+		return 0;
 
 	if (reqalloc > db->allocated) {
 		if (db->len > 0) {
-			newalloc = db->allocated * 2;
+			if (db->allocated > SIZE_MAX / 2)
+				newalloc = reqalloc;
+			else
+				newalloc = db->allocated * 2;
 		} else {
-			if (db->headers->content_length > 0)
+			if (db->headers && db->headers->content_length > 0 &&
+			    db->headers->content_length < JSON_RPC_MAX_RESPONSE)
 				newalloc = db->headers->content_length + 1;
 			else
 				newalloc = initial_alloc;
 		}
 
-		if (db->headers->content_length == 0) {
+		if (!db->headers || db->headers->content_length == 0) {
 			/* limit the maximum buffer increase */
-			if (newalloc - db->allocated > max_realloc_increase)
+			if (newalloc > db->allocated &&
+			    newalloc - db->allocated > max_realloc_increase)
 				newalloc = db->allocated + max_realloc_increase;
 		}
 
 		/* ensure we have a big enough allocation */
 		if (reqalloc > newalloc)
 			newalloc = reqalloc;
+
+		if (newalloc > JSON_RPC_MAX_RESPONSE + 1)
+			newalloc = JSON_RPC_MAX_RESPONSE + 1;
+		if (reqalloc > newalloc)
+			return 0;
 
 		newmem = realloc(db->buf, newalloc);
 		if (!newmem)
@@ -195,8 +222,8 @@ static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
 		db->allocated = newalloc;
 	}
 
-	memcpy(db->buf + db->len, ptr, len); /* append new data */
-	memcpy(db->buf + db->len + len, &zero, 1); /* null terminate */
+	memcpy((char *)db->buf + db->len, ptr, len); /* append new data */
+	memcpy((char *)db->buf + db->len + len, &zero, 1); /* null terminate */
 
 	db->len += len;
 
@@ -254,8 +281,13 @@ static size_t resp_hdr_cb(void *ptr, size_t size, size_t nmemb, void *user_data)
 		val = NULL;
 	}
 
-	if (!strcasecmp("Content-Length", key))
-		hi->content_length = strtoul(val, NULL, 10);
+	if (!strcasecmp("Content-Length", key)) {
+		unsigned long cl = strtoul(val, NULL, 10);
+		if (cl > JSON_RPC_MAX_RESPONSE)
+			hi->content_length = 0;
+		else
+			hi->content_length = (size_t)cl;
+	}
 
 out:
 	free(key);
@@ -358,6 +390,8 @@ json_t *json_rpc_call(CURL *curl, const char *url,
 #endif
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, rpc_req);
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, rpc_req ? (long)strlen(rpc_req) : 0L);
+	curl_easy_setopt(curl, CURLOPT_MAXFILESIZE_LARGE,
+			 (curl_off_t)JSON_RPC_MAX_RESPONSE);
 
 	if (opt_protocol)
 		applog(LOG_DEBUG, "JSON protocol request:\n%s\n", rpc_req);

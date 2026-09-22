@@ -15,7 +15,7 @@ run_mutation M102 chain_work_app Kernel/Chain/ForkChoice.v \
   Kernel/Chain/ForkChoice || true
 
 # Longest chain, not most work.
-run_mutation M103 more_work_wins Kernel/Chain/ForkChoice.v \
+run_mutation M103 "more_work_wins select_by_total_eq_suffix select_suffix_is_a_or_b" Kernel/Chain/ForkChoice.v \
   '  if chain_work b <? chain_work a then a
   else if chain_work a <? chain_work b then b
   else a.' \

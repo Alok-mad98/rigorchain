@@ -287,7 +287,6 @@ private:
 
     std::atomic<bool> fAbortRescan{false};
     std::atomic<bool> fScanningWallet{false}; // controlled by WalletRescanReserver
-    std::atomic<bool> m_attaching_chain{false};
     std::atomic<bool> m_scanning_with_passphrase{false};
     std::atomic<int64_t> m_scanning_start{0};
     std::atomic<double> m_scanning_progress{0};
@@ -330,17 +329,21 @@ private:
      * Should be called with rescanning_old_block set to true, if the transaction is
      * not discovered in real time, but during a rescan of old blocks.
      */
-    bool AddToWalletIfInvolvingMe(const CTransactionRef& tx, const SyncTxState& state, bool fUpdate, bool rescanning_old_block) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool AddToWalletIfInvolvingMe(const CTransactionRef& tx, const SyncTxState& state, bool fUpdate, bool rescanning_old_block, WalletBatch* batch_in = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    /** Mark a transaction (and its in-wallet descendants) as conflicting with a particular block. */
-    void MarkConflicted(const uint256& hashBlock, int conflicting_height, const uint256& hashTx);
+    /** Mark a transaction (and its in-wallet descendants) as conflicting with a particular block.
+     *  If batch_in is provided, descendant updates share that SQLite transaction. */
+    void MarkConflicted(const uint256& hashBlock, int conflicting_height, const uint256& hashTx, WalletBatch* batch_in = nullptr);
 
     /** Mark a transaction's inputs dirty, thus forcing the outputs to be recomputed */
     void MarkInputsDirty(const CTransactionRef& tx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
-    void SyncTransaction(const CTransactionRef& tx, const SyncTxState& state, bool update_tx = true, bool rescanning_old_block = false) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    bool SyncTransaction(const CTransactionRef& tx, const SyncTxState& state, bool update_tx = true, bool rescanning_old_block = false, WalletBatch* batch_in = nullptr) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
+    /** Update last block processed in memory only. */
+    void SetLastBlockProcessedInMem(int block_height, uint256 block_hash) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     /** WalletFlags set on this wallet. */
     std::atomic<uint64_t> m_wallet_flags{0};
@@ -570,7 +573,7 @@ public:
      * Add the transaction to the wallet, wrapping it up inside a CWalletTx
      * @return the recently added wtx pointer or nullptr if there was a db write error.
      */
-    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false);
+    CWalletTx* AddToWallet(CTransactionRef tx, const TxState& state, const UpdateWalletTxFn& update_wtx=nullptr, bool fFlushOnClose=true, bool rescanning_old_block = false, WalletBatch* batch_in = nullptr);
     bool LoadToWallet(const uint256& hash, const UpdateWalletTxFn& fill_wtx) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
     void transactionAddedToMempool(const CTransactionRef& tx) override;
     void blockConnected(const interfaces::BlockInfo& block) override;
@@ -842,6 +845,14 @@ public:
     /* Mark a transaction (and it in-wallet descendants) as abandoned so its inputs may be respent. */
     bool AbandonTransaction(const uint256& hashTx);
 
+    /**
+     * Abandon unconfirmed mints that are consensus-invalid at tip+1.
+     * destroy_cost(h) only rises, so those transactions can never confirm.
+     * Leaving them unabandoned locks the ORU inputs in mapTxSpends.
+     * Returns how many mints were abandoned.
+     */
+    int AbandonHeightInvalidMints() EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+
     /** Mark a transaction as replaced by another transaction. */
     bool MarkReplaced(const uint256& originalHash, const uint256& newHash);
 
@@ -969,13 +980,13 @@ public:
         return m_last_block_processed;
     }
     uint64_t GetWalletStateRevision() const { return m_wallet_state_revision.load(std::memory_order_relaxed); }
-    /** Set last block processed height, currently only use in unit test */
-    void SetLastBlockProcessed(int block_height, uint256 block_hash) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet)
-    {
-        AssertLockHeld(cs_wallet);
-        m_last_block_processed_height = block_height;
-        m_last_block_processed = block_hash;
-    };
+    /** Set last block processed height, and write the locator to the database. */
+    void SetLastBlockProcessed(int block_height, uint256 block_hash) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    /** Write the current best-block locator (wallet scan position) to the database.
+     *  Optional batch_in is only for callers that already hold a WalletBatch
+     *  (encrypt). blockConnected must not wrap this write in a SQLite txn
+     *  (Bitcoin Core master; bitcoin/bitcoin#30221). */
+    void WriteBestBlock(WalletBatch* batch_in = nullptr) const EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
 
     //! Connect the signals from ScriptPubKeyMans to the signals in CWallet
     void ConnectScriptPubKeyManNotifiers();

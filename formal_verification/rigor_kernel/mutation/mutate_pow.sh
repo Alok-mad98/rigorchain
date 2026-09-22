@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 # Swap toward-zero quot and floor div in one mutant.
-run_mutation M5 negative_time_error_preserved Pow/ASERTModel.v \
+run_mutation M5 "negative_time_error_preserved sample_witness_passes_every_check sample_computed_ok" Pow/ASERTModel.v \
   '  Z.quot (te * ASERT_RADIX) tau.' \
   '  Z.div (te * ASERT_RADIX) tau.' \
   Pow/ASERTModel || true
@@ -17,7 +17,7 @@ run_mutation M6 compact_decode_lower_bound Pow/CompactBits.v \
   Pow/CompactBits || true
 
 # Invert the PoW target comparison.
-run_mutation M8 "pow_acceptance_monotonic pow_valid_rejects_above_target" Pow/AbstractHash.v \
+run_mutation M8 "pow_acceptance_monotonic pow_valid_rejects_above_target hash_less_target_equivalent" Pow/AbstractHash.v \
   '  0 < target /\ digest_as_Z d <= target.' \
   '  0 < target /\ digest_as_Z d > target.' \
   Pow/PowModel || true

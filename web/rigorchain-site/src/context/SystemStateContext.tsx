@@ -9,6 +9,11 @@ import {
 } from "react";
 import * as explorer from "../lib/explorerClient";
 import {
+  convergenceFromExplorerStatus,
+  explorerBestHash,
+  explorerTipHeight,
+} from "../lib/explorerDisplay";
+import {
   getblockchaininfo,
   getconvergencestatus,
   getconvergenceresult,
@@ -46,6 +51,8 @@ export type SystemState = {
     res_mint_status: Record<string, unknown> | null;
     mint_error: string | null;
   };
+  explorer_snapshot: explorer.ApiStatus | null;
+  recent_blocks: explorer.ExplorerBlockRow[] | null;
   verification_state: {
     proof034_phase: string;
     p03_label: string;
@@ -86,7 +93,7 @@ function deriveGlobalStatus(
   if (!rpcConfigured && !explorerConfigured) return "offline";
   if (ibd === true) return "syncing";
   if (equivFault || (explorerConfigured && !explorerReachable)) return "degraded";
-  if (!rpcConfigured && explorerReachable) return "degraded";
+  if (!rpcConfigured && explorerReachable) return "online";
   return "online";
 }
 
@@ -125,6 +132,8 @@ const initialState: SystemState = {
     res_mint_status: null,
     mint_error: null,
   },
+  explorer_snapshot: null,
+  recent_blocks: null,
   verification_state: initialVerification,
   global_status: "offline",
   refreshing: false,
@@ -146,7 +155,7 @@ export function SystemStateProvider({ children }: { children: ReactNode }) {
     const rpcConfigured = isRpcConfigured();
     const explorerConfigured = isExplorerConfigured();
 
-    const [chainRes, netRes, convRes, convResultRes, mintRpcRes, statusRes, mintsRes] =
+    const [chainRes, netRes, convRes, convResultRes, mintRpcRes, statusRes, mintsRes, blocksRes] =
       await Promise.all([
         getblockchaininfo(),
         getnetworkinfo(),
@@ -155,6 +164,7 @@ export function SystemStateProvider({ children }: { children: ReactNode }) {
         getresmintstatus(),
         explorer.getStatus(),
         explorer.getResMints(),
+        explorer.getBlocks(25),
       ]);
 
     const chain = chainRes.result as BlockchainInfo | null;
@@ -190,14 +200,16 @@ export function SystemStateProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    const explorerConv = convergenceFromExplorerStatus(statusRes.body);
+
     dispatch({
       type: "REFRESH_DONE",
       payload: {
-        chain_height: chain?.blocks ?? null,
-        best_block_hash: chain?.bestblockhash ?? null,
+        chain_height: chain?.blocks ?? explorerTipHeight(statusRes.body),
+        best_block_hash: chain?.bestblockhash ?? explorerBestHash(statusRes.body),
         initial_block_download: ibd,
         network_info: netRes.result,
-        convergence_status: convRes.result,
+        convergence_status: convRes.result ?? explorerConv,
         convergence_result: convResultRes.error ? null : convResultRes.result,
         rpc_status: {
           reachable: rpcReachable,
@@ -207,7 +219,7 @@ export function SystemStateProvider({ children }: { children: ReactNode }) {
         },
         explorer_status: {
           reachable: explorerReachable,
-          last_error: statusRes.error ?? mintsRes.error,
+          last_error: statusRes.error ?? mintsRes.error ?? blocksRes.error,
           fetched_at: statusRes.fetched_at,
           equivalence_claimed,
         },
@@ -216,6 +228,8 @@ export function SystemStateProvider({ children }: { children: ReactNode }) {
           res_mint_status: mintRpcRes.error ? null : mintRpcRes.result,
           mint_error: mintsRes.error,
         },
+        explorer_snapshot: statusRes.body,
+        recent_blocks: blocksRes.body?.blocks ?? (blocksRes.error ? null : []),
         verification_state: {
           proof034_phase: "IN_PROGRESS",
           p03_label: "P03_PARTIAL",

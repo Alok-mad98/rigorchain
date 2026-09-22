@@ -21,10 +21,9 @@ static int64_t nTimeOffset GUARDED_BY(g_timeoffset_mutex) = 0;
 
 /**
  * "Never go to sea with two chronometers; take one or three."
- * Our three time sources are:
- *  - System clock
- *  - Median of other nodes clocks
- *  - The user (asking the user to fix the system clock if the first two disagree)
+ * Consensus and P2P timing use the system clock only (Bitcoin Core #28956).
+ * Median peer offsets are still collected so operators can be warned if the
+ * local clock disagrees with the network.
  */
 int64_t GetTimeOffset()
 {
@@ -34,7 +33,11 @@ int64_t GetTimeOffset()
 
 NodeClock::time_point GetAdjustedTime()
 {
-    return NodeClock::now() + std::chrono::seconds{GetTimeOffset()};
+    // Bitcoin Core #28956 / v27: consensus and P2P timing use unadjusted
+    // system time. Peer VERSION samples still feed GetTimeOffset() for RPC
+    // and clock-skew warnings, but they must not move "now" used for
+    // header timestamps, IBD stall, or compact-block deadlines.
+    return NodeClock::now();
 }
 
 #define BITCOIN_TIMEDATA_MAX_SAMPLES 200
@@ -76,7 +79,8 @@ void AddTimeData(const CNetAddr& ip, int64_t nOffsetSample)
     if (g_time_offsets.size() >= 5 && g_time_offsets.size() % 2 == 1) {
         int64_t nMedian = g_time_offsets.median();
         std::vector<int64_t> vSorted = g_time_offsets.sorted();
-        // Only let other nodes change our time by so much
+        // Record the median offset for RPC (`getnetworkinfo.timeoffset`) and
+        // the clock-skew warning. Do not apply it to GetAdjustedTime().
         int64_t max_adjustment = std::max<int64_t>(0, gArgs.GetIntArg("-maxtimeadjustment", DEFAULT_MAX_TIME_ADJUSTMENT));
         if (nMedian >= -max_adjustment && nMedian <= max_adjustment) {
             nTimeOffset = nMedian;

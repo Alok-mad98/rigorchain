@@ -1,5 +1,6 @@
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { ConvergencePanel } from "../components/ConvergencePanel";
+import { ORUSupplyPanel } from "../components/ORUSupplyPanel";
 import { ProtocolCard } from "../components/ProtocolCard";
 import { RESMintPanel } from "../components/RESMintPanel";
 import { SubNav } from "../components/SubNav";
@@ -12,12 +13,10 @@ export function WalletTopicPage() {
         <SubNav />
         <header className="page-header">
           <h1>ORU</h1>
-          <p className="muted">Fee asset, PoW subsidy, Convergence destroy. R(0) = 0, then 128 forever.</p>
+          <p className="muted">Fee asset, proof-of-work subsidy, and the ORU destroyed in Convergence.</p>
         </header>
         <ProtocolCard variant="oru" />
-        <p>
-          <Link to="/wallet">Wallet overview</Link>
-        </p>
+        <ORUSupplyPanel />
       </div>
     );
   }
@@ -28,7 +27,9 @@ export function WalletTopicPage() {
         <SubNav />
         <header className="page-header">
           <h1>RES</h1>
-          <p className="muted">Reserve asset. Body-tx destroy-to-mint at destroy_cost(h). Cap 4,194,304 RES.</p>
+          <p className="muted">
+            Reserve asset. Created when a body transaction destroys ORU under consensus rules.
+          </p>
         </header>
         <ProtocolCard variant="res" />
         <RESMintPanel />
@@ -65,16 +66,13 @@ export function WalletTopicPage() {
       </header>
       <section className="card prose-section">
         <p>
-          ORU coinbase outputs and body RES <em>mint</em> outputs use the same confirmation depth:{" "}
-          <code>nCoinbaseMaturity = 100</code>. A UTXO created at height H is first spendable in a
-          transaction whose spend height is H + 100. Mempool spend height is tip + 1. Ordinary RES
-          transfers are not delayed by the mint flag and still cannot create RES (
-          <code>res_in ≥ res_out</code>).
+          Newly issued ORU and newly created RES become spendable after the protocol confirmation
+          depth. Ordinary RES transfers cannot create RES. The wallet displays that depth.
+          Consensus enforces it.
         </p>
         <p>
-          Wallet UI may show a mint immature for one extra confirmation relative to consensus — the
-          same Bitcoin coinbase display lag. RPC or miner-created spends cannot bypass{" "}
-          <code>CheckTxInputs</code>.
+          A wallet display can lag the consensus rule by a confirmation. Spending still has to
+          satisfy the node.
         </p>
         <ul>
           <li>Confirmation count as observation, not authority</li>

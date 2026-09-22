@@ -368,7 +368,7 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
         for (const COutputEntry& s : listSent)
         {
             UniValue entry(UniValue::VOBJ);
-            if (involvesWatchonly || (wallet.IsMine(s.destination) & ISMINE_WATCH_ONLY)) {
+            if (involvesWatchonly || (IsValidDestination(s.destination) && (wallet.IsMine(s.destination) & ISMINE_WATCH_ONLY))) {
                 entry.pushKV("involvesWatchonly", true);
             }
             MaybePushAddress(entry, s.destination);
@@ -402,7 +402,7 @@ static void ListTransactions(const CWallet& wallet, const CWalletTx& wtx, int nM
                 continue;
             }
             UniValue entry(UniValue::VOBJ);
-            if (involvesWatchonly || (wallet.IsMine(r.destination) & ISMINE_WATCH_ONLY)) {
+            if (involvesWatchonly || (IsValidDestination(r.destination) && (wallet.IsMine(r.destination) & ISMINE_WATCH_ONLY))) {
                 entry.pushKV("involvesWatchonly", true);
             }
             MaybePushAddress(entry, r.destination);

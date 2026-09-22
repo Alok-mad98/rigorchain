@@ -21,7 +21,7 @@ run_mutation M19 block_acceptance_sound Kernel/Block/Acceptance.v \
   Kernel/Block/Acceptance || true
 
 # Fees mint an extra coin term.
-run_mutation M20 fees_only_transfer Kernel/EconomicInvariant/Economic.v \
+run_mutation M20 "fees_only_transfer burn_only_removal" Kernel/EconomicInvariant/Economic.v \
   'Definition apply_econ (e : EconomicStep) : Z :=
   es_old e + es_subsidy e + es_fees e - es_burn e.' \
   'Definition apply_econ (e : EconomicStep) : Z :=

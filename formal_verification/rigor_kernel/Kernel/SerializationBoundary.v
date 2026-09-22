@@ -149,6 +149,33 @@ Proof.
   destruct dom; simpl; reflexivity.
 Qed.
 
+(** Statement: no two distinct ORU states share a wire encoding.
+    Assumptions: none beyond [decode_encode_identity].
+    Coq consensus kernel only: yes.
+
+    The determinism statements in this file -- [encoding_deterministic]
+    and [same_state_same_encoding] -- are free: every Coq function is
+    deterministic and respects equality, so they hold whatever
+    [encode_oru] does. The direction that is not free is this one. Two
+    states that disagree must encode differently, or a node could be
+    shown one state and commit to another, and the encoding would not
+    determine what was signed.
+
+    Proved from the encoded list rather than through
+    [decode_encode_identity]. Routing it through the round trip would
+    make it forward to that lemma, and a mutation that collapses two
+    fields of [encode_oru] would be caught there and never reach this
+    statement -- the injectivity claim would ride on a proof nothing
+    tests. *)
+Theorem encode_oru_injective :
+  forall s1 s2 : kernel_tx,
+    encode_oru s1 = encode_oru s2 -> s1 = s2.
+Proof.
+  intros [d1 a1 b1 c1 e1 f1 g1] [d2 a2 b2 c2 e2 f2 g2] Heq.
+  unfold encode_oru, encode_dom in Heq. simpl in Heq.
+  destruct d1, d2; inversion Heq; subst; reflexivity.
+Qed.
+
 (** Encoding contract is proved. Crypto primitives and full
     extraction refinement are not. *)
 Definition serialization_proves_crypto : bool := false.

@@ -8,8 +8,6 @@
 
 - [Multi-wallet environment](#multi-wallet-environment)
 
-  - [Berkeley DB database based wallets](#berkeley-db-database-based-wallets)
-
   - [SQLite database based wallets](#sqlite-database-based-wallets)
 
 - [GUI settings](#gui-settings)
@@ -73,7 +71,7 @@ Subdirectory       | File(s)               | Description
 
 ## Multi-wallet environment
 
-Wallets are Berkeley DB (BDB) or SQLite databases.
+Wallets are SQLite descriptor databases only. Berkeley DB (`wallet.dat`) files are refused on load; there is no migration path.
 
 1. Each user-defined wallet named "wallet_name" resides in the `wallets/wallet_name/` subdirectory.
 
@@ -81,26 +79,16 @@ Wallets are Berkeley DB (BDB) or SQLite databases.
 
 3. A wallet database path can be specified with the `-wallet` option.
 
-4. `wallet.dat` files must not be shared across different node instances, as that can result in key-reuse and double-spends due the lack of synchronization between instances.
+4. Wallet files must not be shared across different node instances, as that can result in key-reuse and double-spends due the lack of synchronization between instances.
 
 5. Any copy or backup of the wallet should be done through a `backupwallet` call in order to update and lock the wallet, preventing any file corruption caused by updates during the copy.
 
-
-### Berkeley DB database based wallets
-
-Subdirectory | File(s)           | Description
--------------|-------------------|-------------
-`database/`  | BDB logging files | Part of BDB environment; created at start and deleted on shutdown; a user *must keep it as safe* as personal wallet `wallet.dat`
-`./`         | `db.log`          | BDB error file
-`./`         | `wallet.dat`      | Personal wallet (a BDB database) with keys and transactions
-`./`         | `.walletlock`     | BDB wallet lock file
-
 ### SQLite database based wallets
 
-Subdirectory | File                 | Description
--------------|----------------------|-------------
-`./`         | `wallet.dat`         | Personal wallet (a SQLite database) with keys and transactions
-`./`         | `wallet.dat-journal` | SQLite Rollback Journal file for `wallet.dat`. Usually created at start and deleted on shutdown. A user *must keep it as safe* as the `wallet.dat` file.
+Subdirectory | File                           | Description
+-------------|-------------------------------|-------------
+`./`         | `rigor-wallet.sqlite`         | Personal wallet (a SQLite database) with keys and transactions
+`./`         | `rigor-wallet.sqlite-journal` | SQLite rollback journal. Usually created at start and deleted on shutdown. Keep it as safe as `rigor-wallet.sqlite`.
 
 
 ## GUI settings

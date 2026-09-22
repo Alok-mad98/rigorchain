@@ -20,6 +20,7 @@ From Coq Require Import Bool.Bool.
 From Coq Require Import ZArith.ZArith.
 From RigorKernel Require Import Kernel.UnifiedState.
 From RigorKernel Require Import Kernel.UnifiedTransition.
+From RigorKernel Require Import Kernel.KernelInputBridge.
 From RigorKernel Require Import Runtime.RuntimeState.
 
 Local Open Scope Z_scope.
@@ -103,32 +104,21 @@ Proof.
   rewrite Hu, Hs, Hp, Ha. reflexivity.
 Qed.
 
-(** Non-constancy in both directions. *)
-Definition all_flags_up : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 0;
-     ki_outgoing := 0;
-     ki_fees := 0;
-     ki_burn := 0;
-     ki_subsidy := 0;
-     ki_res_mint := 0;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := true |}.
-
-Definition asert_flag_down : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 0;
-     ki_outgoing := 0;
-     ki_fees := 0;
-     ki_burn := 0;
-     ki_subsidy := 0;
-     ki_res_mint := 0;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := false |}.
+(** Non-constancy in both directions. Flags are computed. *)
+Definition all_flags_up : KernelInput := kernel_input_of sample_witness.
+Definition asert_flag_down : KernelInput := kernel_input_of asert_fail_witness.
 
 Theorem runtime_rejection_is_not_constant :
   runtime_rejects_invalid all_flags_up = false /\
   runtime_rejects_invalid asert_flag_down = true.
-Proof. split; reflexivity. Qed.
+Proof.
+  split.
+  - pose proof sample_witness_passes_every_check
+      as [Hu [_ [_ [Hs [Hp Ha]]]]].
+    unfold all_flags_up, runtime_rejects_invalid, input_flags_ok,
+           kernel_input_of.
+    rewrite Hu, Hs, Hp, Ha. reflexivity.
+  - pose proof asert_fail_flag_down as [Ha [Hu [Hs Hp]]].
+    unfold asert_flag_down, runtime_rejects_invalid, input_flags_ok.
+    rewrite Hu, Hs, Hp, Ha. reflexivity.
+Qed.

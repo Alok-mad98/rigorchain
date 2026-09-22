@@ -19,14 +19,21 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from check_mutation_coverage import strip_comments   # noqa: E402
+
 SKIP_PARTS = ("archive", "_build", "mutation", "extraction", "extracted", "certicoq")
-THM = re.compile(r"^(?:Theorem|Corollary)\s+(\w+)", re.M)
+# Must stay identical to scripts/check_theorem_classification.py: the
+# generator and the gate have to see the same set, or CI byte-compares
+# this file against a list built from a different scope.
+THM = re.compile(
+    r"^\s*(?:Theorem|Lemma|Corollary|Remark|Fact|Example|Proposition)\s+"
+    r"([A-Za-z_][A-Za-z0-9_']*)", re.M)
 ROW = re.compile(r"^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|")
 
 HEADER = """# Unclassified Allowlist
 
-Theorem / Corollary names in the kernel cone that are **intentionally**
-not in Category A/B/C of either classification table. CI
+Statement names in the kernel cone that are **intentionally** not in
+Category A/B/C of either classification table. CI
 (`scripts/check_theorem_classification.py`) fails if any name in the
 cone is missing from both the tables and this list.
 
@@ -39,6 +46,12 @@ hand: CI regenerates this file and byte-compares it.
 Scope note: until the P0-130 audit this reverse check covered only
 `Kernel/` and `proofs/`, so names outside those two directories were
 invisible to it. The scan now walks the whole cone.
+
+Second scope note: the scan also used to read only `Theorem` and
+`Corollary` at column zero, so every `Lemma` was invisible to
+classification governance — 210 of the cone's 713 statements, 69 of
+them used inside a Category A proof. A declaration keyword is not a
+scope boundary, and the scan now reads every statement form.
 """
 
 
@@ -63,7 +76,7 @@ def main() -> int:
         if any(x in p.parts for x in SKIP_PARTS):
             continue
         rel = p.relative_to(ROOT).as_posix()
-        for m in THM.finditer(p.read_text()):
+        for m in THM.finditer(strip_comments(p.read_text())):
             if m.group(1) not in classified:
                 by_file.setdefault(rel, []).append(m.group(1))
 

@@ -1,6 +1,6 @@
 # RIGOR Protocol Identity
 
-**Document status:** Production specification  
+**Document status:** Public protocol narrative (not consensus SSOT)  
 **Date:** 2026-09-04  
 
 This paper states protocol purpose, identity, and security assumptions.
@@ -16,13 +16,14 @@ This is one of **three public core whitepapers**. It answers: **What is RIGOR?**
 
 ```
 RIGOR is a dual-asset UTXO protocol built on script-derived asset
-classification, stateless monetary architecture, and formally verified
-consensus invariants.
+classification, stateless monetary architecture, and machine-checked
+invariants of the protocol model.
 ```
 
-“Formally verified consensus invariants” means properties of the
-**protocol model**. It does not mean C++ equivalence, production-binary
-proof, or complete system verification.
+Machine-checked consensus invariants, when the phrase is used at all,
+are properties of the **protocol model**. The public sentence is
+Chapter 8 of the protocol whitepaper. It does not mean C++ equivalence,
+production-binary proof, or complete system verification.
 
 ```
 equivalence_claimed = false

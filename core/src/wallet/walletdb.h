@@ -33,10 +33,9 @@ struct WalletContext;
  * - WalletBatch is an abstract modifier object for the wallet database, and encapsulates a database
  *   batch update as well as methods to act on the database. It should be agnostic to the database implementation.
  *
- * The following classes are implementation specific:
- * - BerkeleyEnvironment is an environment in which the database exists.
- * - BerkeleyDatabase represents a wallet database.
- * - BerkeleyBatch is a low-level database batch update.
+ * The following classes are implementation specific (SQLite only):
+ * - SQLiteDatabase represents a wallet database.
+ * - SQLiteBatch is a low-level database batch update.
  */
 
 /** Error statuses for the wallet database */
@@ -290,12 +289,12 @@ public:
     bool TxnCommit();
     //! Abort current transaction
     bool TxnAbort();
+    bool HasActiveTxn() { return m_batch->HasActiveTxn(); }
 private:
     std::unique_ptr<DatabaseBatch> m_batch;
     WalletDatabase& m_database;
 };
 
-//! Compacts BDB state so that wallet.dat is self-contained (if there are changes)
 //! Callback for filtering key types to deserialize in ReadKeyValue
 using KeyFilterFn = std::function<bool(const std::string&)>;
 

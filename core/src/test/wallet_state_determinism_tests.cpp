@@ -3,9 +3,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <interfaces/chain.h>
 #include <key.h>
 #include <key_io.h>
 #include <kernel/chain.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/descriptor.h>
 #include <script/signingprovider.h>
@@ -183,6 +185,58 @@ BOOST_AUTO_TEST_CASE(block_connected_bumps_wallet_state_revision)
     BOOST_CHECK_EQUAL(pindex->GetBlockHash(), block.GetHash());
     w->blockConnected(kernel::MakeBlockInfo(pindex, &block));
     BOOST_CHECK_GT(w->GetWalletStateRevision(), r0);
+}
+
+// bitcoin/bitcoin#35237: one SQLite COMMIT per connected block. Two coinbases
+// to the same mining script must persist after reload (commit succeeded) and
+// must not deadlock on a nested WalletBatch (write semaphore).
+BOOST_AUTO_TEST_CASE(block_connected_batches_coinbase_writes)
+{
+    auto w = std::make_unique<CWallet>(m_node.chain.get(), "", CreateMockWalletDatabase());
+    InitDescriptorWalletOnChain(*this, *w);
+    const CScript mining_script = GetTestMiningCoinbaseScript(coinbaseKey);
+
+    // Multiple wallet-relevant txs in one notification: coinbase + extra output
+    // share the blockConnected SQLite txn (WriteTx x2, no nested TopUp).
+    {
+        CMutableTransaction coinbase;
+        coinbase.vin.resize(1);
+        coinbase.vin[0].prevout.SetNull();
+        coinbase.vout.push_back({COIN, mining_script});
+        CMutableTransaction extra;
+        extra.vin.push_back(CTxIn{g_insecure_rand_ctx.rand256(), 0});
+        extra.vout.push_back({2 * COIN, mining_script});
+        CBlock synthetic;
+        synthetic.vtx = {MakeTransactionRef(coinbase), MakeTransactionRef(extra)};
+        const uint256 syn_hash = synthetic.GetHash();
+        interfaces::BlockInfo info{syn_hash};
+        info.height = 101;
+        info.data = &synthetic;
+        w->blockConnected(info);
+        LOCK(w->cs_wallet);
+        BOOST_REQUIRE(w->mapWallet.count(synthetic.vtx[0]->GetHash()));
+        BOOST_REQUIRE(w->mapWallet.count(synthetic.vtx[1]->GetHash()));
+    }
+
+    size_t wallet_txs = 0;
+    for (int i = 0; i < 2; ++i) {
+        const CBlock block = CreateAndProcessBlock({}, mining_script);
+        const CBlockIndex* pindex = WITH_LOCK(::cs_main, return Assert(m_node.chainman)->ActiveTip());
+        BOOST_REQUIRE(pindex);
+        w->blockConnected(kernel::MakeBlockInfo(pindex, &block));
+        LOCK(w->cs_wallet);
+        BOOST_REQUIRE(w->mapWallet.count(block.vtx[0]->GetHash()));
+        wallet_txs = w->mapWallet.size();
+    }
+    BOOST_CHECK_GE(wallet_txs, 4);
+    w->Flush();
+
+    DatabaseOptions dup_opts{};
+    auto db2 = DuplicateMockDatabase(w->GetDatabase(), dup_opts);
+    CWallet w2(m_node.chain.get(), "", std::move(db2));
+    BOOST_CHECK_EQUAL(w2.LoadWallet(), DBErrors::LOAD_OK);
+    LOCK2(w->cs_wallet, w2.cs_wallet);
+    BOOST_CHECK_EQUAL(w->mapWallet.size(), w2.mapWallet.size());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

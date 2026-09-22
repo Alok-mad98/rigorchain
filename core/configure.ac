@@ -151,6 +151,22 @@ AC_ARG_WITH([sqlite],
   [use_sqlite=$withval],
   [use_sqlite=yes])
 
+dnl RIGOR wallets are SQLite descriptor wallets only. Berkeley DB is not a backend.
+dnl --without-bdb is accepted for existing scripts; --with-bdb=yes is a hard error.
+AC_ARG_WITH([bdb],
+  [AS_HELP_STRING([--with-bdb],
+  [Berkeley DB wallets are not supported (always no)])],
+  [if test "x$withval" != "xno"; then
+     AC_MSG_ERROR([RIGOR wallets are SQLite descriptor wallets only. Berkeley DB (--with-bdb) is not supported.])
+   fi],
+  [with_bdb=no])
+AC_ARG_WITH([incompatible-bdb],
+  [AS_HELP_STRING([--with-incompatible-bdb],
+  [Berkeley DB wallets are not supported])],
+  [if test "x$withval" != "xno"; then
+     AC_MSG_ERROR([RIGOR wallets are SQLite descriptor wallets only. Berkeley DB (--with-incompatible-bdb) is not supported.])
+   fi])
+
 AC_ARG_ENABLE([usdt],
   [AS_HELP_STRING([--enable-usdt],
   [enable tracepoints for Userspace, Statically Defined Tracing (default is yes if sys/sdt.h is found)])],
@@ -1998,6 +2014,7 @@ echo "  with libs       = no (libbitcoinconsensus removed)"
 echo "  with wallet     = $enable_wallet"
 if test "$enable_wallet" != "no"; then
     echo "    with sqlite   = $use_sqlite"
+    echo "    with bdb      = no (not supported)"
 fi
 echo "  with gui / qt   = $bitcoin_enable_qt"
 if test $bitcoin_enable_qt != "no"; then

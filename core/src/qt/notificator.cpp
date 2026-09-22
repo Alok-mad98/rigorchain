@@ -196,13 +196,23 @@ void Notificator::notifyDBus(Class cls, const QString &title, const QString &tex
 
 void Notificator::notifySystray(Class cls, const QString &title, const QString &text, int millisTimeout)
 {
+    if (!trayIcon) return;
     QSystemTrayIcon::MessageIcon sicon = QSystemTrayIcon::NoIcon;
     switch(cls) // Set icon based on class
     {
-    case Information: sicon = QSystemTrayIcon::Information; break;
+    case Information:
+        // QSystemTrayIcon::Information loads a system HICON via
+        // QPixmap::fromWinHICON/GetIconInfo. Rapid incoming-credit
+        // toasts fail GetDIBits and crash the Windows Qt wallet.
+        sicon = QSystemTrayIcon::NoIcon;
+        break;
     case Warning: sicon = QSystemTrayIcon::Warning; break;
     case Critical: sicon = QSystemTrayIcon::Critical; break;
     }
+#ifdef Q_OS_WIN
+    // Warning/Critical also go through fromWinHICON on Windows.
+    sicon = QSystemTrayIcon::NoIcon;
+#endif
     trayIcon->showMessage(title, text, sicon, millisTimeout);
 }
 

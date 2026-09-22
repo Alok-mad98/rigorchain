@@ -269,8 +269,9 @@ public:
 };
 
 /**
- * Testnet: Rigor public proving ground — fast blocks, permissive min-difficulty gate,
- * ASERT retargeting every block, and buried deployments aligned to Rigor (not Bitcoin testnet3).
+ * Testnet: Rigor public proving ground — 1-minute blocks, buried deployments aligned
+ * to Rigor (not Bitcoin testnet3). ASERT matches mainnet: same half-life, same
+ * anchor, no min-difficulty reset. Only powLimit is easier.
  */
 class CTestNetParams : public CChainParams {
 public:
@@ -291,9 +292,9 @@ public:
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetSpacing = 60; // 1 minute nominal inter-block interval
         consensus.nPowTargetTimespan = 30 * consensus.nPowTargetSpacing; // 30-block BIP9 window
-        // Short ASERT half-life so difficulty tracks hashrate quickly (per-block evaluation).
-        consensus.nPowASERTHalfLife = 28800; // 8 hours; keeps 2h-future ASERT ease bounded even if min-difficulty is not taken
-        consensus.fPowAllowMinDifficultyBlocks = true;
+        // Same ASERT as mainnet. powLimit above is the only easier knob.
+        consensus.nPowASERTHalfLife = Consensus::MAINNET_POW_ASERT_HALF_LIFE; // 12 hours
+        consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 27; // 90% of 30
         consensus.nMinerConfirmationWindow = 30;

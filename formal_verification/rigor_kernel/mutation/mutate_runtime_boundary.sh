@@ -43,7 +43,7 @@ run_mutation M40 runtime_apply_is_graph \
 # Drop the ASERT flag from the runtime rejection predicate: an input
 # with asert_ok = false is no longer rejected, so the two-directional
 # rejection contract fails.
-run_mutation M41 "runtime_rejects_iff_some_flag_down runtime_accepts_kernel_valid_input" \
+run_mutation M41 "runtime_rejects_iff_some_flag_down runtime_accepts_kernel_valid_input runtime_rejection_is_not_constant" \
   Runtime/RuntimeFailure.v \
   '      (andb (ki_pow_ok i) (ki_asert_ok i))).' \
   '      (ki_pow_ok i)).' \

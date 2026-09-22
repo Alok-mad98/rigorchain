@@ -215,9 +215,9 @@ val check_oru : oRUState -> bool
 
 type block_height = int
 
-val rES_PRICE_POLE : int
+val rES_DESTROY_POLE : int
 
-val rES_PRICE_SHIFT : int
+val rES_DESTROY_SHIFT : int
 
 val rES_MAX_SUPPLY : int
 
@@ -337,7 +337,7 @@ type consensusKernel = { check_utxo0 : (uTXOState -> bool);
 
 val rigor_kernel : consensusKernel
 
-type kernelInput =
+type kernelValidationRequest =
 | KI_UTXO of uTXOState
 | KI_ORU of oRUState
 | KI_RES of rESState
@@ -345,4 +345,4 @@ type kernelInput =
 | KI_Pow of powHeader
 | KI_ASERT of aSERTInput
 
-val validate_kernel : kernelInput -> bool
+val validate_kernel : kernelValidationRequest -> bool

@@ -31,15 +31,15 @@ From RigorKernel Require Import Kernel.KernelInterface.
 
 Local Open Scope Z_scope.
 
-Inductive KernelInput :=
-| KI_UTXO : UTXOState -> KernelInput
-| KI_ORU : ORUState -> KernelInput
-| KI_RES : RESState -> KernelInput
-| KI_Script : ScriptState -> KernelInput
-| KI_Pow : PowHeader -> KernelInput
-| KI_ASERT : ASERTInput -> KernelInput.
+Inductive KernelValidationRequest :=
+| KI_UTXO : UTXOState -> KernelValidationRequest
+| KI_ORU : ORUState -> KernelValidationRequest
+| KI_RES : RESState -> KernelValidationRequest
+| KI_Script : ScriptState -> KernelValidationRequest
+| KI_Pow : PowHeader -> KernelValidationRequest
+| KI_ASERT : ASERTInput -> KernelValidationRequest.
 
-Definition validate_kernel (input : KernelInput) : bool :=
+Definition validate_kernel (input : KernelValidationRequest) : bool :=
   match input with
   | KI_UTXO s => UTXOValidator.check_utxo s
   | KI_ORU s => ORUValidator.check_oru s
@@ -49,7 +49,7 @@ Definition validate_kernel (input : KernelInput) : bool :=
   | KI_ASERT i => ASERTValidator.check_asert i
   end.
 
-Definition consensus_invariant (input : KernelInput) : Prop :=
+Definition consensus_invariant (input : KernelValidationRequest) : Prop :=
   match input with
   | KI_UTXO s =>
       UTXOSoundness.valid_tx s

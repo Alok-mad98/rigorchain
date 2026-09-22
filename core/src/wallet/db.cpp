@@ -53,6 +53,15 @@ fs::path SQLiteDataFile(const fs::path& path)
     return path / WALLET_DATABASE_FILENAME;
 }
 
+void RemoveCreatedWalletDatabase(const fs::path& wallet_path)
+{
+    const fs::path db_file = SQLiteDataFile(wallet_path);
+    fs::remove(db_file);
+    fs::remove(fs::PathFromString(fs::PathToString(db_file) + "-journal"));
+    fs::remove(fs::PathFromString(fs::PathToString(db_file) + "-wal"));
+    fs::remove(fs::PathFromString(fs::PathToString(db_file) + "-shm"));
+}
+
 bool IsBerkeleyDBFile(const fs::path& path)
 {
     if (!fs::is_regular_file(path)) return false;

@@ -30,9 +30,14 @@ the destroy cost becomes 1036.85749152 ORU per RES.
 ## Live math: `destroy_cost(h)`
 
 ```
-destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (>> 50)
-R · (2²⁵ + h)² ≤ B << 40                   consensus
+destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰          display (curve denominator 2⁵⁰)
+R · (2²⁵ + h)² ≤ B << 40                   consensus (scaling factor 2⁴⁰)
 ```
+
+`2⁵⁰` is the curve normalization denominator, not a consensus shift.
+A display helper may floor `/ 2⁵⁰` (`>> 50`); that rounding/floor does
+not enter consensus. `2⁴⁰` is the integer consensus scaling factor,
+not the `destroy_cost` denominator.
 
 Integer only. `RES_COIN = 100000000`. `RES_DESTROY_POLE = 2²⁵`.
 `RES_DESTROY_SHIFT = 40`. `destroy_cost(0) = 102400000000` (1024 ORU per 1 RES).

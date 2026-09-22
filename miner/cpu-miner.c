@@ -347,6 +347,7 @@ static int hex_is_even(const char *s)
 }
 static bool submit_old = false;
 static char *lp_id;
+static pthread_mutex_t lp_id_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static double ux_total_hashrate(void)
 {
@@ -648,7 +649,7 @@ static void ux_note_work(const struct work *work)
 	snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
 }
 
-static inline void work_free(struct work *w)
+static void work_free(struct work *w)
 {
 	if (!w)
 		return;
@@ -671,29 +672,87 @@ static inline void work_free(struct work *w)
 	w->prevblockhash = NULL;
 }
 
-static inline void work_copy(struct work *dest, const struct work *src)
+static void work_discard(struct work *w)
 {
-	memcpy(dest, src, sizeof(struct work));
-	if (src->txs)
-		dest->txs = strdup(src->txs);
-	if (src->workid)
-		dest->workid = strdup(src->workid);
-	if (src->job_id)
-		dest->job_id = strdup(src->job_id);
-	if (src->prevblockhash)
-		dest->prevblockhash = strdup(src->prevblockhash);
+	if (!w)
+		return;
+	work_free(w);
+	free(w);
+}
+
+/*
+ * Deep-copy heap fields into a temporary, then swap into dest.
+ * dest must be zeroed or previously work_free'd (calloc, not raw malloc).
+ * On allocation failure dest is left unchanged and no pointer aliases src.
+ * The old memcpy-then-strdup path aliased src on strdup failure and later
+ * double-freed it (Windows STATUS_HEAP_CORRUPTION / 0xC0000374).
+ */
+static bool work_copy(struct work *dest, const struct work *src)
+{
+	struct work tmp;
+
+	if (!dest || !src)
+		return false;
+
+	memcpy(&tmp, src, sizeof(tmp));
+	tmp.txs = NULL;
+	tmp.workid = NULL;
+	tmp.job_id = NULL;
+	tmp.xnonce2 = NULL;
+	tmp.convergence_txids = NULL;
+	tmp.convergence_txid_count = 0;
+	tmp.prevblockhash = NULL;
+
+	if (src->txs) {
+		tmp.txs = strdup(src->txs);
+		if (!tmp.txs)
+			goto fail;
+	}
+	if (src->workid) {
+		tmp.workid = strdup(src->workid);
+		if (!tmp.workid)
+			goto fail;
+	}
+	if (src->job_id) {
+		tmp.job_id = strdup(src->job_id);
+		if (!tmp.job_id)
+			goto fail;
+	}
+	if (src->prevblockhash) {
+		tmp.prevblockhash = strdup(src->prevblockhash);
+		if (!tmp.prevblockhash)
+			goto fail;
+	}
 	if (src->xnonce2 && src->xnonce2_len) {
-		dest->xnonce2 = malloc(src->xnonce2_len);
-		memcpy(dest->xnonce2, src->xnonce2, src->xnonce2_len);
+		tmp.xnonce2 = malloc(src->xnonce2_len);
+		if (!tmp.xnonce2)
+			goto fail;
+		memcpy(tmp.xnonce2, src->xnonce2, src->xnonce2_len);
 	}
 	if (src->convergence_txids && src->convergence_txid_count > 0) {
-		dest->convergence_txids = calloc(src->convergence_txid_count, sizeof(char*));
-		dest->convergence_txid_count = src->convergence_txid_count;
-		for (int i = 0; i < src->convergence_txid_count; i++) {
-			if (src->convergence_txids[i])
-				dest->convergence_txids[i] = strdup(src->convergence_txids[i]);
+		int i;
+
+		tmp.convergence_txids = calloc((size_t)src->convergence_txid_count,
+					       sizeof(char *));
+		if (!tmp.convergence_txids)
+			goto fail;
+		tmp.convergence_txid_count = src->convergence_txid_count;
+		for (i = 0; i < src->convergence_txid_count; i++) {
+			if (!src->convergence_txids[i])
+				continue;
+			tmp.convergence_txids[i] = strdup(src->convergence_txids[i]);
+			if (!tmp.convergence_txids[i])
+				goto fail;
 		}
 	}
+
+	work_free(dest);
+	memcpy(dest, &tmp, sizeof(tmp));
+	return true;
+
+fail:
+	work_free(&tmp);
+	return false;
 }
 
 static bool jobj_binary(const json_t *obj, const char *key,
@@ -757,10 +816,7 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 		return false;
 	}
 
-	free(work->txs);
-	free(work->workid);
-	work->txs = NULL;
-	work->workid = NULL;
+	work_free(work);
 	memcpy(work->data, assembled.header_words, sizeof(assembled.header_words));
 	work->data[20] = 0x80000000;
 	work->data[31] = 0x00000280;
@@ -777,14 +833,24 @@ static bool gbt_work_decode(const json_t *val, struct work *work)
 	{
 		json_t *lp = json_object_get(val, "longpollid");
 		const char *s = json_string_value(lp);
-		if (want_longpoll && s && longpoll_thr_id >= 0 &&
-		    (!lp_id || strcmp(lp_id, s))) {
-			free(lp_id);
-			lp_id = strdup(s);
-			if (!have_longpoll) {
-				have_longpoll = true;
-				tq_push(thr_info[longpoll_thr_id].q, strdup(rpc_url));
+		bool start_lp = false;
+
+		if (want_longpoll && s && longpoll_thr_id >= 0) {
+			pthread_mutex_lock(&lp_id_lock);
+			if (!lp_id || strcmp(lp_id, s)) {
+				char *dup = strdup(s);
+				if (dup) {
+					free(lp_id);
+					lp_id = dup;
+					if (!have_longpoll) {
+						have_longpoll = true;
+						start_lp = true;
+					}
+				}
 			}
+			pthread_mutex_unlock(&lp_id_lock);
+			if (start_lp)
+				tq_push(thr_info[longpoll_thr_id].q, strdup(rpc_url));
 		}
 	}
 
@@ -870,10 +936,17 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	bool rc = false;
 
 	/* pass if the previous hash is not the current previous hash */
-	if (!submit_old && memcmp(work->data + 1, g_work.data + 1, 32)) {
-		if (opt_debug)
-			applog(LOG_DEBUG, "DEBUG: stale work detected, discarding");
-		return true;
+	if (!submit_old) {
+		int stale;
+
+		pthread_mutex_lock(&g_work_lock);
+		stale = memcmp(work->data + 1, g_work.data + 1, 32) != 0;
+		pthread_mutex_unlock(&g_work_lock);
+		if (stale) {
+			if (opt_debug)
+				applog(LOG_DEBUG, "DEBUG: stale work detected, discarding");
+			return true;
+		}
 	}
 
 	if (have_stratum) {
@@ -1085,8 +1158,7 @@ static void workio_cmd_free(struct workio_cmd *wc)
 
 	switch (wc->cmd) {
 	case WC_SUBMIT_WORK:
-		work_free(wc->u.work);
-		free(wc->u.work);
+		work_discard(wc->u.work);
 		break;
 	default: /* do nothing */
 		break;
@@ -1114,7 +1186,7 @@ static bool workio_get_work(struct workio_cmd *wc, CURL *curl)
 				       "Please start rigor-wallet or rigord first.");
 			else
 				applog(LOG_ERR, "json_rpc_call failed, terminating workio thread");
-			free(ret_work);
+			work_discard(ret_work);
 			return false;
 		}
 
@@ -1136,7 +1208,7 @@ static bool workio_get_work(struct workio_cmd *wc, CURL *curl)
 
 	/* send work to requesting thread */
 	if (!tq_push(wc->thr->q, ret_work))
-		free(ret_work);
+		work_discard(ret_work);
 
 	return true;
 }
@@ -1240,7 +1312,8 @@ static bool get_work(struct thr_info *thr, struct work *work)
 	if (!work_heap)
 		return false;
 
-	/* copy returned work into storage provided by caller */
+	/* Move returned work into caller storage. dest must be zeroed. */
+	work_free(work);
 	memcpy(work, work_heap, sizeof(*work));
 	free(work_heap);
 
@@ -1256,13 +1329,14 @@ static bool submit_work(struct thr_info *thr, const struct work *work_in)
 	if (!wc)
 		return false;
 
-	wc->u.work = malloc(sizeof(*work_in));
+	wc->u.work = calloc(1, sizeof(*work_in));
 	if (!wc->u.work)
 		goto err_out;
 
 	wc->cmd = WC_SUBMIT_WORK;
 	wc->thr = thr;
-	work_copy(wc->u.work, work_in);
+	if (!work_copy(wc->u.work, work_in))
+		goto err_out;
 
 	/* send solution to workio thread */
 	if (!tq_push(thr_info[work_thr_id].q, wc))
@@ -1366,6 +1440,7 @@ static void *miner_thread(void *userdata)
 		unsigned long hashes_done;
 		struct timeval tv_start, tv_end, diff;
 		int64_t max64;
+		time_t scan_ref_time;
 		int rc;
 
 		if (have_stratum) {
@@ -1394,6 +1469,7 @@ static void *miner_thread(void *userdata)
 				pthread_mutex_lock(&g_work_lock);
 				work_free(&g_work);
 				memcpy(&g_work, &fresh, sizeof(fresh));
+				memset(&fresh, 0, sizeof(fresh));
 				g_work_time = have_stratum ? 0 : time(NULL);
 			}
 			if (have_stratum) {
@@ -1403,10 +1479,16 @@ static void *miner_thread(void *userdata)
 		}
 		if (memcmp(work.data, g_work.data, 76)) {
 			work_free(&work);
-			work_copy(&work, &g_work);
+			if (!work_copy(&work, &g_work)) {
+				pthread_mutex_unlock(&g_work_lock);
+				applog(LOG_ERR, "work_copy failed, retrying");
+				sleep(1);
+				continue;
+			}
 			work.data[19] = 0xffffffffU / opt_n_threads * thr_id;
 		} else
 			work.data[19]++;
+		scan_ref_time = g_work_time;
 		pthread_mutex_unlock(&g_work_lock);
 		work_restart[thr_id].restart = 0;
 		
@@ -1414,7 +1496,7 @@ static void *miner_thread(void *userdata)
 		if (have_stratum)
 			max64 = LP_SCANTIME;
 		else
-			max64 = g_work_time + (have_longpoll ? LP_SCANTIME : opt_scantime)
+			max64 = scan_ref_time + (have_longpoll ? LP_SCANTIME : opt_scantime)
 			      - time(NULL);
 		max64 *= thr_hashrates[thr_id];
 		if (max64 <= 0) {
@@ -1490,7 +1572,7 @@ static void *miner_thread(void *userdata)
 			 * this thread would otherwise clear work_restart and scan ~2M
 			 * leftover hashes before the next GBT. */
 			if (!have_stratum) {
-				g_work_time = 0;
+				solo_invalidate_gbt();
 				memset(work.data, 0, 76);
 			}
 		}
@@ -1512,7 +1594,9 @@ static void restart_threads(void)
 
 static void solo_invalidate_gbt(void)
 {
+	pthread_mutex_lock(&g_work_lock);
 	g_work_time = 0;
+	pthread_mutex_unlock(&g_work_lock);
 	restart_threads();
 }
 
@@ -1561,13 +1645,24 @@ start:
 		char *req = NULL;
 		int err;
 
-		if (!lp_id) {
-			applog(LOG_ERR, "GBT longpoll missing longpollid");
-			goto out;
+		{
+			char *lp_copy;
+
+			pthread_mutex_lock(&lp_id_lock);
+			if (!lp_id) {
+				pthread_mutex_unlock(&lp_id_lock);
+				applog(LOG_ERR, "GBT longpoll missing longpollid");
+				goto out;
+			}
+			lp_copy = strdup(lp_id);
+			pthread_mutex_unlock(&lp_id_lock);
+			if (!lp_copy)
+				goto out;
+			req = gbt_request_json(lp_copy);
+			free(lp_copy);
+			if (!req)
+				goto out;
 		}
-		req = gbt_request_json(lp_id);
-		if (!req)
-			goto out;
 		val = json_rpc_call(curl, lp_url, rpc_userpass, req, &err,
 				    JSON_RPC_LONGPOLL);
 		free(req);

@@ -1152,7 +1152,9 @@ std::unique_ptr<WalletDatabase> MakeDatabase(const fs::path& path, const Databas
 
     bool have_wallet = false;
     if (exists) {
-        if (IsBerkeleyDBFile(path)) {
+        const bool is_bdb_file = IsBerkeleyDBFile(path);
+        const bool is_bdb_dir = fs::is_directory(path) && IsBerkeleyDBFile(path / "wallet.dat");
+        if (is_bdb_file || is_bdb_dir) {
             error = Untranslated(strprintf(
                 "Failed to load database path '%s'. This is a Berkeley DB wallet. RIGOR wallets are SQLite descriptor "
                 "wallets only; there is no migration path. Create a new wallet and import descriptors.",

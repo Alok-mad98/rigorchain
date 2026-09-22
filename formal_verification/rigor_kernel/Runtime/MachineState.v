@@ -24,6 +24,7 @@ From Coq Require Import ZArith.ZArith.
 From Coq Require Import Lia.
 From RigorKernel Require Import Kernel.UnifiedState.
 From RigorKernel Require Import Kernel.UnifiedTransition.
+From RigorKernel Require Import Kernel.KernelInputBridge.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelState.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelMapping.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelTransition.
@@ -217,16 +218,7 @@ Definition overflow_witness_state : MachineKernelState :=
      mk_asert_ok := true |}.
 
 Definition overflow_witness_input : KernelInput :=
-  {| ki_utxo_ok := true;
-     ki_incoming := 0;
-     ki_outgoing := 0;
-     ki_fees := 0;
-     ki_burn := 0;
-     ki_subsidy := 0;
-     ki_res_mint := 1;
-     ki_script_ok := true;
-     ki_pow_ok := true;
-     ki_asert_ok := true |}.
+  kernel_input_of mint_one_witness.
 
 Theorem machine_refinement_is_partial :
   exists (m : MachineKernelState) (e : ExecutableKernelState) (i : KernelInput),
@@ -241,7 +233,8 @@ Proof.
     rewrite machine_words_wf_intro; simpl; try reflexivity;
       unfold wf_word, word_max; lia.
   - unfold machine_step_of, overflow_witness_state, overflow_witness_input.
-    simpl.
+    pose proof mint_one_witness_flow as [_ [_ [Hfee [Hburn [Hsub Hmint]]]]].
+    rewrite Hfee, Hburn, Hsub, Hmint.
     replace (wf_wordb 0) with true
       by (symmetry; apply wf_wordb_true_iff; unfold wf_word, word_max; lia).
     simpl.

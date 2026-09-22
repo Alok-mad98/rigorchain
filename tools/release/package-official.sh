@@ -53,22 +53,45 @@ rm -rf "${OFFICIAL}"
 mkdir -p "${OFFICIAL}" "${VISIBLE}"
 
 pkg="$(mktemp -d)"
-mkdir -p "${pkg}/bin"
-cp -a "${LINUX_BIN}/rigord" "${pkg}/bin/rigord"
-cp -a "${LINUX_BIN}/rigor-cli" "${pkg}/bin/rigor-cli"
-cp -a "${LINUX_BIN}/rigor-wallet" "${pkg}/bin/rigor-wallet"
-cp -a "${LINUX_BIN}/rigor-qt" "${pkg}/bin/rigor-qt"
-for b in "${pkg}/bin/"*; do
-  strip --strip-unneeded "$b" 2>/dev/null || true
+mkdir -p "${pkg}/bin/internal"
+for b in rigord rigor-cli rigor-wallet rigor-qt; do
+  src="${LINUX_BIN}/${b}"
+  [[ -f "${src}" ]] || die "missing ${src}"
+  if [[ -L "${src}" ]] || head -c 2 "${src}" | grep -q '^#!'; then
+    die "${src} is a wrapper; need the ELF binary"
+  fi
+  cp -a "${src}" "${pkg}/bin/internal/${b}"
 done
+# GUI binary is one object; wallet and qt names both point at it.
+if [[ "$(sha256sum "${pkg}/bin/internal/rigor-wallet" | awk '{print $1}')" != "$(sha256sum "${pkg}/bin/internal/rigor-qt" | awk '{print $1}')" ]]; then
+  cp -a "${pkg}/bin/internal/rigor-wallet" "${pkg}/bin/internal/rigor-qt"
+fi
+strip --strip-unneeded "${pkg}/bin/internal/"* 2>/dev/null || true
+write_official_wrapper() {
+  local dest="$1"
+  local inner="$2"
+  cat > "${dest}" <<EOF
+#!/bin/sh
+here=\$(dirname "\$(readlink -f "\$0")")
+root=\$(dirname "\$here")
+mkdir -p "\$root/data"
+exec "\$here/internal/${inner}" -server -datadir="\$root/data" -rpcallowip=127.0.0.1 "\$@"
+EOF
+  chmod +x "${dest}"
+}
+write_official_wrapper "${pkg}/bin/rigord" rigord
+write_official_wrapper "${pkg}/bin/rigor-cli" rigor-cli
+write_official_wrapper "${pkg}/bin/rigor-wallet" rigor-wallet
+write_official_wrapper "${pkg}/bin/rigor-qt" rigor-qt
 
 cat > "${pkg}/README.txt" <<EOF
 RIGOR v${RELEASE_VERSION} Linux x86_64
 Channel: ${CHANNEL}
 
 Official name: ${LINUX_TAR_NAME}
-Datadir: ~/.rigor
-Config:  ~/.rigor/rigor.conf
+Datadir: <this-tree>/data
+Config:  <this-tree>/data/rigor.conf
+Do not run bin/internal/* directly.
 
 Run:
   ./bin/rigord --version
@@ -99,7 +122,8 @@ readme.write_text(
     f"Channel: {channel}\n\n"
     f"Official installer: {exe}\n"
     f"Official zip: {zname}\n"
-    "Datadir: %APPDATA%\\RIGOR\n\n"
+    "Datadir: folder named data next to rigor-wallet.exe\n"
+    "Config:  <install>\\\\data\\\\rigor.conf\n\n"
     "Packed CLIENT_VERSION remains 25.0.0.\n"
     "refinement_proved=false\n"
     "LEVEL_5_CLAIMED=false\n"

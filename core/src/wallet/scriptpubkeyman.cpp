@@ -42,7 +42,7 @@ static bool IsSingleSlotNativeResDescriptor(const Descriptor& d)
 util::Result<CTxDestination> LegacyScriptPubKeyMan::GetNewDestination(const OutputType type)
 {
     if (LEGACY_OUTPUT_TYPES.count(type) == 0) {
-        return util::Error{_("Error: Berkeley DB (\"legacy\") wallets on Rigor support only \"bech32\" addresses; use a descriptor wallet for \"bech32m\" (v1 RES, not Taproot).")};
+        return util::Error{_("Error: Legacy wallets on Rigor support only \"bech32\" addresses; use a descriptor wallet for \"bech32m\" (v1 RES, not Taproot).")};
     }
 
     // Fill-up keypool if needed
@@ -127,7 +127,7 @@ IsMineResult IsMineInner(const LegacyScriptPubKeyMan& keystore, const CScript& s
     }
 
     if (ret == IsMineResult::NO && keystore.HaveWatchOnly(scriptPubKey) &&
-        IsRigorConstructibleScript(scriptPubKey)) {
+        IsRigorConstructibleScript(scriptPubKey) && EntersUtxoSet(scriptPubKey)) {
         ret = std::max(ret, IsMineResult::WATCH_ONLY);
     }
     return ret;
@@ -222,7 +222,7 @@ bool LegacyScriptPubKeyMan::Encrypt(const CKeyingMaterial& master_key, WalletBat
 util::Result<CTxDestination> LegacyScriptPubKeyMan::GetReservedDestination(const OutputType type, bool internal, int64_t& index, CKeyPool& keypool)
 {
     if (LEGACY_OUTPUT_TYPES.count(type) == 0) {
-        return util::Error{_("Error: Berkeley DB (\"legacy\") wallets on Rigor support only \"bech32\" addresses; use a descriptor wallet for \"bech32m\" (v1 RES, not Taproot).")};
+        return util::Error{_("Error: Legacy wallets on Rigor support only \"bech32\" addresses; use a descriptor wallet for \"bech32m\" (v1 RES, not Taproot).")};
     }
 
     LOCK(cs_KeyStore);
@@ -261,8 +261,9 @@ bool LegacyScriptPubKeyMan::TopUpInactiveHDChain(const CKeyID seed_id, int64_t i
     return true;
 }
 
-std::vector<WalletDestination> LegacyScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
+std::vector<WalletDestination> LegacyScriptPubKeyMan::MarkUnusedAddresses(const CScript& script, WalletBatch* batch)
 {
+    (void)batch;
     LOCK(cs_KeyStore);
     std::vector<WalletDestination> result;
     // extract addresses and check if they match with an unused keypool key
@@ -1640,8 +1641,10 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
         if (m_wallet_descriptor.descriptor &&
             IsSingleSlotNativeResDescriptor(*m_wallet_descriptor.descriptor) &&
             m_wallet_descriptor.next_index > 0) {
+            // Persist via TopUpWithDB's WalletBatch. A nested batch here
+            // would deadlock once SQLite write serialization is enabled
+            // (bitcoin/bitcoin#29112) and used to ROLLBACK a concurrent txn.
             m_wallet_descriptor.next_index = 0;
-            WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
         }
     }
     // Returns true if this descriptor supports getting new addresses. Conditions where we may be unable to fetch them (e.g. locked) are caught later
@@ -1659,13 +1662,17 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
 
         const bool single_slot_res = IsSingleSlotNativeResDescriptor(*m_wallet_descriptor.descriptor);
 
-        TopUp();
+        WalletBatch batch(m_storage.GetDatabase());
+        const bool began = batch.TxnBegin();
+        if (!TopUpWithDB(batch)) {
+            return util::Error{_("Error: Keypool ran out, please call keypoolrefill first")};
+        }
 
         // Get the scriptPubKey from the descriptor
         FlatSigningProvider out_keys;
         std::vector<CScript> scripts_temp;
         const int32_t expand_index = single_slot_res ? 0 : m_wallet_descriptor.next_index;
-        if (m_wallet_descriptor.range_end <= m_max_cached_index && !TopUp(1)) {
+        if (m_wallet_descriptor.range_end <= m_max_cached_index && !TopUpWithDB(batch, 1)) {
             // We can't generate anymore keys
             return util::Error{_("Error: Keypool ran out, please call keypoolrefill first")};
         }
@@ -1680,7 +1687,12 @@ util::Result<CTxDestination> DescriptorScriptPubKeyMan::GetNewDestination(const 
         }
         if (!single_slot_res) {
             m_wallet_descriptor.next_index++;
-            WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
+            if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
+                throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+            }
+        }
+        if (began && !batch.TxnCommit()) {
+            throw std::runtime_error(std::string(__func__) + ": committing new destination failed");
         }
         return dest;
     }
@@ -1818,6 +1830,7 @@ std::optional<int32_t> DescriptorScriptPubKeyMan::FindCachedDescriptorIndex(cons
 isminetype DescriptorScriptPubKeyMan::IsMine(const CScript& script) const
 {
     LOCK(cs_desc_man);
+    if (!EntersUtxoSet(script)) return ISMINE_NO;
     const std::optional<int32_t> index = FindCachedDescriptorIndex(script);
     if (!index) return ISMINE_NO;
     // Match GetSigningProvider(script, false): index in cache is not enough if ExpandFromCache fails.
@@ -1920,34 +1933,101 @@ std::map<CKeyID, CKey> DescriptorScriptPubKeyMan::GetKeys() const
     return m_map_keys;
 }
 
-bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
+bool DescriptorScriptPubKeyMan::PrepareDescriptorTopUp(unsigned int size, int32_t& new_range_end, int32_t& expand_from)
 {
-    LOCK(cs_desc_man);
+    AssertLockHeld(cs_desc_man);
+    if (!m_wallet_descriptor.descriptor) {
+        return false;
+    }
+    const int32_t next_before = m_wallet_descriptor.next_index;
+    const int32_t range_end_before = m_wallet_descriptor.range_end;
+    const int32_t range_start_before = m_wallet_descriptor.range_start;
+
     if (m_wallet_descriptor.descriptor &&
         IsSingleSlotNativeResDescriptor(*m_wallet_descriptor.descriptor) &&
         m_wallet_descriptor.next_index > 0) {
+        // Keep next_index reset inside this TopUp txn. Nested WalletBatch
+        // must not be created while another SQLite txn may be open
+        // (bitcoin/bitcoin#29112).
         m_wallet_descriptor.next_index = 0;
-        WalletBatch(m_storage.GetDatabase()).WriteDescriptor(GetID(), m_wallet_descriptor);
-    }
-    unsigned int target_size;
-    if (size > 0) {
-        target_size = size;
-    } else {
-        target_size = m_keypool_size;
     }
 
-    // Calculate the new range_end
-    int32_t new_range_end = std::max(m_wallet_descriptor.next_index + (int32_t)target_size, m_wallet_descriptor.range_end);
+    const unsigned int target_size = size > 0 ? size : static_cast<unsigned int>(m_keypool_size);
+    new_range_end = std::max(m_wallet_descriptor.next_index + static_cast<int32_t>(target_size),
+                             m_wallet_descriptor.range_end);
 
-    // If the descriptor is not ranged, we actually just want to fill the first cache item
-    if (!m_wallet_descriptor.descriptor->IsRange()) {
+    if (m_wallet_descriptor.descriptor && !m_wallet_descriptor.descriptor->IsRange()) {
         new_range_end = 1;
-        m_wallet_descriptor.range_end = 1;
-        m_wallet_descriptor.range_start = 0;
     }
 
+    expand_from = m_max_cached_index + 1;
+    const bool need_expand = expand_from < new_range_end;
+    const bool meta_changed =
+        new_range_end != range_end_before ||
+        m_wallet_descriptor.next_index != next_before ||
+        (!m_wallet_descriptor.descriptor->IsRange() && range_start_before != 0);
+    return need_expand || meta_changed;
+}
+
+bool DescriptorScriptPubKeyMan::ApplyDescriptorTopUp(WalletBatch& batch, int32_t new_range_end, int32_t expand_from)
+{
+    AssertLockHeld(cs_desc_man);
     FlatSigningProvider provider;
     provider.keys = GetKeys();
+
+    const auto topup_start{SteadyClock::now()};
+    const uint256 id = GetID();
+    for (int32_t i = expand_from; i < new_range_end; ++i) {
+        FlatSigningProvider out_keys;
+        std::vector<CScript> scripts_temp;
+        DescriptorCache temp_cache;
+        if (!m_wallet_descriptor.descriptor->ExpandFromCache(i, m_wallet_descriptor.cache, scripts_temp, out_keys)) {
+            if (!m_wallet_descriptor.descriptor->Expand(i, provider, scripts_temp, out_keys, &temp_cache)) return false;
+        }
+        for (const CScript& script : scripts_temp) {
+            m_map_script_pub_keys[script] = i;
+        }
+        for (const auto& pk_pair : out_keys.pubkeys) {
+            const CPubKey& pubkey = pk_pair.second;
+            if (m_map_pubkeys.count(pubkey) != 0) {
+                continue;
+            }
+            m_map_pubkeys[pubkey] = i;
+        }
+        DescriptorCache new_items = m_wallet_descriptor.cache.MergeAndDiff(temp_cache);
+        if (!batch.WriteDescriptorCacheItems(id, new_items)) {
+            throw std::runtime_error(std::string(__func__) + ": writing cache items failed");
+        }
+        m_max_cached_index++;
+    }
+
+    if (m_wallet_descriptor.descriptor && !m_wallet_descriptor.descriptor->IsRange()) {
+        m_wallet_descriptor.range_end = 1;
+        m_wallet_descriptor.range_start = 0;
+    } else {
+        m_wallet_descriptor.range_end = new_range_end;
+    }
+    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
+        throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+    }
+
+    assert(m_wallet_descriptor.range_end - 1 == m_max_cached_index);
+    WalletLogPrintf("TopUp expanded %d keys in %dms (shared_batch=%s)\n",
+                    new_range_end - expand_from,
+                    Ticks<std::chrono::milliseconds>(SteadyClock::now() - topup_start),
+                    batch.HasActiveTxn() ? "yes" : "no");
+    NotifyCanGetAddressesChanged();
+    return true;
+}
+
+bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
+{
+    LOCK(cs_desc_man);
+    int32_t new_range_end = 0;
+    int32_t expand_from = 0;
+    if (!PrepareDescriptorTopUp(size, new_range_end, expand_from)) {
+        return true;
+    }
 
     // Ed25519 descriptors are hardened-only (SLIP-0010): each of the ~1000
     // keypool slots is a private derive + a SQLite cache write. Without a
@@ -1956,58 +2036,29 @@ bool DescriptorScriptPubKeyMan::TopUp(unsigned int size)
     // aborts if we return or throw before commit.
     WalletBatch batch(m_storage.GetDatabase());
     const bool began = batch.TxnBegin();
-    const auto topup_start{SteadyClock::now()};
-    uint256 id = GetID();
-    const int32_t expand_from = m_max_cached_index + 1;
-    for (int32_t i = expand_from; i < new_range_end; ++i) {
-        FlatSigningProvider out_keys;
-        std::vector<CScript> scripts_temp;
-        DescriptorCache temp_cache;
-        // Maybe we have a cached xpub and we can expand from the cache first
-        if (!m_wallet_descriptor.descriptor->ExpandFromCache(i, m_wallet_descriptor.cache, scripts_temp, out_keys)) {
-            if (!m_wallet_descriptor.descriptor->Expand(i, provider, scripts_temp, out_keys, &temp_cache)) return false;
-        }
-        // Add all of the scriptPubKeys to the scriptPubKey set
-        for (const CScript& script : scripts_temp) {
-            m_map_script_pub_keys[script] = i;
-        }
-        for (const auto& pk_pair : out_keys.pubkeys) {
-            const CPubKey& pubkey = pk_pair.second;
-            if (m_map_pubkeys.count(pubkey) != 0) {
-                // We don't need to give an error here.
-                // It doesn't matter which of many valid indexes the pubkey has, we just need an index where we can derive it and it's private key
-                continue;
+    const bool res = ApplyDescriptorTopUp(batch, new_range_end, expand_from);
+    if (began) {
+        if (res) {
+            if (!batch.TxnCommit()) {
+                throw std::runtime_error(std::string(__func__) + ": committing descriptor top-up failed");
             }
-            m_map_pubkeys[pubkey] = i;
         }
-        // Merge and write the cache
-        DescriptorCache new_items = m_wallet_descriptor.cache.MergeAndDiff(temp_cache);
-        if (!batch.WriteDescriptorCacheItems(id, new_items)) {
-            throw std::runtime_error(std::string(__func__) + ": writing cache items failed");
-        }
-        m_max_cached_index++;
     }
-    m_wallet_descriptor.range_end = new_range_end;
-    if (!batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
-        throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
-    }
-    if (began && !batch.TxnCommit()) {
-        throw std::runtime_error(std::string(__func__) + ": committing descriptor top-up failed");
-    }
-
-    // By this point, the cache size should be the size of the entire range
-    assert(m_wallet_descriptor.range_end - 1 == m_max_cached_index);
-
-    WalletLogPrintf("TopUp expanded %d keys in %dms (txn=%s)\n",
-                    new_range_end - expand_from,
-                    Ticks<std::chrono::milliseconds>(SteadyClock::now() - topup_start),
-                    began ? "yes" : "no");
-
-    NotifyCanGetAddressesChanged();
-    return true;
+    return res;
 }
 
-std::vector<WalletDestination> DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script)
+bool DescriptorScriptPubKeyMan::TopUpWithDB(WalletBatch& batch, unsigned int size)
+{
+    LOCK(cs_desc_man);
+    int32_t new_range_end = 0;
+    int32_t expand_from = 0;
+    if (!PrepareDescriptorTopUp(size, new_range_end, expand_from)) {
+        return true;
+    }
+    return ApplyDescriptorTopUp(batch, new_range_end, expand_from);
+}
+
+std::vector<WalletDestination> DescriptorScriptPubKeyMan::MarkUnusedAddresses(const CScript& script, WalletBatch* batch)
 {
     LOCK(cs_desc_man);
     std::vector<WalletDestination> result;
@@ -2015,11 +2066,13 @@ std::vector<WalletDestination> DescriptorScriptPubKeyMan::MarkUnusedAddresses(co
     if (op_index) {
         int32_t index = *op_index;
         if (IsSingleSlotNativeResDescriptor(*m_wallet_descriptor.descriptor)) {
-            if (!TopUp()) {
+            const bool ok = batch ? TopUpWithDB(*batch) : TopUp();
+            if (!ok) {
                 WalletLogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
             }
             return result;
         }
+        bool consumed = false;
         if (index >= m_wallet_descriptor.next_index) {
             WalletLogPrintf("%s: Detected a used keypool item at index %d, mark all keypool items up to this item as used\n", __func__, index);
             auto out_keys = std::make_unique<FlatSigningProvider>();
@@ -2032,10 +2085,29 @@ std::vector<WalletDestination> DescriptorScriptPubKeyMan::MarkUnusedAddresses(co
                 ExtractDestination(scripts_temp[0], dest);
                 result.push_back({dest, std::nullopt});
                 m_wallet_descriptor.next_index++;
+                consumed = true;
             }
         }
-        if (!TopUp()) {
-            WalletLogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
+        // Reused mining/receive scripts do not consume a new keypool index.
+        // Skip TopUp so SQLite is not opened for a no-op WriteDescriptor.
+        if (consumed) {
+            if (batch) {
+                if (!TopUpWithDB(*batch)) {
+                    WalletLogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
+                } else if (!batch->WriteDescriptor(GetID(), m_wallet_descriptor)) {
+                    throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+                }
+            } else {
+                WalletBatch local_batch(m_storage.GetDatabase());
+                const bool began = local_batch.TxnBegin();
+                if (!TopUpWithDB(local_batch)) {
+                    WalletLogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
+                } else if (!local_batch.WriteDescriptor(GetID(), m_wallet_descriptor)) {
+                    throw std::runtime_error(std::string(__func__) + ": writing descriptor failed");
+                } else if (began && !local_batch.TxnCommit()) {
+                    throw std::runtime_error(std::string(__func__) + ": committing descriptor top-up failed");
+                }
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 /**
- * Canonical Explorer routing helpers (TASK-EXPLORER-003).
+ * Canonical Explorer routing helpers.
  * Read-only UI; JSON data via /api/*.
  */
 (function () {

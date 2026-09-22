@@ -1,0 +1,11 @@
+# Local hook. Install: pip install pre-commit && pre-commit install
+# Zero-dependency fallback: git config core.hooksPath scripts/githooks
+repos:
+  - repo: local
+    hooks:
+      - id: rigor-security-scan
+        name: RIGOR security scan
+        entry: python3 scripts/security_scan.py
+        language: system
+        pass_filenames: false
+        always_run: true

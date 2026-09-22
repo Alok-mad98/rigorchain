@@ -78,6 +78,36 @@ Definition input_ok (s : KernelState) (i : KernelInput) : Prop :=
   0 <= res_cap (ks_res s) /\
   res_stock (ks_res s) <= res_cap (ks_res s).
 
+(** Boolean form of [input_ok]. Conjunct order matches the [Prop].
+    This is a reflection of Path B's existing predicate, not a new
+    rule and not a production checker. Dropping one [andb] conjunct
+    makes [input_ok_reflect] unprovable (M130). *)
+Definition input_ok_b (s : KernelState) (i : KernelInput) : bool :=
+  andb (ki_utxo_ok i)
+  (andb (ki_script_ok i)
+  (andb (ki_pow_ok i)
+  (andb (ki_asert_ok i)
+  (andb (Z.leb 0 (ki_incoming i))
+  (andb (Z.leb 0 (ki_outgoing i))
+  (andb (Z.leb 0 (ki_fees i))
+  (andb (Z.leb 0 (ki_burn i))
+  (andb (Z.leb 0 (ki_subsidy i))
+  (andb (Z.leb 0 (ki_res_mint i))
+  (andb (Z.leb (ki_outgoing i + ki_burn i)
+               (oru_stock (ks_oru s) + ki_subsidy i + ki_incoming i))
+  (andb (Z.leb 0 (res_cap (ks_res s)))
+        (Z.leb (res_stock (ks_res s)) (res_cap (ks_res s)))))))))))))).
+
+Theorem input_ok_reflect :
+  forall (s : KernelState) (i : KernelInput),
+    input_ok s i <-> input_ok_b s i = true.
+Proof.
+  intros s i. unfold input_ok, input_ok_b.
+  repeat rewrite andb_true_iff.
+  repeat rewrite Z.leb_le.
+  tauto.
+Qed.
+
 Inductive kernel_apply :
     KernelState -> KernelInput -> KernelState -> Prop :=
 | kapp_fun : forall s i,

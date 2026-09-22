@@ -147,10 +147,11 @@ public:
      * Choose an address to connect to.
      *
      * @param[in] newOnly  Whether to only select addresses from the new table.
+     * @param[in] network  If set, only select addresses from this network.
      * @return    CAddress The record for the selected peer.
      *            seconds  The last time we attempted to connect to that peer.
      */
-    std::pair<CAddress, NodeSeconds> Select(bool newOnly = false) const;
+    std::pair<CAddress, NodeSeconds> Select(bool newOnly = false, std::optional<Network> network = std::nullopt) const;
 
     /**
      * Return all or many randomly selected addresses, optionally by network.

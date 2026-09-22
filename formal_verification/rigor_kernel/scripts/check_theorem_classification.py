@@ -18,6 +18,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from check_mutation_coverage import strip_comments   # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MD = ROOT / "release" / "TheoremClassification.md"
 DEFAULT_ALLOWLIST = ROOT / "release" / "UnclassifiedAllowlist.md"
@@ -30,8 +34,19 @@ ROW = re.compile(
     r"^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|"
 )
 SECTION = re.compile(r"^##+\s+(Category|Class)\s+([ABC])\b", re.I)
-THM = re.compile(r"^(?:Theorem|Corollary)\s+(\w+)", re.M)
-ALLOW_NAME = re.compile(r"^`?([A-Za-z_][A-Za-z0-9_]*)`?\s+\S+\.v\b")
+# The reverse scan used to read `^(?:Theorem|Corollary)`. Two things
+# escaped it: every `Lemma`, and any statement not at column zero. That
+# left 210 of the cone's 713 statements outside classification, the
+# allowlist, and the emitted `Print Assumptions` driver — 69 of them
+# used inside a Category A proof, including `step_of_preserves`,
+# `check_res_reflect` and `wf_wordb_true_iff`. A keyword is not a scope
+# boundary, so the scan reads every statement form.
+THM = re.compile(
+    r"^\s*(?:Theorem|Lemma|Corollary|Remark|Fact|Example|Proposition)\s+"
+    r"([A-Za-z_][A-Za-z0-9_']*)", re.M)
+# Primed names are legal Coq identifiers; dropping the prime here made
+# the gate read `insert_preserves_wf'` as a different, absent name.
+ALLOW_NAME = re.compile(r"^`?([A-Za-z_][A-Za-z0-9_']*)`?\s+\S+\.v\b")
 
 
 def parse_tables(text: str) -> dict[str, list[tuple[str, str]]]:
@@ -160,30 +175,55 @@ def iter_scoped_theorems() -> list[tuple[str, str]]:
         if any(x in p.parts for x in SKIP_PARTS):
             continue
         rel = p.relative_to(ROOT).as_posix()
-        for m in THM.finditer(p.read_text()):
+        for m in THM.finditer(strip_comments(p.read_text())):
             found.append((m.group(1), rel))
     return found
 
 
-def emit_print_assumptions(tables: dict[str, list[tuple[str, str]]], dest: Path) -> int:
+def allowlist_entries(path: Path) -> list[tuple[str, str]]:
+    """(name, relative .v path) rows of the allowlist."""
+    rows: list[tuple[str, str]] = []
+    if not path.is_file():
+        return rows
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith(("#", "|", "<!--")):
+            continue
+        if line.startswith("- "):
+            line = line[2:].strip()
+        m = re.match(r"^`?([A-Za-z_][A-Za-z0-9_']*)`?\s+(\S+\.v)\b", line)
+        if m:
+            rows.append((m.group(1), m.group(2)))
+    return rows
+
+
+def emit_print_assumptions(tables: dict[str, list[tuple[str, str]]], dest: Path,
+                           extra: list[tuple[str, str]] | None = None) -> int:
+    """Driver over every classified statement, plus the allowlist.
+
+    Restricting this to the A/B/C tables left the same 210 statements
+    unchecked that the reverse scan missed, so a `Lemma` a Category A
+    proof depends on was never asked what it assumes. The cone has no
+    axioms today, which is exactly why the check costs nothing to widen
+    and why leaving it narrow proved nothing.
+    """
     lines = [
         "(* generated from release/TheoremClassification.md Category A/B/C *)",
-        "(* Do not edit by hand. *)",
+        "(* plus release/UnclassifiedAllowlist.md. Do not edit by hand. *)",
     ]
     n = 0
     seen = set()
-    for cat in ("A", "B", "C"):
-        for name, rel in tables[cat]:
-            for thm in expand_name(name):
-                if "*" in thm:
-                    continue
-                if thm in seen:
-                    continue
-                seen.add(thm)
-                mod = rel[:-2].replace("/", ".") if rel.endswith(".v") else rel.replace("/", ".")
-                lines.append(f"From RigorKernel Require Import {mod}.")
-                lines.append(f"Print Assumptions {thm}.")
-                n += 1
+    rows = [(name, rel) for cat in ("A", "B", "C") for name, rel in tables[cat]]
+    rows += extra or []
+    for name, rel in rows:
+        for thm in expand_name(name):
+            if "*" in thm or thm in seen:
+                continue
+            seen.add(thm)
+            mod = rel[:-2].replace("/", ".") if rel.endswith(".v") else rel.replace("/", ".")
+            lines.append(f"From RigorKernel Require Import {mod}.")
+            lines.append(f"Print Assumptions {thm}.")
+            n += 1
     dest.write_text("\n".join(lines) + "\n")
     return n
 
@@ -258,7 +298,8 @@ def main() -> int:
     )
 
     if args.emit:
-        n = emit_print_assumptions(tables, args.emit)
+        n = emit_print_assumptions(tables, args.emit,
+                                   allowlist_entries(args.allowlist))
         print(f"PRINT_ASSUMPTIONS_EMITTED={n} path={args.emit}")
     return 0
 

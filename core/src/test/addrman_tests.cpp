@@ -1026,4 +1026,31 @@ BOOST_AUTO_TEST_CASE(addrman_size)
     BOOST_CHECK_EQUAL(addrman->Size(/*net=*/std::nullopt, /*in_new=*/false), 1U);
 }
 
+BOOST_AUTO_TEST_CASE(addrman_select_by_network)
+{
+    auto addrman = std::make_unique<AddrMan>(EMPTY_NETGROUPMAN, DETERMINISTIC, GetCheckRatio(m_node));
+    const CNetAddr source = ResolveIP("252.2.2.2");
+
+    const CAddress ipv4{ResolveService("250.1.1.1", 8333), NODE_NONE};
+    BOOST_CHECK(addrman->Add({ipv4}, source));
+
+    CService i2p_addr;
+    i2p_addr.SetSpecial("UDHDrtrcetjm5sxzskjyr5ztpeszydbh4dpl3pl4utgqqw2v4jna.b32.I2P");
+    const CAddress i2p{i2p_addr, NODE_NONE};
+    BOOST_CHECK(addrman->Add({i2p}, source));
+
+    BOOST_CHECK(!addrman->Select(/*newOnly=*/false, NET_IPV6).first.IsValid());
+
+    for (int i = 0; i < 16; ++i) {
+        const auto selected = addrman->Select(/*newOnly=*/false, NET_IPV4).first;
+        BOOST_CHECK(selected.IsValid());
+        BOOST_CHECK_EQUAL(selected.GetNetwork(), NET_IPV4);
+    }
+    for (int i = 0; i < 16; ++i) {
+        const auto selected = addrman->Select(/*newOnly=*/false, NET_I2P).first;
+        BOOST_CHECK(selected.IsValid());
+        BOOST_CHECK_EQUAL(selected.GetNetwork(), NET_I2P);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -51,7 +51,8 @@
 
   --radius: 4px;
   --card-radius: var(--radius);
-  --max-width: 1120px;
+  --max-width: none;
+  --page-pad-x: clamp(1.25rem, 4vw, 3rem);
   --nav-height: 56px;
   --ease: 150ms ease;
 }
@@ -64,15 +65,23 @@
 
 html {
   background: var(--bg-primary);
+  width: 100%;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  min-height: 100vh;
   font-family: var(--font-sans);
   font-size: var(--text-md);
   line-height: var(--leading);
   background: var(--bg-primary);
   color: var(--text-primary);
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
 a {
@@ -115,6 +124,7 @@ a {
 
 .app-shell {
   min-height: 100vh;
+  width: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
@@ -184,9 +194,9 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: var(--nav-pad-y) var(--nav-pad-x);
-  max-width: var(--max-width);
-  margin: 0 auto;
+  padding: var(--nav-pad-y) var(--page-pad-x);
+  max-width: none;
+  margin: 0;
   width: 100%;
   min-height: var(--nav-height);
 }
@@ -243,15 +253,19 @@ a {
 .nav-links {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   flex: 1;
-  gap: var(--space-5);
+  gap: clamp(1.25rem, 3vw, 4rem);
+  margin-left: clamp(2rem, 6vw, 5rem);
+  min-width: 0;
   flex-wrap: nowrap;
 }
 
 .nav-links a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
   height: 1.5rem;
   color: var(--text-secondary);
   font-size: var(--text-sm);
@@ -288,44 +302,45 @@ a {
   border-radius: var(--radius);
 }
 
+.network-banner {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: var(--space-4) var(--page-pad-x);
+  font-size: var(--text-sm);
+}
+
+.network-banner p {
+  margin: 0;
+}
+
+.network-banner p + p {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+}
+
 .main-content {
   flex: 1;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  max-width: none;
+  margin: 0;
+  padding: var(--space-6) var(--page-pad-x);
   width: 100%;
 }
 
 .site-footer {
   border-top: 1px solid var(--border);
-  padding: var(--space-5) var(--space-4);
+  padding: var(--space-5) var(--page-pad-x);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: var(--bg-secondary);
 }
 
 .site-footer-inner {
-  max-width: var(--max-width);
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  width: 100%;
   display: grid;
   gap: var(--space-3);
-}
-
-.footer-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  align-items: center;
-}
-
-.footer-nav a {
-  color: var(--text-secondary);
-  border-bottom-color: transparent;
-}
-
-.footer-nav a:hover {
-  color: var(--text-primary);
-  border-bottom-color: var(--text-primary);
 }
 
 .footer-muted {
@@ -904,16 +919,9 @@ code {
   border-radius: 2px;
 }
 
-.whitepaper-page {
-  --whitepaper-measure: 48rem;
-}
-
-.whitepaper-page > * {
-  max-width: var(--whitepaper-measure);
+.whitepaper-page,
+.whitepaper-article {
   width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
 }
 
 .whitepaper-banner {
@@ -973,10 +981,8 @@ code {
 
 .card-grid.whitepaper-links {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  justify-content: center;
+  width: 100%;
   margin-bottom: var(--space-5);
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .card-grid.doc-library-grid {
@@ -1004,27 +1010,9 @@ code {
   width: 100%;
 }
 
-@media (min-width: 1920px) {
-  :root {
-    --max-width: 1280px;
-  }
-
-  .whitepaper-page {
-    --whitepaper-measure: 56rem;
-  }
-}
-
 @media (max-width: 1366px) {
-  :root {
-    --max-width: 1000px;
-  }
-
   .hero h1 {
     font-size: 2rem;
-  }
-
-  .whitepaper-page {
-    --whitepaper-measure: 100%;
   }
 
   .card-grid.doc-library-grid {
@@ -1046,10 +1034,13 @@ code {
     align-items: stretch;
     justify-content: flex-start;
     gap: 0;
+    margin-left: 0;
     padding: 0 0 var(--space-2);
   }
 
   .nav-links a {
+    flex: none;
+    justify-content: flex-start;
     height: auto;
     min-height: 2.5rem;
     padding: 0.5rem 0;

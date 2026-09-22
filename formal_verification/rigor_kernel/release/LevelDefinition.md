@@ -68,8 +68,13 @@ The three things added past 4.5:
 
 - **Classification governance over the whole cone.** The reverse scan
   in `scripts/check_theorem_classification.py` used to cover two
-  directories; it now covers all of them, and `Print Assumptions` runs
-  over Category A, B **and** C.
+  directories; it now covers all of them. It also used to read only
+  `Theorem` and `Corollary` at column zero, which left every `Lemma`
+  outside classification — 210 of the cone's 713 statements, 69 of
+  them used inside a Category A proof. It reads every statement form
+  now, and `Print Assumptions` runs over Category A, B, C **and** the
+  allowlist, so the closure check covers the cone rather than the
+  table.
 
 ## What a level explicitly does not mean
 

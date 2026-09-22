@@ -2,12 +2,12 @@ import { Rfc020LivePanel } from "./Rfc020LivePanel";
 import { useSystemState } from "../context/SystemStateContext";
 
 const MINT_ROWS = [
-  { field: "locus", desc: "Body transaction: one OP_CONVERGE destroy + Witness v1 RES" },
-  { field: "predicate", desc: "R · (2²⁵ + h)² ≤ B ≪ 40 at the confirming height h" },
-  { field: "h", desc: "Confirming block height (tip + 1). Not floor(h / 210000)" },
-  { field: "recipient", desc: "The minting transaction, not the miner" },
-  { field: "maturity", desc: "Minted RES is spendable after 100 confirmations" },
-  { field: "cap", desc: "RES supply ≤ 4,194,304 (2²² RES)" },
+  { field: "Where", desc: "A body transaction destroys ORU and may create RES in that same transaction" },
+  { field: "Rule", desc: "Consensus admits the operation. The public parameter sheet is reserved for mainnet" },
+  { field: "Height", desc: "The confirming block height determines which rule instance applies" },
+  { field: "Recipient", desc: "Created RES belongs to the transaction, not to the miner as a subsidy" },
+  { field: "Spendability", desc: "Newly created RES becomes spendable after the protocol confirmation depth" },
+  { field: "Scarcity", desc: "Issuance is bounded. Participation determines how much is actually created" },
 ];
 
 export function ConvergencePanel() {
@@ -21,10 +21,9 @@ export function ConvergencePanel() {
           <h2>How a mint is admitted</h2>
         </header>
         <p className="panel-intro">
-          Convergence destroys ORU via &lt;HASH160&gt; 0xbd and may mint Witness v1 RES in the same
-          body transaction when the confirming-height inequality holds. Display destroy_cost(h) = 1024 ·
-          (2²⁵ + h)² / 2⁵⁰ is ORU destroyed to mint 1 RES; it must not be used as B. R = 0 is a
-          legal plain destroy.
+          RES events display protocol-defined reserve operations. Each event records transparent
+          ORU destruction and corresponding RES creation according to consensus rules. Destroying
+          ORU without creating RES remains possible.
         </p>
         <table className="data-table">
           <thead>

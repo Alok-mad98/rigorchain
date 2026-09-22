@@ -243,6 +243,7 @@ BITCOIN_TESTS += \
   wallet/test/init_tests.cpp \
   wallet/test/rpc_util_tests.cpp \
   wallet/test/scriptpubkeyman_tests.cpp \
+  wallet/test/sqlite_batch_tests.cpp \
   wallet/test/wallet_crypto_tests.cpp \
   wallet/test/wallet_transaction_tests.cpp \
   wallet/test/walletdb_tests.cpp \

@@ -204,7 +204,7 @@ M16 (Z.quot → Z.div on exp_q_boundary)
 |---|---|
 | Requirement | K-A-12 |
 | Coq definition | `asert_next_target`, `exp_q_raw` |
-| Theorem | `negative_time_error_preserved` (A); `exp_q_clamped`, `factor_range` (A); `time_error_direction_preserved` (A). `pow_asert_correctness` is Category B function-ness only |
+| Theorem | `negative_time_error_preserved` (A); `exp_q_clamped`, `factor_range` (A); `time_error_direction_preserved` (A). `pow_asert_correctness` is Category C, function-ness only |
 | Proof file | `ASERTModel.v`, `ASERTCorrectness.v`, `ASERTBoundary.v` |
 | Validator | `check_asert` |
 | Mutation | M5, M16 |

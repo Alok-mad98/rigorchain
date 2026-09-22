@@ -27,18 +27,16 @@ export function PlaceholderPage() {
     <div className="page">
       <SubNav />
       <div className="placeholder-banner" role="status">
-        Placeholder for visual layout. Existing modules are preserved. This page is not a consensus
-        authority.
+        This section is reserved. It is not a consensus authority.
       </div>
       <header className="page-header">
-        <p className="tag">{node.preservation}</p>
         <h1>{node.title}</h1>
         <p className="muted">{node.purpose}</p>
       </header>
       <section className="card prose-section">
         <p>
-          Official portal section under <strong>{section?.title ?? "RIGOR"}</strong>. Content will
-          be filled during UI refinement. No existing website code was removed to add this route.
+          Public section under <strong>{section?.title ?? "RIGOR"}</strong>. Material for this page
+          will be published with the public documentation set.
         </p>
         {node.planned && node.planned.length > 0 && (
           <>

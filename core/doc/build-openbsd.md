@@ -29,30 +29,12 @@ git clone https://github.com/arda/arda.git
 
 It is not necessary to build wallet functionality to run either `rigord` or `rigor-qt`.
 
-###### Descriptor Wallet Support
+###### Wallet Support
 
-`sqlite3` is required to support [descriptor wallets](./descriptors.md).
+`sqlite3` is required. RIGOR wallets are SQLite descriptor wallets only; Berkeley DB is not supported.
 
 ``` bash
 pkg_add sqlite3
-```
-
-###### Legacy Wallet Support
-BerkeleyDB is only required to support legacy wallets.
-
-It is recommended to use Berkeley DB 4.8. You cannot use the BerkeleyDB library
-from ports. However you can build it yourself, [using depends](../depends).
-
-```bash
-gmake -C depends NO_BOOST=1 NO_LIBEVENT=1 NO_QT=1 NO_SQLITE=1 NO_NATPMP=1 NO_UPNP=1 NO_ZMQ=1 NO_USDT=1
-...
-to: /path/to/arda/depends/x86_64-unknown-openbsd
-```
-
-Then set `BDB_PREFIX`:
-
-```bash
-export BDB_PREFIX="/path/to/arda/depends/x86_64-unknown-openbsd"
 ```
 
 #### GUI Dependencies
@@ -82,21 +64,11 @@ export AUTOMAKE_VERSION=1.16
 
 There are many ways to configure Rigor Core, here are a few common examples:
 
-##### Descriptor Wallet and GUI:
-This enables the GUI and descriptor wallet support, assuming `sqlite` and `qt5` are installed.
+##### SQLite Wallet and GUI:
+This enables the GUI and SQLite wallet support, assuming `sqlite` and `qt5` are installed.
 
 ```bash
-./configure MAKE=gmake
-```
-
-##### Descriptor & Legacy Wallet. No GUI:
-This enables support for both wallet types and disables the GUI:
-
-```bash
-./configure --with-gui=no \
-    BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" \
-    BDB_CFLAGS="-I${BDB_PREFIX}/include" \
-    MAKE=gmake
+./configure --without-bdb MAKE=gmake
 ```
 
 ### 2. Compile

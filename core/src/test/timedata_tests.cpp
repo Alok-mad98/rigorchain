@@ -75,6 +75,11 @@ BOOST_AUTO_TEST_CASE(addtimedata)
     // Part 2: Test positive and negative medians by adding more offsets
     MultiAddTimeData(4, 100); // filter size 9
     BOOST_CHECK_EQUAL(GetTimeOffset(), 100);
+    {
+        const auto adjusted = GetAdjustedTime();
+        const auto now = NodeClock::now();
+        BOOST_CHECK(adjusted <= now + std::chrono::seconds{1} && now <= adjusted + std::chrono::seconds{1});
+    }
     MultiAddTimeData(10, -100); //filter size 19
     BOOST_CHECK_EQUAL(GetTimeOffset(), -100);
 

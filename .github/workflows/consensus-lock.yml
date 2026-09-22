@@ -1,0 +1,48 @@
+# consensus-lock
+
+# Identity + predicate-shape only. Cheap merge guards. No compile, no Coq, no apt.
+# Publication slogans are a separate path-filtered workflow so docs/web edits
+# do not run the integer vectors.
+# Not a fourth consensus lock. Not a replacement for freeze-gate or Coq CI.
+name: consensus-lock
+
+on:
+  pull_request:
+    paths:
+      - "core/src/consensus/res_issuance.h"
+      - "core/src/consensus/rigor_consensus_lock.h"
+      - "core/src/consensus/tx_verify.cpp"
+      - "core/src/consensus/tx_verify.h"
+      - "tools/check-convergence-identity.py"
+      - "tools/check-convergence-predicate-shape.py"
+      - "tools/run-consensus-lock.sh"
+      - ".github/workflows/consensus-lock.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "core/src/consensus/res_issuance.h"
+      - "core/src/consensus/rigor_consensus_lock.h"
+      - "core/src/consensus/tx_verify.cpp"
+      - "core/src/consensus/tx_verify.h"
+      - "tools/check-convergence-identity.py"
+      - "tools/check-convergence-predicate-shape.py"
+      - "tools/run-consensus-lock.sh"
+      - ".github/workflows/consensus-lock.yml"
+
+jobs:
+  convergence_identity_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Mathematical identity vector test
+        run: python3 tools/check-convergence-identity.py
+
+  convergence_predicate_shape_check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v6
+      - name: Predicate arithmetic-shape lock
+        run: python3 tools/check-convergence-predicate-shape.py

@@ -1,6 +1,6 @@
-# Appendix — Frozen Parameters and Engineering Index
+# Appendix — Protocol Constants and Engineering Reference
 
-Chapters 1–9 are the public argument. This appendix is lookup. It
+Chapters 1–12 are the public argument. This appendix is lookup. It
 does not add a claim, rewrite `core/src/`, or write a day’s theorem
 count as a protocol parameter.
 
@@ -18,10 +18,10 @@ lives in Chapter 8 §8.5. This appendix does not repeat it.
 | ORU subsidy | `R(0) = 0`; 128 ORU per block for `h ≥ 1`; no halving |
 | `ORU_MIN_BLOCK_SUBSIDY` | 128 ORU |
 | Mint predicate | `R > 0 → R · (2²⁵ + h)² ≤ B << 40` |
-| Display form | `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES |
+| Display form | `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES (`2⁵⁰` = curve normalization denominator, not a consensus shift) |
 | Genesis whole-coin cost | 1024 ORU / 1 RES (`destroy_cost(0) = 102400000000` atoms) |
 | `RES_DESTROY_POLE` | `2²⁵ = 33,554,432` |
-| `RES_DESTROY_SHIFT` | `40 = 50 − log₂(1024)` |
+| `RES_DESTROY_SHIFT` | `40 = 50 − log₂(1024)` (integer consensus scaling factor `B << 40`; not the `destroy_cost` denominator) |
 | Derived ceiling | `2⁷ / 2¹⁰ · 2²⁵ = 2²² = 4,194,304` RES (`419430400000000` atoms) |
 | Cumulative ceiling | `cumulative(h) = 2²² · h / (h + 2²⁵)` |
 | `RES_COIN` | 100000000 atoms per whole coin |
@@ -30,7 +30,7 @@ lives in Chapter 8 §8.5. This appendix does not repeat it.
 | RFC-018 | Half of RES-transfer ORU fees unclaimable: `Σ floor(fee(tx) / 2)` |
 | Reverse | RES → ORU forbidden |
 
-Probes (atoms, display; consensus uses the inequality):
+Probes (atoms, display helper; display rounding/floor do not enter consensus; consensus uses the inequality):
 
 | Height | `destroy_cost(h)` atoms | ORU / 1 RES |
 |-------:|------------------------:|------------:|
@@ -79,6 +79,7 @@ Coinbase states this block’s height and pays ORU only.
 | ASERT half-life | 43200 s |
 | ASERT clamp | ±12.5% |
 | Difficulty | not mint cost; does not enter the predicate |
+| Height | block-count index; ASERT does not bind `h` to wall-clock time |
 
 ---
 
@@ -127,10 +128,15 @@ rules.
 | Term | Official meaning |
 |------|------------------|
 | ORU | Medium-of-exchange asset. Subsidy 128 after genesis |
-| RES | Store-of-value asset. Derived ceiling `2²²` RES; not mined |
+| RES | Designed store-of-value asset within the protocol. Derived ceiling `2²²` RES; not mined |
 | Convergence | Same-tx `OP_CONVERGE` destroy of ORU; MAY mint Witness v1 RES under the predicate |
-| `destroy_cost(h)` | Display mint cost. Consensus computes the inequality, not this quotient |
-| OpuHash | Live proof-of-work hash |
+| `destroy_cost(h)` | Display mint cost. `2⁵⁰` is the curve normalization denominator. Consensus computes `B << 40`, not this quotient. Display rounding/floor do not enter consensus |
+| OpuHash | Live proof-of-work validity hash (not block identity) |
 | Consensus fingerprint | Observational identity over public fields. Does not accept or reject blocks |
 
-Lookup ends here. The claims are in Chapters 1–9.
+Lookup ends here. The claims are in Chapters 1–12.
+
+Algebraic derivation of the mint identity is Appendix D:
+[`../RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](../RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md).
+That Mathematical Design Note is explanatory documentation. It does
+not introduce new consensus rules.

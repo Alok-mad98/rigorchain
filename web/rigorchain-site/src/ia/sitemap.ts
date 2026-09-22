@@ -1,7 +1,7 @@
 /**
  * Official RIGOR website information architecture.
  * Used by navigation, hub pages, and placeholders.
- * Existing live pages are KEEP. New nested routes are PLACEHOLDER until filled.
+ * Phase 1 Step 4: primary navigation and section SubNav data.
  */
 
 export type Preservation = "KEEP" | "PLACEHOLDER" | "WIRED";
@@ -24,127 +24,140 @@ export type SiteSection = {
 
 export const PRIMARY_NAV = [
   { to: "/", label: "Home" },
-  { to: "/download", label: "Download" },
-  { to: "/mining", label: "Mining" },
-  { to: "/explorer", label: "Explorer" },
+  { to: "/protocol", label: "Protocol" },
   { to: "/documentation", label: "Documentation" },
-  { to: "/about", label: "About" },
+  { to: "/use", label: "Use" },
+  { to: "/explorer", label: "Explorer" },
 ] as const;
 
 export const SECTIONS: SiteSection[] = [
   {
-    id: "download",
-    path: "/download",
-    title: "Download",
+    id: "protocol",
+    path: "/protocol",
+    title: "Protocol",
     children: [
       {
-        path: "/download/windows-wallet",
-        title: "Windows Wallet",
-        purpose: "Official Windows Qt wallet installer entry.",
-        preservation: "PLACEHOLDER",
-        planned: ["Checksummed Windows installer", "SHA256 verification steps", "First-run link to Wallet"],
-      },
-      {
-        path: "/download/linux-wallet",
-        title: "Linux Wallet",
-        purpose: "Official Linux wallet / node package entry.",
-        preservation: "PLACEHOLDER",
-        planned: ["tarball / package links", "Checksum verification", "CLI companion"],
-      },
-      {
-        path: "/download/cli",
-        title: "CLI Tools",
-        purpose: "rigord and rigor-cli download and usage entry.",
-        preservation: "PLACEHOLDER",
-        planned: ["rigord", "rigor-cli", "getblockhash / gettransaction examples"],
-      },
-      {
-        path: "/download/miner",
-        title: "Miner",
-        purpose: "Windows and Linux miner artifacts for RIGOR PoW.",
-        preservation: "PLACEHOLDER",
-        planned: ["Windows miner package", "Pool connection defaults", "Link to Mining guide"],
-      },
-    ],
-  },
-  {
-    id: "wallet",
-    path: "/wallet",
-    title: "Wallet",
-    children: [
-      {
-        path: "/wallet/overview",
-        title: "Wallet Overview",
-        purpose: "Spending tool, not a consensus authority. How to obtain a TXID.",
+        path: "/protocol/overview",
+        title: "Overview",
+        purpose: "Protocol identity and network constants.",
         preservation: "KEEP",
       },
       {
-        path: "/wallet/oru",
-        title: "ORU",
-        purpose: "ORU as execution and fee resource; R(0)=0 then 128 ORU/block forever.",
-        preservation: "WIRED",
-      },
-      {
-        path: "/wallet/maturity",
-        title: "Maturity",
-        purpose: "How confirmation and maturity are shown to users.",
+        path: "/protocol/architecture",
+        title: "Architecture",
+        purpose: "Public protocol architecture overview.",
         preservation: "KEEP",
       },
       {
-        path: "/wallet/convergence",
+        path: "/protocol/consensus",
+        title: "Consensus",
+        purpose: "Consensus index. Not a specification.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/protocol/assets",
+        title: "Native Assets",
+        purpose: "ORU and RES monetary roles.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/protocol/script-as-asset",
+        title: "Script-as-Asset",
+        purpose: "Script-defined asset identity.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/protocol/convergence",
         title: "Convergence",
-        purpose: "Destroy ORU to mint RES at confirming height; live getconvergencestatus panel.",
-        preservation: "WIRED",
+        purpose: "Convergence protocol entry.",
+        preservation: "KEEP",
       },
       {
-        path: "/wallet/res",
-        title: "RES",
-        purpose: "RES mint lifecycle as a distinct native asset.",
-        preservation: "WIRED",
+        path: "/protocol/proof-of-work",
+        title: "Proof-of-Work",
+        purpose: "OpuHash and ASERT. RES is not a PoW reward.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/protocol/verification-boundary",
+        title: "Formal Verification",
+        purpose: "Public verification overview of selected consensus properties.",
+        preservation: "KEEP",
       },
     ],
   },
   {
-    id: "mining",
-    path: "/mining",
-    title: "Mining",
+    id: "documentation",
+    path: "/documentation",
+    title: "Documentation",
     children: [
       {
-        path: "/mining/overview",
-        title: "Mining Overview",
-        purpose: "SOLO GBT against local rigord. RES allocation is not a pool policy.",
+        path: "/documentation/architecture",
+        title: "Architecture",
+        purpose: "Implementation and technical architecture documentation entry.",
+        preservation: "PLACEHOLDER",
+      },
+      {
+        path: "/documentation/protocol",
+        title: "Protocol",
+        purpose: "RFC and specification document index.",
+        preservation: "PLACEHOLDER",
+      },
+      {
+        path: "/documentation/developer",
+        title: "Developer",
+        purpose: "Developer resources.",
+        preservation: "PLACEHOLDER",
+      },
+      {
+        path: "/documentation/verification",
+        title: "Verification",
+        purpose: "Verification resources. Links to /protocol/verification-boundary.",
         preservation: "KEEP",
       },
       {
-        path: "/mining/windows",
-        title: "Windows SOLO Guide",
-        purpose: "How a new miner starts on Windows: local GBT and submitblock.",
-        preservation: "PLACEHOLDER",
-        planned: [
-          "Download miner",
-          "Wallet rg1q address",
-          "Local rigord getblocktemplate",
-          "submitblock",
-          "Verify a found block",
-        ],
+        path: "/documentation/security",
+        title: "Security",
+        purpose: "Security architecture documentation.",
+        preservation: "KEEP",
       },
       {
-        path: "/mining/pool",
-        title: "Quarantined pool (not the SOLO path)",
-        purpose: "Optional read-only pool observer. Not the shipped SOLO mining path.",
+        path: "/documentation/user",
+        title: "User",
+        purpose: "User guides.",
         preservation: "PLACEHOLDER",
-        planned: [
-          "Not used for SOLO mining",
-          "Hashrate / workers (display only)",
-          "Not a consensus authority",
-        ],
+      },
+    ],
+  },
+  {
+    id: "use",
+    path: "/use",
+    title: "Use",
+    children: [
+      {
+        path: "/use/download",
+        title: "Download",
+        purpose: "Wallet, node, and miner packages.",
+        preservation: "KEEP",
       },
       {
-        path: "/mining/economics",
-        title: "Mining Economics",
-        purpose: "ORU subsidy schedule and why RES is not mined.",
-        preservation: "PLACEHOLDER",
-        planned: ["128 ORU/block forever", "No premine", "RES via Convergence only"],
+        path: "/use/wallet",
+        title: "Wallet",
+        purpose: "Spending tool, not a consensus authority.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/use/faucet",
+        title: "Faucet",
+        purpose:
+          "TESTNET user/product service. Explainer only. Claim UI remains at /faucet/. Not a protocol rule.",
+        preservation: "KEEP",
+      },
+      {
+        path: "/use/mining",
+        title: "Mining",
+        purpose: "How to mine: SOLO GBT, miner download, operator instructions.",
+        preservation: "KEEP",
       },
     ],
   },
@@ -155,7 +168,7 @@ export const SECTIONS: SiteSection[] = [
     children: [
       {
         path: "/explorer/blocks",
-        title: "Block Explorer",
+        title: "Blocks",
         purpose: "Viewer for blocks. Not a validator.",
         preservation: "PLACEHOLDER",
         explorerPath: "/blocks",
@@ -169,93 +182,17 @@ export const SECTIONS: SiteSection[] = [
       },
       {
         path: "/explorer/res",
-        title: "RES Statistics",
+        title: "RES",
         purpose: "Indexed RES amounts and mint events.",
         preservation: "PLACEHOLDER",
         explorerPath: "/res.html",
       },
       {
-        path: "/explorer/fingerprint",
-        title: "Consensus Fingerprint",
-        purpose: "Observational Draw Fingerprint display — not a verdict.",
-        preservation: "PLACEHOLDER",
-        explorerPath: "/",
-      },
-      {
         path: "/explorer/status",
-        title: "Network Status",
+        title: "Status",
         purpose: "Explorer status dashboard (height, RPC, indexer).",
         preservation: "PLACEHOLDER",
         explorerPath: "/",
-      },
-    ],
-  },
-  {
-    id: "documentation",
-    path: "/documentation",
-    title: "Documentation",
-    children: [
-      {
-        path: "/documentation/whitepaper",
-        title: "Whitepaper",
-        purpose:
-          "Official RIGOR protocol whitepaper: issuance, dual assets, Coq kernel boundary.",
-        preservation: "KEEP",
-      },
-      {
-        path: "/documentation/monetary-policy",
-        title: "Deterministic Reserve Issuance",
-        purpose:
-          "RES schedule W(k), supply bound, cost floor. RES is not mined. equivalence_claimed = false.",
-        preservation: "KEEP",
-      },
-      {
-        path: "/documentation/formal-verification",
-        title: "Formal Verification",
-        purpose:
-          "Formally verified critical consensus invariants inside a Coq kernel model. cpp_equivalence = false. Maturity 4.9.",
-        preservation: "KEEP",
-      },
-      {
-        path: "/documentation/user-guide",
-        title: "User Guide",
-        purpose: "How to download, run a wallet, mine, and verify.",
-        preservation: "PLACEHOLDER",
-        planned: ["New user path", "Wallet first-run", "Mining start", "Independent verify"],
-      },
-      {
-        path: "/documentation/developer-guide",
-        title: "Developer Guide",
-        purpose: "Build, RPC, explorer API, verifier library.",
-        preservation: "PLACEHOLDER",
-        planned: ["Repo map", "Read-only RPC", "No consensus edits from this site"],
-      },
-      {
-        path: "/documentation/architecture",
-        title: "Architecture",
-        purpose: "Three-layer model and official portal structure.",
-        preservation: "PLACEHOLDER",
-        planned: ["docs/architecture/ARCHITECTURE.md", "Website IA", "Explorer vs verifier split"],
-      },
-      {
-        path: "/documentation/rfc",
-        title: "RFC Overview",
-        purpose: "Index of explanatory RFCs. Production consensus is core/src/.",
-        preservation: "PLACEHOLDER",
-        planned: ["RFC-020 issuance", "RFC-000 constitution", "RFC-008 mathematics", "historical RFC-001 / RFC-014 / RFC-017 / RFC-019"],
-      },
-      {
-        path: "/documentation/security",
-        title: "Security Architecture",
-        purpose: "Security through minimalism: UTXO verification and dual native assets.",
-        preservation: "KEEP",
-      },
-      {
-        path: "/documentation/security/minimal-script-architecture",
-        title: "Minimal Script Architecture",
-        purpose:
-          "Bitcoin UTXO foundation, script-defined asset identity, restricted witness families. Not a programmable VM.",
-        preservation: "KEEP",
       },
     ],
   },

@@ -11,7 +11,10 @@ invariants (Coq consensus kernel only).
 ## git status
 
 ```
-(clean / no matching paths in index)
+ M formal_verification/rigor_kernel/release/FinalProofInventory.md
+ M formal_verification/rigor_kernel/release/SourceManifest.sha256
+ M formal_verification/rigor_kernel/release/UnclassifiedAllowlist.md
+ M formal_verification/rigor_kernel/release/VersionManifest.md
 ```
 
 ## git ls-files formal_verification/rigor_kernel
@@ -73,6 +76,7 @@ formal_verification/rigor_kernel/Kernel/CryptoAssumptions.v
 formal_verification/rigor_kernel/Kernel/EconomicInvariant/Economic.v
 formal_verification/rigor_kernel/Kernel/ExtractionBoundary.v
 formal_verification/rigor_kernel/Kernel/InvariantBundle.v
+formal_verification/rigor_kernel/Kernel/KernelInputBridge.v
 formal_verification/rigor_kernel/Kernel/KernelInterface.v
 formal_verification/rigor_kernel/Kernel/KernelSoundness.v
 formal_verification/rigor_kernel/Kernel/ORUValidator.v
@@ -353,17 +357,21 @@ formal_verification/rigor_kernel/mutation/kill_set.sh
 formal_verification/rigor_kernel/mutation/lib.sh
 formal_verification/rigor_kernel/mutation/mutate_asert_numeric.sh
 formal_verification/rigor_kernel/mutation/mutate_block_proof.sh
+formal_verification/rigor_kernel/mutation/mutate_chain_and_witnesses.sh
 formal_verification/rigor_kernel/mutation/mutate_chain_induction.sh
 formal_verification/rigor_kernel/mutation/mutate_classifier_partition.sh
+formal_verification/rigor_kernel/mutation/mutate_classifier_shapes.sh
 formal_verification/rigor_kernel/mutation/mutate_completeness.sh
 formal_verification/rigor_kernel/mutation/mutate_concrete_refinement.sh
 formal_verification/rigor_kernel/mutation/mutate_coverage_closure.sh
 formal_verification/rigor_kernel/mutation/mutate_execution_boundary.sh
 formal_verification/rigor_kernel/mutation/mutate_extraction_hardening.sh
 formal_verification/rigor_kernel/mutation/mutate_fork_choice.sh
+formal_verification/rigor_kernel/mutation/mutate_integer_model.sh
 formal_verification/rigor_kernel/mutation/mutate_kernel_core.sh
 formal_verification/rigor_kernel/mutation/mutate_kernel_transition.sh
 formal_verification/rigor_kernel/mutation/mutate_maturity.sh
+formal_verification/rigor_kernel/mutation/mutate_non_vacuity.sh
 formal_verification/rigor_kernel/mutation/mutate_oru.sh
 formal_verification/rigor_kernel/mutation/mutate_oru_domain.sh
 formal_verification/rigor_kernel/mutation/mutate_pow.sh
@@ -375,7 +383,10 @@ formal_verification/rigor_kernel/mutation/mutate_rfc020.sh
 formal_verification/rigor_kernel/mutation/mutate_runtime_boundary.sh
 formal_verification/rigor_kernel/mutation/mutate_script_spend.sh
 formal_verification/rigor_kernel/mutation/mutate_supply.sh
+formal_verification/rigor_kernel/mutation/mutate_surface_translation.sh
 formal_verification/rigor_kernel/mutation/mutate_utxo.sh
+formal_verification/rigor_kernel/mutation/mutate_validator_soundness.sh
+formal_verification/rigor_kernel/mutation/reconcile_kill_sets.py
 formal_verification/rigor_kernel/mutation/resolve_failure.py
 formal_verification/rigor_kernel/mutation/run_all_mutations.sh
 formal_verification/rigor_kernel/proofs/KernelTransitionSoundness.v
@@ -394,6 +405,7 @@ formal_verification/rigor_kernel/proofs/UTXO_Soundness/UTXOTransitionSoundness.v
 formal_verification/rigor_kernel/release/AUDIT_PACKAGE.md
 formal_verification/rigor_kernel/release/AuditorChecklist.md
 formal_verification/rigor_kernel/release/BinaryArtifactIndex.md
+formal_verification/rigor_kernel/release/CategoryBCoverageDebt.md
 formal_verification/rigor_kernel/release/CertiCoqCompCertPlan.md
 formal_verification/rigor_kernel/release/CertiCoqToolchain.md
 formal_verification/rigor_kernel/release/CompilerBoundary.md
@@ -416,6 +428,7 @@ formal_verification/rigor_kernel/release/KernelExecutionBoundaryReport.md
 formal_verification/rigor_kernel/release/KernelInventory.md
 formal_verification/rigor_kernel/release/LevelDefinition.md
 formal_verification/rigor_kernel/release/MutationCompletenessAudit.md
+formal_verification/rigor_kernel/release/NullContentInventory.md
 formal_verification/rigor_kernel/release/OpenProperties.md
 formal_verification/rigor_kernel/release/P0-119-DecisionReport.md
 formal_verification/rigor_kernel/release/ProofEvidenceIndex.md
@@ -449,8 +462,11 @@ formal_verification/rigor_kernel/release/independent_audit_replay.sh
 formal_verification/rigor_kernel/release/inventory_metadata.json
 formal_verification/rigor_kernel/release/source_manifest_common.py
 formal_verification/rigor_kernel/run_kernel_critical.sh
+formal_verification/rigor_kernel/scripts/check_category_b_coverage.py
+formal_verification/rigor_kernel/scripts/check_forbidden_tokens.py
 formal_verification/rigor_kernel/scripts/check_mutation_coverage.py
 formal_verification/rigor_kernel/scripts/check_no_mutation_switches.py
+formal_verification/rigor_kernel/scripts/check_null_content.py
 formal_verification/rigor_kernel/scripts/check_theorem_classification.py
 formal_verification/rigor_kernel/scripts/diff_oracle.py
 formal_verification/rigor_kernel/scripts/diff_verify.sh
@@ -462,21 +478,14 @@ formal_verification/rigor_kernel/verified_compiler/README.md
 formal_verification/rigor_kernel/verified_compiler/fragment_checker.c
 ```
 
-## Clone reproducibility
+`TRACKED_PROOF_SOURCES=TRUE`
+`HEAD=38356df9362324fcdb4a3a253a1397cb12fe1a24`
+`worktree_v=121` `tracked_cone_v=218`
 
-TRACKED_PROOF_SOURCES=TRUE
-Git HEAD `eebe49f9e97e23651ce3fd91b87b595ef4261492` contains the cone `.v` files.
-An auditor `git clone` of this commit can obtain the proofs.
+## Files
 
-- source `.v` files in worktree: 120
-- tracked cone `.v` files: 217
-- markdown files: 75
-- scripts: 42
-
-## File inventory (worktree)
-
-| Kind | Path | sha256 |
-|---|---|---|
+| kind | path | sha256 |
+|------|------|--------|
 | source | `Audit/KernelAssumptions.v` | `a8a07509ffbb3e47561364bd573801659169ff59b0ab01de5f628c0a4891cf95` |
 | source | `Audit/KernelNonClaims.v` | `ab4d559fe1f90cb87112d477aa4cf3f61de2d7c30e70707ba43fd9174083eed1` |
 | source | `Audit/Task32AFlags.v` | `56660f4ce7f67131c2d419f076db3c57654167ec0914149433fee71837cb51b8` |
@@ -513,7 +522,7 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `Economic/UTXOEconomicBridge.v` | `1aebc2b66eb490440d34b61c05477fbc8558d911ba7d4e0ed8b9530adb3b58f0` |
 | source | `Execution/KernelMachine.v` | `c1caefdc7741428901305d18d3b8446ba2e60f9fb7f84080662692d3afae3449` |
 | source | `ExecutionBoundary/ConcreteExecutionState.v` | `99a143f4cc44c4c44e6a580665888758461d94be0ca440e6012a02d1f78ed089` |
-| source | `ExecutionBoundary/ExecutableInvariance.v` | `01031cb4c0ab9d32fd7dd06d9291bd4907e7bc30c7aef7e42520c8c437f28cbc` |
+| source | `ExecutionBoundary/ExecutableInvariance.v` | `5969a09ee4b39130bccdaee96e1a08334b73e1e64c6b126c57af857c5346b4b1` |
 | source | `ExecutionBoundary/ExecutableTransition.v` | `77dd6348f4f425dc2cb456c692fb0eb5078d9e642db36e185001781312f9d85f` |
 | source | `ExtractionBoundary/ExtractionInterface.v` | `fbf04eb63ddca2c942ec76cd97ed1b99eebae5341e73985e258cee19724df95a` |
 | source | `ExtractionBoundary/ExtractionModel.v` | `2fec974df78d723a056ae7826ddd6de7b3d004d56d8f21c34b6c8acda7479d92` |
@@ -522,30 +531,31 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `Kernel/ASERTValidator.v` | `3623aad41f82efb3f615f27374b284e9895d371ebb3f508cc0bbaf4078541ef5` |
 | source | `Kernel/Block/Acceptance.v` | `08abeec16b58a38c36d02e88ac99618e9a7fac1d4e80a9bcf12c3b7e2a90fbee` |
 | source | `Kernel/Block/Types.v` | `9f5c6d9a8a4883cd0314abb04e20bc3fffcfe2758df4eee552dff4f3c8996888` |
-| source | `Kernel/Chain/ChainRefinement.v` | `77a8ccd099e3ebe23b8e5d77ec69a96c4f0692f119a92782154b8cb614c478ce` |
-| source | `Kernel/Chain/ChainTransition.v` | `c6a2f26a97fc577c02f1a85660809d0e1639edb6f716e3b19abe67986335a96c` |
+| source | `Kernel/Chain/ChainRefinement.v` | `07d7e5a7f4b20543792367bfa5c0b68748a44bd5c5a8b9fdc9d0471552c47a43` |
+| source | `Kernel/Chain/ChainTransition.v` | `782ae489147b5c874c20941306c8777f57798c3d16120f73f8a6e57f5e22af22` |
 | source | `Kernel/Chain/ForkChoice.v` | `73cf631276dc4ffc25bbb1d07e70087a2e47ac431d6d7d5119a912d35f3eb8de` |
 | source | `Kernel/Chain/ReorgReplay.v` | `d6e4c82ef31b62d757e82d969946b4253eaf07431d11fa617876b7627f9099cb` |
 | source | `Kernel/CryptoAssumptions.v` | `ed8c8eba7cf9a798d5b2251046ab5535424f713bf97b78b62db7aca6d4702a8f` |
 | source | `Kernel/EconomicInvariant/Economic.v` | `d5affa8ea8dffd3de7a48836e81e6d2503924e8c6468145e823a251971f7174e` |
 | source | `Kernel/ExtractionBoundary.v` | `b63a1935891f934e95690066715fbbb9b21536b91ea2bc891333759596d867bd` |
 | source | `Kernel/InvariantBundle.v` | `36a34bdeca7413bd5a0890980d6e5569c0af963d0a038b8af039d52c221ef366` |
+| source | `Kernel/KernelInputBridge.v` | `7b35af6a37263cd7f18dc7f9805877b2136387f772987950cafdbf7bd55ad11b` |
 | source | `Kernel/KernelInterface.v` | `179161f2a2328aaa0ecf0f448a190e7a5036e211453f1ee36bd7686e718e654b` |
-| source | `Kernel/KernelSoundness.v` | `73173a4b0556467aa219f54ffc2dd76ff19749c5d1954f7ee609c7c2578d4846` |
+| source | `Kernel/KernelSoundness.v` | `946c929bde1bbc8e271af5e9824b813ca5c6b661dd4189c070de1c0c45386947` |
 | source | `Kernel/ORUValidator.v` | `b9ccae6d20dbbfeecc3d732001171e679280ebac3c20869ab38824cb2fccd487` |
 | source | `Kernel/PowValidator.v` | `477c3abf46720f6d044f00f81bcfcd5f582db4929c2894d9f49be0f48a92cbf7` |
-| source | `Kernel/RESValidator.v` | `a52cd2ce5d78508a9d0f0523e5686801df1e66c3efc105993e59787213dceaf3` |
+| source | `Kernel/RESValidator.v` | `b7f44e00c966ceb43e7209052cfbcab522ed5aeb7c5db660fd6fd7041abe54f5` |
 | source | `Kernel/RefinementBoundary.v` | `35e551cb04ea6180d0df3df7ac54bb3895d6cd31355ebc2e553676d7ed33a664` |
 | source | `Kernel/SafetyExtensions.v` | `ca4182fe2743af583cbdc8e0526160af742a4463a8e68f242a30bd8492ab8fb8` |
 | source | `Kernel/ScriptValidator.v` | `be8c99ad08ef90425bfb53c021704c4dcefb09e091d15862d59ea2a2de2f3660` |
-| source | `Kernel/SerializationBoundary.v` | `82aed4a87cb3d22bbc562a317b24a33f30cf3ce8bb2fbcf7d634ff5345333f8d` |
-| source | `Kernel/SurfaceCorrespondence.v` | `3887238b99d1de4ffc24cbf1b0afc5d1c3048e0eb82a54978bae97ed767e1324` |
+| source | `Kernel/SerializationBoundary.v` | `44503cb9d2f3ad4ec213dca3a753bfe72f2aa7fee0c60647894a27c2849a099c` |
+| source | `Kernel/SurfaceCorrespondence.v` | `f030a05f972a0e8aa06dd82487b2ce2865e8a59bd39a1f4d8ceab1bc7ee15a0e` |
 | source | `Kernel/Transaction/Types.v` | `d647e89c3cb844e2a356f8623cb8855866e3d2c6253498770cd3846cd38128e8` |
 | source | `Kernel/Transaction/Validity.v` | `901bee4605120eb3eb7b0c92a4ceb5de795d49dc1d4d80a07121e66163931dde` |
 | source | `Kernel/Tx/Maturity.v` | `395d99161d9db4708a5e4cfcbeeda495accc7b06c664fa81bba722687613cba9` |
 | source | `Kernel/UTXOValidator.v` | `b29c40662771e6436cb430e72b8608580e0ac34a00d49e694dc23eebc43260f9` |
 | source | `Kernel/UnifiedState.v` | `ab8e9c9e08fa24a2dd7d5e6ea10f8e2e9cfa5457c10d50c00a2ac1bea61ba7b2` |
-| source | `Kernel/UnifiedTransition.v` | `5a6fd11e066a9f1cc0fdc887dcb018d1af1990e0c9ff950ab91b38aa53d5f444` |
+| source | `Kernel/UnifiedTransition.v` | `6df08c38f8c23e8245c467a23a683e112b0de318e6f5467a84b5122e6ce50cc3` |
 | source | `Kernel/VerifiedCompilerBoundary.v` | `31bbf4019408142f302d24b48820c2582f6c682400c9ee756b4bcb39f0d2756f` |
 | source | `Pow/ASERTBoundary.v` | `4a4e8a1d700cd86a23cf0cad4c9240de14d16e0fa2bee39fcedcd49192251c3c` |
 | source | `Pow/ASERTMatrix.v` | `292714bf9703e337e67ce06d62c546bbceab05cc8ee63110ae2f0594c54fc1d7` |
@@ -567,9 +577,9 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `Refinement/KernelComposition.v` | `f3cdc08962253b6ca928663f169d004e2322f7da0ad3ca960108fce36e22b428` |
 | source | `Refinement/RefinementRelation.v` | `72e5760306eb5eacc103c13cfaa080edcae851c54b6f856af33d2988a762aa88` |
 | source | `Refinement/TransitionRefinement.v` | `c4c1a5507b6a672010f6357733e691bd9df8dc210cf3aa62cdbab5ddfbbf7697` |
-| source | `Runtime/MachineState.v` | `f97faf72066b5800c3b6233f19c70abd69ef9b6959651f653ee5d7b5b5a01eae` |
+| source | `Runtime/MachineState.v` | `af2820e453a319068ead4c0956795b0ec2ba2e93134574752e94d27094d668c7` |
 | source | `Runtime/MachineWord.v` | `994db082c111405c638e713826a6c2efc2efee6f6138c509a9d071a69d89696e` |
-| source | `Runtime/RuntimeFailure.v` | `bfbc730b041775160e3f24102b2de8482b878d29706f2a4371a7eedd0461adbd` |
+| source | `Runtime/RuntimeFailure.v` | `e26a9a7cdf529d5b13d1aefbdc0c3e1452c63fc53d48d81916a59bd6d2de3513` |
 | source | `Runtime/RuntimeSemantics.v` | `6c3e16c1ac3e74fe501afeda7dbd6b0347304503a1919ada68342d842f74d970` |
 | source | `Runtime/RuntimeState.v` | `281c965e94dd73e664ee2ce7999b1ab22ea976aaa77e6de86dd0c38498216bc4` |
 | source | `Runtime/RuntimeTransition.v` | `1cd6e6960eb5f648ae4c31f951ebb84281acef9e294d457ee04893c45824cf90` |
@@ -620,7 +630,7 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `evidence/Reproduction.md` | `fb4e93eeea1e665742a8c50cd260536c4f5e48c776ad744414daac256c2cf60e` |
 | source | `evidence/SerializationBoundary.md` | `80522f25c37f4be3b525266794b7e0519ff9dc80fcf63dff7f5784e6d2e0229d` |
 | source | `evidence/TCBInventory.md` | `6a0fa62fd31742d21be3d132cf02fe2831796692cccaa855ad0c235cc9991ba3` |
-| source | `evidence/TheoremClassification.md` | `3e2f1335511723a7671c48881ff045e6411216cd6d63cfd76808876af5c8f39a` |
+| source | `evidence/TheoremClassification.md` | `3be4299210fc47c55741edc6174e670adb4def362e9b6bec4376a31d9be31c39` |
 | source | `evidence/VerifiedCompilerPathReport.md` | `d673bc22e00a6aa25d0b30880dcf7f576911187ecf6e650cefbf732e5a9a5645` |
 | source | `extracted/README.md` | `2c36719c52097b363b3b420d75b7d01307db4bcf05fea65a75946b0a2a3d02e1` |
 | source | `extraction/README.md` | `7c69a5169d3cd906b689109a31b96da985a8e8def89bd11a02f89599b0242d6f` |
@@ -628,10 +638,11 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `kernel_binary/README.md` | `fc39b7976b30050c06b42e194b552237a42781645f54251442af38c105c0b56f` |
 | source | `kernel_binary/TRUST_MANIFEST.md` | `11335ec3015730a363c7ace2768d5fe4599f59be5ef542625fd08ce374ccf763` |
 | source | `mutation/README.md` | `762e66c4fdd957c90fc58f1cf461e53a30619f1fd5f65a4c7984bb4ed08038b7` |
-| source | `mutation/expected_failures.md` | `efdf81154ff90d76b3c92af74ae51a159d73319d8a6b2132713f13a420e4b5ab` |
-| source | `release/AUDIT_PACKAGE.md` | `c57576735ae67cde37ccb01f7d90b133f3706dca1e131e733456bbafabde8fc4` |
+| source | `mutation/expected_failures.md` | `331f3b33851f66b2b79060ab555bbd7d62cbeb7618588e5dfe1ca0c627a3ec9c` |
+| source | `release/AUDIT_PACKAGE.md` | `f25dfcbde6d5c48494888564ff482af99c8b90136bd8a4bc6cb99ba315a54230` |
 | source | `release/AuditorChecklist.md` | `aa22ebc2d880bd97b7dd9af6c42ea085601cd81b3de01716eeb0d55f26767fb6` |
 | source | `release/BinaryArtifactIndex.md` | `04feaa45afbb8ba0623325d49d8af504146d9a6ec907690b1513e27a53c4a80c` |
+| source | `release/CategoryBCoverageDebt.md` | `51afd805dd6c79c3f70f1da44fc2746f8f360b4fb1042c193f1d5022e90af45f` |
 | source | `release/CertiCoqCompCertPlan.md` | `fc01528895a485fe59babb8e6e4391a29715a63a44ab791e84fb03a784434c59` |
 | source | `release/CertiCoqToolchain.md` | `350907023237512a15888a4fedaeac9a449eb40810b3aefd416ae22bc9fef73a` |
 | source | `release/CompilerBoundary.md` | `09976ffde3100d110773964a7d2b360e7983100e6097e86e8bc224dd9b45c84e` |
@@ -640,37 +651,38 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `release/ExtractionBoundaryHardeningReport.md` | `d0c0d7417269b0e06095cacc131ee3a84632f45125725a3bf78e56ce0a09ea14` |
 | source | `release/FinalAssumptionAudit.md` | `afc3ee1ab228246d35ab1b31ca38845f955029eeb0e4b5344441cd9a29a5c9bb` |
 | source | `release/FinalClaimsBoundary.md` | `232f7cbca10534f998505ccaa4a460c03cfee763b441342a82b104ae7ff07160` |
-| source | `release/FinalProofInventory.md` | `3ae5e5ddbb6024729dc419ee4beedea6ff1ae77167ef4450d321f4079beedeb1` |
-| source | `release/FormalConeMap.md` | `585c90cd09b9359b45c7897416e8bb3b84838a053110af7d7f25c3b2aed1df1c` |
+| source | `release/FinalProofInventory.md` | `75c70137dd7e5d9f26cd4e91f8105702159b7e71d5026ed753bf00cf338705be` |
+| source | `release/FormalConeMap.md` | `32c61cf6e452e1b31842efa995ef8718cef472ef6035d18cd86e2ab2d43a4628` |
 | source | `release/FormalTrustRoadmap.md` | `7e1bd93c6eea93d1fccbb1d072e1f6f5f042a3865f9aeae64a88a2b986379f65` |
 | source | `release/FormalizationFrontier.md` | `6d8982403e31cdaeb16b5b2a561de7d89b8d8f1c0251c34acfe7a9ec85b1684f` |
 | source | `release/FrontierExpansionPlan.md` | `f5b5d3c0fe51f3e42584259cb509039f5e43cd5815f2e2da7d3b9730033ee6dc` |
 | source | `release/IndependentAuditReplay.md` | `1a578546d7d7f23f4bc8038f7442206f00fbc51ff4a9b0a198002ed962be6997` |
 | source | `release/IndependentAuditReport.md` | `e9ebe56f3adf4ecdc8b41df030be671338dcb4b1439639f9e844b247de7c9bce` |
-| source | `release/KernelCompletenessMatrix.md` | `718e5546afddf1db8e5ba1cdcc8fa769a649d42d8ac31bdbe5159326443b1b10` |
+| source | `release/KernelCompletenessMatrix.md` | `ea373670941262e891c4339f0199d3afd94e13ab7ee9c1bf861f50175cec2bfb` |
 | source | `release/KernelCompletenessReport.md` | `0769aefc3a5e8a4414574e939f8a559346a2e9b7a14417b0a9fb1daaa034d4f6` |
 | source | `release/KernelDeepeningReport.md` | `4d0d1ffb1783a32603c639bd3eed2f9e1ce0400ddc6b8565e2ba0f33613cf485` |
 | source | `release/KernelExecutionBoundaryReport.md` | `3f3b127dbc905e4b6e0bdfda4be43700df3ceddd126ee4e6d58d7effe71949b2` |
-| source | `release/KernelInventory.md` | `4dd6acf59c1425dd56e62974a0ce8d12bd6da90cdbc298b71471d394facda202` |
-| source | `release/LevelDefinition.md` | `20d073d539cf0a7f32ee52b659f61adc761a7b55415a7017b0839b49e9bdb228` |
-| source | `release/MutationCompletenessAudit.md` | `c11efceee745cc7c3d3866ab77c05b92fad1f2792a27968094b1aa394160c465` |
-| source | `release/OpenProperties.md` | `bc0ce58e5d425f25bfdd3c2b8ceec11cb984149ac6b43e1788e7039888699015` |
+| source | `release/KernelInventory.md` | `2c9959db33c5a254abd43d174d30a4bf0f1eb24ae0bc4ee5975f7ca4beb3c8e8` |
+| source | `release/LevelDefinition.md` | `c617fda903e2d159ce29d8d9a01e4ce74ba0cd0969b2dea4446cd33aff198ab2` |
+| source | `release/MutationCompletenessAudit.md` | `e07b5238ee195c13b77d7df2543684e0e028f8c4ab966e3eff0a026b8ca5f6fa` |
+| source | `release/NullContentInventory.md` | `dee45fe50e31c418be6eb4959e19532b30647ac3f9424f7000e865d13e6257a0` |
+| source | `release/OpenProperties.md` | `0c6d891731aadb4269647b5eb7fdc0d359877f34c605cb50455670924a4639ab` |
 | source | `release/P0-119-DecisionReport.md` | `6a22bcf815a8bf510e3e1dbf3828f1ee3ccaaf583e5223e7a75390fc3a21db6c` |
 | source | `release/ProofEvidenceIndex.md` | `ce08388382ea1a8fcf22485be5692d97cfa8cbd29322bd2dce4b8df11b421c2a` |
-| source | `release/ProofSourceManifest.md` | `edd296d2f861e8425ac783dbf98d5548c269e581e66bbf3a9e7328fe91f6e732` |
+| source | `release/ProofSourceManifest.md` | `8c486e8934ccdf2d7c5b74a4cd0fc27adba828f4fd841fffb93c6a3aa11568b8` |
 | source | `release/PublicClaims.md` | `e101ee3393a379f4279e82391a54d1b87970a4c56413fb4670a3dfca1f36586a` |
 | source | `release/README.md` | `9d732a28fe66e3e0d1c9ba88e3df4501c28b49b8d3c6f794e9f5e37147c49112` |
 | source | `release/RefinementMapping.md` | `06725efe76485280b4197f9d2fd477a8246712da95e7982c7b4ef2726b39ba61` |
 | source | `release/ReproductionGuide.md` | `1f49a01322f9d2606788d5707af37ecbd59fd293765456ebdf07470684436c6b` |
 | source | `release/RuntimeBoundaryClosureReport.md` | `19d2feef387e83198e6ef86b1bc42270b4fad6f974282fbdeab056f78994e34a` |
 | source | `release/TCBInventory.md` | `da9b04cd82589898bc420ec710e804cf88d5f8949a2097cecdbd3635bf758e0a` |
-| source | `release/TheoremClassification.md` | `3e2f1335511723a7671c48881ff045e6411216cd6d63cfd76808876af5c8f39a` |
+| source | `release/TheoremClassification.md` | `79e20d35eebe324c2dbebe4a1075f3cc0684b00ed4ad35cba4aa8a0c255d4c23` |
 | source | `release/TheoremIndex.md` | `d99e2fd087e37c84eab16a1ad17930f4097e68fad2da1e438c4b0ce016c7a634` |
 | source | `release/TrustDebtMatrix.md` | `7422322fc7a4242de38e0b3faa43cff2bed48def2b9313fdcad3e9a9df7f84a0` |
-| source | `release/UnclassifiedAllowlist.md` | `0875c6a8c4bb100f280d629854f9c447fd676d6232de49701fef96bb14002011` |
+| source | `release/UnclassifiedAllowlist.md` | `2337068a88e1f33fcce3d4fd546fb8068626f02db88d041eed246c20bc25d98a` |
 | source | `release/VerificationScope.md` | `4f703b072a19a964dcc5333f8623f9bf57ca79a2d750aca59e3f03da0fe761b7` |
 | source | `release/VerifiedCompilerPath.md` | `cf7fc29753563b924ec6091eb3f0de75309b4298d7cb16024140b5b8ec7a9379` |
-| source | `release/VersionManifest.md` | `594988ec9e4591623c43c6d3c5c8e80c850282e42a66a40db9e591b61f64fb28` |
+| source | `release/VersionManifest.md` | `4e02e239205e9043c8ed54ee8933b8b589a9fc4954141aa1ffa3b5778741b443` |
 | source | `verified_compiler/README.md` | `a386fa504fa5e8691e7cda5e964806a798336c0032f7a87c670e11ad1aac7b15` |
 | source | `extraction/build.sh` | `fcae8095390dc7e41dbcbf3d163a0b5a13f50c897ae821faa231c2a0a3e14e1c` |
 | source | `kernel_binary/build.sh` | `62f8b7c618980458095e9f845d2521a51c6cc4ba219d2f2dcce5eed7abdcc7ef` |
@@ -679,44 +691,50 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `kernel_binary/run_vectors.sh` | `0b8ddfada7f4a05f18a46b85035c9ac1c87a382981d51cc4a2329b6c6825b6fc` |
 | source | `mutation/kill_set.sh` | `52360387955222d22e61abbef42fcb9076831533f78ce328236b7f66a91d47ef` |
 | source | `mutation/lib.sh` | `f45f9147e36b461669fb3d146a4681a5a7a9c57985b43ca3e6ecf823e967451d` |
-| source | `mutation/mutate_asert_numeric.sh` | `9c05f2c14fceac27e5da11ff5fe7d6db87d80c31143badb0df487a826c8f2bf3` |
+| source | `mutation/mutate_asert_numeric.sh` | `1f58ca520c7a148b81b9a39c30b9827c8b3df1c418232a574c6f91c01558b3a5` |
 | source | `mutation/mutate_block_proof.sh` | `e64f15379244201d82436389e50adede697407846a4c4b36dac4c4207cb50111` |
-| source | `mutation/mutate_chain_induction.sh` | `7bedc57813a2ec3ae80b759a9a8bcac95b59ce75c9176eca9f9509f8c88248d8` |
+| source | `mutation/mutate_chain_and_witnesses.sh` | `27b0d2b7d10515c816b4be78ddfa746f25967f3a25f07d2df97948c7f66a7768` |
+| source | `mutation/mutate_chain_induction.sh` | `8c414afa84faef206f83a4f5d92e3c147e2bf3e9db5d5e718ee2b9994dcfc6a7` |
 | source | `mutation/mutate_classifier_partition.sh` | `da25fcb58199d29534fc4045a0315aeb05be444727a4aa953c3f8f7e50623405` |
-| source | `mutation/mutate_completeness.sh` | `ca7f86b669e1586492795da05539bb3b33dcb7501ed963df5267692c3e7a25ef` |
+| source | `mutation/mutate_classifier_shapes.sh` | `57d97d3c8191febf47971c85c6714490b5be1c1c11d75d2f3a219ec2beb95396` |
+| source | `mutation/mutate_completeness.sh` | `dd131b56c26479f88a0454e645e6daf7b3b95d287d27164e5dbf221dd3c53b75` |
 | source | `mutation/mutate_concrete_refinement.sh` | `cf872522bcbad0fb5e48722c8ad376e296a49fed5a5774acb748bfcebf0b978f` |
-| source | `mutation/mutate_coverage_closure.sh` | `bc979f0a47c229576755eb2920a1b5735c0e43881cad3f39cd6c2d462faf0e0e` |
+| source | `mutation/mutate_coverage_closure.sh` | `3651c62791d9f1063ff684aa7d00e102f2651185ad6803b8c939a5af101e9661` |
 | source | `mutation/mutate_execution_boundary.sh` | `05d18ea716ca22c9f36cb72988de6ab33d3f1833b720f070495f46e6d1c38b6f` |
 | source | `mutation/mutate_extraction_hardening.sh` | `d44f62c2cbe3292b69421741ccd42a7ff7f13ffeb6ee124f9168925985d9d6cc` |
-| source | `mutation/mutate_fork_choice.sh` | `a167849d5b84bf55fd381f0941a1d917eb04c53ae4c5671aa69d13814ab2b9d0` |
-| source | `mutation/mutate_kernel_core.sh` | `be27c1074ae070dd7bca211e2870d17743cec2745b97bab3c535184656a6b555` |
-| source | `mutation/mutate_kernel_transition.sh` | `4a8f9edc0bcdf528554b6ba586b897bbb2b2a5affbaf40ec3af7639371b80eed` |
+| source | `mutation/mutate_fork_choice.sh` | `fc2b915201f8072ab1e048cb96d8f5ceaad444db0e96474ab08f8cc57e56b4f0` |
+| source | `mutation/mutate_integer_model.sh` | `ce9ed0097c8e20c5f3ac4ec0053faca89dc75315260451bd430c4e443d29f1a5` |
+| source | `mutation/mutate_kernel_core.sh` | `11563ab264ba15853d6631fae1fa8c2b54c07cb389a8fd74744a514bd8af5af2` |
+| source | `mutation/mutate_kernel_transition.sh` | `aeda64a4663231ce94e039131a7467f39b38a505f442b935f070fb9e3203629f` |
 | source | `mutation/mutate_maturity.sh` | `4d177ef96b8facb3e60b67b84fcffb1efa2dba0e55b8a4f498fb46cc6a86254b` |
-| source | `mutation/mutate_oru.sh` | `66e320a6179425d4275997d89e98f3f422b1cb793c69233550945486d79bd1eb` |
-| source | `mutation/mutate_oru_domain.sh` | `e1254cce1f2de2fdb28521f34c14bcd75a740858990ebe341a4e931d6fc36a2b` |
-| source | `mutation/mutate_pow.sh` | `992ccc702b093b0385d70fac9d3527556452d893ab92cebbde1ffbcf2c6a829c` |
+| source | `mutation/mutate_non_vacuity.sh` | `53806b59e95e0ad367c186df1480775217174d235394b5703cdaec00e1f8ee33` |
+| source | `mutation/mutate_oru.sh` | `05db624d7bdb0a43321e4bc61f450132796ee88a997b6b1b5f7e59faabb33a81` |
+| source | `mutation/mutate_oru_domain.sh` | `9cfa336434d6701d636cc2743b3a37e9308df61587af73635a0d6a3a9be2b6cc` |
+| source | `mutation/mutate_pow.sh` | `2063e6b067fb3f08c545962785d9a5d6f1635ab7e7ff730899241d9b673e3d98` |
 | source | `mutation/mutate_refinement.sh` | `4018a2066db66040e634410ee42c64f97d970b5a89b0512d90b18037594ed7aa` |
 | source | `mutation/mutate_reorg_replay.sh` | `377c6e1ff0160245d3e70c6aad59503fbf778113c01566faa6b2a92cbe5eef63` |
-| source | `mutation/mutate_res.sh` | `3b15a9fcc201417a426d9a5da35e00473cd6a85d4788bfdeeb2825c687ce8df5` |
-| source | `mutation/mutate_rfc019.sh` | `c2d1e675ad75b6c5517b47901451c834cbc0f3ea8dee378396634b516a4a1711` |
+| source | `mutation/mutate_res.sh` | `24cf3a654d2f77612e1f983a6a132731c659e3d2c7d9473ec43c0f42bf825876` |
+| source | `mutation/mutate_rfc019.sh` | `df5edb9e45cd51ddb8782b71aa35b0afb38e82acb30bdf63a3933e2c0d1b3c56` |
 | source | `mutation/mutate_rfc020.sh` | `28609892aff3a47903f1c00b8487153da8305f8373609123ac1c32694e457023` |
-| source | `mutation/mutate_runtime_boundary.sh` | `2f1141d6fb653e09e2907451bbdd44f8343b05874141ef5e7f50589005c57a82` |
+| source | `mutation/mutate_runtime_boundary.sh` | `160b6f2b60508fbcab48e2d02671828d13f70ac0e46d32a29208b365cee798d7` |
 | source | `mutation/mutate_script_spend.sh` | `21de5e35b9ccc2f741ef6c266ed9ec48fa1088a83cf8bcd607d844bd1112177a` |
-| source | `mutation/mutate_supply.sh` | `5c6d19ce102156612f3b547f631da9868ab9e0b2134aeadd5eb03ca0a9ed367b` |
-| source | `mutation/mutate_utxo.sh` | `6675fcc38b79c6d09464c712b57f2406768672343b42c7bf1b746f90c40e7017` |
-| source | `mutation/run_all_mutations.sh` | `00def78cb79d4a86aa1aa0275524c21641aa1da1fe795b9ab02091e68fbcaca5` |
+| source | `mutation/mutate_supply.sh` | `1cdaec7dab0c3fc86b726ff37fbafb63ea101cc1803116ef4fff10dca325bf51` |
+| source | `mutation/mutate_surface_translation.sh` | `624d6617951b3fd78f14d5e548efa789d8818fb31abbe6aee805a24b3c370e22` |
+| source | `mutation/mutate_utxo.sh` | `41cdd7662320ff28ed933a3637c8e6948cf0ee699c70abf34105a4176cfc25ad` |
+| source | `mutation/mutate_validator_soundness.sh` | `ebf689b4c85736e1a21bffc27a76bd5f12eb50e0286c9cd6215a07a53768eea2` |
+| source | `mutation/run_all_mutations.sh` | `69e31a7b888a439c616e532bbf7966302a0d683eeb2b244c2b4562f1dc5d9f43` |
 | source | `release/check_release.sh` | `eec3d3dca75a32f62224cb20ff2c4301928a3b9c7df653792536f9084da80764` |
 | source | `release/check_source_manifest.sh` | `2ac3d053688b5631b4206d44e9721a143ade033107ef225e156656d35c942841` |
 | source | `release/final_adversarial_audit.sh` | `a0e74008adf5486175afe9e9840f4e568b15e69955a74d3cc45375521c5b8b77` |
 | source | `release/freeze_source_manifest.sh` | `f3f68f312dbd5684301d9ef0b0ea1e39d0f57785fe5b6085564b51fea9875358` |
-| source | `release/independent_audit_replay.sh` | `c8e789536e09daa9772a0b591d5286c33bb2cbac2c50289760b09036fec00755` |
-| source | `run_kernel_critical.sh` | `c537e57e80717e441f5b2b287119a3332d036fa75ee6d952abb53f6f0ae633fc` |
+| source | `release/independent_audit_replay.sh` | `c36d7efb70af4f9dc12d65c07298bddeb25b2186a9af29dbdf700f288b9822c2` |
+| source | `run_kernel_critical.sh` | `1a7eadf93a37112fab01e52fe7a403c88a07852ab5cd834f85e9df11af8f6cc4` |
 | source | `scripts/diff_verify.sh` | `bd12eb4204e2819205ceb90bb28addbf8fb760c3a316713bb0976de8fa505bbe` |
 | source | `scripts/extract_and_test.sh` | `f5a52e055e7a62c76895ebbc11acfbd38002caebd8471bea890cb0537b075670` |
 | source | `scripts/verified_compiler_path.sh` | `82d08a5e61dc4f75bdef2eb1e22c8172da62b28795ab225c30f6fff4463181a2` |
-| source | `extracted/ExtractedKernel.ml` | `95c3d526e1edfeb041e6453db6b3ad5a14b968b3f24ffc0d243df0cf842d6d36` |
+| source | `extracted/ExtractedKernel.ml` | `85383d7f743cbb62fb9a492f3be44d25f10e757aa2ebc75259965d173acd7345` |
 | source | `extracted/test_driver.ml` | `2ad8a7937b4dd31e608803a2a7c8965b8c59df7c4264ef3b20af60a2326b64ba` |
-| generated | `extraction/ExtractedKernel.ml` | `f2349792f91eff91aad51b9baf58d16e265b7c723804702792e74f8bbb42feb1` |
+| generated | `extraction/ExtractedKernel.ml` | `94782ad1f404d66adaaf405c39af6f52545415835f5d486f33d78d091c7aeadf` |
 | source | `kernel_binary/ExecutableKernelChecker.ml` | `0e569f84bebc365563c4df6ed98e18114dba6d988505f41f26ff406af287daac` |
 | source | `kernel_binary/main.ml` | `79e61f2dc8a186063ce891b850e8356979ab95070f21613b396cbea34871ae15` |
 | source | `extracted/diff_work/extra_asert_quot_mismatch.json` | `86b0107248224ed1aeb44b789e7cbb5f42570573933d2f1ddcd00fc69f9884d9` |
@@ -878,9 +896,9 @@ An auditor `git clone` of this commit can obtain the proofs.
 | source | `kernel_binary_vectors/V7.json` | `30b3fabfba2b7b95392688f4f78f927d92b808503f17aa6ca77b1c9787eca10e` |
 | source | `kernel_binary_vectors/V8.json` | `67a419e2ac78c966303c1e7e2773f13523409f97806bb8662a01a2f2560a8108` |
 | source | `kernel_binary_vectors/V9.json` | `579d30d410c97a42534d6ae5ee88602c31ed15cfccb8bc4f6ae75c7d5f6b3991` |
-| source | `release/inventory_metadata.json` | `175883acac01a383299b95321e67be03270aae555c3c4a88f15f9d5c7e8a4493` |
+| source | `release/inventory_metadata.json` | `ea537a652b500d348845fc4883b139cefcc3e63d589d19d53b811137104cb4dd` |
 
-Required classes present:
+## Counts
 
 - all `.v` sources listed: True
 - all proof markdown listed: True

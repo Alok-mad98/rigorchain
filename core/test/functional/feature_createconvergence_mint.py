@@ -18,6 +18,8 @@ RES_COIN = 100_000_000
 RATE_GENESIS = 1024 * COIN
 RES_DESTROY_POLE = 1 << 25
 RES_DESTROY_SHIFT = 40
+# Must match wallet/mint_height_pad.h CONVERGENCE_HEIGHT_PAD.
+CONVERGENCE_HEIGHT_PAD = 1024
 
 
 def mint_atoms_from_burn(burn_atoms: int, height: int) -> int:
@@ -68,7 +70,7 @@ class CreateConvergenceMintTest(BitcoinTestFramework):
         far = node.res_mint_unit_cost(210000 * 251)
         assert_equal(far["authorized"], True)
         assert_greater_than(far["destroy_cost"], RATE_GENESIS)
-        assert_raises_rpc_error(-8, "mint is not authorized",
+        assert_raises_rpc_error(-8, "mint height must be non-negative",
                                 node.res_mint_unit_cost, -1)
 
         assert "getdrawclosurestatus" not in node.help()
@@ -86,14 +88,21 @@ class CreateConvergenceMintTest(BitcoinTestFramework):
         assert_greater_than(int(status["destroy_cost_next"]), int(cost["destroy_cost"]))
 
         # Display rate can sit one atom below the exact whole-RES burn.
-        need = cost["min_whole_res_burn"]
-        assert_equal(need, min_burn_for_atoms(RES_COIN, cost["height"]))
+        # Wallet prices R at current_height + CONVERGENCE_HEIGHT_PAD.
+        current_height = node.getblockcount()
+        target_height = current_height + CONVERGENCE_HEIGHT_PAD
+        need = min_burn_for_atoms(RES_COIN, target_height)
         burn = format(Decimal(need) / Decimal(COIN), "f")
         before = node.getreplaysnapshot()
         minted = node.createconvergence(burn)
         assert_equal(minted["burn_oru"], need)
         assert_equal(minted["res_out"], RES_COIN)
-        assert_equal(minted["destroy_cost"], cost["destroy_cost"])
+        assert_equal(minted["height_pad"], CONVERGENCE_HEIGHT_PAD)
+        assert_equal(minted["current_height"], current_height)
+        assert_equal(minted["target_height"], target_height)
+        assert_equal(minted["destroy_cost_height"], target_height)
+        assert_equal(minted["valid_until_height"], target_height)
+        assert_equal(minted["slack_res"], minted["exact_res_out"] - minted["res_out"])
         assert "epoch" not in minted
         assert "padded_for_next_epoch" not in minted
         assert_equal(minted["unlock_height"], minted["confirm_height"] + 100)
@@ -109,6 +118,11 @@ class CreateConvergenceMintTest(BitcoinTestFramework):
         assert_equal(int(Decimal(str(burn_outs[0]["value"])) * COIN), need)
 
         assert txid in node.getrawmempool()
+
+        self.log.info("empty blocks inside the height pad must not evict the mint")
+        for _ in range(5):
+            self.generateblock(node, miner, [])
+            assert txid in node.getrawmempool()
 
         self.log.info("confirm the mint and require RES supply to move")
         self.generatetoaddress(node, 1, miner)
@@ -140,15 +154,19 @@ class CreateConvergenceMintTest(BitcoinTestFramework):
         assert_equal(inv_after_restart["violations"], [])
 
         # A burn below one whole RES still maximises R and is not a failed mint.
-        live = node.res_mint_unit_cost()
+        live_tip = node.getblockcount()
         small = node.createconvergence(1.0)
         assert_equal(small["burn_oru"], COIN)
-        expected_r = mint_atoms_from_burn(COIN, live["height"])
+        expected_r = mint_atoms_from_burn(COIN, live_tip + CONVERGENCE_HEIGHT_PAD)
         assert_equal(small["res_out"], expected_r)
+        assert_equal(small["current_height"], live_tip)
+        assert_equal(small["target_height"], live_tip + CONVERGENCE_HEIGHT_PAD)
+        assert_equal(small["height_pad"], CONVERGENCE_HEIGHT_PAD)
         assert_greater_than(small["res_out"], 0)
 
-        self.log.info("one-atom mint: ResMinMintBurnAtoms(h) buys 1 RES atom")
-        min_burn = node.res_mint_unit_cost()["min_atom_burn"]
+        self.log.info("one-atom mint: ResMinMintBurnAtoms(target_height) buys 1 RES atom")
+        target_h = node.getblockcount() + CONVERGENCE_HEIGHT_PAD
+        min_burn = min_burn_for_atoms(1, target_h)
         atom = node.createconvergence(format(Decimal(min_burn) / Decimal(COIN), "f"))
         assert_equal(atom["burn_oru"], min_burn)
         assert_equal(atom["res_out"], 1)

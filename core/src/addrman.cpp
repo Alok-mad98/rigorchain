@@ -719,11 +719,44 @@ void AddrManImpl::Attempt_(const CService& addr, bool fCountFailure, NodeSeconds
     }
 }
 
-std::pair<CAddress, NodeSeconds> AddrManImpl::Select_(bool newOnly) const
+std::pair<CAddress, NodeSeconds> AddrManImpl::Select_(bool newOnly, std::optional<Network> network) const
 {
     AssertLockHeld(cs);
 
     if (vRandom.empty()) return {};
+
+    const size_t n_count{Size_(network, newOnly ? std::optional<bool>{true} : std::nullopt)};
+    if (n_count == 0) return {};
+
+    if (network.has_value()) {
+        // Network-filtered select (Bitcoin Core #27213). Search vRandom so sparse
+        // networks are not starved by empty buckets.
+        double fChanceFactor = 1.0;
+        const size_t start = insecure_rand.randrange(vRandom.size());
+        for (size_t n = 0; n < vRandom.size(); ++n) {
+            const auto it_found{mapInfo.find(vRandom[(start + n) % vRandom.size()])};
+            assert(it_found != mapInfo.end());
+            const AddrInfo& info{it_found->second};
+            if (info.GetNetwork() != *network) continue;
+            if (newOnly && info.fInTried) continue;
+            if (insecure_rand.randbits(30) < fChanceFactor * info.GetChance() * (1 << 30)) {
+                LogPrint(BCLog::ADDRMAN, "Selected %s from %s (network-filtered)\n", info.ToStringAddrPort(),
+                         info.fInTried ? "tried" : "new");
+                return {info, info.m_last_try};
+            }
+            fChanceFactor *= 1.2;
+        }
+        // Chance filter rejected every candidate; return the first matching address.
+        for (size_t n = 0; n < vRandom.size(); ++n) {
+            const auto it_found{mapInfo.find(vRandom[(start + n) % vRandom.size()])};
+            assert(it_found != mapInfo.end());
+            const AddrInfo& info{it_found->second};
+            if (info.GetNetwork() != *network) continue;
+            if (newOnly && info.fInTried) continue;
+            return {info, info.m_last_try};
+        }
+        return {};
+    }
 
     if (newOnly && nNew == 0) return {};
 
@@ -1169,11 +1202,11 @@ std::pair<CAddress, NodeSeconds> AddrManImpl::SelectTriedCollision()
     return ret;
 }
 
-std::pair<CAddress, NodeSeconds> AddrManImpl::Select(bool newOnly) const
+std::pair<CAddress, NodeSeconds> AddrManImpl::Select(bool newOnly, std::optional<Network> network) const
 {
     LOCK(cs);
     Check();
-    auto addrRet = Select_(newOnly);
+    auto addrRet = Select_(newOnly, network);
     Check();
     return addrRet;
 }
@@ -1267,9 +1300,9 @@ std::pair<CAddress, NodeSeconds> AddrMan::SelectTriedCollision()
     return m_impl->SelectTriedCollision();
 }
 
-std::pair<CAddress, NodeSeconds> AddrMan::Select(bool newOnly) const
+std::pair<CAddress, NodeSeconds> AddrMan::Select(bool newOnly, std::optional<Network> network) const
 {
-    return m_impl->Select(newOnly);
+    return m_impl->Select(newOnly, network);
 }
 
 std::vector<CAddress> AddrMan::GetAddr(size_t max_addresses, size_t max_pct, std::optional<Network> network) const

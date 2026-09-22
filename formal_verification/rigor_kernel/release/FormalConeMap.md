@@ -64,9 +64,24 @@ Each layer: **PROVED** (Coq model), **NOT PROVED**, **TCB**.
 
 | | |
 |---|---|
-| PROVED | `kernel_step_preserves_invariants`, `kernel_transition_deterministic`, value-flow bridge |
+| PROVED | `kernel_step_preserves_invariants`, `kernel_transition_deterministic`, value-flow bridge, `input_ok_of_checks`, `input_ok_reflect` |
 | NOT PROVED | Liveness, k-deep / honest-majority (OP-R1), fairness. RES rewind and most-work selection are proved separately |
 | TCB | Coq `kernel_step` / `kernel_apply` |
+
+`KernelInputBridge.v` constructs a `KernelInput` from Path A checkers.
+That construction is not a production-authority claim.
+
+Path B `input_ok` is decidable (`input_ok_reflect`). The Bridge lemma
+`input_ok_of_checks` is one-way over `computed_ok_b`. The naive
+biconditional with Path A checks is not proved. Free Path B
+`KernelInput` records are banned in the gated cone; constructions go
+through `kernel_input_of`. Unique-entry is not done.
+
+ND-01 / ND-02 closed on 2026-09-18 (see `ENDGAME_DECISION_LOG` D-15/D-16).
+Follow-up engineering has not started, except the Path A inductive
+rename: `KernelValidationRequest` (formerly `KernelInput` on Path A),
+per D-15, the `input_ok` decidability fragment, and the free-record
+ban above. The Path B record `KernelInput` is unchanged.
 
 ## Executable Kernel Model
 

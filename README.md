@@ -1,29 +1,111 @@
 # RIGOR
 
-Production dual-asset UTXO blockchain.
+A Proof-of-Work UTXO Architecture for Two Native Monetary Roles
 
 Display version is `RIGOR_RELEASE_VERSION` in `core/src/clientversion.h`.
 
+RIGOR is a Bitcoin-inspired UTXO blockchain protocol exploring a
+different approach to native monetary design.
+
+The protocol separates two monetary roles at the consensus layer:
+
+- **ORU** — the transaction and security asset
+- **RES** — a separately defined scarce asset created through
+  deterministic Convergence
+
+Both are native ledger objects verified by the same full-node consensus
+rules.
+
+RIGOR does not introduce an account model, smart-contract execution
+layer, or external asset registry.
+
+Its design focuses on a narrower question:
+
+> Can different monetary functions be separated while preserving the
+> verification properties of a Bitcoin-style UTXO system?
+
+---
+
+## Design Principles
+
+RIGOR is built around several constraints:
+
+- Single UTXO state space
+- Script-defined asset identity
+- Proof-of-Work chain ordering
+- Deterministic monetary transformation
+- Minimal consensus surface
+
+Asset identity is determined by consensus-defined `scriptPubKey`
+classification.
+
+It is not maintained by a registry, explorer interpretation, or wallet
+metadata.
+
+The node decides validity.
+
+Products display public data.
+
+---
+
+## Verification Boundary
+
+RIGOR distinguishes:
+
 ```
-equivalence_claimed = false
+Protocol model
+≠
+Running C++ implementation
+≠
+Product interfaces
 ```
 
-Formal verification covers properties of the protocol **model**. This
-repository does not claim C++ equivalence.
+Formal verification covers properties of the protocol model.
+
+It does not claim C++ equivalence, compiler correctness, network
+guarantees, or economic outcomes.
+
+```
+equivalence_claimed = false
+cpp_formal_equivalence = false
+documentation_consensus_authority = false
+```
+
+---
+
+## Protocol Verification Status
 
 Protocol specifications are normative SSOT.
 Implementations realize the frozen protocol.
 
 ---
 
+## Technical Reference
+
+Architecture:
+[`docs/architecture/RIGOR_ARCHITECTURE_PAPER.md`](docs/architecture/RIGOR_ARCHITECTURE_PAPER.md)
+
+Protocol specification:
+[`docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md)
+
+Consensus rules:
+[`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md)
+
+Formal verification boundary:
+[`docs/whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md`](docs/whitepaper/RIGOR_FORMAL_VERIFICATION_DESIGN.md)
+
+Implementation:
+[`core/`](core/)
+
+---
+
 ## 1. What is RIGOR
 
-RIGOR is a dual-asset UTXO protocol. ORU is the utility asset. RES is
-minted only by destroying ORU at `destroy_cost(h)`. Asset class is
-inferred from `scriptPubKey`. There is no account model and no
-administrative key on the consensus path.
-
-Formal verification covers the protocol **model**, not C++ equivalence.
+RIGOR is a dual-asset UTXO protocol. ORU is the utility asset. RES may be
+minted only by destroying ORU at `destroy_cost(h)` when
+consensus-defined issuance conditions hold. Asset class is inferred from
+`scriptPubKey`. There is no account model and no administrative key on
+the consensus path.
 
 **Whitepaper:** [`docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md)
 
@@ -56,7 +138,7 @@ Lock files: `core/src/consensus/params.h`,
 `core/src/consensus/rigor_consensus_lock.h`.
 
 AlphaPlus / Alpha1 names are historical release channels, not the current
-product. See [`CHANGELOG.md`](CHANGELOG.md).
+protocol identity. See [`CHANGELOG.md`](CHANGELOG.md).
 
 Extracted facts:
 [`docs/developer/CODE_SSOT_PROTOCOL_FACTS.md`](docs/developer/CODE_SSOT_PROTOCOL_FACTS.md).
@@ -69,7 +151,7 @@ Extracted facts:
 RIGOR =
     Dual Native Assets
   + UTXO Monetary Model
-  + Deterministic Issuance
+  + Consensus-defined Issuance Conditions
   + Deflationary Fee Burn
   + Probabilistic Convergence Selection
   + Adaptive Proof-of-Work (ASERT)
@@ -83,8 +165,8 @@ are not monetary truth.
 - ORU coinbase subsidy and coinbase RES mint are explicit exceptions.
 - `ConnectBlock` is the admission path. Explorer display is observation.
 
-There is **no Bitcoin Script VM**. Production spends are structured
-predicates (`VerifyRigorPredicate`). Live markers: RETURN `0x6a`, RES mint
+There is **no Bitcoin Script VM**. Spends are structured predicates
+(`VerifyRigorPredicate`). Live markers: RETURN `0x6a`, RES mint
 `0xbb`, CONVERGE `0xbd`.
 
 Mathematics: [`docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md).  
@@ -97,7 +179,7 @@ Opcode table: [`docs/specification/RIGOR_OPCODE_SPECIFICATION.md`](docs/specific
 | Asset | Role |
 |-------|------|
 | **ORU** | Transaction asset, fee asset, mining subsidy, Convergence burn |
-| **RES** | Reserve asset. Deterministic issuance after Convergence. **Not a PoW reward.** |
+| **RES** | Reserve asset. Issued only when consensus-defined issuance conditions hold after Convergence. **Not a PoW reward.** |
 
 PoW does not create RES.
 
@@ -107,7 +189,11 @@ pays **128 ORU** forever. No ORU cap.
 RES: 8 decimals (`RES_COIN = 1e8`). Cap `RES_MAX_SUPPLY =
 419430400000000` atoms (`2²²` RES). Minted only in a body transaction
 that burns ORU (`OP_CONVERGE`) and creates Witness v1 RES in the same
-transaction when `R · (2²⁵+h)² ≤ B << 40`.
+transaction when `R · (2²⁵+h)² ≤ B << 40`. `2⁴⁰` is the integer
+consensus scaling factor. Display form
+`destroy_cost(h) = 1024 · (2²⁵+h)² / 2⁵⁰` uses `2⁵⁰` as the curve
+normalization denominator; that denominator is not a consensus shift.
+Display rounding/floor do not enter consensus.
 
 RFC-018: half of the ORU fee on a RES-transfer is unclaimable. That burn
 is not a UTXO and not a wallet balance.
@@ -130,8 +216,9 @@ search → `submitblock`. The node builds ORU subsidy and scriptSig.
 RES mint is a body transaction, not a coinbase prize. Stratum is not a
 SOLO URL.
 
-The shipped `minerd` binary searches SHA3-256 `"RGRPOW01" || header_80`,
-matching node `CheckProofOfWork`.
+The repository includes a reference miner implementation (`minerd`) that
+searches SHA3-256 `"RGRPOW01" || header_80`, matching node
+`CheckProofOfWork`.
 
 [`miner/README_MINER.md`](miner/README_MINER.md).
 
@@ -139,8 +226,8 @@ matching node `CheckProofOfWork`.
 
 ## 6. Wallet
 
-`rigor-qt` / `rigor-wallet` / `rigor-cli`. Dual-asset
-descriptor wallet (ORU + RES). Backup/restore with `backupwallet` /
+`rigor-qt` / `rigor-wallet` / `rigor-cli`. Dual-asset UTXO wallet
+supporting ORU and RES outputs. Backup/restore with `backupwallet` /
 `restorewallet`.
 
 The wallet constructs transactions. Consensus decides Convergence
@@ -164,8 +251,8 @@ Display identity matches the node: genesis
 ## 8. Pool
 
 ORU-only mining coordination. GBT from `rigord` on RPC **8761**. The pool
-product pays **ORU only**. It does not mint RES. Yaamp/yiimp paths under
-`pool/` are quarantined leftovers.
+pays **ORU only**. It does not mint RES. Yaamp/yiimp paths under `pool/`
+are legacy experimental components.
 
 [`pool/README.md`](pool/README.md).  
 [`docs/pool/PRODUCTION_MINING_FLOW.md`](docs/pool/PRODUCTION_MINING_FLOW.md).
@@ -177,10 +264,10 @@ product pays **ORU only**. It does not mint RES. Yaamp/yiimp paths under
 | Layer | Role |
 |-------|------|
 | UTXO conservation | Ordinary transfers cannot create ORU or RES |
-| Script validation | Closed monetary script families; classification ≠ issuance |
+| Script validation | Restricted monetary script families; classification ≠ issuance |
 | Proof-of-Work | OpuHash = SHA3-256 (`RGRPOW01`) with ASERT difficulty |
 | Ed25519 | Cryptographic ownership of spendable outputs |
-| Formal protocol properties | Model invariants — not C++ refinement |
+| Formal protocol properties | Model invariants — see section 10 |
 
 Vulnerability reporting: [`SECURITY.md`](SECURITY.md). Do not expose
 JSON-RPC to the public Internet.
@@ -198,7 +285,7 @@ refinement_proved = false
 ```
 
 Formal verification proves properties of the protocol model. It does not
-prove that production C++ is a refinement of that model.
+prove that the C++ implementation is a refinement of that model.
 
 Operator map: [`docs/formal/VerificationStatus.md`](docs/formal/VerificationStatus.md).  
 Reproduce guide: [`docs/security/HOW_TO_VERIFY_RIGOR.md`](docs/security/HOW_TO_VERIFY_RIGOR.md).
@@ -225,6 +312,9 @@ Explorer: `explorer/` (Node). Pool: `pool/pilot` (`cargo build --release`).
 
 ## 12. Release information
 
+This repository may contain development and internal validation artifacts.
+Public release status is determined by tagged releases.
+
 Current binaries: [GitHub Releases](https://github.com/rigorchain/rigorchain/releases).
 Version history: [`CHANGELOG.md`](CHANGELOG.md).
 A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md).
@@ -243,6 +333,12 @@ A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](d
 | `formal_verification/` | Coq model, golden vectors, manifests |
 
 Documentation classification: [`docs/README.md`](docs/README.md).
+
+## References
+
+- Whitepaper: [`docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md)
+- Protocol RFCs: [`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md), [`docs/protocol/RFC-018.md`](docs/protocol/RFC-018.md)
+- Design references: see the whitepaper’s *References and Design Context*
 
 ## License
 

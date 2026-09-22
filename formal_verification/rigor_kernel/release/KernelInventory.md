@@ -103,7 +103,7 @@ Hash implementation is an assumption (`H`). keccak is not proved.
 |---|---|
 | Status | **PARTIAL** (integer `exp_q` / clamp / factor range; not production nBits) |
 | Coq file | `Pow/ASERTModel.v`, `Pow/ASERTBoundary.v`, `proofs/Pow_Correctness/ASERTCorrectness.v` |
-| Theorem | `negative_time_error_preserved` (A), `exp_q_clamped` (A), `factor_range` (A), `time_error_direction_preserved` (A). `pow_asert_correctness` is Category B |
+| Theorem | `negative_time_error_preserved` (A), `exp_q_clamped` (A), `factor_range` (A), `time_error_direction_preserved` (A). `pow_asert_correctness` is Category C |
 | Evidence | M5, M16; `evidence/ASERTScope.md` |
 
 ### Unified Kernel Transition
@@ -111,14 +111,30 @@ Hash implementation is an assumption (`H`). keccak is not proved.
 | | |
 |---|---|
 | Status | **PROVED** (model-level composition of the six domains) |
-| Coq file | `Kernel/UnifiedState.v`, `Kernel/UnifiedTransition.v`, `Kernel/InvariantBundle.v`, `proofs/KernelTransitionSoundness.v`, `Economic/UTXOEconomicBridge.v` |
-| Theorem | `kernel_step_preserves_invariants` (A), `kernel_transition_deterministic` (A), `transaction_value_flow_preserves_economic_state` (A) |
-| Evidence | M29, M30 |
+| Coq file | `Kernel/UnifiedState.v`, `Kernel/UnifiedTransition.v`, `Kernel/KernelInputBridge.v`, `Kernel/InvariantBundle.v`, `proofs/KernelTransitionSoundness.v`, `Economic/UTXOEconomicBridge.v` |
+| Theorem | `kernel_step_preserves_invariants` (A), `kernel_transition_deterministic` (A), `transaction_value_flow_preserves_economic_state` (A), `input_ok_of_checks` (A), `kernel_apply_of_checks` (A), `input_ok_reflect` (A) |
+| Evidence | M29, M30, M129, M130 |
 
 Unified consensus kernel transition invariants are formally verified.
 
 This is a Coq-model `kernel_step` over one `KernelState`. It is **not**
 a C++ refinement, a full node, or binary semantic equivalence.
+`KernelInputBridge.v` constructs a `KernelInput` from Path A checkers.
+That construction is not a production-authority claim.
+
+Path B `input_ok` is decidable: `input_ok s i ↔ input_ok_b s i = true`
+(`input_ok_reflect`). The Bridge restates the one-way lemma as
+`computed_ok_b s w = true → input_ok s (kernel_input_of w)`. The naive
+biconditional `input_ok (kernel_input_of w) ↔ computed_ok` is **not**
+proved (left-to-right is false). Free Path B `KernelInput` records are
+banned in the gated cone (G-1 / `check_forbidden_tokens.py`); examples
+go through `kernel_input_of`. Unique-entry (D-16 item 1) is not done.
+
+ND-01 / ND-02 closed on 2026-09-18 (see `ENDGAME_DECISION_LOG` D-15/D-16).
+Follow-up engineering has not started, except the Path A inductive
+rename: `KernelValidationRequest` (formerly `KernelInput` on Path A),
+per D-15, the `input_ok` decidability fragment, and the free-record
+ban above. The Path B record `KernelInput` is unchanged.
 
 ### Chain-Level Kernel Run
 
@@ -261,6 +277,11 @@ documentation / non-claim; **none** = definitions only.
 | `Kernel/ASERTValidator.v` | `check_asert_sound` | unclassified | not in A/B driver | none | supporting |
 | `Kernel/KernelInterface.v` | *(definitions)* | — | — | none | none |
 | `Kernel/KernelSoundness.v` | `kernel_sound` | A | Closed | none | public |
+
+`Kernel/KernelSoundness.v` now names the Path A inductive
+`KernelValidationRequest` (renamed 2026-09-18 per D-15; formerly
+`KernelInput` on Path A). Constructors `KI_*` are unchanged. The Path B
+record `UnifiedTransition.KernelInput` is unchanged.
 | `Kernel/RefinementBoundary.v` | `kernel_boundary_closed` | C | not required | none | boundary |
 | `Kernel/ExtractionBoundary.v` | `extraction_source_equivalence` | B | Closed | none | supporting |
 | `Kernel/SerializationBoundary.v` | `encoding_deterministic` | B | Closed | none | supporting |
@@ -290,7 +311,8 @@ documentation / non-claim; **none** = definitions only.
 | `Refinement/EconomicRefinement.v` | `economic_refinement_preserves_conservation` | A | Closed | M28 | public |
 | `Refinement/KernelComposition.v` | `kernel_step_refinement_composes` | A | Closed | none | public |
 | `Kernel/UnifiedState.v` | *(definitions)* | — | — | none | none |
-| `Kernel/UnifiedTransition.v` | *(definitions)* | — | — | M29, M30 | none |
+| `Kernel/UnifiedTransition.v` | `input_ok_reflect` | A | Closed | M29, M30, M130 | public |
+| `Kernel/KernelInputBridge.v` | `input_ok_of_checks` | A | Closed | M129 | public |
 | `Kernel/InvariantBundle.v` | *(definitions)* | — | — | none | none |
 | `proofs/KernelTransitionSoundness.v` | `kernel_step_preserves_invariants` | A | Closed | M29 | public |
 | `Economic/UTXOEconomicBridge.v` | `transaction_value_flow_preserves_economic_state` | A | Closed | M30 | public |

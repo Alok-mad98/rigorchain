@@ -1,11 +1,11 @@
-# Chapter 7 — Recompute Locally: Do Not Trust a Pool or Explorer Verdict
+# Chapter 7 — Local Verification: Independent Validation of Public Data
 
-Chapter 6 supplied a shared height and said a pool dashboard is not a
-source of validity. This chapter states the substitute: public bytes
-recomputed locally, admitted if equal, rejected if not.
+Chapter 6 supplied a shared height and said displayed mining status is
+not a source of validity. This chapter states the substitute: public
+bytes recomputed locally, admitted if equal, rejected if not.
 
-The claim is still architectural. The protocol fixes that **commitment
-and recomputation must match**. It does not claim that cheating cannot
+The claim is architectural. The protocol fixes that **commitment and
+recomputation must match**. It does not claim that cheating cannot
 happen. It claims that unequal bytes fail the published checks.
 
 ```
@@ -18,27 +18,37 @@ compare to the commitment
 accept / reject
 ```
 
-A pool, explorer, wallet, or website may **display** a conclusion. None
-of them may **be** that conclusion.
+Explorers, pools, wallets, and websites may **display** data.
+Consensus validity is decided by full-node evaluation of the same
+public bytes.
+
+Roles remain separate:
+
+| Actor | Role |
+|-------|------|
+| Explorer | displays |
+| Node | decides |
+| Wallet | constructs |
+| Verifier | recomputes |
+
+A displayed result is an observation. Consensus validity is determined
+by independent verification.
 
 ---
 
-## 7.1 Why a display is not a decision
+## 7.1 Display is not consensus decision
 
-Mining, explorers, and wallets exist because people need to see shares,
-balances, and height. Seeing is not deciding.
+Mining software, explorers, and wallets exist so people can inspect
+shares, balances, and height. Inspection is not admission.
 
-If validity comes from a pool dashboard, the finder and the bookkeeper
-become a counterparty. If validity comes from an explorer’s `VALID`
-flag, the indexer becomes consensus. If validity comes from a wallet
-screen, a spending tool becomes an oracle. Chapter 1 requires security
-and decentralisation. Outsourcing the decision to a screen reintroduces
-counterparty risk.
+If a displayed verdict is treated as consensus, the display becomes a
+counterparty. Chapter 1’s security and decentralisation assumptions
+require that validity remain a local evaluation of public data, not an
+outsourced screen.
 
-The substitute habit is not “a more trustworthy website.” It is:
+The intended habit is not “a more authoritative website.” It is:
 
 ```
-do not trust software first, then accept the result
 take the public bytes, run the same function, compare
 ```
 
@@ -94,11 +104,10 @@ block header
 OpuHash = SHA3-256("RGRPOW01" || header_80)
 ```
 
-If any step fails to match, the block is invalid. Nobody is asked to
-trust an explorer that printed VALID. Coinbase states this block’s
-height and pays ORU only. An underpaid mint fails
-the predicate. A pool that already shows it as credited cannot make it
-valid.
+If any step fails to match, the block is invalid. An explorer may
+display VALID; the block is still valid only if recomputation matches.
+Coinbase states this block’s height and pays ORU only. An underpaid
+mint fails the predicate. A pool credit display does not make it valid.
 
 That is self-proving: the block is not valid because it was displayed.
 It is valid because it was recomputed.
@@ -110,9 +119,9 @@ It is valid because it was recomputed.
 | Surface | What it is | What it is not |
 |---------|------------|----------------|
 | Full node `rigord` | Applies consensus rules; admits or rejects blocks | A website’s backend opinion |
-| Wallet | Constructs and spends | An oracle of validity |
-| Explorer / indexer | Views and retrieves | Consensus |
-| Pool dashboard | An operator watching shares and hashpower | A source of block legality |
+| Wallet | Constructs and spends; may display balances | A source of consensus validity |
+| Explorer / indexer | Views and retrieves public data | Consensus |
+| Pool dashboard | An operator view of shares and hashpower | A source of block legality |
 | Website Zero Trust | Recomputes selected fields in the browser | A substitute for a full node |
 
 A wallet may show “RES minted.” That is a spending-tool screen.
@@ -130,13 +139,13 @@ The **consensus fingerprint** publishes a deterministic identity over
 already-public fields. It is observational. It does not accept blocks
 and it does not reject blocks.
 
-A wrong fingerprint cannot make an invalid block valid. A matching
+A mismatched fingerprint cannot make an invalid block valid. A matching
 fingerprint cannot replace full-node validation. An explorer may
 display it. A verifier recomputes it. Equality means “the published
 identity matches the local bytes.” It does not mean the publisher was
 an authority.
 
-Zero Trust pages and an explorer’s “verify independently” exit exist
+Zero Trust pages and an explorer’s independent-verification exit exist
 to send a display back to recomputation. The live entry is
 `/zero-trust-verification`. They are tools, not an extra consensus
 layer.
@@ -152,11 +161,10 @@ layer.
 - It does not claim that a fingerprint is a consensus rule.
 - It does not claim C++ equivalence to the kernel model. Model proofs
   are Chapter 8. Even if the model holds, the bytes the node is
-  checking still have
-  to be recomputed.
-- It does not write “do not trust the pool” as “do not run a
-  verifier.” The decision must execute somewhere: a node, a local
-  program, or paper. The executor does not have to be the displayer.
+  checking still have to be recomputed.
+- It does not write independent validation as “do not run a verifier.”
+  The decision must execute somewhere: a node, a local program, or
+  paper. The executor does not have to be the displayer.
 
 **A conclusion may be displayed. Validity must be recomputed.**
 Chapter 8 draws the boundary of formal proof: invariants that hold in

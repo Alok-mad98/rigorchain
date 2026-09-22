@@ -30,10 +30,9 @@ export function SecurityArchitecturePage() {
 
       <aside className="whitepaper-banner card" role="note">
         <p>
-          This section describes protocol security architecture. It does not change consensus
-          rules.
-          <br />
-          <span className="mono">equivalence_claimed = false.</span>
+          This section describes the public security architecture. It does not change consensus
+          rules. Formal verification covers selected properties of a Coq model. The production
+          implementation remains the operational consensus implementation.
         </p>
       </aside>
 
@@ -84,9 +83,9 @@ Stronger mathematical verification`}</pre>
         <DarkCard
           title="Formal Verification"
           to="/documentation/formal-verification"
-          linkLabel="Freeze status"
+          linkLabel="Overview"
         >
-          <p>Strongly verified Coq model. Finite correspondence. Not a refinement proof.</p>
+          <p>Selected consensus properties, machine-checked. Not a claim of full binary equivalence.</p>
         </DarkCard>
         <DarkCard title="Whitepaper" to="/documentation/whitepaper" linkLabel="Read">
           <p>Protocol paper, including Chapter 3 — Minimal Script Architecture.</p>
@@ -96,29 +95,15 @@ Stronger mathematical verification`}</pre>
       <section className="card prose-section">
         <h2>Execution surfaces</h2>
         <p>
-          There is no Script VM. Live templates: Witness v0 ORU P2WPKH, Witness v1 RES, Convergence
-          destroy <code>0xbd</code>, and zero-value NULL_DATA. Coinbase mint <code>0xbb</code> is
-          retired (not the live issuance path). P2WSH,
-          P2PKH, P2SH, Taproot, and Witness v1 CVG2 are not creatable.
+          There is no general-purpose script machine. Spendable outputs use a restricted witness
+          form. ORU and RES are native. Convergence destroys ORU and may create RES in the same
+          transaction. Outputs that the protocol does not define are not creatable.
         </p>
         <p>
-          GitHub:{" "}
-          <a href="https://github.com/rigorchain/rigorchain/blob/main/docs/security/minimal-script-architecture.md">
-            docs/security/minimal-script-architecture.md
-          </a>
-          . Registry:{" "}
-          <a href="https://github.com/rigorchain/rigorchain/blob/main/docs/security/RIGOR_SCRIPT_TYPE_REGISTRY.md">
-            script type registry
-          </a>
-          . Boundary:{" "}
-          <a href="https://github.com/rigorchain/rigorchain/blob/main/docs/security/RIGOR_SCRIPT_SECURITY_BOUNDARY.md">
-            security boundary
-          </a>
-          . Audit:{" "}
-          <a href="https://github.com/rigorchain/rigorchain/blob/main/docs/security/RIGOR_MINIMAL_SCRIPT_CONSISTENCY_AUDIT.md">
-            consistency audit
-          </a>
-          .
+          <Link to="/documentation/security/minimal-script-architecture">
+            Minimal Script Architecture
+          </Link>{" "}
+          states the public script model.
         </p>
       </section>
 

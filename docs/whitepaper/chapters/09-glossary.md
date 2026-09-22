@@ -88,8 +88,9 @@ supply and pays the protocol cost.
 S_ORU(h+1) = S_ORU(h) + R(h+1) − C(h+1)
 ```
 
-PoW does not create RES. PoW only provides irreversible order so every
-honest node evaluates the same height’s `destroy_cost(h)`.
+PoW does not create RES. PoW provides a publicly verifiable height
+ordering with increasing rewrite cost, so every honest node evaluates
+the same height’s `destroy_cost(h)`.
 
 ---
 
@@ -167,7 +168,7 @@ Frozen constants:
 | `RES_COIN` | 100000000 |
 | `destroy_cost(0)` | 102400000000 (1024 ORU per 1 RES) |
 | `RES_DESTROY_POLE` | `2²⁵` |
-| `RES_DESTROY_SHIFT` | 40 |
+| `RES_DESTROY_SHIFT` | 40 (`B << 40`; integer consensus scaling factor, not the `destroy_cost` denominator `2⁵⁰`) |
 | `RES_MAX_SUPPLY` | 419430400000000 atoms (`2²²` RES) |
 | Mint predicate | `R · (2²⁵ + h)² ≤ B << 40` |
 
@@ -186,26 +187,26 @@ body-tx destroy-to-mint.
 
 ---
 
-## Is issuance guaranteed?
+## Is issuance protocol-enforced?
 
 Three different questions. Three different answers.
 
-### 1. Hard cap — guaranteed
+### 1. Hard cap — protocol-enforced (fail-closed)
 
 ```
 S_RES(h)  ≤  419430400000000
 ```
 
-This is a consensus predicate, not a policy. The number is **derived**
+This is a consensus predicate, not a market promise. The number is **derived**
 from the ORU subsidy and `destroy_cost(h)`, not chosen as 21M.
 
-### 2. The mint predicate — guaranteed (fail-closed)
+### 2. The mint predicate — protocol-enforced (fail-closed)
 
 If a body transaction creates RES, it **must** satisfy
 `R · (2²⁵ + h)² ≤ B << 40`. The miner cannot change the cost function
 or mint from coinbase. The transaction is invalid if they try.
 
-### 3. A calendar of continuous issuance — **not** guaranteed
+### 3. A calendar of continuous issuance — **not** a protocol promise
 
 New RES enters only through Convergence destroys that request `R > 0`. How
 fast it appears depends on participation (how much ORU is destroyed). The
@@ -235,5 +236,5 @@ transaction that destroys ORU, at `destroy_cost(h)`, never in coinbase.**
 The lock is: **`R · (2²⁵ + h)² ≤ B << 40` × derived cap.**
 
 What is protocol-enforced: **cannot print extra; a mint must pay `destroy_cost(h)`.**
-What is not guaranteed: **a mint every block, or a year-by-year fill of
+What is not a protocol promise: **a mint every block, or a year-by-year fill of
 the derived cap.**

@@ -42,7 +42,7 @@ Proof.
   rewrite !andb_true_iff, negb_true_iff, Z.ltb_lt, !Z.leb_le in H.
   destruct H as [Hcb [Hok [Hpos [Hcap [Hauth [Hburn Hfit]]]]]].
   repeat split; try assumption.
-  apply rate_pos_of_authorized. exact Hauth.
+  apply destroy_cost_pos_of_authorized. exact Hauth.
 Qed.
 
 (** Statement: a passing check implies [res_issuance_soundness].

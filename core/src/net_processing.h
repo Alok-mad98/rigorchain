@@ -14,7 +14,7 @@ class CChainParams;
 class CTxMemPool;
 class ChainstateManager;
 
-/** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
+/** Historical unique-tx cap used by tests/fuzz. Live `-maxorphantx` default is 0. */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default number of orphan+recently-replaced txn to keep around for block reconstruction */
 static const unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;

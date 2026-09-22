@@ -25,7 +25,7 @@ source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 # --- acceptability judged at the wrong state -------------------------
 # Each block is checked against the chain's starting state instead of
 # the state it is actually applied to.
-run_mutation M77 "kernel_chain_is_graph" \
+run_mutation M77 "kernel_chain_is_graph chain_ok_inhabited chain_ok_inhabited_with_issuance chain_ok_accepts_funded_spend" \
   Kernel/Chain/ChainTransition.v \
   '  | i :: rest => input_ok s i /\ chain_ok (kernel_step_of s i) rest' \
   '  | i :: rest => input_ok s i /\ chain_ok s rest' \
@@ -102,7 +102,7 @@ run_mutation M86 "executable_chain_preserves_invariants" \
 
 # --- machine run does not thread its own result ----------------------
 # Every block after the first is applied to the state before it.
-run_mutation M87 "machine_chain_refines_executable_chain" \
+run_mutation M87 "machine_chain_refines_executable_chain machine_chain_completes_on_idle" \
   Kernel/Chain/ChainRefinement.v \
   "      | Some m' => machine_chain_step_of m' rest" \
   "      | Some m' => machine_chain_step_of m rest" \

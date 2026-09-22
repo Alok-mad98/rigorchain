@@ -214,7 +214,8 @@ static_assert(OPUS_POW_BUFFER_SIZE == 65536, "OpuHash buffer size locked");
 static_assert(OPUS_POW_MIX_ROUNDS == 256, "OpuHash mix rounds locked");
 
 // ---------------------------------------------------------------------------
-// ASERT (mainnet τ; testnets override Params::nPowASERTHalfLife)
+// ASERT τ. Public testnet uses this same value. Regtest and devtest may set
+// Params::nPowASERTHalfLife to a shorter lab half-life.
 //
 // τ = 12 hours. Parent-time evaluation means a miner cannot ease their own
 // block; the next block can move by at most 2^(MAX_FUTURE_BLOCK_TIME / τ) ≈

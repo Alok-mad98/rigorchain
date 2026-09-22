@@ -67,21 +67,12 @@ git clone https://github.com/arda/arda.git
 
 It is not necessary to build wallet functionality to run `rigord` or  `rigor-qt`.
 
-###### Descriptor Wallet Support
+###### Wallet Support
 
-`sqlite` is required to support for descriptor wallets.
+`sqlite` is required. RIGOR wallets are SQLite descriptor wallets only; Berkeley DB is not supported.
 
-macOS ships with a useable `sqlite` package, meaning you don't need to
+macOS ships with a usable `sqlite` package, meaning you don't need to
 install anything.
-
-###### Legacy Wallet Support
-
-`berkeley-db@4` is only required to support for legacy wallets.
-Skip if you don't intend to use legacy wallets.
-
-``` bash
-brew install berkeley-db@4
-```
 ---
 
 #### GUI Dependencies
@@ -178,23 +169,10 @@ pip3 install ds_store mac_alias
 
 There are many ways to configure Rigor Core, here are a few common examples:
 
-##### Wallet (BDB + SQlite) Support, No GUI:
+##### Wallet and GUI Support:
 
-If `berkeley-db@4` is installed, then legacy wallet support will be built.
-If `berkeley-db@4` is not installed, then this will throw an error.
-If `sqlite` is installed, then descriptor wallet support will also be built.
-Additionally, this explicitly disables the GUI.
-
-``` bash
-./autogen.sh
-./configure --with-gui=no
-```
-
-##### Wallet (only SQlite) and GUI Support:
-
-This explicitly enables the GUI and disables legacy wallet support.
+This explicitly enables the GUI. Wallets are SQLite descriptor wallets only.
 If `qt` is not installed, this will throw an error.
-If `sqlite` is installed then descriptor wallet functionality will be built.
 If `sqlite` is not installed, then wallet functionality will be disabled.
 
 ``` bash

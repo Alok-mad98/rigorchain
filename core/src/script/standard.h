@@ -92,7 +92,9 @@ enum class TxoutType {
 class CNoDestination {
 public:
     friend bool operator==(const CNoDestination&, const CNoDestination&) { return true; }
-    friend bool operator<(const CNoDestination&, const CNoDestination&) { return true; }
+    // Equivalent keys must not compare less (strict weak ordering). The previous
+    // `return true` made a < a, which is undefined for std::map/set lookup.
+    friend bool operator<(const CNoDestination&, const CNoDestination&) { return false; }
 };
 
 struct PKHash : public BaseHash<uint160>

@@ -37,6 +37,14 @@ private:
     sqlite3_stmt* m_overwrite_stmt{nullptr};
     sqlite3_stmt* m_delete_stmt{nullptr};
 
+    /**
+     * Whether this batch started the database transaction and therefore owns
+     * SQLiteDatabase::m_write_semaphore. Distinct from HasActiveTxn() on the
+     * connection: only the batch that called TxnBegin() may COMMIT/ROLLBACK.
+     * Ported from bitcoin/bitcoin#29112.
+     */
+    bool m_txn{false};
+
     void SetupSQLStatements();
 
     bool ReadKey(DataStream&& key, DataStream& value) override;
@@ -57,6 +65,7 @@ public:
     bool TxnBegin() override;
     bool TxnCommit() override;
     bool TxnAbort() override;
+    bool HasActiveTxn() override { return m_txn; }
 };
 
 /** An instance of this class represents one SQLite3 database.
@@ -64,11 +73,27 @@ public:
 class SQLiteDatabase : public WalletDatabase
 {
 private:
+    friend class SQLiteBatch;
+
     const bool m_mock{false};
 
     const std::string m_dir_path;
 
     const std::string m_file_path;
+
+    /**
+     * Extra sqlite3_open_v2 flags (e.g. SQLITE_OPEN_MEMORY for mock DBs).
+     * Must be stored so force_conn_refresh / Open() keep the original mode
+     * (bitcoin/bitcoin ee43743).
+     */
+    const int m_additional_flags;
+
+    /**
+     * Serializes writers across SQLiteBatch objects that share this connection.
+     * SQLite allows only one txn per connection; a second batch must not write
+     * into (or ROLLBACK) the first. Ported from bitcoin/bitcoin#29112.
+     */
+    CSemaphore m_write_semaphore;
 
     /**
      * This mutex protects SQLite initialization and shutdown.
@@ -80,6 +105,7 @@ private:
     static int g_sqlite_count GUARDED_BY(g_sqlite_mutex);
 
     void Cleanup() noexcept EXCLUSIVE_LOCKS_REQUIRED(!g_sqlite_mutex);
+    void OpenWithFlags(int additional_flags);
 
 public:
     SQLiteDatabase() = delete;
@@ -126,6 +152,9 @@ public:
 
     /** Make a SQLiteBatch connected to this database */
     std::unique_ptr<DatabaseBatch> MakeBatch(bool flush_on_close = true) override;
+
+    /** True if this connection has an unfinished SQLite transaction. */
+    bool HasActiveTxn() const;
 
     sqlite3* m_db{nullptr};
     bool m_use_unsafe_sync;

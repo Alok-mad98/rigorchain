@@ -106,7 +106,7 @@ struct Params {
     bool fPowNoRetargeting;
     int64_t nPowTargetSpacing;
     int64_t nPowTargetTimespan;
-    /** ASERT (aserti3-2d) half-life τ in seconds. Mainnet 43200 (12h); parent time + height-1 anchor. */
+    /** ASERT (aserti3-2d) half-life τ in seconds. Mainnet and public testnet are 43200 (12h); parent time + height-1 anchor. */
     int64_t nPowASERTHalfLife{0};
     std::chrono::seconds PowTargetSpacing() const
     {

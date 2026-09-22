@@ -141,6 +141,7 @@ REQUIRED_V = [
     "Economic/DomainSeparation.v",
     "Kernel/UnifiedState.v",
     "Kernel/UnifiedTransition.v",
+    "Kernel/KernelInputBridge.v",
     "Kernel/InvariantBundle.v",
     "proofs/KernelTransitionSoundness.v",
     "Economic/UTXOEconomicBridge.v",

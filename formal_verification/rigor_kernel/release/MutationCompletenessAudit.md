@@ -1,6 +1,28 @@
 # Mutation Completeness Audit
 
-Audit only. **No new mutation** in P0-130.
+## Current status
+
+Healthy cone: `./mutation/run_all_mutations.sh` prints 129
+`EXPECTED_FAILURE` lines and `MUTATION_PASSES=0`.
+Frontier 2.5 added M108–M128 (block proof, multi-tip, maturity,
+script spend). KernelInputBridge added M129. `input_ok_reflect`
+added M130.
+
+The live declaration table is `mutation/expected_failures.md`.
+Category A coverage is the output of
+`scripts/check_mutation_coverage.py` (`MUTATION_COVERAGE_CATEGORY_A=COMPLETE`
+on the last full gate that included this cone).
+
+`MUTATION_COUNT=129`
+`MUTATION_TEST_COMPLETE=TRUE`
+`EXPECTED_FAILURES_CONFIRMED=TRUE`
+
+---
+
+## Historical Snapshot (P0-130)
+
+Audit only. **No new mutation** in P0-130. The numbers and table in
+this snapshot are of that phase. They are not the current suite size.
 
 Frontier 1.1 and 1.4 added M51-M76 (M66 was withdrawn as redundant),
 frontier 2.1 added M77-M89 for the chain-level layer, frontier 2.4
@@ -9,8 +31,7 @@ added M95-M99 for unit-price monotonicity, 128-bit products, block mint
 sum, derived-cap identity and reorg replay, and the
 harness was rebuilt so a mutant is only credited with a kill it can be
 shown to make. The per-mutation table below is the P0-130 snapshot and
-stops at M41; the current, generated declaration table is
-`mutation/expected_failures.md`.
+stops at M41.
 
 Two harness corrections came out of running the suite rather than
 reading it. 2.1's rebuild stopped a mutant from claiming a kill it did
@@ -20,16 +41,7 @@ not make. 2.4 found the complement: `mutation/admit_proof.py` matched
 lemma, and the mutant was then reported as having broken elaboration
 rather than as having killed anything. Both forms are handled now.
 
-Healthy cone: `./mutation/run_all_mutations.sh` prints 127
-`EXPECTED_FAILURE` lines and `MUTATION_PASSES=0`.
-Frontier 2.5 added M108–M128 (block proof, multi-tip, maturity,
-script spend).
-
-`MUTATION_COUNT=127`
-`MUTATION_TEST_COMPLETE=TRUE`
-`EXPECTED_FAILURES_CONFIRMED=TRUE`
-
-## M1–M41
+## Historical Snapshot (P0-130): M1–M41
 
 | ID | Target theorem | Broken rule | Expected failure | Executed | Observed |
 |---|---|---|---|---|---|
@@ -75,11 +87,12 @@ script spend).
 | M40 | `runtime_step_deterministic` | `runtime_step_unique = false` | compile/Qed fail | `mutate_runtime_boundary.sh` | EXPECTED_FAILURE |
 | M41 | `runtime_failure_preserved` | remove failure path | compile/Qed fail | `mutate_runtime_boundary.sh` | EXPECTED_FAILURE |
 
-Runner: `mutation/run_all_mutations.sh` pins the count of the whole
-suite, not of this snapshot. The pin is 93; the 41 above is where the
-P0-130 table stops.
+Runner: at P0-130, `mutation/run_all_mutations.sh` pinned the count of
+the whole suite, not of this M1–M41 table. **The pin 93 is a P0-130
+figure.** The 41 rows above are where that snapshot's table stops.
+Current suite size is the Current status marker `MUTATION_COUNT=129`.
 
-## Mutation classes (required)
+## Historical Snapshot (P0-130): Mutation classes (required)
 
 | Class | IDs | Covered? |
 |---|---|---|
@@ -100,7 +113,10 @@ Additional classes present (not requested, still executed): Supply
 M31, M32), Execution (M25, M33, M35), Serialization (M34), Checker
 (M39).
 
-## Honest gaps (not missing classes)
+## Historical Snapshot (P0-130): Honest gaps (not missing classes)
+
+The list below is the P0-130 per-theorem gap record. It is not the
+current coverage output of `scripts/check_mutation_coverage.py`.
 
 Category A theorems with **no dedicated mutant** include
 `kernel_sound`, `integer_range_safe`, `runtime_domain_closed`,

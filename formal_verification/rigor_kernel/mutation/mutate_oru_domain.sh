@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 # Fees mint an extra ORU term.
-run_mutation M26 subsidy_is_only_creation_source Economic/ORU/ORUTransition.v \
+run_mutation M26 "subsidy_is_only_creation_source oru_domain_conservation oru_fees_are_transfer_only" Economic/ORU/ORUTransition.v \
   '       oru_stock pre + ovf_subsidy f + ovf_incoming f
          - ovf_outgoing f - ovf_burn f |}.' \
   '       oru_stock pre + ovf_subsidy f + ovf_incoming f

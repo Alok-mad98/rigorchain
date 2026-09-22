@@ -6,94 +6,88 @@
 
 #include <test/util/setup_common.h>
 #include <util/fs.h>
-
-#ifdef USE_BDB
-#include <wallet/bdb.h>
+#include <util/translation.h>
+#include <wallet/db.h>
+#include <wallet/walletdb.h>
 
 #include <fstream>
-#include <memory>
 #include <string>
+#include <vector>
 
 namespace wallet {
 BOOST_FIXTURE_TEST_SUITE(db_tests, BasicTestingSetup)
 
-static std::shared_ptr<BerkeleyEnvironment> GetWalletEnv(const fs::path& path, fs::path& database_filename)
+static void WriteFakeBerkeleyDBFile(const fs::path& path)
 {
-    fs::path data_file = BDBDataFile(path);
-    database_filename = data_file.filename();
-    return GetBerkeleyEnv(data_file.parent_path(), false);
+    std::ofstream file{path, std::ios::binary | std::ios::trunc};
+    std::vector<char> buf(4096, 0);
+    // Little-endian Berkeley DB Btree magic at offset 12: 62 31 05 00
+    buf[12] = 0x62;
+    buf[13] = 0x31;
+    buf[14] = 0x05;
+    buf[15] = 0x00;
+    file.write(buf.data(), static_cast<std::streamsize>(buf.size()));
 }
 
-BOOST_AUTO_TEST_CASE(getwalletenv_file)
+BOOST_AUTO_TEST_CASE(is_berkeley_db_file_detects_magic)
 {
-    fs::path test_name = "test_name.dat";
-    const fs::path datadir = m_args.GetDataDirNet();
-    fs::path file_path = datadir / test_name;
-    std::ofstream f{file_path};
-    f.close();
-
-    fs::path filename;
-    std::shared_ptr<BerkeleyEnvironment> env = GetWalletEnv(file_path, filename);
-    BOOST_CHECK_EQUAL(filename, test_name);
-    BOOST_CHECK_EQUAL(env->Directory(), datadir);
+    const fs::path path = m_args.GetDataDirNet() / "legacy.dat";
+    WriteFakeBerkeleyDBFile(path);
+    BOOST_CHECK(IsBerkeleyDBFile(path));
+    BOOST_CHECK(!IsBerkeleyDBFile(m_args.GetDataDirNet()));
 }
 
-BOOST_AUTO_TEST_CASE(getwalletenv_directory)
+BOOST_AUTO_TEST_CASE(make_database_rejects_bdb_file)
 {
-    fs::path expected_name = WALLET_DATABASE_FILENAME;
-    const fs::path datadir = m_args.GetDataDirNet();
+    const fs::path path = m_args.GetDataDirNet() / "wallet.dat";
+    WriteFakeBerkeleyDBFile(path);
 
-    fs::path filename;
-    std::shared_ptr<BerkeleyEnvironment> env = GetWalletEnv(datadir, filename);
-    BOOST_CHECK_EQUAL(filename, expected_name);
-    BOOST_CHECK_EQUAL(env->Directory(), datadir);
+    DatabaseOptions options;
+    DatabaseStatus status;
+    bilingual_str error;
+    std::unique_ptr<WalletDatabase> database = MakeDatabase(path, options, status, error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_FORMAT);
+    BOOST_CHECK(error.original.find("Berkeley DB wallet") != std::string::npos);
 }
 
-BOOST_AUTO_TEST_CASE(getwalletenv_g_dbenvs_multiple)
+BOOST_AUTO_TEST_CASE(make_database_rejects_bdb_wallet_dat_directory)
 {
-    fs::path datadir = m_args.GetDataDirNet() / "1";
-    fs::path datadir_2 = m_args.GetDataDirNet() / "2";
-    fs::path filename;
+    const fs::path dir = m_args.GetDataDirNet() / "bdbwallet";
+    fs::create_directories(dir);
+    WriteFakeBerkeleyDBFile(dir / "wallet.dat");
 
-    std::shared_ptr<BerkeleyEnvironment> env_1 = GetWalletEnv(datadir, filename);
-    std::shared_ptr<BerkeleyEnvironment> env_2 = GetWalletEnv(datadir, filename);
-    std::shared_ptr<BerkeleyEnvironment> env_3 = GetWalletEnv(datadir_2, filename);
-
-    BOOST_CHECK(env_1 == env_2);
-    BOOST_CHECK(env_2 != env_3);
+    DatabaseOptions options;
+    DatabaseStatus status;
+    bilingual_str error;
+    std::unique_ptr<WalletDatabase> database = MakeDatabase(dir, options, status, error);
+    BOOST_CHECK(!database);
+    BOOST_CHECK(status == DatabaseStatus::FAILED_BAD_FORMAT);
+    BOOST_CHECK(error.original.find("Berkeley DB wallet") != std::string::npos);
 }
 
-BOOST_AUTO_TEST_CASE(getwalletenv_g_dbenvs_free_instance)
+//! bitcoin/bitcoin#34156: failed restore/createfromdump must not recursive-delete
+//! the wallets directory (empty wallet name => wallet_path == GetWalletDir()).
+BOOST_AUTO_TEST_CASE(remove_created_wallet_database_leaves_siblings)
 {
-    fs::path datadir = gArgs.GetDataDirNet() / "1";
-    fs::path datadir_2 = gArgs.GetDataDirNet() / "2";
-    fs::path filename;
-
-    std::shared_ptr<BerkeleyEnvironment> env_1_a = GetWalletEnv(datadir, filename);
-    std::shared_ptr<BerkeleyEnvironment> env_2_a = GetWalletEnv(datadir_2, filename);
-    env_1_a.reset();
-
-    std::shared_ptr<BerkeleyEnvironment> env_1_b = GetWalletEnv(datadir, filename);
-    std::shared_ptr<BerkeleyEnvironment> env_2_b = GetWalletEnv(datadir_2, filename);
-
-    BOOST_CHECK(env_1_a != env_1_b);
-    BOOST_CHECK(env_2_a == env_2_b);
-}
-
-BOOST_AUTO_TEST_SUITE_END()
-} // namespace wallet
-
-#else
-
-namespace wallet {
-BOOST_FIXTURE_TEST_SUITE(db_tests, BasicTestingSetup)
-
-BOOST_AUTO_TEST_CASE(berkeley_db_tests_skipped_without_USE_BDB)
-{
-    BOOST_TEST_MESSAGE("db_tests: Berkeley DB wallet backend not compiled in (SQLite-only build).");
+    const fs::path wallets = m_args.GetDataDirNet() / "wallets";
+    const fs::path sibling_dir = wallets / "keepme";
+    fs::create_directories(sibling_dir);
+    const fs::path sibling = sibling_dir / "funds.txt";
+    {
+        std::ofstream file{sibling};
+        file << "do-not-delete";
+    }
+    const fs::path db_file = SQLiteDataFile(wallets);
+    {
+        std::ofstream file{db_file};
+        file << "tmp-restore";
+    }
+    RemoveCreatedWalletDatabase(wallets);
+    BOOST_CHECK(!fs::exists(db_file));
+    BOOST_CHECK(fs::exists(wallets));
+    BOOST_CHECK(fs::exists(sibling));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
 } // namespace wallet
-
-#endif

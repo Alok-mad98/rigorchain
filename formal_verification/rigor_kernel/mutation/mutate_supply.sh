@@ -4,8 +4,9 @@ set -euo pipefail
 # shellcheck source=lib.sh
 source "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-# Negative-height display destroy cost becomes -1, so 0 <= RATE h fails.
-# golden_negative_vectors_rejected is M36; it does not read RATE.
+# Negative-height display destroy cost becomes -1, so
+# 0 <= res_destroy_cost_at_height h fails.
+# golden_negative_vectors_rejected is M36; it does not read the destroy cost.
 run_mutation M1 res_schedule_finite Supply/SupplySchedule.v \
   '  if height <? 0 then 0' \
   '  if height <? 0 then -1' \

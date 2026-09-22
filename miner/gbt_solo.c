@@ -517,7 +517,6 @@ bool gbt_solo_assemble(const json_t *gbt,
 	uint32_t version, curtime, bits;
 	uint8_t (*merkle)[32] = NULL;
 	uint8_t (*wtree)[32] = NULL;
-	char *txs_end;
 	int tx_size = 0;
 
 	memset(out, 0, sizeof(*out));
@@ -822,19 +821,38 @@ bool gbt_solo_assemble(const json_t *gbt,
 			fail_msg(err, errlen, "tx count compact-size overflow");
 			return false;
 		}
-		out->txs_hex = malloc((size_t)(2 * (vn + out->coinbase_wit_len + tx_size) + 1));
-		if (!out->txs_hex) {
-			fail_msg(err, errlen, "OOM");
-			return false;
-		}
-		bin2hex_local(out->txs_hex, txc_vi, vn);
-		bin2hex_local(out->txs_hex + 2 * vn, out->coinbase_wit, out->coinbase_wit_len);
-		txs_end = out->txs_hex + strlen(out->txs_hex);
-		for (i = 0; i < tx_count; i++) {
-			const json_t *tx = json_array_get(txa, i);
-			const char *td = json_string_value(json_object_get(tx, "data"));
-			strcpy(txs_end, td);
-			txs_end += strlen(td);
+		{
+			size_t cap = (size_t)2 * ((size_t)vn + (size_t)out->coinbase_wit_len +
+						 (size_t)tx_size) + 1;
+			size_t used;
+
+			out->txs_hex = malloc(cap);
+			if (!out->txs_hex) {
+				fail_msg(err, errlen, "OOM");
+				return false;
+			}
+			bin2hex_local(out->txs_hex, txc_vi, vn);
+			bin2hex_local(out->txs_hex + 2 * vn, out->coinbase_wit, out->coinbase_wit_len);
+			used = strlen(out->txs_hex);
+			for (i = 0; i < tx_count; i++) {
+				const json_t *tx = json_array_get(txa, i);
+				const char *td = json_string_value(json_object_get(tx, "data"));
+				size_t td_len;
+
+				if (!td) {
+					gbt_solo_out_free(out);
+					fail_msg(err, errlen, "GBT invalid transactions[].data");
+					return false;
+				}
+				td_len = strlen(td);
+				if (used + td_len + 1 > cap) {
+					gbt_solo_out_free(out);
+					fail_msg(err, errlen, "GBT txs_hex overflow");
+					return false;
+				}
+				memcpy(out->txs_hex + used, td, td_len + 1);
+				used += td_len;
+			}
 		}
 	}
 

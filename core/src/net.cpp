@@ -1595,6 +1595,45 @@ int CConnman::GetExtraBlockRelayCount() const
     return std::max(block_relay_peers - m_max_outbound_block_relay, 0);
 }
 
+int CConnman::CountFullOutboundOrManual(Network net) const
+{
+    LOCK(m_nodes_mutex);
+    int count = 0;
+    for (const CNode* pnode : m_nodes) {
+        if (pnode->fDisconnect) continue;
+        if (!pnode->IsFullOutboundConn() && !pnode->IsManualConn()) continue;
+        if (pnode->addr.GetNetwork() == net) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool CConnman::MaybePickPreferredNetwork(std::optional<Network>& network)
+{
+    std::array<Network, 5> nets{NET_IPV4, NET_IPV6, NET_ONION, NET_I2P, NET_CJDNS};
+    Shuffle(nets.begin(), nets.end(), FastRandomContext());
+
+    LOCK(m_nodes_mutex);
+    for (const auto net : nets) {
+        if (!IsReachable(net)) continue;
+        if (addrman.Size(net, std::nullopt) == 0) continue;
+        int count = 0;
+        for (const CNode* pnode : m_nodes) {
+            if (pnode->fDisconnect) continue;
+            if (!pnode->IsFullOutboundConn() && !pnode->IsManualConn()) continue;
+            if (pnode->addr.GetNetwork() == net) {
+                ++count;
+            }
+        }
+        if (count == 0) {
+            network = net;
+            return true;
+        }
+    }
+    return false;
+}
+
 std::unordered_set<Network> CConnman::GetReachableEmptyNetworks() const
 {
     std::unordered_set<Network> networks{};
@@ -1639,6 +1678,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
     // Minimum time before next feeler connection (in microseconds).
     auto next_feeler = GetExponentialRand(start, FEELER_INTERVAL);
     auto next_extra_block_relay = GetExponentialRand(start, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
+    auto next_extra_network_peer = GetExponentialRand(start, EXTRA_NETWORK_PEER_INTERVAL);
     const bool dnsseed = gArgs.GetBoolArg("-dnsseed", DEFAULT_DNSSEED);
     bool add_fixed_seeds = gArgs.GetBoolArg("-fixedseeds", DEFAULT_FIXEDSEEDS);
 
@@ -1750,6 +1790,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
         auto now = GetTime<std::chrono::microseconds>();
         bool anchor = false;
         bool fFeeler = false;
+        std::optional<Network> preferred_net;
 
         // Determine what type of connection to open. Opening
         // BLOCK_RELAY connections to addresses from anchors.dat gets the highest
@@ -1795,6 +1836,13 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             // (similar to how we deal with extra outbound peers).
             next_extra_block_relay = GetExponentialRand(now, EXTRA_BLOCK_RELAY_ONLY_PEER_INTERVAL);
             conn_type = ConnectionType::BLOCK_RELAY;
+        } else if (nOutboundFullRelay == m_max_outbound_full_relay &&
+                   m_max_outbound_full_relay == MAX_OUTBOUND_FULL_RELAY_CONNECTIONS &&
+                   now > next_extra_network_peer &&
+                   MaybePickPreferredNetwork(preferred_net)) {
+            // Bitcoin Core #27213 / v26: keep at least one full-relay (or
+            // manual) outbound on every reachable network that AddrMan knows.
+            next_extra_network_peer = GetExponentialRand(now, EXTRA_NETWORK_PEER_INTERVAL);
         } else if (now > next_feeler) {
             next_feeler = GetExponentialRand(now, FEELER_INTERVAL);
             conn_type = ConnectionType::FEELER;
@@ -1851,8 +1899,9 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
                     std::tie(addr, addr_last_try) = addrman.Select(true);
                 }
             } else {
-                // Not a feeler
-                std::tie(addr, addr_last_try) = addrman.Select();
+                // Not a feeler. Optionally restrict to a reachable network that
+                // currently has no full-relay/manual outbound.
+                std::tie(addr, addr_last_try) = addrman.Select(/*newOnly=*/false, preferred_net);
             }
 
             // Require outbound connections, other than feelers, to be to distinct network groups
@@ -1898,6 +1947,8 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
                     return;
                 }
                 LogPrint(BCLog::NET, "Making feeler connection to %s\n", addrConnect.ToStringAddrPort());
+            } else if (preferred_net) {
+                LogPrint(BCLog::NET, "Making network-specific connection to %s\n", addrConnect.ToStringAddrPort());
             }
             // Record addrman failure attempts when node has at least 2 persistent outbound connections to peers with
             // different netgroups in ipv4/ipv6 networks + all peers in Tor/I2P/CJDNS networks.
@@ -2299,21 +2350,41 @@ bool CConnman::Bind(const CService& addr_, unsigned int flags, NetPermissionFlag
 bool CConnman::InitBinds(const Options& options)
 {
     bool fBound = false;
+    bool bind_failed = false;
     for (const auto& addrBind : options.vBinds) {
-        fBound |= Bind(addrBind, BF_REPORT_ERROR, NetPermissionFlags::None);
+        if (Bind(addrBind, BF_REPORT_ERROR, NetPermissionFlags::None)) {
+            fBound = true;
+        } else {
+            bind_failed = true;
+        }
     }
     for (const auto& addrBind : options.vWhiteBinds) {
-        fBound |= Bind(addrBind.m_service, BF_REPORT_ERROR, addrBind.m_flags);
+        if (Bind(addrBind.m_service, BF_REPORT_ERROR, addrBind.m_flags)) {
+            fBound = true;
+        } else {
+            bind_failed = true;
+        }
     }
     for (const auto& addr_bind : options.onion_binds) {
-        fBound |= Bind(addr_bind, BF_DONT_ADVERTISE, NetPermissionFlags::None);
+        if (Bind(addr_bind, BF_DONT_ADVERTISE, NetPermissionFlags::None)) {
+            fBound = true;
+        } else {
+            bind_failed = true;
+        }
     }
     if (options.bind_on_any) {
         struct in_addr inaddr_any;
         inaddr_any.s_addr = htonl(INADDR_ANY);
         struct in6_addr inaddr6_any = IN6ADDR_ANY_INIT;
-        fBound |= Bind(CService(inaddr6_any, GetListenPort()), BF_NONE, NetPermissionFlags::None);
-        fBound |= Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE, NetPermissionFlags::None);
+        const bool bound_v6 = Bind(CService(inaddr6_any, GetListenPort()), BF_NONE, NetPermissionFlags::None);
+        const bool bound_v4 = Bind(CService(inaddr_any, GetListenPort()), !bound_v6 ? BF_REPORT_ERROR : BF_NONE, NetPermissionFlags::None);
+        fBound |= bound_v6 || bound_v4;
+        // Default dual-stack bind still succeeds if at least one family works.
+    }
+    // Bitcoin Core #22729 / v28: any explicit bind failure aborts startup so
+    // an operator cannot think they are listening on an interface they are not.
+    if (!options.vBinds.empty() || !options.vWhiteBinds.empty() || !options.onion_binds.empty()) {
+        return fBound && !bind_failed;
     }
     return fBound;
 }
@@ -2326,7 +2397,7 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
     if (fListen && !InitBinds(connOptions)) {
         if (m_client_interface) {
             m_client_interface->ThreadSafeMessageBox(
-                _("Failed to listen on any port. Use -listen=0 if you want this."),
+                _("Failed to listen on all configured binds. Use -listen=0 if you want this."),
                 "", CClientUIInterface::MSG_ERROR);
         }
         return false;

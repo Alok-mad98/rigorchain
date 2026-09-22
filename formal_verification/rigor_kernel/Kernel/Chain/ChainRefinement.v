@@ -30,6 +30,7 @@ From RigorKernel Require Import Kernel.UnifiedState.
 From RigorKernel Require Import Kernel.UnifiedTransition.
 From RigorKernel Require Import Kernel.InvariantBundle.
 From RigorKernel Require Import Kernel.Chain.ChainTransition.
+From RigorKernel Require Import Kernel.KernelInputBridge.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelState.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelMapping.
 From RigorKernel Require Import Refinement.ConcreteKernel.ConcreteKernelTransition.
@@ -220,21 +221,16 @@ Proof.
   intros m Hwf.
   apply machine_words_wf_inv in Hwf
     as [_ [_ [_ [Hstock [_ Horu]]]]].
+  pose proof idle_witness_flow as [_ [_ [Hfee [Hburn [Hsub Hmint]]]]].
   unfold machine_step_of, idle_input.
-  cbn [ki_fees ki_burn ki_subsidy ki_res_mint ki_utxo_ok ki_script_ok
-       ki_pow_ok ki_asert_ok ki_incoming ki_outgoing].
+  rewrite Hfee, Hburn, Hsub, Hmint.
   replace (wf_wordb 0) with true
     by (symmetry; apply wf_wordb_true_iff; unfold wf_word; pose word_max_pos; lia).
   cbn [andb negb].
   replace (Z.max 0 0) with 0 by lia.
   rewrite (w_add_of_wf (mk_res_stock m) 0)
     by (unfold wf_word in *; lia).
-  replace (oru_delta {| ki_utxo_ok := true; ki_incoming := 0;
-                        ki_outgoing := 0; ki_fees := 0; ki_burn := 0;
-                        ki_subsidy := 0; ki_res_mint := 0;
-                        ki_script_ok := true; ki_pow_ok := true;
-                        ki_asert_ok := true |}) with 0
-    by (unfold oru_delta; cbn; lia).
+  rewrite idle_witness_delta.
   rewrite (w_add_of_wf (mk_oru_stock m) 0)
     by (unfold wf_word in *; lia).
   eexists. reflexivity.
@@ -279,14 +275,21 @@ Proof.
       unfold wf_word, word_max; lia.
   - split.
     + simpl. split; [| exact I].
+      pose proof (flags_of_passing_asert_witness zero_ktx (zero_flow_rtx 0 1 0))
+        as [Hu [Hs [Hp Ha]]].
+      pose proof mint_one_witness_flow
+        as [Hin [Hout [Hfee [Hburn [Hsub Hmint]]]]].
+      fold mint_one_witness in Hu, Hs, Hp, Ha.
       unfold input_ok, overflow_witness_input, overflow_witness_state,
              machine_to_executable, execution_projection, kernel_projection,
              exec_project_utxo.
+      rewrite Hu, Hs, Hp, Ha, Hin, Hout, Hfee, Hburn, Hsub, Hmint.
       cbn.
       repeat split; try reflexivity; unfold word_max; lia.
-    + simpl.
+    + cbn [machine_chain_step_of].
       unfold machine_step_of, overflow_witness_state, overflow_witness_input.
-      cbn [ki_fees ki_burn ki_subsidy ki_res_mint mk_res_stock mk_oru_stock].
+      pose proof mint_one_witness_flow as [_ [_ [Hfee [Hburn [Hsub Hmint]]]]].
+      rewrite Hfee, Hburn, Hsub, Hmint.
       replace (wf_wordb 0) with true
         by (symmetry; apply wf_wordb_true_iff; unfold wf_word, word_max; lia).
       cbn [andb negb].

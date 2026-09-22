@@ -28,6 +28,7 @@
 #include <qt/convergencepage.h>
 #include <qt/rigorwallet/widgets/convergence_wizard.h>
 #include <consensus/res_issuance.h>
+#include <wallet/mint_height_pad.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
 #include <wallet/wallet.h>
@@ -569,10 +570,10 @@ void TestConvergenceClicks(interfaces::Node& node)
     auto* title = page.findChild<QLabel*>("labelQuadraticFeeTitle");
     QVERIFY(title);
     QCOMPARE(title->text(), QStringLiteral("RES this mint will create"));
-    const int confirm_height = WITH_LOCK(test.m_node.chainman->GetMutex(),
-        return test.m_node.chainman->ActiveChain().Height() + 1);
+    const int current_height = WITH_LOCK(test.m_node.chainman->GetMutex(),
+        return test.m_node.chainman->ActiveChain().Height());
     const CAmount one_res_burn =
-        Consensus::ResMinBurnForAtoms(Consensus::RES_COIN, confirm_height);
+        Consensus::ResMinBurnForAtoms(Consensus::RES_COIN, wallet::ConvergenceTargetHeight(current_height));
     QVERIFY(one_res_burn > 0);
     auto* converge_amount = page.findChild<BitcoinAmountField*>("convergeAmount");
     QVERIFY(converge_amount);
