@@ -170,7 +170,8 @@ def main() -> int:
         if o != c:
             stop({"surface": "issuance", "height": pin["height"]}, c, o)
             return 1
-        if pin["height"] == 0 and o.get("res_destroy_cost", 0) == 0:
+        cost = o.get("res_destroy_cost", o.get("res_unit_price", 0))
+        if pin["height"] == 0 and int(cost) == 0:
             stop({"height": 0}, c, o)
             return 1
 
@@ -181,30 +182,7 @@ def main() -> int:
             stop({"surface": "classify", "id": pin["id"]}, c, o)
             return 1
 
-    dcfg = vec["draw"]
-    h, c_hex, b_hex = str(dcfg["h"]), dcfg["c_hex"], dcfg["b_hex"]
-    empty_o = jrun(OCAML, "draw-empty")
-    empty_c = jrun(CABI, "draw-empty")
-    if empty_o != empty_c or empty_o.get("has_winner") is not False:
-        stop({"surface": "draw", "F": "empty"}, empty_c, empty_o)
-        return 1
-    winners = {}
-    for case in dcfg["cases"]:
-        if case["kind"] == "empty":
-            continue
-        oj = jrun(OCAML, case["kind"], h, c_hex, b_hex, case["spec"])
-        cj = jrun(CABI, case["kind"], h, c_hex, b_hex, case["spec"])
-        if oj != cj:
-            stop({"surface": "draw", "id": case["id"]}, cj, oj)
-            return 1
-        winners[case["id"]] = oj
-    if winners.get("boundary_target", {}).get("has_winner") is not False:
-        stop({"surface": "draw", "id": "boundary_target"}, winners.get("boundary_target"), {"has_winner": False})
-        return 1
-    if winners.get("two") and winners.get("same_target"):
-        if winners["two"].get("winner") != winners["same_target"].get("winner"):
-            stop({"surface": "draw", "same_sigma_different_txid": True}, winners["two"], winners["same_target"])
-            return 1
+    print("SKIP: lottery draw-empty / draw C ABI retired with Batch C")
 
     for pin in vec["supply"]:
         args = [

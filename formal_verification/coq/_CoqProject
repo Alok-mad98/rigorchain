@@ -1,6 +1,4 @@
-# Live Coq cone after RFC-019 Phase 5 step 1.
-# Lottery catalogs (Phase4F/4G/5 Equivalence, ReplayReorgCore, Kernel σ/selection)
-# were git-mv'd to formal_verification/archive/lottery/ — see WHY_ARCHIVED.md.
+# Live Coq cone. Lottery catalogs / draw models were removed.
 # Citable theorems: _CoqProject.protocol-core only (F-4).
 -R . Rigor
 -R ../rigor_v01 RigorV01
@@ -14,28 +12,8 @@ PowDigest.v
 RigorHash.v
 legacy_account_model/Types.v
 ResSchedule.v
-ConvergeRoot.v
-SigmaPoW01.v
-Sigma.v
-legacy_account_model/Selection.v
-OrderIndependence.v
 InvalidCvg.v
-CanonicalDrawEncoder.v
 CanonicalHashKernel.v
-COQ_SELECTION_CLOSURE.v
-Execution.v
-legacy_account_model/State.v
-legacy_account_model/ConnectBlockScaffold.v
-legacy_account_model/Transition.v
-Serialization.v
-Properties.v
-ConnectBlock.v
-Proofs/Determinism.v
-Proofs/Safety.v
-Proofs/Fairness.v
-Proofs/FairnessIdealized.v
-Proofs/SplitInvariance.v
-Extraction.v
 FeeBurn/Accounting.v
 FeeBurn/AssetDomain.v
 FeeBurn/ReplaySafety.v

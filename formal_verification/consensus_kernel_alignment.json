@@ -9,7 +9,7 @@
     "GetResMintReward(0) is the schedule value W(0)=RES_REWARD_GENESIS. ConnectBlock genesis skip / res_issued_at_height(0)=0 is actual issuance. These are different facts.",
     "C++ RigorSupplyDelta.oru_circulating_delta = subsidy - converge (RFC-002 ledger). Coq apply_delta circulating also subtracts fee_burn (RFC-018 UTXO view). Map circulating_delta to Coq ledger_oru_delta / us_ledger_oru.",
     "C++ oru_claimable = (fees - burn) + subsidy maps to Coq coinbase_oru_cap.",
-    "CanonicalIssuance.res_issued_at_height(h>=1) is a schedule-application bound, not RigorSupplyDelta.res_delta (accepted mint, gated by winner).",
+    "CanonicalIssuance.res_issued_at_height(h>=1) is a schedule-application bound, not RigorSupplyDelta.res_delta (accepted mint, gated by CheckResMintArithmetic).",
     "Phase5Equivalence VACUOUS-PLACEHOLDER / exact I lemmas are BOOKKEEPING and are not alignment evidence.",
     "P048 isolation items remain NOT_BLOCKING_FINDING."
   ],
@@ -35,7 +35,7 @@
     "oru_actual_issuance": "0 (GetBlockSubsidy(0); Coq oru_subsidy 0; ConnectBlock skip)",
     "res_actual_issuance": "0 (ConnectBlock skip; Coq res_issued_at_height 0; genesis_supply zeros)",
     "res_schedule_value": "RES_REWARD_GENESIS / GetResMintReward(0) / get_res_mint_reward 0",
-    "draw_input": "empty F; source_height=0 so IsSet; ResolveConvergenceDraw → none",
+    "draw_input": "none (RFC-019 retired lottery)",
     "status": "ALIGNED",
     "evidence": "EVIDENCE",
     "schedule_vs_issuance": "DISTINGUISHED"
@@ -54,7 +54,7 @@
     "target": "C++ RES_PROBABILITY_TARGET; Coq Selection.RES_PROBABILITY_TARGET",
     "tie_break": "smaller txid (C++ txid < ; Coq bytes_ltb)",
     "empty_F": "winner = none on both sides",
-    "state_assembly": "GetConvergenceDrawSetForBlock is not Kernel",
+    "state_assembly": "retired (RFC-019)",
     "status": "ALIGNED",
     "evidence": "EVIDENCE"
   },

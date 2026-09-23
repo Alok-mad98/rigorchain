@@ -35,16 +35,10 @@
     "CheckResMintArithmetic": "core/src/consensus/res_issuance.h",
     "ComputeRigorIssuance": "core/src/consensus/rigor_issuance.cpp",
     "RigorSupplyDelta": "core/src/consensus/rigor_supply.cpp",
-    "ResolveConvergenceDraw": "core/src/consensus/convergence_logic.cpp",
     "ClassifyRigorTxout": "core/src/script/rigor_classify.cpp",
     "ClassifyRigorAsset": "wrapper of ClassifyRigorTxout",
     "AssetTypeFromScriptPubKey": "wrapper of ClassifyRigorTxout",
     "Solver": "alias of ClassifyRigorTxout"
-  },
-  "state_assembly": {
-    "GetConvergenceDrawSetForBlock": "validation.cpp; no winner resolution",
-    "BuildConvergenceDrawSet": "convergence_logic.cpp; builds F",
-    "winner": "ResolveConvergenceDraw only"
   },
   "c_abi": {
     "dir": "core/src/consensus/bridge",
@@ -54,7 +48,6 @@
     "calls": {
       "rigor_compute_issuance": "ComputeRigorIssuance",
       "rigor_classify_script": "ClassifyRigorAsset",
-      "rigor_resolve_draw": "ResolveConvergenceDraw",
       "rigor_supply_delta": "RigorSupplyDelta"
     },
     "pod_only": true

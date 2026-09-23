@@ -24,7 +24,7 @@ from test_framework.rigor_block_builder import (
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 
-from feature_res_core_convergence_draw import DEVTEST_MINING_RES_FEE_ADDR
+from res_security.harness import DEVTEST_MINING_RES_FEE_ADDR
 
 
 def _assert_p2wpkh_v0_script_hex(h: str) -> None:

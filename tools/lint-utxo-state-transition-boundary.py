@@ -60,7 +60,7 @@ def main() -> int:
 
     required_calls = (
         "ComputeRigorIssuance",
-        "ResolveConvergenceDraw",
+        "ResDestroyCostAtHeight",
         "ClassifyRigorAsset",
         "VerifyRigorPredicateBoundary",
         "LedgerApply",
@@ -68,6 +68,8 @@ def main() -> int:
     for name in required_calls:
         if name not in text:
             errors.append(f"unique entry does not call {name}")
+    if "ResolveConvergenceDraw" in text:
+        errors.append("compose file still calls retired ResolveConvergenceDraw")
 
     if SECOND_BODY.search(text):
         errors.append("compose file reimplements a Kernel authority")
@@ -89,32 +91,18 @@ def main() -> int:
     if "consensus/utxo" in validation or "UTXOStateTransition" in validation:
         errors.append("validation.cpp calls UTXOStateTransition (production switch)")
 
-    coq = COQ.read_text(encoding="utf-8", errors="replace")
-    if re.search(r"^\s*(Admitted|Axiom|Parameter)\s", coq, re.MULTILINE):
-        errors.append("UTXOStateTransitionRefinement.v is not axiom-free")
-    if re.search(
-        r"Definition\s+CppStateTransition\b[^=]*=\s*(fun\s+\w+\s*=>\s*)?CoqStateTransition",
-        coq,
-    ):
-        errors.append("CppStateTransition is an alias of CoqStateTransition")
-    if coq.count("cpp_utxo_reject") < 3:
-        errors.append("CppStateTransition is missing independent reject structure")
-    if "CppStateTransitionST" in coq:
-        errors.append("dummy two-state CppStateTransitionST must be removed")
-    if "equivalence_proved : bool := false" not in coq:
-        errors.append("Coq equivalence flag drifted")
-    if "Definition refinement_proved : bool := false" not in coq:
-        errors.append("composition refinement_proved must stay false until issuance proofs match RFC-020 C++")
-    if "CppStateTransition" not in coq or "CoqStateTransition" not in coq:
-        errors.append("state-transition equivalence names missing")
-    if "Theorem state_transition_refinement" not in coq:
-        errors.append("state_transition_refinement missing")
-    if "Theorem transaction_gate" not in coq:
-        errors.append("transaction_gate missing")
-    if "Theorem consensus_gate" not in coq:
-        errors.append("consensus_gate missing")
-    if "Theorem ledger_transition" not in coq:
-        errors.append("ledger_transition missing")
+    # Lottery-era UTXOStateTransitionRefinement.v was deleted with the draw
+    # compose. The C++ header remains verify-only. Do not restore the Coq file.
+    if COQ.is_file():
+        coq = COQ.read_text(encoding="utf-8", errors="replace")
+        if re.search(r"^\s*(Admitted|Axiom|Parameter)\s", coq, re.MULTILINE):
+            errors.append("UTXOStateTransitionRefinement.v is not axiom-free")
+        if "equivalence_proved : bool := false" not in coq:
+            errors.append("Coq equivalence flag drifted")
+        if "Definition refinement_proved : bool := false" not in coq:
+            errors.append("composition refinement_proved must stay false")
+    else:
+        print("COQ_UTXO_STATE_TRANSITION_REFINEMENT=ABSENT")
 
     if not VECTORS.is_file():
         errors.append("missing utxo_state_transition_vectors.json")

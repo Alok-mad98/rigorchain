@@ -34,19 +34,3 @@ bool rigor_coinbase_mature(uint32_t spend_height, uint32_t coin_height, uint8_t*
     *eligible = (spend - coin >= p.nCoinbaseMaturity) ? 1 : 0;
     return true;
 }
-
-/** RFC-019 retired the lottery. The ABI entry stays so existing CLIs
- *  keep linking; it always reports no winner. */
-bool rigor_resolve_draw(
-    const rigor_candidate* candidates,
-    size_t count,
-    const rigor_draw_context* ctx,
-    rigor_draw_result* result)
-{
-    (void)candidates;
-    (void)count;
-    (void)ctx;
-    if (!result) return false;
-    result->has_winner = 0;
-    return true;
-}

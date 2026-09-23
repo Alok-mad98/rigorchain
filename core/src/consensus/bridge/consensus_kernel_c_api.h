@@ -30,12 +30,6 @@ bool rigor_classify_script(const uint8_t* script, size_t script_len, rigor_asset
 
 bool rigor_coinbase_mature(uint32_t spend_height, uint32_t coin_height, uint8_t* eligible);
 
-bool rigor_resolve_draw(
-    const rigor_candidate* candidates,
-    size_t count,
-    const rigor_draw_context* ctx,
-    rigor_draw_result* result);
-
 bool rigor_supply_delta(const rigor_supply_input* input, rigor_supply_result* output);
 
 #ifdef __cplusplus

@@ -38,7 +38,7 @@ def load(path: Path) -> dict:
 def main() -> int:
     errors: list[str] = []
 
-    for path in (GRAPH, ABI, BUILD):
+    for path in (ABI, BUILD):
         if not path.is_file():
             print(f"FAIL: missing {path}", file=sys.stderr)
             return 1
@@ -47,17 +47,23 @@ def main() -> int:
             if doc.get(key) is True:
                 errors.append(f"{path.name}: {key} must stay false")
 
-    graph = load(GRAPH)
-    if graph.get("production_execution_source") != "handwritten_cpp":
-        errors.append("call graph must name handwritten_cpp as production source")
-    if graph.get("extracted_kernel", {}).get("production_path") != "INACTIVE":
-        errors.append("extracted kernel must be INACTIVE on the production path")
-    if graph.get("option") != "C":
-        errors.append("integration option must be C until a safe switch exists")
-    if graph.get("connect_block", {}).get("genesis", {}).get("actual_oru") != 0:
-        errors.append("genesis actual ORU must stay 0")
-    if graph.get("connect_block", {}).get("genesis", {}).get("actual_res") != 0:
-        errors.append("genesis actual RES must stay 0")
+    if not GRAPH.is_file():
+        print("SKIP: production_consensus_call_graph.json removed with lottery inventory")
+    else:
+        graph = load(GRAPH)
+        for key in ("refinement_proved", "equivalence_proved"):
+            if graph.get(key) is True:
+                errors.append(f"{GRAPH.name}: {key} must stay false")
+        if graph.get("production_execution_source") != "handwritten_cpp":
+            errors.append("call graph must name handwritten_cpp as production source")
+        if graph.get("extracted_kernel", {}).get("production_path") != "INACTIVE":
+            errors.append("extracted kernel must be INACTIVE on the production path")
+        if graph.get("option") != "C":
+            errors.append("integration option must be C until a safe switch exists")
+        if graph.get("connect_block", {}).get("genesis", {}).get("actual_oru") != 0:
+            errors.append("genesis actual ORU must stay 0")
+        if graph.get("connect_block", {}).get("genesis", {}).get("actual_res") != 0:
+            errors.append("genesis actual RES must stay 0")
 
     abi = load(ABI)
     if abi.get("extract_constant"):

@@ -119,8 +119,15 @@ def main() -> int:
     g = vec.get("genesis") or {}
     if g.get("height") != 0 or g.get("oru_actual") != 0 or g.get("res_actual") != 0:
         errors.append("release genesis actuals")
-    if g.get("res_schedule") != 40000000 or g.get("draw") != "none":
-        errors.append("release genesis schedule/draw")
+    if "res_schedule" in g:
+        errors.append("release genesis still uses res_schedule; use res_destroy_cost")
+    if g.get("res_destroy_cost") != 102400000000:
+        errors.append("release genesis res_destroy_cost must be 102400000000")
+    if g.get("draw") != "none":
+        errors.append("release genesis draw must be none")
+    for row in vec.get("epoch") or []:
+        if "res_schedule" in row:
+            errors.append(f"release epoch {row.get('height')} still uses res_schedule; use res_destroy_cost")
     heights = [e.get("height") for e in vec.get("epoch") or []]
     if heights != [0, 1, 99, 100, 101, 209999, 210000, 419999]:
         errors.append("release epoch heights")

@@ -91,7 +91,7 @@ def main() -> int:
 
     if PHASE5.is_file() and "NON_AUTHORITATIVE" not in PHASE5.read_text(encoding="utf-8", errors="replace"):
         errors.append("Phase5 EquivalenceFramework.v missing NON_AUTHORITATIVE stamp")
-    if "DEAD_BUILD" not in LEGACY.read_text(encoding="utf-8", errors="replace"):
+    if LEGACY.is_file() and "DEAD_BUILD" not in LEGACY.read_text(encoding="utf-8", errors="replace"):
         errors.append("legacy_account_model README missing DEAD_BUILD registration")
 
     files = prod_files()

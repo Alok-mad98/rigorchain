@@ -29,7 +29,6 @@ from res_security.harness import (
     RES_REWARD_ATOMS,
     SATURATING_CONVERGENCE_ORU,
     body_res_mint_rows,
-    draw_of,
     is_res_mint_vout,
 )
 
@@ -410,38 +409,9 @@ class WalletSqliteAuditP0089(BitcoinTestFramework):
 
         node.loadwallet("default_wallet")
 
-        self.log.info("RES mint output: saturating ticket → immature mint excluded from trusted")
-        need_blocks = COINBASE_MATURITY + 2250 - node.getblockcount()
-        if need_blocks > 0:
-            self._mine(need_blocks)
-        self._ensure_fat_oru(self.large_addr, SATURATING_CONVERGENCE_ORU + Decimal("20"))
-        bals_pre_mint = self._bals()
-        tx = create_convergence_tx(
-            node,
-            SATURATING_CONVERGENCE_ORU,
-            spend_addresses=[self.large_addr],
-            change_address=self.large_addr,
-            res_owner_program=self.res_program32,
-        )
-        ticket = node.sendrawtransaction(tx.serialize_with_witness().hex(), 0, format(SATURATING_CONVERGENCE_ORU, "f"))
-        award = self._mine_only([ticket])
-        fr = draw_of(node, award)
-        assert fr["draw_winner_txid"] == ticket, fr
-        payout = self._mine(1)[0]
-        mint_txid, mint_vout = self._mint_outpoint(payout)
-        utxo = node.gettxout(mint_txid, mint_vout, False)
-        assert utxo is not None and utxo.get("res_mint") is True and utxo.get("coinbase") is True, utxo
-        bals_mint = self._bals()
-        trusted_delta = self._d(bals_mint["res"]["trusted"]) - self._d(bals_pre_mint["res"]["trusted"])
-        immature_delta = self._d(bals_mint["res"]["immature"]) - self._d(bals_pre_mint["res"]["immature"])
-        # Coinbase mint is immature: must not land in GetAssetBalance(RES) trusted.
-        assert trusted_delta != RES_REWARD, trusted_delta
-        assert immature_delta >= RES_REWARD or self._d(bals_mint["res"]["immature"]) >= RES_REWARD, (
-            immature_delta,
-            bals_mint["res"],
-        )
-        findings["res_mint_output"] = f"{mint_txid}:{mint_vout}"
-        findings["immature_res_mint_excluded_from_trusted"] = True
+        self.log.info("SKIP: lottery saturating-ticket mint (Batch B). Wallet KV audit continues.")
+        findings["res_mint_output"] = "skipped-lottery-mint"
+        findings["immature_res_mint_excluded_from_trusted"] = "skipped-lottery-mint"
         findings["wallet_is_not_asset_authority"] = True
 
         bals_before_restart = self._bals()

@@ -56,14 +56,8 @@ bool SpendOk(const ConsensusKernelInput& in)
 
 void FinishAccept(const ConsensusKernelInput& in, KernelResult& out)
 {
-    const bool genesis_draw_ok = !(in.height == 0 && out.draw_has_winner != 0);
     out.accept = out.supply_ok && out.mature && out.spend_ok &&
-                 ClassifyOk(in, out.classification) && genesis_draw_ok;
-}
-
-bool SameU256(const rigor_u256& a, const rigor_u256& b)
-{
-    return std::memcmp(a.bytes, b.bytes, 32) == 0;
+                 ClassifyOk(in, out.classification);
 }
 
 const char* ResultsEqual(const KernelResult& a, const KernelResult& b)
@@ -73,8 +67,6 @@ const char* ResultsEqual(const KernelResult& a, const KernelResult& b)
     if (a.res_schedule != b.res_schedule) return "issuance.res_destroy_cost";
     if (a.res_mint_expectation != b.res_mint_expectation) return "res_mint_expectation";
     if (a.epoch != b.epoch) return "issuance.epoch";
-    if (a.draw_has_winner != b.draw_has_winner) return "draw.has_winner";
-    if (a.draw_has_winner && !SameU256(a.draw_winner, b.draw_winner)) return "draw.winner";
     if (a.classification != b.classification) return "classification";
     if (a.ledger_delta != b.ledger_delta) return "ledger_delta";
     if (a.coinbase_expectation != b.coinbase_expectation) return "coinbase_expectation";
@@ -136,8 +128,6 @@ bool KernelCanaryExecutor::RunCpp(const ConsensusKernelInput& in, KernelResult& 
         out.mature = true;
     }
 
-    out.draw_has_winner = 0;
-
     out.spend_ok = SpendOk(in);
 
     BlockValidationState state;
@@ -166,11 +156,6 @@ bool KernelCanaryExecutor::RunAbi(const ConsensusKernelInput& in, KernelResult& 
     } else {
         out.mature = true;
     }
-
-    rigor_draw_result draw{};
-    if (!rigor_resolve_draw(in.candidates, in.candidate_count, &in.draw_ctx, &draw)) return false;
-    out.draw_has_winner = draw.has_winner;
-    out.draw_winner = draw.winner;
 
     out.spend_ok = SpendOk(in);
 
@@ -217,21 +202,6 @@ int KernelCanaryExecutor::RunDeterministicBattery(int iterations, const char** f
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x88, 0xac};
     static const uint8_t kTrunc[] = {0x00, 0x14};
 
-    rigor_u256 c{}, b{}, t0{}, tx1{}, tx2{};
-    for (int i = 0; i < 32; ++i) {
-        c.bytes[i] = 0x11;
-        b.bytes[i] = 0xaa;
-    }
-    tx1.bytes[31] = 0x01;
-    tx2.bytes[31] = 0x02;
-    rigor_u256 tprod{};
-    for (int i = 0; i < 32; ++i) tprod.bytes[i] = 0x55;
-    const uint64_t sat = 209715200000000ULL;
-    rigor_candidate one{tx1, sat};
-    rigor_candidate two[2] = {{tx1, sat}, {tx2, sat}};
-    rigor_candidate swap[2] = {{tx2, sat}, {tx1, sat}};
-    rigor_candidate zero{tx1, 0};
-
     auto ValidTx = [&]() {
         TransactionKernelInput tx;
         tx.flags = TK_SCRIPT_VERIFY_WITNESS;
@@ -250,10 +220,6 @@ int KernelCanaryExecutor::RunDeterministicBattery(int iterations, const char** f
     for (int i = 0; i < iterations; ++i) {
         ConsensusKernelInput in{};
         in.height = kHeights[i % 9];
-        in.draw_ctx.payout_height = 101;
-        in.draw_ctx.convergence_root = c;
-        in.draw_ctx.source_block_hash = b;
-        in.draw_ctx.target = tprod;
         in.supply.height = in.height;
 
         switch ((i / 9) % 5) {
@@ -280,30 +246,6 @@ int KernelCanaryExecutor::RunDeterministicBattery(int iterations, const char** f
         }
 
         switch ((i / 45) % 5) {
-        case 0:
-            in.candidates = nullptr;
-            in.candidate_count = 0;
-            break;
-        case 1:
-            in.candidates = &one;
-            in.candidate_count = 1;
-            break;
-        case 2:
-            in.candidates = two;
-            in.candidate_count = 2;
-            break;
-        case 3:
-            in.candidates = swap;
-            in.candidate_count = 2;
-            break;
-        default:
-            in.candidates = &zero;
-            in.candidate_count = 1;
-            in.draw_ctx.target = t0;
-            break;
-        }
-
-        switch ((i / 225) % 5) {
         case 0: // mint
             in.supply.has_winner = 1;
             in.supply.card = 1;

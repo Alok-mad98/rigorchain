@@ -42,23 +42,28 @@ def main() -> int:
 
     errors: list[str] = []
 
+    def destroy_cost(obj: dict) -> int:
+        v = obj.get("res_destroy_cost", obj.get("res_unit_price"))
+        return int(v) if v is not None else 0
+
     for pin in vec["issuance"]:
         h = str(pin["height"])
         o = jrun(OCAML, "issuance", h)
         c = jrun(CABI, "issuance", h)
-        if o != c:
+        if o.get("epoch") != c.get("epoch") or o.get("oru_subsidy") != c.get("oru_subsidy") or destroy_cost(o) != destroy_cost(c):
             errors.append(f"issuance({h}) ocaml={o} cabi={c}")
-        for key in ("epoch", "oru_subsidy", "res_destroy_cost"):
-            if o.get(key) != pin[key]:
-                errors.append(f"issuance({h}) {key} pin={pin[key]} got={o.get(key)}")
+        if o.get("epoch") != pin["epoch"] or o.get("oru_subsidy") != pin["oru_subsidy"]:
+            errors.append(f"issuance({h}) pin drift ocaml={o} pin={pin}")
+        if destroy_cost(o) != int(pin.get("res_destroy_cost", pin.get("res_unit_price", 0))):
+            errors.append(f"issuance({h}) res_destroy_cost pin={pin.get('res_destroy_cost')} got={destroy_cost(o)}")
         if CPP.is_file():
             epoch = run(CPP, "epoch", h)
             oru = run(CPP, "oru", h)
             price = run(CPP, "res-price", h)
-            if int(epoch) != o["epoch"] or int(oru) != o["oru_subsidy"] or int(price) != o["res_destroy_cost"]:
+            if int(epoch) != o["epoch"] or int(oru) != o["oru_subsidy"] or int(price) != destroy_cost(o):
                 errors.append(f"issuance({h}) cpp kernel mismatch")
-        if pin["height"] == 0 and o["res_destroy_cost"] == 0:
-            errors.append("FORBIDDEN: RATE at height 0 collapsed")
+        if pin["height"] == 0 and destroy_cost(o) == 0:
+            errors.append("FORBIDDEN: destroy_cost at height 0 collapsed")
 
     for pin in vec["maturity"]:
         args = [str(pin["spend"]), str(pin["coin"])]
@@ -81,27 +86,8 @@ def main() -> int:
             if cpp != pin["asset"]:
                 errors.append(f"classify {pin['id']} cpp={cpp}")
 
-    dcfg = vec["draw"]
-    h, c_hex, b_hex = str(dcfg["h"]), dcfg["c_hex"], dcfg["b_hex"]
-    empty_o = jrun(OCAML, "draw-empty")
-    empty_c = jrun(CABI, "draw-empty")
-    if empty_o != empty_c or empty_o.get("has_winner") is not False:
-        errors.append(f"draw empty ocaml={empty_o} cabi={empty_c}")
-
-    winners: dict[str, dict] = {}
-    for case in dcfg["cases"]:
-        if case["kind"] == "empty":
-            continue
-        cmd = case["kind"]
-        spec = case["spec"]
-        oj = jrun(OCAML, cmd, h, c_hex, b_hex, spec)
-        cj = jrun(CABI, cmd, h, c_hex, b_hex, spec)
-        if oj != cj:
-            errors.append(f"draw {case['id']} ocaml={oj} cabi={cj}")
-        winners[case["id"]] = oj
-    for case_id, result in winners.items():
-        if result.get("has_winner") is not False:
-            errors.append(f"RFC-019 retired the lottery; {case_id} must be empty: {result}")
+    if "draw" in vec:
+        errors.append("C ABI vectors must not carry a live lottery draw object (RFC-019)")
 
     for pin in vec["supply"]:
         args = [

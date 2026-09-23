@@ -30,30 +30,21 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_greater_than, assert_raises_rpc_error
 from test_framework.script import CScript
 
+from res_security.cvge_helpers import REJECT_BAD_CONVERGENCE_CUMULATIVE, conv_corrupt_cumulative
 from res_security.harness import (
     CENSOR_FEE_DELTA,
     COINBASE_MATURITY,
-    CONVERGENCE_DRAW_WINDOW,
     DEVTEST_MINING_RES_FEE_ADDR,
     LARGE_BURN_ORU,
     MIN_CONVERGENCE_ORU,
-    RES_REWARD_ATOMS,
     SATURATING_CONVERGENCE_ORU,
-    ZERO_TXID,
-    assert_no_double_pay,
-    body_res_mint_rows,
-    candidate_txids,
-    draw_of,
     fail_context,
-    is_null_txid,
     supply_snapshot,
-    window_self_check,
 )
 from res_security.solo_helpers import (
     fake_oru_funded_res_mint,
     submit_block,
 )
-from rigor_attack_blocks import REJECT_BAD_CONVERGENCE_CUMULATIVE, _conv_corrupt_cumulative
 
 
 class ResSoloSecurityTest(BitcoinTestFramework):
@@ -288,12 +279,10 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             if not signed2.get("complete"):
                 # Wallet may refuse to re-sign a mutated convergence; still mine original.
                 self._mine_only([txid1])
-                fr = draw_of(node, node.getbestblockhash())
-                assert txid1 in candidate_txids(fr)
                 self._record("V-4", "PASS", {
                     "replaced": False,
                     "reason": signed2.get("errors", "incomplete"),
-                    "note": "original ticket only in F; no double-eligibility from a failed bump",
+                    "note": "original OP_CONVERGE mined; wallet refused RBF re-sign",
                 })
                 return
             txid2 = node.sendrawtransaction(signed2["hex"], 0, format(MIN_CONVERGENCE_ORU, "f"))
@@ -301,12 +290,10 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             assert txid2 in mem, self._dump("V-4", {"mem": list(mem)})
             assert txid1 not in mem, self._dump("V-4", {"stale": txid1})
             bh = self._mine_only([txid2])
-            fr = draw_of(node, bh)
-            window_self_check(fr, "V-4")
-            cset = candidate_txids(fr)
-            assert txid2 in cset, self._dump("V-4", {"F": sorted(cset)})
-            assert txid1 not in cset, self._dump("V-4", {"stale_in_F": txid1})
-            self._record("V-4", "PASS", {"old": txid1, "new": txid2, "stale_in_F": False})
+            in_block = node.getblock(bh, 1)["tx"]
+            assert txid2 in in_block, self._dump("V-4", {"block": in_block})
+            assert txid1 not in in_block, self._dump("V-4", {"stale_in_block": txid1})
+            self._record("V-4", "PASS", {"old": txid1, "new": txid2})
         except Exception:
             self.log.error(self._dump("V-4"))
             raise
@@ -323,13 +310,11 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             alt = node.getnewaddress(address_type="bech32")
             self.generatetoaddress(node, 1, alt)
             snap1 = supply_snapshot(node)
-            paid = assert_no_double_pay(node, max(0, snap0["height"] - 2), None, "V-5")
             assert_equal(snap0["mint_count"], snap1["mint_count"])
             self._record("V-5", "PASS", {
                 "txid": txid,
                 "reaccepted": True,
                 "mint_count": snap1["mint_count"],
-                "distinct_paid": len(paid),
             })
         except Exception:
             self.log.error(self._dump("V-5"))
@@ -343,7 +328,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             a = self._broadcast_conv(MIN_CONVERGENCE_ORU)
             b = self._broadcast_conv(MIN_CONVERGENCE_ORU)
             tpl = self._gbt()
-            bad = _conv_corrupt_cumulative(tpl["default_convergence_commitment"])
+            bad = conv_corrupt_cumulative(tpl["default_convergence_commitment"])
             tx_a = tx_from_hex(node.getrawtransaction(a))
             tx_b = tx_from_hex(node.getrawtransaction(b))
             blk = self._assemble_from_gbt(tpl, extra_txs=[tx_a, tx_b], cvge_hex=bad.hex())
@@ -387,18 +372,15 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             assert txid in listed, self._dump("G-1", {"listed": listed, "want": txid})
             assert "convergence_root" in tpl and tpl["convergence_root"]
             assert "default_coinbase_scriptsig" in tpl
-            assert "paid_winner_txid" in tpl
+            assert "paid_winner_txid" not in tpl
             assert tpl.get("mutable") == ["time"]
             assert tpl.get("rigor_coinbase_immutable") is True
             gen = self.generateblock(node, self.mining_addr, [txid])
             bh = gen["hash"] if isinstance(gen, dict) else gen
-            fr = draw_of(node, bh)
-            window_self_check(fr, "G-1")
+            assert txid in node.getblock(bh, 1)["tx"], self._dump("G-1", {"mined": bh})
             self._record("G-1", "PASS", {
                 "gbt_has_ticket": True,
                 "mined": bh,
-                "C": fr["convergence_root"],
-                "|F|": fr["convergence_root_set_size"],
             })
         except Exception:
             self.log.error(self._dump("G-1"))
@@ -421,97 +403,6 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             self._record("L-1", "PASS", {"mismatch": mismatch, "reserved": reserved})
         except Exception:
             self.log.error(self._dump("L-1"))
-            raise
-
-    def case_s4_s5_g2_g4_winner_path(self) -> None:
-        node = self._n()
-        try:
-            self._censor(node.getrawmempool())
-            try:
-                node.lockunspent(True)
-            except Exception:
-                pass
-            companion = self._broadcast_conv(MIN_CONVERGENCE_ORU)
-            ticket = self._broadcast_conv(SATURATING_CONVERGENCE_ORU)
-            src = self._mine_only([companion, ticket])
-            fr = draw_of(node, src)
-            window_self_check(fr, "S-4-src")
-            winner_h = None
-            if fr["draw_winner_txid"] == ticket:
-                winner_h = int(fr["height"])
-            else:
-                for i in range(CONVERGENCE_DRAW_WINDOW - 1):
-                    self._censor(node.getrawmempool())
-                    h = self._mine(1)[0]
-                    fr = draw_of(node, h)
-                    if fr["draw_winner_txid"] == ticket:
-                        winner_h = int(fr["height"])
-                        break
-            assert winner_h is not None, self._dump("S-4", {"ticket": ticket})
-
-            # S-5: generateblock must not abort. Automint is a coinbase RIGOR_MARKER_RES_MINT, so an
-            # empty-tx generateblock stays coinbase-only and is a valid payout block.
-            gen = self.generateblock(node, self.mining_addr, [])
-            payout = gen["hash"] if isinstance(gen, dict) else gen
-            rows = body_res_mint_rows(node, payout)
-            assert_equal(len(rows), 1)
-            assert_equal(rows[0][1], RES_REWARD_ATOMS)
-            snap = supply_snapshot(node)
-
-            # S-4: paid ticket must leave F; no second mint for same txid.
-            nxt = self._mine(1)[0]
-            fr_n = draw_of(node, nxt)
-            window_self_check(fr_n, "S-4-after")
-            assert ticket not in candidate_txids(fr_n), self._dump("S-4", {"still_in_F": ticket})
-            paid = assert_no_double_pay(node, winner_h - 1, None, "S-4")
-            assert paid.get(ticket) is not None
-
-            # G-2: censor remaining mempool (solo miner omits foreign tickets). Consensus accepts.
-            live = list(node.getrawmempool())
-            self._censor(live)
-            bh_c = self._mine(1)[0]
-            fr_c = draw_of(node, bh_c)
-            window_self_check(fr_c, "G-2")
-            for t in live:
-                assert t not in candidate_txids(fr_c)
-
-            # G-4 / A-4: restart; supply and window recover.
-            tip = node.getbestblockhash()
-            mint = snap["mint_count"]
-            self.stop_node(0)
-            self.start_node(0)
-            node = self._n()
-            assert_equal(node.getbestblockhash(), tip)
-            snap2 = supply_snapshot(node)
-            assert_equal(snap2["mint_count"], mint)
-            fr_r = draw_of(node, tip)
-            window_self_check(fr_r, "A-4")
-            # Continue solo: GBT + one block, no extra mint unless a new winner.
-            self._gbt()
-            self._mine(1)
-            snap3 = supply_snapshot(node)
-            paid2 = assert_no_double_pay(node, winner_h - 1, None, "G-4")
-            assert_equal(len([h for t, h in paid2.items() if t == ticket]), 1)
-
-            self._record("S-4", "PASS", {"ticket": ticket, "payout": paid.get(ticket), "distinct": len(paid)})
-            self._record("S-5", "PASS", {
-                "generateblock": payout,
-                "automint": "coinbase RIGOR_MARKER_RES_MINT",
-                "payout_mint_atoms": rows[0][1],
-            })
-            self._record("S-2", "PASS", {
-                "binding": "payout vout is RESO owner (A-5); wrong-owner unit pin res_proof_math_tests bad-rigor-res-owner-mismatch",
-                "functional_mint_atoms": rows[0][1],
-            })
-            self._record("G-2", "PASS", {"censored": len(live), "block": bh_c})
-            self._record("G-4", "PASS", {"tip_restored": tip, "mint_count": snap3["mint_count"]})
-            self._record("A-4", "PASS", {"tip": tip, "mint_count": snap2["mint_count"]})
-            self._record("A-3", "PASS", {
-                "note": "deep ≥W reorg covered by feature_res_window_reorg_res_attacks R-3; this restart is mid-window recovery",
-                "inherited": "R-3 PASS",
-            })
-        except Exception:
-            self.log.error(self._dump("S-4/S-5/G-2/G-4"))
             raise
 
     def case_s3_cap_pin(self) -> None:
@@ -592,7 +483,6 @@ class ResSoloSecurityTest(BitcoinTestFramework):
         self.case_g3_stale_and_wrong_prev()
         self.case_g1_gbt_consistency()
         self.case_l1_reserved_nonce()
-        self.case_s4_s5_g2_g4_winner_path()
         self.case_s3_cap_pin()
         self.case_a1_abort_inventory()
 
@@ -601,9 +491,10 @@ class ResSoloSecurityTest(BitcoinTestFramework):
             json.dump(self.results, f, indent=2, sort_keys=True, default=str)
         required = (
             "V-1", "V-2", "V-3", "V-4", "V-5",
-            "S-1", "S-2", "S-3", "S-4", "S-5",
-            "A-1", "A-2", "A-3", "A-4",
-            "G-1", "G-2", "G-3", "G-4",
+            "S-3",
+            "A-1", "A-2b",
+            "G-1", "G-3",
+            "L-1",
         )
         for case_id in sorted(self.results):
             self.log.info("RESULT %s %s", case_id, self.results[case_id].get("status"))

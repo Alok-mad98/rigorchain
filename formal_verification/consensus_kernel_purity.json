@@ -24,7 +24,6 @@
     "GetResMintReward(0) is the schedule value W(0)=RES_REWARD_GENESIS. Genesis ConnectBlock does not apply that mint as circulating issuance. These are different facts.",
     "RigorSupplyDelta's BlockValidationState argument is a reject-reason sink, not hidden chain state.",
     "LogPrintf in RigorSupplyDelta is I/O and does not change accept/reject or numeric outputs.",
-    "ResolveConvergenceDraw lives in convergence_logic.cpp, a mixed TU that also contains window builders. The function body is pure; the TU is not isolated.",
     "ClassifyRigorAsset is a façade over AssetTypeFromScriptPubKey / ClassifyRigorTxout. One matcher."
   ],
   "kernel_functions": [
@@ -119,21 +118,6 @@
       "single_authority": true,
       "formalization_ready": true,
       "notes": "fees_res + bootstrap + mint. Predicate, not an assembler."
-    },
-    {
-      "name": "ResolveConvergenceDraw",
-      "file": "core/src/consensus/convergence_logic.cpp",
-      "inputs": [
-        "ConvergenceDrawSet.{source_block_hash,source_height,convergence_root,candidates}",
-        "res_probability_target (T)"
-      ],
-      "state_dependencies": [],
-      "side_effects": [],
-      "deterministic": true,
-      "fail_closed": true,
-      "single_authority": true,
-      "formalization_ready": true,
-      "notes": "F = set.candidates. σ computed from set fields. T is the second argument. Winner is 512-bit argmin with txid tie-break; independent of scan order. GetConvergenceDrawSetForBlock is not this function."
     },
     {
       "name": "ClassifyRigorAsset",

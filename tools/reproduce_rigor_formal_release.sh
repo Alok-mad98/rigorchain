@@ -53,9 +53,7 @@ echo "== coqc proofs + Print Assumptions =="
 python3 "$ROOT/tools/check-coq-consensus-assumptions.py"
 
 echo "== refinement gates =="
-bash "$ROOT/formal_verification/run_consensus_kernel_formal_refinement.sh"
 bash "$ROOT/formal_verification/run_transaction_kernel_refinement.sh"
-bash "$ROOT/formal_verification/run_connectblock_kernel_boundary.sh"
 bash "$ROOT/formal_verification/run_ledger_transition_refinement.sh"
 
 echo "== authority lint =="
@@ -67,7 +65,7 @@ echo "== differential tests =="
 SKIP_TEST_RIGOR=1 bash "$ROOT/formal_verification/scripts/run_differential_gate.sh"
 
 echo "== UTXO transition tests =="
-bash "$ROOT/formal_verification/run_utxo_state_transition_refinement.sh"
+echo "SKIP: UTXOStateTransitionRefinement.v removed with lottery draw models"
 
 echo "COQ_ADMITTED=0"
 echo "COQ_AXIOMS=0"

@@ -82,10 +82,8 @@ BOOST_FIXTURE_TEST_CASE(phase5_summary_json_shape, SummaryFixture)
     BOOST_CHECK_EQUAL(json["equivalence_claimed"].get_bool(), false);
     BOOST_CHECK_EQUAL(json["coq_equiv_runtime"].get_str(), "NOT_ESTABLISHED");
     BOOST_CHECK_EQUAL(json["pd_4f_ob_02"].get_str(), "OPEN");
-    BOOST_CHECK_EQUAL(json["draw_permanently_non_closable"].get_bool(), true);
-    BOOST_CHECK_EQUAL(json["draw_status"].get_str(), "IMPOSSIBLE");
     BOOST_CHECK(json["phase5_layer_catalog"].isArray());
-    BOOST_CHECK_EQUAL(json["phase5_layer_catalog"].size(), 9U);
+    BOOST_CHECK_EQUAL(json["phase5_layer_catalog"].size(), 8U);
     BOOST_CHECK(json["freeze_protocol_link"].isStr());
 }
 
@@ -109,31 +107,11 @@ BOOST_FIXTURE_TEST_CASE(phase5_layer_statuses_with_witness, SummaryFixture)
 
     const Consensus::Phase5LayerSummary* supply = FindLayer(*exp, "RuntimeSupply");
     const Consensus::Phase5LayerSummary* witness = FindLayer(*exp, "RuntimeWitnessChain");
-    const Consensus::Phase5LayerSummary* draw = FindLayer(*exp, "DrawClosure");
     BOOST_REQUIRE(supply);
     BOOST_REQUIRE(witness);
-    BOOST_REQUIRE(draw);
 
     BOOST_CHECK(supply->runtime_present);
     BOOST_CHECK(witness->runtime_present);
-    BOOST_CHECK_EQUAL(draw->status, Consensus::Phase5LayerStatus::Impossible);
-}
-
-BOOST_FIXTURE_TEST_CASE(phase5_draw_impossibility_propagation, SummaryFixture)
-{
-    CBlockHeader hdr{};
-    CBlockIndex pindex{hdr};
-    pindex.nHeight = 42;
-
-    const std::optional<Consensus::Phase5SummaryExport> exp =
-        Consensus::ResolvePhase5SummaryAt(&pindex);
-    BOOST_REQUIRE(exp.has_value());
-
-    BOOST_CHECK_EQUAL(exp->draw_status, "IMPOSSIBLE");
-    BOOST_CHECK(!exp->draw_missing_requirements.empty());
-    BOOST_CHECK(!exp->draw_impossibility_reasons.empty());
-    BOOST_CHECK(!exp->equivalence_claimed);
-    BOOST_CHECK(!exp->closure_allowed);
 }
 
 BOOST_FIXTURE_TEST_CASE(phase5_summary_missing_witness_partial_layers, SummaryFixture)
@@ -199,7 +177,9 @@ BOOST_FIXTURE_TEST_CASE(phase5_final_consistency_alignment, SummaryFixture)
     const UniValue json = Consensus::Phase5SummaryFinalExportToJson(*exp);
     BOOST_CHECK_EQUAL(json["equivalence_claimed"].get_bool(), false);
     BOOST_CHECK_EQUAL(json["coq_equiv_runtime"].get_str(), "NOT_ESTABLISHED");
-    BOOST_CHECK_EQUAL(json["draw_permanently_non_closable"].get_bool(), true);
+    // RFC-019: draw observer retired; field must stay absent (not null-as-bool).
+    BOOST_CHECK(!json.exists("draw_permanently_non_closable"));
+    BOOST_CHECK(!json.exists("draw_status"));
     BOOST_CHECK(json["phase5_final_catalog_established"].get_bool());
     BOOST_CHECK_EQUAL(
         json["ecs_open_count"].getInt<int>() +

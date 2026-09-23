@@ -456,6 +456,8 @@ audit/wallet_packaging/rigor-wallet-*-linux/
 
 # Operator disclosure audits (local review; not published)
 audit/release/
+# Local lottery-removal / cleanup reports (do not push)
+audit/code_cleanup/
 
 # Local Vite RPC/explorer URLs
 web/rigorchain-site/.env.development

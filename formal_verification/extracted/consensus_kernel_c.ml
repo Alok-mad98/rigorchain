@@ -5,11 +5,6 @@ let negb = function
 | true -> false
 | false -> true
 
-(** val fst : ('a1 * 'a2) -> 'a1 **)
-
-let fst = function
-| (x, _) -> x
-
 (** val length : 'a1 list -> int **)
 
 let rec length = function
@@ -68,14 +63,6 @@ type z =
 
 module Pos =
  struct
-  type mask =
-  | IsNul
-  | IsPos of positive
-  | IsNeg
- end
-
-module Coq_Pos =
- struct
   (** val succ : positive -> positive **)
 
   let rec succ = function
@@ -128,65 +115,6 @@ module Coq_Pos =
   | XI p -> XI (XO p)
   | XO p -> XI (pred_double p)
   | XH -> XH
-
-  type mask = Pos.mask =
-  | IsNul
-  | IsPos of positive
-  | IsNeg
-
-  (** val succ_double_mask : mask -> mask **)
-
-  let succ_double_mask = function
-  | IsNul -> IsPos XH
-  | IsPos p -> IsPos (XI p)
-  | IsNeg -> IsNeg
-
-  (** val double_mask : mask -> mask **)
-
-  let double_mask = function
-  | IsPos p -> IsPos (XO p)
-  | x0 -> x0
-
-  (** val double_pred_mask : positive -> mask **)
-
-  let double_pred_mask = function
-  | XI p -> IsPos (XO (XO p))
-  | XO p -> IsPos (XO (pred_double p))
-  | XH -> IsNul
-
-  (** val sub_mask : positive -> positive -> mask **)
-
-  let rec sub_mask x y =
-    match x with
-    | XI p ->
-      (match y with
-       | XI q -> double_mask (sub_mask p q)
-       | XO q -> succ_double_mask (sub_mask p q)
-       | XH -> IsPos (XO p))
-    | XO p ->
-      (match y with
-       | XI q -> succ_double_mask (sub_mask_carry p q)
-       | XO q -> double_mask (sub_mask p q)
-       | XH -> IsPos (pred_double p))
-    | XH -> (match y with
-             | XH -> IsNul
-             | _ -> IsNeg)
-
-  (** val sub_mask_carry : positive -> positive -> mask **)
-
-  and sub_mask_carry x y =
-    match x with
-    | XI p ->
-      (match y with
-       | XI q -> succ_double_mask (sub_mask_carry p q)
-       | XO q -> double_mask (sub_mask p q)
-       | XH -> IsPos (pred_double p))
-    | XO p ->
-      (match y with
-       | XI q -> double_mask (sub_mask_carry p q)
-       | XO q -> succ_double_mask (sub_mask_carry p q)
-       | XH -> double_pred_mask p)
-    | XH -> IsNeg
 
   (** val mul : positive -> positive -> positive **)
 
@@ -254,46 +182,6 @@ module Coq_Pos =
              | XH -> true
              | _ -> false)
 
-  (** val leb : positive -> positive -> bool **)
-
-  let leb x y =
-    match compare x y with
-    | Gt -> false
-    | _ -> true
-
-  (** val sqrtrem_step :
-      (positive -> positive) -> (positive -> positive) -> (positive * mask)
-      -> positive * mask **)
-
-  let sqrtrem_step f g = function
-  | (s, y) ->
-    (match y with
-     | IsPos r ->
-       let s' = XI (XO s) in
-       let r' = g (f r) in
-       if leb s' r' then ((XI s), (sub_mask r' s')) else ((XO s), (IsPos r'))
-     | _ -> ((XO s), (sub_mask (g (f XH)) (XO (XO XH)))))
-
-  (** val sqrtrem : positive -> positive * mask **)
-
-  let rec sqrtrem = function
-  | XI p0 ->
-    (match p0 with
-     | XI p1 -> sqrtrem_step (fun x -> XI x) (fun x -> XI x) (sqrtrem p1)
-     | XO p1 -> sqrtrem_step (fun x -> XO x) (fun x -> XI x) (sqrtrem p1)
-     | XH -> (XH, (IsPos (XO XH))))
-  | XO p0 ->
-    (match p0 with
-     | XI p1 -> sqrtrem_step (fun x -> XI x) (fun x -> XO x) (sqrtrem p1)
-     | XO p1 -> sqrtrem_step (fun x -> XO x) (fun x -> XO x) (sqrtrem p1)
-     | XH -> (XH, (IsPos XH)))
-  | XH -> (XH, IsNul)
-
-  (** val sqrt : positive -> positive **)
-
-  let sqrt p =
-    fst (sqrtrem p)
-
   (** val iter_op : ('a1 -> 'a1 -> 'a1) -> positive -> 'a1 -> 'a1 **)
 
   let rec iter_op op p a =
@@ -348,13 +236,13 @@ module Z =
   let succ_double = function
   | Z0 -> Zpos XH
   | Zpos p -> Zpos (XI p)
-  | Zneg p -> Zneg (Coq_Pos.pred_double p)
+  | Zneg p -> Zneg (Pos.pred_double p)
 
   (** val pred_double : z -> z **)
 
   let pred_double = function
   | Z0 -> Zneg XH
-  | Zpos p -> Zpos (Coq_Pos.pred_double p)
+  | Zpos p -> Zpos (Pos.pred_double p)
   | Zneg p -> Zneg (XI p)
 
   (** val pos_sub : positive -> positive -> z **)
@@ -370,11 +258,11 @@ module Z =
       (match y with
        | XI q -> pred_double (pos_sub p q)
        | XO q -> double (pos_sub p q)
-       | XH -> Zpos (Coq_Pos.pred_double p))
+       | XH -> Zpos (Pos.pred_double p))
     | XH ->
       (match y with
        | XI q -> Zneg (XO q)
-       | XO q -> Zneg (Coq_Pos.pred_double q)
+       | XO q -> Zneg (Pos.pred_double q)
        | XH -> Z0)
 
   (** val add : z -> z -> z **)
@@ -385,13 +273,13 @@ module Z =
     | Zpos x' ->
       (match y with
        | Z0 -> x
-       | Zpos y' -> Zpos (Coq_Pos.add x' y')
+       | Zpos y' -> Zpos (Pos.add x' y')
        | Zneg y' -> pos_sub x' y')
     | Zneg x' ->
       (match y with
        | Z0 -> x
        | Zpos y' -> pos_sub y' x'
-       | Zneg y' -> Zneg (Coq_Pos.add x' y'))
+       | Zneg y' -> Zneg (Pos.add x' y'))
 
   (** val opp : z -> z **)
 
@@ -413,13 +301,13 @@ module Z =
     | Zpos x' ->
       (match y with
        | Z0 -> Z0
-       | Zpos y' -> Zpos (Coq_Pos.mul x' y')
-       | Zneg y' -> Zneg (Coq_Pos.mul x' y'))
+       | Zpos y' -> Zpos (Pos.mul x' y')
+       | Zneg y' -> Zneg (Pos.mul x' y'))
     | Zneg x' ->
       (match y with
        | Z0 -> Z0
-       | Zpos y' -> Zneg (Coq_Pos.mul x' y')
-       | Zneg y' -> Zpos (Coq_Pos.mul x' y'))
+       | Zpos y' -> Zneg (Pos.mul x' y')
+       | Zneg y' -> Zpos (Pos.mul x' y'))
 
   (** val compare : z -> z -> comparison **)
 
@@ -430,11 +318,11 @@ module Z =
              | Zpos _ -> Lt
              | Zneg _ -> Gt)
     | Zpos x' -> (match y with
-                  | Zpos y' -> Coq_Pos.compare x' y'
+                  | Zpos y' -> Pos.compare x' y'
                   | _ -> Gt)
     | Zneg x' ->
       (match y with
-       | Zneg y' -> compOpp (Coq_Pos.compare x' y')
+       | Zneg y' -> compOpp (Pos.compare x' y')
        | _ -> Lt)
 
   (** val leb : z -> z -> bool **)
@@ -466,23 +354,16 @@ module Z =
              | Z0 -> true
              | _ -> false)
     | Zpos p -> (match y with
-                 | Zpos q -> Coq_Pos.eqb p q
+                 | Zpos q -> Pos.eqb p q
                  | _ -> false)
     | Zneg p -> (match y with
-                 | Zneg q -> Coq_Pos.eqb p q
+                 | Zneg q -> Pos.eqb p q
                  | _ -> false)
-
-  (** val min : z -> z -> z **)
-
-  let min n m =
-    match compare n m with
-    | Gt -> m
-    | _ -> n
 
   (** val to_nat : z -> int **)
 
   let to_nat = function
-  | Zpos p -> Coq_Pos.to_nat p
+  | Zpos p -> Pos.to_nat p
   | _ -> 0
 
   (** val of_nat : int -> z **)
@@ -490,7 +371,7 @@ module Z =
   let of_nat n =
     (fun fO fS n -> if n=0 then fO () else fS (n-1))
       (fun _ -> Z0)
-      (fun n0 -> Zpos (Coq_Pos.of_succ_nat n0))
+      (fun n0 -> Zpos (Pos.of_succ_nat n0))
       n
 
   (** val pos_div_eucl : positive -> z -> z * z **)
@@ -551,21 +432,15 @@ module Z =
   | Z0 -> Z0
   | Zpos p -> (match p with
                | XH -> Z0
-               | _ -> Zpos (Coq_Pos.div2 p))
-  | Zneg p -> Zneg (Coq_Pos.div2_up p)
-
-  (** val sqrt : z -> z **)
-
-  let sqrt = function
-  | Zpos p -> Zpos (Coq_Pos.sqrt p)
-  | _ -> Z0
+               | _ -> Zpos (Pos.div2 p))
+  | Zneg p -> Zneg (Pos.div2_up p)
 
   (** val shiftl : z -> z -> z **)
 
   let shiftl a = function
   | Z0 -> a
-  | Zpos p -> Coq_Pos.iter (mul (Zpos (XO XH))) a p
-  | Zneg p -> Coq_Pos.iter div2 a p
+  | Zpos p -> Pos.iter (mul (Zpos (XO XH))) a p
+  | Zneg p -> Pos.iter div2 a p
 
   (** val shiftr : z -> z -> z **)
 
@@ -579,144 +454,54 @@ let cOIN =
   Zpos (XO (XO (XO (XO (XO (XO (XO (XO (XI (XO (XO (XO (XO (XI (XI (XI (XI
     (XO (XI (XO (XI (XI (XI (XI (XI (XO XH))))))))))))))))))))))))))
 
-(** val rES_UNIT_PRICE_GENESIS : z **)
+(** val rES_DESTROY_COST_GENESIS : z **)
 
-let rES_UNIT_PRICE_GENESIS =
+let rES_DESTROY_COST_GENESIS =
   Z.mul (Zpos (XO (XO (XO (XO (XO (XO (XO (XO (XO (XO XH))))))))))) cOIN
 
-(** val rES_PRICE_POLE_OFFSET : z **)
+(** val rES_DESTROY_POLE : z **)
 
-let rES_PRICE_POLE_OFFSET =
-  Zpos (XO (XO (XO XH)))
+let rES_DESTROY_POLE =
+  Z.shiftl (Zpos XH) (Zpos (XI (XO (XO (XI XH)))))
 
-(** val rES_REWARD_EPOCH : z **)
+(** val oRU_FLAT_BLOCK_SUBSIDY : z **)
 
-let rES_REWARD_EPOCH =
-  Zpos (XO (XO (XO (XO (XI (XO (XI (XO (XO (XO (XI (XO (XI (XI (XO (XO (XI
-    XH)))))))))))))))))
+let oRU_FLAT_BLOCK_SUBSIDY =
+  Z.mul (Zpos (XO (XO (XO (XO (XO (XO (XO XH)))))))) cOIN
 
-(** val rES_REWARD_LAST_EPOCH : int **)
+(** val res_destroy_pole_sq : z -> z **)
 
-let rES_REWARD_LAST_EPOCH =
-  Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ (Pervasives.succ (Pervasives.succ
-    (Pervasives.succ (Pervasives.succ
-    0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
-
-(** val res_destroy_cost_for_epoch : int -> z **)
-
-let res_destroy_cost_for_epoch k =
-  if Nat.ltb rES_REWARD_LAST_EPOCH k
-  then Z0
-  else let e = Z.add (Z.of_nat k) rES_PRICE_POLE_OFFSET in
-       let k0c =
-         Z.mul (Z.mul rES_PRICE_POLE_OFFSET rES_PRICE_POLE_OFFSET)
-           rES_PRICE_POLE_OFFSET
-       in
-       Z.shiftr
-         (Z.mul rES_UNIT_PRICE_GENESIS
-           (Z.sqrt
-             (Z.div
-               (Z.shiftl (Z.mul (Z.mul e e) e) (Zpos (XO (XO (XO (XO (XO
-                 XH))))))) k0c))) (Zpos (XO (XO (XO (XO XH)))))
-
-(** val res_mint_authorized : z -> bool **)
-
-let res_mint_authorized height =
-  (&&) (Z.leb Z0 height)
-    (Z.leb (Z.div height rES_REWARD_EPOCH) (Z.of_nat rES_REWARD_LAST_EPOCH))
+let res_destroy_pole_sq h =
+  Z.mul (Z.add rES_DESTROY_POLE h) (Z.add rES_DESTROY_POLE h)
 
 (** val res_destroy_cost_at_height : z -> z **)
 
 let res_destroy_cost_at_height height =
-  if res_mint_authorized height
-  then res_destroy_cost_for_epoch (Z.to_nat (Z.div height rES_REWARD_EPOCH))
-  else Z0
+  if Z.ltb height Z0
+  then Z0
+  else Z.shiftr (Z.mul rES_DESTROY_COST_GENESIS (res_destroy_pole_sq height))
+         (Zpos (XO (XI (XO (XO (XI XH))))))
 
-(** val hALVING_INTERVAL : z **)
+(** val cALENDAR_INTERVAL : z **)
 
-let hALVING_INTERVAL =
+let cALENDAR_INTERVAL =
   Zpos (XO (XO (XO (XO (XI (XO (XI (XO (XO (XO (XI (XO (XI (XI (XO (XO (XI
     XH)))))))))))))))))
 
-(** val oRU_INITIAL_SATS : z **)
+(** val oRU_FLAT_SATS : z **)
 
-let oRU_INITIAL_SATS =
-  Zpos (XO (XO (XO (XO (XO (XO (XO (XO (XO (XO (XO (XI (XO (XI (XI (XI (XO
-    (XI (XI (XO (XI (XI (XI (XO (XO (XO (XO (XI (XO (XO (XI (XO (XI (XI (XI
-    (XO XH))))))))))))))))))))))))))))))))))))
+let oRU_FLAT_SATS =
+  oRU_FLAT_BLOCK_SUBSIDY
 
 (** val issuance_epoch : z -> z **)
 
 let issuance_epoch h =
-  if Z.ltb h Z0 then Z0 else Z.div h hALVING_INTERVAL
+  if Z.ltb h Z0 then Z0 else Z.div h cALENDAR_INTERVAL
 
 (** val oru_subsidy : z -> z **)
 
 let oru_subsidy h =
-  if Z.eqb h Z0
-  then Z0
-  else Z.shiftr oRU_INITIAL_SATS (Z.min (issuance_epoch h) (Zpos (XI XH)))
+  if Z.leb h Z0 then Z0 else oRU_FLAT_SATS
 
 type byte = int
 

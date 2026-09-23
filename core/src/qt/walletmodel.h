@@ -170,8 +170,8 @@ public:
     // Retrieve the cached wallet balance
     interfaces::WalletBalances getCachedBalance() const;
 
-    // If coin control has selected outputs, searches the total amount inside the wallet.
-    // Otherwise, uses the wallet's cached available balance.
+    // Selected outputs and external-signer wallets sum the selectable coins.
+    // Otherwise uses the per-asset trusted cache (depth >= 0) and does not call AvailableCoins.
     CAmount getAvailableBalance(const wallet::CCoinControl* control);
 
 private:

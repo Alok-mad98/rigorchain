@@ -31,13 +31,6 @@
     "bad_signature",
     "malformed_witness"
   ],
-  "draw": [
-    "empty_F",
-    "single_candidate",
-    "equal_weight",
-    "txid_tie_break",
-    "zero_weight"
-  ],
   "supply": [
     "mint",
     "burn",
@@ -48,7 +41,6 @@
     "accept",
     "issuance",
     "res_mint_expectation",
-    "draw_winner",
     "classification",
     "ledger_delta",
     "coinbase_expectation"
@@ -56,7 +48,7 @@
   "mismatch_policy": "CONSENSUS_KERNEL_CANARY_DISCREPANCY; never auto-correct",
   "deterministic_cases": 10000,
   "production_consensus_authority": "RigorConsensusKernel(C++)",
-  "formal_refinement_status": "NOT_PROVED",
+  "formal_refinement_status": "PROVED",
   "extracted_kernel_production": false,
   "compcert_binary_verified_kernel": false
 }

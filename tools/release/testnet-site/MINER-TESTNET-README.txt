@@ -101,6 +101,13 @@ Step 6  Edit the miner script in Notepad
    - If neither is present, append -t N to the rigor-miner.exe line
      (replace N with the number above).
    Do not omit -t. Without -t the miner defaults to all CPU cores.
+
+   Example: 8 logical processors, leave 2 cores for the wallet and node.
+   If the rigor-miner.exe line has no -t yet, change that whole line to:
+
+   rigor-miner.exe -a rgrpow01 --no-getwork -o "http://127.0.0.1:18761" -u "%RPC_USER%" -p "%RPC_PASS%" --coinbase-addr="%COINBASE_ADDR%" -t 6
+
+   For 4 cores, use -t 2 at the end instead of -t 6.
 4. Save.
 5. Now double-click rigor-miner-testnet.cmd to run it.
 6. Leave the console window open. Hashrate lines mean it is mining.

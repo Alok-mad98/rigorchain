@@ -438,6 +438,8 @@ public:
         result.res_balance = b.res_trusted_min1;
         result.res_unconfirmed_balance = (b.res_trusted_min0 - b.res_trusted_min1) + b.res_pending;
         result.res_locked_balance = b.res_immature;
+        result.oru_trusted_min0 = b.oru_trusted_min0;
+        result.res_trusted_min0 = b.res_trusted_min0;
         if (result.have_watch_only) {
             result.watch_only_balance = b.wo_oru_trusted_min1;
             result.unconfirmed_watch_only_balance = (b.wo_oru_trusted_min0 - b.wo_oru_trusted_min1) + b.wo_oru_pending;
@@ -445,6 +447,8 @@ public:
             result.res_watch_only_balance = b.wo_res_trusted_min1;
             result.res_unconfirmed_watch_only_balance = (b.wo_res_trusted_min0 - b.wo_res_trusted_min1) + b.wo_res_pending;
             result.res_immature_watch_only_balance = b.wo_res_immature;
+            result.wo_oru_trusted_min0 = b.wo_oru_trusted_min0;
+            result.wo_res_trusted_min0 = b.wo_res_trusted_min0;
         }
         return result;
     }

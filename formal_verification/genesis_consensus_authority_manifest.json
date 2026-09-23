@@ -28,7 +28,7 @@
   "authority_table": {
     "ORU issuance": "GetBlockSubsidy / ComputeRigorIssuance",
     "RES mint": "CheckResMintArithmetic",
-    "draw": "retired (RFC-019); ResolveConvergenceDraw remains verify-only ABI",
+    "draw": "retired (RFC-019)",
     "RES mint gate": "CheckResMintArithmetic (body tx; EvaluateConnect is supply only)",
     "supply": "RigorSupplyDelta (via EvaluateConnect)",
     "classify": "ClassifyRigorTxout / ClassifyRigorAsset",

@@ -19,7 +19,7 @@ RATE_GENESIS = 1024 * COIN
 RES_DESTROY_POLE = 1 << 25
 RES_DESTROY_SHIFT = 40
 # Must match wallet/mint_height_pad.h CONVERGENCE_HEIGHT_PAD.
-CONVERGENCE_HEIGHT_PAD = 1024
+CONVERGENCE_HEIGHT_PAD = 144
 
 
 def mint_atoms_from_burn(burn_atoms: int, height: int) -> int:

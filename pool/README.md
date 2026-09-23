@@ -67,7 +67,7 @@ RIGOR pool:
 | `pool/bin/` | yiimp CLI helpers |
 | `pool/blocknotify*` | Daemon hooks for yiimp |
 
-`pool/mint-engine/` is **LEGACY / audit-only**. RES mint is assembled by
-`rigord` automint — never by the pool product.
+Lottery `winner-engine` / `mint-engine` crates were removed. RES mint is a
+node body transaction priced by `destroy_cost(h)`, never by the pool.
 
 Alpha / AlphaPlus pool packaging names are historical.

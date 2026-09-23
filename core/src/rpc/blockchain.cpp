@@ -26,7 +26,6 @@
 #include <node/supply_monitor/runtime_supply_witness_equivalence_candidate.h>
 #include <node/supply_monitor/runtime_supply_global_candidate_equivalence.h>
 #include <node/supply_monitor/runtime_supply_equivalence_closure.h>
-#include <node/supply_monitor/runtime_supply_draw_closure.h>
 #include <node/supply_monitor/runtime_supply_phase5_summary.h>
 #include <proof/runtime_vector_harness.h>
 #include <consensus/state_diff.h>
@@ -1871,8 +1870,8 @@ static RPCHelpMan getphase5summary()
 {
     return RPCHelpMan{
         "getphase5summary",
-        "\nTASK-FVR-N: Phase-5 canonical summary (FVR-A..M freeze snapshot).\n"
-        "Draw permanently non-closable; links to protocol freeze declaration.\n",
+        "\nTASK-FVR-N: Phase-5 canonical summary (FVR-A..L freeze snapshot).\n"
+        "equivalence_claimed always false.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
              "Block hash or height (default: active tip)"},
@@ -1884,16 +1883,10 @@ static RPCHelpMan getphase5summary()
             {
                 {RPCResult::Type::NUM, "height", "Resolved block height"},
                 {RPCResult::Type::BOOL, "equivalence_claimed", "Always false"},
-                {RPCResult::Type::BOOL, "draw_permanently_non_closable", "Always true"},
-                {RPCResult::Type::STR, "draw_status", "IMPOSSIBLE"},
                 {RPCResult::Type::STR, "closure_status", "FVR-L closure gate"},
                 {RPCResult::Type::STR, "freeze_protocol_link", "Protocol freeze doc id"},
                 {RPCResult::Type::ARR, "phase5_layer_catalog", "FVR layer entries",
                  {{RPCResult::Type::OBJ, "layer", "ple_task_id / ple_status"}}},
-                {RPCResult::Type::ARR, "draw_missing_requirements", "FVR-M gaps",
-                 {{RPCResult::Type::STR, "requirement", ""}}},
-                {RPCResult::Type::ARR, "draw_impossibility_reasons", "FVR-M audit ids",
-                 {{RPCResult::Type::STR, "reason", ""}}},
             }},
         RPCExamples{
             HelpExampleCli("getphase5summary", "") +
@@ -1928,7 +1921,7 @@ static RPCHelpMan getphase5summaryfinal()
         "getphase5summaryfinal",
         "\nTASK-PROOF-027: Phase-5 final summary linking FVR-A..N, PROOF-023..026 gates,\n"
         "ECS partition, and MAINNET_PROTOCOL_FREEZE_DECLARATION.\n"
-        "Draw permanently non-closable; equivalence_claimed always false.\n",
+        "equivalence_claimed always false.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
              "Block hash or height (default: active tip)"},

@@ -27,12 +27,7 @@
     "malformed_witness",
     "unknown_asset"
   ],
-  "draw": [
-    "empty_F",
-    "single_candidate",
-    "equal_weight",
-    "txid_tie_break"
-  ],
+  "draw": [],
   "ledger": [
     "mint",
     "burn",
@@ -44,7 +39,6 @@
   "compare": [
     "issuance",
     "maturity",
-    "draw_winner",
     "classification",
     "spend",
     "ledger_delta",

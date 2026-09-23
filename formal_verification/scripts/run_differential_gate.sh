@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
-# Differential gate — single entry for Coq ↔ Python ↔ portable-C++ draw/hash checks.
+# Differential gate — Coq ↔ Python ↔ portable-C++ hash / classify / mint checks.
 #
-# This gate does NOT claim refinement or equivalence. It fails if the shared
-# golden vectors, the tripartite hash check, or the σ/root CLI disagree.
+# Lottery oracles, σ/root CLI, and GoldenHarness were removed in Batch A.
+# This gate does NOT claim refinement or equivalence.
 #
 # Usage (from anywhere):
 #   bash formal_verification/scripts/run_differential_gate.sh
 #   bash formal_verification/scripts/run_differential_gate.sh --help
 #
 # Environment:
-#   COQ=1               also compile Kernel/NegativeCoreHarness.v + Kernel/GoldenHarness.v (requires coqc 8.15)
+#   COQ=1               also compile Kernel/NegativeCoreHarness.v (requires coqc 8.15)
 #   EXTRACT=1           re-extract the OCaml hash kernel (requires coqc + ocamlopt)
 #   TEST_RIGOR=path     Boost suites; default core/src/test/test_rigor if executable
 #                       (TEST_BITCOIN remains a one-release alias)
 #   SKIP_TEST_RIGOR=1   do not run test_rigor (portable CLI still covers CSHA256)
 #                       (SKIP_TEST_BITCOIN remains a one-release alias)
 #
-# Coverage (hash / σ / root):
-#   Step 2b golden lock  = pinned 433/226 + NegativeCore/InvalidCvg/ScriptMintNeg/ScriptAsset/DCR-neg/EdgeCross + surface_splits
-#   Step 3 portable CLI  = authoritative CSHA256 Transform / FIPS / HashKernel check
-#   Step 4 σ/root CLI    = production ComputeSigmaHash + ComputeConvergenceRootFromEligibilityTxids
-#   test_rigor           = BOOST integration (encoder, σ, A-9-C hex, optional FIPS)
-#   STALE binary warning = BOOST lacks sha256_fips_golden; rebuild test_rigor
+# Coverage after Batch A:
+#   Step 1 remaining HashKernel / FIPS rows
+#   Step 2 lottery generators / golden lock SKIP
+#   Step 3 portable CLI  = CSHA256 Transform / FIPS / HashKernel
+#   Step 4 σ/root CLI    SKIP (lottery)
+#   test_rigor           = remaining BOOST (no selection_golden_tests)
 #
 # Status: docs/verification/FV-RELEASE-CHECKLIST.md (gate internals: FORMAL-VERIFICATION-STATUS.md)
 set -euo pipefail
@@ -46,9 +46,7 @@ fail_diff() {
   echo "      tree: $tree"
   echo "      regen: $gen"
   echo "      Re-run the generators from repo root and keep the working-tree files."
-  echo "        python3 formal_verification/generate_phase3_vectors.py"
-  echo "        python3 formal_verification/gen_coq_harness.py"
-  echo "        python3 formal_verification/tools/gen_cpp_bridge_header.py"
+  echo "        lottery generators were removed in Batch A; do not regenerate σ families"
   if command -v diff >/dev/null; then
     diff -u "$tree" "$gen" | head -n 80 || true
   fi
@@ -64,44 +62,15 @@ b = json.load(open(sys.argv[2], encoding="utf-8"))
 sys.exit(0 if a == b else 1)' "$1" "$2"
 }
 
-echo "== 1. Python golden oracle (full vector set) =="
-python3 tests/test_phase3_oracle.py
-python3 tests/test_golden_vectors.py
-python3 tests/test_cpp_selection_golden.py
+echo "== 1. Python golden oracle (RFC-020 remaining families) =="
+echo "SKIP: lottery oracles (test_phase3_oracle / test_golden_vectors / test_cpp_selection_golden) removed"
 python3 tests/test_hash_kernel_agreement.py
-cov "Python oracle: PASS"
+cov "Python hash-kernel oracle: PASS; lottery golden oracles SKIP (Batch A)"
 
-echo "== 2. Regenerated artifacts must match the working tree =="
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-
-GOLDEN_OUT="$tmp/phase3_golden_vectors.json" python3 generate_phase3_vectors.py
-if ! json_eq phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"; then
-  fail_diff "phase3_golden_vectors.json" phase3_golden_vectors.json "$tmp/phase3_golden_vectors.json"
-fi
-
-HARNESS_OUT="$tmp/GoldenHarness.v" HARNESS_INDEX="$tmp/coq_harness_index.json" \
-  NEG_HARNESS_OUT="$tmp/NegativeCoreHarness.v" python3 gen_coq_harness.py
-if ! cmp -s coq/Kernel/GoldenHarness.v "$tmp/GoldenHarness.v"; then
-  fail_diff "coq/Kernel/GoldenHarness.v" coq/Kernel/GoldenHarness.v "$tmp/GoldenHarness.v"
-fi
-if ! cmp -s coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"; then
-  fail_diff "coq/Kernel/NegativeCoreHarness.v" \
-    coq/Kernel/NegativeCoreHarness.v "$tmp/NegativeCoreHarness.v"
-fi
-if ! json_eq coq_harness_index.json "$tmp/coq_harness_index.json"; then
-  fail_diff "coq_harness_index.json" coq_harness_index.json "$tmp/coq_harness_index.json"
-fi
-
-BRIDGE_OUT="$tmp/selection_golden_bridge.inc" python3 tools/gen_cpp_bridge_header.py
-if ! cmp -s "$ROOT/core/src/test/selection_golden_bridge.inc" "$tmp/selection_golden_bridge.inc"; then
-  fail_diff "selection_golden_bridge.inc" \
-    "$ROOT/core/src/test/selection_golden_bridge.inc" "$tmp/selection_golden_bridge.inc"
-fi
-echo "generated artifacts match working tree"
-cov "Generated artifacts match working tree: PASS"
-python3 "$ROOT/formal_verification/scripts/check_golden_lock.py"
-cov "Golden lock (433/226 + NegativeCore/InvalidCvg/ScriptMintNeg/ScriptAsset/DCR-neg/EdgeCross + surface_splits): PASS"
+echo "== 2. Regenerated lottery artifacts =="
+echo "SKIP: generate_phase3_vectors.py / gen_coq_harness.py / gen_cpp_bridge_header.py removed with lottery spec"
+echo "SKIP: check_golden_lock.py still requires deleted DrawBridgeProgress / GoldenHarness source"
+cov "Lottery golden lock / generators: SKIP (Batch A)"
 
 echo "== 3. Tripartite hash: portable C++ CSHA256 vs hashlib vs extracted Coq =="
 if command -v g++ >/dev/null || command -v c++ >/dev/null; then
@@ -188,10 +157,7 @@ if [[ -x extracted/consensus_kernel_cli && -x extracted/cpp_consensus_kernel_cli
   python3 "$ROOT/tools/lint-consensus-kernel-single-authority.py"
   python3 "$ROOT/tools/lint-consensus-kernel-shadow.py"
   python3 "$ROOT/tools/run_consensus_kernel_shadow.py"
-  bash "$ROOT/formal_verification/run_consensus_kernel_formal_refinement.sh"
-  bash "$ROOT/formal_verification/run_connectblock_kernel_boundary.sh"
   bash "$ROOT/formal_verification/run_transaction_kernel_refinement.sh"
-  bash "$ROOT/formal_verification/run_consensus_surface_closure.sh"
   if [[ -x extracted/consensus_kernel_c_cli && -x extracted/consensus_kernel_c_abi_cli ]]; then
     python3 "$ROOT/formal_verification/test_consensus_kernel_c_abi.py"
   else
@@ -225,16 +191,8 @@ python3 "$ROOT/tools/lint-utxo-state-transition-boundary.py"
 cov "UTXO state-transition boundary: PASS"
 
 echo "== 4. Portable σ / ConvergenceRoot CLI vs golden families =="
-if command -v g++ >/dev/null || command -v c++ >/dev/null; then
-  bash "$ROOT/formal_verification/scripts/build_cpp_sigma_root_cli.sh"
-else
-  echo "FAIL: g++/c++ required to build the C++ σ/root CLI"
-  exit 1
-fi
-python3 tests/test_sigma_root_cli.py
-cov "Production C++ σ/root CLI vs SigmaEncoder/SigmaPoW01/ConvergenceRoot: PASS"
-echo "    ComputeSigmaHash + ComputeConvergenceRootFromEligibilityTxids (not the coin-view wrapper)."
-echo "    Does not replace a refinement proof; honesty flags stay false."
+echo "SKIP: cpp_sigma_root_cli / ComputeSigmaHash removed with lottery draw models"
+cov "Production C++ σ/root CLI vs SigmaEncoder/SigmaPoW01/ConvergenceRoot: SKIP (lottery removed)"
 
 echo "== 5. Optional Coq harness rebuild =="
 if [[ "${COQ:-0}" == "1" ]]; then
@@ -243,18 +201,14 @@ if [[ "${COQ:-0}" == "1" ]]; then
     exit 1
   fi
   cd "$ROOT/formal_verification/coq"
-  echo "compiling ReplayReorgCore/ReplayInvariants.v (txid outpoints)"
-  coqc -q -R . Rigor ReplayReorgCore/ReplayInvariants.v
   echo "compiling Kernel/NegativeCoreHarness.v"
   coqc -q -R . Rigor Kernel/NegativeCoreHarness.v
-  echo "compiling Kernel/GoldenHarness.v"
-  coqc -q -R . Rigor Kernel/GoldenHarness.v
-  echo "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v OK"
+  echo "SKIP: GoldenHarness.v / ReplayReorgCore were lottery harnesses"
   cd "$ROOT/formal_verification"
-  cov "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v: PASS"
+  cov "Coq NegativeCoreHarness.v: PASS"
 else
-  echo "skipped (set COQ=1 to compile ReplayInvariants.v + Kernel/NegativeCoreHarness.v + Kernel/GoldenHarness.v)"
-  cov "Coq ReplayInvariants.v + NegativeCoreHarness.v + GoldenHarness.v: SKIP (COQ=1 to compile)"
+  echo "skipped (set COQ=1 to compile Kernel/NegativeCoreHarness.v)"
+  cov "Coq NegativeCoreHarness.v: SKIP (COQ=1 to compile)"
 fi
 
 echo "== 6. Optional C++ Boost suites (test_rigor) =="
@@ -284,7 +238,7 @@ else
       echo "      Skip this step: SKIP_TEST_RIGOR=1"
       cov "test_rigor BOOST: STALE (no sha256_fips_golden; portable CLI covers hash FIPS)"
     fi
-    "${TEST_RIGOR}" --run_test=selection_golden_tests
+    echo "SKIP: selection_golden_tests (lottery σ bridge removed)"
     "${TEST_RIGOR}" --run_test=convergence_consensus_tests
     "${TEST_RIGOR}" --run_test=rigor_classification_vector_tests,rigor_sighash_vector_tests,connectblock_res_mint_p0_041_tests,w32_reorg_stability_chain_tests
   else

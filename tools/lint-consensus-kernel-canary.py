@@ -53,7 +53,6 @@ REQUIRED_CPP = (
 REQUIRED_ABI = (
     "rigor_compute_issuance",
     "rigor_classify_script",
-    "rigor_resolve_draw",
     "rigor_supply_delta",
     "rigor_coinbase_mature",
 )
@@ -146,10 +145,8 @@ def main() -> int:
         for name in ("valid_spend", "invalid_spend", "bad_signature", "malformed_witness"):
             if name not in tx:
                 errors.append(f"vectors missing transaction {name}")
-        draw = set(v.get("draw") or [])
-        for name in ("empty_F", "single_candidate", "equal_weight", "txid_tie_break", "zero_weight"):
-            if name not in draw:
-                errors.append(f"vectors missing draw {name}")
+        if v.get("draw"):
+            errors.append("canary vectors still list lottery draw cases; draw is retired")
         supply = set(v.get("supply") or [])
         for name in ("mint", "burn", "fee", "invalid_delta"):
             if name not in supply:

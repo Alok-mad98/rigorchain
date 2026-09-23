@@ -19,7 +19,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
 echo "======== FV release checklist ========"
-echo "lock: formal_verification/golden_lock.json (living 433/226)"
+echo "lock: formal_verification/golden_lock.json (RFC-020 remaining families after lottery Batch A)"
 echo "docs: docs/verification/FV-RELEASE-CHECKLIST.md"
 echo
 
@@ -29,7 +29,7 @@ echo
 
 echo "== SPEC-006 / Coq project partition =="
 python3 "$ROOT/formal_verification/tests/test_coqproject_partition.py"
-python3 "$ROOT/formal_verification/tests/test_spec006_mapping.py"
+echo "SKIP: test_spec006_mapping.py removed with lottery spec"
 echo
 
 export SKIP_TEST_RIGOR="${SKIP_TEST_RIGOR:-${SKIP_TEST_BITCOIN:-1}}"

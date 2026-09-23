@@ -99,6 +99,13 @@ rpcallowip=127.0.0.1
    - 没有这两项：在 rigor-miner.exe 那一行末尾加上 -t N
      （N 换成上面算出的数字）。
    不要省略 -t。不写 -t 时，矿工会默认用满全部 CPU。
+
+   例子：8 个逻辑处理器，留 2 核给钱包和节点。
+   如果 rigor-miner.exe 那一行还没有 -t，整行改成：
+
+   rigor-miner.exe -a rgrpow01 --no-getwork -o "http://127.0.0.1:18761" -u "%RPC_USER%" -p "%RPC_PASS%" --coinbase-addr="%COINBASE_ADDR%" -t 6
+
+   4 核则把末尾的 -t 6 改成 -t 2。
 4. 保存。
 5. 保存后再双击 rigor-miner-testnet.cmd 运行。
 6. 黑窗口要一直开着。出现算力行才是在挖。

@@ -36,9 +36,6 @@ struct Phase5LayerSummary {
 struct Phase5SummaryExport {
     int32_t height{-1};
     std::vector<Phase5LayerSummary> layers;
-    std::string draw_status{"IMPOSSIBLE"};
-    std::vector<std::string> draw_missing_requirements;
-    std::vector<std::string> draw_impossibility_reasons;
     std::string closure_status{"PROHIBITED"};
     bool closure_allowed{false};
     std::string freeze_protocol_link;

@@ -254,48 +254,6 @@
       "asset": "INVALID"
     }
   ],
-  "draw": {
-    "note": "Kernel only: select_winner / ResolveConvergenceDraw(F,T). Not GetConvergenceDrawSetForBlock.",
-    "h": 101,
-    "c_hex": "1111111111111111111111111111111111111111111111111111111111111111",
-    "b_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "weight_saturating": "209715200000000",
-    "txid_a": "0000000000000000000000000000000000000000000000000000000000000001",
-    "txid_b": "0000000000000000000000000000000000000000000000000000000000000002",
-    "txid_c": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "cases": [
-      {
-        "id": "P053-DRAW-EMPTY",
-        "kind": "empty"
-      },
-      {
-        "id": "P053-DRAW-SINGLE",
-        "kind": "single",
-        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
-      },
-      {
-        "id": "P053-DRAW-EQ-WEIGHT",
-        "kind": "equal_weight",
-        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,0000000000000000000000000000000000000000000000000000000000000002:209715200000000"
-      },
-      {
-        "id": "P053-DRAW-EQ-WEIGHT-SWAP",
-        "kind": "equal_weight_swap",
-        "spec": "0000000000000000000000000000000000000000000000000000000000000002:209715200000000,0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
-      },
-      {
-        "id": "P053-DRAW-DIFF-WEIGHT",
-        "kind": "different_sigma",
-        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000,ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:104857600000000"
-      },
-      {
-        "id": "P053-DRAW-T0",
-        "kind": "t0",
-        "spec": "0000000000000000000000000000000000000000000000000000000000000001:209715200000000"
-      }
-    ],
-    "equal_sigma_collision_constructed": false
-  },
   "supply_delta": [
     {
       "id": "P053-SUP-ORU-ONLY",
@@ -305,25 +263,8 @@
       "burn": 0,
       "converge": 0,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 0,
       "res_cb": 0,
-      "boot": 0,
-      "expect_status": "OK"
-    },
-    {
-      "id": "P053-SUP-RES-ONLY",
-      "kind": "res_only",
-      "height": 1,
-      "fees": 0,
-      "burn": 0,
-      "converge": 0,
-      "mint": 40000000,
-      "has_winner": 1,
-      "card": 1,
-      "oru_cb": 0,
-      "res_cb": 40000000,
       "boot": 0,
       "expect_status": "OK"
     },
@@ -335,8 +276,6 @@
       "burn": 0,
       "converge": 0,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 0,
       "res_cb": 0,
       "boot": 0,
@@ -350,8 +289,6 @@
       "burn": 5,
       "converge": 0,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 0,
       "res_cb": 0,
       "boot": 0,
@@ -366,76 +303,10 @@
       "burn": 0,
       "converge": 10,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 0,
       "res_cb": 0,
       "boot": 0,
       "expect_status": "OK"
-    },
-    {
-      "id": "P053-SUP-REJECT-WITHOUT-WINNER",
-      "kind": "reject_cpp",
-      "height": 1,
-      "fees": 0,
-      "burn": 0,
-      "converge": 0,
-      "mint": 40000000,
-      "has_winner": 0,
-      "card": 1,
-      "oru_cb": 0,
-      "res_cb": 40000000,
-      "boot": 0,
-      "expect_status": "REJECT",
-      "reject_reason": "bad-rigor-res-without-winner"
-    },
-    {
-      "id": "P053-SUP-REJECT-WINNER-MISMATCH",
-      "kind": "reject_cpp",
-      "height": 1,
-      "fees": 0,
-      "burn": 0,
-      "converge": 0,
-      "mint": 0,
-      "has_winner": 1,
-      "card": 1,
-      "oru_cb": 0,
-      "res_cb": 0,
-      "boot": 0,
-      "expect_status": "REJECT",
-      "reject_reason": "bad-rigor-res-winner-mismatch"
-    },
-    {
-      "id": "P053-SUP-REJECT-TRIGGER-UNDERFLOW",
-      "kind": "reject_cpp",
-      "height": 1,
-      "fees": 0,
-      "burn": 0,
-      "converge": 0,
-      "mint": 40000000,
-      "has_winner": 1,
-      "card": 0,
-      "oru_cb": 0,
-      "res_cb": 40000000,
-      "boot": 0,
-      "expect_status": "REJECT",
-      "reject_reason": "bad-rigor-res-trigger-underflow"
-    },
-    {
-      "id": "P053-SUP-REJECT-RES-AMOUNT",
-      "kind": "reject_cpp",
-      "height": 52710000,
-      "fees": 0,
-      "burn": 0,
-      "converge": 0,
-      "mint": 1,
-      "has_winner": 1,
-      "card": 1,
-      "oru_cb": 0,
-      "res_cb": 1,
-      "boot": 0,
-      "expect_status": "REJECT",
-      "reject_reason": "bad-rigor-res-amount"
     },
     {
       "id": "P053-SUP-REJECT-CB-AMOUNT",
@@ -445,8 +316,6 @@
       "burn": 0,
       "converge": 0,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 100000000001,
       "res_cb": 0,
       "boot": 0,
@@ -461,28 +330,11 @@
       "burn": 0,
       "converge": 0,
       "mint": 0,
-      "has_winner": 0,
-      "card": 0,
       "oru_cb": 0,
       "res_cb": 1,
       "boot": 0,
       "expect_status": "REJECT",
       "reject_reason": "bad-cb-res-amount"
-    },
-    {
-      "id": "P053-SUP-REJECT-COQ",
-      "kind": "reject_coq",
-      "apply_delta": [
-        "1",
-        "0",
-        "1",
-        "0",
-        "0",
-        "1",
-        "0",
-        "0"
-      ],
-      "expect_status": "REJECT"
     }
   ],
   "kernel_connect_reject": [

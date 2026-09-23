@@ -33,7 +33,6 @@ Related (already in the default runner, not duplicated as new IDs):
 | Existing | Role |
 |----------|------|
 | `feature_res_core_convergence_window.py` | Sliding W, buried candidate, no-double-pay walk |
-| `feature_rigor_reorg_winner_lock.py` | A-8 lock vs deliberate re-roll |
 | `rigor_attack_blocks.py` | `submitblock` reject strings |
 | `src/test/convergence_consensus_tests.cpp` `a9c_already_paid_*` | Logic-level exclusion / branch-local paid set |
 

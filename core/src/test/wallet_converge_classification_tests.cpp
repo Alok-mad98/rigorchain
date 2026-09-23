@@ -138,13 +138,13 @@ BOOST_AUTO_TEST_CASE(getamounts_skips_converge_and_empty_block_does_not_abort)
                         "floor-priced mint must be evicted once the tip moves past its confirm height");
 }
 
-// Test A: default pad is 1024; target_height = current_height + 1024;
+// Test A: default pad is 144; target_height = current_height + 144;
 // several empty blocks later the mint is still consensus-valid.
 BOOST_AUTO_TEST_CASE(test_a_default_pad_survives_empty_blocks)
 {
-    BOOST_CHECK_EQUAL(CONVERGENCE_HEIGHT_PAD, 1024);
-    BOOST_CHECK_EQUAL(DEFAULT_CONVERGENCE_HEIGHT_PAD, 1024);
-    BOOST_CHECK_EQUAL(ConvergenceTargetHeight(1000, CONVERGENCE_HEIGHT_PAD), 2024);
+    BOOST_CHECK_EQUAL(CONVERGENCE_HEIGHT_PAD, 144);
+    BOOST_CHECK_EQUAL(DEFAULT_CONVERGENCE_HEIGHT_PAD, 144);
+    BOOST_CHECK_EQUAL(ConvergenceTargetHeight(1000, CONVERGENCE_HEIGHT_PAD), 1144);
 
     mineBlocks(10);
     auto wallet = CreateSyncedWallet(*m_node.chain, WITH_LOCK(Assert(m_node.chainman)->GetMutex(), return m_node.chainman->ActiveChain()), coinbaseKey);
@@ -185,7 +185,7 @@ BOOST_AUTO_TEST_CASE(test_a_default_pad_survives_empty_blocks)
     for (int i = 0; i < empty_blocks; ++i) {
         CreateAndProcessBlock({}, GetTestMiningCoinbaseScript(coinbaseKey));
         BOOST_CHECK_MESSAGE(m_node.mempool->exists(GenTxid::Txid(mint_tx->GetHash())),
-                            "default-pad mint must survive empty blocks inside the 1024-block margin");
+                            "default-pad mint must survive empty blocks inside the 144-block margin");
     }
     const int spendheight = current_height + empty_blocks + 1;
     BOOST_CHECK(Consensus::CheckResMintArithmetic(Consensus::RES_COIN, burn, spendheight));

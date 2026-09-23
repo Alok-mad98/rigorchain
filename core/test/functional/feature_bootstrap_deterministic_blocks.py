@@ -36,18 +36,7 @@ class BootstrapDeterministicBlocksTest(BitcoinTestFramework):
         for h in range(0, 11):
             assert_equal(node_a.getblockhash(h), node_b.getblockhash(h))
 
-        for h in range(1, 11):
-            bh = node_a.getblockhash(h)
-            cr = node_a.getconvergenceresult(bh)
-            assert_equal(cr["hash"], bh)
-            assert_equal(cr["height"], h)
-            # The seed is the block itself, so grinding it costs a proof-of-work solution.
-            assert_equal(cr["sigma_seed"], bh)
-            assert_equal(cr["payout_height"], h + 1)
-            # Both nodes must resolve the same draw from the same block.
-            assert_equal(node_b.getconvergenceresult(bh), cr)
-
-        self.log.info("Heights 1..10 carry no bootstrap special case and seed on themselves: PASS")
+        self.log.info("Heights 0..10 hashes agree on both nodes: PASS")
 
 
 if __name__ == "__main__":

@@ -20,7 +20,6 @@
 #include <consensus/convergenceres.h>
 #include <consensus/res_owner.h>
 #include <consensus/kernel/genesis_authority.h>
-#include <consensus_rigor/sigma_hash.h>
 #include <cuckoocache.h>
 #include <kernel/coinstats.h>
 #include <kernel/mempool_persist.h>

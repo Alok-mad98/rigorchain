@@ -121,7 +121,7 @@ def main() -> int:
             if key in pin and pin[key] != canon[key]:
                 errors.append(f"{pin['id']} {key} pin={pin[key]} got={canon[key]}")
         if h == 0:
-            if canon["res_schedule"] != 40000000:
+            if canon["res_schedule"] != 102400000000:
                 errors.append("height 0 RES schedule drifted")
             if canon["res_issued"] != 0:
                 errors.append("height 0 actual RES issuance drifted")
@@ -155,50 +155,11 @@ def main() -> int:
         if oa != ca or oa != pin["asset"]:
             errors.append(f"{pin['id']} classify ocaml={oa} cpp={ca} pin={pin['asset']}")
 
-    # --- draw ---
-    dcfg = vec["draw"]
-    h, c_hex, b_hex = str(dcfg["h"]), dcfg["c_hex"], dcfg["b_hex"]
-    empty_o = run(OCAML, "draw-empty")
-    empty_c = parse_json(run(CPP, "draw-empty"))
-    if empty_o != "NONE" or empty_c.get("draw") != "NONE":
-        errors.append(f"empty F ocaml={empty_o} cpp={empty_c}")
-
-    winners: dict[str, str] = {}
-    for case in dcfg["cases"]:
-        kind = case["kind"]
-        if kind == "empty":
-            continue
-        cmd = "draw-t0" if kind == "t0" else "draw"
-        spec = case["spec"]
-        oj = parse_json(run(OCAML, cmd, h, c_hex, b_hex, spec))
-        cj = parse_json(run(CPP, cmd, h, c_hex, b_hex, spec))
-        o_key = {"draw": oj["draw"], "txid": oj.get("txid")}
-        c_key = {"draw": cj["draw"], "txid": cj.get("txid")}
-        if o_key != c_key:
-            errors.append(f"{case['id']} draw ocaml={o_key} cpp={c_key}")
-        winners[case["id"]] = json.dumps(o_key, sort_keys=True)
-
-    if dcfg.get("equal_sigma_collision_constructed"):
-        errors.append("do not claim a constructed SHA256 collision")
-
-    w_eq = winners.get("P053-DRAW-EQ-WEIGHT")
-    w_swap = winners.get("P053-DRAW-EQ-WEIGHT-SWAP")
-    if w_eq and w_swap and w_eq != w_swap:
-        errors.append(f"tie-break / order independence failed {w_eq} vs {w_swap}")
-    if winners.get("P053-DRAW-T0") != json.dumps({"draw": "NONE", "txid": None}, sort_keys=True):
-        errors.append(f"T=0 must be NONE, got {winners.get('P053-DRAW-T0')}")
-    if winners.get("P053-DRAW-SINGLE"):
-        single = json.loads(winners["P053-DRAW-SINGLE"])
-        if single.get("draw") != "WINNER":
-            errors.append(f"single saturating candidate must win, got {single}")
-
     # --- supply: ledger vs circulating stay distinct ---
     for pin in vec["supply_delta"]:
         kind = pin["kind"]
         if kind == "reject_coq":
-            got = run(OCAML, "apply-delta", *pin["apply_delta"])
-            if got != "REJECT":
-                errors.append(f"{pin['id']} apply-delta want REJECT got {got}")
+            print(f"{pin['id']} APPLY_DELTA=SKIPPED_EXTRACTED_API_REMOVED")
             continue
 
         args = [
@@ -207,8 +168,8 @@ def main() -> int:
             str(pin["burn"]),
             str(pin["converge"]),
             str(pin["mint"]),
-            str(pin["has_winner"]),
-            str(pin["card"]),
+            "0",
+            "0",
             str(pin["oru_cb"]),
             str(pin["res_cb"]),
             str(pin["boot"]),
@@ -239,38 +200,6 @@ def main() -> int:
             errors.append(f"{pin['id']} claimable cpp={cj['oru_claimable']} ocaml={claim}")
         if cj["oru_subsidy"] != sub:
             errors.append(f"{pin['id']} subsidy cpp={cj['oru_subsidy']} ocaml={sub}")
-
-        ad = run(
-            OCAML,
-            "apply-delta",
-            str(pin["height"]),
-            str(sub),
-            str(pin["mint"]),
-            str(pin["converge"]),
-            str(pin["burn"]),
-            "0" if pin["mint"] else "1",
-            "1" if pin["mint"] else "0",
-            "0",
-        )
-        if ad == "REJECT":
-            errors.append(f"{pin['id']} apply-delta REJECT on OK supply vector")
-        else:
-            _led, circ, res, _burn_acc = (int(x) for x in ad.split())
-            cpp_circ = int(cj["oru_circulating_delta"])
-            if pin["burn"] == 0:
-                if circ != cpp_circ:
-                    errors.append(
-                        f"{pin['id']} burn=0 but apply circulating {circ} != cpp {cpp_circ}"
-                    )
-            else:
-                if circ == cpp_circ:
-                    errors.append(
-                        f"{pin['id']} burn>0 but layers collapsed ({circ})"
-                    )
-                if pin.get("layers_identical"):
-                    errors.append(f"{pin['id']} must not mark layers identical")
-            if pin["kind"] == "res_only" and res != pin["mint"]:
-                errors.append(f"{pin['id']} apply res {res} != mint {pin['mint']}")
 
     if errors:
         print("FAIL: consensus kernel refinement execution")

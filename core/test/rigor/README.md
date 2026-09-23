@@ -16,7 +16,6 @@ Files:
 - `test_commitment.py`
 - `test_chain_consistency.py`
 - `test_invalid_blocks_rigor.py`
-- `test_forge_winner.py`
 - `test_required_scenarios.py`
 
 Run:

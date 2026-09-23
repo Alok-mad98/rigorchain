@@ -4798,7 +4798,7 @@ Unable to restore backup of wallet.</source>
     <name>ConvergencePage</name>
     <message>
         <source>Convergence</source>
-        <translation>汇聚</translation>
+        <translation>Convergence</translation>
     </message>
 
     <message>
@@ -4842,13 +4842,13 @@ Do you want to continue?</source>
 
     <message>
         <source>Convergence amount</source>
-        <translation>汇聚金额</translation>
+        <translation>Convergence amount</translation>
     </message>
 
     <message>
-        <source>Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.
+        <source>The wallet constructs the mint with a future confirmation-height safety margin so waiting to confirm does not void it.
 Destroyed ORU cannot be recovered.</source>
-        <translation>钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。链共识仍按照实际确认区块高度计算。
+        <translation>钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。
 已销毁的 ORU 无法恢复。</translation>
     </message>
 

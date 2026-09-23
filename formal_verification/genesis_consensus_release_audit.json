@@ -23,7 +23,7 @@
     "issuance": "GetBlockSubsidy",
     "res": "CheckResMintArithmetic",
     "classification": "ClassifyRigorTxout",
-    "draw": "ResolveConvergenceDraw",
+    "draw": "retired",
     "supply": "RigorSupplyDelta",
     "spend": "VerifyRigorPredicate",
     "ledger": "LedgerApply",

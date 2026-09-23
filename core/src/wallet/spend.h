@@ -254,7 +254,7 @@ util::Result<CRecipient> MakeConvergenceRecipient(CWallet& wallet, CAmount amoun
  * mixed transfer. subtract_fee_from_convergence is rejected: shrinking B after
  * R is computed would silently under-mint.
  *
- * height_pad defaults to CONVERGENCE_HEIGHT_PAD (1024). Pass 0 only in tests
+ * height_pad defaults to CONVERGENCE_HEIGHT_PAD (144). Pass 0 only in tests
  * that need an exact-fit mint at tip+1 (those are evicted on the next empty
  * block). Consensus still evaluates the actual confirming height.
  */

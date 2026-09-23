@@ -4,7 +4,6 @@
 
 #include <node/supply_monitor/runtime_supply_phase5_summary.h>
 
-#include <node/supply_monitor/runtime_supply_draw_closure.h>
 #include <node/supply_monitor/runtime_supply_equivalence_closure.h>
 #include <node/supply_monitor/runtime_supply_global_candidate_equivalence.h>
 #include <node/supply_monitor/runtime_supply_witness_chain.h>
@@ -82,7 +81,6 @@ std::optional<Phase5SummaryExport> ResolvePhase5SummaryAt(const CBlockIndex* pin
         ResolveGlobalCandidateEquivalenceAt(pindex);
     const std::optional<EquivalenceClosureResult> closure =
         ResolveEquivalenceClosureAt(pindex);
-    const DrawClosureResult draw = ResolveDrawClosureStatus();
 
     const bool has_witness = witness.has_value();
     const bool has_catalog = catalog.has_value();
@@ -123,12 +121,6 @@ std::optional<Phase5SummaryExport> ResolvePhase5SummaryAt(const CBlockIndex* pin
                                    closure.has_value() ? Phase5LayerStatus::Active
                                                        : Phase5LayerStatus::Partial,
                                    closure.has_value()));
-    exp.layers.push_back(MakeLayer("FVR-M", "DrawClosure",
-                                   Phase5LayerStatus::Impossible, true));
-
-    exp.draw_status = DrawClosureStatusToString(draw.status);
-    exp.draw_missing_requirements = draw.missing_requirements;
-    exp.draw_impossibility_reasons = draw.impossibility_reasons;
 
     if (closure.has_value()) {
         exp.closure_status = EquivalenceClosureStatusToString(closure->status);
@@ -150,8 +142,6 @@ UniValue Phase5SummaryExportToJson(const Phase5SummaryExport& exp)
     obj.pushKV("phase5_summary_catalog_established", true);
     obj.pushKV("freeze_protocol_link", exp.freeze_protocol_link);
     obj.pushKV("freeze_note", exp.freeze_note);
-    obj.pushKV("draw_status", exp.draw_status);
-    obj.pushKV("draw_permanently_non_closable", true);
     obj.pushKV("closure_status", exp.closure_status);
     obj.pushKV("closure_allowed", exp.closure_allowed);
 
@@ -167,18 +157,6 @@ UniValue Phase5SummaryExportToJson(const Phase5SummaryExport& exp)
         layers.push_back(std::move(entry));
     }
     obj.pushKV("phase5_layer_catalog", std::move(layers));
-
-    UniValue draw_missing(UniValue::VARR);
-    for (const std::string& req : exp.draw_missing_requirements) {
-        draw_missing.push_back(req);
-    }
-    obj.pushKV("draw_missing_requirements", std::move(draw_missing));
-
-    UniValue draw_reasons(UniValue::VARR);
-    for (const std::string& reason : exp.draw_impossibility_reasons) {
-        draw_reasons.push_back(reason);
-    }
-    obj.pushKV("draw_impossibility_reasons", std::move(draw_reasons));
 
     return obj;
 }

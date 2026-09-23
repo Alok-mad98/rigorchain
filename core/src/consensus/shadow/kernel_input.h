@@ -23,8 +23,7 @@ extern "C" {
 typedef enum ConsensusKernelSurface {
     CK_SURFACE_ISSUANCE = 0,
     CK_SURFACE_CLASSIFY = 1,
-    CK_SURFACE_DRAW = 2,
-    CK_SURFACE_SUPPLY = 3
+    CK_SURFACE_SUPPLY = 2
 } ConsensusKernelSurface;
 
 typedef struct ConsensusKernelInput {
@@ -32,9 +31,6 @@ typedef struct ConsensusKernelInput {
     uint32_t height;
     const uint8_t* script;
     size_t script_len;
-    const rigor_candidate* candidates;
-    size_t candidate_count;
-    rigor_draw_context draw_ctx;
     rigor_supply_input supply;
 } ConsensusKernelInput;
 
@@ -46,7 +42,6 @@ typedef struct ConsensusKernelInput {
 struct ConsensusKernelShadowOutput {
     rigor_issuance_result issuance{};
     rigor_asset_type asset{RIGOR_ASSET_INVALID};
-    rigor_draw_result draw{};
     rigor_supply_result supply{};
     bool supply_ok{false};
     int64_t ledger_oru_delta{0};

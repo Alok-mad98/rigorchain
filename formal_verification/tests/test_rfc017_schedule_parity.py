@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""RFC-020 schedule parity gate: C++ ≡ Python ≡ pinned Coq table.
+"""RFC-020 schedule parity: C++ ResDestroyCostAtHeight ≡ pinned Coq table.
 
-Compares ResDestroyCostAtHeight at the golden heights and ResDerivedMaxSupply.
-Does not call coqc (pins match ResSchedule.destroy_cost_pin_table). Exit 1 on mismatch.
+Does not call coqc (pins match ResSchedule.destroy_cost_pin_table).
+Python L1 lottery spec was removed in Batch A; this gate is C++ ≡ Coq only.
+Exit 1 on mismatch.
 
 The filename is historical (RFC-017 lottery table). The live rule is RFC-020.
 """
@@ -15,14 +16,6 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SPEC = REPO / "formal_verification" / "spec"
-sys.path.insert(0, str(SPEC))
-
-from rigor_consensus_spec import (  # noqa: E402
-    RES_SCHEDULE_SUM,
-    res_destroy_cost_at_height,
-    res_destroy_cost_for_epoch,
-)
 
 # Pinned by ResSchedule.destroy_cost_pin_table / cap_from_flat_subsidy_and_pole
 COQ_PRICE_PINS = {
@@ -32,15 +25,11 @@ COQ_PRICE_PINS = {
     420_000: 104_979_520_049,
     630_000: 106_281_312_688,
 }
-COQ_EPOCH_PINS = {
-    0: 102_400_000_000,
-    1: 103_685_749_152,
-}
 COQ_SUM = 419_430_400_000_000
+EPOCH_HEIGHTS = [k * 210_000 for k in range(9)]
 
 
-def cpp_table() -> tuple[int, dict[int, int]]:
-    heights = sorted(COQ_PRICE_PINS)
+def cpp_table(heights: list[int]) -> tuple[int, dict[int, int]]:
     src = r"""
 #include <consensus/res_issuance.h>
 #include <cstdio>
@@ -73,27 +62,21 @@ int main() {
 
 def main() -> int:
     errors: list[str] = []
-    cpp_sum, cpp_vals = cpp_table()
-    if cpp_sum != COQ_SUM or cpp_sum != RES_SCHEDULE_SUM:
-        errors.append(f"cap mismatch C++={cpp_sum} Python={RES_SCHEDULE_SUM} Coq={COQ_SUM}")
+    heights = sorted(set(COQ_PRICE_PINS) | set(EPOCH_HEIGHTS))
+    cpp_sum, cpp_vals = cpp_table(heights)
+    if cpp_sum != COQ_SUM:
+        errors.append(f"cap mismatch C++={cpp_sum} Coq={COQ_SUM}")
 
     for h, pin in COQ_PRICE_PINS.items():
-        py = res_destroy_cost_at_height(h)
         cpp = cpp_vals.get(h)
-        if py != cpp:
-            errors.append(f"h={h}: Python={py} C++={cpp}")
-        if py != pin:
-            errors.append(f"h={h}: Python={py} Coq pin={pin}")
+        if cpp != pin:
+            errors.append(f"h={h}: C++={cpp} Coq pin={pin}")
 
-    for k, pin in COQ_EPOCH_PINS.items():
-        py = res_destroy_cost_for_epoch(k)
-        if py != pin:
-            errors.append(f"k={k}: Python={py} Coq pin={pin}")
-
-    # Display destroy cost is nondecreasing on the observational calendar.
     for k in range(8):
-        if res_destroy_cost_for_epoch(k + 1) < res_destroy_cost_for_epoch(k):
-            errors.append(f"price decreased at observational k={k}")
+        cur = cpp_vals[EPOCH_HEIGHTS[k]]
+        nxt = cpp_vals[EPOCH_HEIGHTS[k + 1]]
+        if nxt < cur:
+            errors.append(f"price decreased at observational k={k}: {cur} -> {nxt}")
 
     if errors:
         print("FAIL: RFC-020 schedule parity")
@@ -103,7 +86,7 @@ def main() -> int:
             print(f"  ... and {len(errors) - 20} more")
         return 1
 
-    print("PASS: RFC-020 schedule parity (C++ ≡ Python ≡ Coq pins)")
+    print("PASS: RFC-020 schedule parity (C++ ≡ Coq pins)")
     print(f"  ResDerivedMaxSupply = {cpp_sum}")
     return 0
 

@@ -9,7 +9,6 @@
 #include <consensus/consensus.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
-#include <consensus_rigor/sigma_hash.h>
 #include <crypto/sha256.h>
 #include <hash.h>
 #include <uint256.h>
@@ -143,35 +142,6 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(canonical_hash_input_tests)
 
-// CASE 3.1 — correct length
-// Build the full input
-// EXPECTED: len == 100
-BOOST_AUTO_TEST_CASE(sigma_input_correct_length)
-{
-    uint256 txid;
-    uint256 convergence_root;
-    uint256 prev_block_hash;
-    uint32_t height = 100;
-
-    // Sigma-PoW-01: the slot that used to hold `bind_commit` now holds the parent block hash
-    // verbatim, so the σ input layout is still exactly 100 bytes.
-    rigor::ComputeSigmaHash(txid, convergence_root, prev_block_hash, height);
-
-    // If we got here without error, the input was 100 bytes
-    BOOST_CHECK(true);
-}
-
-// CASE 3.2 — one byte short
-// This test is conceptual - the static_assert in sigma_hash.cpp ensures
-// the buffer is exactly 100 bytes at compile time
-BOOST_AUTO_TEST_CASE(sigma_input_static_assert)
-{
-    // The static_assert in sigma_hash.cpp ensures:
-    // static_assert(kOffHeight + kHeightLen == SIGMA_INPUT_SIZE, ...);
-    // SIGMA_INPUT_SIZE is 100
-    BOOST_CHECK_EQUAL(rigor::SIGMA_INPUT_SIZE, 100);
-}
-
 BOOST_AUTO_TEST_SUITE_END()
 
 // =============================================================================
@@ -298,16 +268,7 @@ BOOST_AUTO_TEST_CASE(execution_trace_structure)
     // The actual trace output is optional per RFC-010 §2
     
     // Verify that the key functions exist and can be called
-    uint256 txid;
-    uint256 convergence_root;
-    uint256 prev_block_hash;
-    uint32_t height = 100;
-
-    // Compute Sigma hash (Sigma-PoW-01: seeded by the parent block hash).
-    uint256 sigma = rigor::ComputeSigmaHash(txid, convergence_root, prev_block_hash, height);
-
-    // Verify we got a valid hash
-    BOOST_CHECK(sigma != uint256());
+    BOOST_CHECK(true);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

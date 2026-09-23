@@ -47,8 +47,6 @@ CXX="${CXX:-$(command -v g++ || command -v c++)}"
   "$SRC/script/script.cpp" \
   "$SRC/uint256.cpp" \
   "$SRC/util/strencodings.cpp" \
-  "$SRC/consensus/convergence_logic.cpp" \
-  "$SRC/consensus_rigor/sigma_hash.cpp" \
   "$SRC/crypto/sha256.cpp" \
   "$SRC/arith_uint256.cpp" \
   -Wl,--gc-sections
@@ -71,16 +69,16 @@ print('P053 vector honesty flags remain false')
 "
 
 echo "== 5. P056 kernel-boundary Coq refinement =="
-bash "$FV/run_consensus_kernel_formal_refinement.sh"
+echo "SKIP: ConsensusKernelRefinement.v removed with lottery draw models"
 
 echo "== 6. P057 ConnectBlock Kernel boundary =="
-bash "$FV/run_connectblock_kernel_boundary.sh"
+echo "SKIP: ConnectBlockKernelBoundary.v removed with lottery draw models"
 
 echo "== 7. P058 Transaction Kernel spend-predicate refinement =="
 bash "$FV/run_transaction_kernel_refinement.sh"
 
 echo "== 8. P059 Consensus surface final closure =="
-bash "$FV/run_consensus_surface_closure.sh"
+echo "SKIP: ConsensusSurfaceClosure.v removed with lottery draw models"
 
 echo "== 9. P060 Consensus Kernel governance =="
 SKIP_COQ=1 bash "$FV/run_consensus_kernel_governance.sh"
@@ -95,9 +93,9 @@ echo "== 12. P063 UTXO ledger transition refinement =="
 bash "$FV/run_ledger_transition_refinement.sh"
 
 echo "== 13. P065 UTXO state-transition refinement =="
-bash "$FV/run_utxo_state_transition_refinement.sh"
+echo "SKIP: UTXOStateTransitionRefinement.v removed with lottery draw models"
 
 echo "CONSENSUS_KERNEL_REFINEMENT_EXECUTION_CLOSED"
 echo "P053_VECTOR_REFINEMENT_PROVED=false"
-echo "P056_KERNEL_BOUNDARY_REFINEMENT_PROVED=true"
+echo "P056_KERNEL_BOUNDARY_REFINEMENT_PROVED=false"
 python3 "$ROOT/tools/refinement_status.py"

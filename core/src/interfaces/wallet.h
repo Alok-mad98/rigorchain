@@ -409,6 +409,13 @@ struct WalletBalances
     CAmount oru_unconfirmed_balance = 0;
     CAmount res_balance = 0;
     CAmount res_unconfirmed_balance = 0;
+    //! Trusted spendable credit at depth >= 0 (own 0-conf included, untrusted
+    //! mempool and immature coinbase excluded). Send UI reads this instead of
+    //! scanning every UTXO. Locked coins remain included; coin selection excludes them.
+    CAmount oru_trusted_min0 = 0;
+    CAmount res_trusted_min0 = 0;
+    CAmount wo_oru_trusted_min0 = 0;
+    CAmount wo_res_trusted_min0 = 0;
     //! Immature RES coinbase (locked until consensus maturity).
     CAmount res_locked_balance = 0;
     //! RES watch-only (dual-native symmetry with ORU watch fields above).
@@ -425,6 +432,8 @@ struct WalletBalances
                immature_watch_only_balance != prev.immature_watch_only_balance ||
                oru_balance != prev.oru_balance || oru_unconfirmed_balance != prev.oru_unconfirmed_balance ||
                res_balance != prev.res_balance || res_unconfirmed_balance != prev.res_unconfirmed_balance ||
+               oru_trusted_min0 != prev.oru_trusted_min0 || res_trusted_min0 != prev.res_trusted_min0 ||
+               wo_oru_trusted_min0 != prev.wo_oru_trusted_min0 || wo_res_trusted_min0 != prev.wo_res_trusted_min0 ||
                res_locked_balance != prev.res_locked_balance ||
                res_watch_only_balance != prev.res_watch_only_balance ||
                res_unconfirmed_watch_only_balance != prev.res_unconfirmed_watch_only_balance ||

@@ -20,40 +20,29 @@ ROOT = Path(__file__).resolve().parents[1]
 COQ = ROOT / "formal_verification/coq"
 FLAGS = ["-q", "-R", ".", "Rigor", "-R", "../rigor_v01", "RigorV01"]
 
-MODULES = (
+# Lottery-era kernel/draw/surface files were deleted. Do not restore them.
+# Check only modules that still exist; print ABSENT for the retired list.
+LIVE_MODULES = (
     "SignatureBoundary.v",
     "TransactionKernelRefinement.v",
+    "LedgerTransitionRefinement.v",
+)
+RETIRED_MODULES = (
     "ConsensusKernelRefinement.v",
     "ConnectBlockInputPreparation.v",
     "KernelResultApplication.v",
     "ConnectBlockKernelBoundary.v",
     "ConsensusSurfaceClosure.v",
-    "LedgerTransitionRefinement.v",
     "UTXOStateTransitionRefinement.v",
 )
 
 THEOREMS = (
-    "ConsensusKernelRefinement.cpp_flat_oru_pins",
-    "ConsensusKernelRefinement.classification_refinement",
-    "ConsensusKernelRefinement.draw_refinement",
-    "ConsensusKernelRefinement.supply_delta_refinement",
-    "ConsensusKernelRefinement.coinbase_boundary_refinement",
-    "ConnectBlockKernelBoundary.connectblock_kernel_boundary",
-    "ConnectBlockKernelBoundary.connectblock_can_reject",
-    "ConnectBlockKernelBoundary.connectblock_rejects_bad_input",
-    "ConnectBlockKernelBoundary.connectblock_rejects_winner_mismatch",
     "TransactionKernelRefinement.predicate_theorem",
     "TransactionKernelRefinement.spend_predicate_refinement",
-    "ConsensusSurfaceClosure.ConsensusSurfaceClosed",
     "LedgerTransitionRefinement.ledger_apply_eq",
     "LedgerTransitionRefinement.ledger_apply_delta_eq",
     "LedgerTransitionRefinement.tx_reject_value_ok_fail_closed",
     "LedgerTransitionRefinement.double_spend_rejects",
-    "UTXOStateTransitionRefinement.state_transition_refinement",
-    "UTXOStateTransitionRefinement.cpp_rejects_unscheduled_res_mint",
-    "UTXOStateTransitionRefinement.transaction_gate",
-    "UTXOStateTransitionRefinement.consensus_gate",
-    "UTXOStateTransitionRefinement.ledger_transition",
 )
 
 ASSUME_RE = re.compile(r"^\s*(Admitted|Axiom|Parameter)\s")
@@ -67,8 +56,13 @@ def fail(msg: str) -> int:
 
 
 def main() -> int:
+    for name in RETIRED_MODULES:
+        if (COQ / name).is_file():
+            return fail(f"retired lottery module reintroduced: {name}")
+        print(f"ABSENT {name} (lottery cone removed)")
+
     admitted = axioms = parameters = 0
-    for name in MODULES:
+    for name in LIVE_MODULES:
         path = COQ / name
         if not path.is_file():
             return fail(f"missing {name}")
@@ -97,7 +91,7 @@ def main() -> int:
     if not shutil.which("coqtop"):
         return fail("coqtop is not on PATH")
 
-    for name in MODULES:
+    for name in LIVE_MODULES:
         print(f"== coqc {name} ==")
         r = subprocess.run(
             ["coqc", *FLAGS, name],
@@ -112,9 +106,9 @@ def main() -> int:
 
     prints = "\n".join(f"Print Assumptions {t}." for t in THEOREMS)
     script = (
-        "Require ConsensusSurfaceClosure.\n"
+        "Require SignatureBoundary.\n"
+        "Require TransactionKernelRefinement.\n"
         "Require LedgerTransitionRefinement.\n"
-        "Require UTXOStateTransitionRefinement.\n"
         + prints
         + "\n"
     )

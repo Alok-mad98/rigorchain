@@ -18,12 +18,11 @@ import os
 import test_framework.fault_injection_expect as exp
 import test_framework.fault_injection_harness as fh
 from fault_injection_core import FaultInjectionShared, SYNC_TIMEOUT, assemble_attack_block
-from rigor_attack_blocks import (  # noqa: I252
+from res_security.cvge_helpers import (  # noqa: I252
     REJECT_BAD_CONVERGENCE_CUMULATIVE,
     REJECT_BAD_CONVERGENCE_MISSING,
-    _conv_corrupt_draw_candidate_root,
-    _conv_corrupt_cumulative,
-    _submit,
+    conv_corrupt_cumulative,
+    submit_block_hex,
 )
 from test_framework.opus_pow import solve_block_opus
 from test_framework.test_framework import BitcoinTestFramework
@@ -45,11 +44,8 @@ def run_fault_003_invalid_mint(test, na, nb, nc):
     # (validation.cpp bad-rigor-res-winner-mismatch) before CVGE committed vs recomputed
     # ConvergenceDrawCandidates root comparison (bad-convergence-draw-candidate-root).
     cases = [
-        ("invalid_conv_cumulative_commitment", REJECT_BAD_CONVERGENCE_CUMULATIVE, lambda tpl, ra, rb: _conv_corrupt_cumulative(tpl["default_convergence_commitment"]), {}),
-        ("invalid_convergence_draw_candidate_root", exp.SUBMITBLOCK_BAD_RIGOR_RES_WINNER_MISMATCH, lambda tpl, ra, rb: _conv_corrupt_draw_candidate_root(tpl["default_convergence_commitment"]), {}),
+        ("invalid_conv_cumulative_commitment", REJECT_BAD_CONVERGENCE_CUMULATIVE, lambda tpl, ra, rb: conv_corrupt_cumulative(tpl["default_convergence_commitment"]), {}),
         ("invalid_sigma_conv_missing", REJECT_BAD_CONVERGENCE_MISSING, lambda _tpl, _ra, _rb: bytes.fromhex("6a0100"), {}),
-        ("invalid_rigor_commitment", exp.SUBMITBLOCK_BAD_RIGOR_RES_WINNER_MISMATCH, lambda tpl, ra, rb: bytes.fromhex(tpl["default_convergence_commitment"]), {"commitment": None}),
-        ("invalid_height_draw_compact", exp.SUBMITBLOCK_BAD_RIGOR_RES_WINNER_MISMATCH, lambda tpl, ra, rb: bytes.fromhex(tpl["default_convergence_commitment"]), {"commitment": 0x01020304}),
     ]
 
     mining_addr = na.get_deterministic_witness_mining_address()
@@ -68,7 +64,7 @@ def run_fault_003_invalid_mint(test, na, nb, nc):
         )
         reasons = []
         for lab, n in (("A", na), ("B", nb), ("C", nc)):
-            reasons.append((lab, _submit(n, blk)))
+            reasons.append((lab, submit_block_hex(n, blk)))
         for lab, r in reasons:
             if r != expect_reject:
                 raise AssertionError(
@@ -101,7 +97,7 @@ def run_fault_003_invalid_mint(test, na, nb, nc):
         lambda: len(nb.getpeerinfo()) == 0 and len(nc.getpeerinfo()) == 0,
         timeout=30,
     )
-    dup_submit = [(lab, _submit(n, blk_dup)) for lab, n in (("A", na), ("B", nb), ("C", nc))]
+    dup_submit = [(lab, submit_block_hex(n, blk_dup)) for lab, n in (("A", na), ("B", nb), ("C", nc))]
     for lab, r in dup_submit:
         if r != exp.SUBMITBLOCK_BAD_TXNS_INPUTS_MISSINGORSPENT:
             raise AssertionError(

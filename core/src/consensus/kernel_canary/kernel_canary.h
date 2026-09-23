@@ -31,9 +31,6 @@ struct ConsensusKernelInput {
     bool has_maturity{false};
     const uint8_t* script{nullptr};
     size_t script_len{0};
-    const rigor_candidate* candidates{nullptr};
-    size_t candidate_count{0};
-    rigor_draw_context draw_ctx{};
     rigor_supply_input supply{};
     bool has_spend{false};
     TransactionKernelInput tx{};
@@ -45,8 +42,6 @@ struct KernelResult {
     uint64_t res_schedule{0};
     uint64_t res_mint_expectation{0};
     uint32_t epoch{0};
-    uint8_t draw_has_winner{0};
-    rigor_u256 draw_winner{};
     rigor_asset_type classification{RIGOR_ASSET_INVALID};
     int64_t ledger_delta{0};
     uint64_t coinbase_expectation{0};

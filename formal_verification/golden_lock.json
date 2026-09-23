@@ -1,11 +1,11 @@
 {
-  "comment": "Pinned correspondence counts for the differential gate. Bump only with a new vector / harness / discrepancy task. TASK-FV-GATE-AND-HARNESS-HARDENING-001. EdgeCross: TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001. Selective densify: TASK-FV-VECTOR-SELECTIVE-DENSIFY-001 (422/215). ScriptAsset classifier: 433/226. Surface splits: TASK-FV-DISCREPANCY-AND-LOCK-MAINTENANCE-001. RC0 freeze lock was 414/207.",
-  "shared_vectors": 433,
-  "coq_enforced_lemmas": 226,
-  "golden_harness_lemmas": 198,
+  "comment": "Pinned correspondence after Batch A lottery-family removal. Remaining families are RFC-020 mint / script / hash.",
+  "shared_vectors": 127,
+  "coq_enforced_lemmas": 75,
+  "golden_harness_lemmas": 0,
   "negative_core_harness_lemmas": 28,
-  "json_coq_enforce_true": 201,
-  "tag": "script-asset-classifier-2026-08-25",
+  "json_coq_enforce_true": 75,
+  "tag": "rfc020-no-lottery-families-2026-09-23",
   "must_enforce_families": {
     "NegativeCore": {
       "vectors": 16,
@@ -28,16 +28,6 @@
       "id_first": 0,
       "id_last": 11
     },
-    "DrawCandidateRoot": {
-      "vectors": 36,
-      "coq_enforced": 36,
-      "id_prefix": "DCR-",
-      "id_first": 0,
-      "id_last": 35,
-      "negative_prefix": "DCR-",
-      "negative_first": 24,
-      "negative_last": 35
-    },
     "EdgeCross": {
       "vectors": 20,
       "coq_enforced": 20,
@@ -54,22 +44,6 @@
     }
   },
   "families": {
-    "WindowExclusion": {
-      "vectors": 59,
-      "coq_enforced": 59
-    },
-    "DrawCandidateRoot": {
-      "vectors": 36,
-      "coq_enforced": 36
-    },
-    "Inequality": {
-      "vectors": 25,
-      "coq_enforced": 25
-    },
-    "ConvergenceRoot": {
-      "vectors": 25,
-      "coq_enforced": 9
-    },
     "NegativeCore": {
       "vectors": 16,
       "coq_enforced": 16
@@ -90,29 +64,13 @@
       "vectors": 20,
       "coq_enforced": 20
     },
-    "ReorgBind": {
-      "vectors": 12,
-      "coq_enforced": 0
-    },
     "BlockTrace": {
       "vectors": 12,
       "coq_enforced": 0
     },
-    "SigmaEncoder": {
-      "vectors": 10,
-      "coq_enforced": 10
-    },
     "Sha256Fips": {
       "vectors": 8,
       "coq_enforced": 0
-    },
-    "RunSelection": {
-      "vectors": 84,
-      "coq_enforced": 7
-    },
-    "SigmaPoW01": {
-      "vectors": 50,
-      "coq_enforced": 5
     },
     "HashKernel": {
       "vectors": 29,
@@ -121,14 +79,6 @@
     "SupplyScaffold": {
       "vectors": 5,
       "coq_enforced": 0
-    },
-    "Replay": {
-      "vectors": 3,
-      "coq_enforced": 0
-    },
-    "WindowIncomplete": {
-      "vectors": 2,
-      "coq_enforced": 0
     }
   },
   "surface_splits": {
@@ -136,38 +86,9 @@
     "python_only_families": [
       "SupplyScaffold",
       "BlockTrace",
-      "WindowIncomplete",
-      "ReorgBind",
-      "Replay",
       "Sha256Fips"
     ],
-    "omit_coq_enforce_key_enforced": [
-      "CR-000",
-      "CR-001",
-      "CR-002",
-      "CR-003",
-      "CR-004",
-      "CR-005",
-      "CR-006",
-      "CR-010",
-      "CR-011",
-      "SIG-000",
-      "SIG-001",
-      "SIG-002",
-      "SIG-003",
-      "SIG-004",
-      "INQ-000",
-      "INQ-001",
-      "INQ-002",
-      "INQ-003",
-      "WIN-000",
-      "WIN-001",
-      "WIN-002",
-      "WIN-003",
-      "WIN-004",
-      "WIN-005",
-      "WIN-006"
-    ],
+    "omit_coq_enforce_key_enforced": [],
     "rows": [
       {
         "ids": [

@@ -598,7 +598,7 @@ void TestConvergenceClicks(interfaces::Node& node)
     QVERIFY2(review->text().contains(QStringLiteral("RES this transaction will create")), qPrintable(review->text()));
     QVERIFY2(review->text().contains(QStringLiteral("1.00000000 RES")) || review->text().contains(QStringLiteral("1 RES")),
              qPrintable(review->text()));
-    QVERIFY2(review->text().contains(QStringLiteral("1024")), qPrintable(review->text()));
+    QVERIFY2(review->text().contains(QStringLiteral("safety margin")), qPrintable(review->text()));
     QVERIFY2(review->text().contains(QStringLiteral("cannot be recovered")), qPrintable(review->text()));
 
     QTest::mouseClick(next_btn, Qt::LeftButton);

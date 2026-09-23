@@ -1,4 +1,4 @@
-// Convergence / Res consensus (see consensus/convergence_logic.h): **RIGOR_MARKER_CONVERGE** burn outputs.
+// Convergence / Res consensus (see consensus/convergenceres.cpp): **RIGOR_MARKER_CONVERGE** burn outputs.
 // A convergence output is `<20-byte HASH160(pk32)> RIGOR_MARKER_CONVERGE` (22 bytes, script/predicate_verify.cpp
 // ParseConvergeScript). Under Option B, HASH160(pk32) equals HASH160(v1 program).
 // `IsConvergenceScript` detects that lock. The retired witness v1 CVG2 program is NOT a convergence

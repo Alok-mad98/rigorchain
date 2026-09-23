@@ -671,7 +671,7 @@ RPCHelpMan createconvergence()
                     {RPCResult::Type::NUM, "confirm_height", "Expected first confirming height (tip + 1)"},
                     {RPCResult::Type::NUM, "target_height", "Wallet construction height (current_height + height_pad)"},
                     {RPCResult::Type::NUM, "destroy_cost_height", "Wallet construction height only. Consensus validation uses actual confirming block height."},
-                    {RPCResult::Type::NUM, "height_pad", "Wallet confirmation-height margin. Default CONVERGENCE_HEIGHT_PAD=1024"},
+                    {RPCResult::Type::NUM, "height_pad", "Wallet confirmation-height margin. Default CONVERGENCE_HEIGHT_PAD=144"},
                     {RPCResult::Type::NUM, "valid_until_height", "Last spend height at which this mint remains consensus-valid"},
                     {RPCResult::Type::STR, "fee_reason", /*optional=*/true, "Present when verbose=true"},
                 }},

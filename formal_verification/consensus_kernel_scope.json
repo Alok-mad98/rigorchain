@@ -62,8 +62,6 @@
       "ConnectBlock",
       "ProcessNewBlock",
       "CCoinsViewCache",
-      "BuildConvergenceWindowTail",
-      "GetConvergenceDrawSetForBlock",
       "predicate_verify.cpp",
       "pow_digest_into_monetary_kernel",
       "pow_opus_deletion",
@@ -162,7 +160,6 @@
       "calls": [
         "CheckTxInputs",
         "CheckInputScripts",
-        "ResolveConvergenceDraw",
         "ConnectEvaluateCoinbaseResMint",
         "GetBlockSubsidy",
         "UpdateCoins"
@@ -465,137 +462,12 @@
       "reason": "RFC-018 floor(fee/2). Belongs in named supply_delta."
     },
     {
-      "symbol": "ResolveConvergenceDraw",
-      "file": "core/src/consensus/convergence_logic.cpp",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "ConnectBlock"
-      ],
-      "calls": [
-        "SelectionDigest",
-        "ConvergenceDrawInequalityHolds"
-      ],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": false,
-      "coq_correspondence": "PARTIAL",
-      "extraction_candidate": true,
-      "reason": "Pure given F and σ. P047 draw façade. Do not move window assembly with it."
-    },
-    {
-      "symbol": "Consensus::ConvergenceDrawInequalityHolds",
-      "file": "core/src/consensus/rigor_math.h",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "ResolveConvergenceDraw"
-      ],
-      "calls": [
-        "Mul256x256Full"
-      ],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": false,
-      "coq_correspondence": "STRUCTURAL",
-      "extraction_candidate": true,
-      "reason": "The T-weighted inequality. Core of draw."
-    },
-    {
-      "symbol": "rigor::ComputeSigmaHash",
-      "file": "core/src/consensus_rigor/sigma_hash.cpp",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "SelectionDigest"
-      ],
-      "calls": [],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": false,
-      "coq_correspondence": "VECTOR_ONLY",
-      "extraction_candidate": true,
-      "reason": "Draw seed. SHA-256 based; not PoW digest."
-    },
-    {
-      "symbol": "GetConvergenceDrawSetForBlock",
-      "file": "core/src/validation.cpp",
-      "classification": "CONSENSUS_SUPPORT",
-      "domain": "DRAW",
-      "called_by": [
-        "ConnectBlock"
-      ],
-      "calls": [
-        "BuildConvergenceWindowTail",
-        "BuildConvergenceDrawSetFromUndo"
-      ],
-      "reads_global_state": true,
-      "writes_state": false,
-      "depends_on_chain_state": true,
-      "coq_correspondence": "NO_CORRESPONDENCE",
-      "extraction_candidate": false,
-      "reason": "State walk that produces F. Stays in validation."
-    },
-    {
-      "symbol": "BuildConvergenceDrawSet",
-      "file": "core/src/consensus/convergence_logic.cpp",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "ConnectBlock"
-      ],
-      "calls": [
-        "ListConvergenceRootCommitmentTxids",
-        "FinalizeWindowedDrawSet"
-      ],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": true,
-      "coq_correspondence": "PARTIAL",
-      "extraction_candidate": false,
-      "reason": "Needs overlay/UTXO view. Later extract; not first cut."
-    },
-    {
-      "symbol": "Consensus::ComputeConvergenceRootFromEligibilityTxids",
-      "file": "core/src/consensus/convergence_root_eligibility.cpp",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "FinalizeWindowedDrawSet"
-      ],
-      "calls": [],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": false,
-      "coq_correspondence": "VECTOR_ONLY",
-      "extraction_candidate": true,
-      "reason": "Pure root over txids. Draw family, not monetary slice."
-    },
-    {
-      "symbol": "Consensus::IsConvergenceTx",
-      "file": "core/src/consensus/convergenceres_verify.cpp",
-      "classification": "CONSENSUS_CRITICAL",
-      "domain": "DRAW",
-      "called_by": [
-        "ConnectBlock",
-        "IsConvergenceDrawMember"
-      ],
-      "calls": [],
-      "reads_global_state": false,
-      "writes_state": false,
-      "depends_on_chain_state": false,
-      "coq_correspondence": "STRUCTURAL",
-      "extraction_candidate": true,
-      "reason": "Shape predicate over a classified tx."
-    },
-    {
       "symbol": "Consensus::GetConvergenceAmount",
       "file": "core/src/consensus/convergenceres_verify.cpp",
       "classification": "CONSENSUS_CRITICAL",
       "domain": "SUPPLY",
       "called_by": [
-        "ConnectBlock",
-        "ResolveConvergenceDraw"
+        "ConnectBlock"
       ],
       "calls": [],
       "reads_global_state": false,
@@ -603,7 +475,7 @@
       "depends_on_chain_state": false,
       "coq_correspondence": "STRUCTURAL",
       "extraction_candidate": true,
-      "reason": "C(t) contribution. Feeds supply_delta and draw weight."
+      "reason": "C(t) contribution. Feeds supply_delta."
     },
     {
       "symbol": "rigor::ConnectEvaluateCoinbaseResMint",

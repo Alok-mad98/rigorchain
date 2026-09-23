@@ -156,7 +156,6 @@ BITCOIN_TESTS =\
   test/runtime_supply_witness_equivalence_candidate_tests.cpp \
   test/runtime_supply_global_candidate_equivalence_tests.cpp \
   test/runtime_supply_equivalence_closure_tests.cpp \
-  test/runtime_supply_draw_closure_tests.cpp \
   test/runtime_supply_phase5_summary_tests.cpp \
   test/runtime_vector_harness_tests.cpp \
   test/issuance_height_boundary_p0_041_tests.cpp \

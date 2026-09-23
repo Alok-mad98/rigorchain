@@ -25,10 +25,8 @@
     "identical": false
   },
   "draw": {
-    "coq": "select_winner / pick_better_tx",
-    "cpp": "ResolveConvergenceDraw",
-    "status": "mapped",
-    "state_assembly": "GetConvergenceDrawSetForBlock is not Kernel"
+    "status": "retired",
+    "note": "RFC-019; ResolveConvergenceDraw removed"
   },
   "classification": {
     "coq": "AssetClassification.classify",
@@ -58,7 +56,6 @@
   },
   "missing_proofs": [
     "forall-height Coq↔C++ refinement of GetBlockSubsidy",
-    "ResolveConvergenceDraw ↔ select_winner on production SHA256 σ",
     "ClassifyRigorTxout ∀-byte VST",
     "RigorSupplyDelta reject-reason refinement"
   ]

@@ -10,6 +10,10 @@ In production, this would be replaced by the actual C++ test_harness executable.
 """
 
 import sys
+
+print("SKIP: lottery mock C++ σ/root harness retired with Batch A")
+raise SystemExit(0)
+
 import os
 import json
 

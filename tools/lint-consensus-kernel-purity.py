@@ -20,15 +20,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# P047 Kernel surface named by P048. convergence_logic.cpp is mixed
-# orchestration+kernel and is not in this list (documented as a boundary).
+# P047 Kernel surface named by P048. convergence_logic.cpp/.h were deleted
+# with the lottery (3ee781f3) and are not a Kernel surface.
 KERNEL_FILES = [
     "core/src/consensus/rigor_issuance.h",
     "core/src/consensus/rigor_issuance.cpp",
     "core/src/consensus/rigor_supply.h",
     "core/src/consensus/rigor_supply.cpp",
     "core/src/consensus/rigor_coinbase_layout.h",
-    "core/src/consensus/convergence_logic.h",
     "core/src/script/rigor_classify.cpp",
 ]
 

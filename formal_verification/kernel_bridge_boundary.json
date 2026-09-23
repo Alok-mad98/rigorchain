@@ -36,13 +36,6 @@
       "deterministic": true,
       "forbidden_deps": []
     },
-    "ResolveConvergenceDraw": {
-      "explicit_input": true,
-      "pure": true,
-      "deterministic": true,
-      "forbidden_deps": [],
-      "note": "Body is pure. TU convergence_logic.cpp also has window builders."
-    },
     "RigorSupplyDelta": {
       "explicit_input": true,
       "pure": true,
@@ -58,7 +51,6 @@
     }
   },
   "not_kernel": [
-    "GetConvergenceDrawSetForBlock",
     "ConnectBlock",
     "BuildCoinbase / GBT assembler"
   ],

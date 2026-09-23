@@ -138,14 +138,23 @@ def main() -> int:
 
     if RELEASE.is_file():
         rel = json.loads(RELEASE.read_text(encoding="utf-8"))
-        freeze_epoch = {row["height"]: row for row in vec.get("epoch") or [] if "res_schedule" in row}
+        def destroy_cost(row: dict) -> object:
+            return row.get("res_destroy_cost", row.get("res_schedule"))
+
+        freeze_epoch = {
+            row["height"]: row
+            for row in vec.get("epoch") or []
+            if destroy_cost(row) is not None
+        }
         for row in rel.get("epoch") or []:
             pinned = freeze_epoch.get(row["height"])
             if not pinned:
                 continue
-            for key in ("oru", "res_schedule", "epoch"):
+            for key in ("oru", "epoch"):
                 if pinned.get(key) != row.get(key):
                     errors.append(f"freeze epoch {row['height']} {key} drifted from refinement pin")
+            if destroy_cost(pinned) != destroy_cost(row):
+                errors.append(f"freeze epoch {row['height']} res_destroy_cost drifted from refinement pin")
 
     validation = VALIDATION.read_text(encoding="utf-8", errors="replace")
     cb = strip_comments(extract_connectblock(validation))

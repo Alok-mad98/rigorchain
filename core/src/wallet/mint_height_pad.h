@@ -21,9 +21,10 @@ namespace wallet {
  * across mempool delay. This constant is not a consensus parameter.
  *
  * RFC-020 §5 already allows the wallet to construct at confirm height plus
- * a margin. 1024 blocks is enough lifetime on both testnet and mainnet.
+ * a margin. 144 blocks is about one mainnet day and the same window on
+ * public testnet (~2.4 hours at 1-minute blocks).
  */
-static constexpr int CONVERGENCE_HEIGHT_PAD = 1024;
+static constexpr int CONVERGENCE_HEIGHT_PAD = 144;
 static constexpr int DEFAULT_CONVERGENCE_HEIGHT_PAD = CONVERGENCE_HEIGHT_PAD;
 
 [[nodiscard]] inline int ConvergenceTargetHeight(int current_height, int height_pad = CONVERGENCE_HEIGHT_PAD)

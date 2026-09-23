@@ -84,7 +84,6 @@ EXTENDED_SCRIPTS = [
     # Longest test should go first, to favor running tests in parallel
     'rigor_long_run.py --descriptors',
     'feature_replay_burnin.py',  # TASK-H4 LR-03/04/09 nightly burn-in
-    # 'feature_res_core_functional_longrun.py --descriptors',  # retired lottery RPC
     'feature_pruning.py',
     'feature_dbcrash.py',
     'feature_index_prune.py',
@@ -101,30 +100,21 @@ BASE_SCRIPTS = [
     # default run covers destroy_cost(h), underpayment and reorg replay.
     'feature_res_destroy_cost_mint.py --descriptors',
     'feature_createconvergence_mint.py --descriptors',
-    'feature_res_window_reorg_res_attacks.py --descriptors',
     'feature_res_solo_security.py --descriptors',
     'feature_res_maturity.py --descriptors',
     'feature_res_descriptor_signing.py --descriptors',
     'feature_rigor_convergence_rpc_status_history.py --descriptors',
-    # Retired lottery RPC suites (getconvergenceresult / getconvergencestats / draw
-    # window). Kept on disk; not in the default runner.
+    # Lottery RPC suites removed in Batch B.
     # 'feature_bootstrap_deterministic_blocks.py',
-    # 'feature_rigor_convergence_rng_consensus.py --descriptors',
-    # 'feature_res_core_convergence_draw.py --descriptors',
-    # 'feature_res_core_convergence_window.py --descriptors',
-    # 'feature_res_consensus_correctness_suite.py --descriptors',
-    # 'feature_rigor_convergence_network_stats.py --descriptors',
-    # 'feature_rigor_reorg_winner_lock.py --descriptors',
     'feature_rigor_rng_wallet.py --descriptors',
     'feature_rigor_asset_mix_reject.py --descriptors',
     'feature_rigor_block_space.py --descriptors',
     'feature_ed25519_cross_node.py --descriptors',
-    # 'rigor_attack_blocks.py --descriptors',  # retired lottery RPC
-    # 'rigor_reorg_consistency.py',  # retired lottery RPC
+    # 'rigor_attack_blocks.py --descriptors',  # removed Batch B
     # TASK-H4 deterministic replay harnesses (LR-01 / LR-02 / capture self-test)
     'feature_deterministic_replay.py',
     'feature_baseline_replay_longrun.py',
-    # 'feature_reorg_determinism_audit.py',  # retired lottery RPC
+    # 'feature_reorg_determinism_audit.py',  # removed Batch B
     'feature_replay_failure_capture.py',
     'feature_replay_failure_capture_three_node.py',
     'feature_chainstate_sigkill_state_hash.py',
@@ -366,20 +356,8 @@ ALL_SCRIPTS = EXTENDED_SCRIPTS + BASE_SCRIPTS
 
 # Not default and not --extended. test_runner.py <name> must still find them.
 NAMED_ONLY_SCRIPTS = [
-    # Retired lottery RPC suites. Invokable by name; not default / --extended.
+    # Hash-agreement bootstrap (lottery getconvergenceresult half stripped).
     'feature_bootstrap_deterministic_blocks.py',
-    'feature_rigor_convergence_rng_consensus.py --descriptors',
-    'feature_res_core_convergence_draw.py --descriptors',
-    'feature_res_core_convergence_window.py --descriptors',
-    'feature_res_consensus_correctness_suite.py --descriptors',
-    'feature_rigor_convergence_network_stats.py --descriptors',
-    'feature_rigor_reorg_winner_lock.py --descriptors',
-    'rigor_attack_blocks.py --descriptors',
-    'rigor_reorg_consistency.py',
-    'feature_reorg_determinism_audit.py',
-    'feature_res_core_functional_longrun.py --descriptors',
-    'feature_res_lifecycle_controlled_devtest_001.py --descriptors',
-    'feature_production_reindex_reconstruction_p0_088.py',
 ]
 
 NON_SCRIPTS = [

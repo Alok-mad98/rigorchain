@@ -145,8 +145,6 @@ ASSET_PATHS = [
     "core/src/consensus/rigor_issuance.cpp",
     "core/src/consensus/rigor_issuance.h",
     "core/src/consensus/rigor_consensus_lock.h",
-    "core/src/consensus/convergence_logic.cpp",
-    "core/src/consensus/convergence_logic.h",
     "core/src/consensus/convergenceres.cpp",
     "core/src/consensus/rigor_supply.cpp",
 ]

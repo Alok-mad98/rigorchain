@@ -29,7 +29,6 @@ FORMULA = re.compile(
 REQUIRED = {
     "issuance_bridge.cpp": "ComputeRigorIssuance",
     "classify_bridge.cpp": "ClassifyRigorAsset",
-    "draw_bridge.cpp": "ResolveConvergenceDraw",
     "supply_bridge.cpp": "RigorSupplyDelta",
 }
 

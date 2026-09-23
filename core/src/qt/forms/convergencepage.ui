@@ -678,7 +678,7 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.
+          <string>The wallet constructs the mint with a future confirmation-height safety margin so waiting to confirm does not void it.
 Destroyed ORU cannot be recovered.</string>
          </property>
         </widget>

@@ -738,20 +738,33 @@ uint256 WalletModel::getLastBlockProcessed() const
 
 CAmount WalletModel::getAvailableBalance(const CCoinControl* control)
 {
-    if (control && control->m_asset_type.has_value() && !control->HasSelected()) {
+    // Manual selection is a small explicit set, not a full UTXO walk.
+    if (control && control->HasSelected()) {
         return wallet().getAvailableBalance(*control);
     }
-    // No selected coins, return cached spendable value (legacy combined trusted UTXO sum).
-    if (!control || !control->HasSelected()) {
-        const interfaces::WalletBalances& balances = getCachedBalance();
-        CAmount available_balance = balances.balance;
-        // if wallet private keys are disabled, this is a watch-only wallet
-        // so, let's include the watch-only balance.
-        if (balances.have_watch_only && m_wallet->privateKeysDisabled()) {
-            available_balance += balances.watch_only_balance;
-        }
-        return available_balance;
+    // External-signer coins are not the ISMINE_SPENDABLE cache.
+    if (control && m_wallet->hasExternalSigner()) {
+        return wallet().getAvailableBalance(*control);
     }
-    // Fetch balance from the wallet, taking into account the selected coins
-    return wallet().getAvailableBalance(*control);
+
+    const interfaces::WalletBalances& balances = getCachedBalance();
+    if (control && control->m_asset_type.has_value()) {
+        const bool watch_only = balances.have_watch_only &&
+            (m_wallet->privateKeysDisabled() || control->fAllowWatchOnly);
+        if (*control->m_asset_type == ASSET_RES) {
+            CAmount available = balances.res_trusted_min0;
+            if (watch_only) available += balances.wo_res_trusted_min0;
+            return available;
+        }
+        CAmount available = balances.oru_trusted_min0;
+        if (watch_only) available += balances.wo_oru_trusted_min0;
+        return available;
+    }
+
+    // Callers that do not name an asset keep the confirmed ORU cache.
+    CAmount available_balance = balances.balance;
+    if (balances.have_watch_only && m_wallet->privateKeysDisabled()) {
+        available_balance += balances.watch_only_balance;
+    }
+    return available_balance;
 }

@@ -35,23 +35,6 @@ typedef enum rigor_asset_type {
     RIGOR_ASSET_INVALID = 3
 } rigor_asset_type;
 
-typedef struct rigor_candidate {
-    rigor_u256 txid;
-    uint64_t value;
-} rigor_candidate;
-
-typedef struct rigor_draw_context {
-    rigor_u256 target;
-    rigor_u256 convergence_root;
-    rigor_u256 source_block_hash;
-    uint32_t payout_height;
-} rigor_draw_context;
-
-typedef struct rigor_draw_result {
-    uint8_t has_winner;
-    rigor_u256 winner;
-} rigor_draw_result;
-
 /**
  * height is required by RigorSupplyDelta (kernel computes subsidy).
  * subsidy is recorded for oracles; the adapter does not use it as a formula.

@@ -14,7 +14,6 @@
 #include <qt/optionsmodel.h>
 #include <qt/rigorwallet/convergence/convergence_education.h>
 #include <qt/walletmodel.h>
-#include <util/moneystr.h>
 
 #include <univalue.h>
 
@@ -122,7 +121,6 @@ void ConvergenceWizard::refreshReviewStep()
     }
     bool authorized = false;
     int confirm_height = -1;
-    CAmount destroy_cost = 0;
     if (m_clientModel) {
         try {
             UniValue r = m_clientModel->node().executeRpc("getconvergencestatus", UniValue(UniValue::VARR), "/");
@@ -131,9 +129,6 @@ void ConvergenceWizard::refreshReviewStep()
                 authorized = r.exists("issuance_authorized")
                     ? r["issuance_authorized"].get_bool()
                     : (confirm_height >= 0);
-                if (r.exists("destroy_cost")) {
-                    destroy_cost = r["destroy_cost"].getInt<int64_t>();
-                }
             }
         } catch (...) {
             authorized = false;
@@ -146,28 +141,14 @@ void ConvergenceWizard::refreshReviewStep()
     const int current_height = m_clientModel ? m_clientModel->getNumBlocks() : confirm_height - 1;
     const int target_height = wallet::ConvergenceTargetHeight(current_height);
     const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, target_height);
-    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
-    const CAmount slack = exact > minted ? exact - minted : 0;
     m_reviewLabel->setText(
         tr("ORU destroyed: %1\n"
            "RES this transaction will create: %2\n"
-           "Kept unused so the mint stays valid for %3 blocks: %4\n"
-           "current_height: %5\n"
-           "target_height: %6\n"
-           "height_pad: %3\n"
-           "Confirming height: %7\n"
-           "Display cost at that height: %8 ORU per RES\n"
-           "Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.\n"
+           "The wallet constructs the mint with a future confirmation-height safety margin so waiting to confirm does not void it.\n"
            "Destroyed ORU cannot be recovered.\n"
            "Minted RES unlocks after the reorg-protection lock.")
             .arg(BitcoinUnits::formatWithUnit(BitcoinUnit::ORU, amt))
-            .arg(BitcoinUnits::formatRes(minted) + QStringLiteral(" RES"))
-            .arg(wallet::CONVERGENCE_HEIGHT_PAD)
-            .arg(BitcoinUnits::formatRes(slack) + QStringLiteral(" RES"))
-            .arg(current_height)
-            .arg(target_height)
-            .arg(confirm_height)
-            .arg(QString::fromStdString(FormatMoney(destroy_cost))));
+            .arg(BitcoinUnits::formatRes(minted) + QStringLiteral(" RES")));
 }
 
 bool ConvergenceWizard::validateAmount(CAmount& amount_out)

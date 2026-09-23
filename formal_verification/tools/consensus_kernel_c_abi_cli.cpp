@@ -110,52 +110,6 @@ int main(int argc, char** argv)
         rigor_asset_type a = RIGOR_ASSET_INVALID;
         if (!rigor_classify_script(raw.empty() ? nullptr : raw.data(), raw.size(), &a)) return 1;
         std::printf("{\"asset\":\"%s\"}\n", asset_name(a));
-    } else if (cmd == "draw-empty") {
-        rigor_draw_context ctx{};
-        ctx.payout_height = 1;
-        rigor_draw_result r{};
-        if (!rigor_resolve_draw(nullptr, 0, &ctx, &r)) return 1;
-        std::printf("{\"has_winner\":%s}\n", r.has_winner ? "true" : "false");
-    } else if ((cmd == "draw" || cmd == "draw-t0") && argc == 6) {
-        rigor_draw_context ctx{};
-        ctx.payout_height = static_cast<uint32_t>(std::atoi(argv[2]));
-        ctx.convergence_root = u256_from_hex(argv[3]);
-        ctx.source_block_hash = u256_from_hex(argv[4]);
-        if (cmd != "draw-t0") {
-            std::memset(ctx.target.bytes, 0x55, 32);
-        }
-        const std::string spec = argv[5];
-        std::vector<rigor_candidate> cs;
-        std::vector<std::string> hexes;
-        size_t pos = 0;
-        while (pos < spec.size()) {
-            const size_t comma = spec.find(',', pos);
-            const std::string one = spec.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
-            const size_t colon = one.find(':');
-            if (colon == std::string::npos) return 2;
-            rigor_candidate c{};
-            c.txid = u256_from_hex(one.substr(0, colon));
-            c.value = static_cast<uint64_t>(std::atoll(one.substr(colon + 1).c_str()));
-            cs.push_back(c);
-            hexes.push_back(one.substr(0, colon));
-            if (comma == std::string::npos) break;
-            pos = comma + 1;
-        }
-        rigor_draw_result r{};
-        if (!rigor_resolve_draw(cs.data(), cs.size(), &ctx, &r)) return 1;
-        if (!r.has_winner) {
-            std::printf("{\"has_winner\":false}\n");
-        } else {
-            std::string win;
-            for (size_t i = 0; i < cs.size(); ++i) {
-                if (std::memcmp(cs[i].txid.bytes, r.winner.bytes, 32) == 0) {
-                    win = hexes[i];
-                    break;
-                }
-            }
-            if (win.empty()) win = hex_of(r.winner);
-            std::printf("{\"has_winner\":true,\"winner\":\"%s\"}\n", win.c_str());
-        }
     } else if (cmd == "supply" && argc == 11) {
         rigor_supply_input in{};
         in.height = static_cast<uint32_t>(std::atoi(argv[2]));

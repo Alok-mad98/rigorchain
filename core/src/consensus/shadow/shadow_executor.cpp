@@ -52,17 +52,6 @@ rigor_asset_type MapAsset(AssetType a)
     }
 }
 
-std::string Hex32(const rigor_u256& h)
-{
-    static const char* k = "0123456789abcdef";
-    std::string s(64, '0');
-    for (int i = 0; i < 32; ++i) {
-        s[static_cast<size_t>(i) * 2] = k[(h.bytes[i] >> 4) & 0xf];
-        s[static_cast<size_t>(i) * 2 + 1] = k[h.bytes[i] & 0xf];
-    }
-    return s;
-}
-
 std::string IssuanceJson(const rigor_issuance_result& r)
 {
     char buf[256];
@@ -78,14 +67,6 @@ std::string ClassifyJson(rigor_asset_type a)
 {
     char buf[48];
     std::snprintf(buf, sizeof(buf), "{\"asset\":\"%s\"}", AssetName(a));
-    return buf;
-}
-
-std::string DrawJson(const rigor_draw_result& r)
-{
-    if (!r.has_winner) return "{\"has_winner\":false}";
-    char buf[128];
-    std::snprintf(buf, sizeof(buf), "{\"has_winner\":true,\"winner\":\"%s\"}", Hex32(r.winner).c_str());
     return buf;
 }
 
@@ -105,7 +86,6 @@ std::string OutputJson(ConsensusKernelSurface surface, const ConsensusKernelShad
     switch (surface) {
     case CK_SURFACE_ISSUANCE: return IssuanceJson(o.issuance);
     case CK_SURFACE_CLASSIFY: return ClassifyJson(o.asset);
-    case CK_SURFACE_DRAW: return DrawJson(o.draw);
     case CK_SURFACE_SUPPLY: return SupplyJson(o);
     }
     return "{}";
@@ -117,20 +97,12 @@ bool SameIssuance(const rigor_issuance_result& a, const rigor_issuance_result& b
            a.res_destroy_cost == b.res_destroy_cost;
 }
 
-bool SameDraw(const rigor_draw_result& a, const rigor_draw_result& b)
-{
-    if (a.has_winner != b.has_winner) return false;
-    if (!a.has_winner) return true;
-    return std::memcmp(a.winner.bytes, b.winner.bytes, 32) == 0;
-}
-
 bool SameOut(ConsensusKernelSurface surface, const ConsensusKernelShadowOutput& a,
     const ConsensusKernelShadowOutput& b)
 {
     switch (surface) {
     case CK_SURFACE_ISSUANCE: return SameIssuance(a.issuance, b.issuance);
     case CK_SURFACE_CLASSIFY: return a.asset == b.asset;
-    case CK_SURFACE_DRAW: return SameDraw(a.draw, b.draw);
     case CK_SURFACE_SUPPLY:
         return a.supply_ok == b.supply_ok && a.supply.delta == b.supply.delta &&
                a.ledger_oru_delta == b.ledger_oru_delta;
@@ -143,7 +115,6 @@ const char* SurfaceName(ConsensusKernelSurface s)
     switch (s) {
     case CK_SURFACE_ISSUANCE: return "issuance";
     case CK_SURFACE_CLASSIFY: return "classify";
-    case CK_SURFACE_DRAW: return "draw";
     case CK_SURFACE_SUPPLY: return "supply";
     }
     return "unknown";
@@ -167,10 +138,6 @@ bool ConsensusKernelShadowExecutor::RunCpp(const ConsensusKernelInput& in,
     case CK_SURFACE_CLASSIFY: {
         const CScript spk = RigorScriptFromBytes(in.script, in.script_len);
         out.asset = MapAsset(ClassifyRigorAsset(spk));
-        return true;
-    }
-    case CK_SURFACE_DRAW: {
-        out.draw.has_winner = 0;
         return true;
     }
     case CK_SURFACE_SUPPLY: {
@@ -209,8 +176,6 @@ bool ConsensusKernelShadowExecutor::RunAbi(const ConsensusKernelInput& in,
         return rigor_compute_issuance(in.height, &out.issuance);
     case CK_SURFACE_CLASSIFY:
         return rigor_classify_script(in.script, in.script_len, &out.asset);
-    case CK_SURFACE_DRAW:
-        return rigor_resolve_draw(in.candidates, in.candidate_count, &in.draw_ctx, &out.draw);
     case CK_SURFACE_SUPPLY:
         out.supply_ok = rigor_supply_delta(&in.supply, &out.supply);
         out.ledger_oru_delta = out.supply_ok ? LedgerDeltaBridge(out.supply.delta) : 0;
@@ -263,21 +228,6 @@ int ConsensusKernelShadowExecutor::RunDeterministicBattery(int iterations,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-    rigor_u256 c{}, b{}, t0{}, tx1{}, tx2{};
-    for (int i = 0; i < 32; ++i) {
-        c.bytes[i] = 0x11;
-        b.bytes[i] = 0xaa;
-    }
-    tx1.bytes[31] = 0x01;
-    tx2.bytes[31] = 0x02;
-    rigor_u256 tprod{};
-    for (int i = 0; i < 32; ++i) tprod.bytes[i] = 0x55;
-    const uint64_t sat = 209715200000000ULL;
-    rigor_candidate one{tx1, sat};
-    rigor_candidate two[2] = {{tx1, sat}, {tx2, sat}};
-    rigor_candidate swap[2] = {{tx2, sat}, {tx1, sat}};
-    rigor_candidate zero{tx1, 0};
-
     int mismatches = 0;
     for (int i = 0; i < iterations; ++i) {
         ConsensusKernelInput in{};
@@ -312,28 +262,6 @@ int ConsensusKernelShadowExecutor::RunDeterministicBattery(int iterations,
                 in.script = kV032;
                 in.script_len = sizeof(kV032);
                 break;
-            }
-        } else if (lane < 15) {
-            in.surface = CK_SURFACE_DRAW;
-            in.draw_ctx.payout_height = 101;
-            in.draw_ctx.convergence_root = c;
-            in.draw_ctx.source_block_hash = b;
-            in.draw_ctx.target = (lane == 13) ? tprod : t0;
-            if (i % 5 == 0) {
-                in.candidates = nullptr;
-                in.candidate_count = 0;
-            } else if (i % 5 == 1) {
-                in.candidates = &one;
-                in.candidate_count = 1;
-            } else if (i % 5 == 2) {
-                in.candidates = two;
-                in.candidate_count = 2;
-            } else if (i % 5 == 3) {
-                in.candidates = swap;
-                in.candidate_count = 2;
-            } else {
-                in.candidates = &zero;
-                in.candidate_count = 1;
             }
         } else {
             in.surface = CK_SURFACE_SUPPLY;

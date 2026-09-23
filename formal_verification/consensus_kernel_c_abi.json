@@ -9,13 +9,11 @@
   "compile_flag": "RIGOR_KERNEL_ABI_VERIFY_ONLY",
   "connectblock_calls": [
     "RigorSupplyDelta",
-    "ResolveConvergenceDraw",
     "ClassifyRigorAsset"
   ],
   "c_abi_calls": {
     "rigor_compute_issuance": "ComputeRigorIssuance",
     "rigor_classify_script": "ClassifyRigorAsset",
-    "rigor_resolve_draw": "ResolveConvergenceDraw",
     "rigor_supply_delta": "RigorSupplyDelta"
   },
   "uint256_in_c_abi": "rigor_u256 (32 POD bytes); C++ uint256 is a class and is not in the C header",

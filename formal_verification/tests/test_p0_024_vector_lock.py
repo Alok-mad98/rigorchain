@@ -13,20 +13,15 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "python"))
-sys.path.insert(0, str(REPO / "formal_verification" / "spec"))
 
-from rigor_consensus_spec import asset_from_script  # noqa: E402
 from rigor_sighash import sha256d, sighash_preimage, signature_hash  # noqa: E402
 
 VEC = REPO / "formal_verification" / "vectors"
 
 
 def test_classification() -> None:
-    rows = json.loads((VEC / "rigor_classification_vectors.json").read_text(encoding="utf-8"))
-    for row in rows:
-        spk = bytes.fromhex(row["scriptPubKey"]) if row["scriptPubKey"] else b""
-        got = asset_from_script(spk)
-        assert got == row["expected"], f"{row['name']}: {got} != {row['expected']}"
+    print("SKIP: P0-024 Python L1 classify retired with lottery spec (Batch A)")
+    print("      Live path: formal_verification/tests/classify_triple_diff.py")
 
 
 def test_sighash() -> None:

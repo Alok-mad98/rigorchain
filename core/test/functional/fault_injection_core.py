@@ -44,7 +44,7 @@ from test_framework.util import append_config, get_datadir_path
 
 import test_framework.fault_injection_harness as fh
 
-from feature_res_core_convergence_draw import DEVTEST_MINING_RES_FEE_ADDR  # noqa: I252
+from res_security.harness import DEVTEST_MINING_RES_FEE_ADDR  # noqa: I252
 
 
 SYNC_TIMEOUT = 120

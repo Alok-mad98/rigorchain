@@ -28,14 +28,14 @@ bash formal_verification/scripts/run_fv_release_checklist.sh
 
 That runs, in order:
 
-1. `check_freeze_artifacts.sh` — key files present; honesty flags false; CURRENT_STATE still cites 414/207 (RC0) and 422/215 (living).
-2. `SKIP_TEST_RIGOR=1 run_differential_gate.sh` — Python oracle, generated-artifact freshness, **`check_golden_lock.py` (gate step 2b)**, tripartite hash, production σ/root CLI.
+1. `check_freeze_artifacts.sh` — remaining mint / hash / classify files; honesty flags false. Lottery 422/215 pins skipped after Batch A.
+2. `SKIP_TEST_RIGOR=1 run_differential_gate.sh` — remaining HashKernel/FIPS, tripartite hash, classify. Lottery golden lock / σ CLI skipped.
 
 A PASS line must print the three honesty flags as **false**.
 
 | Extra | Command |
 |-------|---------|
-| Coq harness (8.15.0; GoldenHarness is slow) | `FV_COQ=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
+| Coq NegativeCoreHarness (8.15.0) | `FV_COQ=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
 | BOOST `test_rigor` if a binary exists | `FV_TEST_RIGOR=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
 | Re-extract OCaml hash kernel | `FV_EXTRACT=1 bash formal_verification/scripts/run_fv_release_checklist.sh` |
 
@@ -50,27 +50,18 @@ Do **not** apt-install Ubuntu `coq` for this gate. Pin **8.15.0** locally.
 | Step | Command | Must show |
 |------|---------|-----------|
 | Freeze artifacts | `bash formal_verification/scripts/check_freeze_artifacts.sh` | `freeze artifact check: PASS` |
-| Golden lock | `python3 formal_verification/scripts/check_golden_lock.py` | `golden lock: PASS` · `vectors=422` · `Coq-enforced lemmas=215` · `honesty flags: all false` |
+| Golden lock | Lottery `check_golden_lock.py` skipped (missing DrawBridge / GoldenHarness / 433-row index). Remaining lock tag `rfc020-no-lottery-families-2026-09-23`, `shared_vectors=127`. |
 | Differential gate | `SKIP_TEST_RIGOR=1 bash formal_verification/scripts/run_differential_gate.sh` | `differential gate: PASS` and the three flags **false** |
 
 Lock check is already inside the gate (step 2b). Running it alone is useful after a lock bump, before a full gate.
 
 ### When Coq sources or harness lemmas changed (local, Coq 8.15)
 
-Gate step 5 (`COQ=1`) compiles these three, in order:
-
-| Target | When it is required | Cost |
-|--------|---------------------|------|
-| `ReplayReorgCore/ReplayInvariants.v` | Replay / UTXO / dual-pool / obligation model | Cheap |
-| `Kernel/NegativeCoreHarness.v` | NegativeCore, EdgeCross script/PCORB/schedule rows | Cheap (~seconds if `.vo` deps exist) |
-| `Kernel/GoldenHarness.v` | SHA-256 / root / window / DCR / InvalidCvg / ScriptMintNeg / window-obligation rows | Expensive (`vm_compute`) |
-
-Equivalent one-liners from `formal_verification/coq/`:
+Gate step 5 (`COQ=1`) compiles remaining `Kernel/NegativeCoreHarness.v` only.
+Lottery `GoldenHarness.v` / `ReplayReorgCore` were removed.
 
 ```bash
-coqc -q -R . Rigor ReplayReorgCore/ReplayInvariants.v
 coqc -q -R . Rigor Kernel/NegativeCoreHarness.v
-coqc -q -R . Rigor Kernel/GoldenHarness.v
 ```
 
 A full `_CoqProject` rebuild is **not** required to ship correspondence. It is required only when claiming a protocol-core theorem still Closed (`Print Assumptions`).
@@ -91,11 +82,9 @@ Checked-in generated artifacts:
 
 | Artifact | Generator |
 |----------|-----------|
-| `formal_verification/phase3_golden_vectors.json` | `python3 formal_verification/generate_phase3_vectors.py` |
-| `coq/Kernel/GoldenHarness.v`, `NegativeCoreHarness.v`, `coq_harness_index.json` | `cd formal_verification && python3 gen_coq_harness.py` |
-| `core/src/test/selection_golden_bridge.inc` | `python3 formal_verification/tools/gen_cpp_bridge_header.py` |
-
-The gate regenerates those into a temp dir and `cmp`s the working tree (step 2).
+| `formal_verification/phase3_golden_vectors.json` | Lottery families stripped (Batch A). Remaining rows are RFC-020 mint / script / hash. Generators removed. |
+| `coq/Kernel/NegativeCoreHarness.v` | Kept. Lottery `GoldenHarness.v` / `gen_coq_harness.py` removed. |
+| `core/src/test/selection_golden_bridge.inc` | Removed with lottery σ / draw encoder. |
 
 ### Re-run the gate only (no lock bump)
 
@@ -103,11 +92,9 @@ Oracle, C++ portable CLIs, or Coq kernel *semantics* changed but vector **counts
 
 | Touched | Then |
 |---------|------|
-| `spec/rigor_consensus_spec.py` (same vector count) | Regen JSON + harness + bridge; gate. Expected bytes in JSON will move. |
-| `coq/*.v` used by harness (Selection, WindowExclusion, DrawCandidateRoot, ConvergeRoot, Sigma*, ResSchedule, ScriptMintWitness, InvalidCvg, ReplayReorgCore, Hash32Order, …) | `FV_COQ=1` (or the three `coqc` targets above); gate. Regen harness only if `gen_coq_harness.py` emit changed. |
-| `core/src/crypto/sha256.*`, `hash.h`, `consensus_rigor/sigma_hash.*`, `consensus/convergence_root_eligibility.*`, `convergence_logic.*` | Gate (steps 3–4 rebuild CLIs). |
-| `core/src/test/selection_golden_tests.cpp` | Gate; BOOST if `FV_TEST_BITCOIN=1`. |
-| Honesty lock `coq/DrawBridgeProgress.v` / `Phase5Equivalence/DrawBridgeProgress.v` | Freeze artifacts + lock check. **Do not set flags true.** |
+| Live Coq mint / classify (`ResSchedule.v`, `InvalidCvg.v`, `ScriptMintWitness.v`) | `FV_COQ=1` on remaining protocol-core files. |
+| `core/src/crypto/sha256.*`, `hash.h`, `consensus/convergence_root_eligibility.*` | Gate (steps 3–4 rebuild CLIs). |
+| Honesty flags | Stay false in `formal_verification/README.md` / CURRENT_STATE. Lottery DrawBridge lock files are gone. |
 
 ### Bump `golden_lock.json` then regenerate
 

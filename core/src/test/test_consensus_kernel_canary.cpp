@@ -127,7 +127,6 @@ int main()
             return fail("genesis RES destroy cost");
         }
         if (o.res_mint_expectation != 0) return fail("genesis RES issued");
-        if (o.draw_has_winner) return fail("genesis draw");
         if (o.coinbase_expectation != 0) return fail("genesis coinbase");
         if (!o.supply_ok || !o.accept) return fail("genesis accept");
     }
@@ -174,41 +173,6 @@ int main()
         in.tx.witness = {std::vector<unsigned char>(521, 0x01), in.tx.pubkey};
         if (!Check(ex, in, o, "malformed-witness")) return fail("malformed witness");
         if (o.spend_ok) return fail("malformed witness accepted");
-    }
-
-    {
-        const uint64_t sat = 209715200000000ULL;
-        rigor_u256 tx1 = U256FromHex("0000000000000000000000000000000000000000000000000000000000000001");
-        rigor_u256 tx2 = U256FromHex("0000000000000000000000000000000000000000000000000000000000000002");
-        rigor_candidate one{tx1, sat};
-        rigor_candidate two[2] = {{tx1, sat}, {tx2, sat}};
-        rigor_candidate swap[2] = {{tx2, sat}, {tx1, sat}};
-        rigor_candidate zero{tx1, 0};
-
-        ConsensusKernelInput in = Base();
-        in.candidates = nullptr;
-        in.candidate_count = 0;
-        if (!Check(ex, in, o, "draw-empty")) return fail("draw empty");
-        if (o.draw_has_winner) return fail("empty winner");
-
-        in.candidates = &one;
-        in.candidate_count = 1;
-        if (!Check(ex, in, o, "draw-single")) return fail("draw single");
-
-        in.candidates = two;
-        in.candidate_count = 2;
-        if (!Check(ex, in, o, "draw-equal")) return fail("draw equal");
-        const rigor_u256 w1 = o.draw_winner;
-
-        in.candidates = swap;
-        in.candidate_count = 2;
-        if (!Check(ex, in, o, "draw-tie")) return fail("draw tie");
-        if (std::memcmp(w1.bytes, o.draw_winner.bytes, 32) != 0) return fail("txid tie-break");
-
-        in.candidates = &zero;
-        in.candidate_count = 1;
-        if (!Check(ex, in, o, "draw-zero-weight")) return fail("draw zero weight");
-        if (o.draw_has_winner) return fail("zero weight must have no winner");
     }
 
     {

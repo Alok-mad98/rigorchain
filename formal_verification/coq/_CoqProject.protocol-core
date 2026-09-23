@@ -1,7 +1,5 @@
 # Protocol-core cone (F-4 / F-8). Citable theorems live here.
-# Lottery C-class modules were archived to formal_verification/archive/lottery/
-# (RFC-019 Phase 5 step 1). Dependents that still Require them are parked —
-# they remain in the tree but are not listed here until the B-class rewrite.
+# Lottery C-class / draw modules were removed.
 -R . Rigor
 -R ../rigor_v01 RigorV01
 -docroot Rigor
@@ -14,28 +12,8 @@ PowDigest.v
 RigorHash.v
 legacy_account_model/Types.v
 ResSchedule.v
-ConvergeRoot.v
-SigmaPoW01.v
-Sigma.v
-legacy_account_model/Selection.v
-OrderIndependence.v
 InvalidCvg.v
-CanonicalDrawEncoder.v
 CanonicalHashKernel.v
-COQ_SELECTION_CLOSURE.v
-Execution.v
-legacy_account_model/State.v
-legacy_account_model/ConnectBlockScaffold.v
-legacy_account_model/Transition.v
-Serialization.v
-Properties.v
-ConnectBlock.v
-Proofs/Determinism.v
-Proofs/Safety.v
-Proofs/Fairness.v
-Proofs/FairnessIdealized.v
-Proofs/SplitInvariance.v
-Extraction.v
 FeeBurn/Accounting.v
 FeeBurn/AssetDomain.v
 FeeBurn/ReplaySafety.v

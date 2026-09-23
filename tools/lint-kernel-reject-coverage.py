@@ -16,7 +16,6 @@ SUPPLY = ROOT / "core/src/consensus/rigor_supply.cpp"
 GENESIS = ROOT / "core/src/consensus/kernel/genesis_authority.cpp"
 VECTORS = ROOT / "formal_verification/consensus_kernel_refinement_vectors.json"
 TEST_GENESIS = ROOT / "core/src/test/test_genesis_consensus_authority.cpp"
-COQ_KERNEL = ROOT / "formal_verification/coq/KernelResultApplication.v"
 LOCK = ROOT / "core/src/consensus/rigor_consensus_lock.h"
 
 INVALID_RE = re.compile(
@@ -63,24 +62,9 @@ def main() -> int:
         if r not in test:
             errors.append(f"connect reason {r} missing from {TEST_GENESIS.name}")
 
-    coq = COQ_KERNEL.read_text(encoding="utf-8")
-    for name in (
-        "KR_WinnerMismatch",
-        "KR_TriggerUnderflow",
-        "KR_WithoutWinner",
-        "KR_ResAmount",
-        "KR_BadCbAmount",
-        "KR_BadCbResAmount",
-        "kernel_supply_reject",
-    ):
-        if name not in coq:
-            errors.append(f"Coq kernel missing {name}")
-
     lock = LOCK.read_text(encoding="utf-8")
-    m = re.search(r"CONVERGENCE_DRAW_MIN_TXS_FOR_RES\s*=\s*(\d+)", lock)
-    cm = re.search(r"CONVERGENCE_DRAW_MIN_TXS_FOR_RES_Z\s*:\s*Z\s*:=\s*(\d+)", coq)
-    if not m or not cm or m.group(1) != cm.group(1):
-        errors.append("CONVERGENCE_DRAW_MIN_TXS_FOR_RES Coq/C++ mismatch")
+    if re.search(r"CONVERGENCE_DRAW_MIN_TXS_FOR_RES\s*=\s*(\d+)", lock):
+        errors.append("lock reintroduced CONVERGENCE_DRAW_MIN_TXS_FOR_RES")
 
     if errors:
         print("FAIL: kernel reject-reason coverage")

@@ -141,7 +141,6 @@ BITCOIN_CORE_H = \
   consensus/statetag.h \
   consensus/tx_check.h \
   consensus/tx_verify.h \
-  consensus_rigor/sigma_hash.h \
   core_io.h \
   core_memusage.h \
   cuckoocache.h \
@@ -405,7 +404,6 @@ libbitcoin_node_a_SOURCES = \
   node/supply_monitor/runtime_supply_witness_equivalence_candidate.cpp \
   node/supply_monitor/runtime_supply_global_candidate_equivalence.cpp \
   node/supply_monitor/runtime_supply_equivalence_closure.cpp \
-  node/supply_monitor/runtime_supply_draw_closure.cpp \
   node/supply_monitor/runtime_supply_phase5_summary.cpp \
   proof/runtime_vector_harness.cpp \
   consensus/tx_verify.cpp \
@@ -683,8 +681,6 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/trace/consensus_trace.h \
   consensus/validation.h \
   consensus_rigor/fee.h \
-  consensus_rigor/sigma_hash.cpp \
-  consensus_rigor/sigma_hash.h \
   crypto/ed25519_provider.cpp \
   crypto/ed25519_provider.h \
   hash.cpp \
@@ -1001,7 +997,6 @@ libbitcoinkernel_la_SOURCES = \
   consensus/convergenceres_verify.cpp \
   consensus/res_owner.cpp \
   consensus_rigor/fee.cpp \
-  consensus_rigor/sigma_hash.cpp \
   node/devtest_res_bootstrap.cpp \
   chainparamsbase.cpp \
   chainparams.cpp \

@@ -84,7 +84,7 @@ class DualPoolReorgTest(BitcoinTestFramework):
         self.log.info("re-mine on competing tip: tx confirms again")
         # Invalidateblock marks prior headers BLOCK_FAILED_VALID. Rebuilt templates that replay the
         # same coinbase payout script + height can collide with cached-invalid headers —
-        # see feature_rigor_reorg_winner_lock (use a fresh generatetoaddress payout after reorg).
+        # Use a fresh generatetoaddress payout after reorg.
         fund_rebuild = node.getnewaddress("", "bech32")
         for _ in range(12):
             if not node.getrawmempool():

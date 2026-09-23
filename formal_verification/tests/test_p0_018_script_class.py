@@ -1,7 +1,16 @@
 # Copyright (c) 2026 The RigorChain developers
-"""P0-018 M-3: Python spec classifier matches C++ ClassifyRigorTxout admit-set."""
-import os
+"""P0-018 M-3: Python spec classifier matches C++ ClassifyRigorTxout admit-set.
+
+Batch A removed the lottery L1 spec. Live classify evidence is
+`classify_triple_diff.py` (extracted Coq ≡ production C++).
+"""
 import sys
+
+print("SKIP: P0-018 Python L1 classifier retired with lottery spec (Batch A)")
+print("      Live path: formal_verification/tests/classify_triple_diff.py")
+raise SystemExit(0)
+
+import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "spec"))
 from rigor_consensus_spec import (  # noqa: E402

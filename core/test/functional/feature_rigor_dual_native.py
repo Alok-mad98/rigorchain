@@ -9,7 +9,7 @@ import os
 import subprocess
 import sys
 
-from feature_res_core_convergence_draw import DEVTEST_MINING_RES_FEE_ADDR
+from res_security.harness import DEVTEST_MINING_RES_FEE_ADDR
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import append_config, assert_equal, get_datadir_path
 

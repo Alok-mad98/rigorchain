@@ -180,6 +180,18 @@ BOOST_AUTO_TEST_CASE(wallet_balances_balance_changed_includes_dual_native_watch)
     b = a;
     b.res_immature_watch_only_balance = 1;
     BOOST_CHECK(a.balanceChanged(b));
+    b = a;
+    b.oru_trusted_min0 = 1;
+    BOOST_CHECK(a.balanceChanged(b));
+    b = a;
+    b.res_trusted_min0 = 1;
+    BOOST_CHECK(a.balanceChanged(b));
+    b = a;
+    b.wo_oru_trusted_min0 = 1;
+    BOOST_CHECK(a.balanceChanged(b));
+    b = a;
+    b.wo_res_trusted_min0 = 1;
+    BOOST_CHECK(a.balanceChanged(b));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -16,6 +16,10 @@ subtle implementation differences in:
 """
 
 import sys
+
+print("SKIP: lottery Python↔C++ σ/root cross-validate retired with Batch A")
+raise SystemExit(0)
+
 import os
 import json
 import subprocess

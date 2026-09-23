@@ -152,11 +152,15 @@ def main() -> int:
         item["res_issued"] = 0
     dump(p, doc)
 
-    # 12. release (lottery W(h) still embedded as res_schedule)
+    # 12. release: RFC-020 destroy_cost, not lottery W(h)
     p = FV / "release_consensus_vectors.json"
     doc = json.loads(p.read_text(encoding="utf-8"))
-    doc["genesis"]["res_schedule"] = destroy_cost_atoms(0)
-    pin_issuance_list(doc["epoch"])
+    doc["genesis"].pop("res_schedule", None)
+    doc["genesis"]["res_destroy_cost"] = destroy_cost_atoms(0)
+    for item in doc.get("epoch") or []:
+        if isinstance(item, dict):
+            item.pop("res_schedule", None)
+            item["res_destroy_cost"] = destroy_cost_atoms(int(item["height"]))
     dump(p, doc)
 
     return 0

@@ -28,12 +28,9 @@ from refinement_status import (  # noqa: E402
 )
 
 COQ_FILES = (
-    ROOT / "formal_verification/coq/ConsensusKernelRefinement.v",
-    ROOT / "formal_verification/coq/ConsensusSurfaceClosure.v",
     ROOT / "formal_verification/coq/TransactionKernelRefinement.v",
     ROOT / "formal_verification/coq/MakeKernelInput.v",
     ROOT / "formal_verification/coq/LedgerTransitionRefinement.v",
-    ROOT / "formal_verification/coq/UTXOStateTransitionRefinement.v",
 )
 
 # Status manifests that must exist and carry the four split fields.
@@ -58,14 +55,10 @@ STATUS_JSON_FILES = (
 )
 
 GATE_SCRIPTS = (
-    ROOT / "formal_verification/run_consensus_kernel_formal_refinement.sh",
-    ROOT / "formal_verification/run_connectblock_kernel_boundary.sh",
     ROOT / "formal_verification/run_transaction_kernel_refinement.sh",
-    ROOT / "formal_verification/run_consensus_surface_closure.sh",
     ROOT / "formal_verification/run_consensus_kernel_governance.sh",
     ROOT / "formal_verification/run_consensus_mainnet_readiness.sh",
     ROOT / "formal_verification/run_ledger_transition_refinement.sh",
-    ROOT / "formal_verification/run_utxo_state_transition_refinement.sh",
     ROOT / "formal_verification/run_consensus_kernel_refinement_gate.sh",
 )
 

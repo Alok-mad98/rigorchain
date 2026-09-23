@@ -2,11 +2,10 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Consensus maturity: immature ORU coinbase and coinbase RIGOR_MARKER_RES_MINT UTXOs cannot be spent.
+"""Consensus maturity: immature ORU coinbase UTXOs cannot be spent.
 
-RES origin is the coinbase ``RIGOR_MARKER_RES_MINT`` output (40.000000 RES at epoch 0). Wallet
-``res.trusted`` / immature UI is not the enforcement path — this suite uses raw
-transactions and block connection.
+Body OP_CONVERGE RES mint maturity is covered by ``feature_res_destroy_cost_mint.py``.
+Wallet ``res.trusted`` / immature UI is not the enforcement path.
 
 See ``docs/security/RES-ORU-MATURITY.md``.
 """
@@ -22,16 +21,9 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_greater_than, assert_raises_rpc_error
 
 from res_security.harness import (
-    CENSOR_FEE_DELTA,
     COINBASE_MATURITY,
     DEVTEST_MINING_RES_FEE_ADDR,
-    RES_REWARD_ATOMS,
-    SATURATING_CONVERGENCE_ORU,
-    body_res_mint_rows,
-    draw_of,
     fail_context,
-    is_res_mint_vout,
-    supply_snapshot,
 )
 
 
@@ -186,68 +178,15 @@ class ResOruMaturityTest(BitcoinTestFramework):
     def run_test(self):
         node = self._n()
         self.mining_addr = node.getnewaddress(label="mat-miner", address_type="bech32")
-        self.large_addr = node.getnewaddress(label="mat-large", address_type="bech32")
-        self.small_addr = node.getnewaddress(label="mat-small", address_type="bech32")
-        self.res_program32 = wallet_res_program32(node)
 
-        n_fund = COINBASE_MATURITY + 2250
+        n_fund = COINBASE_MATURITY + 20
         self.log.info("Mining %d blocks (maturity=%d)", n_fund, COINBASE_MATURITY)
         self._mine(n_fund)
         bals = node.getbalances()
-        assert_greater_than(Decimal(str(bals["oru"]["trusted"])), Decimal("2000000"))
+        assert_greater_than(Decimal(str(bals["oru"]["trusted"])), Decimal("0"))
 
-        # T-ORU-1: latest coinbase is still immature (raw path).
         self._case_t_oru_1()
-
-        self._fund_saturating_utxo()
-        # Fee coin after consolidation: sendtoaddress during fat-funding can consume
-        # an earlier small_addr UTXO. create_convergence_tx spends only large_addr.
-        node.sendtoaddress(self.small_addr, Decimal("50"))
-        self._mine(1)
-
-        ticket = self._broadcast_saturating()
-        award = self._mine_only([ticket])
-        fr = draw_of(node, award)
-        assert fr["draw_winner_txid"] == ticket, self._dump("T-RES-setup", fr)
-        payout = self._mine(1)[0]
-        mint_txid, mint_vout = mint_res_outpoint(node, payout)
-        mint_height = node.getblock(payout)["height"]
-        utxo = node.gettxout(mint_txid, mint_vout)
-        assert utxo is not None, self._dump("T-RES-setup", {"mint": mint_txid})
-        assert utxo.get("res_mint") is True, self._dump("T-RES-setup", utxo)
-        assert utxo.get("coinbase") is True, self._dump("T-RES-setup", utxo)
-        self.log.info("Mint %s:%d at height %d res_mint=%s", mint_txid, mint_vout, mint_height, utxo.get("res_mint"))
-
-        self._case_t_issue_1(payout, mint_txid)
-        spend_hex = self._build_res_spend_hex(mint_txid, mint_vout)
-
-        self.log.info("T-RES-1 / T-RES-6: spend RES mint at depth 1 (raw)")
-        self._assert_premature_res(spend_hex, "T-RES-1")
-
-        self._case_t_res_4(spend_hex)
-        self._case_t_res_5(payout, spend_hex)
-
-        # T-RES-2: nSpendHeight - H = MATURITY - 1 when tip = H + MATURITY - 2
-        need = mint_height + COINBASE_MATURITY - 2 - node.getblockcount()
-        if need > 0:
-            self._mine(need)
-        assert_equal(node.getblockcount(), mint_height + COINBASE_MATURITY - 2)
-        self.log.info("T-RES-2: spend at depth %d", COINBASE_MATURITY - 1)
-        self._assert_premature_res(spend_hex, "T-RES-2")
-
-        self._mine(1)
-        assert_equal(node.getblockcount(), mint_height + COINBASE_MATURITY - 1)
-        self.log.info("T-RES-3: spend at depth %d (mempool nSpendHeight = mint+MATURITY)", COINBASE_MATURITY)
-        acc = node.testmempoolaccept([spend_hex])[0]
-        assert acc.get("allowed"), self._dump("T-RES-3", acc)
-        txid = node.sendrawtransaction(spend_hex)
-        self._mine(1)
-        assert txid in node.getblock(node.getbestblockhash())["tx"], self._dump("T-RES-3-mine")
-
-        # MAT-RES-4: the confirmed spend is a transfer (res_in >= res_out), not a second mint.
-        snap = supply_snapshot(node)
-        assert_equal(int(snap["mint_count"]), 1)
-        self.log.info("All maturity cases PASS; mint_count=%s", snap["mint_count"])
+        self.log.info("ORU coinbase maturity PASS (RES lottery mint path retired)")
 
     def _case_t_oru_1(self) -> None:
         node = self._n()

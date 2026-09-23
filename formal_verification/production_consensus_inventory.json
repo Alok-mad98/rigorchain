@@ -20,9 +20,7 @@
     "file": "core/src/consensus/rigor_supply.cpp"
   },
   "draw": {
-    "authority": "retired",
-    "file": "core/src/consensus/convergence_logic.cpp",
-    "assembly": "GetConvergenceDrawSetForBlock"
+    "authority": "retired"
   },
   "classification": {
     "authority": "ClassifyRigorTxout",

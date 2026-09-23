@@ -227,15 +227,6 @@
       "cone": "protocol_core"
     },
     {
-      "file": "formal_verification/coq/SigmaPoW01.v",
-      "language": "Coq",
-      "purpose": "protocol-core model",
-      "status": "listed_in_coqproject",
-      "dependency": "Rigor protocol-core",
-      "proof_level": "model_only",
-      "cone": "protocol_core"
-    },
-    {
       "file": "formal_verification/coq/Sigma.v",
       "language": "Coq",
       "purpose": "protocol-core model",

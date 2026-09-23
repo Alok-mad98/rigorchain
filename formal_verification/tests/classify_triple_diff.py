@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Tripartite classifier: Python spec × extracted Coq × production C++.
+"""Classifier differential: extracted Coq ≡ production C++.
 
-Coverage:
+Python L1 lottery spec was removed in Batch A. Coverage is unchanged on the
+Coq / C++ sides:
+
   * every length-0/1/2 script (1 + 256 + 65536)
   * length 3–4 with a gate first byte and a 16-byte branch alphabet
   * Coq [classify_nongate_first_byte]: non-gate head ⇒ INVALID for arbitrary tails
@@ -20,11 +22,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = ROOT / "spec"
 OCAML = ROOT / "extracted" / "classify_cli"
 CPP = ROOT / "extracted" / "cpp_classify_cli"
-sys.path.insert(0, str(SPEC))
-import rigor_consensus_spec as spec  # noqa: E402
 
 GATES = [0, 1, 2, 3, 4, 20] + list(range(81, 97)) + [106]
 BRANCH = [0, 1, 4, 5, 16, 20, 32, 75, 76, 79, 81, 96, 106, 187, 189, 255]
@@ -60,10 +59,10 @@ def classify_batch(cli: Path, scripts: list[bytes]) -> list[str]:
     return out
 
 
-def check_triple(spk: bytes, py: str, oc: str, cpp: str, where: str) -> None:
-    if py != oc or py != cpp:
+def check_pair(spk: bytes, oc: str, cpp: str, where: str) -> None:
+    if oc != cpp:
         raise SystemExit(
-            f"FAIL {where}: python={py} coq={oc} cpp={cpp} hex={spk.hex() or '(empty)'}"
+            f"FAIL {where}: coq={oc} cpp={cpp} hex={spk.hex() or '(empty)'}"
         )
 
 
@@ -82,12 +81,11 @@ def main() -> int:
     oc = classify_batch(OCAML, batch)
     cpp = classify_batch(CPP, batch)
     for spk, o, c in zip(batch, oc, cpp):
-        py = spec.asset_from_script(spk)
-        check_triple(spk, py, o, c, f"len{len(spk)}")
-        if spk and not is_gate(spk[0]) and py != "INVALID":
-            raise SystemExit(f"FAIL nongate python {spk.hex()} -> {py}")
+        check_pair(spk, o, c, f"len{len(spk)}")
+        if spk and not is_gate(spk[0]) and o != "INVALID":
+            raise SystemExit(f"FAIL nongate coq {spk.hex()} -> {o}")
         n += 1
-    print(f"length 0-2: {n} scripts python=coq=cpp")
+    print(f"length 0-2: {n} scripts coq=cpp")
 
     gold_path = ROOT.parent / "core" / "src" / "test" / "data" / "rigor_classification_vectors.json"
     gold = json.loads(gold_path.read_text())
@@ -96,11 +94,12 @@ def main() -> int:
     cpp = classify_batch(CPP, gold_scripts)
     for v, o, c in zip(gold, oc, cpp):
         spk = bytes.fromhex(v["scriptPubKey"])
-        py = spec.asset_from_script(spk)
-        check_triple(spk, py, o, c, v["name"])
-        if py != v["expected"]:
-            raise SystemExit(f"FAIL golden C++ vector {v['name']}: python={py} expected={v['expected']}")
-    print(f"C++ golden JSON: {len(gold)} scripts python=coq=cpp=expected")
+        check_pair(spk, o, c, v["name"])
+        if o != v["expected"] or c != v["expected"]:
+            raise SystemExit(
+                f"FAIL golden C++ vector {v['name']}: coq={o} cpp={c} expected={v['expected']}"
+            )
+    print(f"C++ golden JSON: {len(gold)} scripts coq=cpp=expected")
 
     n2 = 0
     structured: list[bytes] = []
@@ -119,29 +118,28 @@ def main() -> int:
     oc = classify_batch(OCAML, structured)
     cpp = classify_batch(CPP, structured)
     for spk, o, c in zip(structured, oc, cpp):
-        py = spec.asset_from_script(spk)
-        check_triple(spk, py, o, c, f"struct-len{len(spk)}")
+        check_pair(spk, o, c, f"struct-len{len(spk)}")
         n2 += 1
-    print(f"gate×branch length 3-4: {n2} scripts python=coq=cpp")
+    print(f"gate×branch length 3-4: {n2} scripts coq=cpp")
 
     tails = [b"", b"\x00", b"\xff" * 8, b"\x14" + b"\x11" * 20 + b"\xbd", bytes(range(40))]
     nongate_scripts = [bytes([h]) + t for h in range(256) if not is_gate(h) for t in tails]
     oc = classify_batch(OCAML, nongate_scripts)
     cpp = classify_batch(CPP, nongate_scripts)
     for spk, o, c in zip(nongate_scripts, oc, cpp):
-        py = spec.asset_from_script(spk)
-        check_triple(spk, py, o, c, "nongate")
-        if py != "INVALID":
-            raise SystemExit(f"FAIL nongate lemma: {spk.hex()} {py} {o} {c}")
+        check_pair(spk, o, c, "nongate")
+        if o != "INVALID" or c != "INVALID":
+            raise SystemExit(f"FAIL nongate lemma: {spk.hex()} {o} {c}")
     print(f"nongate first byte: {len(nongate_scripts)} scripts all INVALID")
 
     fp = hashlib.sha256()
-    for spk in batch + structured:
-        a = spec.asset_from_script(spk)
-        fp.update({"ORU": b"\x00", "RES": b"\x01", "NONE": b"\x02", "INVALID": b"\x04"}[a])
+    tag = {"ORU": b"\x00", "RES": b"\x01", "NONE": b"\x02", "INVALID": b"\x04"}
+    oc_all = classify_batch(OCAML, batch + structured)
+    for a in oc_all:
+        fp.update(tag[a])
     print(f"fingerprint {fp.hexdigest()}")
-    print("classifier triple (python spec = extracted Coq = production C++)")
-    print("Not a refinement proof.")
+    print("classifier differential (extracted Coq = production C++)")
+    print("Not a refinement proof. Python L1 spec removed with lottery Batch A.")
     return 0
 
 

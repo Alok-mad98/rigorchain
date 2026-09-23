@@ -54,7 +54,7 @@ bool ConvergenceUiIsChinese()
 {
     const QString lang = QString::fromStdString(gArgs.GetArg("-lang", ""));
     if (lang.startsWith(QLatin1String("zh"), Qt::CaseInsensitive)) return true;
-    const QString translated_convergence = QCoreApplication::translate("ConvergencePage", "Convergence");
+    const QString translated_convergence = QCoreApplication::translate("RigorGUI", "Convergence");
     if (translated_convergence == QString::fromUtf8("汇聚")) return true;
     return QLocale().name().startsWith(QLatin1String("zh"), Qt::CaseInsensitive);
 }
@@ -63,11 +63,11 @@ QString ConvergenceDisclaimerText()
 {
     if (ConvergenceUiIsChinese()) {
         return QString::fromUtf8(
-            "钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。链共识仍按照实际确认区块高度计算。\n"
+            "钱包使用未来确认高度安全余量构造交易，避免因等待确认导致失效。\n"
             "已销毁的 ORU 无法恢复。");
     }
     return QCoreApplication::translate("ConvergencePage",
-        "Estimated RES output uses a future confirmation height margin to avoid expiration during mempool delays. Consensus still evaluates the actual confirming block height.\n"
+        "The wallet constructs the mint with a future confirmation-height safety margin so waiting to confirm does not void it.\n"
         "Destroyed ORU cannot be recovered.");
 }
 
@@ -561,18 +561,7 @@ void ConvergencePage::updateMintedResPreview()
         return;
     }
     const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
-    const int confirm_height = clientModel ? clientModel->getNumBlocks() + 1 : m_mint_destroy_cost_height;
-    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
-    const CAmount slack = exact > minted ? exact - minted : 0;
-    if (slack > 0) {
-        ui->labelQuadraticFee->setText(
-            tr("%1 (kept unused so the mint stays valid for %2 blocks: %3)")
-                .arg(FormatMintedRes(minted))
-                .arg(wallet::CONVERGENCE_HEIGHT_PAD)
-                .arg(FormatMintedRes(slack)));
-    } else {
-        ui->labelQuadraticFee->setText(FormatMintedRes(minted));
-    }
+    ui->labelQuadraticFee->setText(FormatMintedRes(minted));
 }
 
 void ConvergencePage::updateConvergenceNetworkSafety()
@@ -705,16 +694,10 @@ void ConvergencePage::onSendConvergenceClicked()
     }
 
     const CAmount minted = Consensus::ResMintAtomsFromBurn(amt, m_mint_destroy_cost_height);
-    const int confirm_height = clientModel ? clientModel->getNumBlocks() + 1 : m_mint_destroy_cost_height;
-    const CAmount exact = Consensus::ResMintAtomsFromBurn(amt, confirm_height);
-    const CAmount slack = exact > minted ? exact - minted : 0;
     const auto r2 = QMessageBox::question(this, tr("Confirm Convergence"),
         tr("This mint will create %1.\n"
-           "Kept unused so the mint stays valid for %2 blocks: %3.\n"
            "Convergence uses ORU permanently. This cannot be undone after broadcast.\n\nContinue?")
-            .arg(FormatMintedRes(minted))
-            .arg(wallet::CONVERGENCE_HEIGHT_PAD)
-            .arg(FormatMintedRes(slack)),
+            .arg(FormatMintedRes(minted)),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (r2 != QMessageBox::Yes) return;
 

@@ -79,8 +79,6 @@ int main() {
             str(SRC / "script/script.cpp"),
             str(SRC / "uint256.cpp"),
             str(SRC / "util/strencodings.cpp"),
-            str(SRC / "consensus/convergence_logic.cpp"),
-            str(SRC / "consensus_rigor/sigma_hash.cpp"),
             str(SRC / "crypto/sha256.cpp"),
             str(SRC / "arith_uint256.cpp"),
             "-Wl,--gc-sections",
