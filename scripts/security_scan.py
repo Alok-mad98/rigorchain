@@ -209,10 +209,21 @@ def read_text(path: Path) -> str | None:
             return None
 
 
+def decode_git_blob(data: bytes) -> str | None:
+    if len(data) > MAX_BYTES:
+        return None
+    if b"\0" in data[:8192] or data.startswith((b"\x89PNG", b"\xff\xd8\xff", b"GIF8")):
+        return None
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
 def blob_for(path: str, *, staged: bool) -> str | None:
     if staged:
         try:
-            return git(["show", f":{path}"])
+            return decode_git_blob(subprocess.check_output(["git", "show", f":{path}"], cwd=ROOT))
         except subprocess.CalledProcessError:
             pass
     candidate = Path(path)

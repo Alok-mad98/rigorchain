@@ -1,5 +1,7 @@
 [Unit]
-Description=RIGOR Explorer Indexer MVP (read-only)
+Description=RIGOR Explorer Indexer MVP (read-only, not the production unit)
+# Not canonical. The public explorer host does not install this unit.
+# Production unit name: rigor-explorer.service
 After=network.target postgresql.service
 Wants=postgresql.service
 

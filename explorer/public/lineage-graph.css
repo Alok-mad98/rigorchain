@@ -138,25 +138,6 @@
   padding-left: 18px;
 }
 
-.lineage-graph-pcorb {
-  margin-top: 10px;
-  font-size: 11px;
-  max-height: 200px;
-  overflow: auto;
-}
-
-.lineage-graph-pcorb table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.lineage-graph-pcorb th,
-.lineage-graph-pcorb td {
-  border: 1px solid #333;
-  padding: 4px 6px;
-  text-align: left;
-}
-
 .lineage-graph-mint-outputs {
   margin-top: 8px;
   font-size: 12px;

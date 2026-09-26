@@ -3,8 +3,6 @@
 import type { TxConvergencePanel } from "./convergencePanel";
 import {
   atomsToResDisplay,
-  buildPcorbItems,
-  type PcorbStackItem,
   type ResMintProofView,
   type TxWitnessPanel,
 } from "./witnessPanel";
@@ -17,18 +15,14 @@ export const CONVERGEPROOF_AUTHORITY_NOTICE =
 
 export type ConvergeProofPanelKind = "res_mint" | "winner_convergence";
 
-export type PcorbStackItemView = PcorbStackItem & { hex_byte_length: number };
-
 export type ConvergeProofPanel = {
   visible: boolean;
   kind: ConvergeProofPanelKind | null;
   winner_txid: string | null;
-  convergence_root: string | null;
   sigma_digest: {
     hex: string | null;
     hex_byte_length: number | null;
   };
-  pcorb_witness: PcorbStackItemView[] | null;
   res_mint_linkage: {
     mint_txid: string | null;
     winner_txid: string | null;
@@ -80,9 +74,7 @@ export function buildConvergeProofPanel(args: {
     visible: false,
     kind: null,
     winner_txid: null,
-    convergence_root: null,
     sigma_digest: { hex: null, hex_byte_length: null },
-    pcorb_witness: null,
     res_mint_linkage: {
       mint_txid: null,
       winner_txid: null,
@@ -106,11 +98,6 @@ export function buildConvergeProofPanel(args: {
   const sigmaHex = convRow?.selection_digest_h ? String(convRow.selection_digest_h) : null;
 
   const proof: ResMintProofView = args.witnessPanel.res_mint_proof;
-
-  const convergenceRoot =
-    proof.convergence_root ??
-    (convRow?.convergence_root ? String(convRow.convergence_root) : null) ??
-    args.witnessPanel.proof_status.convergence_root;
 
   const resMintRow = args.resMintRows[0] ?? args.linkedMintRows[0] ?? null;
   const winnerTxid =
@@ -153,12 +140,10 @@ export function buildConvergeProofPanel(args: {
     visible: true,
     kind,
     winner_txid: winnerTxid,
-    convergence_root: convergenceRoot,
     sigma_digest: {
       hex: sigmaHex,
       hex_byte_length: hexByteLength(sigmaHex),
     },
-    pcorb_witness: null,
     res_mint_linkage: {
       mint_txid: mintTxid,
       winner_txid: winnerTxid,
@@ -173,6 +158,3 @@ export function buildConvergeProofPanel(args: {
     authority_notice: CONVERGEPROOF_AUTHORITY_NOTICE,
   };
 }
-
-/** Re-export for tests — build PCORB from stack. */
-export { buildPcorbItems };

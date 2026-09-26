@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>RIGOR Testnet Explorer</title>
+    <title>RIGOR Explorer</title>
     <link rel="stylesheet" href="/compliance.css" />
     <link rel="stylesheet" href="/convergence-panel.css" />
     <link rel="stylesheet" href="/status-dashboard.css" />
@@ -23,9 +23,17 @@
       <a href="/oru.html">ORU</a>
       <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
+      <a href="/address">Address</a>
       <a href="/search">Search</a>
     </nav>
-    <h1>RIGOR Testnet Explorer</h1>
+    <h1>RIGOR Explorer</h1>
+    <form class="home-search" method="get" action="/search">
+      <p class="muted">SEARCH</p>
+      <p>
+        <input name="q" placeholder="block / tx / address / height" autocomplete="off" />
+        <button type="submit">SEARCH</button>
+      </p>
+    </form>
     <div id="status-root" class="status-dashboard">Loading…</div>
     <script>
       ExplorerRoutes.installCanonicalLink();

@@ -66,7 +66,6 @@ It is not:
 - mining. Proof-of-work only orders history and pays ORU.
 - a 1:1 counter. Destroyed ORU is not renamed into an equal amount of
   RES.
-- a draw. Nobody is “selected.” There is no winning hash in a window.
 - a smart contract. No bytecode is deployed. No state machine steps.
 - a miner prize. The receiver is the transaction’s RES outputs, not
   coinbase.
@@ -197,20 +196,12 @@ Convergence output, is an invalid transaction.
 
 ---
 
-## 4.7 Why it is not a draw
+## 4.7 Mint is not miner-allocated
 
-A draw hands “who receives RES” to a hash or to an operator. A verifier
-must trust a randomness source, or a windowed winning rule. The same
-public inputs can yield different assignments after one hash.
-
-Convergence’s decision has no random term. Given `R`, `B`, and `h`, the
-result is admit or reject. Nobody is chosen. Nobody is skipped. A
-higher fee cannot buy a higher chance of being selected, because there
-is no selection.
-
-A miner cannot write RES into coinbase. A miner cannot assign RES to
-their own address as a block prize. Pool policy cannot allocate RES.
-Changing a miner payout address cannot create RES.
+Given `R`, `B`, and `h`, the result is admit or reject. A miner cannot
+write RES into coinbase. A miner cannot assign RES to their own address
+as a block prize. Pool policy cannot allocate RES. Changing a miner
+payout address cannot create RES.
 
 Fairness within the consensus rule is defined as deterministic
 evaluation of the same public inequality. The mathematics is Chapter 5.
@@ -233,7 +224,7 @@ Underpayment invalidates the whole transaction. There is no partial
 fill that credits RES and waits for a later destroy.
 
 Mint outputs mature after 100 blocks. That is the same depth as
-coinbase maturity: reorg protection. It is not a wait for a draw. The
+coinbase maturity: reorg protection. The
 kernel model proves selected rewind identities: disconnect an orphan
 suffix and apply another, equals never applying the orphans. That is
 not a `ConnectBlock` equivalence proof.
@@ -245,7 +236,7 @@ not a `ConnectBlock` equivalence proof.
 - It does not assert that anyone will destroy ORU, or that `ρ` lands in
   a band.
 - It does not write `destroy_cost(h)` as a market price.
-- It does not write maturity 100 as a draw wait.
+- It does not write maturity 100 as anything other than reorg protection.
 - It does not claim C++ equivalence to the kernel model.
 - It does not write Convergence as a contract, a counter, or a miner
   prize.

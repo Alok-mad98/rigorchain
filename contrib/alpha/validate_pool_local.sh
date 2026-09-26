@@ -96,21 +96,13 @@ fi
 GBT="$(lms_cli_node0 getblocktemplate '{"rules":["segwit"]}' 2>/dev/null || true)"
 check "gbt_with_pool" "$([[ -n "$GBT" ]] && echo 1 || echo 0)"
 
-# RES compatibility: ConvergenceRoot fields + W=32 constant from node
-W="$(lms_cli_node0 getconvergencestatus 2>/dev/null | python3 -c 'import json,sys
-try:
-  d=json.load(sys.stdin)
-  print(d.get("window", d.get("W", d.get("convergence_draw_window",""))))
-except Exception:
-  print("")
-' || true)"
-# Fallback: read from help/docs — assert frozen W via bitcoin-cli getblockchaininfo + known constant
-python3 -c "
-from pathlib import Path
-p = Path('${REPO_ROOT}/core/src/consensus/rigor_consensus_lock.h')
-text = p.read_text()
-assert 'CONVERGENCE_DRAW_WINDOW' in text and '32' in text
-" && check "w32_constant" 1 "CONVERGENCE_DRAW_WINDOW=32 in headers" || check "w32_constant" 0
+# RES compatibility: getconvergencestatus reports destroy_cost (RFC-020)
+STATUS="$(lms_cli_node0 getconvergencestatus 2>/dev/null || true)"
+if python3 -c "import json,sys; d=json.loads(sys.argv[1]); assert 'destroy_cost' in d" "${STATUS}" 2>/dev/null; then
+  check "destroy_cost_status" 1 "getconvergencestatus.destroy_cost"
+else
+  check "destroy_cost_status" 0
+fi
 
 # ConvergenceRoot: GBT or getblock tip must be valid
 HASH="$(lms_cli_node0 getbestblockhash)"

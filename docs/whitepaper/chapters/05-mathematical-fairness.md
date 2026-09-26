@@ -17,12 +17,7 @@ are the ones that script prints. None was computed by hand.
 
 ## 5.1 What fairness is
 
-On a one-way bridge, fairness is not “everyone has the same chance of
-being drawn.” A draw hands assignment to a hash: the same public inputs
-can yield different receivers after one hash. A verifier must trust a
-randomness source, or a windowed rule.
-
-Fairness here is narrower, and harder:
+Fairness here is a public decision function:
 
 ```
 same (R, B, h)  →  same admit or reject
@@ -273,7 +268,7 @@ shares. How that height is discovered and ordered is Chapter 6.
 - It does not claim C++ equivalence to the kernel model. Assertions in
   the script and Coq statements share names; the model proves selected
   invariants, not `ConnectBlock`.
-- It does not write “fairness” as a draw chance or a return.
+- It does not write “fairness” as an economic return.
 - It does not write `128`, `1024`, or `2²⁵` as independent lucky
   numbers. They are three exponents in one identity.
 

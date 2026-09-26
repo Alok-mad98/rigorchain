@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Pool } from "pg";
 import path from "node:path";
+import { addressMatchesExplorerHrp, parseRigorAddress } from "./addressIntelligence";
 import { canonicalUrlForResolution, loadBlockByRouteParam, resolveSearchInput, WTXID_INFORMATIONAL } from "./searchResolve";
 import { getAddressIntelligence } from "./addressDb";
 import { getLineageForTxid } from "./lineageDb";
@@ -97,6 +98,10 @@ export function registerApiRoutes(app: Express, pool: Pool, config: Config): voi
 
     app.get(`${prefix}/address/:addr`, async (req, res) => {
       const addr = decodeURIComponent(req.params.addr);
+      if (!parseRigorAddress(addr)) return res.status(400).json({ error: "invalid address format" });
+      if (!addressMatchesExplorerHrp(addr, config.bech32Hrp)) {
+        return res.status(400).json({ error: "address does not match this explorer network" });
+      }
       const page = Math.max(1, Number(req.query.page ?? 1));
       const limit = Math.min(Math.max(1, Number(req.query.limit ?? 50)), 200);
       const row = await getAddressIntelligence(pool, config, addr, page, limit);
@@ -281,6 +286,7 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
     }
   });
 
+  app.get("/address", htmlOrNext("address.html"));
   app.get("/address/:addr", htmlOrNext("address.html"));
   app.get("/status", (_req, res) => res.redirect(301, "/"));
 
@@ -335,10 +341,20 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
     });
   }
 
+  function rejectForeignAddress(resolution: Awaited<ReturnType<typeof resolveSearchInput>>): string | null {
+    if (!config || resolution.kind !== "address") return null;
+    if (!addressMatchesExplorerHrp(resolution.address, config.bech32Hrp)) {
+      return "Address does not match this explorer network.";
+    }
+    return null;
+  }
+
   app.get("/search", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     if (q) {
       const resolution = await resolveSearchInput(pool, q);
+      const foreign = rejectForeignAddress(resolution);
+      if (foreign) return res.redirect(302, `/search?error=${encodeURIComponent(foreign)}`);
       const target = canonicalUrlForResolution("", resolution);
       if (target) return res.redirect(302, target);
       const err = resolution.kind === "error" ? resolution.message : "Search failed.";
@@ -350,6 +366,11 @@ export function registerUiRoutes(app: Express, pool: Pool, publicDir: string, co
   app.get("/search/resolve", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q : "";
     const resolution = await resolveSearchInput(pool, q);
+    const foreign = rejectForeignAddress(resolution);
+    if (foreign) {
+      res.json({ resolution: { kind: "error", message: foreign }, canonical_url: null });
+      return;
+    }
     const base = `${req.protocol}://${req.get("host") ?? "127.0.0.1"}`;
     const url = canonicalUrlForResolution(base, resolution);
     res.json({ resolution, canonical_url: url });

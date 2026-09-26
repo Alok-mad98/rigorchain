@@ -4,7 +4,7 @@ Live RFCs are under [`../protocol/`](../protocol/).
 
 | Document | Role |
 |----------|------|
-| [`../protocol/RFC-020.md`](../protocol/RFC-020.md) | Live issuance |
+| [`../protocol/RFC-020.md`](../protocol/RFC-020.md) | Deterministic Economics for Human and Machine Verification. Live issuance: continuous RES destroy cost, flat ORU emission |
 | [`../protocol/RFC-018.md`](../protocol/RFC-018.md) | RES-transfer ORU fee burn |
 
 ```

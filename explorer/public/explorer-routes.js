@@ -28,6 +28,7 @@
       <a href="/oru.html">ORU</a>
       <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
+      <a href="/address">Address</a>
       <a href="/search">Search</a>
     `;
   }

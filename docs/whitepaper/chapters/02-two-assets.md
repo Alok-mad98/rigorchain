@@ -140,7 +140,7 @@ When `R > 0`, a failing inequality invalidates the whole transaction.
 | Premine / admin mint | None | Entry must be a verifiable ORU destroy |
 | Reverse conversion | Illegal | Otherwise the intended separation weakens |
 | Per-block mint cap | None | Demand should be absorbable in a single block |
-| Mint maturity | 100 blocks | Reorg protection, not a draw wait |
+| Mint maturity | 100 blocks | Reorg protection |
 | Ceiling | `2²² = 4 194 304` RES | Derived; see 2.4 |
 
 ```

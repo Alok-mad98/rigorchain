@@ -54,7 +54,7 @@ export function TestnetPage() {
           <br />
           <a href="http://explorer.rigorchain.com">explorer.rigorchain.com</a>
           {" "}
-          (HTTP)
+          (MAINNET only — not this TESTNET)
         </p>
       </section>
 
@@ -101,9 +101,9 @@ export function TestnetPage() {
           </li>
           <li>Send a TESTNET transaction to a second <code>trg1q</code> address.</li>
           <li>
-            Verify on Explorer: open{" "}
-            <a href="http://explorer.rigorchain.com">explorer.rigorchain.com</a>, search the txid
-            and addresses.
+            Verify on your local TESTNET node. The public explorer at{" "}
+            <a href="http://explorer.rigorchain.com">explorer.rigorchain.com</a> is MAINNET only
+            and does not index this TESTNET transaction.
           </li>
         </ol>
         <p className="cta-row">
@@ -135,11 +135,10 @@ export function TestnetPage() {
       <section className="card prose-section" id="explorer" aria-labelledby="explorer-heading">
         <h2 id="explorer-heading">Explorer</h2>
         <p>
-          <a href="http://explorer.rigorchain.com">http://explorer.rigorchain.com</a> is a read-only
-          TESTNET viewer. Search a txid, address, or block height. It does not hold keys and does
-          not submit transactions.
+          <a href="http://explorer.rigorchain.com">http://explorer.rigorchain.com</a> is the
+          read-only MAINNET explorer. It does not index TESTNET blocks or trg1 addresses. It does
+          not hold keys and does not submit transactions.
         </p>
-        <p>HTTPS for Explorer is not enabled yet. Use HTTP for now.</p>
       </section>
     </div>
   );

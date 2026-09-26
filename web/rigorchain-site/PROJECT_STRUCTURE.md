@@ -25,7 +25,7 @@ web/rigorchain-site/
 │   ├── components/
 │   │   ├── AppShell.tsx         # Status bar, nav, error banners
 │   │   ├── ProtocolCard.tsx     # ORU / RES / FORGE / live observables
-│   │   ├── ConvergencePanel.tsx # σ, PCORB, winner, root
+    │   │   ├── ConvergencePanel.tsx # RFC-020 same-tx mint explainer
 │   │   └── RESMintPanel.tsx     # RES mint table (explorer)
 │   ├── context/
 │   │   └── SystemStateContext.tsx  # Derived SystemState, 30s poll

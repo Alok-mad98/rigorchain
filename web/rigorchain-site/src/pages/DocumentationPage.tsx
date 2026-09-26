@@ -46,6 +46,16 @@ export function DocumentationPage() {
         <DarkCard title="RFC" to="/documentation/rfc" linkLabel="Overview">
           <p>Issuance is defined by consensus. This index is an overview, not the normative specification.</p>
         </DarkCard>
+        <DarkCard
+          title="Machine-Verifiable Protocol"
+          to="/machine-readable-protocol"
+          linkLabel="Read"
+        >
+          <p>
+            Deterministic economics for human and machine verification. RFC-020 is the mathematical
+            foundation.
+          </p>
+        </DarkCard>
         <DarkCard title="Security Architecture" to="/documentation/security" linkLabel="Open">
           <p>Minimal scripts and two native assets. No general-purpose execution layer.</p>
         </DarkCard>

@@ -48,8 +48,8 @@ export function reverseHexBytes(hex: string): string {
 }
 
 /**
- * PCORB witness[0] is native 32-byte hex; RPC draw_winner_txid is display GetHex.
- * Accept either endianness so A-8 parent-winner matching does not drop the mint.
+ * Native 32-byte hex vs RPC display GetHex.
+ * Accept either endianness so parent-winner matching does not drop the mint.
  */
 export function witnessPushMatchesTxid(push: unknown, displayTxid: unknown): boolean {
   const p = asString(push).toLowerCase().replace(/^0x/i, "");

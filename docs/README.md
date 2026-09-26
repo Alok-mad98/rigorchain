@@ -44,7 +44,7 @@ Historical documents are under [`../archive/`](../archive/). They are
 | Document | Purpose |
 |----------|---------|
 | [`whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](./whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md) | Public protocol narrative |
-| [`protocol/RFC-020.md`](./protocol/RFC-020.md) | Live issuance rule |
+| [`protocol/RFC-020.md`](./protocol/RFC-020.md) | Deterministic Economics for Human and Machine Verification. Live issuance rule: continuous RES destroy cost, flat ORU emission |
 | [`protocol/RFC-018.md`](./protocol/RFC-018.md) | RES-transfer fee burn |
 | [`protocol/Consensus.md`](./protocol/Consensus.md) | Consensus index |
 | [`protocol/Assets.md`](./protocol/Assets.md) | Asset index |

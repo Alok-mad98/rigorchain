@@ -10,15 +10,6 @@
       .replace(/"/g, "&quot;");
   }
 
-  function copyBtn(hex) {
-    return `<button type="button" class="convergence-copy-btn" data-copy="${escapeHtml(hex)}">Copy</button>`;
-  }
-
-  function fmtHex(hex) {
-    if (!hex) return '<span class="muted">—</span>';
-    return `<span class="converge-proof-hex">${escapeHtml(hex)}</span>`;
-  }
-
   function flowStep(title, body) {
     return `<div class="converge-proof-flow-step"><strong>${escapeHtml(title)}</strong>${body}</div>`;
   }
@@ -58,28 +49,6 @@
     return `<div class="converge-proof-flow">${steps.join("")}</div>`;
   }
 
-  function renderPcorbTable(items, routes) {
-    const txPath = routes.txPath.bind(routes);
-    const rows = items
-      .map((item) => {
-        let hexCell = fmtHex(item.hex) + " " + copyBtn(item.hex);
-        if (item.field_name === "convergence_txid") {
-          hexCell = `<a href="${escapeHtml(txPath(item.hex))}" class="converge-proof-hex">${escapeHtml(item.hex)}</a> ${copyBtn(item.hex)}`;
-        }
-        return `<tr>
-          <td>${item.index}</td>
-          <td>${escapeHtml(item.field_name)}</td>
-          <td>${hexCell}</td>
-          <td>${item.hex_byte_length != null ? item.hex_byte_length : "—"}</td>
-        </tr>`;
-      })
-      .join("");
-    return `<table class="converge-proof-table">
-      <thead><tr><th>#</th><th>Name</th><th>Hex</th><th>Length (bytes)</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  }
-
   function renderLinkage(linkage, routes) {
     const txPath = routes.txPath.bind(routes);
     const blockPath = routes.blockPath.bind(routes);
@@ -101,11 +70,7 @@
       ${renderFlow(panel, routes)}
       <h3>Mint proof</h3>`;
 
-    if (panel.pcorb_witness && panel.pcorb_witness.length > 0) {
-      html += renderPcorbTable(panel.pcorb_witness, routes);
-    } else {
-      html += `<p class="muted">Issuance is the same body transaction: OP_CONVERGE destroy plus optional Witness v1 RES. ORU destroyed. RES minted.</p>`;
-    }
+    html += `<p class="muted">Issuance is the same body transaction: OP_CONVERGE destroy plus optional Witness v1 RES. ORU destroyed. RES minted.</p>`;
 
     html += `<h3>RES mint linkage</h3>${renderLinkage(panel.res_mint_linkage || {}, routes)}
       <div class="converge-proof-notice">

@@ -92,7 +92,7 @@ export function evaluateStartupIdentity(input: StartupIdentityInput): { ok: bool
     errors.push("Node chain id missing (getblockchaininfo.chain).");
   } else if (input.nodeChain !== expectedChain) {
     errors.push(
-      `Chain mismatch: node chain="${input.nodeChain}"; RIGOR_NETWORK=${input.network} expects "${expectedChain}".`,
+      `STARTUP FAILED. NETWORK IDENTITY MISMATCH. Chain mismatch: node chain="${input.nodeChain}"; RIGOR_NETWORK=${input.network} expects "${expectedChain}".`,
     );
   }
 

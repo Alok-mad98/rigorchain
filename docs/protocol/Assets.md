@@ -26,7 +26,7 @@ PoW does not create RES.
 
 | Document | Role |
 |----------|------|
-| [`RFC-020.md`](./RFC-020.md) | Destroy-cost function, flat ORU emission, RES cap |
+| [`RFC-020.md`](./RFC-020.md) | Deterministic Economics for Human and Machine Verification. Destroy-cost function, flat ORU emission, RES cap |
 | [`RFC-018.md`](./RFC-018.md) | Half of the ORU fee on a RES-transfer is unclaimable |
 | [`../specification/SPEC-002-ECONOMIC-MODEL.md`](../specification/SPEC-002-ECONOMIC-MODEL.md) | Economic model aligned to shipping code |
 | [`../whitepaper/chapters/02-two-assets.md`](../whitepaper/chapters/02-two-assets.md) | Public narrative of the two assets |

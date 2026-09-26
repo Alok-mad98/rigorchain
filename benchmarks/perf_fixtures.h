@@ -8,7 +8,6 @@
 #define RIGOR_BENCHMARKS_PERF_FIXTURES_H
 
 #include <consensus/amount.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/rigor_issuance.h>
@@ -103,22 +102,6 @@ inline uint256 ByteTxid(unsigned char b)
     return id;
 }
 
-inline ConvergenceDrawSet MakeDraw(int n, uint64_t weight)
-{
-    ConvergenceDrawSet set;
-    set.source_height = 500;
-    set.source_nbits = 0x207fffff;
-    set.source_block_hash = uint256S("0xaa");
-    set.convergence_root = uint256S("0xcc");
-    for (int i = 0; i < n; ++i) {
-        ConvergenceDrawCandidate c;
-        c.txid = ByteTxid(static_cast<unsigned char>(i + 1));
-        c.weight = weight;
-        set.candidates.push_back(c);
-    }
-    return set;
-}
-
 inline UTXOStateTransitionInput EmptyBlockInput()
 {
     UTXOStateTransitionInput in;
@@ -126,7 +109,6 @@ inline UTXOStateTransitionInput EmptyBlockInput()
     in.height = 0;
     in.maturity = 100;
     in.consensus.height = 0;
-    in.consensus.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
     return in;
 }
 
@@ -141,7 +123,6 @@ inline UTXOStateTransitionInput OruTransferInput()
     in.ledger.consumed = in.snapshot;
     in.ledger.created = {LCoin(2, 0, 10 * COIN, LedgerAsset::ORU)};
     in.asset_scripts = {ScriptBytes(OruScript())};
-    in.consensus.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
     return in;
 }
 
@@ -157,15 +138,13 @@ inline UTXOStateTransitionInput ResMaturityInput(int64_t spend)
     return in;
 }
 
-inline UTXOStateTransitionInput DrawBlockInput()
+inline UTXOStateTransitionInput SubsidyBlockInput()
 {
     const auto& p = FrozenParams();
     UTXOStateTransitionInput in;
     in.params = p;
     in.height = 1;
     in.tx = ValidOruTx();
-    in.consensus.draw = MakeDraw(2, 209715200000000ULL);
-    in.consensus.draw_target = Consensus::RES_PROBABILITY_TARGET_CONST;
     in.ledger.consensus.oru_issuance = GetBlockSubsidy(1, p);
     in.ledger.created = {LCoin(1, 0, GetBlockSubsidy(1, p), LedgerAsset::ORU)};
     return in;
@@ -213,35 +192,32 @@ inline UTXOStateTransitionInput ManyOutInput(size_t n)
     return in;
 }
 
-inline uint64_t LegacyConsensusStep(int height, const ConvergenceDrawSet& draw)
+inline uint64_t LegacyConsensusStep(int height)
 {
     const Consensus::Params p = FrozenParams();
     const CAmount oru = GetBlockSubsidy(height, p);
-    const CAmount res = Consensus::GetResMintReward(height);
-    const ConvergenceDrawOutcome o = ResolveConvergenceDraw(draw, Consensus::RES_PROBABILITY_TARGET_CONST);
+    const CAmount cost = Consensus::ResDestroyCostAtHeight(height);
     RigorSupplyDeltaInput sin;
     sin.height = height;
     sin.oru_coinbase = oru;
     BlockValidationState state;
     RigorSupplyDeltaResult out;
     const bool ok = RigorSupplyDelta(sin, p, out, state);
-    return static_cast<uint64_t>(oru) ^ static_cast<uint64_t>(res) ^
-           static_cast<uint64_t>(o.winner_index + 2) ^ (ok ? 1ULL : 0ULL);
+    return static_cast<uint64_t>(oru) ^ static_cast<uint64_t>(cost) ^ (ok ? 1ULL : 0ULL);
 }
 
-inline uint64_t KernelConsensusStep(int height, const ConvergenceDrawSet& draw)
+inline uint64_t KernelConsensusStep(int height)
 {
     const Consensus::Params p = FrozenParams();
     const RigorIssuance iss = ComputeRigorIssuance(height, p);
-    const ConvergenceDrawOutcome o = ResolveConvergenceDraw(draw, Consensus::RES_PROBABILITY_TARGET_CONST);
+    const CAmount cost = Consensus::ResDestroyCostAtHeight(height);
     RigorSupplyDeltaInput sin;
     sin.height = height;
     sin.oru_coinbase = iss.oru_subsidy;
     BlockValidationState state;
     RigorSupplyDeltaResult out;
     const bool ok = RigorSupplyDelta(sin, p, out, state);
-    return static_cast<uint64_t>(iss.oru_subsidy) ^ static_cast<uint64_t>(iss.res_reward) ^
-           static_cast<uint64_t>(o.winner_index + 2) ^ (ok ? 1ULL : 0ULL);
+    return static_cast<uint64_t>(iss.oru_subsidy) ^ static_cast<uint64_t>(cost) ^ (ok ? 1ULL : 0ULL);
 }
 
 inline uint64_t LegacyTxStep(const TransactionKernelInput& in)
@@ -264,8 +240,6 @@ inline uint64_t KernelTxStep(const TransactionKernelInput& in)
 
 inline uint64_t LegacyLedgerStep(const UTXOStateTransitionInput& in)
 {
-    const RigorIssuance iss = ComputeRigorIssuance(static_cast<int>(in.height), in.params);
-    (void)ResolveConvergenceDraw(in.consensus.draw, in.consensus.draw_target);
     const bool tx_ok = in.ledger.consumed.empty() || VerifyRigorPredicateBoundary(in.tx);
     LedgerKernelInput ledger = in.ledger;
     ledger.height = in.height;
@@ -274,7 +248,7 @@ inline uint64_t LegacyLedgerStep(const UTXOStateTransitionInput& in)
     ledger.consensus.accept = true;
     ledger.consensus.oru_issuance = (in.height == 0) ? 0 : ledger.consensus.oru_issuance;
     ledger.consensus.res_mint = (in.height == 0) ? 0 : ledger.consensus.res_mint;
-    ledger.consensus.res_schedule = iss.res_reward;
+    ledger.consensus.res_schedule = 0;
     const LedgerKernelOutput o = LedgerApply(ledger);
     return (o.accept ? 1ULL : 0ULL) ^ (static_cast<uint64_t>(o.created_delta.size()) << 1);
 }

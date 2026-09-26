@@ -1,7 +1,7 @@
 /**
  * Explorer mint adapter: RFC-020 issuance is a body transaction.
  * Same tx burns ORU (`OP_CONVERGE`) and creates Witness v1 RES.
- * Coinbase `OP_RES_MINT` (0xbb) and body PCORB are not the live issuance path.
+ * Coinbase `OP_RES_MINT` (0xbb) is not the live issuance path.
  */
 
 import { isConvergenceScriptPubKey } from "./script";

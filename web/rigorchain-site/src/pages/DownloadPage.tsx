@@ -96,6 +96,8 @@ export function DownloadPage() {
           Explorer:
           <br />
           <a href="http://explorer.rigorchain.com">explorer.rigorchain.com</a>
+          {" "}
+          (MAINNET)
         </p>
         <p>
           Faucet:

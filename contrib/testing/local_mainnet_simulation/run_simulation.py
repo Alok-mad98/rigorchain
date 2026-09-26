@@ -3,11 +3,11 @@
 
 Local production-like multi-node simulation for the RIGOR wallet product journey:
 
-  install/connect → receive ORU (maturity) → create Convergence → W=32 lifecycle
+  install/connect → receive ORU (maturity) → createconvergence (RFC-020 mint)
   → RES minted (immature) → wait RES mint maturity → RES trusted/spendable
   → restart recovery → controlled reorg
 
-Does NOT change consensus parameters (ORU emission, RES cap, W, T, serialization, scripts).
+Does NOT change consensus parameters (ORU emission, RES cap, serialization, scripts).
 Does NOT inject fake balances, bypass maturity, or manually create RES.
 
 RES mint maturity (TASK-LMS-HARNESS-MATURITY-ALIGNMENT-001):
@@ -30,7 +30,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 TASK = "TASK-LOCAL-MAINNET-SIMULATION-001"
-W = 32  # CONVERGENCE_DRAW_WINDOW — presentation mirror only; consensus unchanged
 RES_REWARD = Decimal("100.00")
 # Wallet RES mint maturity mirrors coinbase: nCoinbaseMaturity + 1 confirmations
 # (see CWallet::GetTxBlocksToResMintMaturity). Do not assert trusted immediately after mint.
@@ -168,48 +167,6 @@ def mine_res_to_maturity(w: NodeRpc, mint_txid: str, addr: Optional[str] = None)
     }
 
 
-# ---------------------------------------------------------------------------
-# GUI window math (mirrors wallet/convergence_window_ui.h — presentation only)
-# ---------------------------------------------------------------------------
-def build_ui_window(inclusion_height: int, tip_height: int, allocated: bool, explicit_loss: bool) -> dict:
-    snap = {
-        "W": W,
-        "start_block": -1,
-        "current_block": tip_height,
-        "finalization_block": -1,
-        "elapsed_in_window": 0,
-        "remaining_blocks": 0,
-        "lifecycle": "Submitted",
-        "detail": "Waiting for consensus inclusion",
-        "verification_pass": False,
-    }
-    if inclusion_height < 0:
-        return snap
-    snap["start_block"] = inclusion_height
-    snap["finalization_block"] = inclusion_height + W
-    snap["elapsed_in_window"] = max(0, min(W, tip_height - inclusion_height))
-    snap["remaining_blocks"] = max(0, snap["finalization_block"] - tip_height)
-    if allocated:
-        snap["lifecycle"] = "CompletedAllocated"
-        snap["detail"] = "RES minted"
-        snap["verification_pass"] = True
-        return snap
-    if explicit_loss or tip_height >= snap["finalization_block"]:
-        snap["lifecycle"] = "CompletedNoAllocation"
-        snap["detail"] = "No RES mint — consensus result verified"
-        snap["verification_pass"] = True
-        snap["remaining_blocks"] = 0
-        snap["elapsed_in_window"] = W
-        return snap
-    if 0 < snap["remaining_blocks"] <= 3:
-        snap["lifecycle"] = "FinalizationPending"
-        snap["detail"] = "Deterministic consensus allocation result at the finalization block"
-        return snap
-    snap["lifecycle"] = "ActiveWindow"
-    snap["detail"] = "Competing in the W-block consensus window"
-    return snap
-
-
 class NodeRpc:
     def __init__(self, name: str, wallet: Optional[str] = None) -> None:
         self.name = name
@@ -222,7 +179,7 @@ class NodeRpc:
         # "Error parsing JSON: <hash>".
         method = args[0] if args else ""
         convert_hash_arg0 = {
-            "getconvergenceresult",
+            "getblockconvergence",
         }
         cli_args: list[str] = []
         for i, a in enumerate(args):
@@ -569,20 +526,18 @@ def phase_oru_acquisition(w: NodeRpc) -> dict:
 
 
 def phase_convergence_lifecycle(w: NodeRpc) -> dict:
-    """Create a tracked Convergence, prove W=32 UI lifecycle (not immediate finalization)."""
+    """Create a tracked Convergence and prove inclusion + restart recovery (RFC-020 mint path)."""
     checks = []
     tip_before = int(NodeRpc("Node-0")("getblockcount"))
-    ui_submitted = build_ui_window(-1, tip_before, False, False)
+    status0 = NodeRpc("Node-0")("getconvergencestatus", allow_fail=True)
     checks.append(
         {
-            "id": "ui_submitted_pre_inclusion",
-            "pass": ui_submitted["lifecycle"] == "Submitted",
-            "snapshot": ui_submitted,
+            "id": "destroy_cost_status",
+            "pass": isinstance(status0, dict) and "destroy_cost" in status0,
+            "snapshot": status0 if isinstance(status0, dict) else {"error": status0},
         }
     )
 
-    # Modest amount so this tracked tx can complete window as No RES (product Failed path).
-    # Mint hunting uses separate large convergences below.
     r = w("createconvergence", "1.0", allow_fail=True)
     if isinstance(r, dict) and r.get("__error__"):
         raise RuntimeError(f"createconvergence failed: {r['__error__']}")
@@ -602,34 +557,6 @@ def phase_convergence_lifecycle(w: NodeRpc) -> dict:
         }
     )
 
-    tip_mid = int(NodeRpc("Node-0")("getblockcount"))
-    ui_active = build_ui_window(inclusion, tip_mid, False, False)
-    checks.append(
-        {
-            "id": "not_finalized_immediately",
-            "pass": ui_active["lifecycle"] in ("ActiveWindow", "FinalizationPending")
-            and ui_active["finalization_block"] == inclusion + W
-            and ui_active["remaining_blocks"] > 0,
-            "snapshot": ui_active,
-        }
-    )
-
-    # Advance into Active window mid-point
-    mine(w, 10, addr)
-    tip_a = int(NodeRpc("Node-0")("getblockcount"))
-    ui_a = build_ui_window(inclusion, tip_a, False, False)
-    checks.append(
-        {
-            "id": "active_window_tracking",
-            "pass": ui_a["start_block"] == inclusion
-            and ui_a["finalization_block"] == inclusion + W
-            and ui_a["current_block"] == tip_a
-            and ui_a["remaining_blocks"] == (inclusion + W) - tip_a,
-            "snapshot": ui_a,
-        }
-    )
-
-    # Restart recovery mid-window
     stop_all_nodes()
     time.sleep(1.0)
     for name in NODES:
@@ -639,43 +566,12 @@ def phase_convergence_lifecycle(w: NodeRpc) -> dict:
     remesh()
     assert_mesh_synced()
     w2 = ensure_wallet()
-    tip_r = int(NodeRpc("Node-0")("getblockcount"))
-    ui_r = build_ui_window(inclusion, tip_r, False, False)
     gt_r = w2("gettransaction", str(cvg_txid))
     checks.append(
         {
-            "id": "restart_recovery_mid_window",
-            "pass": int(gt_r.get("confirmations", 0)) >= 1
-            and ui_r["remaining_blocks"] == ui_a["remaining_blocks"]
-            and ui_r["finalization_block"] == inclusion + W,
-            "snapshot": ui_r,
+            "id": "restart_recovery",
+            "pass": int(gt_r.get("confirmations", 0)) >= 1,
             "tx_confirmations": int(gt_r.get("confirmations", 0)),
-        }
-    )
-
-    # Finish W window for this tracked tx (may be No RES — valid product outcome)
-    remaining = max(0, (inclusion + W) - tip_r)
-    mine(w2, remaining + 1, addr)
-    tip_f = int(NodeRpc("Node-0")("getblockcount"))
-    # Check whether this tx ever won a draw in its window
-    allocated = False
-    for h in range(inclusion, min(inclusion + W, tip_f) + 1):
-        bh = NodeRpc("Node-0")("getblockhash", str(h))
-        fr = NodeRpc("Node-0")("getconvergenceresult", bh, allow_fail=True)
-        if isinstance(fr, dict) and fr.get("__error__"):
-            continue
-        if isinstance(fr, dict) and str(fr.get("draw_winner_txid", "")).lower() == str(cvg_txid).lower():
-            allocated = True
-            break
-    ui_f = build_ui_window(inclusion, tip_f, allocated, not allocated)
-    checks.append(
-        {
-            "id": "window_finalization",
-            "pass": ui_f["verification_pass"]
-            and tip_f >= inclusion + W
-            and ui_f["lifecycle"] in ("CompletedAllocated", "CompletedNoAllocation"),
-            "snapshot": ui_f,
-            "allocated": allocated,
         }
     )
     sync = assert_mesh_synced()
@@ -688,7 +584,6 @@ def phase_convergence_lifecycle(w: NodeRpc) -> dict:
         "pass": all(c["pass"] for c in checks),
         "tracked_txid": cvg_txid,
         "inclusion_height": inclusion,
-        "W": W,
         "checks": checks,
     }
     write_json(OUT / "phase_convergence_lifecycle.json", report)
@@ -696,7 +591,7 @@ def phase_convergence_lifecycle(w: NodeRpc) -> dict:
 
 
 def phase_res_mint_hunt(w: NodeRpc, *, max_rounds: int = 80, conv_amount: str = "1000.0") -> dict:
-    """Hunt for a real draw mint, then validate immature → mature RES lifecycle.
+    """Hunt for a real RFC-020 body mint, then validate immature → mature RES lifecycle.
 
     TASK-LMS-HARNESS-MATURITY-ALIGNMENT-001:
       Do NOT require res.trusted immediately after mint. Wallet correctly reports
@@ -717,7 +612,6 @@ def phase_res_mint_hunt(w: NodeRpc, *, max_rounds: int = 80, conv_amount: str = 
         if trusted < amt + Decimal("1"):
             mine(w, 30, addr)
             continue
-        # Pack several convergences into the same block to raise |F| weight.
         created = 0
         for _ in range(3):
             if oru_trusted(w("getbalances")) < amt + Decimal("1"):
@@ -731,27 +625,17 @@ def phase_res_mint_hunt(w: NodeRpc, *, max_rounds: int = 80, conv_amount: str = 
         if created == 0:
             mine(w, 10, addr)
             continue
-        # Awarding block
         mine(w, 1, addr)
-        tip = int(NodeRpc("Node-0")("getblockcount"))
-        award_hash = NodeRpc("Node-0")("getblockhash", str(tip))
-        fr = NodeRpc("Node-0")("getconvergenceresult", award_hash)
-        winner = str(fr.get("draw_winner_txid", "0" * 64))
-        # SECURITY-001-A8: payout is the next block
-        mine(w, 1, addr)
-        payout_hash = NodeRpc("Node-0")("getbestblockhash")
-        hdr = NodeRpc("Node-0")("getblockheader", payout_hash)
-        rows = body_res_mint_rows(NodeRpc("Node-0"), payout_hash)
+        tip_hash = NodeRpc("Node-0")("getbestblockhash")
+        hdr = NodeRpc("Node-0")("getblockheader", tip_hash)
+        rows = body_res_mint_rows(NodeRpc("Node-0"), tip_hash)
         if int(hdr.get("rigor_res_minted", 0) or 0) == 1 and rows:
             mint_events.append(
                 {
-                    "award_height": tip,
-                    "award_hash": award_hash,
-                    "payout_hash": payout_hash,
-                    "draw_winner_txid": winner,
+                    "height": int(NodeRpc("Node-0")("getblockcount")),
+                    "block_hash": tip_hash,
                     "mint_txid": rows[0][0],
                     "res_atoms": rows[0][1],
-                    "convergence_root_set_size": fr.get("convergence_root_set_size"),
                 }
             )
             break
@@ -919,14 +803,14 @@ def phase_reorg(w: NodeRpc) -> dict:
     sync = assert_mesh_synced()
     bal_after = w("getbalances")
 
-    # Determinism: Node-1/2 agree on tip and getconvergenceresult at tip-1 if available
+    # Determinism: Node-1/2 agree on tip and getblockconvergence at tip-1
     agree = True
     sample_h = max(1, height_after - 1)
     sample_hash = NodeRpc("Node-0")("getblockhash", str(sample_h))
-    fr0 = NodeRpc("Node-0")("getconvergenceresult", sample_hash)
+    fr0 = NodeRpc("Node-0")("getblockconvergence", sample_hash)
     for name in ("Node-1", "Node-2"):
-        frn = NodeRpc(name)("getconvergenceresult", sample_hash)
-        if frn.get("draw_winner_txid") != fr0.get("draw_winner_txid"):
+        frn = NodeRpc(name)("getblockconvergence", sample_hash)
+        if frn.get("cumulative_convergence") != fr0.get("cumulative_convergence"):
             agree = False
 
     checks.append(
@@ -942,10 +826,10 @@ def phase_reorg(w: NodeRpc) -> dict:
     )
     checks.append(
         {
-            "id": "deterministic_draw_agreement",
+            "id": "deterministic_convergence_agreement",
             "pass": agree and sync["all_synced"],
             "sample_hash": sample_hash,
-            "winner": fr0.get("draw_winner_txid"),
+            "cumulative_convergence": fr0.get("cumulative_convergence"),
             "sync": sync,
         }
     )
@@ -993,10 +877,9 @@ def phase_gui_acceptance(lifecycle: dict, mint: dict, oru: dict) -> dict:
     )
     checks.append(
         {
-            "id": "create_convergence_w32_lifecycle",
+            "id": "create_convergence_included",
             "pass": lifecycle.get("pass", False),
             "evidence": "phase_convergence_lifecycle.json",
-            "W": W,
         }
     )
     checks.append(
@@ -1009,9 +892,8 @@ def phase_gui_acceptance(lifecycle: dict, mint: dict, oru: dict) -> dict:
             "maturity_confirmations": RES_MINT_MATURITY_CONFIRMATIONS,
         }
     )
-    # Restart already exercised mid-window in lifecycle phase
     restart_ok = any(
-        c.get("id") == "restart_recovery_mid_window" and c.get("pass")
+        c.get("id") == "restart_recovery" and c.get("pass")
         for c in lifecycle.get("checks", [])
     )
     checks.append({"id": "restart_and_history", "pass": restart_ok})
@@ -1026,9 +908,9 @@ def phase_gui_acceptance(lifecycle: dict, mint: dict, oru: dict) -> dict:
             "Open rigor-qt -regtest against Node-0 datadir (or connect RPC)",
             "Confirm ORU balance visible after maturity",
             "Create Convergence from Convergence page",
-            "Confirm Status: Submitted → Active, W=32, start/current/finalization/remaining",
-            "After finalization: Success shows RES minted 100.00 RES OR Failed shows No RES minted",
-            "Close wallet mid-window, reopen, confirm remaining blocks restored",
+            "Confirm getconvergencestatus reports destroy_cost",
+            "After mint: Success shows RES minted (immature → trusted after maturity) OR no mint",
+            "Close wallet, reopen, confirm history persists",
             "Verify transaction history persists",
         ],
     }
@@ -1091,17 +973,16 @@ mining, and only spends matured coinbase ORU.
 | **Task** | `{TASK}` |
 | **Generated** | {final.get('generated_at')} |
 | **Verdict** | **{gui.get('pass') and 'PASS' or 'FAIL'}** |
-| **W** | `{W}` |
 
 ## Product journey exercised
 
 1. Create wallet  
 2. Receive ORU (maturity)  
 3. Create Convergence transaction  
-4. Wait W=32 window (UI lifecycle math)  
+4. Confirm destroy_cost via getconvergencestatus  
 5. Receive RES minted result (or verified no-mint)  
-6. Restart wallet mid-window  
-7. Verify history / remaining blocks  
+6. Restart wallet  
+7. Verify history  
 
 ## Automated checks (RPC mirrors of Qt lifecycle panel)
 
@@ -1130,20 +1011,18 @@ mining, and only spends matured coinbase ORU.
 | **Generated** | {final.get('generated_at')} |
 | **Lifecycle** | **{life.get('pass') and 'PASS' or 'FAIL'}** |
 | **RES mint hunt** | **{mint.get('pass') and 'PASS' or 'FAIL'}** |
-| **W** | `{W}` (unchanged) |
 | **RES reward** | `100.00 RES` (unchanged) |
 
-## Convergence lifecycle (W=32)
+## Convergence inclusion (RFC-020)
 
 Tracked tx: `{life.get('tracked_txid')}`  
 Inclusion height: `{life.get('inclusion_height')}`  
 
 {md_check_table(life.get('checks', []))}
 
-## RES mint (deterministic consensus allocation)
+## RES mint (destroy_cost / CheckResMintArithmetic)
 
-No `-reswalletbootstrap`. No manual RES creation. Mint must appear as body RES output after an
-eligible draw (SECURITY-001-A8: award at `h`, payout at `h+1`).
+No `-reswalletbootstrap`. No manual RES creation. Mint must appear as a body RES output.
 
 {md_check_table(mint.get('checks', []))}
 
@@ -1172,8 +1051,8 @@ Wallet (Node-0) → P2P mesh (Node-1 validator, Node-2 observer)
     → wait maturity
     → trusted ORU visible (getbalances / Qt)
     → createconvergence (CVG2 + RESO declaration)
-    → W=32 lifecycle tracking
-    → RES mint via draw (if eligible) OR verified no-mint
+    → destroy_cost / CheckResMintArithmetic
+    → RES mint (if arithmetic holds) OR verified no-mint
 ```
 
 ## Node roles
@@ -1188,7 +1067,7 @@ Wallet (Node-0) → P2P mesh (Node-1 validator, Node-2 observer)
 
 - Script is the compliance layer; no `CTxOut.asset` storage changes
 - ORU from PoW mining only
-- RES only from deterministic consensus allocation (draw mint)
+- RES only from RFC-020 body mint (CheckResMintArithmetic)
 """,
         encoding="utf-8",
     )
@@ -1211,9 +1090,9 @@ Wallet (Node-0) → P2P mesh (Node-1 validator, Node-2 observer)
 |------------|--------|
 | Multi-node P2P + sync | {'PASS' if phases.get('start_network', {}).get('pass') else 'FAIL'} |
 | ORU acquisition + maturity | {'PASS' if oru.get('pass') else 'FAIL'} |
-| Wallet Convergence + W=32 UI lifecycle | {'PASS' if life.get('pass') else 'FAIL'} |
-| RES mint via consensus draw | {'PASS' if mint.get('pass') else 'FAIL'} |
-| Restart recovery | {'PASS' if any(c.get('id')=='restart_recovery_mid_window' and c.get('pass') for c in life.get('checks', [])) else 'FAIL'} |
+| Wallet Convergence inclusion | {'PASS' if life.get('pass') else 'FAIL'} |
+| RES mint via destroy_cost | {'PASS' if mint.get('pass') else 'FAIL'} |
+| Restart recovery | {'PASS' if any(c.get('id')=='restart_recovery' and c.get('pass') for c in life.get('checks', [])) else 'FAIL'} |
 | Controlled reorg | {'PASS' if phases.get('reorg', {}).get('pass') else 'FAIL'} |
 | GUI acceptance (RPC + checklist) | {'PASS' if gui.get('pass') else 'FAIL'} |
 
@@ -1248,7 +1127,7 @@ Do **not** rewrite official repository history; cherry-pick onto official tree a
 ## Scope
 
 Production-like **local** multi-node simulation of the frozen protocol as a product.
-**Not** a consensus redesign. No changes to ORU emission, RES cap, W, T, serialization, or script rules.
+**Not** a consensus redesign. No changes to ORU emission, RES cap, serialization, or script rules.
 
 ## Topology
 
@@ -1285,7 +1164,7 @@ Docs: `docs/release/local_simulation/`
 | No consensus parameter changes | PASS (asserted; dirty paths listed above) |
 | Wallet receives ORU | {'PASS' if oru.get('pass') else 'FAIL'} |
 | Wallet creates Convergence | {'PASS' if life.get('pass') else 'FAIL'} |
-| Wallet displays W=32 lifecycle | {'PASS' if life.get('pass') else 'FAIL'} |
+| Wallet displays Convergence + destroy_cost | {'PASS' if life.get('pass') else 'FAIL'} |
 | Wallet receives RES minted result | {'PASS' if mint.get('pass') else 'FAIL'} |
 | No fake balance / maturity bypass / manual RES | PASS (harness design) |
 | Complete user journey demonstrated | {'PASS' if overall == 'PASS' else 'FAIL'} |
@@ -1316,7 +1195,7 @@ def run_full(*, wipe: bool, max_mint_rounds: int) -> dict:
     oru["miningresfeeaddr"] = mining_res
     oru["miningresfeeaddr_note"] = (
         "Mockable-chain BlockAssembler requires -miningresfeeaddr to assemble the automatic "
-        "RES body mint when a draw winner exists; payout script is still A-5 owner declaration."
+        "RES body mint; payout script is still A-5 owner declaration."
     )
     write_json(OUT / "phase_oru_acquisition.json", oru)
     life = phase_convergence_lifecycle(ensure_wallet())
@@ -1348,7 +1227,6 @@ def run_full(*, wipe: bool, max_mint_rounds: int) -> dict:
         "manual_res_creation": False,
         "reswalletbootstrap": False,
         "res_mint_maturity_confirmations": RES_MINT_MATURITY_CONFIRMATIONS,
-        "W": W,
         "phases": phases,
         "binaries": {
             "rigord": str(RIGORD.relative_to(ROOT)),

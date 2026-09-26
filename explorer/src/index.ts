@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import path from "node:path";
 import { loadConfigFromEnv } from "./config";
 import { buildCompliancePayload } from "./compliance";
@@ -6,7 +6,7 @@ import { createPool, ensureSchema, getOrCreateChainState, updateChainState } fro
 import { importerTick } from "./importer";
 import { getImporterRecoveryState } from "./importerRecovery";
 import { logMismatchEvent } from "./mismatchLog";
-import { registerApiRoutes, registerUiRoutes } from "./registerRoutes";
+import { registerApiRoutes, registerUiRoutes, wantsHtmlPage } from "./registerRoutes";
 import { createRateLimitMiddleware } from "./rateLimit";
 import { assertFailClosedStartup } from "./startupGuard";
 
@@ -53,6 +53,27 @@ async function main(): Promise<void> {
 
   app.use(express.static(publicDir));
   app.get("/", (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
+
+  app.use((req, res) => {
+    if (wantsHtmlPage(req)) {
+      res.status(404).sendFile(path.join(publicDir, "404.html"));
+      return;
+    }
+    res.status(404).json({ error: "not found" });
+  });
+
+  app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    console.error("Unhandled explorer error:", err);
+    if (wantsHtmlPage(req)) {
+      res.status(500).sendFile(path.join(publicDir, "500.html"));
+      return;
+    }
+    res.status(500).json({ error: "internal error" });
+  });
 
   let importing = false;
 

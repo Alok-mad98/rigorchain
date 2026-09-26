@@ -1,5 +1,8 @@
 [Unit]
-Description=RIGOR Explorer indexer (read-only observer)
+Description=RIGOR Explorer indexer (read-only mainnet observer)
+# Canonical production unit name: rigor-explorer.service
+# EnvironmentFile must set RIGOR_NETWORK=mainnet and a mainnet-only database.
+# explorer-indexer-mvp.service is not this unit and is not installed in production.
 After=network.target postgresql.service
 Wants=postgresql.service
 

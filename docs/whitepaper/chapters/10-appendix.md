@@ -26,7 +26,7 @@ lives in Chapter 8 §8.5. This appendix does not repeat it.
 | Cumulative ceiling | `cumulative(h) = 2²² · h / (h + 2²⁵)` |
 | `RES_COIN` | 100000000 atoms per whole coin |
 | Mint locus | Body tx: unique positive `OP_CONVERGE` + same-tx Witness v1 RES |
-| Mint maturity | 100 (same as coinbase; reorg protection, not a draw wait) |
+| Mint maturity | 100 (same as coinbase; reorg protection) |
 | RFC-018 | Half of RES-transfer ORU fees unclaimable: `Σ floor(fee(tx) / 2)` |
 | Reverse | RES → ORU forbidden |
 
@@ -116,7 +116,6 @@ Noun list (not Chapter 9 narrative): [`09-glossary.md`](./09-glossary.md).
 | SPEC-002 | ORU / RES recurrences |
 | `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` | Freeze declaration |
 | RFC-001 / 002 / 008 | Historical specs; code and RFC-020 govern |
-| RFC-014 / 015 / 017 / 019 | Historical; lottery and window paths retired |
 
 This paper does not edit RFC texts. Historical entries are not live
 rules.

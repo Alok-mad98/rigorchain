@@ -10,7 +10,7 @@ const SURFACES = [
 ] as const;
 
 export function ExplorerPortalPage() {
-  const explorer = explorerBaseUrl() ?? "https://explorer.rigorchain.com";
+  const explorer = explorerBaseUrl() ?? "http://explorer.rigorchain.com";
   return (
     <div className="page">
       <SubNav />

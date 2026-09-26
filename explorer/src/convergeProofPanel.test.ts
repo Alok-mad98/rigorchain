@@ -2,22 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildConvergeProofPanel, CONVERGEPROOF_AUTHORITY_NOTICE } from "./convergeProofPanel";
 import { buildTxConvergencePanel } from "./convergencePanel";
-import { buildPcorbItems, buildTxWitnessPanel } from "./witnessPanel";
-
-function pcorbStack(): string[] {
-  return [
-    "a".repeat(64),
-    "0100000000000000",
-    "b".repeat(64),
-    "0200000000000000",
-    "ffffffff",
-    "c".repeat(64),
-    "75757575757551",
-  ];
-}
+import { buildTxWitnessPanel } from "./witnessPanel";
 
 describe("convergeProofPanel", () => {
-  it("is visible for a body mint without a PCORB stack", () => {
+  it("is visible for a body mint", () => {
     const txid = "coinbase";
     const convPanel = buildTxConvergencePanel([]);
     const witness = buildTxWitnessPanel(
@@ -30,13 +18,11 @@ describe("convergeProofPanel", () => {
           winner_convergence_txid: "winner",
           block_hash: "bh",
           block_height: 100,
-          convergence_root: "c".repeat(64),
           proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
       { block_hash: "bh", height: 100, rigor_winner: "", rigor_res_minted: 1 },
       convPanel,
-      [],
     );
 
     const panel = buildConvergeProofPanel({
@@ -50,7 +36,6 @@ describe("convergeProofPanel", () => {
           winner_convergence_txid: "winner",
           block_hash: "bh",
           block_height: 100,
-          convergence_root: "c".repeat(64),
           proof_items: { source: "coinbase_op_res_mint" },
         },
       ],
@@ -63,7 +48,6 @@ describe("convergeProofPanel", () => {
 
     assert.equal(panel.visible, true);
     assert.equal(panel.kind, "res_mint");
-    assert.equal(panel.pcorb_witness, null);
     assert.equal(panel.res_mint_linkage.confirmations, 6);
     assert.equal(panel.res_mint_outputs.length, 1);
     assert.equal(panel.winner_txid, "winner");
@@ -72,12 +56,12 @@ describe("convergeProofPanel", () => {
   it("is visible for winner convergence tx with sigma digest", () => {
     const txid = "winner";
     const convPanel = buildTxConvergencePanel([{ block_hash: "bh", block_height: 50, is_winner: true }]);
-    const witness = buildTxWitnessPanel(txid, [], [], null, convPanel, [{ block_height: 50, convergence_root: "root" }]);
+    const witness = buildTxWitnessPanel(txid, [], [], null, convPanel);
 
     const panel = buildConvergeProofPanel({
       txid,
       convergencePanel: convPanel,
-      convergenceRows: [{ block_height: 50, convergence_root: "root", selection_digest_h: "ee".repeat(32) }],
+      convergenceRows: [{ block_height: 50, selection_digest_h: "ee".repeat(32) }],
       resMintRows: [],
       linkedMintRows: [{ mint_txid: "mint1", winner_convergence_txid: txid, block_height: 50, block_hash: "bh", mint_vout_index: 0, mint_amount: "10000" }],
       witnessPanel: witness,
@@ -96,7 +80,7 @@ describe("convergeProofPanel", () => {
 
   it("hidden for non-participating transactions", () => {
     const convPanel = buildTxConvergencePanel([]);
-    const witness = buildTxWitnessPanel("x", [], [], null, convPanel, []);
+    const witness = buildTxWitnessPanel("x", [], [], null, convPanel);
     const panel = buildConvergeProofPanel({
       txid: "x",
       convergencePanel: convPanel,
@@ -111,7 +95,4 @@ describe("convergeProofPanel", () => {
     assert.equal(panel.visible, false);
   });
 
-  it("buildPcorbItems produces 6 named elements", () => {
-    assert.equal(buildPcorbItems(pcorbStack()).length, 6);
-  });
 });

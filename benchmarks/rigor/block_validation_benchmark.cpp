@@ -38,7 +38,7 @@ int main(int argc, char** argv)
     std::vector<UTXOStateTransitionInput> many_out = {ManyOutInput(64)};
     std::vector<UTXOStateTransitionInput> oru = {OruTransferInput()};
     std::vector<UTXOStateTransitionInput> res = {ResMaturityInput(100)};
-    std::vector<UTXOStateTransitionInput> draw = {DrawBlockInput()};
+    std::vector<UTXOStateTransitionInput> subsidy = {SubsidyBlockInput()};
     std::vector<UTXOStateTransitionInput> large_utxo = {LargeUtxoInput(4096)};
 
     std::printf("{\"bench\":\"block_validation\",\"iters\":%llu}\n",
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     emit("many_outputs", iters, many_out);
     emit("oru_transfer", iters, oru);
     emit("res_maturity_spend", iters, res);
-    emit("convergence_draw", iters, draw);
+    emit("subsidy_block", iters, subsidy);
     emit("large_utxo", iters / 8 + 1, large_utxo);
 
     if (ApplyBlock(empty_block) != ApplyBlock(empty_block)) {

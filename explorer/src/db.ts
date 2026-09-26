@@ -153,7 +153,6 @@ export async function listBlocks(pool: Pool, limit: number, offset = 0): Promise
     `
       SELECT b.height, b.block_hash, b.time, b.tx_count,
              b.rigor_winner,
-             b.c_root,
              b.consensus_fingerprint,
              b.draw_candidate_root,
              b.committed_root,
@@ -276,7 +275,8 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
     outsByTx.set(o.txid, list);
   }
 
-  const block = b.rows[0];
+  const block = { ...b.rows[0] };
+  delete block.c_root;
   const resMinted = Number(block.rigor_res_minted ?? 0);
   const mintRows = await pool.query<{ mint_txid: string; mint_amount: string }>(
     `SELECT mint_txid, mint_amount::text AS mint_amount FROM res_mints WHERE block_hash = $1`,
@@ -323,7 +323,7 @@ export async function getBlockByHash(pool: Pool, hash: string): Promise<any | nu
 
   const candidates = await pool.query(
     `
-      SELECT convergence_txid, draw_eligible, convergence_root
+      SELECT convergence_txid, draw_eligible
       FROM convergence_events
       WHERE block_hash = $1
       ORDER BY convergence_txid ASC
@@ -508,7 +508,6 @@ export async function getTxByTxid(pool: Pool, txid: string): Promise<any | null>
     resMint.rows,
     blockCtx.rows[0] ?? null,
     convergence_panel,
-    convergence.rows,
   );
 
   const linkedMint = await pool.query(
@@ -637,7 +636,6 @@ export async function listResMints(pool: Pool, limit: number): Promise<any[]> {
       SELECT rm.block_height, b.block_hash, rm.mint_txid, rm.mint_vout_index, rm.mint_amount,
              rm.winner_convergence_txid,
              rm.bind_hash, rm.bind_height,
-             rm.convergence_root,
              rm.draw_eligible,
              rm.res_probability_target,
              rm.committed_root, rm.computed_root,

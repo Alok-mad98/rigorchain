@@ -17,7 +17,7 @@ int main(int argc, char** argv)
     const auto oru = OruTransferInput();
     const auto res_ok = ResMaturityInput(100);
     const auto res_early = ResMaturityInput(99);
-    const auto draw = DrawBlockInput();
+    const auto subsidy = SubsidyBlockInput();
     const auto large = LargeUtxoInput(4096);
     const auto many_in = ManyInInput(32);
     const auto many_out = ManyOutInput(32);
@@ -41,7 +41,7 @@ int main(int argc, char** argv)
     PrintSample(RunTimed("res_mint_maturity", "kernel", iters, [&] {
         return KernelUtxoStep(res_ok) ^ (KernelUtxoStep(res_early) << 1);
     }));
-    pair("convergence_draw", draw, iters);
+    pair("subsidy_block", subsidy, iters);
     pair("large_utxo", large, iters / 4 + 1);
     pair("many_inputs", many_in, iters);
     pair("many_outputs", many_out, iters);

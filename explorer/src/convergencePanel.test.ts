@@ -1,7 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  C_ROOT_LABEL,
   DRAW_ROOT_LABEL,
   buildBlockConvergencePanel,
   buildTxConvergencePanel,
@@ -25,14 +24,13 @@ describe("buildTxConvergencePanel", () => {
 });
 
 describe("buildBlockConvergencePanel", () => {
-  it("keeps C and split draw roots as separate RPC-aligned fields", () => {
+  it("keeps split draw roots as separate RPC-aligned fields", () => {
     const panel = buildBlockConvergencePanel(
       {
         rigor_winner: "",
         committed_root: "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
         computed_root: "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
         draw_candidate_root: "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
-        c_root: "04644ee72744a48d226f795d7cc4d692cbf763975275b7054dec59baedfaa7ba",
       },
       [
         { convergence_txid: "a", draw_eligible: false },
@@ -41,16 +39,12 @@ describe("buildBlockConvergencePanel", () => {
     );
     assert.equal(panel.candidate_set_size, 2);
     assert.equal(panel.eligible_count, 0);
-    assert.equal(panel.c_root, "04644ee72744a48d226f795d7cc4d692cbf763975275b7054dec59baedfaa7ba");
-    assert.equal(panel.convergence_root, panel.c_root);
     assert.equal(
       panel.draw_candidate_root_committed,
       "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
     );
     assert.equal(panel.draw_candidate_root, panel.draw_candidate_root_committed);
     assert.equal(panel.draw_candidate_root_computed, panel.draw_candidate_root_committed);
-    assert.notEqual(panel.c_root, panel.draw_candidate_root);
-    assert.equal(C_ROOT_LABEL, "C (convergence_root)");
     assert.equal(DRAW_ROOT_LABEL, "draw_candidate_root_committed");
   });
 
@@ -60,7 +54,6 @@ describe("buildBlockConvergencePanel", () => {
         rigor_winner: "a80d8c17",
         committed_root: "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
         computed_root: "5371455808011a2a80f870425e923d25eded85fb65246af20b06b8ebd2634a39",
-        c_root: "c5a813823c00036f76bd1ab005dc1230cec5170315eaee70182598369c7115b0",
       },
       [
         { convergence_txid: "a80d8c17", draw_eligible: true },
@@ -78,7 +71,6 @@ describe("buildBlockConvergencePanel", () => {
         rigor_winner: "",
         committed_root: "5371455808011a2a80f870425e923d25eded85fb65246af20b06b8ebd2634a39",
         computed_root: "56944c5d3f98413ef45cf54545538103cc9f298e0575820ad3591376e2e0f65d",
-        c_root: "",
       },
       [{ convergence_txid: "08842485", draw_eligible: false }],
     );
@@ -106,13 +98,11 @@ describe("buildBlockConvergencePanel", () => {
     assert.equal(panel.block_height, 527);
   });
 
-  it("does not fall back to the draw root when C is missing", () => {
+  it("does not invent a second root from the committed draw root", () => {
     const panel = buildBlockConvergencePanel(
       { rigor_winner: "", committed_root: "56944c5d" + "aa".repeat(28) },
       [{ convergence_txid: "a", draw_eligible: false }],
     );
-    assert.equal(panel.c_root, null);
-    assert.equal(panel.convergence_root, null);
     assert.match(panel.draw_candidate_root, /^56944c5d/);
   });
 });

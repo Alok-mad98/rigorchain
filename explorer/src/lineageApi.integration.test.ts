@@ -27,7 +27,6 @@ function assertLineageShape(body: Record<string, unknown>): void {
   assert.ok(body.candidate_set, "candidate_set");
   assert.ok(body.winner, "winner");
   assert.ok(body.sigma, "sigma");
-  assert.ok(body.pcorb, "pcorb");
   assert.ok(body.mint, "mint");
   assert.ok(body.block_context, "block_context");
   assert.ok(Array.isArray(body.nodes), "nodes");

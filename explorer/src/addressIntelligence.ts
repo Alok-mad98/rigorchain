@@ -48,6 +48,12 @@ export function isValidAddressFormat(address: string): boolean {
   return parseRigorAddress(address) !== null;
 }
 
+/** True only when the address HRP is the one locked to this explorer network. */
+export function addressMatchesExplorerHrp(address: string, hrp: string): boolean {
+  const parsed = parseRigorAddress(address);
+  return parsed?.hrp === hrp;
+}
+
 /** Witness v0 uses Bech32; v1 uses Bech32m (RFC-ADDRESS-002). Live Convergence is OP_CONVERGE (no receive address). */
 export function inferAddressTypeFromBech32(address: string): AddressTypeLabel {
   const parsed = parseRigorAddress(address);

@@ -62,7 +62,7 @@ Same tx mints RES at destroy_cost(h)
 3. Connect the miner to the pool
 4. Observe shares and height
 5. Observe ORU maturity (immature coinbase vs trusted ORU)
-6. Converge ORU; the same transaction mints RES at `destroy_cost(h)` when authorized (no waiting / selected draw)
+6. Converge ORU; the same transaction mints RES at `destroy_cost(h)` when the predicate holds
 7. Observe RES
 8. Verify a block hash independently (Zero Trust), not by trusting the pool UI
 

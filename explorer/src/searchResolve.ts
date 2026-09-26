@@ -38,7 +38,7 @@ export type SearchLookups = {
 const HEX64 = /^[0-9a-f]{64}$/i;
 const BLOCK_HEIGHT = /^\d{1,12}$/;
 const UNRECOGNIZED =
-  "Unrecognized input. Expected a block height, 64-char hex (txid or block hash), or a RIGOR bech32 address (rg1… / trg1…).";
+  "Unrecognized input. Expected a block height, 64-char hex (txid or block hash), or a bech32 address for this explorer network.";
 
 export function parseBlockHeightQuery(raw: string): string | null {
   const q = raw.trim();

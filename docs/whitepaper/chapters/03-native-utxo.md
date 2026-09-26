@@ -255,4 +255,4 @@ That file is an implementation audit, not a second economic claim.
 **Identity lives in the script. Legitimacy lives in consensus.**
 Chapter 4 states how Convergence is verified as that one-way bridge —
 the destroy is visible, the mint is an integer predicate in the same
-transaction, not a draw and not a 1:1 counter.
+transaction, not a 1:1 counter.

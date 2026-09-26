@@ -4,7 +4,6 @@ import { buildBlockConvergencePanel, type BlockConvergencePanel } from "./conver
 import type { ConvergeProofPanel } from "./convergeProofPanel";
 import type { ConvergenceCandidateRow } from "./convergencePanel";
 import { atomsToResDisplay } from "./witnessPanel";
-import type { PcorbStackItem } from "./witnessPanel";
 
 export const LINEAGE_READONLY_NOTICE =
   "Relationship data is derived from indexed rigord data. No lineage relationships are computed in the browser.";
@@ -24,9 +23,7 @@ export type LineageNodeKind =
   | "candidate"
   | "candidate_set"
   | "winner"
-  | "convergence_root"
   | "sigma_digest"
-  | "pcorb"
   | "res_mint"
   | "block";
 
@@ -62,14 +59,8 @@ export type LineageGraph = {
     state: LineageVisualState;
     href: string | null;
   };
-  convergence_root: string | null;
   sigma: {
     selection_digest_h: string | null;
-  };
-  pcorb: {
-    present: boolean;
-    item_count: number;
-    items: Array<PcorbStackItem & { hex_byte_length: number }> | null;
   };
   mint: {
     mint_txid: string | null;
@@ -103,8 +94,6 @@ export type LineageGraph = {
 export const LINEAGE_LEGEND: LineageGraph["legend"] = [
   { kind: "Destroy", description: "OP_CONVERGE output: ORU destroyed" },
   { kind: "Mint", description: "RES created in the same transaction. ORU destroyed. RES minted." },
-  { kind: "Root", description: "C (convergence_root) from indexed getconvergenceresult, observer only" },
-  { kind: "PCORB", description: "Retired body-witness mint proof (not live issuance)" },
 ];
 
 function txHref(txid: string): string {
@@ -126,9 +115,7 @@ export function emptyLineageGraph(anchor: string | null = null): LineageGraph {
     f_set_size: 0,
     candidate_set: [],
     winner: { txid: null, state: "Candidate", href: null },
-    convergence_root: null,
     sigma: { selection_digest_h: null },
-    pcorb: { present: false, item_count: 0, items: null },
     mint: {
       mint_txid: null,
       mint_height: null,
@@ -186,12 +173,6 @@ export function buildLineageGraph(args: {
   if (!participates && fSetSize === 0) {
     return emptyLineageGraph(args.anchorTxid);
   }
-
-  const root =
-    args.blockPanel?.c_root ??
-    args.blockPanel?.convergence_root ??
-    args.convergeProof.convergence_root ??
-    (args.winnerConvergenceRow?.convergence_root ? String(args.winnerConvergenceRow.convergence_root) : null);
 
   const sigmaHex =
     args.convergeProof.sigma_digest?.hex ??
@@ -283,17 +264,6 @@ export function buildLineageGraph(args: {
       value: winnerTxid,
     });
 
-    const rootId = "convergence_root";
-    nodes.push({
-      id: rootId,
-      kind: "convergence_root",
-      label: "C (convergence_root)",
-      state: "Winner",
-      href: blockHash ? blockHref(blockHash) : null,
-      value: root,
-    });
-    edges.push({ from: winnerId, to: rootId });
-
     if (mintTxid) {
       const mintId = `mint:${mintTxid}`;
       nodes.push({
@@ -305,7 +275,7 @@ export function buildLineageGraph(args: {
         value: mintTxid,
         meta: { mint_height: mintHeight, mint_amount_display: mintAmount },
       });
-      edges.push({ from: rootId, to: mintId });
+      edges.push({ from: winnerId, to: mintId });
     }
   }
 
@@ -331,13 +301,7 @@ export function buildLineageGraph(args: {
       state: winnerTxid ? "Winner" : "Candidate",
       href: winnerTxid ? txHref(winnerTxid) : null,
     },
-    convergence_root: root,
     sigma: { selection_digest_h: sigmaHex },
-    pcorb: {
-      present: false,
-      item_count: 0,
-      items: null,
-    },
     mint: {
       mint_txid: mintTxid,
       mint_height: mintHeight,
@@ -374,7 +338,6 @@ export function buildBlockLineageGraph(
     mismatch?: boolean;
     committed_root: string;
     draw_candidate_root?: string;
-    c_root?: string | null;
   },
   candidates: ConvergenceCandidateRow[],
   convergeProof: ConvergeProofPanel,
@@ -390,7 +353,6 @@ export function buildBlockLineageGraph(
       mint_txid: winnerTxid || null,
       committed_root: block.committed_root,
       draw_candidate_root: block.draw_candidate_root,
-      c_root: block.c_root ?? null,
     },
     candidates,
   );

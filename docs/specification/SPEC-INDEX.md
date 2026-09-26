@@ -73,7 +73,7 @@ ESTABLISHED SPEC entry:
 
 | Document | Role |
 |----------|------|
-| [`docs/protocol/RFC-020.md`](../protocol/RFC-020.md) | Live issuance |
+| [`docs/protocol/RFC-020.md`](../protocol/RFC-020.md) | Deterministic Economics for Human and Machine Verification. Live issuance |
 | [`docs/protocol/RFC-018.md`](../protocol/RFC-018.md) | RES-transfer fee burn |
 | `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md` | Public mathematics |
 | [`docs/protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](../protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | Mainnet freeze statement |

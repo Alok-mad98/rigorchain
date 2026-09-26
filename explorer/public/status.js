@@ -30,6 +30,11 @@
     return `<section class="status-card"><h2>${escapeHtml(title)}</h2><dl>${rows.join("")}</dl></section>`;
   }
 
+  function networkLabel(id) {
+    const n = String((id && (id.network || id.network_type)) || "").trim();
+    return n ? n.toUpperCase() : "—";
+  }
+
   function renderDashboard(data) {
     const id = data.chain_identity ?? {};
     const bh = data.block_health ?? {};
@@ -41,14 +46,15 @@
       eco.supply_chart && eco.supply_chart.total_issued_oru
         ? eco.supply_chart.total_issued_oru.display
         : eco.oru_supply_cumulative_display;
+    const net = networkLabel(id);
 
     const sections = [
       renderSection("Chain identity", [
-        dlRow("Product", fmt(id.product ?? id.chain_name)),
-        dlRow("Network", fmt(id.network ?? id.network_type)),
-        dlRow("Genesis hash", shortMono(id.genesis_hash)),
-        dlRow("Node version", fmt(id.node_subversion ?? id.node_version)),
-        dlRow("Explorer version", fmt(id.explorer_version)),
+        dlRow("Chain", fmt(id.chain_name)),
+        dlRow("Network", fmt(net)),
+        dlRow("Genesis", shortMono(id.genesis_hash)),
+        dlRow("Node", fmt(id.node_subversion ?? id.node_version)),
+        dlRow("Explorer", fmt(id.explorer_version)),
         dlRow("Best block", shortMono(bh.best_block_hash)),
       ]),
       renderSection("Block production", [
@@ -57,6 +63,7 @@
         dlRow("Difficulty", fmt(bh.difficulty)),
         dlRow("nBits", fmt(bh.bits)),
         dlRow("OpuHash", shortMono(bh.opus_hash ?? bh.pow_hash)),
+        dlRow("Peers", fmt(mine.connections)),
         dlRow("Mempool tx count", fmt(mine.mempool_tx_count)),
       ]),
       renderSection("Indexer integrity", [
@@ -79,6 +86,7 @@
     ];
 
     return `
+      <p class="network-mark">NETWORK <strong>${escapeHtml(net)}</strong></p>
       <div class="status-grid status-grid--pair">${sections.join("")}</div>
     `;
   }

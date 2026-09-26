@@ -12,7 +12,6 @@
 
   function pathClass(kind) {
     if (kind === "oru_input") return "path-oru";
-    if (kind === "res_mint_pcorb") return "path-res-mint";
     if (kind === "res_key_path") return "path-res-key";
     if (kind === "coinbase") return "path-coinbase";
     return "";
@@ -22,37 +21,11 @@
     return `<button type="button" class="convergence-copy-btn" data-copy="${escapeHtml(hex)}">Copy</button>`;
   }
 
-  function renderPcorbTable(items, routes) {
-    const txPath = routes.txPath.bind(routes);
-    const rows = items
-      .map((item) => {
-        let valueHtml = `<span class="witness-hex">${escapeHtml(item.hex)}</span>`;
-        if (item.field_name === "convergence_txid") {
-          valueHtml = `<a href="${escapeHtml(txPath(item.hex))}" class="witness-hex">${escapeHtml(item.hex)}</a>`;
-        }
-        const noteHtml = item.note ? escapeHtml(item.note) : "";
-        return `<tr>
-          <td>${item.index}</td>
-          <td>${escapeHtml(item.field_name)}</td>
-          <td>${valueHtml} ${copyBtn(item.hex)}</td>
-          <td>${noteHtml}</td>
-        </tr>`;
-      })
-      .join("");
-
-    return `<table class="witness-pcorb-table">
-      <thead><tr><th>#</th><th>Field</th><th>Hex</th><th>Note</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  }
-
   function renderVinInput(vin, routes) {
     const cls = pathClass(vin.path_kind);
     let body = `<p class="witness-meta muted">Stack depth: ${vin.stack_depth}</p>`;
 
-    if (vin.path_kind === "res_mint_pcorb" && vin.pcorb_items) {
-      body += renderPcorbTable(vin.pcorb_items, routes);
-    } else if (vin.witness_stack && vin.witness_stack.length > 0) {
+    if (vin.witness_stack && vin.witness_stack.length > 0) {
       body += `<div class="witness-hex">${vin.witness_stack.map((h, i) => `[${i}] ${escapeHtml(h)}`).join("<br/>")}</div>`;
       body += `<p>${copyBtn(vin.witness_hex)}</p>`;
       if (vin.path_kind === "res_key_path") {
@@ -99,9 +72,7 @@
       html += `<p class="witness-meta">Block: <a href="${escapeHtml(blockPath(proof.block_hash))}">${escapeHtml(proof.block_hash)}</a></p>`;
     }
 
-    if (proof.proof_items && proof.proof_items.length > 0) {
-      html += `<h4>Historical witness stack (not issuance)</h4>${renderPcorbTable(proof.proof_items, routes)}`;
-    } else if (proof.present) {
+    if (proof.present) {
       html += `<p class="muted">Issuance is the same body transaction: <code>OP_CONVERGE</code> destroy plus Witness v1 RES. ORU destroyed. RES minted.</p>`;
     }
 
@@ -115,18 +86,12 @@
         <dd>${status.candidate_set_height != null ? status.candidate_set_height : "—"}</dd>
         <dt>Issuance status</dt>
         <dd>${escapeHtml(status.winner_status === "Winner" ? "Mint" : status.winner_status === "Candidate" ? "Destroy" : status.winner_status)}</dd>
-        <dt>C (convergence_root)</dt>
-        <dd>
-          ${status.convergence_root
-            ? `<span class="witness-hex">${escapeHtml(status.convergence_root)}</span> ${copyBtn(status.convergence_root)}`
-            : "—"}
-        </dd>
       </dl>`;
   }
 
   function renderWitnessPanel(panel, routes) {
     const oruInputs = panel.inputs.filter((i) => i.path_kind === "oru_input" || i.path_kind === "coinbase" || i.path_kind === "other");
-    const resInputs = panel.inputs.filter((i) => i.path_kind === "res_mint_pcorb" || i.path_kind === "res_key_path");
+    const resInputs = panel.inputs.filter((i) => i.path_kind === "res_key_path");
 
     let inputsHtml = "";
     if (resInputs.length > 0) {

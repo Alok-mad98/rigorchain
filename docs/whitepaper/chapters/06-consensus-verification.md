@@ -49,9 +49,6 @@ valid only if the committed values equal the recomputed values.
 
 Nobody is asked to trust an explorer `VALID` flag.
 
-Lottery-era objects (Convergence Root / Draw Candidate Root / σ / winner)
-are **retired**. They are not live issuance checks.
-
 ---
 
 ## Fingerprint Library
@@ -59,9 +56,6 @@ are **retired**. They are not live issuance checks.
 The **Consensus Fingerprint Library** publishes a deterministic identity
 over already-public fields. It is **observational**. It does not accept or
 reject blocks.
-
-Lottery-era fingerprint inputs (`ConvergenceRoot`, `winner_txid`, `Sigma`)
-are **retired**. They are not live issuance commitments.
 
 An explorer may *display* a fingerprint. A verifier *recomputes* it.
 Equality means the published identity matches the local bytes. It does not

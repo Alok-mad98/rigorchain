@@ -15,7 +15,7 @@ Two numbers carry the public mathematics of **shipping** RIGOR:
 | **`destroy_cost(h)`** | RES mint cost (display) | `1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES |
 | **128 = 2⁷** | ORU block subsidy | Flat miner payment for every `h ≥ 1` |
 
-Fairness is the published integer mint inequality, not a hash lottery.
+Fairness is the published integer mint inequality.
 
 ```
 R > 0  →  R · (2²⁵ + h)² ≤ B << 40
@@ -149,32 +149,4 @@ integer rule. No hidden schedule. No discretionary last reward.
 
 ---
 
-## Historical RFC only — RFC-014 `65536` / `p_draw` (not shipping)
-
-> **Historical RFC — not an active consensus parameter.** RFC-014 taught
-> `E = 240`, `2^240 / 2^256 = 1/65536` (`C = 65536` ORU) and a windowed
-> `p_draw`. Those figures are **not** shipping issuance. RFC-017’s later
-> `E = 246` / `C = 1024` / window 32 lottery is likewise **retired**.
-> Live issuance is RFC-020 `destroy_cost(h)` / `R · (2²⁵ + h)² ≤ B << 40`.
-
-The following is recorded so the historical RFC is not mistaken for
-current rules.
-
-**65536 is 2^16.** It is one of the classic scales of computing: the
-number of distinct values in sixteen bits. SHA-256’s output space is
-`2^256` values. The RFC-014 teaching identity was:
-
-```
-2^240 / 2^256  =  1 / 2^16  =  1 / 65536
-```
-
-```
-p(n ORU)  =  min(1,  n / 65536)     (historical aggregate identity)
-p_draw(n)  =  n / (65536 · 32)      (historical per-draw; not live)
-```
-
-Donald E. Knuth’s well-known affection for 65536 is a computing-history
-note, not a consensus justification. RIGOR does not ship a 1/65536
-lottery, a `p_draw` gate, or an `E = 246` hash-space mint.
-
-**Shipping fairness is `R · (2²⁵ + h)² ≤ B << 40`, not a hash lottery.**
+Shipping fairness is `R · (2²⁵ + h)² ≤ B << 40`.

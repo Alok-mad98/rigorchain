@@ -149,7 +149,7 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   const blockWindow = await pool.query(
     `
       SELECT height, time, bits, opus_hash, rigor_winner, rigor_res_minted,
-             committed_root, computed_root, mismatch, draw_candidate_root, c_root
+             committed_root, computed_root, mismatch, draw_candidate_root
       FROM blocks
       ORDER BY height DESC
       LIMIT 100
@@ -161,7 +161,6 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
   const avgBlockTime = averageBlockTimeSeconds(times);
 
   const tipBlock = blocks[0] ?? null;
-  const tipCRoot = typeof tipBlock?.c_root === "string" ? tipBlock.c_root : null;
 
   const fCounts = await pool.query(
     `
@@ -369,10 +368,9 @@ export async function buildStatusDashboard(config: Config, pool: Pool): Promise<
     },
     convergence_health: {
       issuance_status: DRAW_STATUS_DISPLAY,
-      c_root: tipCRoot,
       mint_blocks_last_100: mintBlocks,
       convergence_burns_last_100: fSizes.filter((n) => n > 0).length,
-      convergence_root_stability: {
+      committed_root_stability: {
         distinct_committed_roots_last_100: rootChanges,
         mismatch_blocks_last_100: mismatchBlocks,
         stable: mismatchBlocks === 0,

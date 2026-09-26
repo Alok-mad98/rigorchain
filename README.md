@@ -132,7 +132,7 @@ Protocol SSOT: [`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md),
 | P2P port | `8760` |
 | RPC port | `8761` |
 | Bech32 HRP | `rg` |
-| Consensus lock | `RIGOR_CONSENSUS_LOCK_VERSION = 2` |
+| Consensus lock | `RIGOR_CONSENSUS_LOCK_VERSION = 3` |
 
 Lock files: `core/src/consensus/params.h`,
 `core/src/consensus/rigor_consensus_lock.h`.

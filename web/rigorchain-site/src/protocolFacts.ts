@@ -3,8 +3,8 @@
  * This file does not define consensus.
  */
 
-export const PRODUCT = "RIGOR Public Test Network";
-export const CODENAME = "RIGOR Testnet";
+export const PRODUCT = "RIGOR MAINNET";
+export const CODENAME = "RIGOR";
 export const CHAIN_NAME = "RIGOR";
 
 export const MAINNET_GENESIS =

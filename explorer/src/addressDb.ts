@@ -7,6 +7,7 @@ import {
   atomsToResDisplay,
   buildAddressIntegrity,
   classifyAddressWithHint,
+  addressMatchesExplorerHrp,
   isValidAddressFormat,
 } from "./addressIntelligence";
 import { getOrCreateChainState } from "./db";
@@ -27,6 +28,7 @@ export async function getAddressIntelligence(
 ): Promise<AddressIntelligence | null> {
   const addr = address.trim();
   if (!isValidAddressFormat(addr)) return null;
+  if (!addressMatchesExplorerHrp(addr, config.bech32Hrp)) return null;
 
   const offset = (Math.max(1, page) - 1) * limit;
 

@@ -86,7 +86,7 @@ describe("defensive RPC fields", () => {
     assert.equal(optionalHash("0000000000000000000000000000000000000000000000000000000000000000"), null);
   });
 
-  it("matches PCORB witness[0] against RPC display winner txid in either endianness", () => {
+  it("matches a native 32-byte push against RPC display winner txid in either endianness", () => {
     const display = "a80d8c1706877e3b748cbcdd6f1a00c746426829b30865542b7255f99dcae3b3";
     const native = reverseHexBytes(display);
     assert.notEqual(native, display);

@@ -48,7 +48,7 @@
       esc(data.chain_name) +
       "</span>" +
       "<span>Network: " +
-      esc(data.network_type) +
+      esc(String(data.network_type || "").toLowerCase() === "mainnet" ? "MAINNET" : (data.network_type || "")) +
       "</span>" +
       "<span>Genesis: " +
       esc(data.genesis_hash_short || "—") +

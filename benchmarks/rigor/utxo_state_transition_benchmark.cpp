@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     const auto oru = OruTransferInput();
     const auto res_ok = ResMaturityInput(100);
     const auto res_early = ResMaturityInput(99);
-    const auto draw = DrawBlockInput();
+    const auto subsidy = SubsidyBlockInput();
     const auto large = LargeUtxoInput(4096);
     const auto many_in = ManyInInput(64);
     const auto many_out = ManyOutInput(64);
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     emit("res_maturity_spend", "apply", iters, [&] {
         return FoldDelta(UTXOStateTransition(res_ok)) ^ (FoldDelta(UTXOStateTransition(res_early)) << 1);
     });
-    emit("convergence_draw", "apply", iters, [&] { return FoldDelta(UTXOStateTransition(draw)); });
+    emit("subsidy_block", "apply", iters, [&] { return FoldDelta(UTXOStateTransition(subsidy)); });
     emit("large_utxo", "apply", iters / 4 + 1, [&] { return FoldDelta(UTXOStateTransition(large)); });
     emit("large_utxo", "input_lookup_linear", iters / 4 + 1, [&] { return LinearLookup(large); });
     emit("large_utxo", "input_lookup_map", iters / 4 + 1, [&] { return MapLookup(large_idx, large); });

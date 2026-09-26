@@ -21,7 +21,7 @@
 | 累计上界 | `cumulative(h) = 2²² · h / (h + 2²⁵)` |
 | `RES_COIN` | 100000000 原子 / 整枚 |
 | 铸造位置 | 主体交易：唯一正值 `OP_CONVERGE` + 同笔 Witness v1 RES |
-| 铸造成熟 | 100（与 coinbase 相同；重组保护，不是抽签等待） |
+| 铸造成熟 | 100（与 coinbase 相同；重组保护） |
 | RFC-018 | RES 转账 ORU 费一半不可领取：`Σ floor(fee(tx) / 2)` |
 | 反向 | 禁止 RES → ORU |
 
@@ -109,7 +109,6 @@ Coinbase 只写明本块高度，只付 ORU。
 | SPEC-002 | ORU / RES 递推 |
 | `MAINNET_PROTOCOL_FREEZE_DECLARATION.md` | 冻结声明 |
 | RFC-001 / 002 / 008 | 历史规格；以代码与 RFC-020 为准 |
-| RFC-014 / 015 / 017 / 019 | 历史；抽签与窗口路径已退役 |
 
 本白皮书不编辑 RFC 原文。历史条目不是现行规则。
 

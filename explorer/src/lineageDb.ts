@@ -61,7 +61,7 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
   }
 
   let blockPanel = null;
-  let candidates: Array<{ convergence_txid: string; draw_eligible: boolean; convergence_root?: string }> = [];
+  let candidates: Array<{ convergence_txid: string; draw_eligible: boolean }> = [];
   let blockRow = blockCtx.rows[0] ?? null;
   let winnerRow: Record<string, unknown> | null = null;
 
@@ -70,7 +70,7 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
     if (b.rowCount) {
       blockRow = b.rows[0];
       const cand = await pool.query(
-        `SELECT convergence_txid, draw_eligible, convergence_root
+        `SELECT convergence_txid, draw_eligible
          FROM convergence_events WHERE block_hash = $1 ORDER BY convergence_txid ASC`,
         [blockHash],
       );
@@ -98,7 +98,6 @@ async function loadTxLineageParts(pool: Pool, txid: string) {
     resMint.rows,
     blockRow,
     convergencePanel,
-    convergence.rows,
   );
 
   const tipRow = await pool.query(`SELECT last_height FROM chain_state ORDER BY updated_at DESC LIMIT 1`);
@@ -168,7 +167,7 @@ export async function getLineageForBlock(pool: Pool, blockHash: string): Promise
 
   const block = b.rows[0];
   const candidates = await pool.query(
-    `SELECT convergence_txid, draw_eligible, convergence_root
+    `SELECT convergence_txid, draw_eligible
      FROM convergence_events WHERE block_hash = $1 ORDER BY convergence_txid ASC`,
     [blockHash],
   );

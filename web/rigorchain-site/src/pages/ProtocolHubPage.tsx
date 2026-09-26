@@ -4,6 +4,7 @@ import { SubNav } from "../components/SubNav";
 
 const ENTRIES = [
   { title: "Overview", to: "/protocol/overview" },
+  { title: "Machine-Verifiable Protocol", to: "/machine-readable-protocol" },
   { title: "Architecture", to: "/protocol/architecture" },
   { title: "Consensus", to: "/protocol/consensus" },
   { title: "Native Assets", to: "/protocol/assets" },

@@ -331,7 +331,7 @@ Related: [SPEC-008 Proof-of-Work](./SPEC-008-PROOF-OF-WORK.md),
 | Classification | `core/src/script/rigor_classify.cpp` |
 | Spends | `core/src/script/predicate_verify.cpp` |
 | Tx / mint locus | `core/src/consensus/tx_check.cpp` |
-| Convergence | `core/src/consensus/convergence_logic.cpp` |
+| Convergence | `core/src/consensus/convergenceres.cpp`, `core/src/consensus/tx_verify.cpp` |
 | OpuHash | `core/src/rigor_kernel/pow_digest.cpp` |
 | PoW / ASERT | `core/src/pow.cpp` |
 | Extracted facts | `docs/developer/CODE_SSOT_PROTOCOL_FACTS.md` |

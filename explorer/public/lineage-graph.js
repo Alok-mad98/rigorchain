@@ -93,18 +93,6 @@
     </div>`;
   }
 
-  function renderPcorbTable(graph) {
-    const items = graph.pcorb?.items;
-    if (!items || items.length === 0) return "";
-    const rows = items
-      .map(
-        (it) =>
-          `<tr><td>${it.index}</td><td>${escapeHtml(it.field_name)}</td><td class="mono">${escapeHtml(shortHash(it.hex))}</td></tr>`,
-      )
-      .join("");
-    return `<div class="lineage-graph-pcorb"><strong>PCORB stack</strong><table><thead><tr><th>#</th><th>field</th><th>hex</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  }
-
   function renderMintOutputs(graph) {
     const outs = graph.mint?.res_outputs || [];
     if (outs.length === 0) return "";
@@ -131,7 +119,6 @@
       <h2>Convergence Lineage Graph${blockLink}</h2>
       ${renderSummary(graph)}
       ${renderGraph(graph)}
-      ${renderPcorbTable(graph)}
       ${renderMintOutputs(graph)}
       ${renderLegend(graph)}
     </section>`;

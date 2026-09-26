@@ -118,30 +118,20 @@ Props: `variant`, `live?: { height?, hash? }`, `status?: 'live'|'static'|'degrad
 
 ### `ConvergencePanel`
 
-**Purpose:** σ / PCORB context / root / winner visualization (read-only).
+**Purpose:** RFC-020 same-tx destroy-to-mint explainer (read-only).
 
 | Field | Binding | Display |
 |-------|---------|---------|
-| `|F|` | `getconvergenceresult` | Mono integer or `—` |
-| `convergence_root` | RPC / block API | Truncated hash + copy |
-| `sigma` | RPC | Hex monospace |
-| `winner_txid` | RPC | Link to `/explorer?tab=tx&id=` |
-| `res_probability_target` | RPC / block | Full hex; verify const pattern |
-| PCORB note | Static gloss | "Mint body verification vector" |
+| Where / Rule / Height | Static protocol copy | Body tx destroys ORU and may create RES |
+| Live issuance | `/api/status` via `Rfc020LivePanel` | Confirming height and destroy cost |
 
 **States:** `loading` | `live` | `degraded` | `error`
 
-Mismatch: show `MismatchBanner` if explorer panel ≠ RPC.
-
 ```text
 ┌─ ConvergencePanel ─────────────────────┐
-│ Status: ● live          [↻ Refresh]    │
-├────────────────────────────────────────┤
-│ |F|          12                        │
-│ root         abcd…1234                   │
-│ sigma        ef01…5678                   │
-│ winner       txid…                       │
-│ P(target)    E=246, C=1024 ORU/mint    │
+│ How a mint is admitted                 │
+│ Same body tx: OP_CONVERGE + optional   │
+│ Witness v1 RES                         │
 └────────────────────────────────────────┘
 ```
 

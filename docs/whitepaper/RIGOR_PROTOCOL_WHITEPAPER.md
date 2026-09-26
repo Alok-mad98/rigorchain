@@ -653,17 +653,16 @@ miner discretion.
 `R = 0` is a legal plain destroy. Ordinary RES transfers cannot create
 RES (`res_in ≥ res_out`). RES cannot convert back to ORU.
 
-## 4.2 Not a 1:1 counter, not a draw
+## 4.2 Not a 1:1 counter
 
 A 1:1 swap would rename flow into stock and weaken Chapter 1’s
 intended assignment of three vertices to two assets. The protocol cost
 rises with height. The new RES is a new UTXO, not a colour on the old
 output.
 
-A draw would hand “who receives RES” to a hash. Convergence has no
-random term. Pool policy cannot allocate RES. Changing a miner payout
-address cannot create RES. Fairness within the consensus rule is
-defined as deterministic evaluation of the same public inequality.
+Pool policy cannot allocate RES. Changing a miner payout address cannot
+create RES. Fairness within the consensus rule is defined as
+deterministic evaluation of the same public inequality.
 
 `destroy_cost(h)` is a protocol destroy requirement, not a market quote.
 Display form is `1024 · (2²⁵ + h)² / 2⁵⁰`. The integer predicate is
@@ -679,8 +678,7 @@ mint cap.
 `illegal-res-to-oru-conversion` — wrong direction, or spending the
 destroy. Underpayment invalidates the whole transaction.
 
-Mint maturity 100 is reorg protection, the same depth as coinbase. It
-is not a wait for a draw.
+Mint maturity 100 is reorg protection, the same depth as coinbase.
 
 **Destroy is visible. Mint is an integer predicate in the same
 transaction.** Chapter 5 unfolds that predicate as checkable

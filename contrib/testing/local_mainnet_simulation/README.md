@@ -1,12 +1,12 @@
 # Local Mainnet Simulation (TASK-LOCAL-MAINNET-SIMULATION-001)
 
 Production-like **local** multi-node rehearsal of the frozen RIGOR product journey.
-Does **not** change consensus parameters (ORU emission, RES cap, W, T, serialization, scripts).
+Does **not** change consensus parameters (ORU emission, RES cap, serialization, scripts).
 
 ## Topology
 
 | Node | Role | P2P | RPC |
-|------|------|-----|-----|
+|------|------|-----|
 | Node-0 | Miner + Wallet | 27801 | 27811 |
 | Node-1 | Validator | 27802 | 27812 |
 | Node-2 | Observer | 27803 | 27813 |
@@ -40,16 +40,13 @@ cd ~/ring/core && make -j$(nproc)
 - No fake balance injection
 - No coinbase maturity bypass
 - No manual RES creation / no `-reswalletbootstrap`
-- RES only via deterministic consensus draw mint (award `h`, payout `h+1`)
+- RES only via RFC-020 body mint (`CheckResMintArithmetic` / `destroy_cost`)
 
 ## Product fixes exercised by this harness
 
 1. **Wallet:** `createconvergence` requires an OP_RETURN RESO owner declaration.
    `WalletStrictSendDestinationOk` admits that companion script on ORU-domain sends
    (`ASSET_NONE` classification).
-2. **Miner (mockable chains):** `CreateNewBlock` commits ConvergenceRoot **after** inserting the
-   automatic RES body mint. Committing C before mint disagreed with ConnectBlock
-   (`BlockPaidWinner` excludes the paid winner from F) and failed payout blocks with
-   `bad-cb-convergence-root`.
-
-Neither change alters ORU emission, RES cap, W, T, serialization, or script consensus rules.
+2. **Miner:** `CreateNewBlock` can assemble the automatic RES body mint when
+   `-miningresfeeaddr` is set. That does not change ORU emission, RES cap,
+   serialization, or script consensus rules.

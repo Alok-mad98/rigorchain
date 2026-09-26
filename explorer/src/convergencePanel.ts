@@ -5,8 +5,6 @@ import { EMPTY_DRAW_ELIGIBLE_ROOT } from "./rpcFields";
 export const RPC_AUTHORITY_NOTICE =
   "Convergence data is sourced from rigord and is not recomputed by Explorer.";
 
-/** Node getconvergenceresult.convergence_root — Hash256(sorted F); zero if |F|<2. */
-export const C_ROOT_LABEL = "C (convergence_root)";
 /** Legacy alias: coinbase committed root (this block PAYS). Prefer the split labels. */
 export const DRAW_ROOT_LABEL = "draw_candidate_root_committed";
 /** Coinbase CVGE — the draw this block pays (parent computed). */
@@ -47,17 +45,12 @@ export function displayTxConvergenceRole(role: TxConvergenceRole): string {
 export type ConvergenceCandidateRow = {
   convergence_txid: string;
   draw_eligible: boolean;
-  convergence_root?: string;
 };
 
 export type BlockConvergencePanel = {
   status: BlockConvergenceStatus;
   candidate_set_size: number;
   eligible_count: number;
-  /** C from getconvergenceresult.convergence_root. Never the draw root. */
-  c_root: string | null;
-  /** Same value as c_root — RPC field name for clients that still read this key. */
-  convergence_root: string | null;
   /** Coinbase committed root — draw this block PAYS. */
   draw_candidate_root_committed: string;
   /** Draw this block AWARDS (must be committed at height+1). */
@@ -88,7 +81,6 @@ export function buildBlockConvergencePanel(
     committed_root?: string;
     computed_root?: string;
     draw_candidate_root?: string;
-    c_root?: string | null;
   },
   candidates: ConvergenceCandidateRow[],
 ): BlockConvergencePanel {
@@ -103,7 +95,6 @@ export function buildBlockConvergencePanel(
         ? "Convergence Winner Block"
         : "Convergence Candidate Block";
 
-  const cRoot = (block.c_root || "").trim() || null;
   const committed = (block.committed_root || block.draw_candidate_root || "").trim();
   const computed = (block.computed_root || "").trim();
 
@@ -111,8 +102,6 @@ export function buildBlockConvergencePanel(
     status,
     candidate_set_size: candidateTxids.length,
     eligible_count: eligibleCount,
-    c_root: cRoot,
-    convergence_root: cRoot,
     draw_candidate_root_committed: committed,
     draw_candidate_root_computed: computed,
     draw_candidate_root: committed,

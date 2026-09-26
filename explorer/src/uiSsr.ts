@@ -84,7 +84,6 @@ function renderBlockConvergence(panel: Record<string, unknown> | null | undefine
         "No Convergence Activity",
     ),
   );
-  const cRoot = escapeHtml(panel.c_root ?? panel.convergence_root ?? "—");
   const fSize = escapeHtml(panel.candidate_set_size ?? 0);
   const ids = Array.isArray(panel.candidate_txids) ? panel.candidate_txids : [];
   const list =
@@ -98,7 +97,6 @@ function renderBlockConvergence(panel: Record<string, unknown> | null | undefine
     <dl>
       <dt>Convergence Status</dt><dd><span class="convergence-status">${status}</span></dd>
       <dt>Convergence destroys</dt><dd>${fSize}</dd>
-      <dt>C (convergence_root)</dt><dd><span class="convergence-root-value">${cRoot}</span></dd>
       <dt>convergence_txids</dt><dd><ul class="convergence-candidate-list">${list}</ul></dd>
     </dl>
   </section>`;
@@ -315,6 +313,11 @@ function statusSection(title: string, rows: string[]): string {
   return `<section class="status-card"><h2>${escapeHtml(title)}</h2><dl>${rows.join("")}</dl></section>`;
 }
 
+function statusNetworkLabel(id: Record<string, unknown>): string {
+  const n = String(id.network ?? id.network_type ?? "").trim();
+  return n ? n.toUpperCase() : "—";
+}
+
 const BLOCK_HEADER_PUBLIC = new Set([
   "height",
   "block_hash",
@@ -327,7 +330,6 @@ const BLOCK_HEADER_PUBLIC = new Set([
   "opus_hash",
   "pow_hash",
   "tx_count",
-  "c_root",
   "consensus_fingerprint",
   "consensus_fingerprint_display",
   "consensus_fingerprint_status",
@@ -352,6 +354,7 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
   const comp = (sys.explorer_compliance as Record<string, unknown>) || {};
   const issued =
     nestedField(eco.supply_chart, "total_issued_oru", "display") ?? eco.oru_supply_cumulative_display;
+  const net = statusNetworkLabel(id);
   const avg =
     bh.avg_block_time_seconds_last_100 != null
       ? `${Number(bh.avg_block_time_seconds_last_100).toFixed(1)} s`
@@ -374,11 +377,11 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
 
   const sections = [
     statusSection("Chain identity", [
-      statusDl("Product", statusFmt(id.product ?? id.chain_name)),
-      statusDl("Network", statusFmt(id.network ?? id.network_type)),
-      statusDl("Genesis hash", statusMonoHash(id.genesis_hash)),
-      statusDl("Node version", statusFmt(id.node_subversion ?? id.node_version)),
-      statusDl("Explorer version", statusFmt(id.explorer_version)),
+      statusDl("Chain", statusFmt(id.chain_name)),
+      statusDl("Network", statusFmt(net)),
+      statusDl("Genesis", statusMonoHash(id.genesis_hash)),
+      statusDl("Node", statusFmt(id.node_subversion ?? id.node_version)),
+      statusDl("Explorer", statusFmt(id.explorer_version)),
       statusDl("Best block", statusMonoHash(bh.best_block_hash)),
     ]),
     statusSection("Block production", [
@@ -387,6 +390,7 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
       statusDl("Difficulty", statusFmt(bh.difficulty)),
       statusDl("nBits", statusFmt(bh.bits)),
       statusDl("OpuHash", statusMonoHash(bh.opus_hash ?? bh.pow_hash)),
+      statusDl("Peers", statusFmt(mine.connections)),
       statusDl("Mempool tx count", statusFmt(mine.mempool_tx_count)),
     ]),
     statusSection("Indexer integrity", indexerRows),
@@ -401,17 +405,17 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
     ]),
   ];
 
-  return `<div class="status-grid status-grid--pair">${sections.join("")}</div>`;
+  return `<p class="network-mark">NETWORK <strong>${escapeHtml(net)}</strong></p><div class="status-grid status-grid--pair">${sections.join("")}</div>`;
 }
 
 export function injectSsrResPage(templateHtml: string, curvesHtml: string, rootHtml: string): string {
   return templateHtml
     .replace(
-      /<div id="curves"[^>]*>Loading schedule…<\/div>/,
+      /<div id="curves"[^>]*>[\s\S]*?<\/div>/,
       `<div id="curves" class="status-dashboard" data-ssr="1">${curvesHtml}</div>`,
     )
     .replace(
-      /<div id="root"[^>]*>Loading…<\/div>/,
+      /<div id="root"[^>]*>Loading(?: reserve activity)?…<\/div>/,
       `<div id="root" class="status-dashboard" data-ssr="1">${rootHtml}</div>`,
     );
 }

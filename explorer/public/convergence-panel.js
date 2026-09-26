@@ -92,14 +92,6 @@
           <dt>Convergence destroys</dt>
           <dd>${panel.candidate_set_size ?? 0}</dd>
 
-          <dt>C (convergence_root)</dt>
-          <dd>
-            <div class="convergence-root-row">
-              <span class="convergence-root-value">${escapeHtml(panel.c_root || panel.convergence_root || "—")}</span>
-              <button type="button" class="convergence-copy-btn" data-copy="${escapeHtml(panel.c_root || panel.convergence_root || "")}">Copy</button>
-            </div>
-          </dd>
-
           <dt>convergence_txids</dt>
           <dd>
             <ul class="convergence-candidate-list">${listItems}</ul>

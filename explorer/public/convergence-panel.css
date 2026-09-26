@@ -53,20 +53,6 @@
   background: #0a1520;
 }
 
-.convergence-root-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.convergence-root-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  word-break: break-all;
-  flex: 1 1 320px;
-}
-
 .convergence-copy-btn {
   font-size: 12px;
   padding: 4px 10px;

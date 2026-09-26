@@ -12,7 +12,7 @@ export type ExplorerFetchResult<T> = {
 
 const EXPLORER_TIMEOUT_MS = 10000;
 
-const DEFAULT_EXPLORER_URL = "https://explorer.rigorchain.com";
+const DEFAULT_EXPLORER_URL = "http://explorer.rigorchain.com";
 const SAME_ORIGIN = new Set(["same-origin", "/", "."]);
 
 function envExplorerUrl(): string {

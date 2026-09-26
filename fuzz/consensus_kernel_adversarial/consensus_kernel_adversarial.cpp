@@ -8,7 +8,6 @@
 
 #include <consensus/amount.h>
 #include <consensus/consensus.h>
-#include <consensus/convergence_logic.h>
 #include <consensus/params.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/res_issuance.h>
@@ -18,7 +17,6 @@
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <script/standard.h>
-#include <uint256.h>
 
 #include <cstdint>
 #include <cstdio>
@@ -34,13 +32,6 @@ static Consensus::Params FrozenParams()
     Consensus::Params p;
     p.nCoinbaseMaturity = 100;
     return p;
-}
-
-static uint256 FromBytes(const uint8_t b[32])
-{
-    uint256 id;
-    std::memcpy(id.begin(), b, 32);
-    return id;
 }
 
 static CAmount OracleOru(int height)
@@ -80,40 +71,6 @@ void ConsensusKernelAdversarialOne(const uint8_t* data, size_t size)
     if (txout == TxoutType::NULL_DATA && asset != ASSET_NONE) std::abort();
     if (txout == TxoutType::NONSTANDARD && asset != ASSET_INVALID) std::abort();
 
-    ConvergenceDrawSet set;
-    set.source_height = height < 0 ? 0 : height;
-    set.source_block_hash = uint256S("0xaa");
-    const int n = in.n_candidates < 0 ? 0 : (in.n_candidates > 4 ? 4 : in.n_candidates);
-    if (n >= 1) {
-        ConvergenceDrawCandidate c;
-        c.txid = FromBytes(in.txid0);
-        c.weight = in.weight0;
-        set.candidates.push_back(c);
-    }
-    if (n >= 2) {
-        ConvergenceDrawCandidate c;
-        c.txid = FromBytes(in.txid1);
-        c.weight = in.weight1;
-        set.candidates.push_back(c);
-    }
-    set.convergence_root = uint256S("0xcc");
-    uint256 T = uint256S("5555555555555555555555555555555555555555555555555555555555555555");
-    if (in.t_mode == 0) T = uint256();
-    if (in.t_mode == 0xff) std::fill(T.begin(), T.end(), static_cast<unsigned char>(0xff));
-    const ConvergenceDrawOutcome a = ResolveConvergenceDraw(set, T);
-    if (n >= 2) {
-        std::swap(set.candidates[0], set.candidates[1]);
-        const ConvergenceDrawOutcome b = ResolveConvergenceDraw(set, T);
-        if (a.HasWinner() != b.HasWinner()) std::abort();
-        if (a.HasWinner()) {
-            const uint256 wa = (a.winner_index == 0) ? FromBytes(in.txid0) : FromBytes(in.txid1);
-            const uint256 wb = set.candidates[static_cast<size_t>(b.winner_index)].txid;
-            if (wa != wb) std::abort();
-        }
-    }
-    if (set.candidates.empty() && a.HasWinner()) std::abort();
-    if (in.t_mode == 0 && a.HasWinner()) std::abort();
-
     RigorSupplyDeltaInput sin;
     sin.height = height;
     sin.fees_oru = in.fees_oru;
@@ -122,8 +79,6 @@ void ConsensusKernelAdversarialOne(const uint8_t* data, size_t size)
     sin.res_mint = in.res_mint < 0 ? 0 : in.res_mint;
     sin.oru_coinbase = in.oru_coinbase;
     sin.res_coinbase = in.res_coinbase;
-    sin.has_winner = in.has_winner != 0;
-    sin.draw_cardinality = in.draw_cardinality;
     BlockValidationState state;
     RigorSupplyDeltaResult out;
     (void)RigorSupplyDelta(sin, p, out, state);
@@ -172,7 +127,7 @@ int main(int argc, char** argv)
             std::printf(
                 "{\"height\":%d,\"epoch\":%d,\"oru_subsidy\":%lld,\"res_schedule\":%lld}\n",
                 h, g.epoch, static_cast<long long>(g.oru_subsidy),
-                static_cast<long long>(g.res_reward));
+                static_cast<long long>(Consensus::ResDestroyCostAtHeight(h)));
             return 0;
         }
         std::vector<uint8_t> buf;

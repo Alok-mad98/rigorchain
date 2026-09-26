@@ -1347,33 +1347,10 @@ same h
 same decision
 ```
 
-### 4.6 Why There Is No Mint Draw
+### 4.6 Mint Is a Public Predicate
 
-Some scarcity systems use a lottery model:
-
-```
-destroy resource
-        ↓
-random chance
-        ↓
-receive asset
-```
-
-RIGOR intentionally avoids this.
-
-Convergence has:
-
-- no random number
-- no winner selection
-- no miner allocation
-- no probability threshold
-
-The question is not: **Who wins RES?**
-
-The question is: **Does this transaction satisfy the public monetary
-rule?**
-
-The result is deterministic.
+Convergence evaluates one public inequality on the confirming
+transaction:
 
 ```
 (R, B, h)
@@ -1383,7 +1360,12 @@ consensus predicate
 accept / reject
 ```
 
-Every node reaches the same conclusion.
+The question is: **Does this transaction satisfy the public monetary
+rule?**
+
+The result is deterministic. Every node reaches the same conclusion.
+A miner cannot create RES by finding a block. A pool cannot allocate
+RES through payout policy.
 
 ### 4.7 Why There Is No 1:1 Exchange Rate
 

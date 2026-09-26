@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Full local production acceptance: mesh → ORU → Convergence W=32 → RES mint → reorg → reports.
+# Full local production acceptance: mesh → ORU → createconvergence mint → reorg → reports.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh

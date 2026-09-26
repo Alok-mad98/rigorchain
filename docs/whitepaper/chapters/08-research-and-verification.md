@@ -18,8 +18,7 @@ Research artifacts have grades. They must not be collapsed into one
 
 Live issuance under verification is RFC-020: continuous `destroy_cost(h)`, the mint
 inequality `R · (2²⁵ + h)² ≤ B << 40`, and the closed-form cap
-`419430400000000` atoms. The lottery cone (`W(k)`, 21M, draw, σ, window
-32, `p_draw`) is **archived Category C**. It is not shipping issuance.
+`419430400000000` atoms.
 
 ---
 

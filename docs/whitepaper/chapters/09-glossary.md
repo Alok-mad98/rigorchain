@@ -4,8 +4,7 @@ Narrative Chapter 9 is now
 [`09-product-surfaces.md`](./09-product-surfaces.md)
 (Chinese: [`09-product-surfaces.zh.md`](./09-product-surfaces.zh.md)).
 This file remains the official noun list for the website and PDF. It does
-not change consensus. Terms follow RFC-020 shipping issuance, not older
-“destroy / forge / Merkle root / draw” drafts.
+not change consensus. Terms follow RFC-020 shipping issuance.
 
 ---
 
@@ -29,35 +28,6 @@ counter. **No Convergence → no new RES.**
 
 ---
 
-## What is `convergence_root`?
-
-**`convergence_root`** (Convergence Root, **`C`**) is a public commitment
-to eligible convergence transactions in a block.
-
-```
-eligible transactions
-        ↓
-sorted txids
-        ↓
-Hash256
-        ↓
-convergence_root  (C)
-```
-
-```
-C = Hash256( concat( sort_memcmp( txid_i ) ) )
-```
-
-- The sort is byte-wise on native txids, not arrival order.
-- It is **not** a Merkle tree.
-- Anyone with the same eligible list computes the same `C`.
-
-Explorers may show `convergence_root`. That display is not a verdict. A
-verifier recomputes `C` from the public txid list. The root does not mint
-RES.
-
----
-
 ## Where does RES come from?
 
 **RES is not mined from coinbase. RES is not a 1:1 conversion of ORU.**
@@ -71,7 +41,7 @@ R > 0  →  R · (2²⁵ + h)² ≤ B << 40
 ```
 
 at the confirming height. Coinbase `OP_RES_MINT` is not this path.
-Mint-output maturity 100 is reorg protection, not a draw wait.
+Mint-output maturity 100 is reorg protection.
 
 | | |
 |--|--|
@@ -124,7 +94,7 @@ Accept  ⇔  R > 0  →  R · (2²⁵ + h)² ≤ B << 40
         ↓
 New R atoms of Witness v1 RES → the transaction’s RES programs
         ↓
-Mint output is immature for 100 blocks (reorg protection, not a draw wait)
+Mint output is immature for 100 blocks (reorg protection)
 ```
 
 `destroy_cost(h)` is a frozen height function. It does **not** move with mining

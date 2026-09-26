@@ -1,5 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { injectSsrResPage, injectSsrRoot, renderBlockRoot, renderResPageSsr, renderStatusRoot, renderTxRoot } from "./uiSsr";
 import { CONVERGENCE_LOCK_DESTINATION_LABEL } from "./txSummary";
 import { OP_CONVERGE_SCRIPT_NAME } from "./script";
@@ -31,10 +33,14 @@ describe("uiSsr", () => {
     assert.doesNotMatch(html, />Loading\.\.\.</);
   });
 
-  it("renders C and convergence burns without lottery draw-root labels", () => {
+  it("renders convergence burns without lottery draw-root labels or legacy C", () => {
     const html = renderBlockRoot(
       {
-        block: { height: "305", block_hash: "d8" },
+        block: {
+          height: "305",
+          block_hash: "d8",
+          c_root: "04644ee72744a48d226f795d7cc4d692cbf763975275b7054dec59baedfaa7ba",
+        },
         summary: { height: "305", hash: "d8" },
         convergence_panel: {
           status: "Convergence Candidate Block",
@@ -50,11 +56,11 @@ describe("uiSsr", () => {
       },
       "d8",
     );
-    assert.match(html, /C \(convergence_root\)/);
+    assert.doesNotMatch(html, /C \(convergence_root\)/);
+    assert.doesNotMatch(html, /04644ee72744a48d/);
     assert.match(html, /Convergence destroys/);
     assert.match(html, /Convergence Destroy Block/);
     assert.doesNotMatch(html, /Convergence Candidate Block/);
-    assert.match(html, /04644ee72744a48d/);
     assert.doesNotMatch(html, /draw_candidate_root_committed/);
     assert.doesNotMatch(html, /draw_candidate_root_computed/);
     assert.doesNotMatch(html, /pays parent draw/);
@@ -302,6 +308,7 @@ describe("uiSsr", () => {
           rigor_winner: "winner-txid",
           winner_txid: "winner-txid",
           opus_hash: "ee".repeat(32),
+          c_root: "04644ee72744a48d226f795d7cc4d692cbf763975275b7054dec59baedfaa7ba",
         },
         summary: { height: "527", hash: "aa" },
         txs: [],
@@ -311,6 +318,8 @@ describe("uiSsr", () => {
     assert.doesNotMatch(html, /draw_candidate_root/);
     assert.doesNotMatch(html, /winner-txid/);
     assert.doesNotMatch(html, /rigor_winner/);
+    assert.doesNotMatch(html, /c_root/);
+    assert.doesNotMatch(html, /C \(convergence_root\)/);
     assert.match(html, /207fffff/);
   });
 
@@ -361,5 +370,21 @@ describe("uiSsr", () => {
     assert.match(html, /40\.30762289 RES/);
     assert.doesNotMatch(html, /Loading schedule/);
     assert.doesNotMatch(html, />Loading…</);
+  });
+
+  it("injects both RFC-020 curves into the public RES template", () => {
+    const template = readFileSync(join(__dirname, "..", "public", "res.html"), "utf8");
+    assert.match(template, /id="curves"/);
+    const { curvesHtml, rootHtml } = renderResPageSsr({
+      confirmHeight: 0,
+      eco: { network_res_minted_display: "0.00000000 RES", res_mint_count: 0 },
+      mints: [],
+    });
+    const html = injectSsrResPage(template, curvesHtml, rootHtml);
+    assert.match(html, /status-grid--charts/);
+    assert.match(html, /ORU destroyed to mint 1 RES/);
+    assert.match(html, /RES mint ceiling/);
+    assert.equal((html.match(/<svg class="res-curve"/g) || []).length, 2);
+    assert.doesNotMatch(html, /does not publish the issuance equation/);
   });
 });

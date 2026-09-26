@@ -12,7 +12,6 @@
 
 static LedgerKernelInput LedgerOf(const UTXOStateTransitionInput& in)
 {
-    const RigorIssuance iss = ComputeRigorIssuance(static_cast<int>(in.height), in.params);
     LedgerKernelInput ledger = in.ledger;
     ledger.height = in.height;
     ledger.maturity = in.maturity;
@@ -23,7 +22,7 @@ static LedgerKernelInput LedgerOf(const UTXOStateTransitionInput& in)
     ledger.consensus.accept = true;
     ledger.consensus.oru_issuance = (in.height == 0) ? 0 : in.ledger.consensus.oru_issuance;
     ledger.consensus.res_mint = (in.height == 0) ? 0 : in.ledger.consensus.res_mint;
-    ledger.consensus.res_schedule = iss.res_reward;
+    ledger.consensus.res_schedule = 0;
     return ledger;
 }
 
@@ -34,7 +33,7 @@ int main(int argc, char** argv)
     const auto oru = LedgerOf(OruTransferInput());
     const auto res_ok = LedgerOf(ResMaturityInput(200));
     const auto res_early = LedgerOf(ResMaturityInput(50));
-    const auto draw = LedgerOf(DrawBlockInput());
+    const auto subsidy = LedgerOf(SubsidyBlockInput());
     const auto large = LedgerOf(LargeUtxoInput(4096));
     const auto many_in = LedgerOf(ManyInInput(64));
     const auto many_out = LedgerOf(ManyOutInput(64));
@@ -57,7 +56,7 @@ int main(int argc, char** argv)
     PrintRigorSample("ledger_apply", "apply", RunTimed("res_maturity_spend", "immature", iters, [&] {
         return FoldLedger(LedgerApply(res_early));
     }));
-    emit("convergence_draw", iters, draw);
+    emit("subsidy_block", iters, subsidy);
     emit("large_utxo", iters / 4 + 1, large);
     emit("many_inputs", iters, many_in);
     emit("many_outputs", iters, many_out);

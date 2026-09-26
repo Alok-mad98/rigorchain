@@ -27,6 +27,7 @@
       <a href="/oru.html">ORU</a>
       <a href="/res.html">RES</a>
       <a href="/res-events.html">RES events</a>
+      <a href="/address">Address</a>
       <a href="/search">Search</a>
     </nav>
     <h1>Block detail</h1>
@@ -68,6 +69,10 @@
         const fp = s.consensus_fingerprint_display || b.consensus_fingerprint_display || 'Not available';
         const fpStatus = s.consensus_fingerprint_status || b.consensus_fingerprint_status || 'Not available';
 
+        const header = { ...(b || {}) };
+        delete header.c_root;
+        delete header.convergence_root;
+
         const root = document.getElementById('root');
         root.innerHTML = `
           <section class="verify-independently-panel">
@@ -101,7 +106,7 @@
           </table>
 
           <h2>Header</h2>
-          <pre class="mono">${JSON.stringify(b, null, 2)}</pre>
+          <pre class="mono">${JSON.stringify(header, null, 2)}</pre>
 
           <h2>Transactions</h2>
           <table>

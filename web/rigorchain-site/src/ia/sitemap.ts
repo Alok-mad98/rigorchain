@@ -43,6 +43,13 @@ export const SECTIONS: SiteSection[] = [
         preservation: "KEEP",
       },
       {
+        path: "/machine-readable-protocol",
+        title: "Machine-Verifiable Protocol",
+        purpose:
+          "Why the protocol is suited to machine verification, machine computation, and machine participation.",
+        preservation: "KEEP",
+      },
+      {
         path: "/protocol/architecture",
         title: "Architecture",
         purpose: "Public protocol architecture overview.",
@@ -199,8 +206,12 @@ export const SECTIONS: SiteSection[] = [
 ];
 
 export function sectionByPath(pathname: string): SiteSection | undefined {
-  return SECTIONS.find(
+  const prefixed = SECTIONS.find(
     (s) => pathname === s.path || pathname.startsWith(`${s.path}/`),
+  );
+  if (prefixed) return prefixed;
+  return SECTIONS.find((s) =>
+    s.children.some((c) => pathname === c.path || pathname.startsWith(`${c.path}/`)),
   );
 }
 
