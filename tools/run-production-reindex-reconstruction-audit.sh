@@ -44,7 +44,7 @@ reason = (
     "previous truncated dumps are not a reconstruction PASS"
 )
 man = {
- "task": "",
+    "task": "",
     "date": "2026-09-02",
     "production_reindex_audit": "BLOCKED",
     "final_verdict": "BLOCKED",
@@ -414,7 +414,7 @@ if ip.exists():
     integrity = json.loads(ip.read_text(encoding="utf-8"))
 
 man = {
- "task": "",
+    "task": "",
     "date": "2026-09-02",
     "nature": "Audit-first production-equivalence verification. Not a bug-fix TASK.",
     "production_reindex_audit": audit,

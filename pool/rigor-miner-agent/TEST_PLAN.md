@@ -1,8 +1,5 @@
 # rigor-miner-agent Test Plan
 
-**Task:** /
-**Spec:** `docs/mining/.md`
-
 ## Test matrix
 
 | ID | Category | File | Case | Pass criteria |

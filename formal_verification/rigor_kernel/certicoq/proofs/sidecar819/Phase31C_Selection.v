@@ -70,7 +70,7 @@ Definition cminor_has_if : bool :=
   | Error _ => false
   end.
 
-(** Helpers already Closed in . *)
+(** Helpers already Closed in. *)
 Definition helpers_ok : bool :=
   match cminor_from_clight with
   | OK p =>

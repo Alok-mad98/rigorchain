@@ -9,7 +9,7 @@
     "macos-arm64"
   ],
   "sha256_verified": true,
- "task": "",
+  "task": "",
   "nature": "Release engineering / distribution verification. NOT a consensus TASK.",
   "date": "2026-09-03",
   "tag": "v0.1.3",

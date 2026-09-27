@@ -1,6 +1,6 @@
 //! # rigor-pool-pg
 //!
-//! PostgreSQL persistence infrastructure for the RIGOR Rust pool stack .
+//! PostgreSQL persistence infrastructure for the RIGOR Rust pool stack.
 //!
 //! Domain adapters live in each pool crate's `pg_adapter.rs`; this crate provides
 //! connection pooling, schema migration, and SQL store primitives.

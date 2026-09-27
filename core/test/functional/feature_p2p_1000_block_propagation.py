@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-""": long-chain block propagation across 3–5 nodes (PHASE-B2).
+"""long-chain block propagation across 3–5 nodes (PHASE-B2).
 
 Topology (5 nodes): 0 — 1 — 2 — 3 — 4
 Node 0 mines sequentially; all nodes must converge on tip without disconnect storms

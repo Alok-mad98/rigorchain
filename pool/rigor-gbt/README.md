@@ -1,6 +1,6 @@
 # rigor-gbt
 
-First production component of the RIGOR Pool Stack .
+First production component of the RIGOR Pool Stack.
 
 `rigor-gbt` connects to `rigord`, polls `getblocktemplate`, validates and normalizes templates, and maintains an **immutable in-memory Template Cache** with a read-only API.
 

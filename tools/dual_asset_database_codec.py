@@ -563,7 +563,7 @@ def build_vectors() -> dict:
     supply_eq = all(v["supply"] == modes["clean"]["supply"] for v in modes.values())
 
     return {
- "task": "",
+        "task": "",
         "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
         "oru_res_storage_model": "SHARED_COIN_MODEL",
         "res_persistence_class": "C_HYBRID",

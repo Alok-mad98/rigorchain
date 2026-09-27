@@ -1,1 +1,1 @@
-Legacy Bitcoin icon/splash assets quarantined from product qrc .
+Legacy Bitcoin icon/splash assets quarantined from product qrc.

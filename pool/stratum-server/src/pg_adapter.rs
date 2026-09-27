@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for shares, PPLNS, workers, and audit .
+//! PostgreSQL adapter for shares, PPLNS, workers, and audit.
 
 use crate::audit::{AuditEvent, AuditLog};
 use crate::error::{StratumError, StratumResult};

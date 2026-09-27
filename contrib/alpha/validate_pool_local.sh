@@ -122,7 +122,7 @@ python3 -c "
 import json
 from pathlib import Path
 Path('${REPORT_JSON}').write_text(json.dumps({
- 'task': '',
+  'task': '',
   'pass': ${pass},
   'fail': ${fail},
   'verdict': 'PASS' if ${fail} == 0 else 'FAIL',

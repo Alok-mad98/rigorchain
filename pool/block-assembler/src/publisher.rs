@@ -5,7 +5,7 @@ use crate::types::{JobState, PublishedJobSnapshot};
 use rigor_gbt::TemplateRecord;
 use std::sync::Arc;
 
-/// Block assembler + JobSnapshot publisher .
+/// Block assembler + JobSnapshot publisher.
 pub struct JobPublisher {
     cache: Arc<JobCache>,
     config: AssemblerConfig,

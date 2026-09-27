@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-05",
   "nature": "Documentation alignment only. Protocol is SSOT. No consensus modification.",
   "command": "bash tools/run-documentation-alignment-audit.sh",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" refinement frontier gate. Not a Coq proof. Not equivalence."""
+"""refinement frontier gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import importlib.util

@@ -317,7 +317,7 @@ FINAL_VERDICT = (
 
 describe, head = git_describe()
 manifest = {
- "task": "",
+    "task": "",
     "date": str(date.today()),
     "nature": "Audit-first production mining path. No consensus redesign.",
     "command": "bash tools/run-production-mining-path-audit.sh",

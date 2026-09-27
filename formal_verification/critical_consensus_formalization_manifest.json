@@ -4,7 +4,7 @@
   "cpp_equivalence": false,
   "target_public_claim": "formally verified critical consensus invariants",
 
- "task_id": "",
+  "task_id": "",
   "document": "docs/formal_verification/RIGOR_CRITICAL_CONSENSUS_FORMALIZATION_PLAN_P0_106.md",
   "input_baseline": {
     "audit_document": "docs/formal_verification/RIGOR_FORMAL_VERIFICATION_STATUS_AUDIT_P0_105.md",

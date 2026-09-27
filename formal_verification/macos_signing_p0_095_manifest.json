@@ -1,6 +1,6 @@
 {
   "task": "P0-095",
- "task_id": "",
+  "task_id": "",
   "date": "2026-09-03",
   "scope": "macos_release_signing_only",
   "signing_workflow_enabled": true,

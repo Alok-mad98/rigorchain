@@ -126,7 +126,7 @@ function Load-State {
         return (Ensure-StateProps $st)
     }
     return [pscustomobject]@{
- task = ""
+        task = ""
         started_at              = (Get-Date).ToUniversalTime().ToString("o")
         stage1_pass             = $false
         stage1_restart_pass     = $false

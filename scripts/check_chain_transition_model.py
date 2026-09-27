@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" chain-state transition model gate.
+"""chain-state transition model gate.
 
 Qed-only on ChainState / ReorgModel. Not C++ refinement. Not extraction.
 """

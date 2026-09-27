@@ -13,7 +13,7 @@
 | **EXPIRED** | TTL exceeded | no |
 | **ARCHIVED** | Terminal; audit retention only | no |
 
-> **Note:** `Ingested` / `Assembling` from the full pool orchestrator are **not** used in . Validated GBT ingest transitions directly to **ACTIVE** (assembler publish is a later phase).
+> **Note:** `Ingested` / `Assembling` from the full pool orchestrator are **not** used in. Validated GBT ingest transitions directly to **ACTIVE** (assembler publish is a later phase).
 
 ## Diagram
 

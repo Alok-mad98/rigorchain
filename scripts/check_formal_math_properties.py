@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal consensus mathematical properties gate.
+"""formal consensus mathematical properties gate.
 
 Qed-only ASERT / reorg-safety model. Not C++ refinement. Not extraction.
 """

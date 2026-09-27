@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "issuance_authority": "GetBlockSubsidy",
   "res_authority": "CheckResMintArithmetic",
   "supply_authority": "RigorSupplyDelta",

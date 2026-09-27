@@ -209,7 +209,7 @@ Not an investment offering · Native assets: ORU and RES
 
 ## 10. Dark mode
 
-**v1.0:** Light mode only (laboratory print aesthetic). Dark mode is **out of scope** for .
+**v1.0:** Light mode only (laboratory print aesthetic). Dark mode is **out of scope**.
 
 ---
 

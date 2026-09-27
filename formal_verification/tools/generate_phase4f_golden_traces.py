@@ -37,7 +37,7 @@ UNMAPPED_MODULES = frozenset({
     "BlockTrace",
     "DrawCandidateRoot",
     # Monetary reject family: Python oracle + Kernel/NegativeCoreHarness.v, not a
- # Phase-4F draw-trace family .
+ # Phase-4F draw-trace family.
     "NegativeCore",
     # Invalid Convergence / malformed-root / dup-txid rejects (P0-4 remainder):
     # Python oracle + Kernel/GoldenHarness.v, not a Phase-4F draw-trace family.

@@ -82,7 +82,7 @@ struct mempoolentry_wtxid
 };
 
 /**
- * POOL-F: mempool `CTxMemPoolEntry:{GetFee,nFee}` are ORU network fees only
+ * POOL-F: mempool `CTxMemPoolEntry::{GetFee,nFee}` are ORU network fees only
  * (from `Consensus::CheckTxInputs`). Relay / eviction / miner ordering must compare all entries
  * on the same ORU feerate axis — never partition by RES transfer layout on outputs.
  */

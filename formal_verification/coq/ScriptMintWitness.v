@@ -25,7 +25,7 @@
     - [is_allowed_script] rejects CVG2 (C++ [IsAllowedScript] / NONSTANDARD)
       and [OP_CVG_CLAIM].
     There is no [SmwCVG] constructor: [OP_CVG_CLAIM] is [SmwInvalid], matching C++
- ( C-4 / R-9). The W3 recognizer in [CvgCovenant.v] is a retired
+    (C-4 / R-9). The W3 recognizer in [CvgCovenant.v] is a retired
     design study and does not feed the classifier.
     Shape predicates ([is_allowed_script] or zero-value [RIGOR_MARKER_RETURN] on created
     scripts, spend-CVG2, optional PCORB sizes) are a conjunct of replay
@@ -33,8 +33,8 @@
     fail the shape gate. Replay pooling is [asset_kind_of_script out_script]
     ([ReplayReorgCore/AssetFromScript.v] / [StateTransition.output_asset]).
 
- Used by negative vectors
- and . *)
+    Used by negative vectors
+    *)
 From Coq Require Import List.
 From Coq Require Import Bool.Bool.
 Require Import Coq.Arith.PeanoNat.
@@ -290,7 +290,7 @@ Definition is_op_return (spk : list byte) : bool :=
   end.
 
 (** Coq-model classifier aligned with C++ [AssetTypeFromScriptPubKey].
- [OP_CVG_CLAIM] → [SmwInvalid]: C++ has no such type ( C-4).
+    [OP_CVG_CLAIM] → [SmwInvalid]: C++ has no such type (C-4).
     Witness v0/20 → ORU; native v1/32 (not CVG2/RES2) → RES;
     [RIGOR_MARKER_RES_MINT] → RES; [RIGOR_MARKER_CONVERGE] → ORU;
     leading [RIGOR_MARKER_RETURN] with push-only remainder → [SmwNone];
@@ -496,7 +496,7 @@ Definition canonical_res2_script : list byte :=
     (C++ [TestNativeResScript] / [TestEd25519PubKey]). Classification is
     byte-shape only: untagged v1/32 is RES whether or not the program is a
     curve point. C++ [IsCanonicalOnCurvePubkey] gates key_io / policy / wallet,
- not [AssetTypeFromScriptPubKey] . *)
+ not [AssetTypeFromScriptPubKey]. *)
 Definition rfc8032_pk1 : list byte :=
   [215; 90; 152; 1; 130; 177; 10; 183;
    213; 75; 254; 211; 201; 100; 7; 58;

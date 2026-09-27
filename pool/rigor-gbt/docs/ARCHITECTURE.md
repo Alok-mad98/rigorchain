@@ -26,7 +26,7 @@ flowchart TB
     CACHE -.->|"future"| STRAT["Stratum"]
 ```
 
-Solid lines are implemented in . Dashed lines are downstream components (out of scope).
+Solid lines are implemented in. Dashed lines are downstream components (out of scope).
 
 ## Data flow
 

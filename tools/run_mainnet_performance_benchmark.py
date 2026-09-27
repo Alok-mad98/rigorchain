@@ -240,7 +240,7 @@ def main() -> int:
     summary = summarize(all_rows)
     db = host_storage_baseline()
     payload = {
- "task": "",
+        "task": "",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "host": {
             "platform": platform.platform(),

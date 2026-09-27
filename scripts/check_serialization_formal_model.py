@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal serialization decode model gate.
+"""formal serialization decode model gate.
 
 Qed-only Coq codec. Not C++ refinement. Not extraction.
 """

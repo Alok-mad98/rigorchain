@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Counters for persisted vs in-memory backend usage ( §6).
+/// Counters for persisted vs in-memory backend usage (§6).
 #[derive(Debug, Default)]
 pub struct PersistenceMetrics {
     pub pg_inserts: AtomicU64,

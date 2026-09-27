@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" Consensus Attack Laboratory.
+"""Consensus Attack Laboratory.
 
 Drives current C++: rigord → AppInitMain → ProcessNewBlock → ConnectBlock
 → EvaluateConnect → LevelDB UTXO.
@@ -595,7 +595,7 @@ class Lab:
         ]
         (AUDIT / "consensus_attack_matrix.md").write_text("\n".join(mat) + "\n", encoding="utf-8")
 
- gap = """# KernelInput gap analysis 
+        gap = """# KernelInput gap analysis
 
 Tag: **FORMAL MODEL EXTENSION** discussion. Coq `Record KernelInput` is **not** a C++ argument of `ConnectBlock`.
 

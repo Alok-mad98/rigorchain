@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for GBT template archive and longpollid audit .
+//! PostgreSQL adapter for GBT template archive and longpollid audit.
 
 use crate::cache::TemplateCache;
 use crate::error::{GbtError, GbtResult};

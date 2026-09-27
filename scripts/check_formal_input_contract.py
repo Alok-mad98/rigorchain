@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal input contract gate. Not a Coq proof. Not equivalence."""
+"""formal input contract gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import importlib.util
@@ -84,11 +84,11 @@ ENTRY_FIELDS = (
     "status",
 )
 SOURCES = (
- "",
- "",
- "",
- "",
- "",
+    "",
+    "",
+    "",
+    "",
+    "",
 )
 FORBIDDEN = (
     r"\bFORGE\b",

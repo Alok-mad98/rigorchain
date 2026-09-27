@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" kernel model core theorem gate.
+"""kernel model core theorem gate.
 
 Qed-only on consensus_model. Not C++ refinement. Not extraction.
 """

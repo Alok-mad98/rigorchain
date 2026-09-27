@@ -1,4 +1,4 @@
-//! ORU-only solved-block assembly .
+//! ORU-only solved-block assembly.
 //!
 //! Builds a full block hex from a published job + share solution using only:
 //! coinbase (with extranonces) + opaque GBT transaction bytes.

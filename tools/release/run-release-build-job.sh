@@ -108,7 +108,7 @@ record_phase() {
   commit="$(git_commit)"
 
   {
- echo "TASK="
+    echo "TASK="
     echo "VERSION=${RELEASE_VERSION}"
     echo "TARGET=${TARGET}"
     echo "GIT_COMMIT=${commit}"

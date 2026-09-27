@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(sha256_program_cannot_be_spent_by_the_hashed_pubkey)
     // Classification is byte-shape only, so SHA256(pk) is a perfectly well-formed
     // RES program. What it is not is *spendable by pk* — that is the point of this
     // test, and it is enforced by the witness/program comparison below rather than
- // by making the classifier inspect the curve .
+ // by making the classifier inspect the curve.
     BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(spk), ASSET_RES);
     BOOST_CHECK(Consensus::IsAllowedScript(spk));
 

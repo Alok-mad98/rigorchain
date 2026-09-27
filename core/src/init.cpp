@@ -1650,7 +1650,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
 
     int chain_active_height = WITH_LOCK(cs_main, return chainman.ActiveChain().Height());
 
- // R4: warn if genesis wall-clock is stale at chain height 0.
+    // R4: warn if genesis wall-clock is stale at chain height 0.
     // Difficulty after height 1 is anchored to the first mined block, so this is
     // launch hygiene (MTP/locktime), not a catch-up-mining kill switch.
     if (!chainparams.IsTestChain() && chain_active_height <= 0) {

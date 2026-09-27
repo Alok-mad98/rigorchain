@@ -3,7 +3,7 @@ use crate::types::{JobId, RecordId, TemplateState, TemplateVersion, TipHash};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Immutable adapter snapshot . RFC-020 shipping fields only.
+/// Immutable adapter snapshot. RFC-020 shipping fields only.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct GbtRecord {
     pub record_id: RecordId,
@@ -38,7 +38,7 @@ pub struct GbtRecord {
     pub coinbase_address: Option<String>,
 }
 
-/// Published work artifact ( §2.5). Populated when Block Assembler publishes.
+/// Published work artifact (§2.5). Populated when Block Assembler publishes.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct JobSnapshot {
     pub job_id: Option<JobId>,
@@ -55,7 +55,7 @@ pub struct JobSnapshot {
     pub assembly_hash: Option<[u8; 32]>,
 }
 
-/// Canonical cache row ( §2.1).
+/// Canonical cache row (§2.1).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TemplateRecord {
     pub record_id: RecordId,

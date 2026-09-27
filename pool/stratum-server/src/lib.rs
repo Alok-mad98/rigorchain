@@ -1,8 +1,8 @@
 //! # stratum-server
 //!
-//! RIGOR pool Stratum v1 server and miner submission pipeline .
+//! RIGOR pool Stratum v1 server and miner submission pipeline.
 //!
-//! ORU-only product surface ( / Option A):
+//! ORU-only product surface (Option A):
 //! coordinates GBT work, shares, ORU payout, and `submitblock`. Does **not**
 //! construct or authorize RES body mints — those remain node automint / wallet
 //! Convergence paths only.

@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-03",
   "nature": "Miner implementation only. Node CheckProofOfWork is SSOT. No consensus modification.",
   "command": "bash tools/run-miner-pow-alignment-audit.sh",

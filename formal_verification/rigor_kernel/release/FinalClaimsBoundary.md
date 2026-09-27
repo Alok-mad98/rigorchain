@@ -110,7 +110,7 @@ without `pipeline.v`. No in-memory `Clight.program`
 (ANF opts timeout; CPS Codegen `translate_funs`). CompCert
 not applied. §10 not written. Maturity stays 4.9.
 
- (`CLIGHT_TO_CMINOR_CLOSED=PASS`,
+(`CLIGHT_TO_CMINOR_CLOSED=PASS`,
 `CLIGHT_TO_ASM_CLOSED` not taken): sidecar `vm_compute` of
 `Cshmgen` then `Cminorgen` is `OK` + `Qed` + Closed on the
 six SHA-pinned checker Clight ASTs. `SimplLocals` is

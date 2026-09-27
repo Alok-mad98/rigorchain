@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-08-31",
   "note": "Security audit of the cryptographic boundary (SHA256d / SHA3-256 PoW / Ed25519 / SignatureHash). Does not modify protocol rules, Consensus Kernel, Transaction Kernel, PoW, Genesis, issuance, supply, or draw.",
   "consensus_modified": false,

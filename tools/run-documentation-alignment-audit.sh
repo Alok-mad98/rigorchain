@@ -355,7 +355,7 @@ FINAL_VERDICT = "PASS" if DOCUMENT_ALIGNMENT_STATUS == "PASS" and CONSENSUS_CODE
 
 describe, head = git_describe()
 manifest = {
- "task": "",
+    "task": "",
     "date": str(date.today()),
     "nature": "Documentation alignment only. Protocol is SSOT. No consensus modification.",
     "command": "bash tools/run-documentation-alignment-audit.sh",

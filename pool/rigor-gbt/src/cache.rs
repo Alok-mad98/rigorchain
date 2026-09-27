@@ -6,7 +6,7 @@ use crate::validate::validate_template;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-/// In-memory immutable template cache .
+/// In-memory immutable template cache.
 ///
 /// Records are never mutated in place; state transitions replace the entire `Arc<TemplateRecord>`.
 pub struct TemplateCache {

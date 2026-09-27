@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-02",
   "nature": "Audit-first architecture re-audit of CoinsDB / chainstate and Wallet SQLite as separate trust boundaries. Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES, draw, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq theorems. Closed by P0-091 consuming P0-088 / P0-089 evidence.",
   "rigor_database_architecture_audit": "CLOSED",

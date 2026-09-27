@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Freeze vectors. Aligns current C++ authority, migration candidate, and existing refinement pins. Does not prove equivalence.",
   "refinement_proved": false,
   "equivalence_proved": false,

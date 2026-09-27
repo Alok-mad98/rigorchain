@@ -200,7 +200,7 @@ for p in sorted(root.rglob("*")):
         h = hashlib.sha256(p.read_bytes()).hexdigest()
         files[str(p.relative_to(root))] = {"sha256": h, "bytes": p.stat().st_size}
 manifest = {
- "task": "",
+    "task": "",
     "version": os.environ["VERSION"],
     "platform": "linux-amd64",
     "product_names": ["rigor-wallet", "rigord", "rigor-miner"],

@@ -236,7 +236,7 @@ def _blk_records(path: Path) -> list[bytes]:
 
 
 def existing_testnet_mined() -> list[dict]:
- """ lab datadir, if present. Gitignored; optional source."""
+    """lab datadir, if present. Gitignored; optional source."""
     path = ROOT / "testnet" / "data" / "node-001" / "testnet3" / "blocks" / "blk00000.dat"
     if not path.is_file():
         return []

@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-05",
   "nature": "Audit-first production mining path. No consensus redesign.",
   "command": "bash tools/run-production-mining-path-audit.sh",

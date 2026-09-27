@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-02",
   "nature": "Fail-closed fix for CoinsDB deserialize / Coin integrity (Scheme A). Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES, draw, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
   "production_consensus_modified": false,

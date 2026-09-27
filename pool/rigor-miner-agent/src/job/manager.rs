@@ -5,7 +5,7 @@ use crate::error::MinerResult;
 use crate::metrics::Metrics;
 use crate::stratum::{MiningNotify, MiningNotifyRigor};
 
-/// Display-only convergence metadata from pool .
+/// Display-only convergence metadata from pool.
 /// Miner MUST NOT perform draw selection or winner validation locally.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ConvergenceMetadata {

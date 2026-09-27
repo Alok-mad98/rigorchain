@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-""": descriptor wallet signs convergence txs end-to-end.
+"""descriptor wallet signs convergence txs end-to-end.
 
 Consensus **convergence candidate** outputs use witness **v1** CVG2 (``RIGOR_PUSH_1`` + 32-byte program);
 block-level convergence metadata also uses an ``RIGOR_MARKER_RETURN`` CVGE commitment in coinbase (not asserted
@@ -128,7 +128,7 @@ class ResDescriptorSigningTest(BitcoinTestFramework):
         txid2 = assert_signed_convergence_tx(node, signed2["hex"], prev2, meta2["convergence_sats"])
 
         assert txid1 != txid2, "expected two distinct convergence txids"
- self.log.info(": PASS (%s, %s)", txid1, txid2)
+        self.log.info(": PASS (%s, %s)", txid1, txid2)
 
 
 if __name__ == "__main__":

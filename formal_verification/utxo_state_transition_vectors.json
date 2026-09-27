@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Kernel + Transaction + Ledger composition refinement. Not a full-node, LevelDB, network, wallet, CompCert, or VST proof.",
   "refinement_proved": false,
   "equivalence_proved": false,

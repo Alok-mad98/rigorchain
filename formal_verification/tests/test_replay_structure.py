@@ -2,7 +2,7 @@
 """
 Structural validation for PHASE-4B ReplayReorgCore (no cryptography).
 
- — checks Coq module presence,
+— checks Coq module presence,
 forbidden imports, and named definitions/theorems. Does not run coqc.
 """
 
@@ -141,7 +141,7 @@ MODULE_EXPECTATIONS: dict[str, list[str]] = {
         "Definition created_script_shape_ok",
         "Definition valid_script_shape_on_ins",
         "Lemma valid_script_shape_on_ins_placeholder",
- "",
+        "",
     ],
     "ScriptShapeLift.v": [
         "Theorem apply_tx_rejects_created_empty_script",

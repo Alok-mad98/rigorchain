@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Replay burn-in ( long-run test matrix LR-03 / LR-04 / LR-09).
+"""Replay burn-in (long-run test matrix LR-03 / LR-04 / LR-09).
 
 Long-running deterministic replay stress test. Configurable via CLI:
 
@@ -273,7 +273,7 @@ class ReplayBurninTest(BitcoinTestFramework):
         self.log.info("=" * 60)
 
     def _write_terminal_replay_artifacts(self, node_a):
- """Terminal RPL2 + JSON for archival ."""
+        """Terminal RPL2 + JSON for archival."""
         out_dir = self.options.tmpdir
         r = node_a.getreplaysnapshot()
         for key in (

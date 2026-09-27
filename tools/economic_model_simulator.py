@@ -27,7 +27,7 @@ GENESIS_VECTORS = ROOT / "formal_verification/genesis_consensus_vectors.json"
 BOUNDARY_VECTORS = ROOT / "core/src/test/data/issuance_height_boundary_p0_040.json"
 SUPPLY_MODEL = ROOT / "formal_verification/economic_supply_model.json"
 
-# Coverage heights required by .
+# Coverage heights required.
 REQUIRED_HEIGHTS = (0, 1, 99, 100, 101, 210000, 420000, 840000)
 
 # Nominal public-network spacing (Consensus::TARGET_BLOCK_TIME). Not a subsidy formula.
@@ -342,7 +342,7 @@ def build_supply_model(sched: FrozenSchedule) -> dict[str, Any]:
     # Representative tip for the flat schema: first maturity-release height.
     rep = scenarios["maturity_release"]
     return {
- "task": "",
+        "task": "",
         "economic_model": "simulation_only",
         "consensus_modified": False,
         "formula_duplicate": False,

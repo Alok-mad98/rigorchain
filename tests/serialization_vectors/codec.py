@@ -1,4 +1,4 @@
-"""C++-faithful block/tx codec for .
+"""C++-faithful block/tx codec.
 
 Matches:
   serialize.h ReadCompactSize / WriteCompactSize (canonical)

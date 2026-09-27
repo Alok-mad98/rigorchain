@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" real-network evidence package gate. Not a Coq proof."""
+"""real-network evidence package gate. Not a Coq proof."""
 from __future__ import annotations
 
 import json

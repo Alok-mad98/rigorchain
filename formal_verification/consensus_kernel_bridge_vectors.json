@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Bridge pins. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,

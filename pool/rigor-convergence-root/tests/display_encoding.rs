@@ -1,4 +1,4 @@
-//! GBT display encoding vs legacy literal decode ( remediation).
+//! GBT display encoding vs legacy literal decode (remediation).
 
 use rigor_convergence_root::{
     compute_convergence_root, compute_convergence_root_with_encoding, TxidEncoding,

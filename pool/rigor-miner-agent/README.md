@@ -1,6 +1,6 @@
 # rigor-miner-agent
 
-Production CPU miner client for the RIGOR pool Stratum stack ( / **023**).
+Production CPU miner client for the RIGOR pool Stratum stack (**023**).
 
 Stratum v1 client, job cache, **CPU SHA3-256 RGRPOW01 mining loop** (`share-validator` port), multi-thread nonce scanning, convergence metadata display, metrics, and CLI. No consensus logic, winner selection, mint, or convergence replay.
 
@@ -53,6 +53,5 @@ cargo run -- --pool 127.0.0.1:3333 --worker test.worker --password x --stats
 
 ## See also
 
-- `docs/mining/.md`
 - `ARCHITECTURE.md`
 - `TEST_PLAN.md`

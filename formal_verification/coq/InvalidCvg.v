@@ -13,7 +13,7 @@
     Spend-CVG2 *shape* is a conjunct of [apply_tx] ([ScriptShape.v]);
     this module's container predicate is what that conjunct consults.
 
- Used by negative vectors. *)
+    Used by negative vectors. *)
 From Coq Require Import List.
 From Coq Require Import ZArith.ZArith.
 From Coq Require Import Bool.Bool.

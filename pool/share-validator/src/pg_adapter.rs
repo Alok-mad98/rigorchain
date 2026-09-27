@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for share replay set .
+//! PostgreSQL adapter for share replay set.
 
 use crate::error::{ValidatorError, ValidatorResult};
 use crate::replay::ReplayGuard;

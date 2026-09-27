@@ -246,7 +246,7 @@ public:
     }
 
     /**
- * observational mirror of ORU/RES mint ledgers at this height.
+     * observational mirror of ORU/RES mint ledgers at this height.
      * Memory-only; not serialized; must not be read by consensus validation.
      */
     mutable std::optional<Consensus::RuntimeSupplyState> m_runtime_supply_mirror{};

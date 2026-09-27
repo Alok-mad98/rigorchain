@@ -722,7 +722,7 @@ fail_lines = "\n".join(f"- {x}" for x in fails) if fails else "- (none)"
 info_lines = "\n".join(f"- {f['gate']}: {f['message']}" for f in findings if f["severity"] == "INFO") or "- (none)"
 
 man = {
- "task": "",
+    "task": "",
     "date": today,
     "generated_at_utc": now,
     "nature": "Audit-first. Production readiness gate. No consensus/protocol/database/wallet-schema patch.",

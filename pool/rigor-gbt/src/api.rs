@@ -4,7 +4,7 @@ use crate::record::TemplateRecord;
 use crate::types::RecordId;
 use std::sync::Arc;
 
-/// Read-only Template Cache API ( §6).
+/// Read-only Template Cache API (§6).
 pub struct TemplateCacheApi {
     cache: Arc<TemplateCache>,
 }

@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for pilot orchestration status snapshots .
+//! PostgreSQL adapter for pilot orchestration status snapshots.
 
 use crate::{PilotError, PilotResult, PilotStatusReport};
 

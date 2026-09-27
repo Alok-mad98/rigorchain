@@ -2,7 +2,7 @@
 #define GBT_SOLO_H
 
 /*
- * RIGOR SOLO GBT copy-bytes assembler .
+ * RIGOR SOLO GBT copy-bytes assembler.
  *
  * Node is the only consensus authority. This module copies
  * default_coinbase_tx and the GBT transaction set. RFC-020: coinbase

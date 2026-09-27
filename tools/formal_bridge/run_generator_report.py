@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" generator stability report. Empirical; not a Coq proof."""
+"""generator stability report. Empirical; not a Coq proof."""
 from __future__ import annotations
 
 import importlib.util

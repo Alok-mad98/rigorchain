@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""": collect ≥1000 kernel-candidate catalog rows + determinism report.
+"""collect ≥1000 kernel-candidate catalog rows + determinism report.
 
 Does not change consensus, KernelInput.v, or extraction.
 Traces are not a proof.
@@ -643,7 +643,7 @@ def main() -> int:
 
     INDEX.write_text("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in rows))
     (OUT / "README.md").write_text(
- "/008 KernelInput candidate dataset.\n\n"
+        "/008 KernelInput candidate dataset.\n\n"
         "`index.jsonl` is the catalog (≥1000 rows). Per-CE folders keep hex + trace.\n"
         "Candidates are oracle reconstructions. Not MakeKernelInput. Not a proof.\n"
     )

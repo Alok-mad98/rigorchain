@@ -97,7 +97,7 @@ def golden_vectors() -> Dict[str, Any]:
     ]
 
     return {
- "task": "",
+        "task": "",
         "equivalence_claimed": False,
         "refinement_proved": False,
         "hash_kernel_shared_binary_with_cpp": False,

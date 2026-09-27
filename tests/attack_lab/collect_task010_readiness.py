@@ -492,7 +492,7 @@ def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
     meta = collect_state()
     collect_reorg(meta)
- print(" live datasets written")
+    print(" live datasets written")
     print(STATE_DIR)
     print(REORG_MD)
     print(ASERT_CSV)

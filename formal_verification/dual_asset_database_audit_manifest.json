@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-02",
   "nature": "Audit-first dual-asset (ORU / RES) CoinsDB / persistence review on top of P0-086. Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES mint rules, draw, convergence, ORU rules, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
   "dual_asset_database_audit": "BLOCKED",

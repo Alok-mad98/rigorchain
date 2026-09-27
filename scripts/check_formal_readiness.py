@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal readiness gate. Not a Coq proof. Not equivalence."""
+"""formal readiness gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import csv

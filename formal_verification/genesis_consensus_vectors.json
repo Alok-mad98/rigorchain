@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Frozen genesis consensus pins for RFC-020 continuous destroy_cost(h). Does not prove C++ = Coq = Python. No automatic RES mint.",
   "refinement_proved": false,
   "equivalence_proved": false,

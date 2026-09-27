@@ -31,7 +31,7 @@ struct WriterState {
     writer: BufWriter<File>,
 }
 
-/// Append-only JSONL metrics writer with daily rotation ( Part E).
+/// Append-only JSONL metrics writer with daily rotation (Part E).
 pub struct JsonlMetricsWriter {
     state: Mutex<WriterState>,
 }

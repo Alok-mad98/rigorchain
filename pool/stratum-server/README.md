@@ -1,6 +1,6 @@
 # stratum-server
 
-ORU-only Stratum v1 server and miner submission pipeline .
+ORU-only Stratum v1 server and miner submission pipeline.
 Option A (``): no RES mint construction.
 
 ## Stack integration

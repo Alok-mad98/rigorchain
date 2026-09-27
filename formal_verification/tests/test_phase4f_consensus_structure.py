@@ -1728,7 +1728,7 @@ MODULE_EXPECTATIONS_5E_DRAW: dict[str, list[str]] = {
 
 DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
     "EQUIVALENCE_ARCHITECTURE_AUDIT.md": [
- "",
+        "",
         "SCAFFOLD ONLY",
         "no equivalence claimed",
         "resolved catalog cells",
@@ -1736,7 +1736,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "DRAW_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "Draw equivalence projection verified",
         "other components remain OPEN/PARTIAL",
@@ -1745,7 +1745,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "REPLAY_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "Replay equivalence projections recorded",
         "no equivalence claimed",
@@ -1754,7 +1754,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "REORG_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "Reorg equivalence projections verified",
         "disagreements documented",
@@ -1763,7 +1763,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "CONNECTBLOCK_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "ConnectBlock projections verified",
         "no equivalence claimed",
@@ -1773,7 +1773,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "SUPPLY_ELIGIBILITY_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "Supply and eligibility projections verified",
         "no equivalence claims",
@@ -1783,7 +1783,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-03",
     ],
     "E2E_EQUIVALENCE_AUDIT.md": [
- "",
+        "",
         "PARTIAL",
         "E2E projections combined",
         "no equivalence claims asserted",
@@ -1795,7 +1795,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-03",
     ],
     "RUNTIME_HASH_MAPPING_FEASIBILITY.md": [
- "",
+        "",
         "ESTABLISHED",
         "RMS_PartiallyMappable",
         "RMS_NotMappable",
@@ -1806,7 +1806,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_HASH_MAPPING_RESOLUTION.md": [
- "",
+        "",
         "ESTABLISHED",
         "RMS_PartiallyMappable",
         "RMS_NotMappable",
@@ -1819,7 +1819,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ARTIFACT_RECONSTRUCTION_FEASIBILITY.md": [
- "",
+        "",
         "ESTABLISHED",
         "RCS_PartiallyReconstructable",
         "RCS_NotReconstructable",
@@ -1832,7 +1832,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_SUFFICIENCY_GAP_ANALYSIS.md": [
- "",
+        "",
         "ESTABLISHED",
         "GCS_PotentiallyClosable",
         "GCS_NonClosable",
@@ -1845,7 +1845,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_WITNESS_REQUIREMENT_ANALYSIS.md": [
- "",
+        "",
         "ESTABLISHED",
         "WCL_MissingWitnesses",
         "RWF_TraceHistory",
@@ -1859,7 +1859,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ALIGNMENT_ANALYSIS.md": [
- "",
+        "",
         "ESTABLISHED",
         "FAS_PartiallyAligned",
         "CAS_PartialAlignment",
@@ -1872,7 +1872,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_WITNESS_INTEGRATION.md": [
- "",
+        "",
         "ESTABLISHED",
         "IFS_Partial",
         "IFS_Missing",
@@ -1886,7 +1886,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ALIGNMENT_INTEGRATION.md": [
- "",
+        "",
         "ESTABLISHED",
         "IAS_Partial",
         "IAS_Missing",
@@ -1899,7 +1899,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_HASH_ALIGNMENT.md": [
- "",
+        "",
         "ESTABLISHED",
         "CHAS_Partial",
         "CHAS_Missing",

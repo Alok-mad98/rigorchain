@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" serialization model gate. Not a Coq proof. Not a codec change."""
+"""serialization model gate. Not a Coq proof. Not a codec change."""
 from __future__ import annotations
 
 import hashlib

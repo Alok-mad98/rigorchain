@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(o1_canonical_on_curve_pubkey)
     BOOST_CHECK(!ed25519::IsCanonicalOnCurvePubkey(fill_ab));
     static const unsigned char SMALL_ORDER0[32] = {0x01};
     BOOST_CHECK(!ed25519::IsCanonicalOnCurvePubkey(Span{SMALL_ORDER0, 32}));
- // Classification is byte-shape only . Zeros are a well-formed
+ // Classification is byte-shape only. Zeros are a well-formed
     // native RES program that is not a public key; policy/key_io refuse it.
     BOOST_CHECK(IsRigorResNativeWitnessProgram(pk1));
     BOOST_CHECK(IsRigorResNativeWitnessProgram(zeros));

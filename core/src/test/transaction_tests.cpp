@@ -1154,7 +1154,7 @@ BOOST_AUTO_TEST_CASE(res_transfer_not_locked_by_mint_maturity)
 }
 
 /**
- * `CheckTransaction` runs in MemPoolAccept:PreChecks ahead of any
+ * `CheckTransaction` runs in MemPoolAccept::PreChecks ahead of any
  * UTXO lookup or signature check, so its output accumulator is reachable with a
  * free, unfunded, unsigned transaction. Two maximal outputs must be rejected on
  * the sum, and the sum must not overflow on the way to that rejection.

@@ -411,7 +411,7 @@ bool Engine::writeSnapshots(const Evaluation& eval,
     };
 
     QJsonObject state;
- state.insert(QStringLiteral("task"), QStringLiteral(""));
+    state.insert(QStringLiteral("task"), QStringLiteral(""));
     state.insert(QStringLiteral("evaluated_at"), eval.evaluated_at_utc);
     state.insert(QStringLiteral("current_gate"), levelShortId(eval.current_level));
     state.insert(QStringLiteral("current_gate_label"), levelLabel(eval.current_level));

@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "date": "2026-09-02",
   "note": "Catalog of ConnectBlock acceptance cases. Hex rows that exist are frozen. Cases without block_hex are live C++ or explicitly NOT_COVERED. Do not invent PASS.",
   "live_mint_golden_vector": "NOT_COVERED",

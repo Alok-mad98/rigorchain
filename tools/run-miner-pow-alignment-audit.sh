@@ -348,7 +348,7 @@ FINAL_VERDICT = (
 
 describe, head = git_describe()
 manifest = {
- "task": "",
+    "task": "",
     "date": str(date.today()),
     "nature": "Miner implementation only. Node CheckProofOfWork is SSOT. No consensus modification.",
     "command": "bash tools/run-miner-pow-alignment-audit.sh",

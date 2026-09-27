@@ -401,7 +401,7 @@ def main() -> None:
         overall = "PARTIAL"
 
     summary = {
- "task": "",
+        "task": "",
         "runtime": str(runtime),
         "layer": meta.get("layer"),
         "chain": rpc_cfg["chain"],

@@ -13,7 +13,7 @@ pub struct TreasuryReserveInput {
     pub confirmations: i32,
 }
 
-/// Atomic mint_jobs + treasury_utxos writer ( §5.4).
+/// Atomic mint_jobs + treasury_utxos writer (§5.4).
 #[cfg(feature = "postgres")]
 pub struct PgMintStore {
     pool: PgPool,

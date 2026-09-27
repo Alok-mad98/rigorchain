@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" internal Coq model consistency gate.
+"""internal Coq model consistency gate.
 
 Qed lemmas only. Not C++ refinement. Not KernelInputCandidate equivalence.
 """

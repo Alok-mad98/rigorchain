@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Canary vectors. Production switch remains OFF. Does not prove equivalence.",
   "canary_default": "OFF",
   "enable_flag": "ENABLE_CONSENSUS_KERNEL_CANARY",

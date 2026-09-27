@@ -1,8 +1,5 @@
 # rigor-miner-agent Architecture
 
-**Task:**
-**Authority:** `docs/mining/.md`
-
 ## Boundary
 
 The miner agent is a **Stratum client** only. It consumes pool-published work and submits shares. All draw authority, mint authorization, and block submission remain on the pool stack.

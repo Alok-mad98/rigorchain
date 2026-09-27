@@ -600,7 +600,7 @@ artifact is the six `check_*` functions via a Coq 8.19 sidecar
 `fragment_checker.c` stays rehearsal and is observationally
 stale (RFC-019 `draw_ok`). Public flags stay false.
 
- Closed Clight → Cminor on six SHA-pinned checkers.
+Closed Clight → Cminor on six SHA-pinned checkers.
 TASK 3.1A recorded `COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB`.
 TASK 3.1B froze `unlift` and proved a one-step Clight
 `Sset`/`Sassign` simulation under `unlift_env_related`; it did
@@ -852,7 +852,7 @@ Do not decide "further or not" by enthusiasm. Use these:
       Phase 0–8 DONE; Phase 9 ABORT; Phase 10
       ABORT_LEVEL5 / PARTIAL — CPS exp without
       pipeline.v; no mem Clight; no §10.
- Flags stay false. : Clight→Cminor
+      Flags stay false. : Clight→Cminor
       Closed on six checkers. TASK 3.1A:
       COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB
       (compile_switch Parameter). TASK 3.1B:

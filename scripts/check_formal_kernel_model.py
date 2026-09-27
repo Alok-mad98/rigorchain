@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal consensus kernel input model gate.
+"""formal consensus kernel input model gate.
 
 Not a C++ change. Not extraction. Not CPP_KERNELINPUT_EQUIVALENCE.
 """
@@ -310,7 +310,7 @@ def check_registry() -> None:
         objects.add(ot)
         stages.add(st)
         theorems.add(th)
- for prefix in TASK_PREFIXES:
+    for prefix in TASK_PREFIXES:
         if not any(i.startswith(prefix) for i in seen):
             err(f"registry missing reused prefix {prefix}")
     for th in THEOREMS:

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-""": sendall is ORU-only; RES cannot be swept or mixed.
+"""sendall is ORU-only; RES cannot be swept or mixed.
 
 Notes (regtest):
 - Coinbase maturity is 100. Mining 101 blocks to a wallet yields only ~1 mature UTXO;

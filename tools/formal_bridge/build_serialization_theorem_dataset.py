@@ -224,10 +224,10 @@ def build() -> dict:
         "n_entries": len(entries),
         "layers": sorted(layers),
         "sources": [
- " serialization vectors",
- "/011 CE dataset",
- " differential dataset",
- " SE-001..SE-005",
+            " serialization vectors",
+            "/011 CE dataset",
+            " differential dataset",
+            " SE-001..SE-005",
         ],
         "entries": entries,
     }

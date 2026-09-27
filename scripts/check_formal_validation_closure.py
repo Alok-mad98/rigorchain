@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" formal validation closure gate.
+"""formal validation closure gate.
 
 Qed-only model pipeline. Not C++ refinement. Not extraction.
 """

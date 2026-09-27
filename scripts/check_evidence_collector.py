@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-""" collector quality gate. No node. Not a Coq proof."""
+"""collector quality gate. No node. Not a Coq proof."""
 from __future__ import annotations
 
 import importlib.util

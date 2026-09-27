@@ -259,7 +259,7 @@ final = "PASS" if release_ok else "FAIL"
 
 commit = git_commit()
 manifest = {
- "task": "",
+    "task": "",
     "nature": "Release engineering / artifact reproducibility. NOT a consensus task.",
     "date": "2026-09-03",
     "version": VERSION,

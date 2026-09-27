@@ -23,7 +23,7 @@ struct Params;
 namespace Consensus {
 
 /**
- * Read-only runtime mirror of ORU/RES mint ledgers .
+ * Read-only runtime mirror of ORU/RES mint ledgers.
  *
  * STRICTLY OBSERVATIONAL: must not be read by ConnectBlock validation predicates
  * or influence block acceptance.
@@ -130,6 +130,6 @@ std::vector<std::string> CheckRuntimeSupplyInvariants(const RuntimeSupplyState& 
 
 } // namespace Consensus
 
-// Phase-5 Coq catalog projection: see node/supply_monitor/coq_supply_field_hook.h .
+// Phase-5 Coq catalog projection: see node/supply_monitor/coq_supply_field_hook.h.
 
 #endif // BITCOIN_NODE_SUPPLY_MONITOR_RUNTIME_SUPPLY_STATE_H

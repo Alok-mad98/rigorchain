@@ -47,6 +47,6 @@
   "release_guardian_database_security_stage": "ADDED",
   "reorg_rebuild_equivalence": "PASS",
   "res_production_rebuild_equivalence": "PASS",
- "task": "",
+  "task": "",
   "utxo_production_rebuild_equivalence": "PASS"
 }

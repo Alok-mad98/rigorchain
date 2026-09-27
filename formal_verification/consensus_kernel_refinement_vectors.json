@@ -1,5 +1,5 @@
 {
- "task": "",
+  "task": "",
   "note": "Finite canonical execution domain V. Does not modify phase3_golden_vectors.json. Not a \u2200-proof.",
   "refinement_proved": false,
   "equivalence_proved": false,

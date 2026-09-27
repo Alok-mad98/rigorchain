@@ -32,7 +32,7 @@
   "production_reindex_chainstate": "PASS",
   "res_production_rebuild_equivalence": "PASS",
   "rigor_database_architecture_audit": "CLOSED",
- "task": "",
+  "task": "",
   "utxo_production_rebuild_equivalence": "PASS",
   "wallet_format_changed": false,
   "wallet_sqlite_asset_display_boundary": "VERIFIED",

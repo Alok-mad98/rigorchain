@@ -1,4 +1,4 @@
-//! In-memory ORU-only PPLNS payout ledger ( §6).
+//! In-memory ORU-only PPLNS payout ledger (§6).
 //!
 //! REORG-01 : FINALIZED → REVERSED on deep reorg with
 //! deterministic clawback of `oru_pending` and share orphaning.

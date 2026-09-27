@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-""": three-node pairwise divergence + STEP-0202 capture (regression).
+"""three-node pairwise divergence + STEP-0202 capture (regression).
 
 Confirms ``pairwise_first_divergence_heights`` and ``capture_divergence`` for
 labels A/B/C with deterministic ``first_mismatch.json`` keys and sorted JSON.
@@ -96,7 +96,7 @@ class ReplayFailureCaptureThreeNodePairwiseTest(BitcoinTestFramework):
             {"A": na, "B": nb, "C": nc},
             51,
             harness_checkpoint_height=51,
- harness_failure_reason=" synthetic 3-node partition",
+            harness_failure_reason=" synthetic 3-node partition",
         )
 
         mm_path = os.path.join(out_dir, "first_mismatch.json")
@@ -149,7 +149,7 @@ class ReplayFailureCaptureThreeNodePairwiseTest(BitcoinTestFramework):
             )
 
         print("STEP-0202-3NODE-PAIRWISE: PASS", flush=True)
- self.log.info(" three-node capture artifacts OK under %s", out_dir)
+        self.log.info(" three-node capture artifacts OK under %s", out_dir)
 
 
 if __name__ == "__main__":

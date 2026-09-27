@@ -429,7 +429,7 @@ def main() -> int:
     harvest_live(ROOT / "tests" / "attack_lab" / "data_task007" / "on" / "regtest" / "consensus_trace")
     harvest_live(ROOT / "tests" / "serialization_vectors" / "data" / "regtest" / "regtest" / "consensus_trace")
     (OUT / "README.md").write_text(
- " KernelInput candidate dataset.\n\n"
+        " KernelInput candidate dataset.\n\n"
         "Each case: hex + consensus_trace.json + kernel_candidate.json.\n"
         "Live C++ files appear under live_connectblock/ after "
         "`rigord -rigorconsensustrace=1`.\n"

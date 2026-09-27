@@ -1,6 +1,6 @@
 {
   "protocol": "Rigor",
- "task": "",
+  "task": "",
   "consensus_kernel": {
     "status": "closed",
     "refinement": true,

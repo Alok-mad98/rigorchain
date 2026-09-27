@@ -135,7 +135,7 @@ number (e.g. "violates A-2"). No new policy is introduced here.
   genesis, and regtest + 3 blocks.  
   **Project mapping:** `state_snapshot_tests.cpp` pins **pre-genesis** bytes and a
   deterministic **in-memory post-genesis** oracle (same encoding surface as
- `regtest + N` without requiring a live `TestChain100Setup` fixture); see
+  `regtest + N` without requiring a live `TestChain100Setup` fixture); see
   H-1-2 comments in that file.
 - **H-2.** Functional tests MUST include "two nodes synced to the same tip
   → identical state_hash bytes".

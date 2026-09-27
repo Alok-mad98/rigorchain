@@ -91,7 +91,7 @@ python3 -c "
 import json
 from pathlib import Path
 Path('${OUT}/installer_validation.json').write_text(json.dumps({
- 'task': '',
+  'task': '',
   'pass': ${pass},
   'fail': ${fail},
   'verdict': 'PASS' if ${fail} == 0 else ('PARTIAL' if ${pass} > 0 else 'FAIL'),
