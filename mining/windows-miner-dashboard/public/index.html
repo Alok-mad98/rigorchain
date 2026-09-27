@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RIGOR Miner Dashboard</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="site-header">
+        <nav class="top-nav" aria-label="Dashboard">
+          <div class="brand">
+            <span class="brand-text">RIGOR</span>
+            <span class="brand-sub">Miner Dashboard</span>
+          </div>
+          <div class="top-meta">
+            <span class="status-badge status-badge-warn">READ-ONLY</span>
+            <span class="status-badge" id="product-badge">v0.1.3</span>
+            <span class="status-badge" id="path-badge">SOLO GBT</span>
+            <span class="status-badge" id="platform-badge">Windows</span>
+            <span class="muted" id="generated-at">—</span>
+          </div>
+        </nav>
+      </header>
+
+      <main class="main-content">
+        <header class="hero">
+          <p class="tag">I am a Windows miner</p>
+          <h1>What is happening to my mining account?</h1>
+          <p class="lede">
+            Wallet address → rigor-miner → local rigord GBT → submitblock. Mining pays ORU.
+            RES is not mined.
+          </p>
+          <form id="address-form" class="address-form" action="/" method="get">
+            <label for="payout-address">SOLO payout address (optional)</label>
+            <div class="address-row">
+              <input
+                id="payout-address"
+                name="address"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                placeholder="rg1q… ORU address"
+              />
+              <button type="submit" class="ui-btn">Use address</button>
+              <button type="button" class="ui-btn" id="address-clear">Clear</button>
+            </div>
+            <p class="note" id="address-hint">
+              Paste your miner <code>--coinbase-addr</code>. Not a private key. RES
+              <code>rg1p…</code> addresses are rejected.
+            </p>
+          </form>
+        </header>
+
+        <section class="sources" aria-label="Local service health">
+          <ul class="source-list" id="source-list"></ul>
+        </section>
+
+        <section class="metrics" aria-label="Live mining metrics">
+          <article class="metric">
+            <p class="metric-k">Hashrate</p>
+            <p class="metric-v" id="m-hashrate">—</p>
+          </article>
+          <article class="metric">
+            <p class="metric-k">Height</p>
+            <p class="metric-v" id="m-height">—</p>
+          </article>
+          <article class="metric">
+            <p class="metric-k">Trusted ORU</p>
+            <p class="metric-v" id="m-trusted">—</p>
+          </article>
+          <article class="metric">
+            <p class="metric-k">Convergence</p>
+            <p class="metric-v" id="m-convergence">—</p>
+          </article>
+        </section>
+
+        <section class="lifecycle" aria-label="SOLO mining lifecycle">
+          <h2 class="section-title">SOLO mining lifecycle</h2>
+          <p class="muted">
+            Windows User → Wallet → Local rigord → rigor-miner → submitblock → ORU Maturity →
+            Convergence → RES
+          </p>
+          <ol class="flow" id="lifecycle"></ol>
+        </section>
+
+        <section id="overview" class="panel">
+          <h2 class="section-title">User mining overview</h2>
+          <dl class="kv" id="overview-kv"></dl>
+        </section>
+
+        <section id="worker" class="panel">
+          <h2 class="section-title">Miner instance</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Miner</th>
+                  <th>Status</th>
+                  <th>OS</th>
+                  <th>Path</th>
+                  <th>Hashrate</th>
+                  <th>Shares</th>
+                  <th>Accepted</th>
+                  <th>Rejected</th>
+                  <th>submitblock</th>
+                  <th>Last activity</th>
+                </tr>
+              </thead>
+              <tbody id="worker-body"></tbody>
+            </table>
+          </div>
+          <p class="note">
+            SOLO copies canonical GBT coinbase bytes from local rigord and grinds nonce only.
+            Pool shares are display-only when a quarantined observer is present.
+          </p>
+        </section>
+
+        <div class="grid">
+          <section id="wallet" class="panel">
+            <h2 class="section-title">Wallet mining balance</h2>
+            <dl class="kv" id="wallet-kv"></dl>
+            <p class="note">
+              Immature Coinbase is not spendable until 100 confirmations. Trusted ORU is the
+              spendable mining balance.
+            </p>
+          </section>
+          <section id="convergence" class="panel">
+            <h2 class="section-title">ORU Convergence</h2>
+            <p class="status-line">Convergence Status: <strong id="conv-status">WAITING</strong></p>
+            <ul class="steps" id="conv-steps"></ul>
+            <p class="note">No Convergence → No RES. Display of existing results only.</p>
+          </section>
+        </div>
+
+        <section id="pool" class="panel panel-secondary" hidden>
+          <h2 class="section-title">Pool observer <span class="muted">(quarantined)</span></h2>
+          <dl class="kv" id="pool-kv"></dl>
+          <p class="note">Not the SOLO mining path and not a consensus authority.</p>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <div class="site-footer-inner">
+          <p>
+            Local bind <code>127.0.0.1:18083</code>. No wallet signing. No private keys. No RPC
+            password in this UI.
+          </p>
+          <p class="footer-muted">
+            Explorer:
+            <a href="http://127.0.0.1:18081/" target="_blank" rel="noopener">http://127.0.0.1:18081</a>
+            · Observability:
+            <a href="http://127.0.0.1:18082/" target="_blank" rel="noopener">http://127.0.0.1:18082</a>
+            · Node RPC: 127.0.0.1:8761
+          </p>
+          <p class="footer-muted">
+            Read-only observer. Trust is established by independent verification of public bytes,
+            not by this dashboard.
+          </p>
+        </div>
+      </footer>
+    </div>
+    <script src="/dashboard.js"></script>
+  </body>
+</html>
