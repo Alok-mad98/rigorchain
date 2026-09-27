@@ -236,12 +236,12 @@ public:
             }
         };
 
-        // Mainnet DNS seeds (Rigor network).
+        // DNS discovery only (not consensus). The only current Mainnet seed
+        // hostname is seed.rigorchain.com. Node addresses come from DNS, not
+        // from compiled vFixedSeeds, so a server can be replaced without a
+        // wallet release. Lookups use nDefaultPort.
         vSeeds.clear();
-        vSeeds.emplace_back("seed.rigor.network.");
-        vSeeds.emplace_back("seed1.rigor.network.");
-        vSeeds.emplace_back("seed2.rigor.network.");
-        vSeeds.emplace_back("seed3.rigor.network.");
+        vSeeds.emplace_back("seed.rigorchain.com.");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
@@ -349,6 +349,7 @@ public:
         // testnet/bootstrap/*.conf.
         vFixedSeeds = EncodeIPv4FixedSeed(127, 0, 0, 1, nDefaultPort);
         SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/false);
+        // Testnet names only. Do not add the mainnet seed.rigorchain.com.
         vSeeds.clear();
         vSeeds.emplace_back("seed1.testnet.rigor.network.");
         vSeeds.emplace_back("seed2.testnet.rigor.network.");
