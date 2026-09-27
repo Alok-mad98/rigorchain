@@ -22,6 +22,7 @@ LINUX_SRC="${MINER_STAGING}/linux"
 WIN_SRC="${MINER_STAGING}/windows"
 [[ -x "${LINUX_SRC}/bin/rigor-miner" ]] || die "missing Linux miner (run tools/release/stage-official-miner-linux.sh)"
 [[ -f "${LINUX_SRC}/README.txt" ]] || die "missing ${LINUX_SRC}/README.txt"
+[[ -x "${LINUX_SRC}/rigor-miner.sh" ]] || die "missing ${LINUX_SRC}/rigor-miner.sh"
 [[ -f "${WIN_SRC}/${MINER_WIN_EXE_NAME}" ]] || die "missing ${WIN_SRC}/${MINER_WIN_EXE_NAME}"
 [[ -f "${WIN_SRC}/${MINER_WIN_ZIP_NAME}" ]] || die "missing ${WIN_SRC}/${MINER_WIN_ZIP_NAME}"
 
@@ -39,7 +40,7 @@ PY
 rm -rf "${MINER_OFFICIAL}"
 mkdir -p "${MINER_OFFICIAL}" "${MINER_VISIBLE}"
 
-tar -C "${LINUX_SRC}" -czf "${MINER_OFFICIAL}/${MINER_LINUX_TAR_NAME}" README.txt bin
+tar -C "${LINUX_SRC}" -czf "${MINER_OFFICIAL}/${MINER_LINUX_TAR_NAME}" README.txt rigor-miner.sh bin
 python3 - "${MINER_OFFICIAL}/${MINER_LINUX_TAR_NAME}" <<'PY'
 import sys, tarfile
 with tarfile.open(sys.argv[1], "r:gz") as tf:
@@ -49,6 +50,8 @@ if forbidden:
     raise SystemExit("FAIL: miner linux tar contains wallet/node files: " + ", ".join(forbidden))
 if "bin/rigor-miner" not in names:
     raise SystemExit("FAIL: miner linux tar missing bin/rigor-miner")
+if "rigor-miner.sh" not in names:
+    raise SystemExit("FAIL: miner linux tar missing rigor-miner.sh")
 print("MINER_LINUX_TAR_LAYOUT=PASS")
 PY
 

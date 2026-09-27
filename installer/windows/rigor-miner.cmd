@@ -1,100 +1,42 @@
 @echo off
-setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-
-echo.
-echo --------------------------------
-echo RIGOR Miner launcher
-echo --------------------------------
-echo Start Rigor Wallet first so RPC is up, then run this miner.
-echo ORU payout only ^(rg1q...^). Coinbase is copied from getblocktemplate;
-echo the miner only searches SHA3-256 RGRPOW01 nonces. RES is not mined.
-echo Tip: set COINBASE_ADDR=rg1q... to skip the prompt.
-echo.
-
-if exist "rigor-miner.exe" (
-  echo Local rigor-miner.exe:
-  dir /T:W "rigor-miner.exe" | findstr /i "rigor-miner.exe"
-  echo.
+if /I not "%~1"=="GO" (
+  cmd /k "%~f0" GO
+  exit /b
 )
+title RIGOR MAINNET SOLO Miner
+echo.
+echo RIGOR MAINNET SOLO miner
+echo.
+REM Edit only the 4 lines below. Save, then double-click this file.
+set "RPC_USER=CHANGE_ME"
+set "RPC_PASS=CHANGE_ME"
+set "COINBASE_ADDR=rg1qCHANGE_ME"
+set "MINER_THREADS=3"
 
-set "RPC_URL=http://127.0.0.1:8761"
-set "DATADIR="
-if exist "%~dp0RIGOR Alpha\chainstate" set "DATADIR=%~dp0RIGOR Alpha"
-if not defined DATADIR if exist "%~dp0datadir\chainstate" set "DATADIR=%~dp0datadir"
-if not defined DATADIR if exist "%APPDATA%\RIGOR\chainstate" set "DATADIR=%APPDATA%\RIGOR"
-if not defined DATADIR set "DATADIR=%APPDATA%\RIGOR"
-if not exist "%APPDATA%\RIGOR" mkdir "%APPDATA%\RIGOR"
-set "RIGOR_MINER_STATUS_FILE=%APPDATA%\RIGOR\miner-status.json"
-if exist "%~dp0load-rpc-auth.cmd" (
-  call "%~dp0load-rpc-auth.cmd"
-  if errorlevel 1 (
-    echo ERROR: RPC credentials missing. Start the node once, then retry.
-    pause
-    exit /b 1
-  )
-) else (
-  echo ERROR: load-rpc-auth.cmd missing. Default rpcuser/rpcpassword are not allowed.
+if /I "%RPC_USER%"=="CHANGE_ME" goto need_edit
+if /I "%RPC_PASS%"=="CHANGE_ME" goto need_edit
+if /I "%COINBASE_ADDR%"=="rg1qCHANGE_ME" goto need_edit
+
+if not exist "rigor-miner.exe" (
+  echo rigor-miner.exe is missing from this folder.
   pause
   exit /b 1
 )
 
-if not defined MINER_THREADS set "MINER_THREADS=%NUMBER_OF_PROCESSORS%"
-if "%MINER_THREADS%"=="" set "MINER_THREADS=4"
-if %MINER_THREADS% LSS 1 set "MINER_THREADS=1"
-
-if defined COINBASE_ADDR goto have_addr
-set /p COINBASE_ADDR=ORU mining payout address: 
-:have_addr
-if "%COINBASE_ADDR%"=="" (
-  echo.
-  echo ERROR: ORU payout address is required ^(rg1q...^).
-  echo.
-  pause
-  exit /b 1
-)
-
-echo %COINBASE_ADDR% | findstr /i /b /c:"rg1p" >nul 2>&1
-if not errorlevel 1 (
-  echo.
-  echo WARNING: that looks like a RES address ^(rg1p...^).
-  echo Miner payout must be ORU ^(rg1q...^). RES is not created by mining.
-  echo.
-)
-
-if exist "rigor-cli.exe" (
-  rigor-cli.exe -rpcuser=%RPC_USER% -rpcpassword=%RPC_PASS% -rpcport=8761 getblocktemplate "{\"rules\":[\"segwit\"],\"coinbase_address\":\"%COINBASE_ADDR%\"}" >"%TEMP%\rigor-gbt-preflight.txt" 2>&1
-  if errorlevel 1 (
-    echo.
-    echo ERROR: getblocktemplate failed. Is the node running with RPC on port 8761?
-    echo.
-    type "%TEMP%\rigor-gbt-preflight.txt"
-    echo.
-    pause
-    exit /b 1
-  )
-)
-
-echo.
-echo Threads: %MINER_THREADS%
-echo ORU payout: %COINBASE_ADDR%
 echo Starting miner...
+echo RPC http://127.0.0.1:8761  user=%RPC_USER%
+echo Algorithm rgrpow01
+echo Payout %COINBASE_ADDR%
+echo Threads %MINER_THREADS%
 echo.
-
-rigor-miner.exe -a rgrpow01 -q -t %MINER_THREADS% --no-getwork --coinbase-addr="%COINBASE_ADDR%" -o "%RPC_URL%" -u "%RPC_USER%" -p "%RPC_PASS%"
-set "EC=%ERRORLEVEL%"
-
+rigor-miner.exe -a rgrpow01 --no-getwork -o "http://127.0.0.1:8761" -u "%RPC_USER%" -p "%RPC_PASS%" --coinbase-addr="%COINBASE_ADDR%" -t %MINER_THREADS%
 echo.
-echo Miner exited with code %EC%.
-if not "%EC%"=="0" (
-  echo.
-  echo Common causes:
-  echo  - Node/RPC down or wrong user/pass
-  echo  - Missing solomining=1 while Peers=0
-  echo  - Invalid ORU --coinbase-addr
-  echo  - Stale miner: copy default_coinbase_tx; do not rebuild coinbase
-  echo  - rigor.conf still has miningresfeeaddr= ^(node will not start on mainnet^)
-)
-echo.
+echo Miner exited %ERRORLEVEL%
 pause
-endlocal
+exit /b %ERRORLEVEL%
+
+:need_edit
+echo Open this file in Notepad. Change only RPC_USER, RPC_PASS, COINBASE_ADDR, MINER_THREADS.
+pause
+exit /b 1
