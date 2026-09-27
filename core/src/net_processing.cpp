@@ -2452,7 +2452,7 @@ void PeerManagerImpl::SendBlockTransactions(CNode& pfrom, Peer& peer, const CBlo
 
 bool PeerManagerImpl::CheckHeadersPoW(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams, Peer& peer)
 {
-    // Cheap connectivity check before OpuHash (TASK-012 H-1): a disconnected
+ // Cheap connectivity check before OpuHash ( H-1): a disconnected
     // 2000-header batch must not cost ~0.5s of mix-loop CPU.
     if (!CheckHeadersAreContinuous(headers)) {
         Misbehaving(peer, 20, "non-continuous headers sequence");
@@ -4280,7 +4280,7 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         }
 
         if (!CheckProofOfWork(cmpctblock.header, cmpctblock.header.nBits, m_chainparams.GetConsensus())) {
-            Misbehaving(*peer, 100, "cmpctblock header with invalid AlphaPlus proof of work");
+            Misbehaving(*peer, 100, "cmpctblock header with invalid OpuHash proof of work");
             return;
         }
 

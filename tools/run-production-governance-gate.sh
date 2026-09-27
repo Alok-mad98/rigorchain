@@ -881,7 +881,7 @@ FINAL_VERDICT = GITHUB_PRODUCTION_GOVERNANCE_GATE
 
 describe, head = git_describe()
 manifest = {
-    "task": "TASK-RIGOR-GITHUB-PRODUCTION-GOVERNANCE-GATE-P0-101",
+ "task": "",
     "date": str(date.today()),
     "nature": "Repository governance. CI security gate. Production integrity protection. NOT a consensus modification task.",
     "principle": "CODE > DOCUMENTATION > RELEASE",

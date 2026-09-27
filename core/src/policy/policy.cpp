@@ -90,7 +90,7 @@ bool IsStandard(const CScript& scriptPubKey, const std::optional<unsigned>& max_
 
     switch (whichType) {
     case TxoutType::WITNESS_V1_RES:
-        // TASK-010 R-2: a v1 program that is not a canonical Ed25519 point can
+ // a v1 program that is not a canonical Ed25519 point can
         // never be satisfied, so its coins are unspendable. Consensus accepts it
         // (classification is a pure byte predicate — see
         // IsRigorResNativeWitnessProgram), but the network declines to carry it,

@@ -1,4 +1,4 @@
-(** TASK-018: Closed Clight → CompCert probe on the existing
+(** : Closed Clight → CompCert probe on the existing
     [check_oru] Clight AST.
 
     Bypasses [print_Clight] (Compiler.v Parameter) and does not

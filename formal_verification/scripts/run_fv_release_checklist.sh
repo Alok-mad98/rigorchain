@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FV release checklist runner — TASK-FV-OPS-REGRESSION-GUARD-001
+# FV release checklist runner —
 #
 # Default (from repo root or anywhere):
 #   bash formal_verification/scripts/run_fv_release_checklist.sh

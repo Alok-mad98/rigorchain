@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replay TASK-010-E saved local trial evidence. Same record / same evidence_id."""
+"""Replay saved local trial evidence. Same record / same evidence_id."""
 from __future__ import annotations
 
 import argparse

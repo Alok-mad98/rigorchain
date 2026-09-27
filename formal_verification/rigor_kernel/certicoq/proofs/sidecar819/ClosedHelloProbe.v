@@ -1,4 +1,4 @@
-(** TASK-018 control: tiny CertiCoq hello Clight through CompCert passes.
+(** control: tiny CertiCoq hello Clight through CompCert passes.
     Not a kernel theorem.
 *)
 From HelloGen Require Import prog.

@@ -350,7 +350,7 @@ The `MAX_SIZE` divergence runs the other way and is shown unreachable at
 the block layer by `max_size_divergence_masked_at_block_level`. That
 these two Coq functions mirror the C++ ones is a TCB assumption, stated
 as such, and pinned by the frozen SHA-256 of `core_read.cpp` and
-`serialize.h` in the TASK-017 gate.
+`serialize.h` in the gate.
 
 The codec cone was previously outside that gate — neither compiled by it
 nor listed in its theorem set. It is inside now, and the gate's
@@ -401,7 +401,7 @@ Results:
   arithmetic — `small_lt_two32`, `small_lt_two64`, the one-conjunct-at-a-
   time splitting that avoided a stack overflow in `witness_tx_ok` —
   collapsed to `lia`.
-- Four new theorems added to the TASK-017 gate.
+- Four new theorems added to the gate.
 
 The blast radius stayed inside the codec cone plus `op_index` in
 `TransactionModel`. `SerializationBridge`, `KernelInputConstruction`,
@@ -600,7 +600,7 @@ artifact is the six `check_*` functions via a Coq 8.19 sidecar
 `fragment_checker.c` stays rehearsal and is observationally
 stale (RFC-019 `draw_ok`). Public flags stay false.
 
-TASK-018 Closed Clight → Cminor on six SHA-pinned checkers.
+ Closed Clight → Cminor on six SHA-pinned checkers.
 TASK 3.1A recorded `COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB`.
 TASK 3.1B froze `unlift` and proved a one-step Clight
 `Sset`/`Sassign` simulation under `unlift_env_related`; it did
@@ -852,7 +852,7 @@ Do not decide "further or not" by enthusiasm. Use these:
       Phase 0–8 DONE; Phase 9 ABORT; Phase 10
       ABORT_LEVEL5 / PARTIAL — CPS exp without
       pipeline.v; no mem Clight; no §10.
-      Flags stay false. TASK-018: Clight→Cminor
+ Flags stay false. : Clight→Cminor
       Closed on six checkers. TASK 3.1A:
       COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB
       (compile_switch Parameter). TASK 3.1B:

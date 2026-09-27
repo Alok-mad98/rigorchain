@@ -1,4 +1,4 @@
-# Consensus object model (TASK-015 kernel input model).
+# Consensus object model ( kernel input model).
 # Standalone cone. Do NOT add these modules to rigor_kernel or coq/_CoqProject.
 # Not extraction. Not ConnectBlock. Admitted/Parameter are allowed here only.
 -R . ConsensusModel

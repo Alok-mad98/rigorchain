@@ -11,7 +11,7 @@
 #include <cstddef>
 #include <vector>
 
-// TASK-H2 R-8: This helper used to live in `consensus/res_proof.{h,cpp}`,
+// This helper used to live in `consensus/res_proof.{h,cpp}`,
 // where it sat next to consensus code while internally calling
 // `GetStrongRandBytes`. That co-location is a latent replay hazard: any
 // future copy-paste or accidental call from a consensus path would pull

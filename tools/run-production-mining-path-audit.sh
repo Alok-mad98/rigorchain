@@ -317,7 +317,7 @@ FINAL_VERDICT = (
 
 describe, head = git_describe()
 manifest = {
-    "task": "TASK-RIGOR-PRODUCTION-MINING-PATH-AUDIT-AND-DRY-RUN-P0-099",
+ "task": "",
     "date": str(date.today()),
     "nature": "Audit-first production mining path. No consensus redesign.",
     "command": "bash tools/run-production-mining-path-audit.sh",

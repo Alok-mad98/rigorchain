@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""encode(decode(bytes)) == original for legal TASK-005 vectors."""
+"""encode(decode(bytes)) == original for legal vectors."""
 from __future__ import annotations
 
 import json

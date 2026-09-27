@@ -1,4 +1,4 @@
-# KernelInput candidate generator (TASK-008-R)
+# KernelInput candidate generator 
 
 Not a refinement proof. Not `MakeKernelInput`. Not Coq extraction.
 
@@ -16,7 +16,7 @@ CLI: `tools/formal_bridge/generate_kernel_candidate.py`
 
 ## Input
 
-A TASK-007 `consensus_trace.json` object. Required enough to read:
+A `consensus_trace.json` object. Required enough to read:
 
 - `pow_result` (bool or null)
 - `asert_result` (bool or null)
@@ -66,5 +66,5 @@ Same trace ⇒ same payload ⇒ same `candidate_hash`.
 
 ## Forbidden
 
-Do not restore FORGE, MTH, historical RNG-as-protocol, ARDA, script-as-asset, or deleted dual-asset RFC into this object.
+Do not restore abandoned protocol objects, script-as-asset, or a deleted dual-asset RFC into this object.
 Do not edit `KernelInput.v` to match the generator.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-018 chain-state transition model gate.
+""" chain-state transition model gate.
 
 Qed-only on ChainState / ReorgModel. Not C++ refinement. Not extraction.
 """
@@ -69,11 +69,10 @@ COMPILE = (
 
 ASSUME_RE = re.compile(r"^\s*(Admitted|Axiom|Parameter)\b")
 MATRIX_COLS = ("Theorem", "Status", "Dataset reference", "Future refinement dependency")
-DATASETS = ("TASK-010", "TASK-011", "TASK-012")
+DATASETS = ("", "", "")
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

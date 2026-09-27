@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-C-ABI-EXTRACTION-BRIDGE-P0-053",
+ "task": "",
   "extracted_kernel_abi_ready": true,
   "refinement_proved": false,
   "equivalence_proved": false,

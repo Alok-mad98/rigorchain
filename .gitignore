@@ -108,6 +108,9 @@ src/qt/bitcoin-qt.includes
 *.patch
 !contrib/guix/patches/*.patch
 !depends/patches/**/*.patch
+!core/depends/patches/**/*.patch
+!core/src/qt/rigorwallet/ui_readiness.h
+!core/src/util/ui_change_type.h
 
 #libtool object files
 *.lo
@@ -179,7 +182,7 @@ dist/
 /guix-build-*
 
 /ci/scratch/
-# ===== ArdaChain Custom =====
+# ===== RIGOR Custom =====
 
 # core dump
 core.*
@@ -226,7 +229,7 @@ docs/freeze/lr_artifacts_final/
 # Forensic stress-lab harness outputs (tmpdir + LevelDB + logs; local-only)
 forensic_combine_evidence/
 
-# TASK-RES-CORE-FUNCTIONAL-TEST sealed runs (see scripts/freeze/archive_task_res_core_functional.sh)
+# sealed runs (see scripts/freeze/archive_task_res_core_functional.sh)
 docs/freeze/task_res_core_functional_artifacts/
 
 # Local runtime data (chain datadirs, soak logs, devtest artifacts)
@@ -246,15 +249,17 @@ contrib/testing/**/*.log
 # Nested Qt moc — generated at build time; do not re-add to the index.
 **/moc_*.cpp
 **/ui_*.h
+!core/src/qt/rigorwallet/ui_readiness.h
+!core/src/util/ui_change_type.h
 **/*.moc
 
-# TASK-GIT-003 migration workspace (local-only extraction artifacts)
+# migration workspace (local-only extraction artifacts)
 .migration/
 
-# TASK-GIT-004 generated release env (regenerate via scripts/generate_release_tags.sh)
+# generated release env (regenerate via scripts/generate_release_tags.sh)
 .release/version.env
 
-# TASK-GIT-003 / TASK-GIT-005 migration & clean export workspaces
+# / migration & clean export workspaces
 .migration/rigorchain_clean_export/
 
 # Node / Next.js MVP projects (explorer-indexer-mvp, wallet-observer-mvp)
@@ -305,7 +310,7 @@ logs/
 core/logs/
 core/src/logs/
 
-# Compiled binaries that were previously tracked (TASK-HYGIENE-001)
+# Compiled binaries that were previously tracked 
 core/src/compute_rfc001_vectors
 formal_verification/cpp/bin/
 cpuminer/minerd
@@ -338,6 +343,7 @@ docs/release/.alpha_sync_manifest.json
 *.pyc
 core/configure~
 *.patch
+!core/depends/patches/**/*.patch
 # Historical release dump noise (not part of alpha product surface)
 docs/release/RELEASE-00*/
 docs/release/RELEASE-005*
@@ -352,7 +358,7 @@ contrib/testing/post_proof034*/
 contrib/testing/m0*/
 contrib/testing/m1*/
 
-# TASK-RELEASE-WORKTREE-HYGIENE-FINAL-001 — local artifacts (never commit)
+# — local artifacts (never commit)
 .runtime/
 contrib/testing/local_mainnet_simulation/out/
 miner/minerd
@@ -401,10 +407,10 @@ formal_verification/rigor_kernel/extracted/extracted-kernel-checker
 formal_verification/rigor_kernel/extracted/diff_work/
 formal_verification/rigor_kernel/verified_compiler/fragment-checker
 
-# TASK-003 private testnet runtime datadirs
+# private testnet runtime datadirs
 testnet/data/
 
-# TASK-004 attack-lab runtime datadirs
+# attack-lab runtime datadirs
 tests/attack_lab/data/
 tests/attack_lab/data_task007/
 tests/attack_lab/data_task008/
@@ -483,11 +489,8 @@ credentials.json
 docker-compose.production.yml
 /deployment/*.yaml
 /deployment/*.yml
-# public-history candidate: keep source hidden by generic rules
-!contrib/guix/patches/*.patch
-!depends/patches/**/*.patch
-!core/depends/patches/**/*.patch
-!core/src/qt/rigorwallet/ui_readiness.h
-!core/src/util/ui_change_type.h
-PUBLIC_HISTORY_CANDIDATE_MANIFEST.md
-PUBLIC_HISTORY_CANDIDATE_BUILD.log
+
+# Local export-session reports (not part of the public product tree)
+/PUBLIC_EXPORT_MANIFEST.md
+/PUBLIC_EXPORT_VERIFICATION.md
+/PUBLIC_PREPUBLICATION_REVIEW.md

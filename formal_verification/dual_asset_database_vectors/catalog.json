@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-DUAL-ASSET-ORU-RES-DATABASE-AUDIT-P0-086B",
+ "task": "",
   "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
   "oru_res_storage_model": "SHARED_COIN_MODEL",
   "res_persistence_class": "C_HYBRID",

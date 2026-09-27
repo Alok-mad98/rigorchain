@@ -1,6 +1,6 @@
 # RIGOR Public Site — Route and Data Binding Specification
 
-**Task:** `TASK-PUBLICATION-002`  
+**Task:** ``
 **Document:** Frontend data sources, routing, and UI state machine  
 **Parent:** [SITE_ARCHITECTURE.md](./SITE_ARCHITECTURE.md)
 

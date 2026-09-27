@@ -127,7 +127,7 @@ def build() -> dict:
         cls = "B" if base == "CE-003" else "A"
         entries.append(
             row(
-                f"TASK-004/{cid}",
+ f"/{cid}",
                 "tests/attack_vectors/",
                 cls,
                 str(path.relative_to(ROOT)),
@@ -143,7 +143,7 @@ def build() -> dict:
         rule = rec.get("validation_rule") or {}
         entries.append(
             row(
-                f"TASK-005/{cid}",
+ f"/{cid}",
                 "tests/serialization_vectors/",
                 "A",
                 str(path.relative_to(ROOT)),
@@ -154,7 +154,7 @@ def build() -> dict:
 
     entries.append(
         row(
-            "TASK-008/kernel_candidate_traces",
+ "/kernel_candidate_traces",
             "audit/formal_bridge/kernel_candidate_dataset/",
             "A",
             "audit/formal_bridge/kernel_candidate_dataset/traces.jsonl",
@@ -169,7 +169,7 @@ def build() -> dict:
         th = CE_THEOREM.get(key, "validation_soundness")
         entries.append(
             row(
-                f"TASK-008/{ce}",
+ f"/{ce}",
                 "audit/formal_bridge/kernel_candidate_dataset/",
                 "B" if key == "CE-003" else "A",
                 str(path.relative_to(ROOT)),
@@ -180,7 +180,7 @@ def build() -> dict:
     for path in sorted((kcds / "live_connectblock").glob("*/kernel_candidate.json")):
         entries.append(
             row(
-                f"TASK-008/live/{path.parent.name}",
+ f"/live/{path.parent.name}",
                 "audit/formal_bridge/kernel_candidate_dataset/",
                 "A",
                 str(path.relative_to(ROOT)),
@@ -215,7 +215,7 @@ def build() -> dict:
         layer = rec.get("rejection_layer") or rec.get("operation") or ""
         entries.append(
             row(
-                f"TASK-010/{path.stem}",
+ f"/{path.stem}",
                 "audit/formal_bridge/local_trial_dataset/",
                 cls,
                 rec.get("evidence_id") or str(path.relative_to(ROOT)),
@@ -236,7 +236,7 @@ def build() -> dict:
         sid = case["id"]
         entries.append(
             row(
-                f"TASK-010/{sid}",
+ f"/{sid}",
                 "audit/formal_bridge/state_transition_dataset/",
                 "B",
                 sid,
@@ -261,7 +261,7 @@ def build() -> dict:
             layer = "ConnectBlock"
         entries.append(
             row(
-                f"TASK-012/{rec.get('case_id')}",
+ f"/{rec.get('case_id')}",
                 "audit/formal_bridge/differential_dataset/",
                 cls,
                 rec.get("input_hash") or rec.get("case_id"),
@@ -287,11 +287,11 @@ def build() -> dict:
             "schema_hash": schema_hash(),
             "n_entries": len(entries),
             "sources": [
-                "TASK-004 attack vectors",
-                "TASK-005 serialization vectors",
-                "TASK-008 bridge dataset",
-                "TASK-010 evidence dataset",
-                "TASK-012 differential dataset",
+ " attack vectors",
+ " serialization vectors",
+ " bridge dataset",
+ " evidence dataset",
+ " differential dataset",
             ],
         },
         "entries": entries,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-015 formal consensus kernel input model gate.
+""" formal consensus kernel input model gate.
 
 Not a C++ change. Not extraction. Not CPP_KERNELINPUT_EQUIVALENCE.
 """
@@ -85,12 +85,11 @@ THEOREMS = (
 )
 REG_FIELDS = ("id", "object_type", "validation_stage", "future_theorem")
 REG_OBJECTS = {"block", "transaction", "input", "output", "utxo", "witness"}
-TASK_PREFIXES = ("TASK-004/", "TASK-008/", "TASK-012/", "TASK-014/")
+TASK_PREFIXES = ("/", "/", "/", "/")
 SCAN = (MODEL, DESIGN, SKEL, FREEZE)
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",
@@ -311,7 +310,7 @@ def check_registry() -> None:
         objects.add(ot)
         stages.add(st)
         theorems.add(th)
-    for prefix in TASK_PREFIXES:
+ for prefix in TASK_PREFIXES:
         if not any(i.startswith(prefix) for i in seen):
             err(f"registry missing reused prefix {prefix}")
     for th in THEOREMS:

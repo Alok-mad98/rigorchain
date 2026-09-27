@@ -1,4 +1,4 @@
-/** In-memory indexer recovery state — no DB schema changes (TASK-EXPLORER-012). */
+/** In-memory indexer recovery state — no DB schema changes . */
 
 import { logMismatchEvent } from "./mismatchLog";
 

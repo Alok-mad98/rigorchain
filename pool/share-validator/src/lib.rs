@@ -1,6 +1,6 @@
 //! # share-validator
 //!
-//! RIGOR pool stack share and block validation layer (TASK-MINING-008).
+//! RIGOR pool stack share and block validation layer .
 //!
 //! Enforcement boundary between miner submissions, Block Assembler jobs, and
 //! `rigord` consensus validation. Read-only integration with `rigor-gbt` and

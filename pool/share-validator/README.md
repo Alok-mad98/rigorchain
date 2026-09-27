@@ -1,6 +1,6 @@
 # share-validator
 
-Share Validation Layer for the RIGOR Pool Stack (TASK-MINING-008).
+Share Validation Layer for the RIGOR Pool Stack .
 
 Enforcement boundary between miner submissions, Block Assembler jobs, and `rigord` consensus rules — without modifying consensus, RPC, or protocol code.
 

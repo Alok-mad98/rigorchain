@@ -4,7 +4,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #
-# TASK-ARCH W11 / W5 / W1 guardrail: no global process state on the script
+# W11 / W5 / W1 guardrail: no global process state on the script
 # or consensus path.
 #
 # Forbids, in core/src/script/ and core/src/consensus/ (plus two ConnectBlock

@@ -1,4 +1,4 @@
-; RIGOR Wallet Windows installer — TASK-WALLET-PROGRAM-025
+; RIGOR Wallet Windows installer —
 ; NOT the AlphaPlus production installer (see rigor_alpha_installer.nsi).
 ; Build: makensis /DREPO_ROOT=/path/to/ring installer/windows/rigor_installer.nsi
 

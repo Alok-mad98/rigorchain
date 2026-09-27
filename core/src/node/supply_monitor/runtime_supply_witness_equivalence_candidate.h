@@ -21,7 +21,7 @@ class UniValue;
 namespace Consensus {
 
 /**
- * TASK-FVR-I: candidate-equivalence status (theoretical comparability only).
+ * candidate-equivalence status (theoretical comparability only).
  *
  * Does NOT assert Coq ≡ Runtime. Identifies which witness fields could
  * theoretically be compared in a future proof attempt.
@@ -76,7 +76,7 @@ struct CoqEquivalenceCandidateExport {
 
 std::optional<CoqEquivalenceCandidateExport> ResolveCoqEquivalenceCandidateExportAt(const CBlockIndex* pindex);
 
-/** Coq-readable JSON (mirrors FVR-I + formal layer field names for TASK-FVR-J). */
+/** Coq-readable JSON (mirrors FVR-I + formal layer field names for ). */
 UniValue CoqEquivalenceCandidateExportToJson(const CoqEquivalenceCandidateExport& exp);
 
 } // namespace Consensus

@@ -113,7 +113,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     CDBBatch batch(*m_db);
     size_t count = 0;
     size_t changed = 0;
-    // TASK-H2 R-9 / H-3-1: count of mid-batch partial flushes that LevelDB
+ // / H-3-1: count of mid-batch partial flushes that LevelDB
     // actually performed during this call. Diagnostic only; the value is
     // never read by any control-flow branch. Surfacing it under
     // `BCLog::COINDB` lets the operator observe how many on-disk write
@@ -156,7 +156,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
             LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
             m_db->WriteBatch(batch);
             batch.Clear();
-            ++partial_flush_count; // TASK-H2 R-9 / H-3-1: diagnostic only.
+ ++partial_flush_count; // / H-3-1: diagnostic only.
             if (m_options.simulate_crash_ratio) {
                 static FastRandomContext rng;
                 if (rng.randrange(m_options.simulate_crash_ratio) == 0) {
@@ -174,7 +174,7 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock, boo
     LogPrint(BCLog::COINDB, "Writing final batch of %.2f MiB\n", batch.SizeEstimate() * (1.0 / 1048576.0));
     bool ret = m_db->WriteBatch(batch);
     LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of %u) to coin database...\n", (unsigned int)changed, (unsigned int)count);
-    // TASK-H2 R-9 / H-3-1: emit a single end-of-call diagnostic line
+ // / H-3-1: emit a single end-of-call diagnostic line
     // capturing how many mid-batch partial flushes this transition
     // produced. Each partial flush is an independent crash-recovery
     // point, so the count is the size of the `SIGKILL`-vulnerable window

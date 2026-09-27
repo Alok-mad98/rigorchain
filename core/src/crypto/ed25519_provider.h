@@ -22,7 +22,7 @@ bool ResWitnessProgram(Span<const unsigned char> pk32, Span<unsigned char> out32
  * prime-order subgroup (libsodium `crypto_core_ed25519_is_valid_point`).
  * Rejects identity, small-order, and non-canonical encodings.
  *
- * TASK-010 R-2: address encode/decode, relay policy, and wallet destination
+ * address encode/decode, relay policy, and wallet destination
  * construction. Not a consensus classifier. `IsRigorResNativeWitnessProgram`
  * stays a pure byte predicate so a confirmed UTXO cannot change class when
  * libsodium's notion of a valid point changes.

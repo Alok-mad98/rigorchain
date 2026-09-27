@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-PROOF-009: End-to-end golden vector runtime verification on materialized regtest.
+# End-to-end golden vector runtime verification on materialized regtest.
 #
 # Usage:
 #   golden_vector_verify.sh [--datadir=PATH] [--verify-fvr] [--require-full] [--no-save] [vector_id]
@@ -9,7 +9,7 @@
 # enforce 12/12 after golden_vector_materializer.sh completes.
 #
 # Prerequisites:
-#   - regtest rigord running with TASK-PROOF-008 fixtures materialized
+# - regtest rigord running with fixtures materialized
 #   - golden_vector_fixtures.json present in datadir
 #
 # Examples:

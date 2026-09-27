@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-POW-BOUNDARY-SECURITY-AUDIT-P0-081",
+ "task": "",
   "date": "2026-08-31",
   "note": "Security audit of the PoW boundary (header_80 / SHA3-256 digest / compact target / ASERT). Does not modify protocol rules, PoW parameters, SHA256, ASERT, Consensus Kernel, Transaction Kernel, or Ledger.",
   "production_consensus_modified": false,

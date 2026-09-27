@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-002: release job for CURRENT_RUNTIME_ARCHITECTURE (rigord).
+# release job for CURRENT_RUNTIME_ARCHITECTURE (rigord).
 # Phases: record | build | smoke | package | verify | checksum | all
 #
 # Compiles core/src/rigord.cpp via Autotools (not rigor_release_identity.cpp).
@@ -108,7 +108,7 @@ record_phase() {
   commit="$(git_commit)"
 
   {
-    echo "TASK=TASK-002-RELEASE-ARTIFACT-CORRECTION"
+ echo "TASK="
     echo "VERSION=${RELEASE_VERSION}"
     echo "TARGET=${TARGET}"
     echo "GIT_COMMIT=${commit}"

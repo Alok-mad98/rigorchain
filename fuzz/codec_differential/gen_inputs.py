@@ -7,7 +7,7 @@ alone.
 
 Four families, in increasing distance from the proved territory:
 
-  seed/  the 26 TASK-005 vectors, unchanged
+ seed/ the 26 vectors, unchanged
   rnd/   structured random transactions and blocks, built from the wire
          grammar rather than from a decoder, so they explore the value
          space (amounts near 2^63, full-range indices, many in/outputs,

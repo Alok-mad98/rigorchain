@@ -1,7 +1,7 @@
 # Obsolete / residual formal-model inventory
 
 Snapshot date: 2026-08-26  
-Task: `TASK-RIGOR-FORMAL-VERIFICATION-MODEL-REALIGNMENT-AUDIT-P0-022`
+Task: ``
 
 Historical proofs are **not deleted**. They remain in `formal_verification/coq/`.
 This file classifies them against the live RIGOR v0.1 unique path:

@@ -1,4 +1,4 @@
-/** ConvergeProof visualization panel — indexed display only (TASK-EXPLORER-007). */
+/** ConvergeProof visualization panel — indexed display only . */
 
 import type { TxConvergencePanel } from "./convergencePanel";
 import {

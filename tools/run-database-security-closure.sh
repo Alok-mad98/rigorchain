@@ -212,7 +212,7 @@ audit_status = "CLOSED" if closed else "OPEN"
 final = "PASS" if closed else "FAIL"
 
 man = {
-    "task": "TASK-RIGOR-DATABASE-SECURITY-CLOSURE-P0-091",
+ "task": "",
     "date": "2026-09-02",
     "nature": "Audit closure only. No consensus changes. No database format changes.",
     "database_audit_status": audit_status,

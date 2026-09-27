@@ -36,7 +36,7 @@ There is no published one-liner in this tree of the form
 | Item | Instantiated? | TCB? |
 |---|---|---|
 | `ccomp` binary on the generated `.c` files (Phase 6) | used as a compiler, not as a Coq theorem | the run is evidence; the theorem is not |
-| CompCert `semantic_preservation` / `transf_c_program_correct` on a Coq AST of our files | TASK-018: `Cshmgen`+`Cminorgen` Closed on six checker Clight ASTs (bypass `print_Clight`). `SimplLocals` = `Error` (`bad temporary`). `Selection.sel_program` does not compute (oracles). Clight → Asm **not** Closed. Phase 9: `transf_c_program` timed out. | **yes — load-bearing after Cminor** |
+| CompCert `semantic_preservation` / `transf_c_program_correct` on a Coq AST of our files | : `Cshmgen`+`Cminorgen` Closed on six checker Clight ASTs (bypass `print_Clight`). `SimplLocals` = `Error` (`bad temporary`). `Selection.sel_program` does not compute (oracles). Clight → Asm **not** Closed. Phase 9: `transf_c_program` timed out. | **yes — load-bearing after Cminor** |
 | clang link of GC + driver + `libm` | yes (TCB link) | yes |
 | `vector_driver.c` | trusted glue | yes |
 

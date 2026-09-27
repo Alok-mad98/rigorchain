@@ -30,7 +30,7 @@ enum class RuntimeSupplyMirrorSource {
 };
 
 /**
- * TASK-FVR-D read-only bundle: mirror + authoritative pindex caches + Coq hook.
+ * read-only bundle: mirror + authoritative pindex caches + Coq hook.
  * Must not be used by validation or state_hash paths.
  */
 struct RuntimeSupplyExport {

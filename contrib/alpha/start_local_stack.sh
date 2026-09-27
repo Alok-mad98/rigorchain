@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-MAINNET-PRODUCT-ALPHA-001 — start local Node + Wallet RPC + Miner path + Pool + Explorer hooks
+# — start local Node + Wallet RPC + Miner path + Pool + Explorer hooks
 set -euo pipefail
 
 ALPHA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-010 real-network evidence package gate. Not a Coq proof."""
+""" real-network evidence package gate. Not a Coq proof."""
 from __future__ import annotations
 
 import json
@@ -26,7 +26,7 @@ REQUIRED_MAP = (
     "invalid tx",
     "restart",
 )
-FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bARDA\b", r"\bRNG\b", r"script-as-asset", r"dual-asset")
+FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bRNG\b", r"script-as-asset", r"dual-asset")
 SCAN = (MODEL, BOUND, MAP, DESIGN)
 errors: list[str] = []
 

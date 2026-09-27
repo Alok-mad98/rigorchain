@@ -7,7 +7,7 @@ source "${SCRIPT_DIR}/common.sh"
 lms_require_binaries
 mkdir -p "${LMS_OUT}" "${LMS_DOCS}"
 MAX_ROUNDS="${LMS_MAX_MINT_ROUNDS:-120}"
-echo "==> TASK-LOCAL-MAINNET-SIMULATION-001 full acceptance"
+echo "==> full acceptance"
 echo "    runtime=${LMS_RUNTIME}"
 echo "    out=${LMS_OUT}"
 echo "    docs=${LMS_DOCS}"

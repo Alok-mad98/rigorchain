@@ -137,9 +137,6 @@ Protocol SSOT: [`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md),
 Lock files: `core/src/consensus/params.h`,
 `core/src/consensus/rigor_consensus_lock.h`.
 
-AlphaPlus / Alpha1 names are historical release channels, not the current
-protocol identity. See [`CHANGELOG.md`](CHANGELOG.md).
-
 Extracted facts:
 [`docs/developer/CODE_SSOT_PROTOCOL_FACTS.md`](docs/developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
@@ -312,12 +309,19 @@ Explorer: `explorer/` (Node). Pool: `pool/pilot` (`cargo build --release`).
 
 ## 12. Release information
 
-This repository may contain development and internal validation artifacts.
-Public release status is determined by tagged releases.
+Current display version is `v0.2` (`RIGOR_RELEASE_VERSION` in
+`core/src/clientversion.h`).
 
-Current binaries: [GitHub Releases](https://github.com/rigorchain/rigorchain/releases).
 Version history: [`CHANGELOG.md`](CHANGELOG.md).
-A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md).
+Release notes: [`docs/release/RIGOR_V0.2_RELEASE_NOTES.md`](docs/release/RIGOR_V0.2_RELEASE_NOTES.md).
+
+Build the node, wallet, and miner from this source. Prebuilt installers
+are published only when a GitHub Release actually hosts them.
+
+## 13. Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Report vulnerabilities via
+[`SECURITY.md`](SECURITY.md), not public issues.
 
 ---
 
@@ -326,8 +330,7 @@ A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](d
 | Path | Purpose |
 |------|---------|
 | `core/` | Full node, wallet, consensus |
-| `docs/` | Active documentation (`docs/README.md`) |
-| `archive/` | Historical RFC / design / formal records (not normative) |
+| `docs/` | Documentation (`docs/README.md`) |
 | `explorer/`, `miner/`, `pool/`, `web/` | Product components |
 | `verification/` | Public verification map |
 | `formal_verification/` | Coq model, golden vectors, manifests |

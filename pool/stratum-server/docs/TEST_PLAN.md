@@ -1,6 +1,6 @@
 # stratum-server Test Plan
 
-**Task:** TASK-MINING-009, TASK-MINING-018  
+**Task:** ,
 **Run:** `cd pool/stratum-server && cargo test`
 
 ## Unit tests (8)
@@ -24,7 +24,7 @@
 | `reorg_orphans_payout_shares` | Reorg orphan handling |
 | `job_expiry_invalidates_downstream` | STALE on supersede |
 
-## Cross-crate verification (TASK-MINING-018)
+## Cross-crate verification 
 
 | Path | Crates | Status |
 |------|--------|--------|

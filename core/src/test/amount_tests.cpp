@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(MoneyRangeTest)
 }
 
 /**
- * TASK-010 R-1: the bound must leave room to add in-range amounts. Two amounts
+ * the bound must leave room to add in-range amounts. Two amounts
  * that each pass MoneyRange must be summable without signed overflow, because
  * that is what every `total += v; if (!MoneyRange(total))` in Bitcoin-derived
  * code silently assumes.
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(GetFeeTest)
     BOOST_CHECK(CFeeRate(CAmount(27), 789) == CFeeRate(34));
     // Maximum size in bytes, should not crash
     CFeeRate(MAX_MONEY, std::numeric_limits<uint32_t>::max()).GetFeePerK();
-    // TASK-010 R-1: MAX_MONEY * 1000 exceeds int64. The widened product must
+ // MAX_MONEY * 1000 exceeds int64. The widened product must
     // saturate rather than wrap; a one-byte divisor is the worst case.
     BOOST_CHECK_EQUAL(CFeeRate(MAX_MONEY, 1).GetFeePerK(), std::numeric_limits<int64_t>::max());
     BOOST_CHECK_EQUAL(CFeeRate(-MAX_MONEY, 1).GetFeePerK(), std::numeric_limits<int64_t>::min());

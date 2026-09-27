@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(sha256_program_cannot_be_spent_by_the_hashed_pubkey)
     // Classification is byte-shape only, so SHA256(pk) is a perfectly well-formed
     // RES program. What it is not is *spendable by pk* — that is the point of this
     // test, and it is enforced by the witness/program comparison below rather than
-    // by making the classifier inspect the curve (TASK-010 R-2).
+ // by making the classifier inspect the curve .
     BOOST_CHECK_EQUAL(AssetTypeFromScriptPubKey(spk), ASSET_RES);
     BOOST_CHECK(Consensus::IsAllowedScript(spk));
 
@@ -200,7 +200,7 @@ BOOST_AUTO_TEST_CASE(script_asset_classifier_golden_vectors)
                             v["id"].get_str() + " allowed-from-asset");
     }
 
-    // TASK-010 R-2: the C++ classifier is byte-shape only, exactly like the Coq
+ // the C++ classifier is byte-shape only, exactly like the Coq
     // model (ScriptMintWitness.asset_from_script). An untagged 32-byte v1 program
     // is RES whether or not it decodes to a curve point; a program that is not a
     // public key yields an unspendable output, which relay policy declines to

@@ -11,7 +11,7 @@ This mirrors consensus/pow.cpp logic in Python (uint256 as int); use only for
 plots / logs — consensus remains the C++ implementation.
 
 The production rule uses the **parent** timestamp and the height-1 anchor
-(TASK-012). This helper still takes an explicit (eval_height, eval_time) pair so
+. This helper still takes an explicit (eval_height, eval_time) pair so
 callers can plot either convention.
 
 Example:
@@ -34,7 +34,7 @@ ASERT_POLY_P3 = 5127
 ASERT_POLY_BIAS = 1 << 47
 ASERT_EXP_CLAMP = ASERT_RADIX * 64
 # Rigor mainnet-style powLimit (uint256); matches consensus.powLimit in chainparams.
-POW_LIMIT_ARDA_DEFAULT = int("0x7" + "f" * 63, 16)
+POW_LIMIT_DEFAULT = int("0x7" + "f" * 63, 16)
 
 
 def target_from_compact(bits: int) -> int:
@@ -196,7 +196,7 @@ def main() -> int:
     p.add_argument(
         "--pow-limit",
         type=lambda x: int(x, 0),
-        default=POW_LIMIT_ARDA_DEFAULT,
+        default=POW_LIMIT_DEFAULT,
         help="pow limit as uint256 integer (default: Rigor 0x7fff…ff)",
     )
     args = p.parse_args()

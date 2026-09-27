@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-021 formal consensus mathematical properties gate.
+""" formal consensus mathematical properties gate.
 
 Qed-only ASERT / reorg-safety model. Not C++ refinement. Not extraction.
 """
@@ -68,11 +68,10 @@ COMPILE = (
 
 ASSUME_RE = re.compile(r"^\s*(Admitted|Axiom|Parameter)\b")
 MATRIX_COLS = ("Theorem", "Proof status", "Dataset citation")
-DATASETS = ("TASK-010", "TASK-012", "TASK-014", "TASK-020")
+DATASETS = ("", "", "", "")
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

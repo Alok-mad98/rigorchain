@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-008-R generator stability report. Empirical; not a Coq proof."""
+""" generator stability report. Empirical; not a Coq proof."""
 from __future__ import annotations
 
 import importlib.util
@@ -46,7 +46,7 @@ def main() -> int:
                 replay_ok += 1
             hashes.add(a["candidate_hash"])
     REPORT.write_text(
-        "# KernelInput candidate generator report (TASK-008-R)\n\n"
+ "# KernelInput candidate generator report \n\n"
         "Empirical stability of `tools/formal_bridge/generate_kernel_candidate.py`.\n"
         "Not `CPP_KERNELINPUT_EQUIVALENCE`. Not Coq.\n\n"
         f"- sample trace: `{SAMPLE.relative_to(ROOT)}`\n"

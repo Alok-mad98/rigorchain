@@ -340,7 +340,7 @@ public:
             }
         };
 
-        // Private-testnet bootstrap (TASK-003). Mainnet still clears vFixedSeeds.
+        // Private-testnet bootstrap. Mainnet still clears vFixedSeeds.
         // EXISTING endpoint: 127.0.0.1:18760 = node-001 when
         // tools/testnet/start-bootstrap.sh is running. No public operator IP
         // is compiled here (none exists). DNS names below are historical

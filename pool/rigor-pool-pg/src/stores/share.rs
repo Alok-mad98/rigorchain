@@ -3,7 +3,7 @@ use crate::error::PgResult;
 #[cfg(feature = "postgres")]
 use crate::pool::PgPool;
 
-/// Share replay set and share persistence (TASK-MINING-017 §2.3).
+/// Share replay set and share persistence ( §2.3).
 #[cfg(feature = "postgres")]
 pub struct PgShareStore {
     pool: PgPool,

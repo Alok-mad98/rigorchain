@@ -20,7 +20,7 @@ class UniValue;
 namespace Consensus {
 
 /**
- * TASK-FVR-K: global aggregation of CHAS (FVR-H) + candidate (FVR-I/J).
+ * global aggregation of CHAS (FVR-H) + candidate (FVR-I/J).
  *
  * Per-block theoretical equivalence potential; `equivalence_claimed` always false.
  */

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-016: run the formal model internal-consistency gate."""
+""": run the formal model internal-consistency gate."""
 from __future__ import annotations
 
 import subprocess

@@ -20,7 +20,7 @@ use crate::session::{MinerSession, SessionManager};
 use crate::submit::{BlockSubmitter, UnconfiguredBlockSubmitter};
 use crate::telemetry::PoolJobTelemetry;
 
-/// ORU-only Stratum orchestrator (Option A / TASK-POOL-RES-BOUNDARY-IMPLEMENT-003).
+/// ORU-only Stratum orchestrator (Option A / ).
 ///
 /// Coordinates GBT → jobs → shares → ORU payout → submitblock.
 /// Does **not** construct, authorize, or trigger RES body mints.

@@ -1,6 +1,6 @@
 # RIGOR Official Site — Deployment (GitHub Pages + Domain)
 
-**Task:** `TASK-PUBLICATION-003`  
+**Task:** ``
 **Domain:** `www.rigorchain.com`  
 **Repository:** `https://github.com/rigorchain/rigorchain`  
 **Parent:** [ARCHITECTURE_OVERVIEW.md](./ARCHITECTURE_OVERVIEW.md)

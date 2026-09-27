@@ -1,4 +1,4 @@
-/** Address intelligence presentation mapping (TASK-EXPLORER-008). Indexed data only. */
+/** Address intelligence presentation mapping . Indexed data only. */
 
 import { bech32, bech32m } from "bech32";
 import type { CompliancePayload } from "./compliance";

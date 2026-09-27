@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B5-001: fork races and reorg propagation (PHASE-B2).
+""": fork races and reorg propagation (PHASE-B2).
 
 Scenarios on devtest (2–3 nodes):
   * 1-block race

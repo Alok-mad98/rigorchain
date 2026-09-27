@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-MIGRATION-FREEZE-P0-068",
+ "task": "",
   "note": "Freeze vectors. Aligns current C++ authority, migration candidate, and existing refinement pins. Does not prove equivalence.",
   "refinement_proved": false,
   "equivalence_proved": false,

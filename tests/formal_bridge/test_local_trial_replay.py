@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Replay gate for TASK-010-E local trial dataset. Does not start a node."""
+"""Replay gate for local trial dataset. Does not start a node."""
 from __future__ import annotations
 
 import importlib.util

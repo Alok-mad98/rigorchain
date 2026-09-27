@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CODE-AS-SSOT-DOCUMENTATION-ALIGNMENT-P0-097",
+ "task": "",
   "date": "2026-09-05",
   "nature": "Documentation alignment only. Protocol is SSOT. No consensus modification.",
   "command": "bash tools/run-documentation-alignment-audit.sh",

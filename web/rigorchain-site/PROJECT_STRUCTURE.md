@@ -1,6 +1,6 @@
 # RIGOR Official Site — Project Structure
 
-**Task:** TASK-PUBLICATION-004  
+**Task:**
 **Domain:** https://www.rigorchain.com  
 **Repository:** https://github.com/rigorchain/rigorchain  
 **equivalence_claimed:** `false`
@@ -53,7 +53,7 @@ web/rigorchain-site/
 └── dist/                        # build output (gitignored) → upload to host
 ```
 
-## Routes (TASK-RELEASE-004)
+## Routes 
 
 | Path | Page | Purpose |
 |------|------|---------|
@@ -131,7 +131,7 @@ npm run build
 
 Output: `dist/` → manual upload to www.rigorchain.com (see `DEPLOYMENT_MANUAL.md`).
 
-## Validation table (TASK-PUBLICATION-004)
+## Validation table 
 
 | Field | Status |
 |-------|--------|

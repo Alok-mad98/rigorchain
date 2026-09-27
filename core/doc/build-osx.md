@@ -54,11 +54,10 @@ brew install automake libtool boost pkg-config libevent
 ### 4. Clone Rigor repository
 
 `git` should already be installed by default on your system.
-Now that all the required dependencies are installed, let's clone the Rigor Core repository to a directory.
-All build scripts and commands will run from this directory.
+Now that all the required dependencies are installed, use this repository and run the remaining commands from `core/`.
 
-``` bash
-git clone https://github.com/arda/arda.git
+```bash
+cd core
 ```
 
 ### 5. Install Optional Dependencies
@@ -88,7 +87,7 @@ brew install qt@5
 ```
 
 Note: Building with Qt binaries downloaded from the Qt website is not officially supported.
-See the notes in [#7714](https://github.com/arda/arda/issues/7714).
+See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714).
 
 ###### qrencode
 
@@ -225,29 +224,29 @@ This process could take many hours, or even days on slower than average systems.
 By default, blockchain and wallet data files will be stored in:
 
 ``` bash
-/Users/${USER}/Library/Application Support/Arda/
+/Users/${USER}/Library/Application Support/RIGOR/
 ```
 
 Before running, you may create an empty configuration file:
 
 ```shell
-mkdir -p "/Users/${USER}/Library/Application Support/Arda"
+mkdir -p "/Users/${USER}/Library/Application Support/RIGOR"
 
-touch "/Users/${USER}/Library/Application Support/Arda/arda.conf"
+touch "/Users/${USER}/Library/Application Support/RIGOR/rigor.conf"
 
-chmod 600 "/Users/${USER}/Library/Application Support/Arda/arda.conf"
+chmod 600 "/Users/${USER}/Library/Application Support/RIGOR/rigor.conf"
 ```
 
 You can monitor the download process by looking at the debug.log file:
 
 ```shell
-tail -f $HOME/Library/Application\ Support/Arda/debug.log
+tail -f $HOME/Library/Application\ Support/RIGOR/debug.log
 ```
 
 ## Other commands:
 
 ```shell
-./src/rigord -daemon      # Starts the arda daemon.
+./src/rigord -daemon      # Starts the RIGOR daemon.
 ./src/rigor-cli --help    # Outputs a list of command-line options.
 ./src/rigor-cli help      # Outputs a list of RPC commands when the daemon is running.
 ./src/qt/rigor-qt -server # Starts the rigor-qt server mode, allows rigor-cli control

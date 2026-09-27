@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live TASK-007 harvest: ConnectBlock accept + CheckTxInputs reject.
+"""Live harvest: ConnectBlock accept + CheckTxInputs reject.
 
 Does not change consensus. Uses -rigorconsensustrace=1 only.
 """

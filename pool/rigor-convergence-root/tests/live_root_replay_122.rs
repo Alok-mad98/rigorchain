@@ -1,4 +1,4 @@
-//! 122-block live testnet root replay (TASK-MINING-019 corpus).
+//! 122-block live testnet root replay ( corpus).
 
 use rigor_convergence_root::{
     compute_convergence_root, compute_convergence_root_for_rigord_f, native_to_hash_hex,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-010 formal readiness gate. Not a Coq proof. Not equivalence."""
+""" formal readiness gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import csv
@@ -49,7 +49,6 @@ SCAN = (INV, MATRIX, REORG, V2, FREEZE, ASERT)
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual asset",

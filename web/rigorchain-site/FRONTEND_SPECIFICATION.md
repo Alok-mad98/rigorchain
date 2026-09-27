@@ -1,6 +1,6 @@
 # RIGOR Official Site — Frontend Specification
 
-**Task:** `TASK-PUBLICATION-003`  
+**Task:** ``
 **Parent:** [ARCHITECTURE_OVERVIEW.md](./ARCHITECTURE_OVERVIEW.md)
 
 | Field | Value |

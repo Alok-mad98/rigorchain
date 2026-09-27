@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-FVR-D: read-only RuntimeSupplyState export for Phase-5 / debug tooling.
+# read-only RuntimeSupplyState export for Phase-5 / debug tooling.
 # Usage:
 #   runtimesupply-export.sh [blockhash] [rigor-cli args...]
 # Example:

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""TASK-004 Consensus Attack Laboratory.
+""" Consensus Attack Laboratory.
 
 Drives current C++: rigord → AppInitMain → ProcessNewBlock → ConnectBlock
 → EvaluateConnect → LevelDB UTXO.
 
 Does not change consensus, serialization, or Coq KernelInput.
-Does not restore FORGE / MTH / historical RNG / ARDA / dual-asset / script-as-asset.
+Does not restore abandoned protocol objects, dual-asset, or script-as-asset.
 """
 from __future__ import annotations
 
@@ -529,7 +529,7 @@ class Lab:
         write_json(AUDIT / "consensus_equivalence_dataset.json", self.equiv)
         mismatches = [e for e in self.equiv if not e["match"]]
         pow_md = [
-            "# PoW attack report (TASK-004)",
+ "# PoW attack report ",
             "",
             "Consensus rules were **not** modified. Chain: `-regtest`.",
             "Production check: `CheckProofOfWork` (`pow.cpp`) then `ContextualCheckBlockHeader`.",
@@ -548,7 +548,7 @@ class Lab:
         (AUDIT / "pow_attack_report.md").write_text("\n".join(pow_md) + "\n", encoding="utf-8")
 
         mat = [
-            "# Consensus attack matrix (TASK-004)",
+ "# Consensus attack matrix ",
             "",
             "HEAD baseline: `main` / `52bb258` architecture. Runtime:",
             "",
@@ -595,7 +595,7 @@ class Lab:
         ]
         (AUDIT / "consensus_attack_matrix.md").write_text("\n".join(mat) + "\n", encoding="utf-8")
 
-        gap = """# KernelInput gap analysis (TASK-004)
+ gap = """# KernelInput gap analysis 
 
 Tag: **FORMAL MODEL EXTENSION** discussion. Coq `Record KernelInput` is **not** a C++ argument of `ConnectBlock`.
 

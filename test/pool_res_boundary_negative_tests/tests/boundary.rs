@@ -1,4 +1,4 @@
-//! TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 · Phase 4 negative security tests.
+//! · Phase 4 negative security tests.
 //!
 //! Proves the pool production path cannot:
 //! 1. create RES mint

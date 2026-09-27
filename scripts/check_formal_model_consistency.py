@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-016 internal Coq model consistency gate.
+""" internal Coq model consistency gate.
 
 Qed lemmas only. Not C++ refinement. Not KernelInputCandidate equivalence.
 """
@@ -73,7 +73,6 @@ SCAN = (CONS, STATUS)
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

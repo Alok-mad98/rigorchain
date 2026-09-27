@@ -1,6 +1,6 @@
 # rigor-pool-pg Test Plan
 
-**Task:** TASK-MINING-017
+**Task:**
 
 ## Automated tests
 

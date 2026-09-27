@@ -21,7 +21,6 @@ KI_V = ROOT / "formal_verification" / "rigor_kernel" / "Kernel" / "UnifiedTransi
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

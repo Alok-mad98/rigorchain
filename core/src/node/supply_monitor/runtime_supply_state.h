@@ -23,7 +23,7 @@ struct Params;
 namespace Consensus {
 
 /**
- * Read-only runtime mirror of ORU/RES mint ledgers (TASK-FVR-B).
+ * Read-only runtime mirror of ORU/RES mint ledgers .
  *
  * STRICTLY OBSERVATIONAL: must not be read by ConnectBlock validation predicates
  * or influence block acceptance.
@@ -121,7 +121,7 @@ void InvalidateRuntimeSupplyMirror(const CBlockIndex* pindex);
 const std::optional<RuntimeSupplyState>& GetRuntimeSupplyMirror(const CBlockIndex& pindex);
 
 /**
- * Verify TASK-FVR-E formal invariants plus diagnostic UTXO-2 (debug / export / RPC).
+ * Verify formal invariants plus diagnostic UTXO-2 (debug / export / RPC).
  * Delegates to `VerifyRuntimeSupplyInvariants`; appends `UTXO-2` when applicable.
  * @return Stable invariant ids (e.g. `"ORU-L3"`, `"RES-L5"`); empty if all pass.
  */
@@ -130,6 +130,6 @@ std::vector<std::string> CheckRuntimeSupplyInvariants(const RuntimeSupplyState& 
 
 } // namespace Consensus
 
-// Phase-5 Coq catalog projection: see node/supply_monitor/coq_supply_field_hook.h (TASK-FVR-C).
+// Phase-5 Coq catalog projection: see node/supply_monitor/coq_supply_field_hook.h .
 
 #endif // BITCOIN_NODE_SUPPLY_MONITOR_RUNTIME_SUPPLY_STATE_H

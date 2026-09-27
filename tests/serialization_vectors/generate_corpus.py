@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build TASK-005 byte corpus + malleability report from live C++ and frozen hex.
+"""Build byte corpus + malleability report from live C++ and frozen hex.
 
 Does not change wire format, ConnectBlock, or Coq KernelInput.
 """
@@ -236,7 +236,7 @@ def _blk_records(path: Path) -> list[bytes]:
 
 
 def existing_testnet_mined() -> list[dict]:
-    """TASK-003 lab datadir, if present. Gitignored; optional source."""
+ """ lab datadir, if present. Gitignored; optional source."""
     path = ROOT / "testnet" / "data" / "node-001" / "testnet3" / "blocks" / "blk00000.dat"
     if not path.is_file():
         return []
@@ -591,7 +591,7 @@ def write_malleability(rows: list[dict]) -> None:
             legal.append(row)
 
     lines = [
-        "# Serialization malleability (TASK-005)",
+ "# Serialization malleability ",
         "",
         "Check: `encode(decode(bytes)) == original` using the C++ rules in `serialize.h` / `transaction.h` / `block.h`.",
         "",

@@ -145,7 +145,7 @@ BOOST_AUTO_TEST_CASE(key_io_valid_gen)
             CScript exp_script(exp_payload.begin(), exp_payload.end());
             if (!IsRigorAddressScript(exp_script)) {
                 // Classification is byte-shape, so a v1/32 that is not a public key
-                // still extracts. Encoding is where the curve check lives (TASK-010 R-2).
+ // still extracts. Encoding is where the curve check lives .
                 if (ExtractDestination(exp_script, dest)) {
                     BOOST_CHECK(EncodeDestination(dest).empty());
                     BOOST_CHECK(!IsValidDestination(dest));
@@ -232,7 +232,7 @@ BOOST_AUTO_TEST_CASE(asset_type_from_destination_is_script_not_variant)
     BOOST_CHECK(IsValidDestination(res));
     BOOST_CHECK(GetAssetTypeFromDestination(res) == ASSET_RES);
 
-    // TASK-010 R-2: classification is byte-shape, but an address that is not a
+ // classification is byte-shape, but an address that is not a
     // public key would be unspendable. Encode/decode and IsValidDestination refuse it.
     const std::vector<unsigned char> zeros(WITNESS_V1_RES_SIZE, 0);
     const CTxDestination off_curve{WitnessV1Res{XOnlyPubKey{Span{zeros}}}};

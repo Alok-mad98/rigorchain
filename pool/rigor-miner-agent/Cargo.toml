@@ -2,7 +2,7 @@
 name = "rigor-miner-agent"
 version = "0.1.0"
 edition = "2021"
-description = "Production CPU miner agent for RIGOR pool Stratum (TASK-MINING-023)"
+description = "Production CPU miner agent for RIGOR pool Stratum "
 license = "MIT"
 readme = "README.md"
 

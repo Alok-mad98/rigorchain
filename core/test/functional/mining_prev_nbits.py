@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Regression test for TASK-MINING-002 / MINER-BUG-01.
+"""Regression test for / MINER-BUG-01.
 
 Verifies that getblocktemplate exposes the new ``prev_nbits`` field which
 miners MUST use to populate the coinbase RIGOR commitment payload tail.
@@ -53,7 +53,7 @@ class MiningPrevNbitsTest(BitcoinTestFramework):
 
             # Invariant 1: field present and well-formed.
             assert 'prev_nbits' in tmpl, \
-                "getblocktemplate MUST expose prev_nbits (TASK-MINING-002 contract)"
+ "getblocktemplate MUST expose prev_nbits ( contract)"
             assert isinstance(tmpl['prev_nbits'], str), \
                 "prev_nbits MUST be a hex string"
             assert_equal(len(tmpl['prev_nbits']), 8)

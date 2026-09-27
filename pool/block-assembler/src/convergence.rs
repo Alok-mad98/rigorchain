@@ -1,4 +1,4 @@
-//! Re-export canonical convergence root from `rigor-convergence-root` (TASK-MINING-020).
+//! Re-export canonical convergence root from `rigor-convergence-root` .
 
 pub use rigor_convergence_root::{
     compute_convergence_root, compute_convergence_root_for_rigord_f,

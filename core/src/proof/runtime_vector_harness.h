@@ -27,7 +27,7 @@ struct Params;
 
 namespace proof {
 
-/** TASK-PROOF-007: Golden vector families (PROOF-000 registry). */
+/** Golden vector families (PROOF-000 registry). */
 enum class GoldenVectorFamily : uint8_t {
     ORU,
     RES,

@@ -17,7 +17,7 @@
 
 namespace {
 /**
- * TASK-010 R-2: an address is the one place a v1 RES program is chosen by a human,
+ * an address is the one place a v1 RES program is chosen by a human,
  * so it is where the Ed25519 curve check belongs. Consensus classification stays a
  * pure byte predicate (see IsRigorResNativeWitnessProgram); refusing to encode or
  * decode a program that is not a public key means nobody can be handed an address

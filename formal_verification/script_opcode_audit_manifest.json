@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-SCRIPT-OPCODE-SECURITY-AUDIT-P0-078",
+ "task": "",
   "date": "2026-08-31",
   "note": "Security audit of the Transaction Script / opcode boundary. Does not modify protocol rules, Consensus Kernel, Transaction Kernel, VerifyRigorPredicate semantics, Sighash, Ed25519, asset classification, or ledger transition.",
   "consensus_modified": false,

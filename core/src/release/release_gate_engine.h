@@ -22,7 +22,7 @@ struct VerificationStatusSnapshot;
 
 namespace ReleaseGate {
 
-/** Release gate levels — TASK-WALLET-PROGRAM-018. */
+/** Release gate levels — . */
 enum class Level {
     G0_Development = 0,
     G1_UiComplete = 1,

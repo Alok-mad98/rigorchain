@@ -1,8 +1,8 @@
 # rigor-gbt Architecture
 
 **Component:** `pool/rigor-gbt`  
-**Task:** TASK-MINING-006  
-**Mode:** INFRASTRUCTURE (TASK-CONSTITUTION-002)
+**Task:**
+**Mode:** INFRASTRUCTURE 
 
 ## Position in pool stack
 
@@ -26,7 +26,7 @@ flowchart TB
     CACHE -.->|"future"| STRAT["Stratum"]
 ```
 
-Solid lines are implemented in TASK-MINING-006. Dashed lines are downstream components (out of scope).
+Solid lines are implemented in . Dashed lines are downstream components (out of scope).
 
 ## Data flow
 

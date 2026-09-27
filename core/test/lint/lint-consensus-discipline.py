@@ -4,7 +4,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #
-# TASK-H2 H-4-1 / H-4-2:
+# H-4-1 / H-4-2:
 #   Static guardrail for the RIGOR consensus directories. Any future
 #   commit that re-introduces non-deterministic primitives into the
 #   consensus path will fail this lint at PR time.
@@ -27,7 +27,7 @@
 # Scope: matches are reported only inside the consensus directories
 # enumerated in `CONSENSUS_DIRS` below. The lint is intentionally a
 # textual block-list; it doesn't try to parse C++ semantics, but it does
-# pin the symbol names that would have caused TASK-H2 R-3 / R-5 / R-10
+# pin the symbol names that would have caused / R-5 / R-10
 # style replay drift had they slipped in unnoticed.
 
 import re

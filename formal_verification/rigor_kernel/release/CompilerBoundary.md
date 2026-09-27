@@ -21,7 +21,7 @@ extraction and runtime trust boundaries.
 | CertiCoq Clight of six `check_*` + `validate_kernel` | Present (sidecar; boxed `Z`) |
 | Sidecar `ccomp` 3.13 compile + named-GC link | Present (`PHASE6=PASS`) |
 | Gallina–Clight correspondence instantiated | **OPEN** (`PHASE7_PIPELINE_INSTANTIATED=false`) |
-| Clight–assembly CompCert AST theorem applied | **OPEN** (`COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB`, TASK 3.1A). TASK-018: Clight → Cminor Closed. TASK 3.1B: unlift one-step only; no checker simulation. Asm oracles remain |
+| Clight–assembly CompCert AST theorem applied | **OPEN** (`COMPILER_CLOSED_ROUTE=BLOCKED_BY_TCB`, TASK 3.1A). : Clight → Cminor Closed. TASK 3.1B: unlift one-step only; no checker simulation. Asm oracles remain |
 | Verified compiler in the checking TCB | **OPEN** |
 | Memory model | **OPEN** |
 | Integer semantics (unbounded `Z` vs machine integers) | **OPEN** (artifact uses boxed `Z`) |

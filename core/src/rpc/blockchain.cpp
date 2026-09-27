@@ -1401,7 +1401,7 @@ static RPCHelpMan getruntimesupply()
 {
     return RPCHelpMan{
         "getruntimesupply",
-        "\nReturns the TASK-FVR-B/D observational ORU/RES supply ledger mirror (read-only).\n"
+ "\nReturns the /D observational ORU/RES supply ledger mirror (read-only).\n"
         "Includes Coq catalog fields, authoritative pindex caches, and 30 Phase-5 supply audit cells.\n"
         "Does not affect consensus, replay, or state_hash.\n"
         "\nSupply semantics (do not collapse these fields):\n"
@@ -1441,11 +1441,11 @@ static RPCHelpMan getruntimesupply()
                      {RPCResult::Type::STR, "violation", ""},
                  }},
                 {RPCResult::Type::OBJ, "authoritative_caches", "CBlockIndex ledger caches"},
-                {RPCResult::Type::OBJ, "coq_fields", "Phase-5 Coq catalog names (TASK-FVR-C)"},
+ {RPCResult:Type:OBJ, "coq_fields", "Phase-5 Coq catalog names "},
                 {RPCResult::Type::ARR, "coq_hook_violations", "Empty when hook matches mirror and pindex",
                  {{RPCResult::Type::STR, "violation", ""}}},
                 {RPCResult::Type::NUM, "phase5_supply_cell_count", "30 (15 observables x 2 sources)"},
-                {RPCResult::Type::ARR, "phase5_supply_cells", "Phase-5 audit grid (TASK-FVR-D)",
+ {RPCResult:Type:ARR, "phase5_supply_cells", "Phase-5 audit grid ",
                  {{RPCResult::Type::OBJ, "cell", "Supply audit cell"}}},
                 {RPCResult::Type::OBJ, "supply_semantics", "Canonical meaning of supply fields; equivalence_claimed remains false",
                  {
@@ -1479,7 +1479,7 @@ static RPCHelpMan getruntimesupplyinvariants()
 {
     return RPCHelpMan{
         "getruntimesupplyinvariants",
-        "\nTASK-FVR-E: verify RuntimeSupplyState against formal ORU/RES invariants (read-only).\n"
+ "\n: verify RuntimeSupplyState against formal ORU/RES invariants (read-only).\n"
         "Does not affect consensus, validation, or state_hash.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -1523,7 +1523,7 @@ static RPCHelpMan getruntimesupplywitness()
 {
     return RPCHelpMan{
         "getruntimesupplywitness",
-        "\nTASK-FVR-F: return the runtime supply witness for the active tip (read-only).\n"
+ "\n: return the runtime supply witness for the active tip (read-only).\n"
         "Historical formal verification record from ConnectBlock; does not affect consensus.\n"
         "FENCE-W7: resolved via the tip's block hash, never a height-keyed global map.\n",
         {},
@@ -1568,7 +1568,7 @@ static RPCHelpMan getruntimesupplywitnessbyheight()
 {
     return RPCHelpMan{
         "getruntimesupplywitnessbyheight",
-        "\nTASK-FVR-F: return runtime supply witness for a specific height (read-only).\n"
+ "\n: return runtime supply witness for a specific height (read-only).\n"
         "FENCE-W7: height is resolved on the active chain, then the witness is loaded by block hash.\n"
         "There is no height-keyed consensus cache.\n",
         {
@@ -1615,7 +1615,7 @@ static RPCHelpMan getruntimesupplywitnesscatalog()
 {
     return RPCHelpMan{
         "getruntimesupplywitnesscatalog",
-        "\nTASK-FVR-G: Phase-5 Coq catalog row from historical runtime witness + stored mirror.\n"
+ "\n: Phase-5 Coq catalog row from historical runtime witness + stored mirror.\n"
         "Uses in-memory witness chain only; does not affect consensus or state_hash.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -1671,7 +1671,7 @@ static RPCHelpMan getphase5runtimealignment()
 {
     return RPCHelpMan{
         "getphase5runtimealignment",
-        "\nTASK-FVR-H: Phase-5 CHAS alignment vectors from witness Coq catalog row.\n"
+ "\n: Phase-5 CHAS alignment vectors from witness Coq catalog row.\n"
         "Read-only; uses in-memory witnesses + mirrors; does not assert Coq ≡ Runtime.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -1725,7 +1725,7 @@ static RPCHelpMan getruntimeequivalencecandidate()
 {
     return RPCHelpMan{
         "getruntimeequivalencecandidate",
-        "\nTASK-FVR-I: latest runtime↔Coq witness equivalence candidate (read-only).\n"
+ "\n: latest runtime↔Coq witness equivalence candidate (read-only).\n"
         "Theoretical comparability only; equivalence_claimed is always false.\n",
         {},
         RPCResult{
@@ -1772,7 +1772,7 @@ static RPCHelpMan getruntimeequivalencecandidatebyheight()
 {
     return RPCHelpMan{
         "getruntimeequivalencecandidatebyheight",
-        "\nTASK-FVR-I: runtime↔Coq witness equivalence candidate at height (read-only).\n",
+ "\n: runtime↔Coq witness equivalence candidate at height (read-only).\n",
         {
             {"height", RPCArg::Type::NUM, RPCArg::Optional::NO, "Block height"},
         },
@@ -1822,7 +1822,7 @@ static RPCHelpMan exportruntimeequivalencecandidate()
 {
     return RPCHelpMan{
         "exportruntimeequivalencecandidate",
-        "\nTASK-FVR-J: Coq-readable equivalence candidate export (FVR-I + formal layer).\n"
+ "\n: Coq-readable equivalence candidate export (FVR-I + formal layer).\n"
         "Observation only; equivalence_claimed is always false.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -1870,7 +1870,7 @@ static RPCHelpMan getphase5summary()
 {
     return RPCHelpMan{
         "getphase5summary",
-        "\nTASK-FVR-N: Phase-5 canonical summary (FVR-A..L freeze snapshot).\n"
+ "\n: Phase-5 canonical summary (FVR-A..L freeze snapshot).\n"
         "equivalence_claimed always false.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -1919,7 +1919,7 @@ static RPCHelpMan getphase5summaryfinal()
 {
     return RPCHelpMan{
         "getphase5summaryfinal",
-        "\nTASK-PROOF-027: Phase-5 final summary linking FVR-A..N, PROOF-023..026 gates,\n"
+ "\n: Phase-5 final summary linking FVR-A..N, PROOF-023..026 gates,\n"
         "ECS partition, and MAINNET_PROTOCOL_FREEZE_DECLARATION.\n"
         "equivalence_claimed always false.\n",
         {
@@ -1972,7 +1972,7 @@ static RPCHelpMan getruntimevectorstatus()
 {
     return RPCHelpMan{
         "getruntimevectorstatus",
-        "\nTASK-PROOF-007: Golden vector runtime verification harness (read-only).\n"
+ "\n: Golden vector runtime verification harness (read-only).\n"
         "Compares normative PROOF-001..004 vectors against FVR witness exports.\n"
         "Evidence only; equivalence_claimed is always false.\n",
         {
@@ -2123,7 +2123,7 @@ static RPCHelpMan getruntimeequivalenceclosure()
 {
     return RPCHelpMan{
         "getruntimeequivalenceclosure",
-        "\nTASK-FVR-L: equivalence closure / proof-permission boundary (read-only).\n"
+ "\n: equivalence closure / proof-permission boundary (read-only).\n"
         "Does NOT prove Coq ≡ Runtime; reports when proof attempt is permitted.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -2173,7 +2173,7 @@ static RPCHelpMan exportruntimeglobalcandidateequivalence()
 {
     return RPCHelpMan{
         "exportruntimeglobalcandidateequivalence",
-        "\nTASK-FVR-K: global CHAS + candidate equivalence export (Coq-auditable).\n"
+ "\n: global CHAS + candidate equivalence export (Coq-auditable).\n"
         "Aggregates FVR-H and FVR-J; equivalence_claimed is always false.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -2222,7 +2222,7 @@ static RPCHelpMan exportruntimesupply()
 {
     return RPCHelpMan{
         "exportruntimesupply",
-        "\nAlias for `getruntimesupply` (TASK-FVR-D full export for Coq / debug tooling).\n"
+ "\nAlias for `getruntimesupply` ( full export for Coq / debug tooling).\n"
         "Read-only; identical payload.\n",
         {
             {"blockhash", RPCArg::Type::STR_HEX, RPCArg::Optional::OMITTED,
@@ -2231,7 +2231,7 @@ static RPCHelpMan exportruntimesupply()
         RPCResult{
             RPCResult::Type::OBJ,
             "",
-            std::string{"Same JSON as getruntimesupply (TASK-FVR-D)"},
+ std:string{"Same JSON as getruntimesupply "},
         },
         RPCExamples{
             HelpExampleCli("exportruntimesupply", "") +

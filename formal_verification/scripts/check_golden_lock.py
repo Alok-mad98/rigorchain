@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Fail-closed lock for golden-vector / Coq-harness counts and L1/L2 splits.
 
-TASK-FV-GATE-AND-HARNESS-HARDENING-001.
-TASK-FV-DISCREPANCY-AND-LOCK-MAINTENANCE-001.
+.
+.
 
 The differential gate must not stay green if a later change silently drops a
 locked positive or negative family, if JSON and harness lemma counts drift,

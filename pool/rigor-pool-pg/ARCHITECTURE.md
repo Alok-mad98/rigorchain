@@ -1,6 +1,6 @@
 # rigor-pool-pg Architecture
 
-**Task:** TASK-MINING-017  
+**Task:**
 **Authority:** `POSTGRESQL_PERSISTENCE_ARCHITECTURE.md`
 
 ## Layering

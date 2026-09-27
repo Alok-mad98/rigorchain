@@ -19,7 +19,7 @@ namespace Consensus {
 namespace {
 
 constexpr const char* kFreezeProtocolLink =
-    "MAINNET_PROTOCOL_FREEZE_DECLARATION.md/TASK-MAINNET-FREEZE-001";
+ "MAINNET_PROTOCOL_FREEZE_DECLARATION.md/";
 constexpr const char* kFreezeNote =
     "Phase-5 formal snapshot; constitutional freeze unchanged.";
 

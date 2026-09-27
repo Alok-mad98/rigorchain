@@ -401,7 +401,7 @@ def main() -> None:
         overall = "PARTIAL"
 
     summary = {
-        "task": "TASK-POOL-ORU-ONLY-END-TO-END-VALIDATION-001",
+ "task": "",
         "runtime": str(runtime),
         "layer": meta.get("layer"),
         "chain": rpc_cfg["chain"],

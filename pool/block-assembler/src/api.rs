@@ -3,7 +3,7 @@ use crate::error::AssemblerResult;
 use crate::types::{JobId, PublishedJobSnapshot};
 use std::sync::Arc;
 
-/// Read-only JobSnapshot API (TASK-MINING-007).
+/// Read-only JobSnapshot API .
 pub struct JobSnapshotApi {
     cache: Arc<JobCache>,
 }

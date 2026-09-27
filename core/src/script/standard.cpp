@@ -224,7 +224,7 @@ CScript GetScriptForDestination(const CTxDestination& dest)
 bool IsValidDestination(const CTxDestination& dest) {
     if (std::holds_alternative<WitnessV0KeyHash>(dest)) return true;
     if (const auto* res = std::get_if<WitnessV1Res>(&dest)) {
-        // TASK-010 R-2: wallet, RPC, GUI and template construction all reach a
+ // wallet, RPC, GUI and template construction all reach a
         // destination through here, so it is where a non-spendable RES program is
         // refused. Consensus classification stays byte-only; see
         // IsRigorResNativeWitnessProgram.

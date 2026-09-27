@@ -1,6 +1,6 @@
 # RIGOR Public Site — Style Guide
 
-**Task:** `TASK-PUBLICATION-002`  
+**Task:** ``
 **Document:** Visual identity and UI design rules  
 **Parent:** [SITE_ARCHITECTURE.md](./SITE_ARCHITECTURE.md)  
 **Narrative alignment:** `RELEASE_LANGUAGE_STYLE_GUIDE.md`
@@ -209,7 +209,7 @@ Not an investment offering · Native assets: ORU and RES
 
 ## 10. Dark mode
 
-**v1.0:** Light mode only (laboratory print aesthetic). Dark mode is **out of scope** for TASK-PUBLICATION-002.
+**v1.0:** Light mode only (laboratory print aesthetic). Dark mode is **out of scope** for .
 
 ---
 

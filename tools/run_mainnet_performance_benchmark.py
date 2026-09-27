@@ -240,7 +240,7 @@ def main() -> int:
     summary = summarize(all_rows)
     db = host_storage_baseline()
     payload = {
-        "task": "TASK-RIGOR-MAINNET-PERFORMANCE-BASELINE-OPTIMIZATION-P0-077",
+ "task": "",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "host": {
             "platform": platform.platform(),

@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-GOVERNANCE-CLOSURE-P0-060",
+ "task": "",
   "issuance_authority": "GetBlockSubsidy",
   "res_authority": "CheckResMintArithmetic",
   "supply_authority": "RigorSupplyDelta",

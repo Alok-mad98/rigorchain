@@ -1,6 +1,6 @@
 # RIGOR Official Site — Component Design System
 
-**Task:** `TASK-PUBLICATION-003`  
+**Task:** ``
 **Parent:** [ARCHITECTURE_OVERVIEW.md](./ARCHITECTURE_OVERVIEW.md)  
 **Extends:** [../public-site/STYLE_GUIDE.md](../public-site/STYLE_GUIDE.md)
 

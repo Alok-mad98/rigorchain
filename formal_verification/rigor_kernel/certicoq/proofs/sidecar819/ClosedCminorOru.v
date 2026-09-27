@@ -1,4 +1,4 @@
-(** TASK-018: Cminorgen after Cshmgen on [check_oru] Clight.
+(** : Cminorgen after Cshmgen on [check_oru] Clight.
 
     Skips SimplLocals (that pass returns Error "bad temporary" on
     this unnormalized CertiCoq Clight). Does not Require Compiler.

@@ -71,7 +71,7 @@ def object_type(ev: dict) -> str:
 def stage_of(ev: dict) -> str:
     eid = str(ev.get("id") or "")
     th = ev.get("future_theorem") or ""
-    if eid.startswith("TASK-008/"):
+ if eid.startswith("/"):
         return "kernel_input"
     return STAGE.get(th, "decode")
 
@@ -79,7 +79,7 @@ def stage_of(ev: dict) -> str:
 def theorem_of(ev: dict) -> str:
     eid = str(ev.get("id") or "")
     th = ev.get("future_theorem") or ""
-    if eid.startswith("TASK-008/"):
+ if eid.startswith("/"):
         return "kernel_input_complete"
     return SKELETON.get(th, th)
 
@@ -100,7 +100,7 @@ def main() -> None:
         "schema_version": "formal_model_dataset_registry_v3",
         "status": "ALIGNED",
         "note": (
-            "Reused TASK-004 / TASK-008 / TASK-012 / TASK-014 rows aligned to "
+ "Reused / / / rows aligned to "
             "consensus_model objects. Not new tests. Not theorems. "
             "KernelInputCandidate != KernelInput. "
             "CPP_KERNELINPUT_EQUIVALENCE = NOT PROVED."
@@ -108,10 +108,10 @@ def main() -> None:
         "meta": {
             "n_entries": len(entries),
             "sources_reused": [
-                "TASK-004 attack dataset",
-                "TASK-008 bridge dataset",
-                "TASK-012 differential dataset",
-                "TASK-014 serialization dataset",
+ " attack dataset",
+ " bridge dataset",
+ " differential dataset",
+ " serialization dataset",
             ],
             "object_types": sorted({e["object_type"] for e in entries}),
             "validation_stages": sorted({e["validation_stage"] for e in entries}),

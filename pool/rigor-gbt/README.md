@@ -1,6 +1,6 @@
 # rigor-gbt
 
-First production component of the RIGOR Pool Stack (TASK-MINING-006).
+First production component of the RIGOR Pool Stack .
 
 `rigor-gbt` connects to `rigord`, polls `getblocktemplate`, validates and normalizes templates, and maintains an **immutable in-memory Template Cache** with a read-only API.
 
@@ -8,8 +8,8 @@ First production component of the RIGOR Pool Stack (TASK-MINING-006).
 
 | Task | Document |
 |------|----------|
-| TASK-MINING-004 | [`docs/mining/RIGOR_GBT_ADAPTER_SPEC.md`](../../docs/mining/RIGOR_GBT_ADAPTER_SPEC.md) |
-| TASK-MINING-005 | [`docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md`](../../docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) |
+| | [`docs/mining/RIGOR_GBT_ADAPTER_SPEC.md`](../../docs/mining/RIGOR_GBT_ADAPTER_SPEC.md) |
+| | [`docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md`](../../docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) |
 
 ## Scope (this crate)
 

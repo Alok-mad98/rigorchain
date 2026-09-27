@@ -259,7 +259,7 @@ final = "PASS" if release_ok else "FAIL"
 
 commit = git_commit()
 manifest = {
-    "task": "TASK-RIGOR-RELEASE-BUILD-MATRIX-P0-092",
+ "task": "",
     "nature": "Release engineering / artifact reproducibility. NOT a consensus task.",
     "date": "2026-09-03",
     "version": VERSION,

@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-MAINNET-READINESS-CROSS-COMPONENT-ALIGNMENT-AUDIT-P0-096",
+ "task": "",
   "date": "2026-09-03",
   "nature": "Audit-first. No bug fix. No consensus modification. No protocol modification.",
   "command": "bash tools/run-mainnet-readiness-alignment-audit.sh",

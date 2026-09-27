@@ -1,6 +1,6 @@
 # RIGOR Public Site — Site Architecture
 
-**Task:** `TASK-PUBLICATION-002`  
+**Task:** ``
 **Document:** Official public website generation blueprint — architecture  
 **Date:** 2026-06-13  
 **Type:** Documentation + UI structure specification only — **no protocol, consensus, mining, or backend changes**  
@@ -41,7 +41,7 @@ The site **does not** implement wallet, mining, or transaction submission. It **
 ├── /mining                Miner / getblockhash sources
 ├── /explorer              Read-only blockchain viewer portal (not a validator)
 ├── /documentation         Documentation + lab links
-├── /zero-trust-verification   Independent AlphaPlus verifier (RFC-019 philosophy) ⭐
+├── /zero-trust-verification   Independent verifier (RFC-019 philosophy) ⭐
 ├── /protocol              Protocol Layer viewer (§1 publication)
 ├── /axioms                Axiom Layer viewer (§2 publication)
 ├── /lab                   Lab narrative viewer (§3 publication)
@@ -50,8 +50,7 @@ The site **does not** implement wallet, mining, or transaction submission. It **
 ```
 
 **Zero-Trust Verification** is a first-class public feature and is **not** an Explorer module.
-Explorer only links to `/zero-trust-verification`. See
-`docs/release/ALPHAPLUS_ZERO_TRUST_VERIFIER_WEB_PORTAL_REPORT.md`.
+Explorer only links to `/zero-trust-verification`.
 
 ### 2.1 Route-to-publication mapping
 
@@ -226,4 +225,4 @@ This architecture is the bridge between:
 - **Scientific model** — axioms in `/axioms`, lab in `/lab`
 - **Public visualization** — explorer in `/explorer`
 
-Implementation of the static site follows this blueprint in a separate engineering task; TASK-PUBLICATION-002 delivers **specification only**.
+Implementation of the static site follows this blueprint in a separate engineering task; delivers **specification only**.

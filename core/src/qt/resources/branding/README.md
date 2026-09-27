@@ -1,6 +1,6 @@
 # RIGOR Wallet Brand Resources (Placeholders)
 
-**Task:** `TASK-WALLET-PROGRAM-010` · **BUILD-07**  
+**Task:** `` · **BUILD-07**
 **Status:** Placeholder structure only — no final artwork
 
 | Field | Value |

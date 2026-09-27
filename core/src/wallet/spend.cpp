@@ -393,7 +393,7 @@ CoinsResult AvailableCoins(const CWallet& wallet,
             if (solvable) {
                 const auto spk_mans = wallet.GetScriptPubKeyMans(output.scriptPubKey);
                 if (spk_mans.empty()) {
-                    wallet.WalletLogPrintf("%s: TASK-RES-DESCRIPTOR-SPKM-CONSISTENCY: solvable but GetScriptPubKeyMans empty; script=%s\n",
+ wallet.WalletLogPrintf("%s: solvable but GetScriptPubKeyMans empty; script=%s\n",
                                            __func__, HexStr(output.scriptPubKey));
                     Assert(false);
                 }

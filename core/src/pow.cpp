@@ -245,8 +245,8 @@ arith_uint256 ClampTargetToPrev(const arith_uint256& next_target, uint32_t prev_
 /**
  * ASERT (aserti3-2d), BCH Nov 2020 integer path.
  *
- * Anchor: genesis while producing height 1; height 1 thereafter (TASK-012 R4-B).
- * Evaluation time/height: the parent header (TASK-012 R1). The child nTime does
+ * Anchor: genesis while producing height 1; height 1 thereafter.
+ * Evaluation time/height: the parent header. The child nTime does
  * not enter the exponent, so GBT ntime rolling cannot produce bad-diffbits.
  *
  * time_error = (parent_time - anchor_time) - (parent_height - anchor_height) * spacing

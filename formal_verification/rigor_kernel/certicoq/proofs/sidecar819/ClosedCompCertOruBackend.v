@@ -1,4 +1,4 @@
-(** TASK-018: CompCert backend passes after Cminor, no Compiler.v.
+(** : CompCert backend passes after Cminor, no Compiler.v.
 
     Selection.sel_program uses [compile_switch] / [if_conversion_heuristic]
     Parameters only on some constructs.

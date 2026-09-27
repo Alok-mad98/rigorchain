@@ -1,4 +1,4 @@
-/** Convergence lineage graph — indexed presentation only (TASK-EXPLORER-009). */
+/** Convergence lineage graph — indexed presentation only . */
 
 import { buildBlockConvergencePanel, type BlockConvergencePanel } from "./convergencePanel";
 import type { ConvergeProofPanel } from "./convergeProofPanel";

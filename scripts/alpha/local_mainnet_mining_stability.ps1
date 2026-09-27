@@ -1,4 +1,3 @@
-# TASK-MAINNET-LOCAL-MINING-STABILITY-001
 # Validation-only harness: solo GBT mainnet mining, ~10 min/block target.
 # Does NOT change consensus / ORU / RES / W / mining algorithm.
 #
@@ -127,7 +126,7 @@ function Load-State {
         return (Ensure-StateProps $st)
     }
     return [pscustomobject]@{
-        task                    = "TASK-MAINNET-LOCAL-MINING-STABILITY-001"
+ task = ""
         started_at              = (Get-Date).ToUniversalTime().ToString("o")
         stage1_pass             = $false
         stage1_restart_pass     = $false

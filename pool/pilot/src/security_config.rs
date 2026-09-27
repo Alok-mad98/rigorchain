@@ -1,6 +1,6 @@
 //! Fail-closed production configuration gate (SECURITY-001-E / C-5, C-6, H-5).
 //!
-//! TASK-POOL-RES-BOUNDARY-IMPLEMENT-003 (Option A): pool no longer configures RES
+//! (Option A): pool no longer configures RES
 //! mint funding. RES body mint, when required, is assembled by `rigord`
 //! (`auto_res_mint` / `-miningresfeeaddr` / `getautomintfundaddress`).
 //!

@@ -32,7 +32,7 @@ QString RegtestOruAddr()
 QString RegtestResAddr()
 {
     // IsValidDestination(WitnessV1Res) requires a canonical on-curve Ed25519
-    // program (TASK-010 R-2). A hardcoded 32-byte hex is not a spendable RES key.
+ // program . A hardcoded 32-byte hex is not a spendable RES key.
     CKey key;
     key.MakeNewKey(true);
     const std::vector<unsigned char> pk32 = key.GetPubKey().GetEd25519Payload();

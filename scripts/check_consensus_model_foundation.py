@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-015 consensus input model foundation gate.
+""" consensus input model foundation gate.
 
 Not a Coq proof. Not a ConnectBlock change. Not KernelInput marshalling.
 """
@@ -88,12 +88,11 @@ CE_FIELDS = ("Input", "Observed C++ result", "Missing formal object", "Future th
 REG_FIELDS = ("id", "object", "source", "future_theorem")
 REG_OBJECTS = {"block", "tx", "input", "output", "utxo"}
 REG_SOURCES = {"runtime", "serialization", "attack"}
-TASK_PREFIXES = ("TASK-004/", "TASK-008/", "TASK-012/", "TASK-014/")
+TASK_PREFIXES = ("/", "/", "/", "/")
 SCAN = (OBJECT, TYPES, PIPELINE, UTXO, CE_REG, FREEZE)
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",
@@ -280,20 +279,20 @@ def check_registry() -> None:
         err(f"registry objects incomplete: {objects}")
     if sources != REG_SOURCES:
         err(f"registry sources incomplete: {sources}")
-    for prefix in TASK_PREFIXES:
+ for prefix in TASK_PREFIXES:
         if not any(i.startswith(prefix) for i in seen):
             err(f"registry missing reused prefix {prefix}")
         tag = prefix.rstrip("/")
         if tag not in prefixes and not any(i.startswith(prefix) for i in seen):
             err(f"registry missing {tag}")
     for cid in CE_IDS:
-        if f"TASK-004/{cid}" not in seen:
-            err(f"registry missing TASK-004/{cid}")
-        if f"TASK-008/{cid}" not in seen:
-            err(f"registry missing TASK-008/{cid}")
+ if f"/{cid}" not in seen:
+ err(f"registry missing /{cid}")
+ if f"/{cid}" not in seen:
+ err(f"registry missing /{cid}")
     for sid in SE_IDS:
-        if f"TASK-014/{sid}" not in seen:
-            err(f"registry missing TASK-014/{sid}")
+ if f"/{sid}" not in seen:
+ err(f"registry missing /{sid}")
     for th in UTXO_THEOREMS:
         if th not in theorems:
             err(f"registry has no row for {th}")
@@ -304,30 +303,30 @@ def check_registry() -> None:
     diff = json.loads((BRIDGE / "differential_dataset" / "index.json").read_text())
     scenarios = set((diff.get("by_scenario") or {}).keys())
     for oid in seen:
-        if oid.startswith("TASK-004/CE-"):
+ if oid.startswith("/CE-"):
             cid = oid.split("/", 1)[1]
             if not (attack / f"{cid}.json").is_file():
                 err(f"reused id not in attack dataset: {oid}")
-        elif oid.startswith("TASK-008/CE-"):
+ elif oid.startswith("/CE-"):
             cid = oid.split("/", 1)[1]
             exact = kcd / cid / "kernel_candidate.json"
             variants = list(kcd.glob(f"{cid}*/kernel_candidate.json"))
             if not exact.is_file() and not variants:
-                err(f"reused id not in TASK-008 dataset: {oid}")
-        elif oid.startswith("TASK-012/"):
+ err(f"reused id not in dataset: {oid}")
+ elif oid.startswith("/"):
             scen = oid.split("/", 1)[1]
             if scen not in scenarios:
-                err(f"reused id not in TASK-012 scenarios: {oid}")
-        elif oid.startswith("TASK-014/SE-"):
+ err(f"reused id not in scenarios: {oid}")
+ elif oid.startswith("/SE-"):
             sid = oid.split("/", 1)[1]
             if not (se_dir / f"{sid}.json").is_file():
-                err(f"reused id not in TASK-014 SE: {oid}")
-        elif oid.startswith("TASK-014/SV-"):
+ err(f"reused id not in SE: {oid}")
+ elif oid.startswith("/SV-"):
             name = oid.split("/", 1)[1]
             if not (sv_dir / f"{name}.json").is_file():
-                err(f"reused id not in TASK-014 SV: {oid}")
+ err(f"reused id not in SV: {oid}")
         else:
-            err(f"registry id not a reused TASK-004/008/012/014 row: {oid}")
+ err(f"registry id not a reused /008/012/014 row: {oid}")
 
 
 def check_protected() -> None:

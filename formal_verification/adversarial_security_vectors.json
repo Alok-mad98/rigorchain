@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-ADVERSARIAL-SECURITY-P0-063",
+ "task": "",
   "note": "Adversarial security baseline. Does not modify golden vectors or production consensus.",
   "refinement_proved": false,
   "equivalence_proved": false,

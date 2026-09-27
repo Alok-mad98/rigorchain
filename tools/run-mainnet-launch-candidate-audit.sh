@@ -722,7 +722,7 @@ fail_lines = "\n".join(f"- {x}" for x in fails) if fails else "- (none)"
 info_lines = "\n".join(f"- {f['gate']}: {f['message']}" for f in findings if f["severity"] == "INFO") or "- (none)"
 
 man = {
-    "task": "TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100",
+ "task": "",
     "date": today,
     "generated_at_utc": now,
     "nature": "Audit-first. Production readiness gate. No consensus/protocol/database/wallet-schema patch.",
@@ -798,7 +798,7 @@ report = f"""# RIGOR Mainnet Launch Candidate Audit (P0-100)
 
 | Field | Value |
 |-------|-------|
-| **Task** | `TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100` |
+| **Task** | `` |
 | **Date** | {today} |
 | **Generated (UTC)** | `{now}` |
 | **Nature** | Audit-first. Production readiness gate. **Not** a development TASK. **Not** a consensus change TASK. |
@@ -952,7 +952,7 @@ doc_path.write_text(report, encoding="utf-8")
 if FINAL_VERDICT != "PASS":
     follow = f"""# FOLLOW-UP P0-101 — Launch freeze and rebuild
 
-**Parent:** `TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100`  
+**Parent:** ``
 **Date:** {today}  
 **Nature:** Production freeze / rebuild / re-audit. **Not** a consensus change TASK.  
 **Trigger:** P0-100 `FINAL_VERDICT={FINAL_VERDICT}` / `GO_NO_GO={GO_NO_GO}`.

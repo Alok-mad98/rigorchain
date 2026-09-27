@@ -23,7 +23,7 @@ enabled is required. Options include:
 Note the IP address and port the SAM proxy is listening to; usually, it is
 `127.0.0.1:7656`.
 
-Once an I2P router with SAM enabled is up and running, use the following Arda
+Once an I2P router with SAM enabled is up and running, use the following RIGOR
 Core configuration options:
 
 ```
@@ -65,7 +65,7 @@ to allow multiple networks, e.g. onlynet=onion, onlynet=i2p.
 I2P support was added to Rigor Core in version 22.0 and there may be fewer I2P
 peers than Tor or IP ones. Therefore, using I2P alone without other networks may
 make a node more susceptible to [Sybil
-attacks](https://en.arda.it/wiki/Weaknesses#Sybil_attack). You can use
+attacks](https://en.bitcoin.it/wiki/Weaknesses#Sybil_attack). You can use
 `rigor-cli -addrinfo` to see the number of I2P addresses known to your node.
 
 Another consideration with `onlynet=i2p` is that the initial blocks download
@@ -167,4 +167,4 @@ In most cases, the default router settings should work fine.
 ## Bundling I2P in a Rigor application
 
 Please see the "General Guidance for Developers" section in https://geti2p.net/en/docs/api/samv3
-if you are developing a downstream application that may be bundling I2P with Arda.
+if you are developing a downstream application that may be bundling I2P with RIGOR.

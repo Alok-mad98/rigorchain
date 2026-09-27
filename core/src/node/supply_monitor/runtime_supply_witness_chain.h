@@ -20,7 +20,7 @@ class CBlockIndex;
 namespace Consensus {
 
 /**
- * TASK-FVR-F / TASK-ARCH-NO-GLOBAL-FENCE-001 (W7): per-block runtime formal
+ * / (W7): per-block runtime formal
  * witness (observation only).
  *
  * Captures invariant verification outcome at ConnectBlock time. Memory-only;

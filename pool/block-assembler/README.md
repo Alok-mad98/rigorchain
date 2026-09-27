@@ -1,6 +1,6 @@
 # block-assembler
 
-Second production component of the RIGOR Pool Stack (TASK-MINING-007).
+Second production component of the RIGOR Pool Stack .
 
 Consumes frozen `TemplateRecord` rows from [`rigor-gbt`](../rigor-gbt), assembles coinbase material (BIP34 height ‖ ConvergenceRoot, witness, CVGE, RIGOR commitment), reserves an immutable RES body-mint placeholder, and publishes `JobSnapshot` rows with monotonic `job_id` / `candidate_block_id` pairs.
 
@@ -8,8 +8,8 @@ Consumes frozen `TemplateRecord` rows from [`rigor-gbt`](../rigor-gbt), assemble
 
 | Task | Document |
 |------|----------|
-| TASK-MINING-005 | [`docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md`](../../docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) |
-| Dependency | [`pool/rigor-gbt`](../rigor-gbt) (TASK-MINING-006) |
+| | [`docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md`](../../docs/mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) |
+| Dependency | [`pool/rigor-gbt`](../rigor-gbt)  |
 
 ## Scope
 

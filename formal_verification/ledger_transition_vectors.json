@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-UTXO-LEDGER-TRANSITION-REFINEMENT-P0-063",
+ "task": "",
   "note": "Closed ledger transition pins. Not a full-node or LevelDB proof.",
   "refinement_proved": false,
   "equivalence_proved": false,

@@ -273,7 +273,7 @@ manifest = {
         "macos-arm64",
     ],
     "sha256_verified": sha256_verification == "PASS",
-    "task": "TASK-RIGOR-GITHUB-PRODUCTION-RELEASE-P0-093",
+ "task": "",
     "date": "2026-09-03",
     "tag": "v0.1.3",
     "title": "RIGOR v0.1.3",

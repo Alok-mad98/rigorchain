@@ -89,7 +89,7 @@ std::optional<bilingual_str> EnforceAssumevalidMainnetPolicy(const ArgsManager& 
     if (!args.IsArgSet("-assumevalid")) return std::nullopt;
     return Untranslated(
         "ERROR:\n"
-        "-assumevalid is disabled on AlphaPlus mainnet.");
+        "-assumevalid is disabled on RIGOR mainnet.");
 }
 
 bool IsKnownInsecureRpcCredential(const std::string& user, const std::string& password)
@@ -117,7 +117,7 @@ std::optional<bilingual_str> EnforceProductionRpcSecrets(const ArgsManager& args
     if (IsKnownInsecureRpcCredential(user, password)) {
         return Untranslated(
             "ERROR:\n"
-            "Default or well-known RPC credentials are not allowed on AlphaPlus mainnet.\n"
+            "Default or well-known RPC credentials are not allowed on RIGOR mainnet.\n"
             "Remove rpcuser/rpcpassword from the configuration and restart to generate unique credentials.");
     }
     return std::nullopt;
@@ -152,7 +152,7 @@ std::optional<bilingual_str> EnsureProductionRpcCredentials(ArgsManager& args, c
         if (!out.is_open()) {
             return Untranslated(strprintf("ERROR:\nUnable to write RPC credentials to %s.", fs::PathToString(secret_path)));
         }
-        out << "# AlphaPlus generated RPC credentials. Do not share. Permissions should be owner-only.\n";
+        out << "# RIGOR generated RPC credentials. Do not share. Permissions should be owner-only.\n";
         out << "rpcuser=" << user << "\n";
         out << "rpcpassword=" << password << "\n";
         if (!out.good()) {
@@ -164,7 +164,7 @@ std::optional<bilingual_str> EnsureProductionRpcCredentials(ArgsManager& args, c
     const std::string include_line = "includeconf=rpc-auth.conf";
     const fs::path node_conf = args.GetConfigFilePath();
     if (!FileContainsLine(node_conf, "includeconf=rpc-auth.conf")) {
-        if (!AppendLine(node_conf, "# AlphaPlus production RPC secrets (CSW-8)\n" + include_line + "\n")) {
+        if (!AppendLine(node_conf, "# RIGOR production RPC secrets (CSW-8)\n" + include_line + "\n")) {
             return Untranslated(strprintf("ERROR:\nUnable to add includeconf to %s.", fs::PathToString(node_conf)));
         }
     }

@@ -1,6 +1,6 @@
 # Consensus Lock Hardening Report
 
-**Task:** TASK-CONSENSUS-LOCK-HARDENING-001  
+**Task:**
 **Date:** 2026-09-15
 
 ```

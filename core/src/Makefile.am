@@ -654,7 +654,7 @@ crypto_libbitcoin_crypto_arm_shani_la_SOURCES = crypto/sha256_arm_shani.cpp
 #
 
 # consensus #
-# selection.cpp: SINGLE OWNERSHIP in libbitcoin_consensus only (TASK-MAINNET-CLOSURE-001).
+# selection.cpp: SINGLE OWNERSHIP in libbitcoin_consensus only .
 # Do not also list it under libbitcoin_node_a_SOURCES — dual archives caused link-order ambiguity.
 libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)

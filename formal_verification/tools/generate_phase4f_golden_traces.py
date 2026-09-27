@@ -2,7 +2,7 @@
 """
 Generate ConsensusGoldenVectorsData.v from phase3_golden_vectors.json + PHASE-4E synthetics.
 
-TASK-FORMAL-PHASE4F-END-TO-END-CONSENSUS-VERIFICATION-001C
+
 Run from repo root:
   python3 formal_verification/tools/generate_phase4f_golden_traces.py
 """
@@ -37,17 +37,17 @@ UNMAPPED_MODULES = frozenset({
     "BlockTrace",
     "DrawCandidateRoot",
     # Monetary reject family: Python oracle + Kernel/NegativeCoreHarness.v, not a
-    # Phase-4F draw-trace family (TASK-FV-VECTOR-NEGATIVE-CORE-001).
+ # Phase-4F draw-trace family .
     "NegativeCore",
     # Invalid Convergence / malformed-root / dup-txid rejects (P0-4 remainder):
     # Python oracle + Kernel/GoldenHarness.v, not a Phase-4F draw-trace family.
     "InvalidCvg",
     # Abstract script classification / PCORB mint-witness shape rejects
-    # (TASK-FV-VECTOR-SCRIPT-AND-MINT-WITNESS-NEG-001): Python oracle +
+ # Python oracle +
     # Kernel/GoldenHarness.v, not a Phase-4F draw-trace family.
     "ScriptMintNeg",
     # Cross-family combination / boundary rejects
-    # (TASK-FV-VECTOR-EDGE-AND-CROSS-FAMILY-001): Python oracle + harness, not a
+ # Python oracle + harness, not a
     # Phase-4F draw-trace family.
     "EdgeCross",
 })

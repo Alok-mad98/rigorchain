@@ -15,7 +15,7 @@ class WalletModel;
 
 namespace RigorWallet {
 
-/** Release gate status display — read-only (TASK-WALLET-PROGRAM-018). */
+/** Release gate status display — read-only . */
 class ReleaseGatePanel : public QFrame
 {
     Q_OBJECT

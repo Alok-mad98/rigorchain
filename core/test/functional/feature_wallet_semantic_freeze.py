@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B4-003 P7B: wallet semantic freeze guard (regression grep, not a feature test)."""
+""" P7B: wallet semantic freeze guard (regression grep, not a feature test)."""
 
 from pathlib import Path
 import re

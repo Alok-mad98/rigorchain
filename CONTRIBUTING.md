@@ -41,9 +41,9 @@ Consensus rules are frozen; see [docs/MAINNET_PROTOCOL_FREEZE_DECLARATION.md](do
 anything under `core/src/consensus/` needs more than a pull request:
 
 1. **A written specification** stating the rule change normatively, including the
-   exact byte layouts and arithmetic. Historical RFC models (`RFC-008`, `RFC-009`) live in
-   [docs/archive/rfc/](docs/archive/rfc/). [docs/rfc/](docs/rfc/) is a pointer to that archive.
-   Public mathematics is [docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md](docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md).
+   exact byte layouts and arithmetic. Live mathematics is
+   [docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md](docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md).
+   Historical RFC pointers: [docs/rfc/](docs/rfc/).
 2. **A stated reason.** Security fixes and demonstrated incorrectness qualify. "Cleaner" or
    "more general" does not.
 3. **Tests that fail before and pass after,** covering the boundary cases, not just the

@@ -1,7 +1,7 @@
 # rigor-miner-agent Architecture
 
-**Task:** TASK-MINING-022A  
-**Authority:** `docs/mining/TASK-MINING-022-CPU-MINER-AGENT-SPEC.md`
+**Task:**
+**Authority:** `docs/mining/.md`
 
 ## Boundary
 

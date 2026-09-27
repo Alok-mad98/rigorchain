@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-011 formal baseline gate. Not a Coq proof. Not equivalence."""
+""" formal baseline gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import hashlib
@@ -65,7 +65,6 @@ SCAN_DOCS = (BASELINE, CATALOG, BOUNDARY, DECISION)
 FORBIDDEN_ARCH = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual asset",

@@ -1,6 +1,6 @@
 # Template Cache State Machine
 
-**Spec:** TASK-MINING-005 §2.2–§2.3  
+**Spec:** §2.2–§2.3
 **Implementation:** `src/cache.rs`
 
 ## States
@@ -13,7 +13,7 @@
 | **EXPIRED** | TTL exceeded | no |
 | **ARCHIVED** | Terminal; audit retention only | no |
 
-> **Note:** `Ingested` / `Assembling` from the full pool orchestrator are **not** used in TASK-MINING-006. Validated GBT ingest transitions directly to **ACTIVE** (assembler publish is a later phase).
+> **Note:** `Ingested` / `Assembling` from the full pool orchestrator are **not** used in . Validated GBT ingest transitions directly to **ACTIVE** (assembler publish is a later phase).
 
 ## Diagram
 

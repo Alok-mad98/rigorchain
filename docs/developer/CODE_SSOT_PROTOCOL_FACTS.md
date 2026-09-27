@@ -53,9 +53,7 @@ markdown files.
 | `CLIENT_NAME` | `RigorCore` |
 | Chain name lock | `RIGOR` (`rigor_consensus_lock.h`) |
 
-`ALPHAPLUS_RELEASE` is **not** defined in `core/src/`. Remaining "AlphaPlus"
-strings in CLI help / configure comments are leftover production-artifact
-wording, not the public product name.
+The public product name is RIGOR. Display version is `RIGOR_RELEASE_VERSION`.
 
 P2P handshake protocol id (`core/src/version.h`):
 
@@ -367,7 +365,7 @@ Numeric SSOT with `tools/res_continuous_price_schedule.py`.
 
 | Stale claim | Current code |
 |-------------|--------------|
-| Product AlphaPlus / `v0.1.1-alphaplus` | Display version in `core/src/clientversion.h` (`RIGOR_RELEASE_VERSION`) |
+| Historical `v0.1.1` display channel | Display version in `core/src/clientversion.h` (`RIGOR_RELEASE_VERSION`) |
 | OpuHash is the retired 64 KiB mix | OpuHash **is** SHA3-256 `"RGRPOW01" \|\| header_80` |
 | ASERT half-life 172800 s | **43200 s** |
 | `R(0) = 1000 ORU` | `R(0) = 0` |
@@ -378,6 +376,4 @@ Numeric SSOT with `tools/res_continuous_price_schedule.py`.
 | HRP `rgr` | Mainnet `rg` |
 | SPEC-008 still “PROPOSED only” as if unimplemented | Node already validates SHA3-256 |
 
-AlphaPlus, W=36, the retired 64 KiB mix, and abandoned architecture notes
-belong under `archive/` or an explicit **Historical design notes** heading.
-Do not call the retired mix OpuHash. Live OpuHash is SHA3-256 / `RGRPOW01`.
+Retired mix parameters are not live OpuHash. Live OpuHash is SHA3-256 / `RGRPOW01`.

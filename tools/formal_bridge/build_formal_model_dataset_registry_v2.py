@@ -99,7 +99,7 @@ def resolve_kcd(cid: str) -> Path:
     matches = sorted(KCD.glob(f"{cid}*/kernel_candidate.json"))
     if matches:
         return matches[0]
-    raise SystemExit(f"missing TASK-008 candidate {cid}")
+ raise SystemExit(f"missing candidate {cid}")
 
 
 def main() -> None:
@@ -110,28 +110,28 @@ def main() -> None:
         obj, th = CE_OBJECT[cid]
         if not (ATTACK / f"{cid}.json").is_file():
             raise SystemExit(f"missing attack source {cid}")
-        entries.append(row(f"TASK-004/{cid}", obj, "attack", th))
+ entries.append(row(f"/{cid}", obj, "attack", th))
         resolve_kcd(cid)
-        entries.append(row(f"TASK-008/{cid}", obj, "runtime", th))
+ entries.append(row(f"/{cid}", obj, "runtime", th))
 
     diff = json.loads(DIFF_INDEX.read_text())
     by_sc = diff.get("by_scenario") or {}
     for scen, (obj, th) in DIFF_MAP.items():
         if scen not in by_sc:
-            raise SystemExit(f"missing TASK-012 scenario {scen}")
-        entries.append(row(f"TASK-012/{scen}", obj, "runtime", th))
+ raise SystemExit(f"missing scenario {scen}")
+ entries.append(row(f"/{scen}", obj, "runtime", th))
 
     for i in range(1, 6):
         sid = f"SE-{i:03d}"
         obj, th = SE_OBJECT[sid]
         if not (SE_DIR / f"{sid}.json").is_file():
             raise SystemExit(f"missing SE source {sid}")
-        entries.append(row(f"TASK-014/{sid}", obj, "serialization", th))
+ entries.append(row(f"/{sid}", obj, "serialization", th))
 
     for path in sorted(SV_DIR.glob("SV-*.json")):
         name = path.stem
         obj, th = sv_map(name)
-        entries.append(row(f"TASK-014/{name}", obj, "serialization", th))
+ entries.append(row(f"/{name}", obj, "serialization", th))
 
     ids = [e["id"] for e in entries]
     if len(ids) != len(set(ids)):
@@ -141,17 +141,17 @@ def main() -> None:
         "schema_version": "formal_model_dataset_registry_v2",
         "status": "REUSED",
         "note": (
-            "Index of existing TASK-004 / TASK-008 / TASK-012 / TASK-014 rows. "
+ "Index of existing / / / rows. "
             "Not new harvest. Not theorems. KernelInputCandidate != KernelInput. "
             "CPP_KERNELINPUT_EQUIVALENCE = NOT PROVED. KernelCandidate = runtime observation."
         ),
         "meta": {
             "n_entries": len(entries),
             "sources_reused": [
-                "TASK-004 attack dataset",
-                "TASK-008 bridge dataset",
-                "TASK-012 differential dataset",
-                "TASK-014 serialization dataset",
+ " attack dataset",
+ " bridge dataset",
+ " differential dataset",
+ " serialization dataset",
             ],
             "objects": ["block", "tx", "input", "output", "utxo"],
             "source_tags": ["runtime", "serialization", "attack"],

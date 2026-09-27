@@ -26,7 +26,7 @@ namespace Consensus {
 inline constexpr uint32_t RUNTIME_SUPPLY_INVARIANT_COUNT = 9;
 
 /**
- * TASK-FVR-E: runtime-executable formal invariant verification (observation only).
+ * runtime-executable formal invariant verification (observation only).
  *
  * Verifies that `RuntimeSupplyState` satisfies the same recurrence and bound
  * laws as the formal model. Does not affect consensus, validation, or state_hash.

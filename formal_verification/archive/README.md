@@ -4,7 +4,7 @@
 `formal_verification/coq/` so the existing ReplayReorgCore / Kernel / Phase
 catalogs keep building. This directory is the **classification snapshot** of
 what those files mean after the v0.1 spend-surface realignment
-(TASK-RIGOR-FORMAL-VERIFICATION-MODEL-REALIGNMENT-AUDIT-P0-022).
+.
 
 The live v0.1 spend model is `formal_verification/rigor_v01/`.
 

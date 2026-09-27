@@ -74,7 +74,7 @@ struct PrecomputedTransactionData
     bool m_spent_outputs_ready = false;
 
     /**
-     * FENCE-W5 (TASK-ARCH-SCRIPT-CONTEXT-CLEANUP-001): sighash cache only.
+ * FENCE-W5 : sighash cache only.
      * Script evaluation is a function of the UTXO being spent and the spending
      * transaction (via BaseSignatureChecker). Do not store chain_id, CBlockIndex*,
      * CBlock*, convergence root, or T here. chain_id is held only by
@@ -121,7 +121,7 @@ static constexpr size_t WITNESS_V1_RES_SIZE = 32;
  * `IsStandard`, `Solver`, and `AreInputsStandard` — asset class is derived from
  * script bytes and nothing else ("script as asset").
  *
- * TASK-010 R-2: it deliberately does NOT check that the program decodes to a
+ * it deliberately does NOT check that the program decodes to a
  * point on the Ed25519 curve. Two reasons. First, classification would then
  * depend on a third-party library's versioned notion of point validity, and
  * because classification applies to existing UTXOs, any future change to that

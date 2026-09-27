@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-// TASK-H2 H-1-2 byte-pinned unit test vectors for
+// H-1-2 byte-pinned unit test vectors for
 // `Consensus::ComputeDeterministicStateHash`.
 //
 // Three independent byte-level guards are pinned here, all reachable from
@@ -43,7 +43,7 @@
 //      Same input MUST yield identical 32 bytes across repeated calls.
 //      Defends against accidental introduction of hidden mutable state
 //      (timer, RNG, static counter) inside the snapshot path.
-//      See TASK-H2 R-5 / R-10.
+// See / R-10.
 //
 //   3. `state_hash_inmem_chain_matches_independent_reference`
 //      Pins the post-genesis path on an in-memory `CCoinsViewCache`
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(state_hash_pre_genesis_is_idempotent)
     // Same input must yield identical 32 bytes across repeated calls.
     // This is a trivial check but defends against accidental introduction
     // of hidden mutable state (timer, RNG, static counter, etc.) inside
-    // the snapshot path. See TASK-H2 R-5 / R-10.
+ // the snapshot path. See / R-10.
     CCoinsView base;
     CCoinsViewCache view(&base);
     const uint256 a = Consensus::ComputeDeterministicStateHash(view, nullptr);

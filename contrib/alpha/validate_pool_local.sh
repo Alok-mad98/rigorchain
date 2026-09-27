@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-MAINNET-PRODUCT-ALPHA-001 — Pool local validation (Stratum + RES compatibility)
+# — Pool local validation (Stratum + RES compatibility)
 set -euo pipefail
 
 ALPHA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -122,7 +122,7 @@ python3 -c "
 import json
 from pathlib import Path
 Path('${REPORT_JSON}').write_text(json.dumps({
-  'task': 'TASK-MAINNET-PRODUCT-ALPHA-001',
+ 'task': '',
   'pass': ${pass},
   'fail': ${fail},
   'verdict': 'PASS' if ${fail} == 0 else 'FAIL',

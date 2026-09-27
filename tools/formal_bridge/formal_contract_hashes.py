@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared hashes for TASK-013 formal input contract. Not a proof."""
+"""Shared hashes for formal input contract. Not a proof."""
 from __future__ import annotations
 
 import hashlib

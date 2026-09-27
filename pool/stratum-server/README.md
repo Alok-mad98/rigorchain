@@ -1,7 +1,7 @@
 # stratum-server
 
-ORU-only Stratum v1 server and miner submission pipeline (TASK-MINING-009).
-Option A (`TASK-POOL-RES-BOUNDARY-IMPLEMENT-003`): no RES mint construction.
+ORU-only Stratum v1 server and miner submission pipeline .
+Option A (``): no RES mint construction.
 
 ## Stack integration
 

@@ -1,4 +1,4 @@
-(** TASK-018: Cshmgen on the existing [check_oru] Clight AST.
+(** : Cshmgen on the existing [check_oru] Clight AST.
 
     Does not [Require Compiler] (no [print_Clight] Parameter).
     Official pipeline order is SimplLocals then Cshmgen; SimplLocals

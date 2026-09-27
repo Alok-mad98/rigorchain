@@ -1,7 +1,7 @@
 # rigor-miner-agent Test Plan
 
-**Task:** TASK-MINING-022A / TASK-MINING-023  
-**Spec:** `docs/mining/TASK-MINING-022-CPU-MINER-AGENT-SPEC.md`
+**Task:** /
+**Spec:** `docs/mining/.md`
 
 ## Test matrix
 
@@ -36,7 +36,7 @@ cargo test --test integration
 cargo test --test messages
 ```
 
-## Required output table (TASK-MINING-023)
+## Required output table 
 
 | Field | Status |
 |-------|--------|

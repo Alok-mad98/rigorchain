@@ -197,7 +197,7 @@ if theorems_changed:
 pipeline = "PASS" if not errors else "FAIL"
 
 man = {
-    "task": "TASK-RIGOR-RELEASE-GUARDIAN-FULL-PIPELINE-AUDIT-P0-092",
+ "task": "",
     "date": "2026-09-02",
     "nature": "Audit-first. No consensus changes.",
     "command": "bash tools/run-genesis-release-guardian.sh",

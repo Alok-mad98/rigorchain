@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-AUDIT-PACKAGE-P0-062",
+ "task": "",
   "freeze_id": "P0-062-release",
   "note": "RFC-020: flat 128 ORU. Issuance refinement withdrawn. P053 finite-vector JSON refinement_proved stays false.",
   "refinement_proved": false,

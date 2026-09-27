@@ -4,7 +4,7 @@ use clap::Parser;
 use rigor_miner_agent::{AgentConfig, MinerAgent, MinerTelemetry};
 
 #[derive(Parser, Debug)]
-#[command(name = "rigor-miner-agent", about = "RIGOR pool CPU miner agent (TASK-MINING-023)")]
+#[command(name = "rigor-miner-agent", about = "RIGOR pool CPU miner agent ")]
 struct Cli {
     /// Pool address host:port (default port 3333)
     #[arg(long, default_value = "127.0.0.1:3333")]

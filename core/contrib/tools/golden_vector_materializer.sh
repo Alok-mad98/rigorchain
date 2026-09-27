@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-PROOF-008: Regtest golden vector fixture materialization harness.
+# Regtest golden vector fixture materialization harness.
 #
 # Usage:
 #   golden_vector_materializer.sh [--datadir=PATH] [--datadir PATH] [--verify-fvr]

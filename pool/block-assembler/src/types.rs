@@ -16,7 +16,7 @@ impl fmt::Debug for JobId {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
 pub struct CandidateBlockId(pub u64);
 
-/// JobSnapshot lifecycle (TASK-MINING-007).
+/// JobSnapshot lifecycle .
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum JobState {

@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-C-ABI-EXTRACTION-BRIDGE-P0-053",
+ "task": "",
   "note": "Finite C ABI domain. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,

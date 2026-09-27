@@ -220,7 +220,7 @@ def create_block_evidence_from_trace(
     collected_at: Optional[str] = None,
     scenario: Optional[str] = None,
 ) -> dict:
-    """Map a TASK-007 consensus_trace object. Same trace ⇒ same evidence_id."""
+ """Map a consensus_trace object. Same trace ⇒ same evidence_id."""
     cand = generate_kernel_candidate(trace)
     accept = str(trace.get("block_result") or "") == "accept"
     txs = list(trace.get("tx_results") or [])

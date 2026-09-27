@@ -1,6 +1,6 @@
 # stratum-server Architecture
 
-**Task:** TASK-MINING-009, TASK-MINING-018, TASK-POOL-RES-BOUNDARY-IMPLEMENT-003  
+**Task:** , ,
 **Product:** ORU-only Stratum pool (Option A). No mint-engine on the runtime path.
 
 ```mermaid

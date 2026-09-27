@@ -83,7 +83,7 @@ def is_official_name(name: str) -> bool:
 
 
 def is_release_build_artifact_name(name: str) -> bool:
-    """Names produced by release-build.yml after TASK-002 (real node or NOT_RELEASE_READY)."""
+ """Names produced by release-build.yml after (real node or NOT_RELEASE_READY)."""
     if is_forbidden_legacy_name(name):
         return False
     if "identity" in name.lower():

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build TASK-007 kernel_candidate_dataset and attack_vector traces.
+"""Build kernel_candidate_dataset and attack_vector traces.
 
 Does not change consensus. Reconstructs KernelInput candidates from C++
 decision facts already recorded in CE / equivalence files.
@@ -429,7 +429,7 @@ def main() -> int:
     harvest_live(ROOT / "tests" / "attack_lab" / "data_task007" / "on" / "regtest" / "consensus_trace")
     harvest_live(ROOT / "tests" / "serialization_vectors" / "data" / "regtest" / "regtest" / "consensus_trace")
     (OUT / "README.md").write_text(
-        "TASK-007 KernelInput candidate dataset.\n\n"
+ " KernelInput candidate dataset.\n\n"
         "Each case: hex + consensus_trace.json + kernel_candidate.json.\n"
         "Live C++ files appear under live_connectblock/ after "
         "`rigord -rigorconsensustrace=1`.\n"

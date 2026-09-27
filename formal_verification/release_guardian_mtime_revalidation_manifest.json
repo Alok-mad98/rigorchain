@@ -1,6 +1,6 @@
 {
   "task": "P0-093-GUARDIAN-FIX",
-  "full_task": "TASK-RIGOR-RELEASE-GUARDIAN-MTIME-REVALIDATION-P0-093-GUARDIAN-FIX",
+ "full_task": "",
   "date": "2026-09-03",
   "cause": "filesystem mtime stale binary detection",
   "source_changes": false,

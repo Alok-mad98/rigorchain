@@ -5,12 +5,11 @@
 To quickly get started fuzzing Rigor Core using [libFuzzer](https://llvm.org/docs/LibFuzzer.html):
 
 ```sh
-$ git clone https://github.com/arda/arda
-$ cd arda/
+$ cd core/
 $ ./autogen.sh
 $ CC=clang CXX=clang++ ./configure --enable-fuzz --with-sanitizers=address,fuzzer,undefined
 # macOS users: If you have problem with this step then make sure to read "macOS hints for
-# libFuzzer" on https://github.com/arda/arda/blob/master/doc/fuzzing.md#macos-hints-for-libfuzzer
+# libFuzzer" on https://github.com/bitcoin/bitcoin/blob/master/doc/fuzzing.md#macos-hints-for-libfuzzer
 $ make
 $ FUZZ=process_message src/test/fuzz/fuzz
 # abort fuzzing using ctrl-c
@@ -25,7 +24,7 @@ There is also a runner script to execute all fuzz targets. Refer to
 
 ## Fuzzing harnesses and output
 
-[`process_message`](https://github.com/arda/arda/blob/master/src/test/fuzz/process_message.cpp) is a fuzzing harness for the [`ProcessMessage(...)` function (`net_processing`)](https://github.com/arda/arda/blob/master/src/net_processing.cpp). The available fuzzing harnesses are found in [`src/test/fuzz/`](https://github.com/arda/arda/tree/master/src/test/fuzz).
+[`process_message`](https://github.com/bitcoin/bitcoin/blob/master/src/test/fuzz/process_message.cpp) is a fuzzing harness for the [`ProcessMessage(...)` function (`net_processing`)](https://github.com/bitcoin/bitcoin/blob/master/src/net_processing.cpp). The available fuzzing harnesses are found in [`src/test/fuzz/`](https://github.com/bitcoin/bitcoin/tree/master/src/test/fuzz).
 
 The fuzzer will output `NEW` every time it has created a test input that covers new areas of the code under test. For more information on how to interpret the fuzzer output, see the [libFuzzer documentation](https://llvm.org/docs/LibFuzzer.html).
 
@@ -82,12 +81,12 @@ $ FUZZ=address_deserialize_v2 src/test/fuzz/fuzz -runs=1 fuzz_seed_corpus/addres
 
 ## Fuzzing corpora
 
-The project's collection of seed corpora is found in the [`arda-core/qa-assets`](https://github.com/arda-core/qa-assets) repo.
+The project's collection of seed corpora is found in the [`rigor-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo.
 
-To fuzz `process_message` using the [`arda-core/qa-assets`](https://github.com/arda-core/qa-assets) seed corpus:
+To fuzz `process_message` using the [`rigor-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) seed corpus:
 
 ```sh
-$ git clone https://github.com/arda-core/qa-assets
+$ git clone https://github.com/bitcoin-core/qa-assets
 $ FUZZ=process_message src/test/fuzz/fuzz qa-assets/fuzz_seed_corpus/process_message/
 INFO: Seed: 1346407872
 INFO: Loaded 1 modules   (424174 inline 8-bit counters): 424174 [0x55d8a9004ab8, 0x55d8a906c3a6),
@@ -101,7 +100,7 @@ INFO: seed corpus: files: 991 min: 1b max: 1858b total: 288291b rss: 150Mb
 
 ## Run without sanitizers for increased throughput
 
-Fuzzing on a harness compiled with `--with-sanitizers=address,fuzzer,undefined` is good for finding bugs. However, the very slow execution even under libFuzzer will limit the ability to find new coverage. A good approach is to perform occasional long runs without the additional bug-detectors (configure `--with-sanitizers=fuzzer`) and then merge new inputs into a corpus as described in the qa-assets repo (https://github.com/arda-core/qa-assets/blob/main/.github/PULL_REQUEST_TEMPLATE.md).  Patience is useful; even with improved throughput, libFuzzer may need days and 10s of millions of executions to reach deep/hard targets.
+Fuzzing on a harness compiled with `--with-sanitizers=address,fuzzer,undefined` is good for finding bugs. However, the very slow execution even under libFuzzer will limit the ability to find new coverage. A good approach is to perform occasional long runs without the additional bug-detectors (configure `--with-sanitizers=fuzzer`) and then merge new inputs into a corpus as described in the qa-assets repo (https://github.com/bitcoin-core/qa-assets/blob/main/.github/PULL_REQUEST_TEMPLATE.md).  Patience is useful; even with improved throughput, libFuzzer may need days and 10s of millions of executions to reach deep/hard targets.
 
 ## Reproduce a fuzzer crash reported by the CI
 
@@ -117,9 +116,9 @@ Fuzzing on a harness compiled with `--with-sanitizers=address,fuzzer,undefined` 
 
 ## Submit improved coverage
 
-If you find coverage increasing inputs when fuzzing you are highly encouraged to submit them for inclusion in the [`arda-core/qa-assets`](https://github.com/arda-core/qa-assets) repo.
+If you find coverage increasing inputs when fuzzing you are highly encouraged to submit them for inclusion in the [`rigor-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo.
 
-Every single pull request submitted against the Rigor Core repo is automatically tested against all inputs in the [`arda-core/qa-assets`](https://github.com/arda-core/qa-assets) repo. Contributing new coverage increasing inputs is an easy way to help make Rigor Core more robust.
+Every single pull request submitted against the Rigor Core repo is automatically tested against all inputs in the [`rigor-core/qa-assets`](https://github.com/bitcoin-core/qa-assets) repo. Contributing new coverage increasing inputs is an easy way to help make Rigor Core more robust.
 
 ## macOS hints for libFuzzer
 
@@ -129,7 +128,7 @@ example using `brew install llvm`.
 
 Should you run into problems with the address sanitizer, it is possible you
 may need to run `./configure` with `--disable-asm` to avoid errors
-with certain assembly code from Rigor Core's code. See [developer notes on sanitizers](https://github.com/arda/arda/blob/master/doc/developer-notes.md#sanitizers)
+with certain assembly code from Rigor Core's code. See [developer notes on sanitizers](https://github.com/bitcoin/bitcoin/blob/master/doc/developer-notes.md#sanitizers)
 for more information.
 
 You may also need to take care of giving the correct path for `clang` and
@@ -151,8 +150,7 @@ Read the [libFuzzer documentation](https://llvm.org/docs/LibFuzzer.html) for mor
 To quickly get started fuzzing Rigor Core using [afl++](https://github.com/AFLplusplus/AFLplusplus):
 
 ```sh
-$ git clone https://github.com/arda/arda
-$ cd arda/
+$ cd core/
 $ git clone https://github.com/AFLplusplus/AFLplusplus
 $ make -C AFLplusplus/ source-only
 $ ./autogen.sh
@@ -178,8 +176,7 @@ Read the [afl++ documentation](https://github.com/AFLplusplus/AFLplusplus) for m
 To quickly get started fuzzing Rigor Core using [Honggfuzz](https://github.com/google/honggfuzz):
 
 ```sh
-$ git clone https://github.com/arda/arda
-$ cd arda/
+$ cd core/
 $ ./autogen.sh
 $ git clone https://github.com/google/honggfuzz
 $ cd honggfuzz/
@@ -195,7 +192,7 @@ Read the [Honggfuzz documentation](https://github.com/google/honggfuzz/blob/mast
 
 ## Fuzzing the Rigor Core P2P layer using Honggfuzz NetDriver
 
-Honggfuzz NetDriver allows for very easy fuzzing of TCP servers such as Arda
+Honggfuzz NetDriver allows for very easy fuzzing of TCP servers such as Bitcoin Core
 Core without having to write any custom fuzzing harness. The `rigord` server
 process is largely fuzzed without modification.
 
@@ -205,10 +202,9 @@ also remotely triggerable by an untrusted peer.
 To quickly get started fuzzing the P2P layer using Honggfuzz NetDriver:
 
 ```sh
-$ mkdir arda-honggfuzz-p2p/
-$ cd arda-honggfuzz-p2p/
-$ git clone https://github.com/arda/arda
-$ cd arda/
+$ mkdir rigor-honggfuzz-p2p/
+$ cd rigor-honggfuzz-p2p/
+$ cd core/
 $ ./autogen.sh
 $ git clone https://github.com/google/honggfuzz
 $ cd honggfuzz/
@@ -274,8 +270,7 @@ $ honggfuzz/honggfuzz --exit_upon_crash --quiet --timeout 4 -n 1 -Q \
 To quickly get started fuzzing Rigor Core using [Eclipser v1.x](https://github.com/SoftSec-KAIST/Eclipser/tree/v1.x):
 
 ```sh
-$ git clone https://github.com/arda/arda
-$ cd arda/
+$ cd core/
 $ sudo vim /etc/apt/sources.list # Uncomment the lines starting with 'deb-src'.
 $ sudo apt-get update
 $ sudo apt-get build-dep qemu
@@ -323,21 +318,21 @@ be decoded in the same way.
 Fuzzing with Eclipser will likely be much more effective if using an existing corpus:
 
 ```sh
-$ git clone https://github.com/arda-core/qa-assets
+$ git clone https://github.com/bitcoin-core/qa-assets
 $ FUZZ=bech32 dotnet Eclipser/build/Eclipser.dll fuzz -p src/test/fuzz/fuzz -t 36000 -i qa-assets/fuzz_seed_corpus/bech32 outputs --src stdin
 ```
 
 Note that fuzzing with Eclipser on certain targets (those that create 'full nodes', e.g. `process_message*`) will,
 for now, slowly fill `/tmp/` with improperly cleaned-up files, which will cause spurious crashes.
-See [this proposed patch](https://github.com/arda/arda/pull/22472) for more information.
+See [this proposed patch](https://github.com/bitcoin/bitcoin/pull/22472) for more information.
 
 Read the [Eclipser documentation for v1.x](https://github.com/SoftSec-KAIST/Eclipser/tree/v1.x) for more details on using Eclipser.
 
 
 # OSS-Fuzz
 
-Rigor Core participates in Google's [OSS-Fuzz](https://github.com/google/oss-fuzz/tree/master/projects/arda-core)
-program, which includes a dashboard of [publicly disclosed vulnerabilities](https://bugs.chromium.org/p/oss-fuzz/issues/list?q=arda-core).
+Rigor Core participates in Google's [OSS-Fuzz](https://github.com/google/oss-fuzz/tree/master/projects/rigor-core)
+program, which includes a dashboard of [publicly disclosed vulnerabilities](https://bugs.chromium.org/p/oss-fuzz/issues/list?q=rigor-core).
 Generally, we try to disclose vulnerabilities as soon as possible after they
 are fixed to give users the knowledge they need to be protected. However,
 because Rigor is a live P2P network, and not just standalone local software,

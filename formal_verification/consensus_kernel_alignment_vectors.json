@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-COQ-CPP-ALIGNMENT-P0-049",
+ "task": "",
   "note": "RFC-020 alignment vectors. Display destroy_cost(h) is not actual issuance. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,

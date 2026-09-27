@@ -1,4 +1,4 @@
-//! Shared JSONL metrics stream for pool / miner operational telemetry (TASK-MINING-024).
+//! Shared JSONL metrics stream for pool / miner operational telemetry .
 //!
 //! Schema authority: `docs/ops/MONITORING_METRICS_SPEC.md`
 

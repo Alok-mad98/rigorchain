@@ -83,7 +83,7 @@ EXTENDED_SCRIPTS = [
     # These tests are not run by default.
     # Longest test should go first, to favor running tests in parallel
     'rigor_long_run.py --descriptors',
-    'feature_replay_burnin.py',  # TASK-H4 LR-03/04/09 nightly burn-in
+ 'feature_replay_burnin.py', # LR-03/04/09 nightly burn-in
     'feature_pruning.py',
     'feature_dbcrash.py',
     'feature_index_prune.py',
@@ -111,7 +111,7 @@ BASE_SCRIPTS = [
     'feature_rigor_block_space.py --descriptors',
     'feature_ed25519_cross_node.py --descriptors',
     # 'rigor_attack_blocks.py --descriptors',  # removed Batch B
-    # TASK-H4 deterministic replay harnesses (LR-01 / LR-02 / capture self-test)
+ # deterministic replay harnesses (LR-01 / LR-02 / capture self-test)
     'feature_deterministic_replay.py',
     'feature_baseline_replay_longrun.py',
     # 'feature_reorg_determinism_audit.py',  # removed Batch B
@@ -142,11 +142,11 @@ BASE_SCRIPTS = [
     'feature_dual_pool_mempool.py --descriptors',
     'feature_dual_pool_reorg.py --descriptors',
     'feature_dual_pool_mining.py --descriptors',
-    # TASK-B5-001 PHASE-B2 P2P propagation stability
+ # PHASE-B2 P2P propagation stability
     'feature_p2p_dual_pool_relay.py --descriptors',
     'feature_p2p_fork_propagation.py',
     'feature_p2p_ibd_stability.py',
-    # TASK-B5-002 PHASE-B3 long-run stability (CI scenario pack)
+ # PHASE-B3 long-run stability (CI scenario pack)
     'feature_p2p_b3_stability_scenarios.py',
     'feature_p2p_1000_block_propagation.py --prop-blocks=200',
     'feature_wallet_semantic_freeze.py',

@@ -301,7 +301,7 @@ if test_rc not in (0, 99) and not func_pass:
     blocked_reason = blocked_reason or f"functional test exited {test_rc}"
 
 man = {
-    "task": "TASK-RIGOR-WALLET-SQLITE-TRUST-BOUNDARY-AUDIT-P0-089",
+ "task": "",
     "date": "2026-09-02",
     "nature": "Audit-first. Non-consensus persistence verification. Not a bug-fix TASK.",
     "wallet_sqlite_audit_status": status,

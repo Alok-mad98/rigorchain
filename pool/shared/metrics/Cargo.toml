@@ -2,7 +2,7 @@
 name = "rigor-pool-metrics"
 version = "0.1.0"
 edition = "2021"
-description = "Shared JSONL metrics writer for RIGOR pool telemetry (TASK-MINING-024)"
+description = "Shared JSONL metrics writer for RIGOR pool telemetry "
 license = "MIT"
 
 [dependencies]

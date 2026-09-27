@@ -32,7 +32,7 @@ It is not a proof, not a binary, and not a TCB shrink.
 | Phase 8 — differential / claims / freeze | **DONE** (document freeze, narrow sentence, 2026-09-13) |
 | Phase 9 — Level 5 close attempt | **ABORT** (`PHASE9=ABORT`, I-1 / §10 held, 2026-09-13) |
 | Phase 10 — partial pipeline | **ABORT_LEVEL5** (`PHASE10=ABORT_LEVEL5`, `PHASE10_PARTIAL=true`, 2026-09-13) |
-| TASK-018 — Closed Clight → CompCert probe | **PART** (`CLIGHT_TO_CMINOR_CLOSED=PASS`, Asm / Level 5 **not** taken, 2026-09-13) |
+| — Closed Clight → CompCert probe | **PART** (`CLIGHT_TO_CMINOR_CLOSED=PASS`, Asm / Level 5 **not** taken, 2026-09-13) |
 | TASK 3.1A — Asm boundary audit | **BLOCKED_BY_TCB** (`compile_switch` residual; no `closed_compcert_check_oru`, 2026-09-13) |
 | TASK 3.1B — unlift Clight simulation | **PART** (one-step under relation; function/`check_oru` simulation not proved; no Level 5, 2026-09-13) |
 | TASK 3.1C — unlift_function_core FS audit | **NOT_FEASIBLE_WITHIN_SCOPE** (no hybrid entry needed; whole-program inverse SimplLocals required; no Level 5, 2026-09-13) |

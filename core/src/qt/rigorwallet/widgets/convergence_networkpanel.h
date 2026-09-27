@@ -13,7 +13,7 @@ class QLabel;
 namespace RigorWallet {
 
 /**
- * Wallet → Convergence → Network Statistics (TASK-WALLET-CONVERGENCE-NETWORK-STATS-001).
+ * Wallet → Convergence → Network Statistics .
  * Displays chain-wide stats from getconvergencestatus. No protocol digests.
  */
 class ConvergenceNetworkPanel : public QFrame

@@ -15,7 +15,7 @@ class UniValue;
 
 namespace Consensus {
 
-/** TASK-FVR-N: canonical Phase-5 layer summary (FVR-A..M snapshot). */
+/** canonical Phase-5 layer summary (FVR-A..M snapshot). */
 enum class Phase5LayerStatus {
     Established,
     Active,

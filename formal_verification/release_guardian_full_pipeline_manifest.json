@@ -36,6 +36,6 @@
   "release_guardian_full_pipeline": "PASS",
   "release_manifest_generated": true,
   "skipped_stage_accepted": false,
-  "task": "TASK-RIGOR-RELEASE-GUARDIAN-FULL-PIPELINE-AUDIT-P0-092",
+ "task": "",
   "wallet_sqlite_audit_status": "CLOSED"
 }

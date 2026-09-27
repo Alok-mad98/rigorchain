@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONNECTBLOCK-CONSENSUS-CONVERGENCE-AUDIT-P0-086",
+ "task": "",
   "date": "2026-09-02",
   "nature": "Audit-first security review of ConnectBlock and the block-acceptance call graph. Does not modify Consensus Kernel, Transaction Kernel, Ledger, genesis, issuance, RES, draw, PoW, ASERT, consensus parameters, P2P rules, wallet consensus, or Coq proofs.",
   "connectblock_consensus_convergence_audit": "OPEN",

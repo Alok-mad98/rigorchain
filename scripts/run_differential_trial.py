@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-012 live dual-node harvest. Observation only. Not consensus change.
+""" live dual-node harvest. Observation only. Not consensus change.
 
 Node-A and Node-B: same rigord binary, same bytes, isolated -regtest.
 Does not edit ConnectBlock, EvaluateConnect, KernelInput, or extraction.

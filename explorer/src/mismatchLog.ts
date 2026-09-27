@@ -1,4 +1,4 @@
-/** Structured mismatch event logging (TASK-EXPLORER-012). Read-only indexer observability. */
+/** Structured mismatch event logging . Read-only indexer observability. */
 
 export type MismatchEventKind =
   | "root_committed_computed"

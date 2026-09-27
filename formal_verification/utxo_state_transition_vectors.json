@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-UTXO-STATE-TRANSITION-REFINEMENT-CLOSURE-P0-065",
+ "task": "",
   "note": "Kernel + Transaction + Ledger composition refinement. Not a full-node, LevelDB, network, wallet, CompCert, or VST proof.",
   "refinement_proved": false,
   "equivalence_proved": false,

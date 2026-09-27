@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for `PublishedJobSnapshot` persistence (TASK-MINING-017).
+//! PostgreSQL adapter for `PublishedJobSnapshot` persistence .
 
 use crate::cache::JobCache;
 use crate::error::{AssemblerError, AssemblerResult};

@@ -696,7 +696,7 @@ MAINNET_ALIGNMENT_AUDIT = "FAIL" if component_fail or consensus_changed or db_ch
 FINAL_VERDICT = MAINNET_ALIGNMENT_AUDIT
 
 man = {
-    "task": "TASK-RIGOR-MAINNET-READINESS-CROSS-COMPONENT-ALIGNMENT-AUDIT-P0-096",
+ "task": "",
     "date": "2026-09-03",
     "nature": "Audit-first. No bug fix. No consensus modification. No protocol modification.",
     "command": "bash tools/run-mainnet-readiness-alignment-audit.sh",

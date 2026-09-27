@@ -1,6 +1,6 @@
 # Manual Deployment — rigorchain.com
 
-**Task:** TASK-PUBLICATION-004  
+**Task:**
 **Constraint:** No GitHub Actions or automated CI/CD YAML. Build locally; upload manually.
 
 **Target:** https://www.rigorchain.com  
@@ -133,7 +133,7 @@ Restore by re-uploading the previous archive.
 
 ## 6. What this document does not cover
 
-- No `.github/workflows/*.yml` — intentional per TASK-PUBLICATION-004
+- No `.github/workflows/*.yml` — intentional per
 - rigord / explorer server provisioning — separate ops
 - TLS certificate issuance — host provider
 

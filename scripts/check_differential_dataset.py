@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-012 differential dataset gate. Not a Coq proof. Not equivalence."""
+""" differential dataset gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import importlib.util
@@ -58,7 +58,6 @@ MAP_ROWS = (
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual asset",

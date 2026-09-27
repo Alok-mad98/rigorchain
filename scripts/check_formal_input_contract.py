@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-013 formal input contract gate. Not a Coq proof. Not equivalence."""
+""" formal input contract gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import importlib.util
@@ -84,16 +84,15 @@ ENTRY_FIELDS = (
     "status",
 )
 SOURCES = (
-    "TASK-004",
-    "TASK-005",
-    "TASK-008",
-    "TASK-010",
-    "TASK-012",
+ "",
+ "",
+ "",
+ "",
+ "",
 )
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual asset",

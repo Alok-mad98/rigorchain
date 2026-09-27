@@ -1,6 +1,6 @@
 //! M-08 GBT coordinator leader fencing via PostgreSQL advisory lock.
 //!
-//! Spec: `docs/mining/TASK-MINING-023A-STRATUM-TLS-HA-SPEC.md` §2.3
+//! Spec: `docs/mining/.md` §2.3
 //! Lock key: `pg_try_advisory_lock(0x5249474F52)` ("RIGOR").
 //!
 //! Only the lock holder may call `getblocktemplate` / publish jobs (single-writer).
@@ -8,7 +8,7 @@
 #[cfg(feature = "postgres")]
 use crate::error::{PgError, PgResult};
 
-/// Advisory lock key from TASK-MINING-023A (`0x5249474F52`).
+/// Advisory lock key from (`0x5249474F52`).
 pub const GBT_LEADER_LOCK_KEY: i64 = 0x0052_4947_4F52;
 
 /// Session-scoped leader fence. Dropping the guard releases the advisory lock.

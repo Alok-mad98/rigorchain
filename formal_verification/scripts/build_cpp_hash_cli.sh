@@ -14,7 +14,7 @@ fi
 CXX="${CXX:-$(command -v g++ || command -v c++)}"
 
 mkdir -p "$(dirname "$OUT")"
-# No HAVE_CONFIG_H / USE_ASM / ENABLE_* : portable C++ Transform only.
+# No HAVE_CONFIG_H / USE_ASM / ENABLE_* portable C++ Transform only.
 "$CXX" -O2 -std=c++17 -Wall -Wextra \
   -I"$SRC" \
   -o "$OUT" \

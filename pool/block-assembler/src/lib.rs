@@ -1,6 +1,6 @@
 //! # block-assembler
 //!
-//! RIGOR pool stack block assembler and JobSnapshot publisher (TASK-MINING-007).
+//! RIGOR pool stack block assembler and JobSnapshot publisher .
 //!
 //! Consumes `TemplateRecord` from [`rigor_gbt`], assembles an RFC-020 ORU-only
 //! coinbase (BIP34 height + OP_0, optional witness + extranonce OP_RETURN),

@@ -4,24 +4,28 @@ Sample init scripts and service configuration for rigord
 Sample scripts and configuration files for systemd, Upstart and OpenRC
 can be found in the contrib/init folder.
 
-    contrib/init/rigord.service:    systemd service unit configuration
-    contrib/init/rigord.openrc:     OpenRC compatible SysV style init script
-    contrib/init/rigord.openrcconf: OpenRC conf.d file
-    contrib/init/rigord.conf:       Upstart service configuration file
-    contrib/init/rigord.init:       CentOS compatible SysV style init script
+    contrib/init/bitcoind.service:    inherited systemd unit sample
+    contrib/init/bitcoind.openrc:     inherited OpenRC SysV-style sample
+    contrib/init/bitcoind.openrcconf: inherited OpenRC conf.d sample
+    contrib/init/bitcoind.conf:       inherited Upstart sample
+    contrib/init/bitcoind.init:       inherited CentOS SysV sample
+
+These unit files still use Bitcoin Core path names (`/etc/bitcoin/bitcoin.conf`).
+The RIGOR node itself reads `rigor.conf` (see `RIGOR_CONF_FILENAME`). Do not
+treat the sample paths as current RIGOR package layout.
 
 Service User
 ---------------------------------
 
-All three Linux startup configurations assume the existence of a "arda" user
-and group.  They must be created before attempting to use these scripts.
+The inherited Linux startup samples assume a service user/group named
+`bitcoin`. They must be created before attempting to use those samples.
 The macOS configuration assumes rigord will be set up for the current user.
 
 Configuration
 ---------------------------------
 
 Running rigord as a daemon does not require any manual configuration. You may
-set the `rpcauth` setting in the `arda.conf` configuration file to override
+set the `rpcauth` setting in the `rigor.conf` configuration file to override
 the default behaviour of using a special cookie for authentication.
 
 This password does not have to be remembered or typed as it is mostly used
@@ -44,7 +48,7 @@ This allows for running rigord without having to do any manual configuration.
 relative to the data directory. `wallet` *only* supports relative paths.
 
 For an example configuration file that describes the configuration settings,
-see `share/examples/arda.conf`.
+see `share/examples/rigor.conf`.
 
 Paths
 ---------------------------------
@@ -54,40 +58,32 @@ Paths
 All three configurations assume several paths that might need to be adjusted.
 
     Binary:              /usr/bin/rigord
-    Configuration file:  /etc/arda/arda.conf
+    Configuration file:  /etc/bitcoin/bitcoin.conf (inherited sample path)
     Data directory:      /var/lib/rigord
     PID file:            /var/run/rigord/rigord.pid (OpenRC and Upstart) or
                          /run/rigord/rigord.pid (systemd)
     Lock file:           /var/lock/subsys/rigord (CentOS)
 
 The PID directory (if applicable) and data directory should both be owned by the
-arda user and group. It is advised for security reasons to make the
-configuration file and data directory only readable by the arda user and
-group. Access to rigor-cli and other rigord rpc clients can then be
-controlled by group membership.
+service user and group used by the chosen init sample. It is advised for
+security reasons to make the configuration file and data directory only
+readable by that user and group. Access to rigor-cli and other rigord RPC
+clients can then be controlled by group membership.
 
-NOTE: When using the systemd .service file, the creation of the aforementioned
-directories and the setting of their permissions is automatically handled by
-systemd. Directories are given a permission of 710, giving the arda group
-access to files under it _if_ the files themselves give permission to the
-arda group to do so. This does not allow
-for the listing of files under the directory.
+NOTE: When using the inherited systemd unit, directory creation and permissions
+are handled by systemd. The sample still refers to Bitcoin Core paths.
 
-NOTE: It is not currently possible to override `datadir` in
-`/etc/arda/arda.conf` with the current systemd, OpenRC, and Upstart init
-files out-of-the-box. This is because the command line options specified in the
-init files take precedence over the configurations in
-`/etc/arda/arda.conf`. However, some init systems have their own
-configuration mechanisms that would allow for overriding the command line
-options specified in the init files (e.g. setting `BITCOIND_DATADIR` for
-OpenRC).
+NOTE: The inherited init samples pass `-conf=/etc/bitcoin/bitcoin.conf` on the
+command line. Those flags take precedence over a config file. The running
+RIGOR node reads `rigor.conf` unless `-conf` is set. Do not assume the sample
+unit is a finished RIGOR package.
 
 ### macOS
 
     Binary:              /usr/local/bin/rigord
-    Configuration file:  ~/Library/Application Support/Arda/arda.conf
-    Data directory:      ~/Library/Application Support/Arda
-    Lock file:           ~/Library/Application Support/Arda/.lock
+    Configuration file:  ~/Library/Application Support/RIGOR/rigor.conf
+    Data directory:      ~/Library/Application Support/RIGOR
+    Lock file:           ~/Library/Application Support/RIGOR/.lock
 
 Installing Service Configuration
 -----------------------------------
@@ -130,14 +126,14 @@ setting the BITCOIND and FLAGS environment variables in the file
 
 ### macOS
 
-Copy org.arda.rigord.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.arda.rigord.plist`.
+Copy org.rigor.rigord.plist into ~/Library/LaunchAgents. Load the launch agent by
+running `launchctl load ~/Library/LaunchAgents/org.rigor.rigord.plist`.
 
 This Launch Agent will cause rigord to start whenever the user logs in.
 
 NOTE: This approach is intended for those wanting to run rigord as the current user.
-You will need to modify org.arda.rigord.plist if you intend to use it as a
-Launch Daemon with a dedicated arda user.
+You will need to modify org.rigor.rigord.plist if you intend to use it as a
+Launch the daemon with a dedicated service user.
 
 Auto-respawn
 -----------------------------------

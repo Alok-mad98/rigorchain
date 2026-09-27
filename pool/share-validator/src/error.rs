@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// Explicit failure modes (TASK-MINING-008 §9).
+/// Explicit failure modes ( §9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ValidationErrorCode {

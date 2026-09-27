@@ -1,4 +1,4 @@
--- TASK-MINING-017: PostgreSQL persistence schema (logical DDL from POSTGRESQL_PERSISTENCE_ARCHITECTURE.md)
+-- : PostgreSQL persistence schema (logical DDL from POSTGRESQL_PERSISTENCE_ARCHITECTURE.md)
 
 CREATE TABLE IF NOT EXISTS miners (
     id BIGSERIAL PRIMARY KEY,

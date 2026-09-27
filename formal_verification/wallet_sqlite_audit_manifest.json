@@ -60,7 +60,7 @@
   "nature": "Audit-first. Non-consensus persistence verification. Not a bug-fix TASK.",
   "p0_stop": false,
   "release_guardian_database_security_stage": "ADDED",
-  "task": "TASK-RIGOR-WALLET-SQLITE-TRUST-BOUNDARY-AUDIT-P0-089",
+ "task": "",
   "use_sqlite": true,
   "wal_enabled": false,
   "wallet_consensus_authority_count": 0,

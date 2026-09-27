@@ -1,6 +1,6 @@
 # RIGOR Public Site — UI Layout Specification
 
-**Task:** `TASK-PUBLICATION-002`  
+**Task:** ``
 **Document:** Component and module layout specification  
 **Parent:** [SITE_ARCHITECTURE.md](./SITE_ARCHITECTURE.md)
 

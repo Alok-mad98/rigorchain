@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The RigorChain developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-H2 H-3-2: deterministic state-hash crash recovery with mid-batch flush stress.
+""" H-3-2: deterministic state-hash crash recovery with mid-batch flush stress.
 
 This closes the gap described in ``issues/H3-2-functional-mining-bootstrap.md``:
 functional tests use the ``devtest`` chain (same consensus bind rules as regtest;

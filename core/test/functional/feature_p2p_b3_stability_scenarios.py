@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B5-002 PHASE-B3: compressed restart / reorg / P2P stability scenarios (CI).
+""" PHASE-B3: compressed restart / reorg / P2P stability scenarios (CI).
 
 Complements ``scripts/p2p_b3_longrun_node_stability.sh`` (72h+ ops harness).
 Stdout on success: ``P2P-B3-STABILITY: PASS``

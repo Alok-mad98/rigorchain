@@ -3974,7 +3974,7 @@ std::vector<unsigned char> ChainstateManager::GenerateCoinbaseCommitment(CBlock&
 
 bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
 {
-    // CSW-3: header admission requires AlphaPlus OpuHash (CheckProofOfWork),
+    // CSW-3: header admission requires OpuHash (CheckProofOfWork),
     // not compact-target shape alone. Consensus rules are unchanged —
     // ContextualCheckBlockHeader already required the same check.
     return std::all_of(headers.cbegin(), headers.cend(), [&](const auto& header) {
@@ -5326,7 +5326,7 @@ uint256 Chainstate::ComputeDeterministicStateHash()
     // to disk; after a cold start they remain at their default (-1) until some
     // ConnectBlock path repopulates them. RPC `getdeterministicstatehash` must not
     // depend on that implicit side effect — otherwise identical UTXO+t tip yields
-    // different `state_hash` across restart (TASK-H2 H-3-2 / replay closure).
+ // different `state_hash` across restart ( H-3-2 / replay closure).
     if (tip != nullptr) {
         (void)FoldChainResMintTotal(tip);
         (void)FoldChainOruTotal(tip, m_chainman.GetParams().GetConsensus());

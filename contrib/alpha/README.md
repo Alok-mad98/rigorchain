@@ -8,7 +8,7 @@
 > (`REFINEMENT_PROVED=false`).
 
 
-**Task:** `TASK-MAINNET-PRODUCT-ALPHA-001`  
+**Task:** ``
 **Scope:** Packaging + local stack only. No consensus / RFC / RES model changes.
 
 ## Components

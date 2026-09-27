@@ -1,4 +1,4 @@
-(** TASK-018: first computable slice of Selection on [check_oru] Cminor.
+(** : first computable slice of Selection on [check_oru] Cminor.
 
     [Selection.get_helpers] is Gallina and computes. [sel_program]
     after that did not finish in 180s (scale and/or

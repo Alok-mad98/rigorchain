@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <vector>
 
-// TASK-H2 R-8: see header for the relocation rationale.
+// see header for the relocation rationale.
 
 namespace Consensus {
 

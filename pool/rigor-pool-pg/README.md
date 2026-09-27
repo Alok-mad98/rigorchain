@@ -1,6 +1,6 @@
 # rigor-pool-pg
 
-PostgreSQL persistence infrastructure for the RIGOR Rust pool stack (**TASK-MINING-017**).
+PostgreSQL persistence infrastructure for the RIGOR Rust pool stack (****).
 
 Authority: `docs/mining/POSTGRESQL_PERSISTENCE_ARCHITECTURE.md`
 

@@ -1,4 +1,4 @@
-(** TASK-018 documentation flags. Cone 8.15.0. No CompCert import.
+(** documentation flags. Cone 8.15.0. No CompCert import.
 
     Records the sidecar Closed Clight → Cminor probe. Does not
     instantiate [transf_clight_program] to Asm. Does not take

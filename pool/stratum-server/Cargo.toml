@@ -2,7 +2,7 @@
 name = "stratum-server"
 version = "0.1.0"
 edition = "2021"
-description = "RIGOR pool Stratum v1 server and miner submission pipeline (TASK-MINING-009)"
+description = "RIGOR pool Stratum v1 server and miner submission pipeline "
 license = "MIT"
 readme = "README.md"
 

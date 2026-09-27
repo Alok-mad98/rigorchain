@@ -1021,11 +1021,11 @@ std::string ArgsManager::GetChainName() const
     }
 #ifdef RIGOR_PRODUCTION_MAINNET
     if (fRegTest || fTestNet || fDevTest) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: RIGOR production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
     const std::string chain = GetArg("-chain", CBaseChainParams::MAIN);
     if (chain != CBaseChainParams::MAIN) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: RIGOR production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
     return CBaseChainParams::MAIN;
 #else

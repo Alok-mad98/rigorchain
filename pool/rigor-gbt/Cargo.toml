@@ -2,7 +2,7 @@
 name = "rigor-gbt"
 version = "0.1.0"
 edition = "2021"
-description = "RIGOR pool stack GBT adapter and template cache (TASK-MINING-006)"
+description = "RIGOR pool stack GBT adapter and template cache "
 license = "MIT"
 readme = "README.md"
 

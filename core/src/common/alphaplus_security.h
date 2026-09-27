@@ -26,11 +26,11 @@ inline constexpr bool ALPHAPLUS_PRODUCTION_MAINNET_BUILD = false;
 /** Map chain id (`main`, `test`, …) to the user-facing NETWORK= token. */
 std::string FormatAlphaPlusNetworkName(const std::string& chain);
 
-/** True when `chain` is AlphaPlus mainnet. */
+/** True when `chain` is RIGOR mainnet. */
 bool IsAlphaPlusMainnetChain(const std::string& chain);
 
 /**
- * CSW-2: `-assumevalid` is disabled on AlphaPlus mainnet.
+ * CSW-2: `-assumevalid` is disabled on RIGOR mainnet.
  * Returns an error if the operator attempted an override.
  */
 std::optional<bilingual_str> EnforceAssumevalidMainnetPolicy(const ArgsManager& args, const std::string& chain);

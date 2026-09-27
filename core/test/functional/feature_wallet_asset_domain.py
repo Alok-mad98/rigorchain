@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B1-004: wallet address domain binding (ORU vs RES) — RPC + spend-path guards.
+""": wallet address domain binding (ORU vs RES) — RPC + spend-path guards.
 
 Mirrors RFC-ADDRESS-001 / sendtoaddress checks and WalletStrictSendDestinationOk (witness + script-inferred asset).
 """
@@ -76,7 +76,7 @@ class WalletAssetDomainTest(BitcoinTestFramework):
             {oru_ext: 0.01, res_addr: 0.01},
         )
 
-        self.log.info("TASK-B1-004: PASS")
+ self.log.info(": PASS")
 
 
 if __name__ == "__main__":

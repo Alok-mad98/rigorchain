@@ -2,7 +2,7 @@
 name = "rigor-pool-pilot"
 version = "0.1.0"
 edition = "2021"
-description = "Alpha / closed-testnet ORU-only RIGOR mining pool (TASK-POOL-ALPHA-PRODUCT-READINESS-001)"
+description = "Alpha / closed-testnet ORU-only RIGOR mining pool "
 license = "MIT"
 readme = "README.md"
 

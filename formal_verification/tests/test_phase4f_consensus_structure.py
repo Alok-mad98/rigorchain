@@ -2,7 +2,7 @@
 """
 Structural validation for PHASE-4F end-to-end consensus formalization.
 
-TASK-FORMAL-PHASE4F-END-TO-END-CONSENSUS-VERIFICATION-001A/001B/001C — checks Coq
+/001B/001C — checks Coq
 module presence, named definitions/theorems, and phase4f doc sections.
 Does not run coqc.
 """
@@ -354,7 +354,7 @@ MODULE_EXPECTATIONS_4G: dict[str, list[str]] = {
     ],
 }
 
-# TASK-015DD: End-to-End Closure consolidation modules.
+# End-to-End Closure consolidation modules.
 MODULE_EXPECTATIONS_4G_CLOSURE: dict[str, list[str]] = {
     "EndToEndClosureCatalog.v": [
         "Inductive ClosureSource",
@@ -407,7 +407,7 @@ MODULE_EXPECTATIONS_4G_CLOSURE: dict[str, list[str]] = {
     ],
 }
 
-# TASK-016EE: Final Readiness Verdict (frozen re-export of 015DD).
+# Final Readiness Verdict (frozen re-export of 015DD).
 MODULE_EXPECTATIONS_4G_FINAL: dict[str, list[str]] = {
     "FinalReadinessCatalog.v": [
         "Inductive FinalProvenance",
@@ -493,7 +493,7 @@ MODULE_EXPECTATIONS_4G_FINAL: dict[str, list[str]] = {
     ],
 }
 
-# TASK-017FF: Formal Verification Release Certification module.
+# Formal Verification Release Certification module.
 MODULE_EXPECTATIONS_4G_CERT: dict[str, list[str]] = {
     "FormalVerificationCertification.v": [
         "Inductive CertificationStatus",
@@ -523,7 +523,7 @@ MODULE_EXPECTATIONS_4G_CERT: dict[str, list[str]] = {
     ],
 }
 
-# TASK-018FF-A: Phase-5 equivalence architecture scaffold.
+# Phase-5 equivalence architecture scaffold.
 MODULE_EXPECTATIONS_5E: dict[str, list[str]] = {
     "EquivalenceFramework.v": [
         "Inductive EquivalenceSource",
@@ -1728,7 +1728,7 @@ MODULE_EXPECTATIONS_5E_DRAW: dict[str, list[str]] = {
 
 DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
     "EQUIVALENCE_ARCHITECTURE_AUDIT.md": [
-        "TASK-018FF-A",
+ "",
         "SCAFFOLD ONLY",
         "no equivalence claimed",
         "resolved catalog cells",
@@ -1736,7 +1736,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "DRAW_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-B",
+ "",
         "PARTIAL",
         "Draw equivalence projection verified",
         "other components remain OPEN/PARTIAL",
@@ -1745,7 +1745,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "REPLAY_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-C",
+ "",
         "PARTIAL",
         "Replay equivalence projections recorded",
         "no equivalence claimed",
@@ -1754,7 +1754,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "REORG_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-D",
+ "",
         "PARTIAL",
         "Reorg equivalence projections verified",
         "disagreements documented",
@@ -1763,7 +1763,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "CONNECTBLOCK_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-E",
+ "",
         "PARTIAL",
         "ConnectBlock projections verified",
         "no equivalence claimed",
@@ -1773,7 +1773,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-02",
     ],
     "SUPPLY_ELIGIBILITY_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-F",
+ "",
         "PARTIAL",
         "Supply and eligibility projections verified",
         "no equivalence claims",
@@ -1783,7 +1783,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-03",
     ],
     "E2E_EQUIVALENCE_AUDIT.md": [
-        "TASK-018FF-G",
+ "",
         "PARTIAL",
         "E2E projections combined",
         "no equivalence claims asserted",
@@ -1795,7 +1795,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-OB-03",
     ],
     "RUNTIME_HASH_MAPPING_FEASIBILITY.md": [
-        "TASK-018GG-F",
+ "",
         "ESTABLISHED",
         "RMS_PartiallyMappable",
         "RMS_NotMappable",
@@ -1806,7 +1806,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_HASH_MAPPING_RESOLUTION.md": [
-        "TASK-018GG-G",
+ "",
         "ESTABLISHED",
         "RMS_PartiallyMappable",
         "RMS_NotMappable",
@@ -1819,7 +1819,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ARTIFACT_RECONSTRUCTION_FEASIBILITY.md": [
-        "TASK-018GG-H",
+ "",
         "ESTABLISHED",
         "RCS_PartiallyReconstructable",
         "RCS_NotReconstructable",
@@ -1832,7 +1832,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_SUFFICIENCY_GAP_ANALYSIS.md": [
-        "TASK-018GG-I",
+ "",
         "ESTABLISHED",
         "GCS_PotentiallyClosable",
         "GCS_NonClosable",
@@ -1845,7 +1845,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_WITNESS_REQUIREMENT_ANALYSIS.md": [
-        "TASK-018GG-J",
+ "",
         "ESTABLISHED",
         "WCL_MissingWitnesses",
         "RWF_TraceHistory",
@@ -1859,7 +1859,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ALIGNMENT_ANALYSIS.md": [
-        "TASK-018GG-K",
+ "",
         "ESTABLISHED",
         "FAS_PartiallyAligned",
         "CAS_PartialAlignment",
@@ -1872,7 +1872,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_WITNESS_INTEGRATION.md": [
-        "TASK-018GG-L",
+ "",
         "ESTABLISHED",
         "IFS_Partial",
         "IFS_Missing",
@@ -1886,7 +1886,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_ALIGNMENT_INTEGRATION.md": [
-        "TASK-018GG-M",
+ "",
         "ESTABLISHED",
         "IAS_Partial",
         "IAS_Missing",
@@ -1899,7 +1899,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
         "PD-4F-CPP-01",
     ],
     "RUNTIME_HASH_ALIGNMENT.md": [
-        "TASK-018GG-N",
+ "",
         "ESTABLISHED",
         "CHAS_Partial",
         "CHAS_Missing",
@@ -1913,7 +1913,7 @@ DOC_EXPECTATIONS_5E: dict[str, list[str]] = {
     ],
 }
 
-# TASK-017FF: Required release docs under docs/formal/release/.
+# Required release docs under docs/formal/release/.
 RELEASE_DOCS_DIR = REPO_ROOT / "docs" / "formal" / "release"
 RELEASE_DOC_EXPECTATIONS: dict[str, list[str]] = {
     "FINAL_FORMAL_VERIFICATION_REPORT.md": [

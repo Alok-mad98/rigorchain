@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-EXTRACTION-EXECUTABLE-P0-050",
+ "task": "",
   "note": "Pins for the extracted kernel. Does not modify phase3_golden_vectors.json.",
   "refinement_proved": false,
   "equivalence_proved": false,

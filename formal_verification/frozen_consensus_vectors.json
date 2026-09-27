@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-CONSENSUS-KERNEL-GOVERNANCE-CLOSURE-P0-060",
+ "task": "",
   "freeze_id": "P0-060",
   "note": "RFC-020: flat 128 ORU, continuous RATE. Issuance refinement withdrawn. P053 vector JSON refinement_proved stays false.",
   "refinement_proved": false,

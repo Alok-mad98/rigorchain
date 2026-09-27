@@ -1,6 +1,6 @@
 # block-assembler Test Plan
 
-**Task:** TASK-MINING-007  
+**Task:**
 **Run:** `cd pool/block-assembler && cargo test`
 
 ## Unit tests

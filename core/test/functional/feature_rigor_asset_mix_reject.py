@@ -47,7 +47,7 @@ class RigorAssetMixRejectTest(BitcoinTestFramework):
         assert len(utxos) >= 1
         u = utxos[0]
 
-        # TASK-010 R-2 Scheme A: an off-curve 32-byte v1 program is still classified RES
+ # Scheme A: an off-curve 32-byte v1 program is still classified RES
         # (pure byte predicate), but key_io will not emit a Bech32m address for it.
         off_curve = node.decodescript("5120" + ("ee" * 32))
         assert_equal(off_curve["type"], "witness_v1_res")

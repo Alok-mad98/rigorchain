@@ -1,4 +1,4 @@
-"""C++-faithful block/tx codec for TASK-005.
+"""C++-faithful block/tx codec for .
 
 Matches:
   serialize.h ReadCompactSize / WriteCompactSize (canonical)

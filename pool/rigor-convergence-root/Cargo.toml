@@ -2,7 +2,7 @@
 name = "rigor-convergence-root"
 version = "0.1.0"
 edition = "2021"
-description = "Canonical convergence root construction for RIGOR pool stack (TASK-MINING-020)"
+description = "Canonical convergence root construction for RIGOR pool stack "
 license = "MIT"
 readme = "README.md"
 

@@ -2,7 +2,7 @@
 name = "block-assembler"
 version = "0.1.0"
 edition = "2021"
-description = "RIGOR pool stack block assembler and JobSnapshot publisher (TASK-MINING-007)"
+description = "RIGOR pool stack block assembler and JobSnapshot publisher "
 license = "MIT"
 readme = "README.md"
 

@@ -754,7 +754,7 @@ def build_vectors() -> dict:
     )
 
     return {
-        "task": "TASK-RIGOR-DATABASE-STATE-PERSISTENCE-SECURITY-AUDIT-P0-086",
+ "task": "",
         "note": "Locks serialization, reconstruction, and the failure boundary. Not a formal proof.",
         "canonical": {
             "coin_layout": "leaf VARINT(code)||VARINT(CompressAmount)||VARINT(scriptLen)||script||VARINT(nFlags); disk adds CRC32C_RGCI",

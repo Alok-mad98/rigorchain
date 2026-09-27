@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-008: collect ≥1000 kernel-candidate catalog rows + determinism report.
+""": collect ≥1000 kernel-candidate catalog rows + determinism report.
 
 Does not change consensus, KernelInput.v, or extraction.
 Traces are not a proof.
@@ -554,7 +554,7 @@ def determinism(proc_rpc: int, h1: str, trace_dir: Path) -> dict:
 
 def write_determinism_report(info: dict, extra: str) -> None:
     DET.write_text(
-        "# KernelInput candidate determinism (TASK-008)\n\n"
+ "# KernelInput candidate determinism \n\n"
         "Same block bytes, 100 ConnectBlock replays (`invalidateblock` + `reconsiderblock`).\n"
         "Compared fields: hash, height, header/pow/asert/block result, rejection_layer, "
         "tx decision rows, KernelInput candidate flags.\n"
@@ -643,7 +643,7 @@ def main() -> int:
 
     INDEX.write_text("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in rows))
     (OUT / "README.md").write_text(
-        "TASK-007/008 KernelInput candidate dataset.\n\n"
+ "/008 KernelInput candidate dataset.\n\n"
         "`index.jsonl` is the catalog (≥1000 rows). Per-CE folders keep hex + trace.\n"
         "Candidates are oracle reconstructions. Not MakeKernelInput. Not a proof.\n"
     )

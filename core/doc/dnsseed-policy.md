@@ -26,7 +26,7 @@ urgent technical necessity and disclosed.
 3. The results may not be served with a DNS TTL of less than one minute.
 
 4. Any logging of DNS queries should be only that which is necessary
-for the operation of the service or urgent health of the Arda
+for the operation of the service or urgent health of the Bitcoin
 network and must not be retained longer than necessary nor disclosed
 to any third party.
 
@@ -42,13 +42,13 @@ details of their operating practices.
 related to the DNS seed operation.
 
 If these expectations cannot be satisfied the operator should
-discontinue providing services and contact the active Arda
+discontinue providing services and contact the active Bitcoin
 Core development team as well as posting on
-[arda-dev](https://lists.linuxfoundation.org/mailman/listinfo/arda-dev).
+[bitcoin-dev](https://lists.linuxfoundation.org/mailman/listinfo/bitcoin-dev).
 
 Behavior outside of these expectations may be reasonable in some
 situations but should be discussed in public in advance.
 
 See also
 ----------
-- [arda-seeder](https://github.com/sipa/arda-seeder) is a reference implementation of a DNS seed.
+- [bitcoin-seeder](https://github.com/sipa/bitcoin-seeder) is a reference implementation of a DNS seed.

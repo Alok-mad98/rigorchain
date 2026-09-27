@@ -1,4 +1,4 @@
-# TASK-018 result — Closed Clight → CompCert probe
+# result — Closed Clight → CompCert probe
 
 Measured 2026-09-13. Sidecar Coq 8.19.2, CompCert 3.13.
 Cone `/usr/bin/coqc` 8.15.0. Host `ccomp` must stay ABSENT

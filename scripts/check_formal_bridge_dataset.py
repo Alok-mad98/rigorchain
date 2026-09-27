@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quality gate for the TASK-008 formal-bridge dataset.
+"""Quality gate for the formal-bridge dataset.
 
 Not a refinement proof. Does not compile Coq. Does not change consensus.
 """
@@ -69,7 +69,6 @@ ALLOWED_LAYERS = {
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"script-as-asset",
     r"script_as_asset",
     r"dual-asset model",

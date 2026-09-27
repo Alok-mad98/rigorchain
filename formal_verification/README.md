@@ -242,7 +242,7 @@ make -f Makefile.coq -j"$(nproc)"
 ```
 
 Lottery `Kernel/GoldenHarness.v` is gone. Compile remaining protocol-core
-files from `_CoqProject.protocol-core`. There is no `ArdaConsensus.v`.
+files from `_CoqProject.protocol-core`.
 
 ### Assumption audit (what rests on axioms)
 

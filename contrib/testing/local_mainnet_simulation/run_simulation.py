@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""TASK-LOCAL-MAINNET-SIMULATION-001
 
 Local production-like multi-node simulation for the RIGOR wallet product journey:
 
@@ -10,7 +9,7 @@ Local production-like multi-node simulation for the RIGOR wallet product journey
 Does NOT change consensus parameters (ORU emission, RES cap, serialization, scripts).
 Does NOT inject fake balances, bypass maturity, or manually create RES.
 
-RES mint maturity (TASK-LMS-HARNESS-MATURITY-ALIGNMENT-001):
+RES mint maturity :
   Wallet reports category=immature until nCoinbaseMaturity+1 confirmations, then trusted.
 """
 from __future__ import annotations
@@ -29,7 +28,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Optional
 
-TASK = "TASK-LOCAL-MAINNET-SIMULATION-001"
+TASK = ""
 RES_REWARD = Decimal("100.00")
 # Wallet RES mint maturity mirrors coinbase: nCoinbaseMaturity + 1 confirmations
 # (see CWallet::GetTxBlocksToResMintMaturity). Do not assert trusted immediately after mint.
@@ -593,7 +592,7 @@ def phase_convergence_lifecycle(w: NodeRpc) -> dict:
 def phase_res_mint_hunt(w: NodeRpc, *, max_rounds: int = 80, conv_amount: str = "1000.0") -> dict:
     """Hunt for a real RFC-020 body mint, then validate immature → mature RES lifecycle.
 
-    TASK-LMS-HARNESS-MATURITY-ALIGNMENT-001:
+ :
       Do NOT require res.trusted immediately after mint. Wallet correctly reports
       immature until nCoinbaseMaturity+1 confirmations.
     """
@@ -1214,7 +1213,7 @@ def run_full(*, wipe: bool, max_mint_rounds: int) -> dict:
     ok = all(p.get("pass") for p in phases.values())
     # Worktree dirty paths under consensus/script prefixes are reported for operator
     # awareness but do not fail the simulation when consensus parameters are unchanged.
-    # (TASK-LMS-HARNESS-MATURITY-ALIGNMENT-001 / prior root-cause: dirty gate ≠ protocol fail)
+ # ( / prior root-cause: dirty gate ≠ protocol fail)
     final = {
         "task": TASK,
         "generated_at": utc(),

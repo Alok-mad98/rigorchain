@@ -461,7 +461,7 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, TxValidationState& state, 
         }
     }
 
-    // POOL-F (TASK-B4-003 P8): network fee is always ORU surplus on the ORU leg — never RES deltas.
+    // POOL-F: network fee is always ORU surplus on the ORU leg — never RES deltas.
     const CAmount oru_outputs = tx.GetValueOut(ASSET_ORU);
     Assert(pools.oru_in >= oru_outputs);
     Assert(txfee == pools.oru_in - oru_outputs);

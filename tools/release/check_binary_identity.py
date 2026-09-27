@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-002: prove a release binary is the current-runtime node (rigord).
+""": prove a release binary is the current-runtime node (rigord).
 
 Fails closed if the file is the identity stub (RIGOR_RELEASE_IDENTITY=PASS).
 Does not touch formal_verification/, Coq, or extract.
@@ -211,7 +211,7 @@ def resolve_bins(args: argparse.Namespace) -> tuple[Path, Path | None]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="TASK-002 release binary identity (must be rigord)")
+ parser = argparse.ArgumentParser(description=" release binary identity (must be rigord)")
     parser.add_argument("--daemon", help="path to rigord")
     parser.add_argument("--cli", help="path to rigor-cli")
     parser.add_argument("--artifact-dir", help="directory with tar.gz/zip or unpacked bin/")

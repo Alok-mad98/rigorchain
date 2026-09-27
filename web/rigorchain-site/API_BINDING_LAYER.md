@@ -1,6 +1,6 @@
 # RIGOR Official Site — API Binding Layer
 
-**Task:** `TASK-PUBLICATION-003`  
+**Task:** ``
 **Parent:** [ARCHITECTURE_OVERVIEW.md](./ARCHITECTURE_OVERVIEW.md)  
 **Extends:** [../public-site/ROUTE_AND_DATA_BINDING_SPEC.md](../public-site/ROUTE_AND_DATA_BINDING_SPEC.md)
 

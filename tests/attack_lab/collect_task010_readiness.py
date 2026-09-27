@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live TASK-010 datasets: state transitions + reorg + regtest ASERT rows.
+"""Live datasets: state transitions + reorg + regtest ASERT rows.
 
 Does not change consensus. Not a Coq proof.
 """
@@ -441,7 +441,7 @@ def collect_reorg(state_meta: dict) -> None:
         }
 
         lines = [
-            "# Reorg dataset (TASK-010)",
+ "# Reorg dataset ",
             "",
             "Live `-regtest`. Not a proof. Future names: `chain_selection_sound`, `reorg_safety`.",
             "",
@@ -492,7 +492,7 @@ def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
     meta = collect_state()
     collect_reorg(meta)
-    print("TASK-010 live datasets written")
+ print(" live datasets written")
     print(STATE_DIR)
     print(REORG_MD)
     print(ASERT_CSV)

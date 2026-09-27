@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-018 cone 8.15 documentation flags. No CertiCoq / CompCert.
+# cone 8.15 documentation flags. No CertiCoq / CompCert.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

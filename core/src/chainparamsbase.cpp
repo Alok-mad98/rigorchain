@@ -25,7 +25,7 @@ void SetupChainParamsBaseOptions(ArgsManager& argsman)
 {
 #ifndef BOOST_TEST_MODULE
 #ifdef RIGOR_PRODUCTION_MAINNET
-    argsman.AddArg("-chain=<chain>", "Use the chain <chain> (default: main). AlphaPlus production artifacts accept only main.", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
+    argsman.AddArg("-chain=<chain>", "Use the chain <chain> (default: main). RIGOR production artifacts accept only main.", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
 #else
     argsman.AddArg("-chain=<chain>", "Use the chain <chain> (default: main). Allowed values: main, test, regtest, devtest, slowtest", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     argsman.AddArg("-regtest", "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
@@ -76,7 +76,7 @@ void SelectBaseParams(const std::string& chain)
 {
 #ifdef RIGOR_PRODUCTION_MAINNET
     if (chain != CBaseChainParams::MAIN) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: RIGOR production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
 #endif
     globalChainBaseParams = CreateBaseChainParams(chain);

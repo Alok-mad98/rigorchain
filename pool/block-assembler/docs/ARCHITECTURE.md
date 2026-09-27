@@ -1,8 +1,8 @@
 # block-assembler Architecture
 
 **Component:** `pool/block-assembler`  
-**Task:** TASK-MINING-007  
-**Dependency:** `pool/rigor-gbt` (TASK-MINING-006)
+**Task:**
+**Dependency:** `pool/rigor-gbt` 
 
 ## Stack position
 
@@ -53,7 +53,7 @@ sequenceDiagram
 | `job_id` | block-assembler | Monotonic hex serial, **never recycled** |
 | `candidate_block_id` | block-assembler | `u64` 1:1 with `job_id` (UK-05) |
 
-## Coinbase authority (§5 TASK-MINING-005)
+## Coinbase authority (§5 )
 
 | Step | Implementation |
 |------|----------------|

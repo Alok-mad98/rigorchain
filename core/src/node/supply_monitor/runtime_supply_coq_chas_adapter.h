@@ -19,7 +19,7 @@ class UniValue;
 
 namespace Consensus {
 
-/** Phase-5 CanonicalHashAlignmentStatus (TASK-018GG-N / FVR-H). */
+/** Phase-5 CanonicalHashAlignmentStatus ( / FVR-H). */
 enum class CanonicalHashAlignmentStatus {
     Aligned,                //!< CHAS_Aligned — not assigned in FVR-H
     Partial,                //!< CHAS_Partial — runtime scalar witness exported
@@ -47,7 +47,7 @@ struct RuntimeSupplyChasFieldAlignment {
     std::vector<std::string> audit_notes;
 };
 
-/** Full per-block CHAS alignment report from a witness catalog row (TASK-FVR-H). */
+/** Full per-block CHAS alignment report from a witness catalog row . */
 struct RuntimeSupplyChasAlignmentReport {
     int32_t height{-1};
     uint256 block_hash;

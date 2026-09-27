@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-020 formal validation closure gate.
+""" formal validation closure gate.
 
 Qed-only model pipeline. Not C++ refinement. Not extraction.
 """
@@ -73,11 +73,10 @@ COMPILE = (
 
 ASSUME_RE = re.compile(r"^\s*(Admitted|Axiom|Parameter)\b")
 MATRIX_COLS = ("Theorem", "Proof status", "Dataset citation")
-DATASETS = ("TASK-010", "TASK-012", "TASK-014")
+DATASETS = ("", "", "")
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B5-001: dual-pool (RES + ORU fee) P2P relay validation (PHASE-B2).
+""": dual-pool (RES + ORU fee) P2P relay validation (PHASE-B2).
 
 Proves:
   * RES transfer + ORU fee tx propagates across peers

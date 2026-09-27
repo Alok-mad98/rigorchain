@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The Rigor Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-B5-001: IBD / slow-node / restart stability (PHASE-B2).
+""": IBD / slow-node / restart stability (PHASE-B2).
 
 Validates fresh node headers-first catch-up, interrupted sync, and prune-compatible
 IBD without stuck tips or peer disconnect storms.

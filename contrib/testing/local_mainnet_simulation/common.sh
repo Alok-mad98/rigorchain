@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared paths/env for TASK-LOCAL-MAINNET-SIMULATION-001
+# Shared paths/env for
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

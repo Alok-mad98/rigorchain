@@ -1,6 +1,6 @@
-//! In-memory ORU-only PPLNS payout ledger (TASK-MINING-009 §6).
+//! In-memory ORU-only PPLNS payout ledger ( §6).
 //!
-//! REORG-01 (TASK-RELEASE-006-M11): FINALIZED → REVERSED on deep reorg with
+//! REORG-01 : FINALIZED → REVERSED on deep reorg with
 //! deterministic clawback of `oru_pending` and share orphaning.
 //! Consensus impact: NONE.
 //!

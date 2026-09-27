@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RELEASE-006-PRODUCT-CLOSURE-001",
+ "task": "",
   "program_version": "0.1.0-testnet-candidate",
   "build_origin": "wsl-staged-reference",
   "wsl_reference_only": true,

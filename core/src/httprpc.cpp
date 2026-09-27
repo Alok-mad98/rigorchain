@@ -245,7 +245,7 @@ static bool InitRPCAuthentication()
 {
     if (IsAlphaPlusMainnetChain(gArgs.GetChainName()) &&
         IsKnownInsecureRpcCredential(gArgs.GetArg("-rpcuser", ""), gArgs.GetArg("-rpcpassword", ""))) {
-        LogPrintf("ERROR: Default or well-known RPC credentials are not allowed on AlphaPlus mainnet.\n");
+        LogPrintf("ERROR: Default or well-known RPC credentials are not allowed on RIGOR mainnet.\n");
         return false;
     }
     if (gArgs.GetArg("-rpcpassword", "") == "")

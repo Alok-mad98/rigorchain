@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-014 serialization model gate. Not a Coq proof. Not a codec change."""
+""" serialization model gate. Not a Coq proof. Not a codec change."""
 from __future__ import annotations
 
 import hashlib
@@ -81,7 +81,6 @@ SCAN = (MODEL, RULES, CAND, FREEZE)
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

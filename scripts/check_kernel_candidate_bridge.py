@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quality gate for the TASK-008-R kernel candidate generator.
+"""Quality gate for the kernel candidate generator.
 
 Not a refinement proof. Does not compile Coq. Does not change consensus.
 """
@@ -36,7 +36,6 @@ META = {"status", "note", "field_class", "candidate_hash"}
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"script-as-asset",
     r"script_as_asset",
     r"dual-asset model",

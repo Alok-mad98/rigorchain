@@ -32,9 +32,9 @@
 
 ## 4. References
 
-- `core/doc/TASK-RFCS-FR-BASELINE-deterministic-replay.md` — STEP-0201 baseline PASS / stdout / archive  
+- `core/doc/-deterministic-replay.md` — STEP-0201 baseline PASS / stdout / archive
 - `core/doc/STEP-0201-audit-record.md` — **release / audit append table** (`STEP-0201: PASS` + commit + build + PRNG seed policy)  
-- `core/doc/TASK-RFCS-FR-replay-capture-verification.md` — TASK-RFCS-FR closure + archive / stdout contracts  
+- `core/doc/-replay-capture-verification.md` — closure + archive / stdout contracts
 - `core/test/functional/feature_deterministic_replay.py` — STEP-0201  
 - `core/test/functional/feature_replay_failure_capture.py` — STEP-0202  
 - `core/test/functional/feature_reorg_determinism_audit.py` — STEP-0203  

@@ -3,14 +3,14 @@
 # SPDX-License-Identifier: MIT
 #
 # =============================================================================
-# ArdaChain-specific: bulk-fix address types in the functional tests (align to Bech32m / disabled types)
+# RIGOR-specific: bulk-fix address types in the functional tests (align to Bech32m / disabled types)
 # =============================================================================
 #
 # Purpose
 # -------
 # After syncing `test/functional/` from Bitcoin Core upstream, the default
 # `getnewaddress()` and `address_type='legacy'|'p2sh-segwit'|'bech32'` are rejected
-# by the RPC on ArdaChain. This script does a regex-level bulk replacement over the
+# by the RPC on RIGOR. This script does a regex-level bulk replacement over the
 # **Python test sources**, rewriting the common patterns to an explicit
 # `address_type='bech32m'` or the positional argument `"bech32m"`.
 #
@@ -101,7 +101,7 @@ def iter_functional_py_files():
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="ArdaChain: bulk-fix address_type / getnewaddress() patterns under test/functional/.",
+        description="RIGOR: bulk-fix address_type / getnewaddress() patterns under test/functional/.",
     )
     parser.add_argument(
         "--dry-run",

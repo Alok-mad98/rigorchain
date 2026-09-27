@@ -145,7 +145,6 @@ BOOST_AUTO_TEST_CASE(asert_late_launch_does_not_collapse_at_height1)
     BOOST_CHECK_EQUAL(n1, genesis.nBits);
 }
 
-// TASK-RIGOR-GENESIS-DIFFICULTY-STARTUP-TIME-AUDIT
 // Honest Genesis→height-1 delay is absorbed by the height-1 ASERT anchor.
 // Production consensus is not modified here; these cases freeze that behavior.
 namespace {

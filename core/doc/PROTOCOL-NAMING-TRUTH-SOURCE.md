@@ -5,8 +5,7 @@
 # RIGOR protocol naming — source of truth (freeze prep)
 
 This file is the **authoritative reference** for consensus-visible **reject reason strings** (`bad-*`), **replay / state hash** identifiers, and **stable RPC JSON keys** that appear in node output.  
-**Do not** treat marketing names (`ARDA`, `Arda`, …) or older docs as the truth for these identifiers.  
-**Do not** document `bad-arda-*` strings as *current* node reject reasons unless they still exist in `core/src` (they do not today; see §5).
+Use the current C++ literals in `core/src` and the tables below. Older documents are not the truth for these identifiers.
 
 **Regenerate / verify** (from repository root, after edits under `core/src`):
 
@@ -159,7 +158,6 @@ These keys are emitted by `core/src/rpc/blockchain.cpp` (and related RPC). Treat
 
 The following appear in **older docs**, **formal_verification fixtures**, or **tests** but are **not** produced by the current `state.Invalid(..., "bad-…")` set in §1:
 
-- Any **`bad-arda-*`** prefix (superseded by **`bad-rigor-*`** and related `bad-convergence-*` / `bad-txns-*` codes in this codebase).
 - **`bad-convergence-cumulative`**, **`bad-convergence-draw-candidate-root`** — retired with the CVGE coinbase `OP_RETURN`. Do not reintroduce. Window C lives in the coinbase `scriptSig` (`bad-cb-convergence-root`).
 - Strings such as **`mixed-asset-output`**, **`convergence-must-be-orum`**, **`invalid-convergence-structure`** — these occur in **unit tests** / other validation paths, not necessarily as the same `TxValidationState` / `BlockValidationState` reject token as §1.
 

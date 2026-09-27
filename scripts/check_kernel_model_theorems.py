@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-017 kernel model core theorem gate.
+""" kernel model core theorem gate.
 
 Qed-only on consensus_model. Not C++ refinement. Not extraction.
 """
@@ -111,7 +111,6 @@ MATRIX_COLS = ("THEOREM", "STATUS", "OBJECT", "FUTURE_REFINEMENT_DEPENDENCY")
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

@@ -24,7 +24,7 @@ struct Params;
 namespace Consensus {
 
 /**
- * Phase-5 Coq catalog projection of `RuntimeSupplyState` (TASK-FVR-C).
+ * Phase-5 Coq catalog projection of `RuntimeSupplyState` .
  *
  * Field identifiers match `ReplayReorgCore/ReplayState.v` (`rs_oru_supply`,
  * `rs_res_supply`) and `ConnectBlockMint.v` (`cb_oru_subsidy`, `cb_res_mint_delta`).

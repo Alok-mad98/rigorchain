@@ -236,7 +236,7 @@ BOOST_AUTO_TEST_CASE(deserialize_rejects_wrong_magic)
 }
 
 // -----------------------------------------------------------------------
-// TASK-H2 H-2-1: end-to-end capture-determinism sanity.
+// H-2-1: end-to-end capture-determinism sanity.
 //
 // Two `CaptureChainstateSummary` calls on the same chainstate must yield
 // byte-identical summaries. The view used here is empty (no cursor data),

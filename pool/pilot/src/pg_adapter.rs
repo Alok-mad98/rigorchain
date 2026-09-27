@@ -1,4 +1,4 @@
-//! PostgreSQL adapter for pilot orchestration status snapshots (TASK-MINING-017).
+//! PostgreSQL adapter for pilot orchestration status snapshots .
 
 use crate::{PilotError, PilotResult, PilotStatusReport};
 

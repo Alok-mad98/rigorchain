@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-010-D evidence dataset integrity gate. No consensus change."""
+""" evidence dataset integrity gate. No consensus change."""
 from __future__ import annotations
 
 import importlib.util

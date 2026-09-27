@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# TASK-POOL-ORU-ONLY-END-TO-END-VALIDATION-001
 # Validation-only harness: rigord + rigor-pool-pilot (ORU-only) + rigor-miner-agent.
 # Does not change consensus / W / T / RES rules.
 #
@@ -595,7 +594,7 @@ phase4 = bool(restart.get("reconnect_ok"))
 overall = all([phase1, phase2 and phase2_oru, phase3, phase4, pool_scan.get("pool_res_involvement")=="NONE"])
 
 summary = {
-  "task": "TASK-POOL-ORU-ONLY-END-TO-END-VALIDATION-001",
+ "task": "",
   "runtime": "${RUNTIME}",
   "layer": "${POOL_ORU_E2E_LAYER}",
   "chain": "${CHAIN_NAME}",

@@ -1,4 +1,4 @@
-# Local Mainnet Simulation (TASK-LOCAL-MAINNET-SIMULATION-001)
+# Local Mainnet Simulation 
 
 Production-like **local** multi-node rehearsal of the frozen RIGOR product journey.
 Does **not** change consensus parameters (ORU emission, RES cap, serialization, scripts).

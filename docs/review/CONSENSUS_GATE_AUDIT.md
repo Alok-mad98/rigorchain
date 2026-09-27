@@ -1,6 +1,6 @@
 # Consensus Gate Audit
 
-**Task:** TASK-CONSENSUS-LOCK-HARDENING-001  
+**Task:**
 **Date:** 2026-09-15  
 **Constraint:** inspect only; this file does not add a gate.
 

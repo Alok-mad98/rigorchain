@@ -1,4 +1,4 @@
-//! TASK-MINING-021 memory drift / job rotation soak (in-memory pilot).
+//! memory drift / job rotation soak (in-memory pilot).
 
 use rigor_gbt::{GbtTemplate, TipHash};
 use rigor_pool_pilot::{PilotTick, PoolPilot};

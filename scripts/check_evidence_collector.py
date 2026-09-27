@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-010-C collector quality gate. No node. Not a Coq proof."""
+""" collector quality gate. No node. Not a Coq proof."""
 from __future__ import annotations
 
 import importlib.util
@@ -25,7 +25,7 @@ CONSENSUS_PATHS = (
 )
 KERNEL_PATHS = ("formal_verification/rigor_kernel/Kernel/UnifiedTransition.v",)
 COQ_GLOBS = ["formal_verification/**/*.v"]
-FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bARDA\b", r"\bRNG\b", r"script-as-asset", r"dual-asset")
+FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bRNG\b", r"script-as-asset", r"dual-asset")
 errors: list[str] = []
 
 

@@ -2,7 +2,7 @@
 name = "rigor-pool-pg"
 version = "0.1.0"
 edition = "2021"
-description = "PostgreSQL persistence layer for the RIGOR pool stack (TASK-MINING-017)"
+description = "PostgreSQL persistence layer for the RIGOR pool stack "
 license = "MIT"
 readme = "README.md"
 

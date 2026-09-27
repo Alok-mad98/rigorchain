@@ -187,7 +187,7 @@ BOOST_FIXTURE_TEST_CASE(phase5_final_consistency_alignment, SummaryFixture)
             json["ecs_prohibited_count"].getInt<int>(),
         json["golden_vector_total"].getInt<int>());
     BOOST_CHECK_EQUAL(json["freeze_protocol_link"].get_str(),
-                      "MAINNET_PROTOCOL_FREEZE_DECLARATION.md/TASK-MAINNET-FREEZE-001");
+ "MAINNET_PROTOCOL_FREEZE_DECLARATION.md/");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

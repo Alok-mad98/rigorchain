@@ -62,7 +62,7 @@ Calls other scripts with the `lint-` prefix.
 
 lint-consensus-discipline.py
 ============================
-TASK-H2 H-4-1 / H-4-2 guardrail. Scans the consensus directories
+ H-4-1 / H-4-2 guardrail. Scans the consensus directories
 (`core/src/consensus/`, `core/src/consensus_rigor/`) for symbols that
 the RIGOR project bans from any consensus path: wall-clock reads
 (`GetTime*`), RNG sources (`GetRand*`, `FastRandomContext`), and

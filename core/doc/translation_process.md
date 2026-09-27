@@ -1,14 +1,14 @@
 Translations
 ============
 
-The Arda-Core project has been designed to support multiple localisations. This makes adding new phrases, and completely new languages easily achievable. For managing all application translations, Arda-Core makes use of the Transifex online translation management tool.
+The RIGOR-Core project has been designed to support multiple localisations. This makes adding new phrases, and completely new languages easily achievable. For managing all application translations, RIGOR-Core makes use of the Transifex online translation management tool.
 
 ### Helping to translate (using Transifex)
 Transifex is setup to monitor the GitHub repo for updates, and when code containing new translations is found, Transifex will process any changes. It may take several hours after a pull-request has been merged, to appear in the Transifex web interface.
 
-Multiple language support is critical in assisting Arda’s global adoption, and growth. One of Arda’s greatest strengths is cross-border money transfers, any help making that easier is greatly appreciated.
+Multiple language support is critical in assisting RIGOR’s global adoption, and growth. One of RIGOR’s greatest strengths is cross-border money transfers, any help making that easier is greatly appreciated.
 
-See the [Transifex Rigor project](https://www.transifex.com/arda/arda/) to assist in translations. You should also join the translation mailing list for announcements - see details below.
+See the [Transifex Rigor project](https://www.transifex.com/bitcoin/bitcoin/) to assist in translations. You should also join the translation mailing list for announcements - see details below.
 
 ### Writing code with translations
 We use automated scripts to help extract translations in both Qt, and non-Qt source files. It is rarely necessary to manually edit the files in `src/qt/locale/`. The translation source files must adhere to the following format:
@@ -41,7 +41,7 @@ git commit
 ### Creating a Transifex account
 Visit the [Transifex Signup](https://www.transifex.com/signup/) page to create an account. Take note of your username and password, as they will be required to configure the command-line tool.
 
-You can find the Rigor translation project at [https://www.transifex.com/arda/arda/](https://www.transifex.com/arda/arda/).
+You can find the Rigor translation project at [https://www.transifex.com/bitcoin/bitcoin/](https://www.transifex.com/bitcoin/bitcoin/).
 
 ### Installing the Transifex client command-line tool
 The client is used to fetch updated translations. If you are having problems, or need more details, see [https://docs.transifex.com/client/installing-the-client](https://docs.transifex.com/client/installing-the-client)
@@ -64,10 +64,10 @@ The Transifex Rigor project config file is included as part of the repo. It can 
 
 ### Synchronising translations
 
-To assist in updating translations, a helper script is available in the [maintainer-tools repo](https://github.com/arda-core/arda-maintainer-tools). To use it and commit the result, simply do:
+To assist in updating translations, a helper script is available in the [maintainer-tools repo](https://github.com/bitcoin-core/bitcoin-maintainer-tools). To use it and commit the result, simply do:
 
 ```
-python3 ../arda-maintainer-tools/update-translations.py
+python3 ../bitcoin-maintainer-tools/update-translations.py
 git commit -a
 ```
 
@@ -98,4 +98,4 @@ To create a new language template, you will need to edit the languages manifest 
 
 ### Questions and general assistance
 
-If you are a translator, you should also subscribe to the mailing list, https://groups.google.com/forum/#!forum/arda-translators. Announcements will be posted during application pre-releases to notify translators to check for updates.
+If you are a translator, you should also subscribe to the mailing list, https://groups.google.com/forum/#!forum/rigor-translators. Announcements will be posted during application pre-releases to notify translators to check for updates.

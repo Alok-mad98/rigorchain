@@ -1,5 +1,5 @@
 {
-  "task": "TASK-RIGOR-GENESIS-CONSENSUS-RELEASE-AUDIT-P0-075",
+ "task": "",
   "note": "Frozen genesis pins. Schedule is not actual issuance. Draw empty_F is none. Does not prove C++ = Coq = Python.",
   "nCoinbaseMaturity": 100,
   "height_0": {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Wrapper for TASK-005 legal encode(decode) vectors. Not a consensus change."""
+"""Wrapper for legal encode(decode) vectors. Not a consensus change."""
 from __future__ import annotations
 
 import subprocess

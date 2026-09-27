@@ -20,7 +20,7 @@ std::optional<bilingual_str> SanityChecks(const Context&)
         return Untranslated("Elliptic curve cryptography sanity check failure. Aborting.");
     }
 
-    // TASK-010 R-3: Ed25519 is the RES ownership boundary, so an unusable libsodium
+ // Ed25519 is the RES ownership boundary, so an unusable libsodium
     // is not a degraded mode. Every `ed25519::` entry point fails closed by
     // returning false, which at consensus scope would silently reject valid RES
     // spends and follow a different chain. Refuse to start instead.

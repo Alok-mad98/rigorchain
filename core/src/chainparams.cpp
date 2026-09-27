@@ -72,7 +72,7 @@ void SelectParams(const std::string& network)
 {
 #ifdef RIGOR_PRODUCTION_MAINNET
     if (network != CBaseChainParams::MAIN) {
-        throw std::runtime_error("ERROR: AlphaPlus production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
+        throw std::runtime_error("ERROR: RIGOR production artifacts are mainnet-only. Testnet/regtest/devtest are available only in development builds.");
     }
 #endif
     SelectBaseParams(network);

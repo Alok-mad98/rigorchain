@@ -78,7 +78,7 @@ impl ShareValidator {
         validate_job_template_binding(&job, &template)?;
         validate_res_mint_placeholder(&job)?;
 
-        // TASK-012 H-5: nTime rolling would pair a new timestamp with a frozen
+ // H-5: nTime rolling would pair a new timestamp with a frozen
         // job nBits. Until/unless the node scores nBits from parent time only
         // *and* the pool recomputes bits, require an exact match with the job.
         if u64::from(share.ntime) != job.ntime {

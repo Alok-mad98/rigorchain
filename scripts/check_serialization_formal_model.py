@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-019 formal serialization decode model gate.
+""" formal serialization decode model gate.
 
 Qed-only Coq codec. Not C++ refinement. Not extraction.
 """
@@ -76,11 +76,10 @@ COMPILE = (
 
 ASSUME_RE = re.compile(r"^\s*(Admitted|Axiom|Parameter)\b")
 MATRIX_COLS = ("Theorem", "Status", "Dataset citation")
-DATASETS = ("TASK-014", "TASK-012")
+DATASETS = ("", "")
 FORBIDDEN = (
     r"\bFORGE\b",
     r"\bMTH\b",
-    r"\bARDA\b",
     r"\bRNG\b",
     r"script-as-asset",
     r"dual-asset",

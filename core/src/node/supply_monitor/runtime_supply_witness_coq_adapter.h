@@ -21,7 +21,7 @@ class UniValue;
 namespace Consensus {
 
 /**
- * Parent→child cumulative deltas for Phase-5 Coq replay rows (TASK-FVR-G).
+ * Parent→child cumulative deltas for Phase-5 Coq replay rows .
  * Computed from in-memory witness chain only.
  */
 struct RuntimeSupplyWitnessCoqDelta {

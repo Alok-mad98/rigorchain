@@ -22,7 +22,7 @@ class UniValue;
 
 namespace Consensus {
 
-/** TASK-FVR-L: proof-permission boundary (does NOT prove equivalence). */
+/** proof-permission boundary (does NOT prove equivalence). */
 enum class EquivalenceClosureStatus {
     Open,
     PartiallyClosable,

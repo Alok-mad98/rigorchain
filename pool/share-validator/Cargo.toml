@@ -2,7 +2,7 @@
 name = "share-validator"
 version = "0.1.0"
 edition = "2021"
-description = "RIGOR pool stack share and block validation layer (TASK-MINING-008)"
+description = "RIGOR pool stack share and block validation layer "
 license = "MIT"
 readme = "README.md"
 

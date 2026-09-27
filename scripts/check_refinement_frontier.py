@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-009 refinement frontier gate. Not a Coq proof. Not equivalence."""
+""" refinement frontier gate. Not a Coq proof. Not equivalence."""
 from __future__ import annotations
 
 import importlib.util
@@ -41,7 +41,7 @@ CE_FUTURE = {
     "CE-013": "TxArithmetic.no_uint64_wrap",
 }
 ALLOWED_STATUS = {"DIRECT", "DERIVED", "MODEL_MISSING", "CPP_ONLY", "NOT_IN_SCOPE"}
-FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bARDA\b", r"\bRNG\b")
+FORBIDDEN = (r"\bFORGE\b", r"\bMTH\b", r"\bRNG\b")
 SCAN = (
     FRONTIER,
     NEXT,

@@ -2,7 +2,7 @@
 # Copyright (c) 2026 The RIGOR developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""TASK-WALLET-COLD-STORAGE-UAT-001 — automated cold-storage / descriptor UAT (regtest).
+""" — automated cold-storage / descriptor UAT (regtest).
 
 Covers descriptor creation, watch-only, ORU/RES descriptor import/export, backup restore,
 RPC import paths, and invalid cases. Full Convergence W=32 mint is chain-lifecycle UAT

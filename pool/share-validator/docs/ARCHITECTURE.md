@@ -1,6 +1,6 @@
 # share-validator Architecture
 
-**Task:** TASK-MINING-008  
+**Task:**
 **Mode:** INFRASTRUCTURE (no consensus / RPC changes)
 
 ## Position

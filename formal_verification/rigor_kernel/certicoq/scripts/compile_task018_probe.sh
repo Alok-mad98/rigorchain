@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-018: Closed Clight → CompCert compilation probe.
+# Closed Clight → CompCert compilation probe.
 # Uses existing SHA-pinned CertiCoq C / existing check_oru Clight AST.
 # Does not regenerate CertiCoq Clight. Does not put ccomp on host PATH.
 # A ccomp exit code is not a Coq proof.
@@ -41,7 +41,7 @@ mkdir -p "${OUT}" "${LOGDIR}"
   export OPAMROOTISOK=1
   eval "$("${OPAMBIN}" env --switch="${SWITCH}" --set-switch)"
   if [ "$(command -v coqc)" = "/usr/bin/coqc" ]; then
-    echo "SIDECAR_LEAK: TASK-018 used cone coqc" >&2
+ echo "SIDECAR_LEAK: used cone coqc" >&2
     exit 1
   fi
   echo "TASK018_COQC=$(command -v coqc)"
@@ -143,7 +143,7 @@ mkdir -p "${OUT}" "${LOGDIR}"
 echo "PARENT_CCOMP=$(command -v ccomp || echo ABSENT)"
 echo "CONE_COQ=$(/usr/bin/coqc --print-version | awk '{print $1}')"
 if command -v ccomp >/dev/null 2>&1; then
-  echo "SIDECAR_LEAK: ccomp on host PATH after TASK-018" >&2
+ echo "SIDECAR_LEAK: ccomp on host PATH after " >&2
   exit 1
 fi
 echo "TASK018_PROBE_SCRIPT=DONE"

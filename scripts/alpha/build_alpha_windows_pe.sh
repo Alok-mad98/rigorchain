@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TASK-MAINNET-PRODUCT-ALPHA-001 / Windows PE — cross-build real PE binaries
+# / Windows PE — cross-build real PE binaries
 # No consensus / RFC / RES model changes.
 #
 # Produces:

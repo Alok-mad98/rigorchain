@@ -1,9 +1,9 @@
 # RIGOR Deterministic Replay Checklist
 
-**Status:** TASK-H2 **closed** (full scope). See `doc/TASK-H2-verification-report.md`
+**Status:** **closed** (full scope). See `doc/-verification-report.md`
 for verification commands, the H-3-2 functional path, and the `state_hash`
 restart-stability fix in `Chainstate::ComputeDeterministicStateHash`.
-**TASK-R0-FREEZE-VERIFY (2026-05-13):** Six burn-in artifact trees under
+** (2026-05-13):** Six burn-in artifact trees under
 `docs/freeze/lr_artifacts_final/` verified: `getdeterministicstatehash` JSON
 matches `getreplaysnapshot` on `state_hash`, `height`, `best_block_hash`, and
 `serialized_snapshot` bytes match `final_replaysnapshot_A.rpl2.hex`. LR-09
@@ -40,7 +40,7 @@ number (e.g. "violates A-2"). No new policy is introduced here.
   hand-rolled little-endian / VARINT / uint256 encoder. Use only
   `serialize.h`, `Coin::Serialize`, `COutPoint::Serialize`, `Span<>`,
   `HashWriter`, `CHashWriter`. Violating this causes byte drift between the
-  authoritative encoder and the local hand-roll (see TASK-H2 R-1).
+ authoritative encoder and the local hand-roll (see ).
 - **A-2.** When hashing a **set** of items, use `MuHash3072` (order-free) or
   sort the items first by a fully-deterministic byte-stable key, then hash
   in sorted order. Direct `concat → hash` over an unsorted `vector` is
@@ -67,7 +67,7 @@ number (e.g. "violates A-2"). No new policy is introduced here.
 - **C-1.** `float` / `double` are forbidden in consensus paths. Ratios MUST
   be cross-multiplied: `a/b < c/d` becomes `a*d < c*b`.
 - **C-2.** Any multiplication that can exceed 256 bits MUST be done in a
-  width that contains the full product (see TASK-H2 R-3). Implicit
+ width that contains the full product (see ). Implicit
   conversion of `uint64_t` into a 256-bit arithmetic class is a known
   hazard.
 - **C-3.** Use fixed-width integer types (`int32_t`, `uint32_t`, `int64_t`,
@@ -135,7 +135,7 @@ number (e.g. "violates A-2"). No new policy is introduced here.
   genesis, and regtest + 3 blocks.  
   **Project mapping:** `state_snapshot_tests.cpp` pins **pre-genesis** bytes and a
   deterministic **in-memory post-genesis** oracle (same encoding surface as
-  `regtest + N` without requiring a live `TestChain100Setup` fixture); see TASK-H2
+ `regtest + N` without requiring a live `TestChain100Setup` fixture); see
   H-1-2 comments in that file.
 - **H-2.** Functional tests MUST include "two nodes synced to the same tip
   → identical state_hash bytes".
@@ -162,7 +162,7 @@ number (e.g. "violates A-2"). No new policy is introduced here.
 
 ## Citations
 
-- TASK-H2 root-cause ranking R-1 .. R-12 (replay drift root causes).
-- `doc/TASK-H2-verification-report.md` — closure verification log (H-3-2 + restart-stable `state_hash`).
+- root-cause ranking R-1 .. R-12 (replay drift root causes).
+- `doc/-verification-report.md` — closure verification log (H-3-2 + restart-stable `state_hash`).
 - STEP-0101 implementation notes (deterministic chainstate snapshot hash).
 - STEP-0102 implementation notes (chainstate diff tool).

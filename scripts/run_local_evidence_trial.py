@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TASK-010-E local Evidence V1 trial. Observation only. Not a consensus change.
+""" local Evidence V1 trial. Observation only. Not a consensus change.
 
 Private -regtest. No public peers. Evidence does not affect accept/reject.
 """

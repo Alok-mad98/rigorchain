@@ -1,14 +1,14 @@
 # RIGOR Official Site — Architecture Overview
 
-**Task:** `TASK-PUBLICATION-003`  
+**Task:** ``
 **Title:** Production website system — official domain + GitHub deployment  
 **Date:** 2026-06-13  
 **Type:** Frontend + static site + API binding specification only  
 **Domain:** [https://www.rigorchain.com](https://www.rigorchain.com)  
 **Repository:** [https://github.com/rigorchain/rigorchain](https://github.com/rigorchain/rigorchain)  
-**Parent specs:** [web/public-site/](../public-site) (TASK-PUBLICATION-002)  
+**Parent specs:** [web/public-site/](../public-site) 
 **Content authority:** [RIGOR_PROTOCOL_IDENTITY.md](../../docs/whitepaper/RIGOR_PROTOCOL_IDENTITY.md)  
-OpuHash / AlphaPlus wording in older site specs is historical.
+Older site specs may use earlier release-channel names.
 
 | Field | Value |
 |-------|-------|
@@ -147,7 +147,7 @@ No writes, no wallet, no mining RPC.
 | [API_BINDING_LAYER.md](./API_BINDING_LAYER.md) | RPC + explorer rules |
 | [DEPLOYMENT_GITHUB_PAGES_AND_DOMAIN.md](./DEPLOYMENT_GITHUB_PAGES_AND_DOMAIN.md) | CI/CD, domain, CDN |
 | [COMPONENT_DESIGN_SYSTEM.md](./COMPONENT_DESIGN_SYSTEM.md) | UI components + visuals |
-| [../public-site/](../public-site) | TASK-PUBLICATION-002 baseline |
+| [../public-site/](../public-site) | baseline |
 
 ---
 
@@ -171,4 +171,4 @@ No writes, no wallet, no mining RPC.
 
 This package defines **the official public website system for RIGOR (production grade)** — bridging protocol (`rigord`), explorer, formal verification, lab narrative, and deterministic public visualization at **www.rigorchain.com**.
 
-Implementation code is a **separate engineering task**; TASK-PUBLICATION-003 delivers specification only.
+Implementation code is a **separate engineering task**; delivers specification only.
