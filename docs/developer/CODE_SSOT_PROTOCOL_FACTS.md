@@ -88,8 +88,6 @@ Source: `core/src/kernel/chainparams.cpp` (`CMainParams`),
 | ASERT anchor height | `1` |
 | `powLimit` | `0000007fffffffffffffffffffffffffffffffffffffffffffffffffffffffff` |
 
-HRP `rgr` is **not** a live HRP. Mainnet is `rg`. `rgrt` is regtest only.
-
 ### 1.2 Other shipped networks
 
 Signet is a leftover string constant only. There is no `CSignetParams`.
@@ -371,7 +369,6 @@ Numeric SSOT with `tools/res_continuous_price_schedule.py`.
 | RES cap / mint | RFC-020 cap `2²²` RES / pole mint / `RES_COIN = 1e8` |
 | Bitcoin 50 COIN subsidy fallback | Fail-closed zero if base/interval misconfigured |
 | Signet as a shipped network | Not implemented |
-| HRP `rgr` | Mainnet `rg` |
 | SPEC-008 still “PROPOSED only” as if unimplemented | Node already validates SHA3-256 |
 
 Retired mix parameters are not live OpuHash. Live OpuHash is SHA3-256 / `RGRPOW01`.
