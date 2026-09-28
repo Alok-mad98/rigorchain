@@ -13,7 +13,9 @@
 #include <core_io.h>
 #include <deploymentinfo.h>
 #include <deploymentstatus.h>
+#include <httpserver.h>
 #include <key_io.h>
+#include <logging.h>
 #include <net.h>
 #include <node/context.h>
 #include <node/miner.h>
@@ -42,6 +44,9 @@
 #include <validationinterface.h>
 #include <warnings.h>
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <memory>
 #include <stdint.h>
 #include <stdexcept>
@@ -544,6 +549,57 @@ struct GbtTemplateCache {
 };
 
 GbtTemplateCache g_gbt_cache GUARDED_BY(cs_main);
+
+/**
+ * Admission control for longpoll.
+ *
+ * A longpoll parks its HTTP worker until the tip moves, and the server only has
+ * -rpcthreads of them (4 by default). Left unbounded, a handful of rigs pointed
+ * at one node occupy every worker, and the node then cannot answer submitblock
+ * — a miner who found a block could not hand it in. Keep a reserve of workers
+ * that longpoll may never take; requests over the line are answered with the
+ * current template right away, so those miners degrade to polling.
+ */
+std::atomic<int> g_longpoll_waiters{0};
+
+int LongpollWaiterLimit()
+{
+    const int64_t threads = std::max<int64_t>(gArgs.GetIntArg("-rpcthreads", DEFAULT_HTTP_THREADS), 1);
+    return static_cast<int>(std::max<int64_t>(1, threads - GBT_LONGPOLL_WORKER_RESERVE));
+}
+
+std::chrono::seconds LongpollMaxWait()
+{
+    const int64_t secs = gArgs.GetIntArg("-rpclongpolltimeout", DEFAULT_RPC_LONGPOLL_TIMEOUT);
+    return std::chrono::seconds(std::clamp<int64_t>(secs, 1, 3600));
+}
+
+/** RAII holder for one longpoll waiter slot. Not held means: do not wait. */
+class LongpollSlot
+{
+public:
+    LongpollSlot()
+    {
+        const int limit = LongpollWaiterLimit();
+        int cur = g_longpoll_waiters.load(std::memory_order_relaxed);
+        while (cur < limit) {
+            if (g_longpoll_waiters.compare_exchange_weak(cur, cur + 1, std::memory_order_acq_rel)) {
+                m_held = true;
+                return;
+            }
+        }
+    }
+    ~LongpollSlot()
+    {
+        if (m_held) g_longpoll_waiters.fetch_sub(1, std::memory_order_acq_rel);
+    }
+    LongpollSlot(const LongpollSlot&) = delete;
+    LongpollSlot& operator=(const LongpollSlot&) = delete;
+    bool held() const { return m_held; }
+
+private:
+    bool m_held{false};
+};
 } // namespace
 
 static RPCHelpMan getblocktemplate()
@@ -773,44 +829,58 @@ static RPCHelpMan getblocktemplate()
             nTransactionsUpdatedLastLP = g_gbt_cache.transactions_updated_last;
         }
 
-        // Release lock while waiting
-        LEAVE_CRITICAL_SECTION(cs_main);
-        {
-            checktxtime = std::chrono::steady_clock::now() + std::chrono::minutes(1);
-
-            WAIT_LOCK(g_best_block_mutex, lock);
-            // LoadChainTip() does not call UpdateTip(), so g_best_block can stay null after
-            // startup/restart. A null/mismatched g_best_block makes longpoll return immediately
-            // and miners spin ("LONGPOLL pushed new work" flood).
-            if (g_best_block.IsNull()) {
-                g_best_block = hashWatchedChain;
-            }
-            // Poll at most every 500ms so InterruptRPC/shutdown is noticed quickly even if
-            // g_best_block_cv notify is missed — otherwise HTTP worker join hangs forever and
-            // the Qt "shutting down…" window never closes (solo miner longpoll).
-            while (g_best_block == hashWatchedChain && IsRPCRunning() && !ShutdownRequested())
+        // Longpoll parks this HTTP worker, so only wait when a slot is free.
+        // Over the limit the current template is returned and the miner polls.
+        LongpollSlot lp_slot;
+        if (lp_slot.held()) {
+            // Release lock while waiting
+            LEAVE_CRITICAL_SECTION(cs_main);
             {
-                const auto slice = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-                const auto wait_cap = (slice < checktxtime) ? slice : checktxtime;
-                if (g_best_block_cv.wait_until(lock, wait_cap) == std::cv_status::timeout)
+                const auto deadline = std::chrono::steady_clock::now() + LongpollMaxWait();
+                checktxtime = std::chrono::steady_clock::now() + std::chrono::minutes(1);
+
+                WAIT_LOCK(g_best_block_mutex, lock);
+                // LoadChainTip() does not call UpdateTip(), so g_best_block can stay null after
+                // startup/restart. A null/mismatched g_best_block makes longpoll return immediately
+                // and miners spin ("LONGPOLL pushed new work" flood).
+                if (g_best_block.IsNull()) {
+                    g_best_block = hashWatchedChain;
+                }
+                // Poll at most every 500ms so InterruptRPC/shutdown is noticed quickly even if
+                // g_best_block_cv notify is missed — otherwise HTTP worker join hangs forever and
+                // the Qt "shutting down…" window never closes (solo miner longpoll).
+                while (g_best_block == hashWatchedChain && IsRPCRunning() && !ShutdownRequested())
                 {
-                    if (!IsRPCRunning() || ShutdownRequested())
-                        break;
-                    if (std::chrono::steady_clock::now() >= checktxtime) {
-                        // Minute-scale timeout: Check transactions for update
-                        // without holding the mempool lock to avoid deadlocks
-                        if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP)
+                    const auto now = std::chrono::steady_clock::now();
+                    // A miner that stops reading would otherwise hold this worker until
+                    // the next block, so stop waiting once the deadline passes.
+                    if (now >= deadline) break;
+                    const auto slice = now + std::chrono::milliseconds(500);
+                    auto wait_cap = (slice < checktxtime) ? slice : checktxtime;
+                    if (deadline < wait_cap) wait_cap = deadline;
+                    if (g_best_block_cv.wait_until(lock, wait_cap) == std::cv_status::timeout)
+                    {
+                        if (!IsRPCRunning() || ShutdownRequested())
                             break;
-                        checktxtime += std::chrono::seconds(10);
+                        if (std::chrono::steady_clock::now() >= checktxtime) {
+                            // Minute-scale timeout: Check transactions for update
+                            // without holding the mempool lock to avoid deadlocks
+                            if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLastLP)
+                                break;
+                            checktxtime += std::chrono::seconds(10);
+                        }
                     }
                 }
             }
-        }
-        ENTER_CRITICAL_SECTION(cs_main);
+            ENTER_CRITICAL_SECTION(cs_main);
 
-        if (!IsRPCRunning() || ShutdownRequested())
-            throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Shutting down");
-        // TODO: Maybe recheck connections/IBD and (if something wrong) send an expires-immediately template to stop miners?
+            if (!IsRPCRunning() || ShutdownRequested())
+                throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Shutting down");
+            // TODO: Maybe recheck connections/IBD and (if something wrong) send an expires-immediately template to stop miners?
+        } else {
+            LogPrint(BCLog::RPC, "getblocktemplate: longpoll waiters at the %d slot limit, returning current template\n",
+                     LongpollWaiterLimit());
+        }
     }
 
     const Consensus::Params& consensusParams = chainman.GetParams().GetConsensus();
