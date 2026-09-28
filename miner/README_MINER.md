@@ -78,12 +78,20 @@ Mainnet RPC port is **8761**. Address HRP is **`rg`** (regtest `rgrt`).
 ```bash
 ./minerd -a rgrpow01 -o http://127.0.0.1:8761 \
   -u RPCUSER -p RPCPASS \
-  --coinbase-addr=rg1q... \
-  -t 4
+  --coinbase-addr=rg1q...
 ```
 
 `--coinbase-addr` is required and must be ORU witness v0 (`rg1q…` /
 `rgrt1q…`). `--coinbase-sig` is ignored. `--no-gbt` is refused.
+
+Without `-t` the miner reserves one logical processor for the node it
+depends on, two from five processors up, and logs the count it chose.
+`-t N` is taken literally, so `-t $(nproc)` will contend with `rigord`.
+
+The node keeps `GBT_LONGPOLL_WORKER_RESERVE` RPC workers out of reach of
+longpoll so `submitblock` always has one, and caps a single longpoll at
+`-rpclongpolltimeout` seconds. Miners past that limit get the current
+template immediately and poll instead of being pushed new work.
 
 ## Tests
 

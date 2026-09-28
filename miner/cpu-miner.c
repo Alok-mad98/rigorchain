@@ -209,7 +209,9 @@ Options:\n\
   -p, --pass=PASSWORD   password for mining server\n\
       --cert=FILE       certificate for mining server using SSL\n\
   -x, --proxy=[PROTOCOL://]HOST[:PORT]  connect through a proxy\n\
-  -t, --threads=N       number of miner threads (default: number of processors)\n\
+  -t, --threads=N       number of miner threads (default: processors minus 1,\n\
+                          or minus 2 from 5 processors up, so the wallet keeps\n\
+                          a core; pass -t explicitly to use every processor)\n\
   -r, --retries=N       number of times to retry if a network call fails\n\
                           (default: retry indefinitely)\n\
   -R, --retry-pause=N   time to pause between retries, in seconds (default: 30)\n\
@@ -2357,13 +2359,26 @@ int main(int argc, char *argv[])
 #endif
 	if (num_processors < 1)
 		num_processors = 1;
-	if (!opt_n_threads)
-		opt_n_threads = num_processors;
+	int auto_thread_reserve = 0;
+	if (!opt_n_threads) {
+		/* Taking every core starves the rigord instance this miner depends on:
+		 * its RPC and P2P threads share the machine, so the symptom is a frozen
+		 * wallet and dropped peers rather than a slow miner. Leave headroom by
+		 * default; -t still takes the whole machine when that is wanted. */
+		auto_thread_reserve = num_processors >= 5 ? 2 : (num_processors >= 2 ? 1 : 0);
+		opt_n_threads = num_processors - auto_thread_reserve;
+		if (opt_n_threads < 1)
+			opt_n_threads = 1;
+	}
 
 #ifdef HAVE_SYSLOG_H
 	if (use_syslog)
 		openlog("cpuminer", LOG_PID, LOG_USER);
 #endif
+
+	if (auto_thread_reserve)
+		applog(LOG_INFO, "Mining with %d of %d processors, %d reserved for the wallet (use -t to override)",
+		       opt_n_threads, num_processors, auto_thread_reserve);
 
 	work_restart = calloc(opt_n_threads, sizeof(*work_restart));
 	if (!work_restart)
