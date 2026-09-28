@@ -30,8 +30,6 @@ Constants live in namespace `GenesisLockMainnet` in `chainparams.cpp`.
 | hashMerkleRoot | `0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd` |
 | hashGenesisBlock | `0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` |
 
-Pre-P0-038 mainnet hash `0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758` is **foreign**. Do not add a compatibility mapping.
-
 **RFC-003 / convergence:** Height 0 must carry **zero** non-coinbase convergence weight; optional CVGE commitment must match cumulative 0 (`ContextualCheckBlock` in `validation.cpp`). Genesis coinbase is classified as ordinary coinbase (not spendable via standard wallet paths; RPC rejects `getrawtransaction` on it).
 
 **`defaultAssumeValid`:** Pinned to `hashGenesisBlock` until a deep canonical tip exists; refresh per release policy in `chainparams.cpp` comments.

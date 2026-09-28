@@ -370,7 +370,7 @@ typical 8-thread PC.
 Every constant whose justification is stated in units of *hashes* moves by the
 same factor R, because the wall-clock cost of a hash fell by R.
 
-| Constant | Current (OpuHash) | Proposed (SHA3-256) |
+| Constant | OpuHash baseline | Mainnet |
 |---|---|---|
 | `GenesisLockMainnet::NBITS` | `0x1e010000` (target 2^232, work 2^24) | `0x1d008000` (target 2^223, work 2^33) |
 | `consensus.powLimit` | `0000ffff…` (2^240−1, work 2^16) | `0000007fff…` (2^231−1, work 2^25) |
@@ -378,26 +378,15 @@ same factor R, because the wall-clock cost of a hash fell by R.
 
 Expected trials for the first block rise from 1.678e7 to 8.590e9.
 
-`nBits` is part of the genesis header preimage, so changing it changes
-`hashGenesisBlock`. This is also why the constant MUST NOT be changed ahead of
-the SHA3 switch: doing so would re-key genesis while the node still validates
-OpuHash.
-
-Recomputed (SHA256d of the 80 header bytes with `nBits = 0x1d008000`, all other
-`GenesisLockMainnet` fields unchanged). The derivation was validated by first
-reproducing the currently frozen hash from the current `nBits`:
+Mainnet `nBits` is `0x1d008000`. `GenesisLockMainnet::TIMESTAMP` is `1792908000`
+(2026-10-25 06:00:00 UTC). Block identity is SHA256d of that 80-byte header:
 
 | Field | Value |
 |---|---|
-| `hashGenesisBlock` (current, OpuHash) | `0x82c0cbee504576dc15a0a926382c0aa41f6a368817143cda97183bfedd9c762e` |
-| `hashGenesisBlock` (nBits era, nTime `1786125600`) | `0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` |
-| **`hashGenesisBlock` (launch freeze)** | **`0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`** |
-| `hashMerkleRoot` | `0x9d3fbd20…3515dd` — **unchanged** |
+| `hashGenesisBlock` | `0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` |
+| `hashMerkleRoot` | `0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd` |
 
-The nBits-era hash is the header at `nTime = 1786125600`. The mainnet launch
-freeze moved `GenesisLockMainnet::TIMESTAMP` to `1792908000` (2026-10-25
-06:00:00 UTC) and re-keyed block identity to the launch-freeze hash. Merkle
-root is a function of the coinbase transaction only, so it does not move.
+Merkle root is the hash of the coinbase transaction.
 `defaultAssumeValid` is pinned to `hashGenesisBlock` and moves with it.
 `core/doc/genesis-lockdown.md` records the frozen table.
 

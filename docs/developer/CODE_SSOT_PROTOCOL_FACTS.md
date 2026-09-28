@@ -88,8 +88,6 @@ Source: `core/src/kernel/chainparams.cpp` (`CMainParams`),
 | ASERT anchor height | `1` |
 | `powLimit` | `0000007fffffffffffffffffffffffffffffffffffffffffffffffffffffffff` |
 
-Pre-P0-038 genesis `1c2d6436…d758` is **foreign**. It is not the live chain.
-
 HRP `rgr` is **not** a live HRP. Mainnet is `rg`. `rgrt` is regtest only.
 
 ### 1.2 Other shipped networks
