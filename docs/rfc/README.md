@@ -13,7 +13,6 @@ documentation_consensus_authority = false
 ARCHIVE_NOT_NORMATIVE = true
 ```
 
-Historical RFCs (RFC-019 and earlier): [`../../archive/rfc/`](../../archive/rfc/).  
-Those files are not protocol authority.
+RFC-019 and earlier texts are not protocol authority.
 
 C++ comments that still say `docs/rfc/` should be read as this pointer.

@@ -23,8 +23,8 @@ specification that describes those RFCs:
 | Consensus description | [`../specification/SPEC-000-CONSENSUS-SPECIFICATION.md`](../specification/SPEC-000-CONSENSUS-SPECIFICATION.md) and the SPEC layer it indexes |
 
 If two RFCs disagree, the later live RFC wins on its own scope
-(RFC-020 issuance; RFC-018 fee burn). Historical RFCs under `archive/rfc/`
-are not protocol.
+(RFC-020 issuance; RFC-018 fee burn). RFC-019 and earlier texts are not
+protocol.
 
 ## Implementation (not protocol)
 

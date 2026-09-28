@@ -38,5 +38,4 @@ documents that describe the current protocol.
 | [`../architecture/RIGOR_EXECUTION_MODEL.md`](../architecture/RIGOR_EXECUTION_MODEL.md) | ConnectBlock / runtime boundary |
 | [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md) | Facts extracted from `core/src/` |
 
-Historical RFCs (RFC-019 and earlier) live under [`../../archive/rfc/`](../../archive/rfc/).  
-They are not protocol authority.
+RFC-019 and earlier texts are not protocol authority.

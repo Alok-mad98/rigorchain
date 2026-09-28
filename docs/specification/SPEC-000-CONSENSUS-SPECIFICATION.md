@@ -21,8 +21,7 @@ The implementation does not define the protocol.
 
 This document describes production consensus. It is not a second money
 formula. Live RFC texts are `docs/protocol/RFC-018.md` and
-`docs/protocol/RFC-020.md`. Earlier RFC texts are historical and live
-under `archive/rfc/`.
+`docs/protocol/RFC-020.md`. Earlier RFC texts are not protocol authority.
 
 ---
 

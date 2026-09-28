@@ -203,8 +203,8 @@ unchanged.
 
 | Document | Role after this pass |
 |----------|----------------------|
-| [`RFC-020`](../archive/rfc/RFC-020-CONTINUOUS-RES-PRICE-FLAT-ORU-EMISSION.md) | Decided specification |
-| [`RFC-019`](../archive/rfc/history/RFC-019-RES-DETERMINISTIC-UNIT-PRICE.md) | Historical (superseded) |
+| [`RFC-020`](../protocol/RFC-020.md) | Decided specification |
+| RFC-019 | Historical (superseded); not protocol authority |
 | [`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](../protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | Current freeze locks |
 | [`SPEC-002`](../specification/SPEC-002-ECONOMIC-MODEL.md) | Shipping economics; banner points here |
 | [`SPEC-003`](../specification/SPEC-003-CONSENSUS-RULES.md) | Shipping consensus rules; banner points here |

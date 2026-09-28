@@ -7,7 +7,7 @@ proofs MUST reference documents listed here.
 
 > **Parameter boundary.** Live issuance is RFC-020 (`docs/protocol/RFC-020.md`).
 > RFC-014 / RFC-015 / RFC-019 numbers are historical and not active consensus
-> parameters. Historical RFC texts: `archive/rfc/`.
+> parameters. Those earlier RFC texts are not protocol authority.
 
 ---
 

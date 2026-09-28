@@ -34,8 +34,7 @@ Public protocol identity:
 Formal verification identity:
 [`RIGOR_FORMAL_VERIFICATION_DESIGN.md`](./RIGOR_FORMAL_VERIFICATION_DESIGN.md).
 
-Archived RFC corpus:
-[`../archive/rfc/`](../archive/rfc/).
+RFC-019 and earlier texts are not protocol authority.
 
 ---
 

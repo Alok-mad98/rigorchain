@@ -16,7 +16,6 @@ Protocol SSOT: [`../protocol/RFC-020.md`](../protocol/RFC-020.md),
 [`../protocol/RFC-018.md`](../protocol/RFC-018.md).
 Implementation facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
-Normative engineering records of RFC texts are archived at `docs/archive/rfc/`.
 Public mathematics is `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`.
 Chinese chapter twins: `docs/whitepaper/chapters/*.zh.md`.
 

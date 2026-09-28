@@ -35,5 +35,4 @@ PoW does not create RES.
 Numeric SSOT for RFC-020: `tools/res_continuous_price_schedule.py` and
 `core/src/consensus/res_issuance.h`.
 
-RFC-019 epoch / ORU-halving numbers are historical. See
-[`../../archive/rfc/`](../../archive/rfc/).
+RFC-019 epoch / ORU-halving numbers are historical and are not protocol authority.

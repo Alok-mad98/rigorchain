@@ -2,7 +2,7 @@
 
 **Document status:** Production documentation  
 **Baseline:** `mainnet-freeze-rfc014-2026-05-25`  
-**Sources:** [`../archive/rfc/RFC-008-canonical-mathematical-specification.md`](../archive/rfc/RFC-008-canonical-mathematical-specification.md), [`../SCRIPT_STRUCTURE.md`](../SCRIPT_STRUCTURE.md).
+**Sources:** [`../SCRIPT_STRUCTURE.md`](../SCRIPT_STRUCTURE.md). RFC-008 is historical and is not protocol authority.
 
 ---
 

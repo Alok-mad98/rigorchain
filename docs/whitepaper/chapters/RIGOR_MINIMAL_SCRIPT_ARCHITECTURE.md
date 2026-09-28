@@ -6,7 +6,7 @@ This chapter explains a core design principle of RIGOR:
 
 **RIGOR inherits the battle-tested Bitcoin UTXO architecture while reducing execution complexity, limiting script capability, enforcing strict asset isolation, and minimizing consensus attack surface.**
 
-It does not change consensus rules, wallet logic, mining logic, or production code. Public mathematics: [`../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md). Historical RFC corpus: [`../../archive/rfc/`](../../archive/rfc/). Engineering specs: [`../../specification/`](../../specification/).
+It does not change consensus rules, wallet logic, mining logic, or production code. Public mathematics: [`../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`](../RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md). Engineering specs: [`../../specification/`](../../specification/). RFC-019 and earlier texts are not protocol authority.
 
 ---
 

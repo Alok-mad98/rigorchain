@@ -58,5 +58,5 @@ Chapters bound into the paper:
 Implementation facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 Opcode spec: [`../specification/RIGOR_OPCODE_SPECIFICATION.md`](../specification/RIGOR_OPCODE_SPECIFICATION.md).
 
-RFC corpus (historical, not public identity): [`../archive/rfc/`](../archive/rfc/).
+RFC-019 and earlier texts are not protocol authority.
 Live PoW name is **OpuHash** = SHA3-256(`"RGRPOW01" || header_80`).
