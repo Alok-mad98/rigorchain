@@ -53,8 +53,8 @@
         dlRow("Chain", fmt(id.chain_name)),
         dlRow("Network", fmt(net)),
         dlRow("Genesis", shortMono(id.genesis_hash)),
-        dlRow("Node", fmt(id.node_subversion ?? id.node_version)),
-        dlRow("Explorer", fmt(id.explorer_version)),
+        dlRow("Node", fmt(id.product ?? id.node_subversion ?? id.node_version)),
+        dlRow("Subversion", fmt(id.node_subversion)),
         dlRow("Best block", shortMono(bh.best_block_hash)),
       ]),
       renderSection("Block production", [

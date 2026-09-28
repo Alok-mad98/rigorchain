@@ -70,21 +70,21 @@ describe("uiSsr", () => {
   it("renders Block identity with Not available when fingerprint is missing", () => {
     const html = renderBlockRoot(
       {
-        block: { height: "0", block_hash: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717" },
+        block: { height: "0", block_hash: "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468" },
         summary: {
           height: "0",
-          hash: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+          hash: "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
           consensus_fingerprint_display: "Not available",
           consensus_fingerprint_status: "Not available",
         },
         txs: [],
       },
-      "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
     );
     assert.match(html, /Block identity/);
     assert.match(html, /Observational fingerprint:/);
     assert.match(html, /Not available/);
-    assert.match(html, /f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717/);
+    assert.match(html, /e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468/);
   });
 
   it("does not invent a next-block RES award note", () => {
@@ -186,11 +186,11 @@ describe("uiSsr", () => {
     const html = renderStatusRoot({
       generated_at: "2026-09-10T00:00:00.000Z",
       chain_identity: {
-        product: "RIGOR v0.1.3",
+        product: "RIGOR v0.2",
         network: "regtest",
         genesis_hash: "3070f47e2c1b15a3288382f3258396bb48b016eab76eae9f235d006dc2ef63",
         node_subversion: "/RigorCore:25.0.0/",
-        explorer_version: "0.1.3",
+        explorer_version: "0.2.0",
         equivalence_claimed: false,
       },
       block_health: {
@@ -228,6 +228,7 @@ describe("uiSsr", () => {
       },
     });
     assert.match(html, /Chain identity/);
+    assert.match(html, /RIGOR v0\.2/);
     assert.match(html, /Block production/);
     assert.match(html, /Indexer integrity/);
     assert.doesNotMatch(html, /Node snapshot/);

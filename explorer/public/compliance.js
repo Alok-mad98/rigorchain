@@ -53,8 +53,8 @@
       "<span>Genesis: " +
       esc(data.genesis_hash_short || "—") +
       "</span>" +
-      "<span>Explorer v" +
-      esc(data.explorer_version) +
+      "<span>Node: " +
+      esc(data.product) +
       "</span>" +
       "<span>Build: " +
       esc(data.build_timestamp) +

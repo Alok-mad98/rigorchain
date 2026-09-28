@@ -92,6 +92,11 @@ export async function rpcCliCall(config: Config, method: RpcMethod, params: Arra
   throw lastErr ?? new Error(`RPC ${method} failed`);
 }
 
+/** Local `rigor-cli -version` banner. Not an RPC; reports the CLI binary next to the node. */
+export async function readNodeReleaseBanner(config: Config): Promise<string> {
+  return runCli(config, ["-version"]);
+}
+
 export const rpc = {
   getblockhash: (config: Config, height: number | string) => rpcCliCall(config, "getblockhash", [height]),
   getblock: (config: Config, hash: string, verbosity: number = 1) => rpcCliCall(config, "getblock", [hash, verbosity]),
@@ -101,5 +106,6 @@ export const rpc = {
   getruntimesupply: (config: Config) => rpcCliCall(config, "getruntimesupply", []),
   getnetworkinfo: (config: Config) => rpcCliCall(config, "getnetworkinfo", []),
   getrawmempool: (config: Config) => rpcCliCall(config, "getrawmempool", []),
+  getNodeReleaseBanner: (config: Config) => readNodeReleaseBanner(config),
 };
 

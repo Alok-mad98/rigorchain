@@ -380,8 +380,8 @@ export function renderStatusRoot(data: Record<string, unknown>): string {
       statusDl("Chain", statusFmt(id.chain_name)),
       statusDl("Network", statusFmt(net)),
       statusDl("Genesis", statusMonoHash(id.genesis_hash)),
-      statusDl("Node", statusFmt(id.node_subversion ?? id.node_version)),
-      statusDl("Explorer", statusFmt(id.explorer_version)),
+      statusDl("Node", statusFmt(id.product ?? id.node_subversion ?? id.node_version)),
+      statusDl("Subversion", statusFmt(id.node_subversion)),
       statusDl("Best block", statusMonoHash(bh.best_block_hash)),
     ]),
     statusSection("Block production", [

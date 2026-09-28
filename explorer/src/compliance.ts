@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Config } from "./config";
 import type { ChainStateRow } from "./db";
 import { rpc } from "./rpcCli";
+import { formatNodeProduct, parseNodeReleaseIdentity, type NodeReleaseIdentity } from "./nodeIdentity";
 import {
   MAINNET_GENESIS_HASH,
   RIGOR_CHAIN_NAME,
@@ -43,6 +44,8 @@ export type CompliancePayload = {
   network: string;
   genesis_hash: string;
   genesis_hash_short: string;
+  node_subversion: string | null;
+  node_release_version: string | null;
   explorer_version: string;
   build_timestamp: string;
   equivalence_claimed: false;
@@ -116,6 +119,29 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
   let nodeChain: string | null = null;
   let nodeHeight = -1;
   let nodeHashAtIndexerHeight: string | null = null;
+  let nodeIdentity: NodeReleaseIdentity | null = null;
+  let nodeSubversion: string | null = null;
+
+  try {
+    const banner = await rpc.getNodeReleaseBanner(config);
+    nodeIdentity = parseNodeReleaseIdentity(typeof banner === "string" ? banner : String(banner ?? ""));
+  } catch {
+    // Display-only. Do not mark rpc_degraded: getblockchaininfo still decides integrity.
+  }
+
+  try {
+    const networkInfo = await rpc.getnetworkinfo(config);
+    if (typeof networkInfo?.subversion === "string" && networkInfo.subversion.trim()) {
+      nodeSubversion = networkInfo.subversion;
+    }
+  } catch (e) {
+    rpc_degraded = true;
+    rpc_messages.push(
+      isRpcWorkQueueError(e)
+        ? `Node RPC work queue is full (getnetworkinfo skipped).`
+        : `RPC unavailable for getnetworkinfo: ${String(e)}`,
+    );
+  }
 
   try {
     const blockchainInfo = await rpc.getblockchaininfo(config);
@@ -207,11 +233,13 @@ export async function buildCompliancePayload(config: Config, chainState: ChainSt
   return {
     chain_name: chainDisplayName(config),
     network_type: networkTypeLabel(config),
-    product: RIGOR_PRODUCT,
-    codename: RIGOR_CODENAME,
+    product: formatNodeProduct(nodeIdentity, nodeSubversion, RIGOR_PRODUCT),
+    codename: nodeIdentity?.codename ?? RIGOR_CODENAME,
     network: chainState.network,
     genesis_hash,
     genesis_hash_short: shortHash(genesis_hash),
+    node_subversion: nodeSubversion,
+    node_release_version: nodeIdentity?.release_version ?? null,
     explorer_version: readExplorerVersion(),
     build_timestamp: process.env.EXPLORER_BUILD_TIMESTAMP ?? "development",
     equivalence_claimed: EQUIVALENCE_CLAIMED,
