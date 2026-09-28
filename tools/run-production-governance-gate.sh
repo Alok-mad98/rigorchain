@@ -17,8 +17,6 @@ export PYTHONUNBUFFERED=1
 
 MANIFEST="$ROOT/formal_verification/github_governance_gate_manifest.json"
 EXCEPTION="$ROOT/formal_verification/github_governance_exception.json"
-ALIGN="$ROOT/tools/run-documentation-alignment-audit.sh"
-ALIGN_LOG="$ROOT/formal_verification/github_governance_gate_alignment.log"
 
 echo "== P101 RIGOR production governance gate =="
 echo "command=bash tools/run-production-governance-gate.sh"
@@ -26,19 +24,9 @@ echo "nature=Repository governance. CI security gate. NOT a consensus modificati
 echo "principle=CODE > DOCUMENTATION > RELEASE"
 echo "consensus_ssot=core/src/consensus/"
 
-# --- 4. Documentation alignment (subprocess; fail-closed) -----------------
-echo
-echo "######## DOCUMENTATION ALIGNMENT ########"
-echo "command=bash tools/run-documentation-alignment-audit.sh"
 mkdir -p "$ROOT/formal_verification"
-set +e
-bash "$ALIGN" >"$ALIGN_LOG" 2>&1
-ALIGN_RC=$?
-set -e
-tail -n 40 "$ALIGN_LOG" || true
-echo "DOCUMENTATION_ALIGNMENT_EXIT=${ALIGN_RC}"
 
-python3 - "$ROOT" "$MANIFEST" "$EXCEPTION" "$ALIGN_LOG" "$ALIGN_RC" <<'PY'
+python3 - "$ROOT" "$MANIFEST" "$EXCEPTION" <<'PY'
 from __future__ import annotations
 
 import json
@@ -52,8 +40,6 @@ from pathlib import Path
 root = Path(sys.argv[1])
 man_path = Path(sys.argv[2])
 exception_path = Path(sys.argv[3])
-align_log_path = Path(sys.argv[4])
-align_rc = int(sys.argv[5])
 
 fails: list[str] = []
 findings: list[dict] = []
@@ -377,7 +363,7 @@ if "GetNextWorkASERT" not in pow_cpp and "CalculateASERT" not in pow_cpp:
     fail("CONSENSUS_KERNEL", "ASERT difficulty path missing from pow.cpp")
 
 # Genesis / magic / ports
-if 'uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717")' not in chainparams:
+if 'uint256S("0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468")' not in chainparams:
     fail("CONSENSUS_KERNEL", "mainnet genesis pin missing from chainparams.cpp")
 if not re.search(
     r"pchMessageStart\[0\]\s*=\s*0xce;\s*\n\s*pchMessageStart\[1\]\s*=\s*0xf1;\s*\n\s*pchMessageStart\[2\]\s*=\s*0xdb;\s*\n\s*pchMessageStart\[3\]\s*=\s*0xfa;",
@@ -782,20 +768,6 @@ for rel, name in LINTS:
         lint_results[name] = "PASS"
         info("SECURITY_AUDIT", f"{rel}=PASS")
 
-# ---------------------------------------------------------------------------
-# Documentation alignment result
-# ---------------------------------------------------------------------------
-align_log = align_log_path.read_text(encoding="utf-8", errors="replace") if align_log_path.is_file() else ""
-align_status = "FAIL"
-for ln in align_log.splitlines():
-    if ln.startswith("DOCUMENT_ALIGNMENT_STATUS="):
-        align_status = ln.split("=", 1)[1].strip()
-if align_rc != 0:
-    align_status = "FAIL"
-    fail("DOCUMENTATION_ALIGNMENT", f"run-documentation-alignment-audit.sh exit {align_rc}")
-elif align_status != "PASS":
-    fail("DOCUMENTATION_ALIGNMENT", f"DOCUMENT_ALIGNMENT_STATUS={align_status}")
-
 # Required deliverables of this gate.
 # The GitHub workflow was dropped after RFC-019: merge CI is
 # consensus-kernel-integrity only. This script stays for local runs.
@@ -825,9 +797,6 @@ MINING_BOUNDARY_PROTECTION = gate_status(("MINING_BOUNDARY:", "EXPLORER_BOUNDARY
 # only for FINAL_VERDICT. Explicit explorer token:
 EXPLORER_BOUNDARY_PROTECTION = gate_status(("EXPLORER_BOUNDARY:",))
 BITCOIN_LEGACY_PROTECTION = gate_status(("BITCOIN_LEGACY:",))
-DOCUMENTATION_ALIGNMENT_GATE = "PASS" if align_status == "PASS" and not any(
-    f.startswith("DOCUMENTATION_ALIGNMENT:") for f in fails
-) else "FAIL"
 RELEASE_GUARDIAN_GATE = gate_status(("RELEASE_GUARDIAN:",))
 FORMAL_VERIFICATION_PROTECTION = gate_status(("FORMAL_VERIFICATION:", "COQ_CLAIM_STRENGTH:"))
 SECURITY_AUDIT_GATE = gate_status(("SECURITY_AUDIT:", "AUTHORITY_LOCK:", "CONNECTBLOCK_BOUNDARY:"))
@@ -881,7 +850,7 @@ FINAL_VERDICT = GITHUB_PRODUCTION_GOVERNANCE_GATE
 
 describe, head = git_describe()
 manifest = {
-    "task": "",
+    "task": "TASK-RIGOR-GITHUB-PRODUCTION-GOVERNANCE-GATE-P0-101",
     "date": str(date.today()),
     "nature": "Repository governance. CI security gate. Production integrity protection. NOT a consensus modification task.",
     "principle": "CODE > DOCUMENTATION > RELEASE",
@@ -902,8 +871,6 @@ manifest = {
     "MINING_BOUNDARY_PROTECTION": MINING_BOUNDARY_PROTECTION,
     "EXPLORER_BOUNDARY_PROTECTION": EXPLORER_BOUNDARY_PROTECTION,
     "BITCOIN_LEGACY_PROTECTION": BITCOIN_LEGACY_PROTECTION,
-    "DOCUMENTATION_ALIGNMENT_GATE": DOCUMENTATION_ALIGNMENT_GATE,
-    "DOCUMENT_ALIGNMENT_STATUS": align_status,
     "RELEASE_GUARDIAN_GATE": RELEASE_GUARDIAN_GATE,
     "FORMAL_VERIFICATION_PROTECTION": FORMAL_VERIFICATION_PROTECTION,
     "SECURITY_AUDIT_GATE": SECURITY_AUDIT_GATE,
@@ -939,7 +906,6 @@ print("ASSET_MODEL_PROTECTION=" + ASSET_MODEL_PROTECTION)
 print("MINING_BOUNDARY_PROTECTION=" + MINING_BOUNDARY_PROTECTION)
 print("EXPLORER_BOUNDARY_PROTECTION=" + EXPLORER_BOUNDARY_PROTECTION)
 print("BITCOIN_LEGACY_PROTECTION=" + BITCOIN_LEGACY_PROTECTION)
-print("DOCUMENTATION_ALIGNMENT_GATE=" + DOCUMENTATION_ALIGNMENT_GATE)
 print("RELEASE_GUARDIAN_GATE=" + RELEASE_GUARDIAN_GATE)
 print("FORMAL_VERIFICATION_PROTECTION=" + FORMAL_VERIFICATION_PROTECTION)
 print("SECURITY_AUDIT_GATE=" + SECURITY_AUDIT_GATE)

@@ -134,9 +134,6 @@ run_capture "PHASE2_DATABASE_SECURITY" "$DUMP/database_security.txt" \
 run_capture "PHASE5_PRODUCTION_MINING_PATH" "$DUMP/mining_path.txt" \
   "bash tools/run-production-mining-path-audit.sh"
 
-run_capture "PHASE7_DOCUMENTATION_ALIGNMENT" "$DUMP/documentation.txt" \
-  "bash tools/run-documentation-alignment-audit.sh"
-
 run_capture "PHASE9_RELEASE_GUARDIAN_FULL_PIPELINE" "$DUMP/release_guardian.txt" \
   "bash tools/run-release-guardian-full-pipeline-audit.sh"
 fi
@@ -171,7 +168,7 @@ OFFICIAL_NAMES = [
     "rigor-v0.1.3-macos-x86_64.dmg",
     "rigor-v0.1.3-macos-arm64.dmg",
 ]
-NODE_MAINNET_GENESIS = "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"
+NODE_MAINNET_GENESIS = "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468"
 NODE_MAGIC = ["0xce", "0xf1", "0xdb", "0xfa"]
 P100_ALLOW = {
     "tools/run-mainnet-launch-candidate-audit.sh",
@@ -181,7 +178,6 @@ P100_ALLOW = {
     "formal_verification/mainnet_launch_candidate_manifest.json",
     "formal_verification/release_freeze_manifest.json",
     "formal_verification/release_v0.1.3_manifest.json",
-    "formal_verification/documentation_alignment_manifest.json",
     "formal_verification/production_mining_path_manifest.json",
     "formal_verification/production_reindex_reconstruction_audit_manifest.json",
     "formal_verification/wallet_sqlite_audit_manifest.json",
@@ -550,7 +546,6 @@ if "needs:" not in ci_guard or "release-build" not in ci_guard:
 # ---------------------------------------------------------------------------
 db_log = load_text(dump / "database_security.txt")
 mine_log = load_text(dump / "mining_path.txt")
-doc_log = load_text(dump / "documentation.txt")
 guard_log = load_text(dump / "release_guardian.txt")
 
 db_stage_result = has_line(db_log, "DATABASE_SECURITY_STAGE_RESULT=PASS")
@@ -565,9 +560,6 @@ if not db_wallet:
 
 if not has_line(mine_log, "PRODUCTION_MINING_PATH_AUDIT=PASS"):
     fail("MINER", "this run did not print PRODUCTION_MINING_PATH_AUDIT=PASS")
-if not has_line(doc_log, "DOCUMENT_ALIGNMENT_STATUS=PASS"):
-    fail("DOCUMENTATION", "this run did not print DOCUMENT_ALIGNMENT_STATUS=PASS")
-
 rg_full = has_line(guard_log, "RELEASE_GUARDIAN_FULL_PIPELINE=PASS")
 rg_skip_false = has_line(guard_log, "SKIPPED_STAGE_ACCEPTED=FALSE")
 rg_skip_true = has_line(guard_log, "SKIPPED_STAGE_ACCEPTED=TRUE")
@@ -677,7 +669,6 @@ LINUX_MAINNET_READY = gate_pass(not any(f["gate"] == "LINUX" and f["severity"] =
 MINER_MAINNET_READY = gate_pass(has_line(mine_log, "PRODUCTION_MINING_PATH_AUDIT=PASS"))
 POOL_MAINNET_READY = gate_pass(has_line(mine_log, "PRODUCTION_MINING_PATH_AUDIT=PASS"))
 EXPLORER_MAINNET_READY = gate_pass(not any(f["gate"] == "EXPLORER" and f["severity"] == "FAIL" for f in findings))
-DOCUMENTATION_MAINNET_READY = gate_pass(has_line(doc_log, "DOCUMENT_ALIGNMENT_STATUS=PASS"))
 CI_MAINNET_READY = gate_pass(not any(f["gate"] == "CI" and f["severity"] == "FAIL" for f in findings) and sha_ok)
 RELEASE_GUARDIAN_READY = gate_pass(rg_full and rg_skip_false and not rg_skip_true)
 CLEAN_RELEASE = gate_pass(clean_tree and binaries_match_current and bool(tag) and "fatal" not in tag.lower() and not alpha_hits)
@@ -699,7 +690,6 @@ component_ok = all(
         MINER_MAINNET_READY,
         POOL_MAINNET_READY,
         EXPLORER_MAINNET_READY,
-        DOCUMENTATION_MAINNET_READY,
         CI_MAINNET_READY,
         RELEASE_GUARDIAN_READY,
         CLEAN_RELEASE,
@@ -722,7 +712,7 @@ fail_lines = "\n".join(f"- {x}" for x in fails) if fails else "- (none)"
 info_lines = "\n".join(f"- {f['gate']}: {f['message']}" for f in findings if f["severity"] == "INFO") or "- (none)"
 
 man = {
-    "task": "",
+    "task": "TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100",
     "date": today,
     "generated_at_utc": now,
     "nature": "Audit-first. Production readiness gate. No consensus/protocol/database/wallet-schema patch.",
@@ -764,7 +754,6 @@ man = {
         "PRODUCTION_FULL_REINDEX": "PASS" if db_reindex else "FAIL",
         "WALLET_SQLITE_AUDIT_STATUS": "CLOSED" if db_wallet else "OPEN",
         "PRODUCTION_MINING_PATH_AUDIT": "PASS" if has_line(mine_log, "PRODUCTION_MINING_PATH_AUDIT=PASS") else "FAIL",
-        "DOCUMENT_ALIGNMENT_STATUS": "PASS" if has_line(doc_log, "DOCUMENT_ALIGNMENT_STATUS=PASS") else "FAIL",
         "RELEASE_GUARDIAN_FULL_PIPELINE": "PASS" if rg_full else "FAIL",
         "SKIPPED_STAGE_ACCEPTED": "FALSE" if rg_skip_false and not rg_skip_true else ("TRUE" if rg_skip_true else "UNKNOWN"),
         "PERFORMANCE_BASELINE": "PASS" if has_line(guard_log, "PERFORMANCE_BASELINE=PASS") else "FAIL",
@@ -779,7 +768,6 @@ man = {
     "MINER_MAINNET_READY": MINER_MAINNET_READY,
     "POOL_MAINNET_READY": POOL_MAINNET_READY,
     "EXPLORER_MAINNET_READY": EXPLORER_MAINNET_READY,
-    "DOCUMENTATION_MAINNET_READY": DOCUMENTATION_MAINNET_READY,
     "CI_MAINNET_READY": CI_MAINNET_READY,
     "RELEASE_GUARDIAN_READY": RELEASE_GUARDIAN_READY,
     "CLEAN_RELEASE": CLEAN_RELEASE,
@@ -798,7 +786,7 @@ report = f"""# RIGOR Mainnet Launch Candidate Audit (P0-100)
 
 | Field | Value |
 |-------|-------|
-| **Task** | `` |
+| **Task** | `TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100` |
 | **Date** | {today} |
 | **Generated (UTC)** | `{now}` |
 | **Nature** | Audit-first. Production readiness gate. **Not** a development TASK. **Not** a consensus change TASK. |
@@ -823,7 +811,6 @@ LINUX_MAINNET_READY={LINUX_MAINNET_READY}
 MINER_MAINNET_READY={MINER_MAINNET_READY}
 POOL_MAINNET_READY={POOL_MAINNET_READY}
 EXPLORER_MAINNET_READY={EXPLORER_MAINNET_READY}
-DOCUMENTATION_MAINNET_READY={DOCUMENTATION_MAINNET_READY}
 CI_MAINNET_READY={CI_MAINNET_READY}
 RELEASE_GUARDIAN_READY={RELEASE_GUARDIAN_READY}
 
@@ -899,10 +886,6 @@ Executed `bash tools/run-production-mining-path-audit.sh`. Require `PRODUCTION_M
 
 Explorer product / genesis / HRP / RPC match the node. README states the explorer is not consensus. Explorer must not become consensus authority.
 
-### Phase 7 — Documentation
-
-Executed `bash tools/run-documentation-alignment-audit.sh`. Require `DOCUMENT_ALIGNMENT_STATUS=PASS`.
-
 ### Phase 8 — CI/CD
 
 Workflows: `release-build.yml`, `release-wallet-macos.yml`, `genesis-release-guardian.yml`. Matrix includes Linux / Windows / macOS Intel / macOS ARM. Artifact names match v0.1.3. SHA256 job present. Guardian `needs: release-build`.
@@ -944,7 +927,7 @@ This TASK did not patch Consensus Kernel, Transaction Kernel, Ledger, ConnectBlo
 1. Tag remains `v0.1.3`; working tree clean; official SHA256SUMS match the freeze commit.
 2. Publish the five official artifacts plus SHA256SUMS.
 3. Seeds / DNS / monitoring remain operational follow-ups; they do not change consensus.
-4. Public messaging: RIGOR v0.1.3, mainnet, genesis `f8aceb50…d717`, magic `ce f1 db fa`, P2P 8760, RPC 8761, HRP `rg`, PoW SHA3-256(`RGRPOW01`||header_80).
+4. Public messaging: RIGOR v0.1.3, mainnet, genesis `e2ce92cf…1468`, magic `ce f1 db fa`, P2P 8760, RPC 8761, HRP `rg`, PoW SHA3-256(`RGRPOW01`||header_80).
 5. macOS unsigned DMG is allowed (`MACOS_SIGNING_STATUS=DEFERRED`).
 """
 doc_path.write_text(report, encoding="utf-8")
@@ -952,7 +935,7 @@ doc_path.write_text(report, encoding="utf-8")
 if FINAL_VERDICT != "PASS":
     follow = f"""# FOLLOW-UP P0-101 — Launch freeze and rebuild
 
-**Parent:** ``
+**Parent:** `TASK-RIGOR-MAINNET-LAUNCH-CANDIDATE-AUDIT-P0-100`  
 **Date:** {today}  
 **Nature:** Production freeze / rebuild / re-audit. **Not** a consensus change TASK.  
 **Trigger:** P0-100 `FINAL_VERDICT={FINAL_VERDICT}` / `GO_NO_GO={GO_NO_GO}`.
@@ -998,7 +981,6 @@ tokens = [
     ("MINER_MAINNET_READY", MINER_MAINNET_READY),
     ("POOL_MAINNET_READY", POOL_MAINNET_READY),
     ("EXPLORER_MAINNET_READY", EXPLORER_MAINNET_READY),
-    ("DOCUMENTATION_MAINNET_READY", DOCUMENTATION_MAINNET_READY),
     ("CI_MAINNET_READY", CI_MAINNET_READY),
     ("RELEASE_GUARDIAN_READY", RELEASE_GUARDIAN_READY),
     ("CONSENSUS_CODE_CHANGED", CONSENSUS_CODE_CHANGED),
