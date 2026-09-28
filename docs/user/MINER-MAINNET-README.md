@@ -15,7 +15,7 @@ Official release: [RIGOR v0.2 — Mainnet](https://github.com/rigorchain/rigorch
 | Item | Value | Role |
 | --- | --- | --- |
 | Network | RIGOR Mainnet | Chain identity |
-| Genesis | `f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` | Chain identity |
+| Genesis | `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` | Chain identity |
 | Address prefix | `rg1q` | Wallet / miner payout |
 | Mainnet P2P port | `8760` | Node-to-node networking |
 | Public DNS seed | `seed.rigorchain.com` | Node discovery only |
@@ -122,7 +122,7 @@ Finding a block is not guaranteed in any fixed time. Do not treat mining as a pr
 ## Prerequisites
 
 1. A **RIGOR Mainnet** wallet/node from the same release (Windows or Linux). Official wallet packages do not include the miner.
-2. Before mining, allow the Mainnet node to synchronize with the current chain tip. A node still in Initial Block Download may not provide current mining work.
+2. Before mining a live tip, allow the Mainnet node to synchronize. While the chain is still at genesis (height 0), `getblocktemplate` stays in initial block download and returns `-10` until `solomining=1` is set in the wallet data directory `rigor.conf`. That flag is RPC policy only. After later blocks exist, wait for the current tip.
 3. Same-host RPC at `127.0.0.1:8761`. Do not expose port **8761** to the public Internet.
 4. A payout address from **your** Mainnet wallet. It must begin with `rg1q` (ORU witness v0). Do not use a `rg1p` RES address.
 5. The Mainnet miner package from the release above.
@@ -211,10 +211,10 @@ Published names: `rigor-v0.2-miner-windows-x86_64.exe` (installer) and `rigor-v0
 rigor-miner.exe -a rgrpow01 -q -t <threads> --no-getwork --coinbase-addr="rg1q<your-mainnet-payout-address>" -o "http://127.0.0.1:8761" -u "<user>" -p "<pass>"
 ```
 
-   You can set `COINBASE_ADDR` before launching to skip the prompt. Set `MINER_THREADS` (or pass `-t`) so the miner does not take every logical processor; without that, the launcher defaults to all cores.
+   You can set `COINBASE_ADDR` before launching to skip the prompt. Leave `MINER_THREADS` empty (and omit `-t`) so the miner keeps one logical processor free for the wallet, or two from five processors up. It prints the count it picked. Set `MINER_THREADS` or pass `-t` only to override that reserve.
 
 5. If the launcher cannot find RPC credentials, open Command Prompt in the miner folder and run the same `rigor-miner.exe` line with `-u` / `-p` taken from the **wallet** `data` directory (portable datadir next to `rigor-wallet.exe`). Do **not** double-click `rigor-miner.exe` with no arguments (it requires `-o` and `--coinbase-addr`).
-6. Leave threads below the number of logical processors so the wallet/node stay responsive. Example: 8 logical processors → `-t 6`.
+6. Prefer the auto thread reserve. Only pin `-t` if you need a fixed count; pinning every logical processor starves the local node.
 7. Leave the console open. Hashrate lines mean the miner is hashing. Confirm `-o` is `http://127.0.0.1:8761` and the payout address begins with `rg1q`.
 
 Optional: `start-miner-dashboard.cmd` opens a **localhost** read-only view at `http://127.0.0.1:18083/`. It does not mine or hold keys. Python 3 is required for that helper.
@@ -243,7 +243,7 @@ Start the official Mainnet wallet/node first on the **same host** (`./bin/rigord
   -t N
 ```
 
-Replace `RPCUSER` / `RPCPASS` with the values from your local node credentials. Replace `N` with cores minus 1 or 2 (minimum 1). Do not omit `-t` if you want to keep cores free for the node.
+Replace `RPCUSER` / `RPCPASS` with the values from your local node credentials. Omit `-t` to leave a core for the wallet. Add `-t N` only to override; `N` is taken literally, minimum 1.
 
 `--no-getwork` is the default SOLO path and may be omitted.
 
@@ -288,6 +288,16 @@ Wait until the node is out of Initial Block Download and at the current tip. `ge
 ### GBT unavailable
 
 Check synchronization, RPC credentials, and that `server=1` is active. The miner requests `rules: ["segwit"]`.
+
+At height 0, add `solomining=1` to the wallet data directory `rigor.conf`, fully quit the wallet, then start it again. That is expected at genesis. After a real tip exists, wait until the node has that tip.
+
+### Early blocks faster than ten minutes
+
+Genesis only seeds a difficulty. ASERT anchors at height 1 and then converges, and it may move the target by at most 12.5% per block. If real hashrate arrives well above the seed assumption, the first few dozen blocks come in quickly while difficulty catches up. That is the retarget working, not an emission bug.
+
+### Several miners against one node
+
+Each miner holds one long-polling RPC connection. The node keeps two RPC workers free so a found block can always be submitted. Extra long polls are answered immediately instead of waiting. Those miners still mine; they poll for new work rather than being pushed it. Raise `-rpcthreads` in `rigor.conf` if you want more of them pushed.
 
 ### submitblock rejected
 
