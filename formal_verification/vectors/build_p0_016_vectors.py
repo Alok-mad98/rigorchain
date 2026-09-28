@@ -241,7 +241,7 @@ def build_native_tx() -> list:
 
 
 def build_asert() -> list:
-    genesis_time = 1786125600
+    genesis_time = 1792908000
     spacing = 600
     nbits = "1d008000"
     return [

@@ -1,11 +1,12 @@
 /** Production network display and address HRP. Explorer-only; no consensus math. */
 
-export const RIGOR_PRODUCT = "RIGOR v0.1.3";
+/** Fallback only. Live `/compliance` and `/api/status` product come from the node (`rigor-cli -version`). */
+export const RIGOR_PRODUCT = "RIGOR v0.2";
 export const RIGOR_CODENAME = "Production Release";
 /** `Consensus::CHAIN_NAME` in rigor_consensus_lock.h — not the product tag. */
 export const RIGOR_CHAIN_NAME = "RIGOR";
 export const MAINNET_GENESIS_HASH =
-  "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717";
+  "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468";
 
 /** Node testnet genesis (chainparams.cpp). Display/compliance only. */
 export const TESTNET_GENESIS_HASH =

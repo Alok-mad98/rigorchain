@@ -59,13 +59,13 @@ describe("v0.1.3 network helpers", () => {
     assert.notEqual(defaultRpcPort("testnet"), 8332);
   });
 
-  it("pins v0.1.3 identity and live mainnet genesis", () => {
+  it("pins fallback product identity and live mainnet genesis", () => {
     assert.equal(RIGOR_CHAIN_NAME, "RIGOR");
-    assert.equal(RIGOR_PRODUCT, "RIGOR v0.1.3");
+    assert.equal(RIGOR_PRODUCT, "RIGOR v0.2");
     assert.equal(RIGOR_CODENAME, "Production Release");
     assert.equal(
       MAINNET_GENESIS_HASH,
-      "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
     );
   });
 });

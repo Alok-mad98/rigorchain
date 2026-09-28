@@ -23,12 +23,12 @@ Constants live in namespace `GenesisLockMainnet` in `chainparams.cpp`.
 | pszTimestamp | `Selection not computation. Convergence defines state. Naming is consensus.` |
 | scriptPubKey (hex) | `00141111111111111111111111111111111111111111` |
 | nVersion | `1` |
-| nTime | `1786125600` (2026-08-07 18:00:00 UTC) |
+| nTime | `1792908000` (2026-10-25 06:00:00 UTC) |
 | nBits | `0x1d008000` (~10 min/block at ~16 MH/s optimized SHA3-256, typical 8-thread PC; SPEC-008 §8.2) |
 | nNonce | `0` |
 | genesisReward | `0` (`ORU_GENESIS_BLOCK_SUBSIDY`) |
 | hashMerkleRoot | `0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd` |
-| hashGenesisBlock | `0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` |
+| hashGenesisBlock | `0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` |
 
 Pre-P0-038 mainnet hash `0x1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758` is **foreign**. Do not add a compatibility mapping.
 
@@ -92,4 +92,4 @@ Devtest retains **Bitcoin-era buried heights** for compatibility testing; **do n
 ## Audit notes
 
 - `test/functional/test_framework/blocktools.py` subsidy helpers must stay aligned with `GetBlockSubsidy` (RFC-020: height **0 = 0 ORU**, every `h >= 1` pays **128 ORU** on every net, no halving).
-- `pow_tests.cpp` ASERT numeric vectors use a **synthetic** anchor time `1774915200` for frozen arithmetic regression; they are **not** the deployed mainnet genesis clock (`1786125600`). See comments in that test.
+- `pow_tests.cpp` ASERT numeric vectors use a **synthetic** anchor time `1774915200` for frozen arithmetic regression; they are **not** the deployed mainnet genesis clock (`1792908000`). See comments in that test.

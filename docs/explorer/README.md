@@ -2,7 +2,7 @@
 
 Independent observation product. Not consensus. Not a ledger of record.
 
-**Mainnet genesis:** `f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`  
+**Mainnet genesis:** `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`  
 **HRP:** `rg` · **RPC:** `8761` · **Network:** `mainnet`
 
 Asset labels must follow `AssetTypeFromScriptPubKey` (witness v0 → ORU;

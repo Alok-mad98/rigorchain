@@ -78,7 +78,7 @@ def test_asert_pins() -> None:
     assert len(rows) == 2
     assert rows[0]["expected_nbits"] == "1d008000"
     assert rows[1]["expected_nbits"] == "1d008000"
-    assert rows[0]["parent_time"] == 1786125600
+    assert rows[0]["parent_time"] == 1792908000
 
 
 def test_gbt_layout() -> None:

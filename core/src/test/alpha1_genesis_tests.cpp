@@ -26,7 +26,7 @@ namespace {
 
 // P0-038 — mainnet genesis identity (ORU reward 0). Pre-P0-038 1c2d6436…d758 is foreign.
 const uint256 ALPHA1_GENESIS_HASH =
-    uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717");
+    uint256S("0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468");
 // v0.1.0-alpha / 055b866 historical genesis — foreign to Alpha1.
 const uint256 LEGACY_V010_GENESIS_HASH =
     uint256S("0x5dd90c30e88b90a1a6ce0b371d4abf8d7283d8a1275f70f9d51a8821048221de");
@@ -35,7 +35,7 @@ const uint256 PRE_P0038_GENESIS_HASH =
 const uint256 ALPHA1_GENESIS_MERKLE =
     uint256S("0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd");
 
-constexpr uint32_t ALPHA1_NTIME = 1786125600; // 2026-08-07 18:00:00 UTC
+constexpr uint32_t ALPHA1_NTIME = 1792908000; // 2026-10-25 06:00:00 UTC
 constexpr uint32_t ALPHA1_NBITS = 0x1d008000;
 constexpr uint32_t ALPHA1_NNONCE = 0;
 constexpr int32_t ALPHA1_NVERSION = 1;

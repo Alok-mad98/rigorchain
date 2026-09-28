@@ -24,7 +24,7 @@ AMOUNT = ROOT / "core/src/consensus/amount.h"
 FREEZE = ROOT / "docs/protocol/MAINNET_PROTOCOL_FREEZE_DECLARATION.md"
 
 GENESIS = {
-    "main": "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+    "main": "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
     "test": "0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce",
     "regtest": "3070f47e2c1b153a3288382f3258396bb48b016eab76eae9f235d006dcc2af63",
     "devtest": "9762f59ecfe1050ca45e404dc95e32ae5a93b9a046e116f2f2f562e44f21dce0",

@@ -9,7 +9,7 @@ COMP="$ROOT/explorer/src/compliance.ts"
 HTML="$ROOT/explorer/public/index.html"
 ENV="$ROOT/explorer/.env.example"
 
-NODE_GENESIS="f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"
+NODE_GENESIS="e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468"
 NODE_TESTNET_GENESIS="0aca439758fba7fa5190b7e1cf37f9447516ef4cade07a49e7d484ea5b67b9ce"
 FOREIGN_GENESIS="1c2d643638c3db29c241f4daca5bbe90f8439f7b03d22a686247214ed52ad758"
 

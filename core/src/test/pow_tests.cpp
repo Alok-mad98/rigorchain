@@ -414,7 +414,7 @@ BOOST_AUTO_TEST_CASE(asert_golden_vectors_p0_016)
     const auto& consensus = chainParams->GetConsensus();
     const CBlock& genesis_block = chainParams->GenesisBlock();
     BOOST_CHECK_EQUAL(genesis_block.nBits, 0x1d008000u);
-    BOOST_CHECK_EQUAL(genesis_block.nTime, 1786125600u);
+    BOOST_CHECK_EQUAL(genesis_block.nTime, 1792908000u);
 
     CBlockIndex genesis{};
     genesis.nHeight = 0;
@@ -654,10 +654,10 @@ void sanity_check_chainparams(const ArgsManager& args, std::string chainName)
 
     if (chainName == CBaseChainParams::MAIN) {
         BOOST_CHECK(consensus.defaultAssumeValid == consensus.hashGenesisBlock);
-        BOOST_CHECK_EQUAL(chainParams->GenesisBlock().nTime, 1786125600U); // RFC-016 / GenesisLockMainnet::TIMESTAMP
+        BOOST_CHECK_EQUAL(chainParams->GenesisBlock().nTime, 1792908000U); // GenesisLockMainnet::TIMESTAMP
         BOOST_CHECK_EQUAL(
             consensus.hashGenesisBlock,
-            uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"));
+            uint256S("0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468"));
     }
 
     // hash genesis is correct

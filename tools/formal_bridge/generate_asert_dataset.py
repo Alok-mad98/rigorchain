@@ -29,7 +29,7 @@ MAINNET_HALF_LIFE = 43200
 MAINNET_SPACING = 600
 MAINNET_POW_LIMIT = int("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
 GENESIS_NBITS = 0x1D008000
-GENESIS_TIME = 1786125600
+GENESIS_TIME = 1792908000
 
 
 def set_compact(nbits: int) -> int:

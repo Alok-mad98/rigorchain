@@ -23,7 +23,7 @@ describe("fail-closed startup identity", () => {
       bech32Hrp: "rg",
       nodeChain: "regtest",
       nodeGenesis: "aa".repeat(32),
-      expectedGenesis: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      expectedGenesis: "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
       dbNetwork: "mainnet",
     });
     assert.equal(r.ok, false);
@@ -36,8 +36,8 @@ describe("fail-closed startup identity", () => {
       network: "mainnet",
       bech32Hrp: "trg",
       nodeChain: "main",
-      nodeGenesis: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
-      expectedGenesis: "f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717",
+      nodeGenesis: "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
+      expectedGenesis: "e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468",
       dbNetwork: "mainnet",
     });
     assert.equal(r.ok, false);

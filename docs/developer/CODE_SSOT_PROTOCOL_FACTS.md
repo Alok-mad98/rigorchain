@@ -70,13 +70,13 @@ Source: `core/src/kernel/chainparams.cpp` (`CMainParams`),
 | Field | Value |
 |-------|-------|
 | Chain id | `main` |
-| Genesis hash | `f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` |
+| Genesis hash | `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` |
 | Genesis merkle root | `9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd` |
 | Magic `pchMessageStart` | `ce f1 db fa` |
 | P2P port | `8760` |
 | RPC port | `8761` |
 | Bech32 HRP | `rg` (`BECH32_HRP` lock) |
-| Genesis nTime | `1786125600` |
+| Genesis nTime | `1792908000` (2026-10-25 06:00:00 UTC) |
 | Genesis nNonce | `0` |
 | Genesis nBits | `0x1d008000` |
 | Genesis nVersion | `1` |

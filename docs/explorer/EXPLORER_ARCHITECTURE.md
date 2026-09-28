@@ -1,7 +1,7 @@
 # RIGOR Explorer / Indexer Architecture
 
 Mainnet genesis
-`f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`,
+`e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`,
 HRP `rg`. Explorer is a derived view of `rigord` RPC.
 
 **Document status:** Production documentation  

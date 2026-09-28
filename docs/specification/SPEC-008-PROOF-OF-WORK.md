@@ -390,13 +390,16 @@ reproducing the currently frozen hash from the current `nBits`:
 | Field | Value |
 |---|---|
 | `hashGenesisBlock` (current, OpuHash) | `0x82c0cbee504576dc15a0a926382c0aa41f6a368817143cda97183bfedd9c762e` |
-| **`hashGenesisBlock` (proposed)** | **`0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`** |
+| `hashGenesisBlock` (nBits era, nTime `1786125600`) | `0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` |
+| **`hashGenesisBlock` (launch freeze)** | **`0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`** |
 | `hashMerkleRoot` | `0x9d3fbd20…3515dd` — **unchanged** |
 
-The merkle root is a function of the coinbase transaction only, so it does not
-move. `defaultAssumeValid` is pinned to `hashGenesisBlock` and moves with it.
-`core/doc/genesis-lockdown.md` records the frozen table and MUST be updated in
-the same commit.
+The nBits-era hash is the header at `nTime = 1786125600`. The mainnet launch
+freeze moved `GenesisLockMainnet::TIMESTAMP` to `1792908000` (2026-10-25
+06:00:00 UTC) and re-keyed block identity to the launch-freeze hash. Merkle
+root is a function of the coinbase transaction only, so it does not move.
+`defaultAssumeValid` is pinned to `hashGenesisBlock` and moves with it.
+`core/doc/genesis-lockdown.md` records the frozen table.
 
 Genesis itself is PoW-exempt (`header_hash == params.hashGenesisBlock` returns
 early), and `NONCE = 0`. `NBITS` is therefore the *seed difficulty for block 1*,

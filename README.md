@@ -127,7 +127,7 @@ Protocol SSOT: [`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md),
 | Field | Production value |
 |-------|------------------|
 | Chain name | `RIGOR` |
-| Mainnet genesis | `f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717` |
+| Mainnet genesis | `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468` |
 | Magic bytes | `ce f1 db fa` |
 | P2P port | `8760` |
 | RPC port | `8761` |
@@ -239,7 +239,7 @@ Guide: [`docs/user/Wallet.md`](docs/user/Wallet.md).
 Independent observation product. Not consensus. Not a ledger of record.
 
 Display identity matches the node: genesis
-`f8aceb50…d717`, HRP `rg`, RPC `8761`.
+`e2ce92cf…1468`, HRP `rg`, RPC `8761`.
 
 [`docs/explorer/EXPLORER_ARCHITECTURE.md`](docs/explorer/EXPLORER_ARCHITECTURE.md).
 

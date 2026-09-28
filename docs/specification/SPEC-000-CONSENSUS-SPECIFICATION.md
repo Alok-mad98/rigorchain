@@ -43,7 +43,7 @@ Shipped consensus networks (`core/src/kernel/chainparams.cpp`):
 There is no `CSignetParams`. Signet is not a shipped network.
 
 Mainnet genesis hash:
-`f8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717`.
+`e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`.
 
 The same consensus predicates apply on every shipped network. Only
 genesis, magic, ports, HRP, and network-scoped timing constants differ.

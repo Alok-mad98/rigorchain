@@ -101,7 +101,8 @@ namespace GenesisLockMainnet {
 // semantics match wall-clock; RFC-016 §6.3 historically forbade a refresh — pre-mainnet
 // launch MUST still bump TIMESTAMP in a coordinated genesis freeze.
 // Must be <= wall-clock UTC at launch. RFC-016 §6.3 forbids further timestamp refresh.
-constexpr uint32_t TIMESTAMP = 1786125600; // 2026-08-07 18:00:00 UTC
+// Mainnet launch freeze: do not start the network before this instant has passed.
+constexpr uint32_t TIMESTAMP = 1792908000; // 2026-10-25 06:00:00 UTC
 constexpr uint32_t NONCE = 0;
 // SPEC-008 §8.2. Target 2^223, so ~8.59e9 expected SHA3-256 trials. That is ~10 min
 // on a typical 8-thread PC linking an optimized Keccak (~16 MH/s), which is the same
@@ -213,7 +214,7 @@ public:
         assert(genesis.GetHash() == consensus.hashGenesisBlock);
         // P0-038 — Genesis ORU reward 0. Pre-P0-038 hash 1c2d6436…d758 is foreign; wipe datadir.
         assert(genesis.hashMerkleRoot == uint256S("0x9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd"));
-        assert(consensus.hashGenesisBlock == uint256S("0xf8aceb50d974f3157c7bc2dfffab28dee0c97d99e4e3ec931b84e06862fdd717"));
+        assert(consensus.hashGenesisBlock == uint256S("0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468"));
         assert(genesis.vtx[0]->vout[0].nValue == Consensus::ORU_GENESIS_BLOCK_SUBSIDY);
         // Genesis values are derived from the locked timestamp payload above.
 
