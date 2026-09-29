@@ -80,6 +80,46 @@ Implementations realize the frozen protocol.
 
 ---
 
+## Treasury & Market Neutrality
+
+RIGOR is designed to be a protocol and network, not a price-support operation.
+
+From Mainnet Genesis, the RIGOR project adopts a public Treasury & Market Neutrality Policy governing the use of project-controlled resources and the project's conduct toward the ORU and RES markets.
+
+The project may actively:
+
+* develop and maintain the protocol;
+* operate public infrastructure;
+* improve network security;
+* support independent miners and developers;
+* fund security audits and research;
+* develop wallets, mining software and tooling;
+* support legitimate ecosystem and exchange integrations.
+
+The project does **not** make maintaining or increasing the market price of ORU or RES an operational objective.
+
+The project will not knowingly coordinate:
+
+* artificial market demand;
+* pump-and-dump activity;
+* wash trading;
+* artificial trading volume;
+* price support or price floors;
+* misleading market signals;
+* preferential non-public information for trading purposes.
+
+Independent participants remain free to buy, hold, sell, mine, develop, provide liquidity for, or otherwise participate in the RIGOR ecosystem.
+
+The market determines the economic value of RIGOR.
+
+The project's responsibility is to build a network worthy of independent participation.
+
+> **Build the protocol. Build the infrastructure. Do not control the market.**
+
+**Full policy:** [`TREASURY_MARKET_NEUTRALITY_POLICY.md`](./TREASURY_MARKET_NEUTRALITY_POLICY.md)
+
+---
+
 ## Technical Reference
 
 Architecture:
