@@ -552,10 +552,10 @@ public:
         // validation_chainstate_tests.cpp `rigor_assumeutxo_param_gen` with RIGOR_GEN_ASSUMEUTXO=1).
         m_assumeutxo_data = MapAssumeutxo{
             {110,
-             {AssumeutxoHash{uint256S("0x342bd84c45c2ec96fd0b7a65c0d48dc2fb10ec40663314d1cc2b5cf94393b841")},
+             {AssumeutxoHash{uint256S("0x70a2b06fdb2cac946a7818131150891d356116c4ea8d4ff48f665b3b542f2e49")},
              111}},
             {200,
-             {AssumeutxoHash{uint256S("0x0d687545598f759039ed94edab89b6044472bcd9dd42497d80509e3701f6aef2")},
+             {AssumeutxoHash{uint256S("0x887ab6c056b5f1944bb574b5de03ed9e585992f3ce51fc3f571ef6e3d7abd72a")},
              201}},
         };
 

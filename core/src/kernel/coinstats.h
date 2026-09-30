@@ -9,9 +9,13 @@
 #include <streams.h>
 #include <uint256.h>
 
+#include <coins.h>
+
 #include <cstdint>
 #include <functional>
 #include <optional>
+#include <utility>
+#include <vector>
 
 class CCoinsView;
 class Coin;
@@ -72,7 +76,21 @@ struct CCoinsStats {
 
 uint64_t GetBogoSize(const CScript& script_pub_key);
 
+/** Coin height and coinbase flag committed by hash_serialized_2.
+ *  Low bit is the coinbase flag. The remaining bits are the height.
+ *  This is the same code Coin stores as `(height << 1) | coinbase`.
+ */
+inline uint64_t SnapshotCoinCode(uint32_t height, bool coinbase)
+{
+    return (static_cast<uint64_t>(height) << 1) | (coinbase ? uint64_t{1} : uint64_t{0});
+}
+
 DataStream TxOutSer(const COutPoint& outpoint, const Coin& coin);
+
+/** Snapshot hash over an explicit coin list. best_block is mixed in first, as ComputeUTXOStats does. */
+uint256 HashSerializedCoins(const uint256& best_block, const std::vector<std::pair<COutPoint, Coin>>& coins);
+/** MuHash over the same coins. Uses TxOutSer and does not use SnapshotCoinCode. */
+uint256 MuHashCoins(const std::vector<std::pair<COutPoint, Coin>>& coins);
 
 std::optional<CCoinsStats> ComputeUTXOStats(CoinStatsHashType hash_type, CCoinsView* view, node::BlockManager& blockman, const std::function<void()>& interruption_point = {});
 } // namespace kernel

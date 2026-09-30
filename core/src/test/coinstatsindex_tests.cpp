@@ -3,11 +3,18 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chainparams.h>
+#include <coins.h>
+#include <crypto/muhash.h>
+#include <hash.h>
 #include <index/coinstatsindex.h>
 #include <interfaces/chain.h>
 #include <kernel/coinstats.h>
+#include <script/script.h>
+#include <span.h>
+#include <streams.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
+#include <util/strencodings.h>
 #include <util/time.h>
 #include <validation.h>
 
@@ -126,6 +133,47 @@ BOOST_FIXTURE_TEST_CASE(coinstatsindex_unclean_shutdown, TestChain100Setup)
         BOOST_REQUIRE(index.Start());
         index.Stop();
     }
+}
+
+BOOST_AUTO_TEST_CASE(hash_serialized_commits_height_and_coinbase)
+{
+    BOOST_CHECK_EQUAL(kernel::SnapshotCoinCode(0, false), uint64_t{0});
+    BOOST_CHECK_EQUAL(kernel::SnapshotCoinCode(0, true), uint64_t{1});
+    BOOST_CHECK_EQUAL(kernel::SnapshotCoinCode(1, false), uint64_t{2});
+    BOOST_CHECK(kernel::SnapshotCoinCode(1, false) != kernel::SnapshotCoinCode(2, false));
+    BOOST_CHECK(kernel::SnapshotCoinCode(5, false) != kernel::SnapshotCoinCode(5, true));
+
+    CTxOut out;
+    out.nValue = 1000;
+    out.scriptPubKey = CScript() << RIGOR_PUSH_1;
+    const uint256 txid = uint256S("11");
+    const uint256 block = uint256S("22");
+    const COutPoint op{txid, 0};
+    const Coin height1{out, 1, false};
+    const Coin height2{out, 2, false};
+    const Coin coinbase{out, 2, true};
+
+    const uint256 serialized_height1 = kernel::HashSerializedCoins(block, {{op, height1}});
+    const uint256 serialized_height2 = kernel::HashSerializedCoins(block, {{op, height2}});
+    const uint256 serialized_coinbase = kernel::HashSerializedCoins(block, {{op, coinbase}});
+    BOOST_CHECK(serialized_height1 != serialized_height2);
+    BOOST_CHECK(serialized_height2 != serialized_coinbase);
+
+    const uint256 muhash_height1 = kernel::MuHashCoins({{op, height1}});
+    const uint256 muhash_height2 = kernel::MuHashCoins({{op, height2}});
+    BOOST_CHECK(muhash_height1 != muhash_height2);
+
+    MuHash3072 direct;
+    direct.Insert(MakeUCharSpan(kernel::TxOutSer(op, height1)));
+    uint256 direct_out;
+    direct.Finalize(direct_out);
+    BOOST_CHECK(muhash_height1 == direct_out);
+
+    DataStream expected{};
+    expected << op;
+    expected << static_cast<uint32_t>((height1.nHeight << 1) | (height1.fCoinBase ? 1u : 0u));
+    expected << height1.out;
+    BOOST_CHECK_EQUAL(HexStr(kernel::TxOutSer(op, height1)), HexStr(expected));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

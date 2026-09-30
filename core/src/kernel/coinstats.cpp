@@ -74,7 +74,11 @@ static void ApplyHash(HashWriter& ss, const uint256& hash, const std::map<uint32
     for (auto it = outputs.begin(); it != outputs.end(); ++it) {
         if (it == outputs.begin()) {
             ss << hash;
-            ss << VARINT(it->second.nHeight * 2 + it->second.fCoinBase ? 1u : 0u);
+            // SnapshotCoinCode is load-bearing. The previous expression bound `?:`
+            // outside the addition, so every non-zero height was committed as the
+            // constant 1 and the coinbase flag was dropped. UTXO validity is
+            // unchanged; only this snapshot commitment changes.
+            ss << VARINT(SnapshotCoinCode(it->second.nHeight, it->second.fCoinBase));
         }
 
         ss << VARINT(it->first + 1);
@@ -200,5 +204,31 @@ static void FinalizeHash(MuHash3072& muhash, CCoinsStats& stats)
     stats.hashSerialized = out;
 }
 static void FinalizeHash(std::nullptr_t, CCoinsStats& stats) {}
+
+uint256 HashSerializedCoins(const uint256& best_block, const std::vector<std::pair<COutPoint, Coin>>& coins)
+{
+    std::map<uint256, std::map<uint32_t, Coin>> grouped;
+    for (const auto& entry : coins) {
+        grouped[entry.first.hash].emplace(entry.first.n, entry.second);
+    }
+    HashWriter ss{};
+    CCoinsStats stats{0, best_block};
+    PrepareHash(ss, stats);
+    for (const auto& group : grouped) {
+        ApplyHash(ss, group.first, group.second);
+    }
+    return ss.GetHash();
+}
+
+uint256 MuHashCoins(const std::vector<std::pair<COutPoint, Coin>>& coins)
+{
+    MuHash3072 muhash;
+    for (const auto& entry : coins) {
+        muhash.Insert(MakeUCharSpan(TxOutSer(entry.first, entry.second)));
+    }
+    uint256 out;
+    muhash.Finalize(out);
+    return out;
+}
 
 } // namespace kernel

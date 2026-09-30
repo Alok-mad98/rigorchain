@@ -115,11 +115,11 @@ BOOST_AUTO_TEST_CASE(test_assumeutxo)
     }
 
     const auto out110 = *ExpectedAssumeutxo(110, *params);
-    BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "342bd84c45c2ec96fd0b7a65c0d48dc2fb10ec40663314d1cc2b5cf94393b841");
+    BOOST_CHECK_EQUAL(out110.hash_serialized.ToString(), "70a2b06fdb2cac946a7818131150891d356116c4ea8d4ff48f665b3b542f2e49");
     BOOST_CHECK_EQUAL(out110.nChainTx, 111U);
 
     const auto out210 = *ExpectedAssumeutxo(200, *params);
-    BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "0d687545598f759039ed94edab89b6044472bcd9dd42497d80509e3701f6aef2");
+    BOOST_CHECK_EQUAL(out210.hash_serialized.ToString(), "887ab6c056b5f1944bb574b5de03ed9e585992f3ce51fc3f571ef6e3d7abd72a");
     BOOST_CHECK_EQUAL(out210.nChainTx, 201U);
 }*/
 // CVE-2024-52911 regression test: Verify parallel script checks are disabled in ConnectBlock
