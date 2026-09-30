@@ -482,7 +482,7 @@ A full node evaluates:
 
 The protocol boundary exists in consensus code.
 
-`core/src/test/consensus_invariants_tests.cpp` pins the constants and the validation paths named in this document. A change to those rules fails that suite. The suite does not add a rule. It records the rules the node already enforces.
+[`core/src/test/consensus_invariants_tests.cpp`](../../core/src/test/consensus_invariants_tests.cpp) pins the constants and the validation paths named in this document. A change to those rules fails that suite. The suite does not add a rule. It records the rules the node already enforces.
 
 ---
 
