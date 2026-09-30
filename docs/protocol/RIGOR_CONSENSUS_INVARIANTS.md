@@ -484,6 +484,35 @@ The protocol boundary exists in consensus code.
 
 [`core/src/test/consensus_invariants_tests.cpp`](../../core/src/test/consensus_invariants_tests.cpp) pins the constants and the validation paths named in this document. A change to those rules fails that suite. The suite does not add a rule. It records the rules the node already enforces.
 
+### How to run the suite
+
+From the repository root:
+
+```bash
+core/src/test/test_rigor --run_test=consensus_invariants_tests
+```
+
+A passing run prints `Running 14 test cases...` and ends with `*** No errors detected`.
+
+The 14 cases are one suite. Section 10 lists fewer rows because that table names enforcement files, and several cases call the same file. The directories `core/src/consensus/`, `core/src/kernel/`, and `core/src/script/` are where those files live.
+
+| Test | Rule it pins | Source |
+|---|---|---|
+| `oru_subsidy_is_flat_and_has_no_halving` | Height 0 pays 0. Every height ≥ 1 pays 128 ORU. Height 210000 does not halve. | [`rigor_issuance.cpp`](../../core/src/consensus/rigor_issuance.cpp) |
+| `coinbase_cannot_mint_oru_or_res` | A coinbase cannot claim ORU beyond the subsidy bound. Mainnet coinbase cannot carry RES. | [`rigor_supply.cpp`](../../core/src/consensus/rigor_supply.cpp) |
+| `res_max_supply_and_destroy_cost_are_closed_form` | `RES_MAX_SUPPLY = 2^22` RES, genesis destroy cost 1024 ORU, pole `2^25`, shift 40. | [`res_issuance.h`](../../core/src/consensus/res_issuance.h) |
+| `res_mint_predicate_rejects_underpay_and_free_mint` | One atom short mints nothing. A zero burn cannot mint. One mint cannot exceed the cap. | [`res_issuance.h`](../../core/src/consensus/res_issuance.h) |
+| `body_mint_requires_converged_oru` | A body transaction mints RES only by destroying enough ORU through `OP_CONVERGE`. | [`tx_verify.cpp`](../../core/src/consensus/tx_verify.cpp) |
+| `res_cannot_convert_to_oru` | RES inputs alone cannot create ORU (`illegal-res-to-oru-conversion`). | [`tx_verify.cpp`](../../core/src/consensus/tx_verify.cpp) |
+| `script_templates_are_closed` | The four templates classify to their assets. P2WSH, P2PKH, `CVG2`, and `RES2` are rejected. | [`rigor_classify.cpp`](../../core/src/script/rigor_classify.cpp) |
+| `only_listed_templates_pass_checktransaction` | `CheckTransaction` accepts those templates. `OP_RETURN` value must be 0. | [`tx_check.cpp`](../../core/src/consensus/tx_check.cpp) |
+| `opcode_bytes_keep_consensus_meaning` | `0x6a`, `0xbd`, and `0xbb` are asset markers. `0xbc` is burned. `0xac` is inert and is not `CHECKSIG`. | [`rigor_bytes.h`](../../core/src/script/rigor_bytes.h), [`rigor_opcode_namespace.cpp`](../../core/src/script/rigor_opcode_namespace.cpp) |
+| `authorization_is_ed25519_only` | Public key is 32 bytes. Signature is 64 bytes. Domains are `RGRORU01` and `RGRRES01`. A 33-byte secp public key is rejected. | [`predicate_verify.cpp`](../../core/src/script/predicate_verify.cpp) |
+| `ledger_is_utxo_admission` | ORU and RES enter the UTXO set. Convergence and `OP_RETURN` do not. | [`coins.cpp`](../../core/src/coins.cpp) |
+| `pow_is_sha3_rgrpow01` | Domain `RGRPOW01`, 80-byte header, SHA3-256 digest, and `CheckProofOfWork`. | [`pow_digest.cpp`](../../core/src/rigor_kernel/pow_digest.cpp), [`pow.cpp`](../../core/src/pow.cpp) |
+| `mainnet_genesis_identity` | Mainnet genesis hash, merkle root, time, `nBits`, and nonce. | [`chainparams.cpp`](../../core/src/kernel/chainparams.cpp) |
+| `no_versionbits_activation` | The only version-bits deployment is `TESTDUMMY`, and it is `NEVER_ACTIVE`. | [`chainparams.cpp`](../../core/src/kernel/chainparams.cpp) |
+
 ---
 
 ## 10. Source Authority
