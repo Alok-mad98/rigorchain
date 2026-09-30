@@ -4,7 +4,9 @@
 
 #include <consensus/rigor_consensus_lock.h>
 #include <key.h>
+#include <node/mempool_args.h>
 #include <policy/policy.h>
+#include <txdb.h>
 #include <pubkey.h>
 #include <consensus_rigor/fee.h>
 #include <test/util/txmempool.h>
@@ -840,6 +842,18 @@ BOOST_AUTO_TEST_CASE(dual_pool_mempool_score_is_oru_fee_only)
 
     CompareTxMemPoolEntryByScore cmp;
     BOOST_CHECK(cmp(hi_entry, lo_entry));
+}
+
+BOOST_AUTO_TEST_CASE(thirty_two_bit_resource_caps_do_not_change_64bit)
+{
+    BOOST_CHECK(MempoolSizeAllowed(/*is_32bit=*/false, 5000));
+    BOOST_CHECK(MempoolSizeAllowed(/*is_32bit=*/true, MAX_32BIT_MEMPOOL_MB));
+    BOOST_CHECK(!MempoolSizeAllowed(/*is_32bit=*/true, MAX_32BIT_MEMPOOL_MB + 1));
+    BOOST_CHECK_EQUAL(MaxDbCacheMiB(/*is_32bit=*/false), 16384);
+    BOOST_CHECK_EQUAL(MaxDbCacheMiB(/*is_32bit=*/true), 1024);
+    if (sizeof(void*) > 4) {
+        BOOST_CHECK_EQUAL(nMaxDbCache, static_cast<int64_t>(16384));
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

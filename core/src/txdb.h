@@ -30,8 +30,12 @@ struct bilingual_str;
 static const int64_t nDefaultDbCache = 450;
 //! -dbbatchsize default (bytes)
 static const int64_t nDefaultDbBatchSize = 16 << 20;
-//! max. -dbcache (MiB)
-static const int64_t nMaxDbCache = sizeof(void*) > 4 ? 16384 : 1024;
+//! max. -dbcache (MiB). 1 GiB on 32-bit, 16 GiB on 64-bit.
+inline constexpr int64_t MaxDbCacheMiB(bool is_32bit)
+{
+    return is_32bit ? 1024 : 16384;
+}
+static const int64_t nMaxDbCache = MaxDbCacheMiB(sizeof(void*) == 4);
 //! min. -dbcache (MiB)
 static const int64_t nMinDbCache = 4;
 //! Max memory allocated to block tree DB specific cache, if no -txindex (MiB)
