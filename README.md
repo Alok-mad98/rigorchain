@@ -88,6 +88,8 @@ protocol and a separate network.
 
 **Consensus Invariants:** [`docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md`](docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md)
 
+RIGOR separates security maintenance from protocol evolution. Bitcoin Core security research may inform implementation hardening, but RIGOR consensus rules are independently frozen. See [`docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md`](docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md).
+
 ---
 
 ## Treasury & Market Neutrality
