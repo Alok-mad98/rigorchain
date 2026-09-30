@@ -979,7 +979,13 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
     int nInbound = 0;
     int nMaxInbound = nMaxConnections - m_max_outbound;
 
-    AddWhitelistPermissionFlags(permission_flags, addr);
+    // Onion inbounds are accepted on a local bind, so addr is the Tor daemon
+    // (typically 127.0.0.1), not the remote peer. A -whitelist of localhost
+    // must not grant that peer NoBan / ForceRelay / Mempool / Relay.
+    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
+    if (WhitelistAppliesToAcceptedInbound(inbound_onion)) {
+        AddWhitelistPermissionFlags(permission_flags, addr);
+    }
     if (NetPermissions::HasFlag(permission_flags, NetPermissionFlags::Implicit)) {
         NetPermissions::ClearFlag(permission_flags, NetPermissionFlags::Implicit);
         if (gArgs.GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) NetPermissions::AddFlag(permission_flags, NetPermissionFlags::ForceRelay);
@@ -1043,7 +1049,6 @@ void CConnman::CreateNodeFromAcceptedSocket(std::unique_ptr<Sock>&& sock,
 
     ServiceFlags nodeServices = nLocalServices;
 
-    const bool inbound_onion = std::find(m_onion_binds.begin(), m_onion_binds.end(), addr_bind) != m_onion_binds.end();
     CNode* pnode = new CNode(id,
                              std::move(sock),
                              addr,

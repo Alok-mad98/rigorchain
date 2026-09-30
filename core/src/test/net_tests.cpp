@@ -924,4 +924,39 @@ BOOST_AUTO_TEST_CASE(initial_advertise_from_version_message)
     TestOnlyResetTimeData();
 }
 
+BOOST_AUTO_TEST_CASE(inbound_onion_does_not_inherit_localhost_whitelist)
+{
+    BOOST_CHECK(!WhitelistAppliesToAcceptedInbound(/*inbound_onion=*/true));
+    BOOST_CHECK(WhitelistAppliesToAcceptedInbound(/*inbound_onion=*/false));
+
+    bilingual_str error;
+    NetWhitelistPermissions localhost;
+    BOOST_REQUIRE(NetWhitelistPermissions::TryParse("127.0.0.1", localhost, error));
+    CNetAddr tor_daemon;
+    BOOST_REQUIRE(LookupHost("127.0.0.1", tor_daemon, false));
+    BOOST_CHECK(localhost.m_subnet.Match(tor_daemon));
+
+    const auto apply = [&](bool inbound_onion) {
+        NetPermissionFlags flags = NetPermissionFlags::None;
+        if (WhitelistAppliesToAcceptedInbound(inbound_onion) && localhost.m_subnet.Match(tor_daemon)) {
+            NetPermissions::AddFlag(flags, localhost.m_flags);
+        }
+        return flags;
+    };
+
+    const NetPermissionFlags onion = apply(true);
+    const NetPermissionFlags clearnet = apply(false);
+    BOOST_CHECK(!NetPermissions::HasFlag(onion, NetPermissionFlags::Implicit));
+    BOOST_CHECK(!NetPermissions::HasFlag(onion, NetPermissionFlags::NoBan));
+    BOOST_CHECK(NetPermissions::HasFlag(clearnet, NetPermissionFlags::Implicit));
+
+    CNetAddr remote;
+    BOOST_REQUIRE(LookupHost("1.2.3.4", remote, false));
+    BOOST_CHECK(!localhost.m_subnet.Match(remote));
+
+    NetPermissionFlags explicit_remote = NetPermissionFlags::None;
+    NetPermissions::AddFlag(explicit_remote, NetPermissionFlags::NoBan);
+    BOOST_CHECK(NetPermissions::HasFlag(explicit_remote, NetPermissionFlags::NoBan));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

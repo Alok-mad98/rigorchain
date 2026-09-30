@@ -147,6 +147,14 @@ enum
     LOCAL_MAX
 };
 
+/** Inbound onion accepts come from the local Tor daemon. Do not treat that
+ *  address as a whitelisted peer. Clearnet accepts still consult -whitelist.
+ */
+inline bool WhitelistAppliesToAcceptedInbound(bool inbound_onion)
+{
+    return !inbound_onion;
+}
+
 bool IsPeerAddrLocalGood(CNode *pnode);
 /** Returns a local address that we should advertise to this peer. */
 std::optional<CService> GetLocalAddrForPeer(CNode& node);
