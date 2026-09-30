@@ -1,8 +1,7 @@
 # Note — Why Dual-Asset Architecture Is Rare
 
 Narrative Chapter 3 is now
-[`03-native-utxo.md`](./03-native-utxo.md)
-(Chinese: [`03-native-utxo.zh.md`](./03-native-utxo.zh.md)).
+[`03-native-utxo.md`](./03-native-utxo.md).
 This file keeps the shorter “why overlays are cheaper” note.
 
 Most public chains launched as **one ticker**: one unit for fees, one unit

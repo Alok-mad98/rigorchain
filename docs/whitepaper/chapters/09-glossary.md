@@ -1,10 +1,18 @@
 # Glossary — Convergence, Roots, and Where RES Comes From
 
 Narrative Chapter 9 is now
-[`09-product-surfaces.md`](./09-product-surfaces.md)
-(Chinese: [`09-product-surfaces.zh.md`](./09-product-surfaces.zh.md)).
+[`09-product-surfaces.md`](./09-product-surfaces.md).
 This file remains the official noun list for the website and PDF. It does
 not change consensus. Terms follow RFC-020 shipping issuance.
+
+**Official asset names:**
+
+```
+ORU (Operational Resource Unit)
+    the operational asset produced by Proof-of-Work.
+RES (Reserve End State)
+    the reserve-oriented asset created through irreversible ORU destruction.
+```
 
 ---
 

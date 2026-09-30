@@ -1,8 +1,7 @@
 # Note — Consensus Verification (older numbering)
 
 Narrative Chapter 7 is now
-[`07-self-proving.md`](./07-self-proving.md)
-(Chinese: [`07-self-proving.zh.md`](./07-self-proving.zh.md)).
+[`07-self-proving.md`](./07-self-proving.md).
 
 # Chapter 6 — Consensus Verification
 

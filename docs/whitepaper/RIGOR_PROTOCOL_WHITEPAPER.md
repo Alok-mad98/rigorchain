@@ -17,7 +17,6 @@ Protocol SSOT: [`../protocol/RFC-020.md`](../protocol/RFC-020.md),
 Implementation facts: [`../developer/CODE_SSOT_PROTOCOL_FACTS.md`](../developer/CODE_SSOT_PROTOCOL_FACTS.md).
 
 Public mathematics is `docs/whitepaper/RIGOR_MATHEMATICAL_CONSENSUS_DESIGN.md`.
-Chinese chapter twins: `docs/whitepaper/chapters/*.zh.md`.
 
 **Core identity:**
 
@@ -175,8 +174,7 @@ Appendix — Protocol Constants and Engineering Reference
 References and Design Context
 
 Appendix D — Convergence Mathematical Design Note
-([`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md);
-Chinese: [`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.zh.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.zh.md))
+([`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md))
 
 ---
 
@@ -185,8 +183,7 @@ Chinese: [`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.zh.md`](./RIGOR_CONVERGENCE_MATHE
 This chapter states **why RIGOR separates two native assets** before
 later chapters state how the protocol works. The claim is a protocol
 design rationale, not a market forecast. The expanded form is
-[`chapters/01-single-asset-problem.md`](./chapters/01-single-asset-problem.md)
-(Chinese: [`chapters/01-single-asset-problem.zh.md`](./chapters/01-single-asset-problem.zh.md)).
+[`chapters/01-single-asset-problem.md`](./chapters/01-single-asset-problem.md).
 
 A public proof-of-work chain must do three jobs at once:
 
@@ -410,8 +407,7 @@ consensus.** Chapter 2 states the rules that implement the split.
 Chapter 1 assigned the three vertices to two assets. This chapter writes
 that split as frozen rules. The claim is still architectural: the protocol
 fixes a **transform**, not a price and not a participation rate. The
-expanded form is [`chapters/02-two-assets.md`](./chapters/02-two-assets.md)
-(Chinese: [`chapters/02-two-assets.zh.md`](./chapters/02-two-assets.zh.md)).
+expanded form is [`chapters/02-two-assets.md`](./chapters/02-two-assets.md).
 
 ```
 PoW discovers and orders
@@ -549,8 +545,7 @@ Chapter 2 wrote the three vertices as frozen rules. This chapter states
 how those two identities exist as ledger objects. The protocol fixes
 **objects and classification**, not an off-chain registry and not a
 colour on a single UTXO. The expanded form is
-[`chapters/03-native-utxo.md`](./chapters/03-native-utxo.md)
-(Chinese: [`chapters/03-native-utxo.zh.md`](./chapters/03-native-utxo.zh.md)).
+[`chapters/03-native-utxo.md`](./chapters/03-native-utxo.md).
 Engineering audit:
 [`chapters/RIGOR_MINIMAL_SCRIPT_ARCHITECTURE.md`](./chapters/RIGOR_MINIMAL_SCRIPT_ARCHITECTURE.md).
 
@@ -630,8 +625,7 @@ How Convergence is verified as that one-way bridge is Chapter 4.
 Chapter 3 gave two native identities. Without a public, deterministic
 bridge they are two unrelated ledger objects. This chapter states how
 every full node verifies that bridge. The expanded form is
-[`chapters/04-convergence.md`](./chapters/04-convergence.md)
-(Chinese: [`chapters/04-convergence.zh.md`](./chapters/04-convergence.zh.md)).
+[`chapters/04-convergence.md`](./chapters/04-convergence.md).
 
 The protocol fixes **one visible destroy, and an integer predicate in
 the same transaction**. It does not fix that anyone will destroy.
@@ -714,8 +708,7 @@ Chapter 4 fixed the verification act. This chapter unfolds the
 predicate: display and consensus are one identity; the ceiling is an
 integral; fairness is the same public inputs yielding the same
 decision. The expanded form is
-[`chapters/05-mathematical-fairness.md`](./chapters/05-mathematical-fairness.md)
-(Chinese: [`chapters/05-mathematical-fairness.zh.md`](./chapters/05-mathematical-fairness.zh.md)).
+[`chapters/05-mathematical-fairness.md`](./chapters/05-mathematical-fairness.md).
 
 ## 5.1 Fairness is a public decision function
 
@@ -801,8 +794,7 @@ shared height — it pays ORU and does not mint RES.
 Chapter 5’s predicate contains `h`. If nodes disagree on height, the
 same destroy is judged differently. This chapter states how that height
 becomes shared, and what the finder is paid. The expanded form is
-[`chapters/06-mining.md`](./chapters/06-mining.md)
-(Chinese: [`chapters/06-mining.zh.md`](./chapters/06-mining.zh.md)).
+[`chapters/06-mining.md`](./chapters/06-mining.md).
 Product path: [`chapters/07-mining-windows.md`](./chapters/07-mining-windows.md).
 
 Mining **pays ORU**. Mining **does not mint RES**. Mining security and
@@ -862,8 +854,7 @@ be validated independently — Chapter 7.
 Chapter 6 said displayed mining status is not a source of validity.
 This chapter states the substitute: public bytes recomputed locally.
 The expanded form is
-[`chapters/07-self-proving.md`](./chapters/07-self-proving.md)
-(Chinese: [`chapters/07-self-proving.zh.md`](./chapters/07-self-proving.zh.md)).
+[`chapters/07-self-proving.md`](./chapters/07-self-proving.md).
 
 The protocol does not claim that cheating is impossible. It claims that
 unequal bytes fail the published checks.
@@ -918,8 +909,7 @@ Chapter 8 draws the boundary of formal proof.
 Chapter 7 requires local recomputation. This chapter states the
 current final formal conclusion: one public sentence; “yes” stops
 inside the model. The expanded form is
-[`chapters/08-formal-boundary.md`](./chapters/08-formal-boundary.md)
-(Chinese: [`chapters/08-formal-boundary.zh.md`](./chapters/08-formal-boundary.zh.md)).
+[`chapters/08-formal-boundary.md`](./chapters/08-formal-boundary.md).
 
 ```
 formal verification of the protocol model
@@ -994,8 +984,7 @@ should not read this chapter as “the chain has been proved” — Chapter
 Chapter 8 drew the line between the model and the running binary.
 This chapter states how wallets, explorers, pools, documentation, and
 the website live with those rules. The expanded form is
-[`chapters/09-product-surfaces.md`](./chapters/09-product-surfaces.md)
-(Chinese: [`chapters/09-product-surfaces.zh.md`](./chapters/09-product-surfaces.zh.md)).
+[`chapters/09-product-surfaces.md`](./chapters/09-product-surfaces.md).
 
 A surface may **display** a conclusion. It may not **be** that
 conclusion. A green Chapter 8 is not “the chain has been proved.”
@@ -1364,8 +1353,7 @@ public.** Lookup of frozen constants follows in the appendix.
 
 Chapters 1–12 are the public argument. This appendix is lookup. It
 does not add a claim. The expanded form is
-[`chapters/10-appendix.md`](./chapters/10-appendix.md)
-(Chinese: [`chapters/10-appendix.zh.md`](./chapters/10-appendix.zh.md)).
+[`chapters/10-appendix.md`](./chapters/10-appendix.md).
 
 Realization lock files: `core/src/consensus/params.h`,
 `core/src/consensus/rigor_consensus_lock.h`. The one public sentence
@@ -1430,8 +1418,7 @@ Lookup ends here. The claims are in Chapters 1–12.
 
 Algebraic derivation of the mint identity is explanatory documentation
 in Appendix D:
-[`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md)
-(Chinese: [`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.zh.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.zh.md)).
+[`RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md`](./RIGOR_CONVERGENCE_MATHEMATICAL_NOTE.md).
 That note does not introduce new consensus rules.
 
 ---

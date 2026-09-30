@@ -1,8 +1,7 @@
 # Note — Research and Verification (older chapter file)
 
 Narrative Chapter 8 is now
-[`08-formal-boundary.md`](./08-formal-boundary.md)
-(Chinese: [`08-formal-boundary.zh.md`](./08-formal-boundary.zh.md)).
+[`08-formal-boundary.md`](./08-formal-boundary.md).
 
 # Chapter 8 — Research and Verification
 

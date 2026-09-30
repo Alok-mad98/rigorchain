@@ -1,8 +1,7 @@
 # Note — Historical Mathematical Design Page
 
 Narrative Chapter 5 is now
-[`05-mathematical-fairness.md`](./05-mathematical-fairness.md)
-(Chinese: [`05-mathematical-fairness.zh.md`](./05-mathematical-fairness.zh.md)).
+[`05-mathematical-fairness.md`](./05-mathematical-fairness.md).
 What follows is a leftover design page. It is not the shipping fairness
 chapter.
 

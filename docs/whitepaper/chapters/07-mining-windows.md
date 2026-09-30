@@ -1,8 +1,7 @@
 # Note — Mining (Windows Workflow)
 
 Narrative Chapter 6 is now
-[`06-mining.md`](./06-mining.md)
-(Chinese: [`06-mining.zh.md`](./06-mining.zh.md)).
+[`06-mining.md`](./06-mining.md).
 This file keeps the public Windows product path. It does not change
 consensus.
 

@@ -1,8 +1,7 @@
 # RIGOR Protocol Identity — One Page
 
 **Document status:** one-page protocol explanation (not an RFC, not consensus SSOT, not a market note)  
-**Date:** 2026-09-15  
-**Chinese:** [`RIGOR_PROTOCOL_IDENTITY_ONE_PAGE.zh.md`](./RIGOR_PROTOCOL_IDENTITY_ONE_PAGE.zh.md)
+**Date:** 2026-09-15
 
 ```
 equivalence_claimed = false
