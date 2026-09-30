@@ -4,17 +4,41 @@
 
 #include <blockencodings.h>
 #include <consensus/consensus.h>
+#include <consensus/merkle.h>
 #include <consensus/validation.h>
 #include <chainparams.h>
 #include <crypto/sha256.h>
 #include <crypto/siphash.h>
+#include <hash.h>
 #include <random.h>
 #include <streams.h>
 #include <txmempool.h>
 #include <validation.h>
 #include <util/system.h>
 
+#include <cstring>
 #include <unordered_map>
+
+/** Reconstruction-only. A witness merkle mismatch is a mutated compact block.
+ *  The 32-zero-byte reserved nonce stays a consensus check in ContextualCheckBlock
+ *  and is intentionally not applied here.
+ */
+static bool CompactBlockWitnessCommitmentMatches(const CBlock& block)
+{
+    if (block.vtx.empty()) return false;
+    const int commitpos = GetWitnessCommitmentIndex(block);
+    // No commitment: leave the block for CheckBlock / ContextualCheckBlock.
+    // Reconstruction tests build witness transactions without a coinbase commitment.
+    if (commitpos == NO_WITNESS_COMMITMENT) return true;
+    if (block.vtx[0]->vin.empty()) return false;
+    const auto& stack = block.vtx[0]->vin[0].scriptWitness.stack;
+    if (stack.size() != 1 || stack[0].size() != 32) return false;
+    uint256 hashWitness = BlockWitnessMerkleRoot(block, nullptr);
+    CHash256().Write(hashWitness).Write(stack[0]).Finalize(hashWitness);
+    const CScript& spk = block.vtx[0]->vout[commitpos].scriptPubKey;
+    if (spk.size() < MINIMUM_WITNESS_COMMITMENT) return false;
+    return std::memcmp(hashWitness.begin(), &spk[6], 32) == 0;
+}
 
 CBlockHeaderAndShortTxIDs::CBlockHeaderAndShortTxIDs(const CBlock& block) :
         nonce(GetRand<uint64_t>()),
@@ -211,6 +235,10 @@ ReadStatus PartiallyDownloadedBlock::FillBlock(CBlock& block, const std::vector<
         if (state.GetResult() == BlockValidationResult::BLOCK_MUTATED)
             return READ_STATUS_FAILED; // Possible Short ID collision
         return READ_STATUS_CHECKBLOCK_FAILED;
+    }
+
+    if (!CompactBlockWitnessCommitmentMatches(block)) {
+        return READ_STATUS_FAILED;
     }
 
     LogPrint(BCLog::CMPCTBLOCK, "Successfully reconstructed block %s with %lu txn prefilled, %lu txn from mempool (incl at least %lu from extra pool) and %lu txn requested\n", hash.ToString(), prefilled_count, mempool_count, extra_count, vtx_missing.size());

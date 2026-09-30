@@ -5,8 +5,12 @@
 #include <blockencodings.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
+#include <consensus/validation.h>
+#include <hash.h>
 #include <pow.h>
 #include <streams.h>
+
+#include <cstring>
 #include <test/util/random.h>
 #include <test/util/txmempool.h>
 
@@ -378,6 +382,88 @@ BOOST_AUTO_TEST_CASE(TransactionsRequestDeserializationOverflowTest) {
         // deserialize should fail
         BOOST_CHECK(true); // Needed to suppress "Test case [...] did not check any assertions"
     }
+}
+
+static CBlock BuildCommittedWitnessBlock(const std::vector<unsigned char>& nonce)
+{
+    CBlock block;
+    CMutableTransaction coinbase;
+    coinbase.vin.resize(1);
+    coinbase.vin[0].scriptSig.resize(10);
+    coinbase.vin[0].scriptWitness.stack.assign(1, nonce);
+    coinbase.vout.resize(1);
+    coinbase.vout[0].nValue = 42;
+    coinbase.vout[0].scriptPubKey = CScript{} << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x01);
+
+    CMutableTransaction spend;
+    spend.vin.resize(1);
+    spend.vin[0].prevout.hash = uint256::ONE;
+    spend.vin[0].prevout.n = 0;
+    spend.vout.resize(1);
+    spend.vout[0].nValue = 42;
+    spend.vout[0].scriptPubKey = CScript{} << RIGOR_PUSH_0 << std::vector<unsigned char>(20, 0x02);
+
+    block.vtx.resize(2);
+    block.vtx[0] = MakeTransactionRef(coinbase);
+    block.vtx[1] = MakeTransactionRef(spend);
+    block.nVersion = 42;
+    block.hashPrevBlock = uint256::ONE;
+    block.nBits = 0x207fffff;
+
+    uint256 witnessroot = BlockWitnessMerkleRoot(block, nullptr);
+    CHash256().Write(witnessroot).Write(nonce).Finalize(witnessroot);
+    CTxOut commit;
+    commit.nValue = 0;
+    commit.scriptPubKey.resize(MINIMUM_WITNESS_COMMITMENT);
+    commit.scriptPubKey[0] = RIGOR_MARKER_RETURN;
+    commit.scriptPubKey[1] = 0x24;
+    commit.scriptPubKey[2] = 0xaa;
+    commit.scriptPubKey[3] = 0x21;
+    commit.scriptPubKey[4] = 0xa9;
+    commit.scriptPubKey[5] = 0xed;
+    std::memcpy(&commit.scriptPubKey[6], witnessroot.begin(), 32);
+    CMutableTransaction committed(*block.vtx[0]);
+    committed.vout.push_back(commit);
+    block.vtx[0] = MakeTransactionRef(std::move(committed));
+
+    bool mutated = true;
+    block.hashMerkleRoot = BlockMerkleRoot(block, &mutated);
+    assert(!mutated);
+    while (!CheckProofOfWork(block, block.nBits, Params().GetConsensus())) {
+        ++block.nNonce;
+    }
+    return block;
+}
+
+static ReadStatus Reconstruct(CTxMemPool& pool, const CBlock& block, CBlock& out)
+{
+    CBlockHeaderAndShortTxIDs shortids{block};
+    PartiallyDownloadedBlock partial(&pool);
+    const ReadStatus init = partial.InitData(shortids, extra_txn);
+    if (init != READ_STATUS_OK) return init;
+    return partial.FillBlock(out, {block.vtx[1]});
+}
+
+BOOST_AUTO_TEST_CASE(witness_commitment_mismatch_fails_reconstruction)
+{
+    CTxMemPool& pool = *Assert(m_node.mempool);
+    LOCK2(cs_main, pool.cs);
+
+    const std::vector<unsigned char> zero(32, 0);
+    CBlock matched = BuildCommittedWitnessBlock(zero);
+    CBlock mutated = matched;
+    CMutableTransaction coinbase(*mutated.vtx[0]);
+    coinbase.vin[0].scriptWitness.stack[0][0] ^= 0xff;
+    mutated.vtx[0] = MakeTransactionRef(std::move(coinbase));
+    BOOST_CHECK(mutated.vtx[0]->GetHash() == matched.vtx[0]->GetHash());
+
+    CBlock out;
+    BOOST_CHECK_EQUAL(Reconstruct(pool, mutated, out), READ_STATUS_FAILED);
+
+    std::vector<unsigned char> nonzero(32, 0x11);
+    CBlock nonzero_match = BuildCommittedWitnessBlock(nonzero);
+    BOOST_CHECK_EQUAL(Reconstruct(pool, nonzero_match, out), READ_STATUS_OK);
+    BOOST_CHECK(out.GetHash() == nonzero_match.GetHash());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
