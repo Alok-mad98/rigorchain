@@ -11,11 +11,71 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <map>
 #include <mutex>
 #include <optional>
 
 const char * const DEFAULT_DEBUGLOGFILE = "debug.log";
 constexpr auto MAX_USER_SETABLE_SEVERITY_LEVEL{BCLog::Level::Info};
+
+namespace {
+struct AttackerLogWindow {
+    std::chrono::steady_clock::time_point start{std::chrono::steady_clock::now()};
+    size_t bytes{0};
+    bool noted{false};
+};
+
+struct AttackerLogLimit {
+    std::mutex mu;
+    size_t quota{1024 * 1024};
+    std::map<std::string, AttackerLogWindow> windows;
+};
+
+AttackerLogLimit& AttackerLogs()
+{
+    static AttackerLogLimit state;
+    return state;
+}
+} // namespace
+
+bool SuppressRepeatedAttackerLog(const std::string& key, size_t message_bytes)
+{
+    auto& state = AttackerLogs();
+    std::lock_guard<std::mutex> lock(state.mu);
+    const auto now = std::chrono::steady_clock::now();
+    AttackerLogWindow& window = state.windows[key];
+    if (now - window.start >= std::chrono::hours{1}) {
+        window = AttackerLogWindow{};
+        window.start = now;
+    }
+    if (window.bytes == 0 || window.bytes + message_bytes <= state.quota) {
+        window.bytes += message_bytes;
+        return false;
+    }
+    if (!window.noted) {
+        window.noted = true;
+        LogInstance().LogPrintStr(
+            "Warning: rate-limited attacker-controlled log (" + key + "); further copies suppressed for up to one hour\n",
+            __func__, __FILE__, __LINE__, BCLog::LogFlags::NONE, BCLog::Level::None);
+    }
+    return true;
+}
+
+void SetAttackerLogQuotaForTest(size_t bytes)
+{
+    auto& state = AttackerLogs();
+    std::lock_guard<std::mutex> lock(state.mu);
+    state.quota = bytes;
+}
+
+void ResetAttackerLogRateLimitForTest()
+{
+    auto& state = AttackerLogs();
+    std::lock_guard<std::mutex> lock(state.mu);
+    state.windows.clear();
+    state.quota = 1024 * 1024;
+}
 
 BCLog::Logger& LogInstance()
 {

@@ -245,4 +245,35 @@ BOOST_FIXTURE_TEST_CASE(logging_Conf, LogSetup)
     }
 }
 
+BOOST_FIXTURE_TEST_CASE(attacker_controlled_logs_are_rate_limited, LogSetup)
+{
+    ResetAttackerLogRateLimitForTest();
+    SetAttackerLogQuotaForTest(40);
+
+    LogPrintf("connected to self at %s, disconnecting\n", "127.0.0.1:8333");
+    LogPrintf("connected to self at %s, disconnecting\n", "127.0.0.1:8334");
+    LogPrintf("connected to self at %s, disconnecting\n", "127.0.0.1:8335");
+    LogPrintf_("InvalidChainFound", __FILE__, __LINE__, BCLog::LogFlags::NONE, BCLog::Level::None, "Invalid chain: bad-block=%s\n", "aa");
+    LogPrintf_("InvalidChainFound", __FILE__, __LINE__, BCLog::LogFlags::NONE, BCLog::Level::None, "Invalid chain: bad-block=%s\n", "bb");
+    LogPrintf_("InvalidChainFound", __FILE__, __LINE__, BCLog::LogFlags::NONE, BCLog::Level::None, "Invalid chain: bad-block=%s\n", "cc");
+    for (int i = 0; i < 4; ++i) {
+        LogPrintf("ordinary operator note %d\n", i);
+    }
+
+    std::ifstream file{tmp_log_path};
+    std::string contents((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    const auto count = [&](const std::string& needle) {
+        size_t found = 0;
+        for (size_t pos = 0; (pos = contents.find(needle, pos)) != std::string::npos; pos += needle.size()) {
+            ++found;
+        }
+        return found;
+    };
+    BOOST_CHECK_EQUAL(count("connected to self"), 1U);
+    BOOST_CHECK_EQUAL(count("Invalid chain:"), 1U);
+    BOOST_CHECK_EQUAL(count("ordinary operator note"), 4U);
+    BOOST_CHECK(contents.find("rate-limited attacker-controlled log") != std::string::npos);
+    ResetAttackerLogRateLimitForTest();
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -12,7 +12,9 @@
 #include <util/string.h>
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <list>
 #include <mutex>
@@ -206,6 +208,14 @@ namespace BCLog {
 
 BCLog::Logger& LogInstance();
 
+/** Drop repeated attacker-controlled unconditional logs after 1 MiB in an hour.
+ *  The first line from a source is always written. Every other log is unchanged.
+ *  Returns true when this line must not be written.
+ */
+bool SuppressRepeatedAttackerLog(const std::string& key, size_t message_bytes);
+void SetAttackerLogQuotaForTest(size_t bytes);
+void ResetAttackerLogRateLimitForTest();
+
 /** Return true if log accepts specified category, at the specified level. */
 static inline bool LogAcceptCategory(BCLog::LogFlags category, BCLog::Level level)
 {
@@ -229,6 +239,15 @@ static inline void LogPrintf_(const std::string& logging_function, const std::st
         } catch (tinyformat::format_error& fmterr) {
             /* Original format string will have newline so don't add one here */
             log_msg = "Error \"" + std::string(fmterr.what()) + "\" while formatting log message: " + fmt;
+        }
+        std::string attacker_key;
+        if (logging_function == "InvalidChainFound") {
+            attacker_key = "invalid-chain";
+        } else if (fmt != nullptr && std::strncmp(fmt, "connected to self", 17) == 0) {
+            attacker_key = "self-connection";
+        }
+        if (!attacker_key.empty() && SuppressRepeatedAttackerLog(attacker_key, log_msg.size())) {
+            return;
         }
         LogInstance().LogPrintStr(log_msg, logging_function, source_file, source_line, flag, level);
     }
