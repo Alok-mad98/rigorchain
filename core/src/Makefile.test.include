@@ -166,6 +166,7 @@ BITCOIN_TESTS =\
   test/test_consensus_kernel_adversarial.cpp \
   test/test_consensus_kernel_freeze.cpp \
   test/test_genesis_consensus_authority.cpp \
+  test/security_boundary_tests.cpp \
   test/test_p2p_security_boundary.cpp \
   test/test_wallet_security_boundary.cpp \
   test/test_script_opcode_security.cpp \
