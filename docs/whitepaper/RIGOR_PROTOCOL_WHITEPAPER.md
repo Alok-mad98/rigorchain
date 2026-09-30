@@ -62,7 +62,7 @@ RIGOR is a two-asset UTXO protocol with a closed script-compliance surface.
 
 It combines:
 
-- ORU and RES native assets
+- ORU (Operational Resource Unit) and RES (Reserve End State) native assets
 - consensus-defined RES issuance
 - fee destroy on selected ORU flows (RFC-018)
 - Ed25519 authentication
@@ -75,6 +75,15 @@ without:
 - account ledger
 - contract storage
 - global asset state
+
+**Official asset names:**
+
+```
+ORU (Operational Resource Unit)
+    the operational asset produced by Proof-of-Work.
+RES (Reserve End State)
+    the reserve-oriented asset created through irreversible ORU destruction.
+```
 
 The RIGOR protocol model contains machine-checked consensus invariants.
 This does not constitute a proof that the production C++ implementation
@@ -109,11 +118,13 @@ been disproved.
 
 **RIGOR** separates these roles at the consensus asset layer.
 
-- **ORU** is the utility asset: fees, miner subsidy, and Convergence entry
-  weight. It has a flat subsidy of **128 ORU** per block so miner payment
-  does not depend on inflating the reserve.
-- **RES** is the scarce asset. Its maximum supply is **derived**:
-  `RES_MAX_SUPPLY = 419430400000000` atoms (`4194304 RES`).
+- **ORU (Operational Resource Unit)** is the operational asset produced
+  by Proof-of-Work. It is the utility asset: fees, miner subsidy, and
+  Convergence entry weight. It has a flat subsidy of **128 ORU** per
+  block so miner payment does not depend on inflating the reserve.
+- **RES (Reserve End State)** is the reserve-oriented asset created
+  through irreversible ORU destruction. Its maximum supply is
+  **derived**: `RES_MAX_SUPPLY = 419430400000000` atoms (`4194304 RES`).
   It is not created by mining subsidy, not by governance, and not by a
   1:1 swap. New RES appears only in a **body transaction** that destroys
   ORU (`OP_CONVERGE`) and mints Witness v1 RES in the **same
@@ -326,19 +337,23 @@ two assets and couples them.
 
 ## 1.5 The split — RFC-020
 
-**ORU** is the medium of exchange and the miner-payment asset. Flat
-subsidy: `subsidy(0) = 0`, `subsidy(h ≥ 1) = 128` ORU. No halvings. ORU
-has no fixed supply cap because its primary role is continuous security
-payment rather than terminal scarcity. It is a **flow asset**. Inflation
-*rate* decays as `1/t`. Residual inflation *level* is `1 − ρ`, where `ρ`
-is the fraction of emitted ORU ever destroyed to create RES. Hardness is
-a function of demand, not of a number written at genesis. Users can spend
-ORU without sacrificing a reserved position.
+**ORU (Operational Resource Unit)** is the operational asset produced
+by Proof-of-Work. It is the medium of exchange and the miner-payment
+asset. Flat subsidy: `subsidy(0) = 0`, `subsidy(h ≥ 1) = 128` ORU. No
+halvings. ORU has no fixed supply cap because its primary role is
+continuous security payment rather than terminal scarcity. It is a
+**flow asset**. Inflation *rate* decays as `1/t`. Residual inflation
+*level* is `1 − ρ`, where `ρ` is the fraction of emitted ORU ever
+destroyed to create RES. Hardness is a function of demand, not of a
+number written at genesis. Users can spend ORU without sacrificing a
+reserved position.
 
-**RES** is designed as the store-of-value asset within the protocol. It
-is not mined. There is no reverse conversion. It is created only in a
-body transaction that destroys ORU (`OP_CONVERGE`) and mints Witness v1
-RES when `R > 0 → R · (2²⁵ + h)² ≤ B << 40`. Display form:
+**RES (Reserve End State)** is the reserve-oriented asset created
+through irreversible ORU destruction. It is designed as the
+store-of-value asset within the protocol. It is not mined. There is no
+reverse conversion. It is created only in a body transaction that
+destroys ORU (`OP_CONVERGE`) and mints Witness v1 RES when
+`R > 0 → R · (2²⁵ + h)² ≤ B << 40`. Display form:
 `destroy_cost(h) = 1024 · (2²⁵ + h)² / 2⁵⁰` ORU per whole RES.
 `2⁵⁰` is the curve normalization denominator, not a consensus shift.
 `2⁴⁰` is the integer consensus scaling factor, not the `destroy_cost`
@@ -1404,8 +1419,8 @@ docs: RFC-020, RFC-018. Noun list:
 
 | Term | Official meaning |
 |------|------------------|
-| ORU | Medium-of-exchange asset. Subsidy 128 after genesis |
-| RES | Designed store-of-value asset within the protocol. Derived ceiling `2²²`; not mined |
+| ORU | Operational Resource Unit. The operational asset produced by Proof-of-Work. Medium-of-exchange asset. Subsidy 128 after genesis |
+| RES | Reserve End State. The reserve-oriented asset created through irreversible ORU destruction. Designed store-of-value asset within the protocol. Derived ceiling `2²²`; not mined |
 | Convergence | Same-tx destroy that MAY mint RES under the predicate |
 | `destroy_cost(h)` | Display cost. `2⁵⁰` is the curve normalization denominator. Consensus uses `B << 40`. Display rounding/floor do not enter consensus |
 | OpuHash | Live proof-of-work validity hash (not block identity) |
@@ -1516,8 +1531,8 @@ asset platform.
 Instead, RIGOR separates these roles directly at the consensus asset
 layer, as already specified in Chapters 1–2 and RFC-020:
 
-- ORU is the circulation and miner-payment asset.
-- RES is designed as the store-of-value asset within the protocol.
+- ORU (Operational Resource Unit) is the operational asset produced by Proof-of-Work, and the circulation and miner-payment asset.
+- RES (Reserve End State) is the reserve-oriented asset created through irreversible ORU destruction.
 - ORU destruction is the consensus-defined path that may create RES.
 
 The protocol defines the transformation rules. Market adoption and
