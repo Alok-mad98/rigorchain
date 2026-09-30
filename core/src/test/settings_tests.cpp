@@ -262,4 +262,26 @@ BOOST_FIXTURE_TEST_CASE(Merge, MergeTestingSetup)
     BOOST_CHECK_EQUAL(out_sha_hex, "79db02d74e3e193196541b67c068b40ebd0c124a24b3ecbe9cbf7e85b1c4ba7a");
 }
 
+BOOST_AUTO_TEST_CASE(write_failure_does_not_replace_settings)
+{
+    const fs::path path = m_args.GetDataDirBase() / "settings-keep.json";
+    std::map<std::string, util::SettingsValue> values;
+    values.emplace("keep", "yes");
+    std::vector<std::string> errors;
+    BOOST_CHECK(util::WriteSettings(path, values, errors));
+    BOOST_CHECK(errors.empty());
+
+    errors.clear();
+    std::map<std::string, util::SettingsValue> rejected;
+    rejected.emplace("keep", "no");
+    BOOST_CHECK(!util::WriteSettings("/dev/full", rejected, errors));
+    BOOST_CHECK(!errors.empty());
+
+    std::map<std::string, util::SettingsValue> reread;
+    std::vector<std::string> read_errors;
+    BOOST_CHECK(util::ReadSettings(path, reread, read_errors));
+    BOOST_REQUIRE(reread.count("keep"));
+    BOOST_CHECK_EQUAL(reread["keep"].get_str(), "yes");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

@@ -121,7 +121,16 @@ bool WriteSettings(const fs::path& path,
         return false;
     }
     file << out.write(/* prettyIndent= */ 4, /* indentLevel= */ 1) << std::endl;
+    if (!file.good()) {
+        errors.emplace_back(strprintf("Error: Failed to write settings file %s", fs::PathToString(path)));
+        file.close();
+        return false;
+    }
     file.close();
+    if (file.fail()) {
+        errors.emplace_back(strprintf("Error: Failed to write settings file %s", fs::PathToString(path)));
+        return false;
+    }
     return true;
 }
 
