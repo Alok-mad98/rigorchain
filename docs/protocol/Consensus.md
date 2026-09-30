@@ -24,6 +24,7 @@ documents that describe the current protocol.
 |----------|------|
 | [`RFC-020.md`](./RFC-020.md) | Deterministic Economics for Human and Machine Verification. Continuous RES destroy cost; flat 128 ORU for `h ≥ 1` |
 | [`RFC-018.md`](./RFC-018.md) | RES-transfer ORU fee burn (still current) |
+| [`RIGOR_CONSENSUS_INVARIANTS.md`](./RIGOR_CONSENSUS_INVARIANTS.md) | Mainnet protocol boundary extracted from consensus code |
 | [`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](./MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | What is frozen |
 | [`../specification/SPEC-000-CONSENSUS-SPECIFICATION.md`](../specification/SPEC-000-CONSENSUS-SPECIFICATION.md) | What production consensus does |
 | [`../specification/SPEC-003-CONSENSUS-RULES.md`](../specification/SPEC-003-CONSENSUS-RULES.md) | Validation predicates |

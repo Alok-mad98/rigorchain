@@ -29,7 +29,7 @@ docs/
 
 | Tree | Audience |
 |------|----------|
-| [`protocol/`](./protocol/) | RFC-020, RFC-018, consensus / assets index |
+| [`protocol/`](./protocol/) | RFC-020, RFC-018, consensus invariants, assets index |
 | [`developer/`](./developer/) | Architecture, build, RPC, testing |
 | [`user/`](./user/) | Wallet and mining |
 | [`formal/`](./formal/) | Verification status and claims |
@@ -46,6 +46,7 @@ Historical documents are under [`../archive/`](../archive/). They are
 | [`whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](./whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md) | Public protocol narrative |
 | [`protocol/RFC-020.md`](./protocol/RFC-020.md) | Deterministic Economics for Human and Machine Verification. Live issuance rule: continuous RES destroy cost, flat ORU emission |
 | [`protocol/RFC-018.md`](./protocol/RFC-018.md) | RES-transfer fee burn |
+| [`protocol/RIGOR_CONSENSUS_INVARIANTS.md`](./protocol/RIGOR_CONSENSUS_INVARIANTS.md) | Mainnet consensus boundary |
 | [`protocol/Consensus.md`](./protocol/Consensus.md) | Consensus index |
 | [`protocol/Assets.md`](./protocol/Assets.md) | Asset index |
 | [`developer/Build.md`](./developer/Build.md) | Compile and run |

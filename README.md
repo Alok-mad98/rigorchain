@@ -78,6 +78,16 @@ documentation_consensus_authority = false
 Protocol specifications are normative SSOT.
 Implementations realize the frozen protocol.
 
+After mainnet activation, consensus invariants fix the protocol
+boundary: monetary issuance, asset separation, script templates,
+transaction authorization, proof-of-work identity, and ledger
+transition.
+
+Changing these rules is not a software upgrade. It defines a different
+protocol and a separate network.
+
+**Consensus Invariants:** [`docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md`](docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md)
+
 ---
 
 ## Treasury & Market Neutrality

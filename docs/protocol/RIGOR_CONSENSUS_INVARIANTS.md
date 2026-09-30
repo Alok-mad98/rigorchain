@@ -1,0 +1,539 @@
+# RIGOR Consensus Invariants
+
+**Status:** Consensus rule extraction from production implementation.
+
+**Purpose:**  
+This document identifies the consensus properties that define the RIGOR Mainnet protocol boundary.
+
+This document introduces:
+
+- no new consensus rule;
+- no activation mechanism;
+- no governance procedure;
+- no upgrade process.
+
+It is a description of rules already enforced by the production consensus implementation.
+
+If this document and the implementation disagree:
+
+> The implementation defines the protocol behavior.  
+> This document is a human-readable extraction of that behavior.
+
+---
+
+## 1. Protocol Permanence Principle
+
+RIGOR is designed as a fixed monetary protocol.
+
+After mainnet activation, the network does not contain any consensus mechanism that can modify:
+
+- monetary issuance rules;
+- asset identity rules;
+- transaction validity rules;
+- Proof-of-Work identity;
+- ledger model;
+- genesis identity.
+
+There is:
+
+- no governance layer;
+- no voting mechanism;
+- no version-bit monetary upgrade path;
+- no emergency consensus override.
+
+A change to a consensus invariant is not a RIGOR software upgrade.
+
+It is a different protocol.
+
+A network running modified consensus rules is a separate blockchain with separate monetary properties.
+
+---
+
+## 2. Consensus Boundary
+
+The RIGOR protocol boundary is defined by four invariant categories.
+
+```
+Monetary Invariants
+        +
+Ledger Invariants
+        +
+Execution Invariants
+        +
+Network Identity Invariants
+```
+
+Together they define the meaning of the chain.
+
+---
+
+## 3. Monetary Invariants
+
+Monetary rules define what assets exist, how they enter circulation, and how scarcity is enforced.
+
+These rules are consensus-critical.
+
+### 3.1 ORU Issuance
+
+ORU is created only through valid Proof-of-Work subsidy.
+
+Consensus rule:
+
+```
+subsidy(h) = 0          if h <= 0
+subsidy(h) = 128 ORU    if h >= 1
+```
+
+`128 ORU` is `ORU_FLAT_BLOCK_SUBSIDY` = `128 * COIN` = `12800000000` atoms. `COIN` is `100000000`. Height 0 uses `ORU_GENESIS_BLOCK_SUBSIDY` = `0`. `GetBlockSubsidy` ignores chain parameters. `RES_REWARD_EPOCH` (`210000`) is an observational calendar. It does not cut the subsidy.
+
+Properties:
+
+- no halving;
+- no administrative issuance;
+- no founder allocation;
+- no treasury issuance.
+
+The miner subsidy is independent of:
+
+- transaction volume;
+- RES creation;
+- holder behavior.
+
+A coinbase may also collect ORU fees already present in the UTXO set. That collection is not new issuance. The claimable coinbase ORU is bounded by:
+
+```
+claimable = (ORU fees − RES-transfer fee burn) + subsidy(h)
+```
+
+The RES-transfer fee burn is `floor(fee / 2)`. `RigorSupplyDelta` rejects a larger coinbase with `bad-cb-amount`. Fees, the burn, and the subsidy are the whole coinbase ORU budget.
+
+The subsidy rule is enforced by consensus validation.
+
+Changing:
+
+```
+128 ORU/block
+```
+
+creates a different monetary protocol.
+
+### 3.2 RES Supply Boundary
+
+RES has a protocol-defined maximum supply:
+
+```
+RES_MAX_SUPPLY = 2^22 RES
+               = 4,194,304 RES
+               = 419,430,400,000,000 atoms
+```
+
+This value is derived from the issuance function:
+
+```
+S  = 128 ORU
+P0 = 1024 ORU
+
+RES_MAX_SUPPLY = (S / P0) × 2^25
+               = 2^22 RES
+```
+
+`P0` is `RES_DESTROY_COST_GENESIS`: the ORU destroyed to mint one whole RES at height 0. The pole `2^25` is `RES_DESTROY_POLE`. The consensus mint check does not use a displayed price. It evaluates:
+
+```
+R = 0  →  a plain ORU destroy is allowed
+R > 0  →  R · (2^25 + h)^2  ≤  B << 40
+```
+
+`R` is RES atoms created by the transaction. `B` is ORU atoms destroyed by that transaction's Convergence output. `40` is `RES_DESTROY_SHIFT`, forced by `P0 = 1024 ORU`. A single mint with `R` above `RES_MAX_SUPPLY` is rejected.
+
+RES cannot be:
+
+- mined;
+- created by coinbase;
+- issued by an administrator;
+- created outside the convergence rule.
+
+`GetBlockSubsidy` returns ORU only. Mainnet coinbase RES must be 0 (`bad-cb-res-amount`). A body transaction creates RES only by destroying ORU in the same transaction. The predicate is a pure function of `(R, B, h)`. No key is a mint authority.
+
+The supply boundary is enforced by consensus.
+
+Changing:
+
+```
+RES_MAX_SUPPLY
+```
+
+creates a different monetary protocol.
+
+### 3.3 Asset Direction Invariant
+
+RIGOR defines a one-way monetary transformation:
+
+```
+ORU → RES
+```
+
+A valid transition exists:
+
+```
+destroy ORU
+    |
+    v
+create RES
+```
+
+The reverse transition does not exist:
+
+```
+RES → ORU
+```
+
+No consensus rule allows:
+
+- RES redemption;
+- RES conversion;
+- administrative conversion.
+
+An ORU output funded without ORU inputs is rejected (`illegal-res-to-oru-conversion`). RES may be spent to RES. The network fee on that spend is still ORU. RES amounts never pay the fee.
+
+Changing this direction changes the meaning of the two-asset architecture.
+
+---
+
+## 4. Ledger Invariants
+
+RIGOR uses a single UTXO state model.
+
+Consensus recognizes:
+
+```
+one chain
+one UTXO set
+one validation engine
+two native asset identities
+```
+
+The protocol does not contain:
+
+- account balances;
+- contract storage;
+- external asset registry;
+- parallel asset ledger.
+
+Asset identity is derived from:
+
+```
+scriptPubKey
+    +
+consensus classification
+```
+
+Classification is `AssetTypeFromScriptPubKey`. There is no `(asset, amount, script)` consensus field.
+
+It does not come from:
+
+- wallet software;
+- explorer databases;
+- external metadata.
+
+`AddCoins` inserts an output only when it is neither Convergence nor `OP_RETURN`. Convergence value leaves circulation because the output is never stored. Spending a missing or already-spent outpoint fails closed. Wallet balances and observational supply ledgers are views. They are not a second ledger.
+
+Changing the ledger model creates a different protocol.
+
+---
+
+## 5. Execution Invariants
+
+Execution rules define how transactions are authorized and how outputs are classified.
+
+### 5.1 Script Templates
+
+RIGOR accepts only the defined consensus templates:
+
+| Template | Asset | Meaning |
+|---|---|---|
+| Witness v0 / 20 bytes | ORU | spendable ORU |
+| Witness v1 / 32 bytes Ed25519 | RES | spendable RES |
+| HASH160 + `0xbd` | ORU destroy | Convergence |
+| zero-value `OP_RETURN` | data | non-asset data |
+
+Witness v0 is ORU only at program length 20. Witness version is `0x00`. Witness v1 is RES only at program length 32, witness version `0x51`, and only when the program does not begin with the retired prefixes `CVG2` or `RES2`. The 32-byte program is the Ed25519 public key.
+
+Convergence is the 22-byte script `PUSHBYTES_20 || 20-byte HASH160 || 0xbd`. `0xbd` means this ORU output is destroyed. Opcode meaning is consensus meaning. Changing `OP_CONVERGE` semantics changes the monetary protocol.
+
+`OP_RETURN` is byte `0x6a` followed by pushes. Its value must be 0. A non-zero value is not a burn and not a third asset.
+
+The protocol does not contain:
+
+- Script VM;
+- arbitrary opcode execution;
+- smart contracts.
+
+Legacy opcode numbers, including `0xac` (`CHECKSIG`), are inert. They do not authorize a spend. Bare P2PKH, P2SH, P2WSH, and Taproot are not consensus templates.
+
+Changing accepted templates changes the transaction language of RIGOR.
+
+### 5.2 Signature Rules
+
+RIGOR transaction authorization uses:
+
+```
+Ed25519
+```
+
+Consensus parameters:
+
+```
+Public key:   32 bytes
+Signature:    64 bytes
+Sighash:      RIGOR domain-separated signing
+```
+
+The signature is a raw detached Ed25519 signature. There is no hashtype byte. ORU spends commit under the domain `RGRORU01`. RES spends commit under `RGRRES01`. The sighash covers the domain tag, the chain id (the genesis hash), and the whole transaction.
+
+The authorization path is fixed by:
+
+```
+VerifyRigorPredicate
+```
+
+`ConnectBlock` reaches that function through `CheckInputScripts`. A witness program without witness verification fails closed. It is not anyone-can-spend. RES has one key path. ECDSA and secp256k1 are not authorization rules.
+
+Changing:
+
+- signature algorithm;
+- key format;
+- signing domain;
+- witness authorization rules;
+
+changes which transactions are valid.
+
+Therefore it changes the protocol.
+
+### 5.3 Proof-of-Work Identity
+
+RIGOR separates:
+
+```
+block identity
+```
+
+from
+
+```
+Proof-of-Work validity
+```
+
+Block identity:
+
+```
+SHA256d(header_80)
+```
+
+Proof-of-Work:
+
+```
+SHA3-256("RGRPOW01" || header_80)
+```
+
+The header is 80 bytes: version, previous block, merkle root, time, `nBits`, nonce. The domain prefix is 8 bytes. The preimage is 88 bytes. A header is valid when its block id is the genesis hash, or when the SHA3-256 digest is at or below the `nBits` target. SHA3-256 of the header without `RGRPOW01` is not a proof.
+
+Consensus-critical properties include:
+
+- 80-byte header layout;
+- `RGRPOW01` domain separation;
+- SHA3-256 PoW;
+- target calculation;
+- ASERT parameters.
+
+Mainnet target spacing is 600 seconds. The ASERT half-life is 43200 seconds, anchored at height 1, with a per-block clamp of ±12.5%. Mainnet genesis `nBits` is `0x1d008000`.
+
+Changing Proof-of-Work creates a different chain.
+
+---
+
+## 6. Network Identity Invariants
+
+Genesis defines chain identity.
+
+Mainnet identity:
+
+```
+Genesis hash:
+
+e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468
+
+Genesis activation:
+
+2026-10-25 06:00:00 UTC
+```
+
+That instant is `nTime = 1792908000`. The same header also locks:
+
+| Field | Value |
+|---|---|
+| Merkle root | `9d3fbd207af927fc8e2c57e975d8d5845913bf059d956592e8a0bcf38b3515dd` |
+| `nBits` | `0x1d008000` |
+| `nNonce` | `0` |
+| `nVersion` | `1` |
+| Coinbase value | `0` |
+| Coinbase message | `Selection not computation. Convergence defines state. Naming is consensus.` |
+
+Genesis parameters are not configuration data.
+
+They identify the network.
+
+A different genesis identity represents a different blockchain.
+
+---
+
+## 7. Consensus Change Classification
+
+### Consensus-preserving changes
+
+These do not modify which blocks or transactions are valid:
+
+- explorer improvements;
+- wallet interface improvements;
+- RPC additions;
+- monitoring tools;
+- documentation updates.
+
+### Protocol-breaking changes
+
+The following create a different protocol.
+
+**Monetary**
+
+- changing ORU issuance;
+- adding halving;
+- changing RES supply;
+- changing convergence rules;
+- adding administrative issuance.
+
+**Asset model**
+
+- adding new asset classes;
+- changing the ORU/RES relationship;
+- adding reverse conversion.
+
+**Transaction model**
+
+- adding new script templates;
+- changing opcode meaning;
+- replacing Ed25519 authorization.
+
+**Chain security**
+
+- changing the PoW algorithm;
+- changing header structure;
+- changing difficulty rules.
+
+**Identity**
+
+- changing genesis parameters.
+
+A protocol-breaking change is not a RIGOR upgrade. It creates a separate network.
+
+---
+
+## 8. No Consensus Upgrade Mechanism
+
+RIGOR intentionally does not include a mechanism that changes these invariants.
+
+There is:
+
+- no on-chain governance;
+- no consensus voting;
+- no version-bit monetary activation;
+- no emergency override.
+
+The only compiled version-bits deployment is `DEPLOYMENT_TESTDUMMY`, and on mainnet its start time is `NEVER_ACTIVE`. It does not retarget issuance, assets, scripts, signatures, or proof-of-work.
+
+A future system may choose different rules.
+
+However:
+
+A system with different consensus invariants is not an upgraded RIGOR Mainnet.
+
+It is a separate protocol.
+
+---
+
+## 9. Verification Philosophy
+
+The purpose of these invariants is not to create trust in a development team.
+
+The purpose is to define what independent participants can verify.
+
+A user does not need to trust:
+
+- a website;
+- an explorer;
+- a developer statement.
+
+A full node evaluates:
+
+- issuance;
+- asset classification;
+- transaction validity;
+- Proof-of-Work;
+- state transition rules.
+
+The protocol boundary exists in consensus code.
+
+`core/src/test/consensus_invariants_tests.cpp` pins the constants and the validation paths named in this document. A change to those rules fails that suite. The suite does not add a rule. It records the rules the node already enforces.
+
+---
+
+## 10. Source Authority
+
+Consensus enforcement locations:
+
+```
+core/src/consensus/
+core/src/kernel/
+core/src/script/
+core/src/validation.cpp
+core/src/coins.cpp
+```
+
+| Component | Function |
+|---|---|
+| `rigor_issuance.cpp` | ORU issuance |
+| `res_issuance.h` | RES supply rules |
+| `rigor_supply.cpp` | Coinbase ORU bound and the rejection of coinbase RES |
+| `tx_verify.cpp` | RES creation rules and the rejection of RES → ORU |
+| `tx_check.cpp` | Accepted output templates |
+| `rigor_classify.cpp` | Asset classification |
+| `predicate_verify.cpp` | Authorization (`VerifyRigorPredicate`) |
+| `pow_digest.cpp` | Proof-of-Work digest |
+| `pow.cpp` | Proof-of-Work check |
+| `chainparams.cpp` | Genesis identity |
+| `coins.cpp` | UTXO admission |
+
+Wallet, RPC, and explorer code may refuse a transaction that consensus would also refuse. They do not define these invariants.
+
+---
+
+## Final Statement
+
+RIGOR does not define value through promises.
+
+It defines a protocol boundary through deterministic rules.
+
+The purpose of consensus invariants is:
+
+```
+to make monetary rules inspectable
+to make asset rules deterministic
+to make protocol boundaries explicit
+```
+
+A participant may evaluate the design.
+
+A developer may improve software around it.
+
+But changing the consensus boundary means creating a different protocol.
+
+RIGOR Mainnet remains defined by the rules that every node independently verifies.
