@@ -150,6 +150,8 @@ static int ux_height;
 static int64_t ux_reward_sat;
 static char ux_last_block[32] = "-";
 static char ux_status_line[96] = "Starting";
+static char ux_net_estimate[48] = "";
+static bool ux_net_estimate_ready = false;
 static time_t ux_last_status_print;
 char *opt_cert;
 char *opt_proxy;
@@ -373,6 +375,21 @@ static void ux_format_hashrate(char *buf, size_t buflen, double hashrate)
 		snprintf(buf, buflen, "%.2f KH/s", 1e-3 * hashrate);
 }
 
+/* Chain estimate can be far above one CPU. Keep the local line on KH/s. */
+static void ux_format_network_hashrate(char *buf, size_t buflen, double hashrate)
+{
+	if (hashrate >= 1e12)
+		snprintf(buf, buflen, "%.2f TH/s", hashrate / 1e12);
+	else if (hashrate >= 1e9)
+		snprintf(buf, buflen, "%.2f GH/s", hashrate / 1e9);
+	else if (hashrate >= 1e6)
+		snprintf(buf, buflen, "%.2f MH/s", hashrate / 1e6);
+	else if (hashrate >= 1e3)
+		snprintf(buf, buflen, "%.2f KH/s", hashrate / 1e3);
+	else
+		snprintf(buf, buflen, "%.2f H/s", hashrate);
+}
+
 static void ux_format_reward(char *buf, size_t buflen, int64_t sat)
 {
 	double oru = sat / 100000000.0;
@@ -486,7 +503,8 @@ static void user_print_status(void)
 {
 	char hr[32];
 	char height_buf[32];
-	char buf[1024];
+	char net_line[80];
+	char buf[1280];
 	const char *mode;
 	const char *node;
 	const char *wallet;
@@ -512,6 +530,10 @@ static void user_print_status(void)
 		wallet = ux_node_connected ? "Connected" : "Connecting...";
 	mining = ux_mining_running ? "Running" : "Starting";
 	payout = (coinbase_addr && coinbase_addr[0]) ? coinbase_addr : "(from node template)";
+	net_line[0] = '\0';
+	if (ux_net_estimate_ready && ux_net_estimate[0])
+		snprintf(net_line, sizeof(net_line), "%-16s %s\n",
+			 "Network estimate", ux_net_estimate);
 
 	snprintf(buf, sizeof(buf),
 		"\n"
@@ -524,6 +546,7 @@ static void user_print_status(void)
 		"%-16s %s\n"
 		"%-16s %s\n"
 		"%-16s %s\n"
+		"%s"
 		"%-16s %lu\n"
 		"%-16s %s\n"
 		"%-16s %s\n"
@@ -535,6 +558,7 @@ static void user_print_status(void)
 		"Mining", mining,
 		"Height", height_buf,
 		"Hashrate", hr,
+		net_line,
 		"Blocks found", accepted_count,
 		"Last block", ux_last_block,
 		"Payout", payout,
@@ -550,19 +574,29 @@ static void user_print_status(void)
 static void user_print_heartbeat(void)
 {
 	char hr[32];
-	char buf[256];
+	char buf[384];
 
 	if (opt_verbose)
 		return;
 
 	pthread_mutex_lock(&ux_print_lock);
 	ux_format_hashrate(hr, sizeof(hr), ux_total_hashrate());
-	snprintf(buf, sizeof(buf),
-		"[mining] height %d | %s | blocks %lu | %s\n",
-		ux_height > 0 ? ux_height : 0,
-		hr,
-		accepted_count,
-		ux_status_line);
+	if (ux_net_estimate_ready && ux_net_estimate[0])
+		snprintf(buf, sizeof(buf),
+			"[mining] height %d | %s | blocks %lu | %s\n"
+			"[mining] network estimate %s\n",
+			ux_height > 0 ? ux_height : 0,
+			hr,
+			accepted_count,
+			ux_status_line,
+			ux_net_estimate);
+	else
+		snprintf(buf, sizeof(buf),
+			"[mining] height %d | %s | blocks %lu | %s\n",
+			ux_height > 0 ? ux_height : 0,
+			hr,
+			accepted_count,
+			ux_status_line);
 	ux_emit(buf);
 	time(&ux_last_status_print);
 	pthread_mutex_unlock(&ux_print_lock);
@@ -649,6 +683,62 @@ static void ux_note_work(const struct work *work)
 	if (work->coinbasevalue > 0)
 		ux_reward_sat = work->coinbasevalue;
 	snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
+}
+
+/*
+ * Solo display only. Height below 10 stays blank: the node's estimate is 0 at
+ * genesis and the first sample still ends on the genesis timestamp. From
+ * height 10, ask for the last 10 blocks but never walk onto genesis
+ * (nblocks = min(10, height-1)). A zero or failed reply leaves the line hidden.
+ */
+static void ux_refresh_network_estimate(CURL *curl)
+{
+	int height;
+	int nblocks;
+	char req[160];
+	char formatted[48];
+	json_t *val;
+	json_t *res;
+	double hs;
+
+	if (!curl || !rpc_url || !rpc_userpass)
+		return;
+	height = ux_height;
+	if (height < 10) {
+		pthread_mutex_lock(&ux_print_lock);
+		ux_net_estimate_ready = false;
+		ux_net_estimate[0] = '\0';
+		pthread_mutex_unlock(&ux_print_lock);
+		return;
+	}
+	nblocks = height - 1;
+	if (nblocks > 10)
+		nblocks = 10;
+	snprintf(req, sizeof(req),
+		 "{\"method\":\"getnetworkhashps\",\"params\":[%d],\"id\":1}\r\n",
+		 nblocks);
+	val = json_rpc_call(curl, rpc_url, rpc_userpass, req, NULL, JSON_RPC_QUIET_404);
+	if (!val)
+		return;
+	res = json_object_get(val, "result");
+	if (!res || !json_is_number(res)) {
+		json_decref(val);
+		return;
+	}
+	hs = json_number_value(res);
+	json_decref(val);
+	if (!(hs > 0.0)) {
+		pthread_mutex_lock(&ux_print_lock);
+		ux_net_estimate_ready = false;
+		ux_net_estimate[0] = '\0';
+		pthread_mutex_unlock(&ux_print_lock);
+		return;
+	}
+	ux_format_network_hashrate(formatted, sizeof(formatted), hs);
+	pthread_mutex_lock(&ux_print_lock);
+	snprintf(ux_net_estimate, sizeof(ux_net_estimate), "%s", formatted);
+	ux_net_estimate_ready = true;
+	pthread_mutex_unlock(&ux_print_lock);
 }
 
 static void work_free(struct work *w)
@@ -1138,6 +1228,7 @@ static bool get_upstream_work(CURL *curl, struct work *work)
 	if (rc) {
 		bool first = !ux_node_connected;
 		ux_note_work(work);
+		ux_refresh_network_estimate(curl);
 		if (!opt_verbose && first)
 			user_print_status();
 	}
@@ -1675,6 +1766,7 @@ start:
 		}
 		if (likely(val)) {
 			bool rc;
+			bool refresh_net = false;
 			static uint32_t s_lp_prev[8];
 			static int s_lp_height = -1;
 			static int s_lp_same;
@@ -1718,6 +1810,7 @@ start:
 					applog(LOG_INFO, "LONGPOLL pushed new work");
 				else {
 					ux_note_work(&g_work);
+					refresh_net = true;
 					snprintf(ux_status_line, sizeof(ux_status_line), "Mining normally");
 				}
 				time(&g_work_time);
@@ -1725,6 +1818,8 @@ start:
 			}
 			pthread_mutex_unlock(&g_work_lock);
 			json_decref(val);
+			if (refresh_net)
+				ux_refresh_network_estimate(curl);
 		} else {
 			pthread_mutex_lock(&g_work_lock);
 			g_work_time -= LP_SCANTIME;
