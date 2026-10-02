@@ -218,7 +218,10 @@ that misses them at these heights is not this curve.
 
 Destroy cost changes by about 0.000 089% per block. Wallets construct
 at the confirm height plus a flat margin. An over-generous margin is a
-rounding error, not a strategy. The display form is not back-filled as
+rounding error, not a strategy. This repository's wallet takes that
+margin as 144 blocks after the current tip. See
+[Wallet Convergence confirmation margin](../../wallet/WALLET_CONVERGENCE_HEIGHT_PAD.md).
+The display form is not back-filled as
 `B`: construction must satisfy the inequality itself.
 
 Worst case the predicate’s left side reaches about `2¹¹⁰` and the

@@ -263,7 +263,9 @@ the threshold.
 
 Destroy cost changes by about 0.000 089% per block. Wallets construct at
 the confirm height plus a flat margin; an over-generous margin is a
-rounding error, not a strategy.
+rounding error, not a strategy. This repository's wallet takes that
+margin as 144 blocks after the current tip. See
+[Wallet Convergence confirmation margin](../../wallet/WALLET_CONVERGENCE_HEIGHT_PAD.md).
 
 Selected pins (atoms, display only):
 
