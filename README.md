@@ -78,6 +78,19 @@ documentation_consensus_authority = false
 Protocol specifications are normative SSOT.
 Implementations realize the frozen protocol.
 
+Philosophy:
+
+- [RIGOR Principles](docs/philosophy/RIGOR_PRINCIPLES.md)
+- [Protocol Boundary](docs/philosophy/RIGOR_PROTOCOL_BOUNDARY.md)
+
+Protocol:
+
+- [Consensus Invariants](docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md)
+
+Security:
+
+- [Security Patch Boundary](docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md)
+
 After mainnet activation, consensus invariants fix the protocol
 boundary: monetary issuance, asset separation, script templates,
 transaction authorization, proof-of-work identity, and ledger
@@ -85,10 +98,6 @@ transition.
 
 Changing these rules is not a software upgrade. It defines a different
 protocol and a separate network.
-
-**Consensus Invariants:** [`docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md`](docs/protocol/RIGOR_CONSENSUS_INVARIANTS.md)
-
-RIGOR separates security maintenance from protocol evolution. Bitcoin Core security research may inform implementation hardening, but RIGOR consensus rules are independently frozen. See [`docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md`](docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md).
 
 ---
 
@@ -188,6 +197,9 @@ Protocol SSOT: [`docs/protocol/RFC-020.md`](docs/protocol/RFC-020.md),
 
 Lock files: `core/src/consensus/params.h`,
 `core/src/consensus/rigor_consensus_lock.h`.
+
+AlphaPlus / Alpha1 names are historical release channels, not the current
+protocol identity. See [`CHANGELOG.md`](CHANGELOG.md).
 
 Extracted facts:
 [`docs/developer/CODE_SSOT_PROTOCOL_FACTS.md`](docs/developer/CODE_SSOT_PROTOCOL_FACTS.md).
@@ -321,7 +333,7 @@ are legacy experimental components.
 Vulnerability reporting: [`SECURITY.md`](SECURITY.md). Do not expose
 JSON-RPC to the public Internet.
 
-Security audits: [`docs/security/`](docs/security/).
+Security boundary: [`docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md`](docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md).
 
 ---
 
@@ -336,8 +348,7 @@ refinement_proved = false
 Formal verification proves properties of the protocol model. It does not
 prove that the C++ implementation is a refinement of that model.
 
-Operator map: [`docs/formal/VerificationStatus.md`](docs/formal/VerificationStatus.md).  
-Reproduce guide: [`docs/security/HOW_TO_VERIFY_RIGOR.md`](docs/security/HOW_TO_VERIFY_RIGOR.md).
+Operator map: [`docs/formal/VerificationStatus.md`](docs/formal/VerificationStatus.md).
 
 ---
 
@@ -361,19 +372,18 @@ Explorer: `explorer/` (Node). Pool: `pool/pilot` (`cargo build --release`).
 
 ## 12. Release information
 
-Current display version is `v0.2` (`RIGOR_RELEASE_VERSION` in
-`core/src/clientversion.h`).
+Code signing policy: [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md).
 
+Free code signing provided by SignPath.io, certificate by SignPath Foundation
+
+That sentence is the SignPath Foundation wording. It does not mean a certificate has been issued. Roles: [`docs/RELEASE_AND_SIGNING_ROLES.md`](docs/RELEASE_AND_SIGNING_ROLES.md). Privacy: [`docs/PRIVACY.md`](docs/PRIVACY.md).
+
+This repository may contain development and internal validation artifacts.
+Public release status is determined by tagged releases.
+
+Current binaries: [GitHub Releases](https://github.com/rigorchain/rigorchain/releases).
 Version history: [`CHANGELOG.md`](CHANGELOG.md).
-Release notes: [`docs/release/RIGOR_V0.2_RELEASE_NOTES.md`](docs/release/RIGOR_V0.2_RELEASE_NOTES.md).
-
-Build the node, wallet, and miner from this source. Prebuilt installers
-are published only when a GitHub Release actually hosts them.
-
-## 13. Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Report vulnerabilities via
-[`SECURITY.md`](SECURITY.md), not public issues.
+A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md).
 
 ---
 
@@ -382,7 +392,8 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md). Report vulnerabilities via
 | Path | Purpose |
 |------|---------|
 | `core/` | Full node, wallet, consensus |
-| `docs/` | Documentation (`docs/README.md`) |
+| `docs/` | Active documentation (`docs/README.md`) |
+| `archive/` | Historical RFC / design / formal records (not normative) |
 | `explorer/`, `miner/`, `pool/`, `web/` | Product components |
 | `verification/` | Public verification map |
 | `formal_verification/` | Coq model, golden vectors, manifests |

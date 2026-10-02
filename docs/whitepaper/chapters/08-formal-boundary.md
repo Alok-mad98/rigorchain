@@ -155,9 +155,9 @@ stay false until a refinement proof rewrites them.
 - It does not claim that C++ is formally verified, or that the
   running chain is a formally verified chain.
 
-Living correspondence and reproduction:
+Living correspondence:
 `docs/verification/FORMAL-VERIFICATION-VERDICT.md` (what the model
-proves), `docs/security/HOW_TO_VERIFY_RIGOR.md` (how to reproduce).
+proves). Reproduce from a full node against the published rules.
 Engineering frontier:
 `formal_verification/rigor_kernel/release/FormalizationFrontier.md`.
 Classified inventory:

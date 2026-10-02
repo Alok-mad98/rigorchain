@@ -36,7 +36,6 @@ HISTORICAL Bitcoin Core PR URLs in comments stay as citations of past work.
 | Formal verification status | [`docs/formal/VerificationStatus.md`](../docs/formal/VerificationStatus.md) |
 | Claims | [`docs/formal/Claims.md`](../docs/formal/Claims.md) |
 | Status SSOT | [`audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md`](../audit/formal_bridge/FORMAL_STATUS_SOURCE_OF_TRUTH_v1.md) |
-| How to verify | [`docs/security/HOW_TO_VERIFY_RIGOR.md`](../docs/security/HOW_TO_VERIFY_RIGOR.md) |
 | FV release checklist | [`docs/verification/FV-RELEASE-CHECKLIST.md`](../docs/verification/FV-RELEASE-CHECKLIST.md) |
 
 ---
@@ -242,7 +241,7 @@ make -f Makefile.coq -j"$(nproc)"
 ```
 
 Lottery `Kernel/GoldenHarness.v` is gone. Compile remaining protocol-core
-files from `_CoqProject.protocol-core`.
+files from `_CoqProject.protocol-core`. There is no `ArdaConsensus.v`.
 
 ### Assumption audit (what rests on axioms)
 

@@ -1,224 +1,99 @@
 # RIGOR Security Patch Boundary
 
-**Document status:** Engineering security review boundary.
+## Status
 
-This document creates no consensus rule.
-This document creates no upgrade mechanism.
-This document creates no governance layer.
+**Status:** Design Principle / Security Boundary Document
 
-It defines how security maintenance is reviewed so that a vulnerability fix cannot change RIGOR protocol identity.
+This document defines the boundary for applying external security fixes to RIGOR.
+
+It does not define consensus rules.
+
+It does not authorize protocol changes.
+
+It does not create governance or upgrade mechanisms.
 
 **Principle:**
 
 > RIGOR follows Bitcoin Core security research, not Bitcoin Core protocol evolution.
 
-RIGOR may study Bitcoin Core vulnerabilities, attack classes, and engineering mitigations.
+Bitcoin Core vulnerability fixes may be studied as security research. Bitcoin Core protocol evolution, new features, transaction-model changes, script-system changes, and economic-model changes are outside the RIGOR security-patch scope.
 
-RIGOR does not automatically inherit:
+The frozen properties named below are the locks already recorded in the [Consensus Invariants](../protocol/RIGOR_CONSENSUS_INVARIANTS.md). This document checks patches against those locks. It does not amend them, and it does not restate them as a second specification.
 
-- Bitcoin Core consensus changes
-- Bitcoin transaction model changes
-- Bitcoin script evolution
-- Bitcoin monetary policy changes
-- Bitcoin wallet architecture changes
-- Bitcoin relay policy changes
-
-Bitcoin Core is a security knowledge source.
-
-It is not the protocol authority for RIGOR.
-
-Protocol identity is recorded in [`../protocol/RIGOR_CONSENSUS_INVARIANTS.md`](../protocol/RIGOR_CONSENSUS_INVARIANTS.md). The constants below are the existing production locks. This document checks patches against those locks. It does not amend them.
+```
+consensus_authority = false
+protocol_upgrade_mechanism = false
+security_research_reference = true
+```
 
 ---
 
-## 1. Purpose
+## 1. Security Research vs Protocol Evolution
 
-RIGOR is derived from Bitcoin-style UTXO architecture.
+RIGOR distinguishes:
 
-After mainnet activation, protocol identity is frozen.
+```
+Security research
+        ≠
+Protocol evolution
+```
 
-Security maintenance must improve implementation robustness without changing protocol identity.
+Security fixes protect existing protocol properties.
 
-A security patch may close a crash, a race, a resource leak, a logging abuse path, or a corrupted-state path. It must leave unchanged which blocks are valid, which transactions are valid, who owns an asset, and how money is issued.
+Protocol evolution changes protocol properties.
 
----
+Bitcoin Core releases may contain both.
 
-## 2. Security Patch Classification Model
+Only the first category can be considered for RIGOR.
 
-Every external security fix must be classified into one of four categories before code is written.
-
-### Category A — Safe Security Adaptation
-
-Allowed.
-
-Examples:
-
-- memory safety fixes
-- race condition fixes
-- denial-of-service prevention
-- logging abuse prevention
-- resource exhaustion limits
-- file corruption protection
-- networking hardening
-
-Requirements. The adaptation must not change:
-
-- valid blocks
-- valid transactions
-- asset ownership
-- monetary rules
-
-Example. Bitcoin fixed a network crash vulnerability. RIGOR may implement an equivalent protection when that protection leaves block acceptance and transaction acceptance unchanged.
-
-### Category B — RIGOR-Specific Adaptation
-
-Requires independent review.
-
-Allowed only if rewritten for RIGOR architecture.
-
-Examples:
-
-- assumeutxo protection
-- compact block handling
-- UTXO snapshot integrity
-- index integrity
-
-Requirements. The original Bitcoin patch cannot be copied blindly.
-
-The review must prove:
-
-- the same security goal
-- a RIGOR protocol implementation, written against RIGOR components
-
-The Bitcoin diff is evidence of the defect. It is not the patch that lands in this tree.
-
-### Category C — Not Applicable
-
-Ignore.
-
-Bitcoin fixes related to components RIGOR does not contain:
-
-- Script interpreter
-- Taproot
-- Schnorr
-- Miniscript
-- MuSig2
-- package relay
-- cluster mempool
-
-Reason. No equivalent attack surface exists. These fixes are not deferred work.
-
-### Category D — Forbidden Protocol Modification
-
-Never import.
-
-Any change affecting the lists below creates a different protocol.
-
-#### Monetary Rules
-
-Forbidden:
-
-- subsidy changes
-- halving logic
-- supply calculation
-- inflation schedule
-- reserve issuance
-- burn rules
-
-#### Asset Model
-
-Forbidden:
-
-- adding asset types
-- changing ORU meaning
-- changing RES meaning
-- allowing RES → ORU
-- adding an external asset registry
-
-#### Script / Opcode Model
-
-Forbidden:
-
-- changing opcode meaning
-- adding opcode behavior
-- modifying `OP_CONVERGE`
-- changing template classification
-
-#### Signature Model
-
-Forbidden:
-
-- replacing Ed25519
-- adding ECDSA
-- adding Schnorr
-- adding alternate witness authorization
-
-#### Transaction Model
-
-Forbidden:
-
-- account model
-- smart contract execution
-- external state
-- non-UTXO consensus state
-
-#### Proof-of-Work
-
-Forbidden:
-
-- changing the PoW hash
-- changing the domain separator
-- changing the header format
-- changing target calculation
+A release note, a version number, or a bundled feature is not evidence that the accompanying consensus change belongs in RIGOR. This document does not treat any Bitcoin Core version as a RIGOR upgrade target.
 
 ---
 
-## 3. Frozen Consensus Boundary
+## 2. Patch Acceptance Questions
 
-RIGOR consensus identity consists of the following.
+Every external security fix must answer three questions before it is classified.
 
-### Monetary
+### Question 1
 
-- ORU fixed subsidy: `ORU_FLAT_BLOCK_SUBSIDY` = 128 ORU (`128 * COIN` = 12,800,000,000 tharns) at every height ≥ 1. Genesis subsidy is 0. There is no halving term.
-- RES derived issuance: RES is created by destroying ORU. Coinbase does not create RES.
-- `RES_MAX_SUPPLY` = 419,430,400,000,000 atoms = 2^22 RES.
-- ORU → RES only.
+Does the vulnerable component exist in RIGOR?
 
-### Transaction
+If it does not exist:
 
-- UTXO only.
-- Four accepted templates:
-  - Witness v0 / 20 bytes: spendable ORU. Version byte `0x00`.
-  - Witness v1 / 32 bytes: spendable RES. Version byte `0x51`.
-  - `HASH160 || OP_CONVERGE`: ORU destroy. Marker byte `0xbd`.
-  - zero-value `OP_RETURN`: data. Marker byte `0x6a`.
-- `OP_CONVERGE`.
+**IGNORE**
 
-### Authorization
+There is no RIGOR patch to take from that fix. The absence is not a backlog.
 
-- Ed25519. Public key is 32 bytes. Signature is 64 bytes.
-- `RGRORU01` for ORU spends.
-- `RGRRES01` for RES spends.
+### Question 2
 
-### Proof-of-Work
+Does the patch preserve frozen consensus invariants?
 
-- `SHA3-256("RGRPOW01" || header_80)`.
-- Header length is 80 bytes. Domain tag length is 8 bytes. Preimage length is 88 bytes.
-- Block identity remains `SHA256d(header_80)`.
+The patch must not change:
 
-### Genesis
+- ORU issuance;
+- RES supply;
+- ORU → RES convergence;
+- asset classification;
+- transaction validity rules;
+- Ed25519 authorization;
+- `RGRPOW01` Proof-of-Work identity;
+- genesis identity.
 
-- Mainnet genesis identity: `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`.
+If it changes any of them:
 
-Any modification of an item above is:
+**REJECT AS PROTOCOL CHANGE**
 
-> Protocol replacement, not security upgrade.
+### Question 3
 
----
+Does the patch change which blocks or transactions are valid?
 
-## 4. Security Review Requirement
+If it does:
 
-Every future security patch must include this analysis before merge.
+It is not a security patch.
+
+It is a protocol change.
+
+A fix is eligible to continue only when the component exists, the frozen invariants stay as they are, and the set of valid blocks and valid transactions stays the same.
 
 ```
 Security Review Record
@@ -232,35 +107,113 @@ RIGOR equivalent component:
 Same attack surface:
 YES / NO
 
-Consensus impact:
+Preserves frozen consensus invariants:
 YES / NO
 
-Protocol boundary affected:
+Changes valid blocks or transactions:
 YES / NO
 
 Decision:
 APPLY
 ADAPT
 IGNORE
-FORBIDDEN
+DO NOT PORT
 ```
 
-| Decision | Category | When it is used |
-|----------|----------|-----------------|
-| `APPLY` | A | Equivalent protection. Valid blocks, valid transactions, asset ownership, and monetary rules stay the same. |
-| `ADAPT` | B | Same security goal, rewritten for RIGOR. The Bitcoin patch is not copied. |
-| `IGNORE` | C | No equivalent attack surface. |
-| `FORBIDDEN` | D | The change would alter consensus identity. |
-
-No security patch may merge without this analysis. A record with a blank field is incomplete.
-
-`Consensus impact: YES` or `Protocol boundary affected: YES` requires decision `FORBIDDEN`. This document does not authorize a protocol change.
+A record with a blank field is incomplete. `Preserves frozen consensus invariants: NO` or `Changes valid blocks or transactions: YES` requires decision `DO NOT PORT`. This document does not authorize a protocol change.
 
 ---
 
-## 5. Required Code Review Rules
+## 3. Patch Classification
 
-Before merging a security patch, the reviewer must verify that the patch contains no changes to:
+External security fixes fall into four classes.
+
+### A — APPLY
+
+The same component and the same attack surface exist in RIGOR. The fix can be adopted directly.
+
+Adoption is direct only when all three questions pass. Equivalent protection for a crash, a race, a resource leak, a logging abuse path, or a corrupted-state path is the usual case. Valid blocks, valid transactions, asset ownership, and monetary rules stay the same.
+
+### B — ADAPT
+
+The attack surface exists, but RIGOR rules differ. The fix must be redesigned for RIGOR.
+
+The Bitcoin diff is evidence of the defect. It is not the patch that lands in this tree. The review must show the same security goal and an implementation written against RIGOR components. The redesigned fix must still pass the three questions.
+
+### C — IGNORE
+
+The Bitcoin feature does not exist in RIGOR.
+
+No equivalent attack surface exists. These fixes are not deferred work, and they are not an upgrade queue.
+
+### D — DO NOT PORT
+
+The change would pollute the frozen RIGOR protocol.
+
+Do not port it. A patch in this class alters a protected consensus boundary or changes which blocks or transactions are valid. It is a protocol change, not a security patch. Porting it would publish an implementation of a different protocol.
+
+| Decision | Class | When it is used |
+|---|---|---|
+| `APPLY` | A | Same component, same attack surface, three questions pass. |
+| `ADAPT` | B | Attack surface exists; the fix is rewritten for RIGOR and the three questions pass. |
+| `IGNORE` | C | The component does not exist in RIGOR. |
+| `DO NOT PORT` | D | The change would alter the frozen protocol. |
+
+---
+
+## 4. Protected Consensus Boundaries
+
+A security patch must not modify the following.
+
+These are properties of the frozen protocol. The lines under each heading are the existing locks. This section does not introduce a parameter.
+
+### Monetary
+
+- ORU issuance
+- RES maximum supply
+- convergence formula
+
+ORU issuance is the flat subsidy already enforced for every height ≥ 1, with genesis subsidy 0 and no halving term: `ORU_FLAT_BLOCK_SUBSIDY` = 128 ORU (`128 * COIN` = 12,800,000,000 tharns). RES maximum supply is `RES_MAX_SUPPLY` = 419,430,400,000,000 atoms = 2^22 RES. RES is created by destroying ORU. Coinbase does not create RES. The direction is ORU → RES only. The convergence formula is that existing destroy-to-mint predicate.
+
+### Ledger
+
+- UTXO model
+- asset identity rules
+
+Consensus state is one UTXO set and two native assets. Asset identity comes from script classification, not from an external registry.
+
+### Execution
+
+- script templates
+- Ed25519 authorization
+- signing domains
+
+The accepted templates, the Ed25519 authorization path, and the signing domains `RGRORU01` and `RGRRES01` stay as they are. Public keys are 32 bytes. Signatures are 64 bytes.
+
+### Network Identity
+
+- Genesis identity
+- `RGRPOW01` PoW identity
+
+Mainnet genesis identity remains `e2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468`. Proof-of-Work remains `SHA3-256("RGRPOW01" || header_80)`. The header is 80 bytes. The domain tag is 8 bytes. The preimage is 88 bytes. Block identity remains `SHA256d(header_80)`.
+
+Any modification of an item above is protocol replacement, not a security upgrade.
+
+---
+
+## 5. Security Fix Principle
+
+A security patch corrects an implementation defect.
+
+It does not redefine the protocol.
+
+If the implementation diverges from the frozen protocol, correct the implementation.
+
+Do not modify the protocol to fit an incorrect implementation.
+
+A vulnerability in software is not evidence that the monetary rules should change.
+
+Before merge, a reviewer still checks that the patch does not silently edit the consensus realization paths:
 
 - `core/src/consensus/`
 - `core/src/validation.cpp`
@@ -269,24 +222,50 @@ Before merging a security patch, the reviewer must verify that the patch contain
 - `core/src/consensus/tx_verify.cpp`
 - `core/src/pow.cpp`
 
-unless the change is explicitly approved as a protocol change. That approval is outside this document.
-
-`core/src/consensus/tx_verify.cpp` is listed again because it is the transaction-admission path. A reviewer opens it even when the rest of `core/src/consensus/` is untouched.
-
-The suite `security_boundary_tests` (`core/src/test/security_boundary_tests.cpp`) pins the documentation constants: ORU subsidy, `RES_MAX_SUPPLY`, the `OP_CONVERGE` byte, witness versions, signature domains, and the PoW domain tag. A security patch that moves those constants fails the suite. A passing suite does not replace the file review above.
+This document does not approve a protocol change to those paths. Any such approval is outside this document. The suite `security_boundary_tests` pins the locks named above. A passing suite does not replace the three questions, and a failing suite does not redefine the protocol.
 
 ---
 
-## Final statement
+## 6. Relationship with Bitcoin Core
+
+RIGOR tracks Bitcoin Core security research because RIGOR originated from Bitcoin Core architecture.
+
+However:
 
 RIGOR does not follow Bitcoin Core protocol evolution.
 
-RIGOR studies Bitcoin Core security research.
+Not imported through this security-patch process:
 
-Security improvements may strengthen implementation.
+- Taproot
+- Schnorr
+- Script expansion
+- package relay
+- cluster mempool
+- BIP324
+- monetary changes
 
-They must not redefine the protocol.
+This document does not schedule those items, and it does not name a Bitcoin Core version as a RIGOR upgrade target. They are not a future compatibility target, an upgrade path, or a required improvement. A change that alters a protected property is a protocol change, not a security patch.
 
-A change to consensus identity is not a patch.
+Items whose components do not exist in RIGOR stay in class C. Items that would change issuance, assets, scripts, signatures, transaction validity, Proof-of-Work identity, or genesis identity stay in class D.
 
-It is a different network.
+---
+
+## 7. Relationship with Consensus Invariants
+
+The frozen properties are recorded in [RIGOR Consensus Invariants](../protocol/RIGOR_CONSENSUS_INVARIANTS.md).
+
+Consensus invariants define what cannot change.
+
+The security patch boundary defines how security improvements are evaluated.
+
+This document does not override the invariants. Where a proposed fix and the frozen protocol disagree, the frozen protocol determines the intended behavior. The implementation is corrected. The defect does not become a new protocol definition.
+
+---
+
+## 8. Relationship with RIGOR Principles
+
+Long-term maintenance discipline is stated in [RIGOR Principles](../philosophy/RIGOR_PRINCIPLES.md).
+
+Security discipline follows protocol permanence and minimal consensus principles.
+
+Security research may strengthen the implementation. It stays inside the frozen protocol. A fix that changes the protocol is a different network, not a patch to this one.

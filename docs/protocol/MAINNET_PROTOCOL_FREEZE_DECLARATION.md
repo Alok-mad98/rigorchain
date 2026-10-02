@@ -2,11 +2,9 @@
 
 **Document status:** Production specification  
 **Date:** 2026-09-12  
-**Source of truth:** `core/src/consensus/res_issuance.h`, `core/src/consensus/rigor_consensus_lock.h`
+**Realization:** `core/src/consensus/res_issuance.h`, `core/src/consensus/rigor_consensus_lock.h`
 
-A shipping node enforces RFC-020 issuance and RFC-018 fee burn. If this
-declaration disagrees with those headers, the headers win. Changing a
-value below is a Level-5 consensus fork.
+The frozen protocol defines these rules. Those headers realize them. A shipping node realizes RFC-020 issuance and RFC-018 fee burn. If this declaration misstates a frozen property, the declaration is corrected. If the implementation diverges from the frozen protocol, the implementation contains the defect. The defect does not redefine the protocol. Changing a value below is a protocol change, not a software upgrade.
 
 ---
 
@@ -58,16 +56,16 @@ valid           ⇔  OpuHash(header) ≤ target
 - Preimage: exactly 88 bytes
 - Block identity: `SHA256d(header_80)` — not OpuHash
 - Difficulty: aserti3-2d; mainnet half-life **43200** s; per-block clamp ±12.5%
-- Changing the digest, domain tag, or SHA3 suffix is Level-5
+- Changing the digest, domain tag, or SHA3 suffix is a protocol change, not a software upgrade
 
 ---
 
 ## 2. Immutability
 
 > Any modification of the mint inequality, `RES_COIN`, or `RES_MAX_SUPPLY`
-> is a hard-fork-level constitutional violation.
+> is a protocol change, not a software upgrade.
 
-Forbidden without a new Level-5 action:
+The following are not maintenance. Each one is a different protocol:
 
 - Changing `RES_COIN` or `RES_DESTROY_COST_GENESIS`
 - Replacing RFC-020 with any other issuance rule
@@ -75,14 +73,14 @@ Forbidden without a new Level-5 action:
 - Introducing an activation height, feature flag, or dual-rule transition for RES issuance
 - Treating the display destroy cost as zero, free, or infinite
 
-Permitted without Level-5: documentation that does not change consensus
+Permitted as maintenance: documentation that does not change consensus
 meaning; non-consensus tooling; RPC field documentation.
 
 ---
 
 ## 3. Cryptographic boundary
 
-Changing any of the following is a Level-5 consensus fork.
+Changing any of the following is a protocol change, not a software upgrade.
 
 | Rule | Frozen value |
 |------|----------------|

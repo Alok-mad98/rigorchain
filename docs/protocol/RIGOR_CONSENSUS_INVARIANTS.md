@@ -1,23 +1,40 @@
 # RIGOR Consensus Invariants
 
-**Status:** Consensus rule extraction from production implementation.
+**Status:** Extraction of frozen RIGOR Mainnet consensus properties.
 
-**Purpose:**  
-This document identifies the consensus properties that define the RIGOR Mainnet protocol boundary.
+This document describes protocol invariants already defined by the frozen RIGOR consensus design.
 
-This document introduces:
+It is not a specification change.
+It introduces no consensus rule, governance mechanism, activation procedure, or upgrade authority.
 
-- no new consensus rule;
-- no activation mechanism;
-- no governance procedure;
-- no upgrade process.
+**Authority model:**
 
-It is a description of rules already enforced by the production consensus implementation.
+```
+Protocol definition
+        ↓
+Consensus invariants
+        ↓
+Reference implementation
+        ↓
+Running software
+```
 
-If this document and the implementation disagree:
+The protocol defines the rules.
+This document records those frozen properties.
+The production implementation realizes them.
 
-> The implementation defines the protocol behavior.  
-> This document is a human-readable extraction of that behavior.
+If implementation behavior diverges from the frozen protocol, the implementation contains the defect. The defect does not redefine the protocol. The correction brings the implementation back into conformance with the frozen protocol.
+
+If this document misstates a frozen property, the document is corrected. An incorrect implementation is not adopted as a new protocol definition.
+
+Documentation and implementation must be reviewed against the frozen protocol definition.
+
+```
+new_consensus_rules = false
+governance_layer = false
+upgrade_activation = false
+documentation_consensus_authority = false
+```
 
 ---
 
@@ -64,6 +81,30 @@ Network Identity Invariants
 ```
 
 Together they define the meaning of the chain.
+
+---
+
+## Protocol vs Implementation Boundary
+
+Consensus-critical code does not define the protocol.
+
+The protocol defines the rules that determine valid state transitions.
+
+Reference implementation code is only the execution mechanism that realizes those rules.
+
+A function, file, test, or code path may be consensus-critical because it implements a protocol property, but it does not become a source of authority.
+
+The authority relationship remains:
+
+```
+Protocol Definition
+        ↓
+Consensus Invariants
+        ↓
+Reference Implementation
+        ↓
+Running Software
+```
 
 ---
 
@@ -480,9 +521,9 @@ A full node evaluates:
 - Proof-of-Work;
 - state transition rules.
 
-The protocol boundary exists in consensus code.
+The frozen protocol is the boundary. The reference implementation realizes that boundary in consensus code.
 
-[`core/src/test/consensus_invariants_tests.cpp`](../../core/src/test/consensus_invariants_tests.cpp) pins the constants and the validation paths named in this document. A change to those rules fails that suite. The suite does not add a rule. It records the rules the node already enforces.
+[`core/src/test/consensus_invariants_tests.cpp`](../../core/src/test/consensus_invariants_tests.cpp) pins the constants and the validation paths named in this document. A divergence from those recorded properties fails that suite. The suite does not add a rule, and it does not redefine the protocol. It checks that the reference implementation still realizes the frozen properties this document records.
 
 ### How to run the suite
 
@@ -515,9 +556,11 @@ The 14 cases are one suite. Section 10 lists fewer rows because that table names
 
 ---
 
-## 10. Source Authority
+## 10. Reference Implementation
 
-Consensus enforcement locations:
+These locations are where the production code realizes the frozen properties. They are not a separate protocol authority.
+
+Consensus realization locations:
 
 ```
 core/src/consensus/
@@ -565,4 +608,4 @@ A developer may improve software around it.
 
 But changing the consensus boundary means creating a different protocol.
 
-RIGOR Mainnet remains defined by the rules that every node independently verifies.
+RIGOR Mainnet remains the frozen protocol. Every node independently verifies whether the software it runs realizes those rules.

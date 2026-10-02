@@ -2,7 +2,7 @@
 
 Chapter 11 recorded the omitted capabilities. This chapter states how
 the deployed protocol is intended to be maintained: what is frozen,
-what may change as software, and what would require an explicit RFC.
+and what may change as software.
 
 The claim is policy, not a schedule. This chapter does not promise a
 date, a hard fork, a feature, or a market outcome.
@@ -20,36 +20,34 @@ a promise of zero defects
 ## 12.1 Consensus freeze
 
 RFC-018 and RFC-020 are the live issuance and fee-destroy rules.
-They are treated as frozen for the running protocol described in this
-paper. The running C++ node remains the source of truth for what is
-enforced.
+They are frozen for the protocol described in this paper. The running
+C++ node realizes those rules. It does not define them. If the
+implementation diverges from the frozen protocol, the implementation
+contains the defect. The defect does not redefine the protocol.
 
 Updates to wallets, explorers, mining tools, and documentation are
 not protocol upgrades. Chapter 9 already stated that completing a
 guide or a page does not change the predicate, the 128 ORU subsidy,
 the classifier, or the derived ceiling.
 
-Documentation additions are not consensus changes. Only consensus
-code together with the live RFC rules defines protocol behavior.
-This paper may clarify wording. It does not, by existing, alter
-admit-or-reject.
+Documentation additions are not consensus changes. Protocol defines
+the rules. Implementation realizes the protocol. Tests verify the
+implementation. This paper may clarify wording. It does not, by
+existing, alter admit-or-reject.
 
 ---
 
-## 12.2 RFC process
+## 12.2 Protocol change is not maintenance
 
-A future change to consensus would require, at minimum:
+This paper does not define an upgrade process.
 
-- an explicit RFC stating the intended rule
-- public discussion
-- an implementation
-- tests
-- review
+A change to issuance rules, asset classification, transaction
+validity, Proof-of-Work identity, or cryptographic validation is a
+protocol change. It is not a software release of this protocol. It is
+a different protocol.
 
-This list is a process outline. It is not a commitment to any
-particular upgrade, timeline, or activation method. Historical RFC
-numbers that are not live rules remain historical (appendix). This
-paper does not edit RFC texts.
+Historical RFC numbers that are not live rules remain historical
+(appendix). This paper does not edit RFC texts.
 
 ---
 

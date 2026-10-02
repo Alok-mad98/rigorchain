@@ -4,9 +4,10 @@ Chapters 1–12 are the public argument. This appendix is lookup. It
 does not add a claim, rewrite `core/src/`, or write a day’s theorem
 count as a protocol parameter.
 
-The source of truth remains the running C++ node:
+The reference implementation realizes these parameters in:
 `core/src/consensus/params.h`,
-`core/src/consensus/rigor_consensus_lock.h`. The one public sentence
+`core/src/consensus/rigor_consensus_lock.h`.
+Those files are not a separate protocol authority. The one public sentence
 lives in Chapter 8 §8.5. This appendix does not repeat it.
 
 ---
@@ -87,14 +88,13 @@ Coinbase states this block’s height and pays ORU only.
 
 | Path | What to look up |
 |------|-----------------|
-| `core/src/` | Running consensus; sole source of truth |
+| `core/src/` | Reference implementation. Realizes the protocol; does not define it |
 | `core/src/consensus/params.h` | Frozen constants |
 | `core/src/consensus/rigor_consensus_lock.h` | Lock |
 | `formal_verification/rigor_kernel/` | Coq kernel model |
 | `formal_verification/rigor_kernel/release/FinalProofInventory.md` | Classified theorem inventory (snapshot, not a parameter) |
 | `formal_verification/rigor_kernel/release/FormalizationFrontier.md` | Formalization frontier |
 | `docs/verification/FORMAL-VERIFICATION-VERDICT.md` | What the model proves |
-| `docs/security/HOW_TO_VERIFY_RIGOR.md` | How to reproduce |
 | `docs/developer/CODE_SSOT_PROTOCOL_FACTS.md` | Code-fact extract |
 | `docs/specification/RIGOR_OPCODE_SPECIFICATION.md` | Opcodes |
 | `docs/mining/CONVERGENCE_ROOT_CANONICAL_SPEC.md` | Convergence Root encoding |
@@ -126,8 +126,8 @@ rules.
 
 | Term | Official meaning |
 |------|------------------|
-| ORU | Medium-of-exchange asset. Subsidy 128 after genesis |
-| RES | Designed store-of-value asset within the protocol. Derived ceiling `2²²` RES; not mined |
+| ORU | Operational Resource Unit. The operational asset produced by Proof-of-Work. Medium-of-exchange asset. Subsidy 128 after genesis |
+| RES | Reserve End State. The reserve-oriented asset created through irreversible ORU destruction. Designed store-of-value asset within the protocol. Derived ceiling `2²²` RES; not mined |
 | Convergence | Same-tx `OP_CONVERGE` destroy of ORU; MAY mint Witness v1 RES under the predicate |
 | `destroy_cost(h)` | Display mint cost. `2⁵⁰` is the curve normalization denominator. Consensus computes `B << 40`, not this quotient. Display rounding/floor do not enter consensus |
 | OpuHash | Live proof-of-work validity hash (not block identity) |

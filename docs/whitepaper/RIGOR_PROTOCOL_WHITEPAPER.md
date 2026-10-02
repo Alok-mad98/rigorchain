@@ -1053,7 +1053,7 @@ derived ceiling. A product “next step” can only mean clearer surfaces,
 not a dated rewrite of the rules. No investment yield is promised. No
 date is given for filling the derived RES ceiling.
 
-**A display remains a display. The rules remain in the node.** Security
+**A display remains a display. The protocol defines the rules. The node realizes them.** Security
 model and threat boundaries follow in Chapter 10.
 
 ---
@@ -1255,7 +1255,7 @@ maintained after deployment.
 
 Chapter 11 recorded the omitted capabilities. This chapter states how
 the deployed protocol is intended to be maintained: what is frozen,
-what may change as software, and what would require an explicit RFC.
+and what may change as software.
 
 The claim is policy, not a schedule. This chapter does not promise a
 date, a hard fork, a feature, or a market outcome.
@@ -1271,32 +1271,31 @@ a promise of zero defects
 ## 12.1 Consensus freeze
 
 RFC-018 and RFC-020 are the live issuance and fee-destroy rules.
-They are treated as frozen for the running protocol described in this
-paper. The running C++ node remains the source of truth for what is
-enforced.
+They are frozen for the protocol described in this paper. The running
+C++ node realizes those rules. It does not define them. If the
+implementation diverges from the frozen protocol, the implementation
+contains the defect. The defect does not redefine the protocol.
 
 Updates to wallets, explorers, mining tools, and documentation are
 not protocol upgrades. Chapter 9 already stated that completing a
 guide or a page does not change the predicate, the 128 ORU subsidy,
 the classifier, or the derived ceiling.
 
-Documentation additions are not consensus changes. Only consensus
-code together with the live RFC rules defines protocol behavior.
+Documentation additions are not consensus changes. Protocol defines
+the rules. Implementation realizes the protocol. Tests verify the
+implementation.
 
-## 12.2 RFC process
+## 12.2 Protocol change is not maintenance
 
-A future change to consensus would require, at minimum:
+This paper does not define an upgrade process.
 
-- an explicit RFC stating the intended rule
-- public discussion
-- an implementation
-- tests
-- review
+A change to issuance rules, asset classification, transaction
+validity, Proof-of-Work identity, or cryptographic validation is a
+protocol change. It is not a software release of this protocol. It is
+a different protocol.
 
-This list is a process outline. It is not a commitment to any
-particular upgrade, timeline, or activation method. Historical RFC
-numbers that are not live rules remain historical (appendix). This
-paper does not edit RFC texts.
+Historical RFC numbers that are not live rules remain historical
+(appendix). This paper does not edit RFC texts.
 
 ## 12.3 Software evolution boundary
 
@@ -1399,7 +1398,7 @@ this block’s height and pays ORU only. Spend signatures: Ed25519.
 `core/src/` is the running consensus. Kernel inventory:
 `formal_verification/rigor_kernel/release/FinalProofInventory.md`.
 Verdict: `docs/verification/FORMAL-VERIFICATION-VERDICT.md`.
-Reproduce: `docs/security/HOW_TO_VERIFY_RIGOR.md`. Live issuance
+Reproduce from a full node against the published rules. Live issuance
 docs: RFC-020, RFC-018. Noun list:
 [`chapters/09-glossary.md`](./chapters/09-glossary.md).
 

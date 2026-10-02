@@ -140,13 +140,13 @@ already said so.
 - It does not claim that product surfaces are complete, or that a
   placeholder is a protocol hole.
 - It does not claim that browser recomputation replaces a full node.
-- It does not claim that the website or this paper is the source of
-  truth. The source of truth is `core/src/`.
+- It does not claim that the website or this paper is the protocol.
+  The protocol defines the rules. `core/src/` realizes them.
 - It does not write the formal page as equivalence already holding,
   or an experiment page as a refinement proof.
 - It does not write visible mining as a source of validity.
 - It does not write this chapter’s surface list as another set of
   consensus rules.
 
-**A display remains a display. The rules remain in the node.** Security
+**A display remains a display. The protocol defines the rules. The node realizes them.** Security
 model and threat boundaries follow in Chapter 10.
