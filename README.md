@@ -281,6 +281,10 @@ The repository includes a reference miner implementation (`minerd`) that
 searches SHA3-256 `"RGRPOW01" || header_80`, matching node
 `CheckProofOfWork`.
 
+SOLO mining uses a miner-owned local RIGOR node and does not require a
+publicly reachable mining RPC endpoint.
+[`docs/mining/SOLO_MINING.md`](docs/mining/SOLO_MINING.md).
+
 [`miner/README_MINER.md`](miner/README_MINER.md).
 
 ---

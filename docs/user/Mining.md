@@ -16,6 +16,7 @@ for every height ≥ 1. ORU does not halve.
 
 | Document | Role |
 |----------|------|
+| [SOLO_MINING.md](../mining/SOLO_MINING.md) | SOLO local-node connectivity |
 | [RIGOR_GBT_ADAPTER_SPEC.md](../mining/RIGOR_GBT_ADAPTER_SPEC.md) | `getblocktemplate` adapter |
 | [TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md](../mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) | Template cache and assembler |
 | [CONVERGENCE_ROOT_CANONICAL_SPEC.md](../mining/CONVERGENCE_ROOT_CANONICAL_SPEC.md) | Convergence root in the template |
