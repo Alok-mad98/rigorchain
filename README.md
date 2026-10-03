@@ -285,6 +285,9 @@ SOLO mining uses a miner-owned local RIGOR node and does not require a
 publicly reachable mining RPC endpoint.
 [`docs/mining/SOLO_MINING.md`](docs/mining/SOLO_MINING.md).
 
+What the project provides for mining, and what stays open to independent
+miners and operators: [`docs/mining/MINING_SCOPE.md`](docs/mining/MINING_SCOPE.md).
+
 [`miner/README_MINER.md`](miner/README_MINER.md).
 
 ---

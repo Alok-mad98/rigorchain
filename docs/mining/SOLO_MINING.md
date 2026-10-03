@@ -57,5 +57,6 @@ rigor-miner -a rgrpow01 \
 
 | Document | Role |
 |----------|------|
+| [Mining scope](./MINING_SCOPE.md) | What the project provides, and what stays independent |
 | [Mining](../user/Mining.md) | SOLO mining overview |
 | [rigor miner](../../miner/README_MINER.md) | Reference miner |
