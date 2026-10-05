@@ -7,7 +7,6 @@
 #define BITCOIN_ARITH_UINT_BASE_H
 
 #include <cstring>
-#include <limits>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
@@ -164,8 +163,13 @@ public:
     {
         // prefix operator
         int i = 0;
-        while (i < WIDTH && ++pn[i] == 0)
+        while (i < WIDTH) {
+            const uint64_t next = static_cast<uint64_t>(pn[i]) + 1ULL;
+            pn[i] = static_cast<uint32_t>(next);
+            if (next != 0x100000000ULL)
+                break;
             i++;
+        }
         return *this;
     }
 
@@ -181,8 +185,16 @@ public:
     {
         // prefix operator
         int i = 0;
-        while (i < WIDTH && --pn[i] == std::numeric_limits<uint32_t>::max())
-            i++;
+        while (i < WIDTH) {
+            const uint64_t current = static_cast<uint64_t>(pn[i]);
+            if (current == 0) {
+                pn[i] = 0xffffffffU;
+                ++i;
+                continue;
+            }
+            pn[i] = static_cast<uint32_t>(current - 1ULL);
+            break;
+        }
         return *this;
     }
 

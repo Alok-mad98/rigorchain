@@ -29,7 +29,10 @@ namespace {
 std::vector<unsigned char> Sha3(const std::vector<unsigned char>& msg)
 {
     std::vector<unsigned char> out(32);
-    rigor_kernel::Sha3_256Short(msg.data(), msg.size(), out.data());
+    // An empty vector's data() is null. Length 0 still needs a valid pointer.
+    const unsigned char empty_src = 0;
+    const unsigned char* src = msg.empty() ? &empty_src : msg.data();
+    rigor_kernel::Sha3_256Short(src, msg.size(), out.data());
     return out;
 }
 

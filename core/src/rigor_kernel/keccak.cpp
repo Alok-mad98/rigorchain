@@ -31,7 +31,13 @@ constexpr int PI_LANE[24] = {10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4,
 
 inline uint64_t Rotl64(uint64_t x, int n) noexcept
 {
-    return (x << n) | (x >> (64 - n));
+    // Call sites pass n in 1..63. Drop the bits that wrap around before the
+    // left shift, then put them back with the complementary right shift.
+    // Same 64-bit rotate as (x << n) | (x >> (64 - n)).
+    const unsigned s = static_cast<unsigned>(n);
+    const uint64_t wrapped = x >> (64u - s);
+    const uint64_t stay = (x & (~uint64_t{0} >> s)) << s;
+    return stay | wrapped;
 }
 
 } // namespace

@@ -116,15 +116,15 @@ void AsertWideShl1(AsertWide& v, bool& wide_overflow)
 {
     wide_overflow = wide_overflow || ((v[5] & (1ULL << 63)) != 0);
     for (int i = 5; i > 0; --i) {
-        v[static_cast<size_t>(i)] = (v[static_cast<size_t>(i)] << 1) | (v[static_cast<size_t>(i - 1)] >> 63);
+        v[static_cast<size_t>(i)] = ((v[static_cast<size_t>(i)] & 0x7fffffffffffffffULL) << 1) | (v[static_cast<size_t>(i - 1)] >> 63);
     }
-    v[0] <<= 1;
+    v[0] = (v[0] & 0x7fffffffffffffffULL) << 1;
 }
 
 void AsertWideShr1(AsertWide& v)
 {
     for (size_t i = 0; i < 5; ++i) {
-        v[i] = (v[i] >> 1) | (v[i + 1] << 63);
+        v[i] = (v[i] >> 1) | ((v[i + 1] & 1ULL) << 63);
     }
     v[5] >>= 1;
 }
