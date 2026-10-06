@@ -316,18 +316,7 @@ Display identity matches the node: genesis
 
 ---
 
-## 8. Pool
-
-ORU-only mining coordination. GBT from `rigord` on RPC **8761**. The pool
-pays **ORU only**. It does not mint RES. Yaamp/yiimp paths under `pool/`
-are legacy experimental components.
-
-[`pool/README.md`](pool/README.md).  
-[`docs/pool/PRODUCTION_MINING_FLOW.md`](docs/pool/PRODUCTION_MINING_FLOW.md).
-
----
-
-## 9. Security model
+## 8. Security model
 
 | Layer | Role |
 |-------|------|
@@ -335,7 +324,7 @@ are legacy experimental components.
 | Script validation | Restricted monetary script families; classification ≠ issuance |
 | Proof-of-Work | OpuHash = SHA3-256 (`RGRPOW01`) with ASERT difficulty |
 | Ed25519 | Cryptographic ownership of spendable outputs |
-| Formal protocol properties | Model invariants — see section 10 |
+| Formal protocol properties | Model invariants — see section 9 |
 
 Vulnerability reporting: [`SECURITY.md`](SECURITY.md). Do not expose
 JSON-RPC to the public Internet.
@@ -344,7 +333,7 @@ Security boundary: [`docs/security/RIGOR_SECURITY_PATCH_BOUNDARY.md`](docs/secur
 
 ---
 
-## 10. Verification model
+## 9. Verification model
 
 ```
 equivalence_claimed = false
@@ -359,7 +348,7 @@ Operator map: [`docs/formal/VerificationStatus.md`](docs/formal/VerificationStat
 
 ---
 
-## 11. Build instructions
+## 10. Build instructions
 
 See [`docs/developer/Build.md`](docs/developer/Build.md) and `core/doc/build-*.md`.
 
@@ -373,11 +362,11 @@ make -j$(nproc)
 Binaries: `rigord`, `rigor-cli`, `rigor-qt` (if Qt enabled), `rigor-wallet`.
 
 Miner: `cd miner && ./autogen.sh && ./configure && make`.  
-Explorer: `explorer/` (Node). Pool: `pool/pilot` (`cargo build --release`).
+Explorer: `explorer/` (Node).
 
 ---
 
-## 12. Release information
+## 11. Release information
 
 Code signing policy: [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md).
 
@@ -401,7 +390,7 @@ A past tag’s notes (example): [`docs/release/RIGOR_V0.1.3_RELEASE_NOTES.md`](d
 | `core/` | Full node, wallet, consensus |
 | `docs/` | Active documentation (`docs/README.md`) |
 | `archive/` | Historical RFC / design / formal records (not normative) |
-| `explorer/`, `miner/`, `pool/`, `web/` | Product components |
+| `explorer/`, `miner/`, `web/` | Product components |
 | `verification/` | Public verification map |
 | `formal_verification/` | Coq model, golden vectors, manifests |
 
