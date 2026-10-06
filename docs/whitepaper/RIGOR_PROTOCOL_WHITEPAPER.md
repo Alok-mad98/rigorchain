@@ -836,9 +836,20 @@ create RES. Finding a header does not legalise an underpaid mint.
 ## 6.3 Difficulty is not mint cost
 
 Target spacing 600 s. ASERT half-life 43 200 s, clamp ±12.5%, parent
-time/height only. ASERT adjusts difficulty so block spacing tends
-toward the target. Height remains a block-count index. ASERT does not
-bind `h` to wall-clock time and does not enter the predicate.
+time/height only.
+
+The ±12.5% bound is a consensus-level adjacent-target clamp: the target
+selected for a block may move by at most 12.5% from its parent target.
+It is deliberately conservative for abrupt hash-rate excursions,
+particularly during the low-hashrate Genesis regime. This makes
+difficulty transitions smoother, at the cost of potentially slower
+block-time recovery after a large and persistent change in hash rate.
+Under ordinary conditions, the ASERT step is typically much smaller
+than the clamp, so the bound is normally inactive.
+
+ASERT adjusts difficulty so block spacing tends toward the target.
+Height remains a block-count index. ASERT does not bind `h` to
+wall-clock time and does not enter the predicate.
 
 The kernel models most-work finite-tip selection on `GetBlockProof`.
 It does not prove `ActivateBestChain`.
