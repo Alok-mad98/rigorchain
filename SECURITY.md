@@ -30,15 +30,12 @@ Highest priority, in order:
 4. **Node availability** — remote crashes, unbounded memory or disk growth, and consensus
    validation that can be made superlinear by an attacker.
 
-Also in scope, at lower priority: the pool (`pool/`), the explorer (`explorer/`), and the
-miner (`miner/`). Note that a pool never custodies RES — it issues ORU only — so pool
-compromise has a smaller blast radius than a consensus bug, but a pool that can steer the
-convergence set is a consensus-adjacent finding and we want to hear about it.
+Also in scope, at lower priority: the explorer (`explorer/`), and the
+miner (`miner/`).
 
-Out of scope: findings against the vendored third-party code under `pool/web/framework/`
-and `pool/web/extensions/` should go upstream. Missing hardening headers on a static site,
-and reports produced solely by an automated scanner without a demonstrated impact, are not
-useful to us.
+Out of scope: missing hardening headers on a static site, and reports
+produced solely by an automated scanner without a demonstrated impact,
+are not useful to us.
 
 ## What we already know
 

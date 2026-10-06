@@ -253,12 +253,11 @@ coinbase. Required copy-bytes: `default_coinbase_tx`,
 `coinbase_address` must be ORU witness v0. RES mint is a body transaction,
 not a GBT coinbase prize.
 
-### SOLO vs pool
+### SOLO
 
 | Mode | Fact |
 |------|------|
 | SOLO | Miner polls node GBT over HTTP RPC, copies bytes, grinds nonce, `submitblock`. Stratum is refused as a SOLO URL. Default RPC `8761`. |
-| Pool | `pool/rigor-gbt` polls the same GBT. `pool/pilot` is an ORU-only pool product. Pool does not mint RES. Yaamp/yiimp tree is quarantined leftover. Example RPC port `8761`. |
 
 **Component honesty:** shipped `minerd` grinds the same OpuHash digest as
 the node (`SHA3-256("RGRPOW01" || header_80)`). CLI: `-a rgrpow01`

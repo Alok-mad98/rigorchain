@@ -236,17 +236,20 @@ for i, text in enumerate(["docs/miner/README.md", "miner/README_MINER.md", "READ
 if not exists("docs/security/RIGOR_SOLO_MINER_POW_ALIGNMENT_P0_098.md"):
     fail("DELIVERABLE", "missing docs/security/RIGOR_SOLO_MINER_POW_ALIGNMENT_P0_098.md")
 
-# --- Pool SOLO compatibility (read-only) ---
-pool_readme = read("pool/README.md")
-gbt_rs = read("pool/rigor-gbt/src/rpc.rs")
-example = read("pool/config/example.toml")
-if "8761" not in pool_readme or "8761" not in example:
-    fail("POOL_SOLO_COMPATIBILITY", "pool example/README missing RPC 8761")
-if "getblocktemplate" not in gbt_rs or "submitblock" not in gbt_rs:
-    fail("POOL_SOLO_COMPATIBILITY", "pool/rigor-gbt missing GBT/submitblock RPC")
-if not exists("pool/share-validator/src/opuhash.rs"):
-    fail("POOL_SOLO_COMPATIBILITY", "pool share-validator unexpectedly removed")
-info("POOL_SOLO_COMPATIBILITY", "pool GBT+submitblock+8761 unchanged; pool consensus not edited")
+# --- Pool SOLO compatibility (read-only; skip when pool/ is absent) ---
+if exists("pool/README.md"):
+    pool_readme = read("pool/README.md")
+    gbt_rs = read("pool/rigor-gbt/src/rpc.rs")
+    example = read("pool/config/example.toml")
+    if "8761" not in pool_readme or "8761" not in example:
+        fail("POOL_SOLO_COMPATIBILITY", "pool example/README missing RPC 8761")
+    if "getblocktemplate" not in gbt_rs or "submitblock" not in gbt_rs:
+        fail("POOL_SOLO_COMPATIBILITY", "pool/rigor-gbt missing GBT/submitblock RPC")
+    if not exists("pool/share-validator/src/opuhash.rs"):
+        fail("POOL_SOLO_COMPATIBILITY", "pool share-validator unexpectedly removed")
+    info("POOL_SOLO_COMPATIBILITY", "pool GBT+submitblock+8761 unchanged; pool consensus not edited")
+else:
+    info("POOL_SOLO_COMPATIBILITY", "pool/ not in this tree; SOLO miner path only")
 
 # --- Build + run miner tests ---
 test_out = ""

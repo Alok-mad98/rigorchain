@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "${ALPHA_DIR}/../.." && pwd)"
 RUNTIME="${REPO_ROOT}/.runtime/alpha-local-stack"
 LMS="${REPO_ROOT}/contrib/testing/local_mainnet_simulation"
 
-for pidf in pool-pilot.pid explorer.pid; do
+for pidf in explorer.pid; do
   if [[ -f "${RUNTIME}/${pidf}" ]]; then
     pid="$(cat "${RUNTIME}/${pidf}")"
     kill "${pid}" 2>/dev/null || true

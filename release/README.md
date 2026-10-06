@@ -47,7 +47,6 @@ sha256sum -c SHA256SUMS
 
 - Public DNS seeds and seed nodes are **not** deployed.
 - Public explorer and monitoring infrastructure are **pending**.
-- Production pool deployment is **pending** (local devtest pool validated only).
 - Alpha packages are **not** Guix-signed mainnet releases.
 
 See [RIGOR_ALPHA_RELEASE_NOTES.md](../docs/release/RIGOR_ALPHA_RELEASE_NOTES.md).

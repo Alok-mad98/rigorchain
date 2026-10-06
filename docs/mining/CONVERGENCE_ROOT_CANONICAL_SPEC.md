@@ -2,7 +2,7 @@
 
 **Document status:** Production documentation  
 **Authority:** `P03_LIVE_EQUIVALENCE_CERTIFICATION.md`, `convergence_root.cpp`  
-**Implementation:** `pool/rigor-convergence-root/` (single source of truth)
+**Implementation:** `core/src/consensus/` (`ComputeConvergenceRootFromEligibilityTxids`)
 
 ---
 
@@ -49,67 +49,13 @@ This matches C++ `uint256::SetHex` / `ParseHex256`.
 
 ---
 
-## 3. Pool API (canonical)
+## 3. Canonical implementation
 
-```rust
-use rigor_convergence_root::{
-    compute_convergence_root,              // GBT display txids → C native
-    compute_convergence_root_for_rigord_f, // GCR cardinality gate
-    compute_convergence_root_from_native, // draw replay internal
-    native_to_hash_hex,                    // C → job snapshot string
-    display_hex_to_native,                 // GBT txid → native
-    hash_hex_to_native,                    // job root string → native
-};
-```
-
-### Publish path (block-assembler)
-
-```text
-GBT convergence_txids[] (display hex)
-  → compute_convergence_root()
-  → native C
-  → native_to_hash_hex(C) → job.coinbase.convergence_root_hex
-  → native C embedded in coinbase scriptSig
-```
-
-### Draw replay path (winner-engine)
-
-```text
-GBT txids → display_hex_to_native → F native
-  → compute_convergence_root_from_native(F_native) → C
-  → native_to_hash_hex(C) in DrawReplayResult.convergence_root_display
-```
-
-AUTH-03 binds authorization to `job.coinbase.convergence_root_hex` (assembler output).
-
-### Mint path (mint-engine)
-
-```text
-convergence_root_hex (HashHex) → hash_hex_to_native → witness proof field
-convergence_txid (display hex) → display_hex_to_native → witness proof field
-```
-
----
-
-## 4. Audit trail (pre-remediation)
-
-| Location | Pre-020 encoding | Post-020 |
-|----------|------------------|----------|
-| `block-assembler/convergence.rs` | Literal hex (wrong) | `rigor-convergence-root` |
-| `winner-engine/root.rs` | Duplicate impl | Re-export only |
-| `mint-engine/sigma.rs` | `display_hex_to_le32` for root (wrong) | `hash_hex_to_native` for root |
-| `share-validator` | via `block_assembler::compute_convergence_root` | unchanged import, fixed upstream |
-| `stratum-server` | via block-assembler job snapshot | unchanged |
-
----
-
-## 5. Live replay gate (122 blocks)
-
-When `getconvergenceresult.convergence_root_set_size < 2`, rigord **C = 0**.  
-Pool must use `compute_convergence_root_for_rigord_f(size, txids)` for equivalence — not raw `|txids|`.
-
-Fixture: `pool/rigor-convergence-root/tests/fixtures/testnet_root_replay_122.json`  
-Test: `live_root_replay_122.rs` — **122 / 122 PASS**
+Node consensus is the source of truth:
+`Consensus::ComputeConvergenceRootFromEligibilityTxids` in
+`core/src/consensus/`. GBT `convergence_txids[]` uses display hex
+(`uint256::GetHex` / `SetHex`). There is no in-tree Pool crate on the
+public tree.
 
 ---
 

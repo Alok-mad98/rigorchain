@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# — start local Node + Wallet RPC + Miner path + Pool + Explorer hooks
+# TASK-MAINNET-PRODUCT-ALPHA-001 — start local Node + Wallet RPC + Miner path + Explorer hooks
 set -euo pipefail
 
 ALPHA_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,34 +29,9 @@ bash "${LMS}/start_network.sh" "$@"
 source "${LMS}/common.sh"
 lms_require_binaries
 
-# Mine a few ORU blocks so wallet/miner/pool have tip
+# Mine a few ORU blocks so wallet/miner have tip
 log "Mining bootstrap ORU blocks…"
 bash "${LMS}/mine_oru.sh" 8 || true
-
-# Pool pilot (optional — build if missing)
-POOL_BIN="${REPO_ROOT}/pool/pilot/target/release/rigor-pool-pilot"
-if [[ ! -x "${POOL_BIN}" ]]; then
-  if command -v cargo >/dev/null 2>&1; then
-    log "Building pool pilot…"
-    (cd "${REPO_ROOT}/pool/pilot" && cargo build --release 2>&1 | tail -20) || log "Pool pilot build failed — continuing without pool"
-  fi
-fi
-
-if [[ -x "${POOL_BIN}" ]]; then
-  log "Starting rigor-pool-pilot on Stratum 127.0.0.1:3333…"
-  export RIGOR_RPC_URL="http://127.0.0.1:${LMS_NODE0_RPC}/"
-  export RIGOR_RPC_USER="${LMS_RPC_USER}"
-  export RIGOR_RPC_PASSWORD="${LMS_RPC_PASS}"
-  export STRATUM_LISTEN="127.0.0.1:3333"
-  export MINT_AUTO_SUBMIT="${MINT_AUTO_SUBMIT:-true}"
-  export RIGOR_POOL_PROFILE="${RIGOR_POOL_PROFILE:-devtest}"
-  export PILOT_STATUS_FILE="${RUNTIME}/pool-pilot-status.json"
-  nohup "${POOL_BIN}" >"${RUNTIME}/pool-pilot.log" 2>&1 &
-  echo $! >"${RUNTIME}/pool-pilot.pid"
-  log "Pool PID $(cat "${RUNTIME}/pool-pilot.pid") — log ${RUNTIME}/pool-pilot.log"
-else
-  log "Pool pilot binary missing — skip Stratum (solo miner still valid)"
-fi
 
 # Explorer: write env pointing at Node0; start only if Postgres ready + START_EXPLORER=1
 cat > "${RUNTIME}/explorer.env" <<EOF
@@ -93,14 +68,12 @@ RIGOR Alpha Local Stack
 Node0 RPC:  http://127.0.0.1:${LMS_NODE0_RPC}  user=${LMS_RPC_USER}
 Node1 RPC:  http://127.0.0.1:${LMS_NODE1_RPC}
 Node2 RPC:  http://127.0.0.1:${LMS_NODE2_RPC}
-Stratum:    127.0.0.1:3333 (if pool pilot running)
 Explorer:   http://127.0.0.1:8080 (if START_EXPLORER=1)
 Wallet GUI: ${RIGOR_QT} -regtest -rpcport=${LMS_NODE0_RPC} ...
 Miner:      ${RIGOR_MINER} -o http://127.0.0.1:${LMS_NODE0_RPC} -u ${LMS_RPC_USER} -p ${LMS_RPC_PASS}
 
 Validate:
   contrib/alpha/validate_miner_local.sh
-  contrib/alpha/validate_pool_local.sh
   contrib/alpha/run_uat_checklist.sh
 EOF
 

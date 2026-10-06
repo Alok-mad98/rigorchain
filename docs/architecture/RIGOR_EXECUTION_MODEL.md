@@ -103,17 +103,6 @@ RES mint is a body transaction, not a GBT coinbase prize.
 
 **OpuHash** = SHA3-256(`"RGRPOW01" || header_80`). CLI: `-a rgrpow01`.
 
-### 3.1 Pool (ORU-only)
-
-`pool/pilot` is an ORU Stratum product:
-
-```
-rigor-gbt → block-assembler → share-validator → stratum-server
-                                              → ORU PPLNS
-```
-
-There is **no mint-engine**. The pool does not issue RES.
-
 ---
 
 ## 4. Observers
@@ -199,15 +188,15 @@ PostgreSQL explorer DB. Browser session. Not consensus.
 | Failure | Recovery |
 |---------|----------|
 | Invalid `submitblock` | rigord rejects |
-| Reorg | `DisconnectBlock` + pool cache invalidate |
-| Stale GBT | Miner / `rigor-gbt` refetch tip |
+| Reorg | `DisconnectBlock` |
+| Stale GBT | Miner refetch tip |
 | RPC down | Observer degrades |
 
 | ID | Invariant |
 |----|-----------|
 | EX-01 | ConnectBlock uses `CheckResMintArithmetic` for body mints |
 | EX-02 | Convergence outputs never enter UTXO |
-| EX-03 | Pool / miner cannot bypass validation |
+| EX-03 | Miner cannot bypass validation |
 | EX-04 | Observers never call mutating RPC |
 | EX-05 | `equivalence_claimed = false` |
 

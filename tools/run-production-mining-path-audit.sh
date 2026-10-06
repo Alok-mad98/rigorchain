@@ -148,62 +148,70 @@ if "COINBASE_MATURITY = 100" not in read("core/src/consensus/consensus.h"):
 if "RIGOR_MARKER_RES_MINT" not in read("core/src/script/rigor_bytes.h"):
     fail("RES_POW_CREATION_TEST", "RES mint marker missing from classifier")
 
-# --- Pool configuration ---
-example = read("pool/config/example.toml")
-pool_readme = read("pool/README.md")
-gbt_rpc = read("pool/rigor-gbt/src/rpc.rs")
-pilot_cfg = read("pool/pilot/src/config.rs")
-if 'network = "mainnet"' not in example or "rpc_port = 8761" not in example:
-    fail("POOL_CONFIGURATION_ALIGNMENT", "example.toml not mainnet/8761")
-if re.search(r"rpc_port\s*=\s*8332", example):
-    fail("POOL_CONFIGURATION_ALIGNMENT", "Bitcoin 8332 in production example")
-if "8332" in example and "Never Bitcoin 8332" not in example:
-    fail("POOL_CONFIGURATION_ALIGNMENT", "8332 without never-Bitcoin warning")
-if "8761" not in pool_readme or "getblocktemplate" not in gbt_rpc or "submitblock" not in gbt_rpc:
-    fail("POOL_CONFIGURATION_ALIGNMENT", "pool GBT/submitblock/8761 missing")
-if "8761" not in pilot_cfg:
-    fail("POOL_CONFIGURATION_ALIGNMENT", "pilot default RPC not 8761")
-if "payout_script_hex" not in example or "worker_credentials" not in example:
-    fail("POOL_CONFIGURATION_ALIGNMENT", "payout/worker identity missing from example")
+# --- Pool configuration (skip when pool/ is absent) ---
+if exists("pool/README.md"):
+    example = read("pool/config/example.toml")
+    pool_readme = read("pool/README.md")
+    gbt_rpc = read("pool/rigor-gbt/src/rpc.rs")
+    pilot_cfg = read("pool/pilot/src/config.rs")
+    if 'network = "mainnet"' not in example or "rpc_port = 8761" not in example:
+        fail("POOL_CONFIGURATION_ALIGNMENT", "example.toml not mainnet/8761")
+    if re.search(r"rpc_port\s*=\s*8332", example):
+        fail("POOL_CONFIGURATION_ALIGNMENT", "Bitcoin 8332 in production example")
+    if "8332" in example and "Never Bitcoin 8332" not in example:
+        fail("POOL_CONFIGURATION_ALIGNMENT", "8332 without never-Bitcoin warning")
+    if "8761" not in pool_readme or "getblocktemplate" not in gbt_rpc or "submitblock" not in gbt_rpc:
+        fail("POOL_CONFIGURATION_ALIGNMENT", "pool GBT/submitblock/8761 missing")
+    if "8761" not in pilot_cfg:
+        fail("POOL_CONFIGURATION_ALIGNMENT", "pilot default RPC not 8761")
+    if "payout_script_hex" not in example or "worker_credentials" not in example:
+        fail("POOL_CONFIGURATION_ALIGNMENT", "payout/worker identity missing from example")
+else:
+    info("POOL_CONFIGURATION_ALIGNMENT", "pool/ not in this tree")
 
 # --- GBT / header alignment ---
 gbt_c = read("miner/gbt_solo.c")
-hdr_rs = read("pool/share-validator/src/header.rs")
 sha2 = read("miner/sha2.c")
 if "default_coinbase_tx" not in gbt_c or "header_words[19]" not in gbt_c:
     fail("GBT_ALIGNMENT", "miner GBT copy-bytes/header_words missing")
-if "version.to_le_bytes()" not in hdr_rs or "nonce.to_le_bytes()" not in hdr_rs:
-    fail("GBT_ALIGNMENT", "pool header endian missing")
+if exists("pool/share-validator/src/header.rs"):
+    hdr_rs = read("pool/share-validator/src/header.rs")
+    if "version.to_le_bytes()" not in hdr_rs or "nonce.to_le_bytes()" not in hdr_rs:
+        fail("GBT_ALIGNMENT", "pool header endian missing")
 if "rgrpow_hash80" not in sha2:
     fail("GBT_ALIGNMENT", "minerd scanhash not RGRPOW01")
 
 # --- Stratum ---
-orch = read("pool/stratum-server/src/orchestrator.rs")
-agent_proto = read("pool/stratum-server/src/protocol.rs")
-sv = read("pool/share-validator/src/validator.rs")
-rgr = read("pool/share-validator/src/rgrpow.rs")
-worker = read("pool/rigor-miner-agent/src/pow/worker.rs")
-if "requires_rgrpow01_agent" not in agent_proto or "requires_rgrpow01_agent" not in orch:
-    fail("STRATUM_ALIGNMENT", "Stratum rgrpow01 agent gate missing")
-if "rgrpow_hash80" not in rgr or "verify_rgrpow_share" not in sv:
-    fail("STRATUM_ALIGNMENT", "pool share-validator not on RGRPOW01")
-if "rgrpow_hash80" not in worker:
-    fail("STRATUM_ALIGNMENT", "miner-agent not hashing RGRPOW01")
-if "OpuHash agents are rejected" not in orch:
-    fail("OPUHASH_REJECTION_TEST", "Stratum still accepts OpuHash agents")
+if exists("pool/stratum-server/src/protocol.rs"):
+    orch = read("pool/stratum-server/src/orchestrator.rs")
+    agent_proto = read("pool/stratum-server/src/protocol.rs")
+    sv = read("pool/share-validator/src/validator.rs")
+    rgr = read("pool/share-validator/src/rgrpow.rs")
+    worker = read("pool/rigor-miner-agent/src/pow/worker.rs")
+    if "requires_rgrpow01_agent" not in agent_proto or "requires_rgrpow01_agent" not in orch:
+        fail("STRATUM_ALIGNMENT", "Stratum rgrpow01 agent gate missing")
+    if "rgrpow_hash80" not in rgr or "verify_rgrpow_share" not in sv:
+        fail("STRATUM_ALIGNMENT", "pool share-validator not on RGRPOW01")
+    if "rgrpow_hash80" not in worker:
+        fail("STRATUM_ALIGNMENT", "miner-agent not hashing RGRPOW01")
+    if "OpuHash agents are rejected" not in orch:
+        fail("OPUHASH_REJECTION_TEST", "Stratum still accepts OpuHash agents")
+else:
+    info("STRATUM_ALIGNMENT", "pool/stratum-server not in this tree")
 
 # --- Docs / deliverables ---
 for rel in [
     "docs/miner/README.md",
-    "docs/pool/PRODUCTION_MINING_FLOW.md",
     "docs/security/RIGOR_PRODUCTION_MINING_PATH_AUDIT_P0_099.md",
     "tools/run-production-mining-path-audit.sh",
     "tools/production_mining_path_dryrun.py",
 ]:
     if not exists(rel):
         fail("DELIVERABLE", f"missing {rel}")
-flow = read("docs/pool/PRODUCTION_MINING_FLOW.md") + read("docs/miner/README.md")
-for needle in ["SHA3-256(\"RGRPOW01\" || header_80)", "8761", "Miner", "Pool", "GBT", "RGRPOW01", "rigord"]:
+flow = read("docs/miner/README.md")
+if exists("docs/pool/PRODUCTION_MINING_FLOW.md"):
+    flow = read("docs/pool/PRODUCTION_MINING_FLOW.md") + flow
+for needle in ["SHA3-256(\"RGRPOW01\" || header_80)", "8761", "Miner", "GBT", "RGRPOW01", "rigord"]:
     if needle not in flow:
         fail("DELIVERABLE", f"docs missing {needle!r}")
 
@@ -231,32 +239,35 @@ if (root / "miner/Makefile").is_file():
 else:
     info("SOLO_MINING_TEST", "miner/Makefile missing; relying on dry-run")
 
-# --- pool cargo tests (tooling) ---
+# --- pool cargo tests (tooling; skip when pool/ is absent) ---
 pool_ok = True
-cargo = subprocess.run(["bash", "-lc", "command -v cargo"], capture_output=True, text=True)
-if cargo.returncode != 0:
-    fail("POOL_MINING_TEST", "cargo not installed")
-    pool_ok = False
+if not exists("pool/pilot/Cargo.toml"):
+    info("POOL_MINING_TEST", "pool/ not in this tree")
 else:
-    crates = [
-        root / "pool/share-validator",
-        root / "pool/stratum-server",
-        root / "pool/rigor-miner-agent",
-        root / "pool/pilot",
-    ]
-    for crate in crates:
-        if not (crate / "Cargo.toml").is_file():
-            fail("POOL_MINING_TEST", f"missing {crate}")
-            pool_ok = False
-            continue
-        crc, cout = run(["cargo", "test", "--offline"], cwd=crate, timeout=240)
-        if crc != 0:
-            crc, cout = run(["cargo", "test"], cwd=crate, timeout=300)
-        if crc != 0:
-            fail("POOL_MINING_TEST", f"{crate.name} cargo test failed:\n" + cout[-1500:])
-            pool_ok = False
-        else:
-            info("POOL_MINING_TEST", f"{crate.name} cargo test ok")
+    cargo = subprocess.run(["bash", "-lc", "command -v cargo"], capture_output=True, text=True)
+    if cargo.returncode != 0:
+        fail("POOL_MINING_TEST", "cargo not installed")
+        pool_ok = False
+    else:
+        crates = [
+            root / "pool/share-validator",
+            root / "pool/stratum-server",
+            root / "pool/rigor-miner-agent",
+            root / "pool/pilot",
+        ]
+        for crate in crates:
+            if not (crate / "Cargo.toml").is_file():
+                fail("POOL_MINING_TEST", f"missing {crate}")
+                pool_ok = False
+                continue
+            crc, cout = run(["cargo", "test", "--offline"], cwd=crate, timeout=240)
+            if crc != 0:
+                crc, cout = run(["cargo", "test"], cwd=crate, timeout=300)
+            if crc != 0:
+                fail("POOL_MINING_TEST", f"{crate.name} cargo test failed:\n" + cout[-1500:])
+                pool_ok = False
+            else:
+                info("POOL_MINING_TEST", f"{crate.name} cargo test ok")
 
 # --- Gate rollup ---
 def gate_from(name: str, extra_ok: bool, dry_token: str | None = None) -> str:

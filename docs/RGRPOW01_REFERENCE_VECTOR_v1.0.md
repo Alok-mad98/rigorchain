@@ -22,7 +22,6 @@ Independent cross-checks (byte-identical results):
 | Node kernel C++ | `rigor_kernel::Sha3_256Short` |
 | CPU miner C | `miner/rgrpow.c` → `rgrpow_hash80` |
 | Python 3 | `hashlib.sha3_256` |
-| Rust share-validator | `pool/share-validator/src/rgrpow.rs` → `rgrpow_hash80` (vector #001 unit test) |
 
 Any implementation that disagrees with these bytes is incompatible with RIGOR consensus.
 

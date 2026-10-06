@@ -11,8 +11,7 @@ export function MiningPage() {
       <header className="page-header">
         <h1>Mining</h1>
         <p className="muted">
-          Mining is local SOLO: wallet address → rigor-miner → local rigord GBT → submitblock. The
-          pool observer is not the mining path.
+          Mining is local SOLO: wallet address → rigor-miner → local rigord GBT → submitblock.
         </p>
         <p className="banner-warning">
           <strong>TESTNET ONLY</strong> for current public downloads. Coinbase must be{" "}
@@ -64,10 +63,6 @@ export function MiningPage() {
         <p>
           Observe the hash in <Link to="/explorer">Explorer</Link>. Advanced auditors can inspect{" "}
           <code>getblock &lt;hash&gt; 2</code> JSON from a local node.
-        </p>
-        <p className="muted">
-          A separate pool view is listed at <Link to="/mining/pool">pool</Link>. It is not the
-          solo mining path and is not a consensus authority.
         </p>
       </section>
     </div>

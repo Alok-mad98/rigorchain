@@ -35,7 +35,7 @@ pytest tests/rgrpow_compat
 Requires `gcc` and `g++` (compiles `miner/rgrpow.c` and `core/src/rigor_kernel/keccak.cpp`).
 Rust (`cargo`) is optional; when present the suite also builds
 `tests/rgrpow_compat/native/rust_cli` (same `Sha3_256` construction as
-`pool/share-validator/src/rgrpow.rs`).
+`core/src/rigor_kernel` / `miner/rgrpow.c`).
 
 ## Files
 

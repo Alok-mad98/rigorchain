@@ -1,4 +1,4 @@
-//! Same construction as pool/share-validator/src/rgrpow.rs::rgrpow_hash80.
+//! Same construction as miner/rgrpow.c and core/src/rigor_kernel GetRigorPowHash.
 use sha3::{Digest, Sha3_256};
 
 fn rgrpow_hash80(header: &[u8; 80]) -> [u8; 32] {

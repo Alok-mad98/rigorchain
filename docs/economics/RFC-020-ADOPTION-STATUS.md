@@ -178,12 +178,10 @@ kept (CI + retired proofs; no draw to rewrite). RFC-017 / PHASE-4D/4E
 issuance audits were moved to `archive/p0-history/docs/formal/`.
 `refinement_proved` stays **false**.
 
-**Landed this mining-architecture tranche (2026-09-14):** the pool
-production path is RFC-020 ORU-only GBT copy-bytes. `rigor-gbt` V-06
-rejects lottery JSON keys. `block-assembler` no longer inserts C / mint /
-CVGE. `stratum-server` / `pilot` no longer depend on `winner-engine`.
-`winner-engine` / `mint-engine` remain leftover audit crates via
-`rigor_gbt::legacy`.
+**Landed this mining-architecture tranche (2026-09-14):** the production
+mining path is RFC-020 ORU-only GBT copy-bytes. The node assembler
+rejects leftover lottery JSON keys. Coinbase does not insert C / mint /
+CVGE.
 
 **Landed this naming pass (2026-09-14):** live Coq, the load-bearing
 theorem table, and `FORMAL_THEOREM_INVENTORY.json` (819 names) list

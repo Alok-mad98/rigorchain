@@ -180,10 +180,8 @@ Minimum inputs to reproduce winner:
 Implemented identically in:
 
 - `core/src/consensus/convergence_logic.cpp`
-- `pool/winner-engine/src/draw.rs`
-- `pool/rigor-convergence-root/src/root.rs`
 
-Golden tests: `convergence_consensus_tests.cpp`, `pool/winner-engine/tests/golden_vectors.rs`, `pool/rigor-convergence-root/tests/golden_cr.rs`.
+Golden tests: `convergence_consensus_tests.cpp`.
 
 ### 4.3 Pool Telemetry Replay (SIM-004)
 
@@ -268,8 +266,6 @@ Any change to preimage byte layout is a **hard-forking** change (guarded by `RIG
 
 | Pair | Verified by |
 |------|-------------|
-| C++ rigord ↔ Rust pool root | 122/122 ROOT_EQUIVALENT |
-| C++ draw ↔ Rust winner-engine | 28/28 golden vectors |
 | Runtime ↔ SIM-006 fixtures | Offline validator (partial until archive complete) |
 
 ---

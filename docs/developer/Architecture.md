@@ -115,8 +115,6 @@ PoW does not create RES. Eligible RES-transfer ORU fees destroy
 - Header layout is 80 bytes. Non-RIGOR nodes reject RIGOR blocks.
 - New RPCs: `getconvergencestatus`, `getresmintstatus`.
 - GBT copy-bytes: `default_coinbase_tx`, `default_coinbase_scriptsig`.
-- Pool (`pool/pilot`) is ORU-only. It has no mint-engine and does not
-  issue RES.
 
 ---
 

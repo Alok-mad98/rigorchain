@@ -17,10 +17,8 @@ for every height ≥ 1. ORU does not halve.
 | Document | Role |
 |----------|------|
 | [SOLO_MINING.md](../mining/SOLO_MINING.md) | SOLO local-node connectivity |
-| [RIGOR_GBT_ADAPTER_SPEC.md](../mining/RIGOR_GBT_ADAPTER_SPEC.md) | `getblocktemplate` adapter |
-| [TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md](../mining/TEMPLATE_CACHE_AND_ASSEMBLER_SPEC.md) | Template cache and assembler |
+| [MINING_SCOPE.md](../mining/MINING_SCOPE.md) | What the project provides; no official pool |
 | [CONVERGENCE_ROOT_CANONICAL_SPEC.md](../mining/CONVERGENCE_ROOT_CANONICAL_SPEC.md) | Convergence root in the template |
-| [RIGOR_POOL_STACK_ARCHITECTURE.md](../mining/RIGOR_POOL_STACK_ARCHITECTURE.md) | Pool stack (non-consensus) |
 | [RIGOR_WINDOWS_MINER_DASHBOARD.md](../mining/RIGOR_WINDOWS_MINER_DASHBOARD.md) | Local Windows miner visualization (`:18083`) |
 
 Miner binary: [`../../miner/README_MINER.md`](../../miner/README_MINER.md).

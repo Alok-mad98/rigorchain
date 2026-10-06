@@ -8,7 +8,7 @@
 > (`REFINEMENT_PROVED=false`).
 
 
-**Task:** ``
+**Task:** `TASK-MAINNET-PRODUCT-ALPHA-001`
 **Scope:** Packaging + local stack only. No consensus / RFC / RES model changes.
 
 ## Components
@@ -18,7 +18,6 @@
 | `rigor-wallet` | `core/src/qt/rigor-qt` |
 | `rigord` | `core/src/rigord` |
 | `rigor-miner` | `cpuminer/minerd` |
-| Pool (local) | `pool/pilot` (`rigor-pool-pilot`) |
 | Explorer (local) | `explorer-indexer-mvp` |
 
 ## Build packages
@@ -34,7 +33,7 @@ Outputs:
 - `dist/alpha/linux/installers/` — `.deb`, AppImage/portable, tarball
 - `dist/alpha/windows/installers/` — NSIS `.exe` when PE binaries staged
 
-## Local stack (Node + Wallet + Miner + Pool + Explorer)
+## Local stack (Node + Wallet + Miner + Explorer)
 
 ```bash
 contrib/alpha/start_local_stack.sh
@@ -46,7 +45,6 @@ Validation:
 
 ```bash
 contrib/alpha/validate_miner_local.sh
-contrib/alpha/validate_pool_local.sh
 contrib/alpha/run_uat_checklist.sh
 ```
 

@@ -66,7 +66,7 @@ will be asked to split.
 
 Write the commit message for someone reading it in five years with no memory of the
 discussion. Say what changed and why it had to change. Prefix with the area — `consensus:`,
-`pool:`, `explorer:`, `doc:`, `test:`.
+`explorer:`, `doc:`, `test:`.
 
 Before you push:
 
@@ -77,8 +77,7 @@ test/functional/test_runner.py
 ```
 
 Match the style of the code around you. `core/` follows Bitcoin Core's conventions, which
-are documented in [core/doc/developer-notes.md](./core/doc/developer-notes.md); the Rust
-crates under `pool/` follow `rustfmt` and `clippy` defaults.
+are documented in [core/doc/developer-notes.md](./core/doc/developer-notes.md).
 
 Review
 ------

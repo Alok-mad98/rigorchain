@@ -56,7 +56,6 @@ test/functional/test_runner.py
 | Component | Directory | Build |
 |-----------|-----------|-------|
 | SOLO miner | `miner/` | See `miner/README_MINER.md` (`-a rgrpow01`) |
-| ORU pool | `pool/` | `cargo build --release` — no RES mint |
 | Explorer | `explorer/` | Node; copy `explorer/.env.example` to `.env.local` |
 | Website | `web/rigorchain-site/` | Node / Vite |
 | Coq model | `formal_verification/coq/` | Coq **8.15.x** (pin 8.15.0) |

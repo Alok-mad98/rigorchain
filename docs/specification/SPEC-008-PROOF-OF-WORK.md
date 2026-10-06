@@ -235,16 +235,14 @@ SHA256d block id, which is already computed for every accepted header.
 
 ## 6. Consumers
 
-The PoW function currently has **five independent implementations**. Each is an
+The PoW function currently has **independent implementations**. Each is an
 opportunity for a silent chain split.
 
 | Consumer | Path | Required action |
 |----------|------|-----------------|
-| Node | `core/src/pow_opus.cpp` | **Done** — `CheckProofOfWork` calls `rigor_kernel/pow_digest.cpp`. `pow_opus.cpp` remains in the tree for the miner/pool until those consumers switch. |
+| Node | `core/src/pow_opus.cpp` | **Done** — `CheckProofOfWork` calls `rigor_kernel/pow_digest.cpp`. `pow_opus.cpp` remains in the tree for the miner until that consumer switches. |
 | Functional tests | `core/test/functional/test_framework/opus_pow.py` | Replace; keep import-time self-test |
 | SOLO miner | `miner/opus_hash.{cpp,h}` | Replace; retire `sha2.c` from the PoW path |
-| Pool share validator | `pool/share-validator/src/opuhash.rs` | Replace |
-| Pool miner agent | `pool/rigor-miner-agent/src/pow/worker.rs` | Replace |
 | Explorer | `explorer/src/` (`opus_hash` display) | Rename and re-point |
 
 **Requirement.** Ratification of this specification is conditional on reducing

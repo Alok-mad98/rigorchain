@@ -36,7 +36,7 @@ JSON-RPC to the wallet on the same computer, over `127.0.0.1:8761` only.
 | Work source | `getblocktemplate` from your own node | Stratum from a third party |
 | Coinbase | Built by your node, paid to your `rg1q` | Built by the pool operator |
 | Trust | Your node validates everything | You trust an operator's dashboard |
-| Status in this release | Official | `pool/` exists in-tree, quarantined, not part of the user path |
+| Status in this release | Official | Not shipped |
 
 The miner copies the node's coinbase bytes verbatim. It does not invent an
 extra-nonce and it cannot add outputs, so it cannot mint RES even if asked.

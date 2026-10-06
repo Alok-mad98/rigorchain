@@ -422,40 +422,43 @@ miner_fail = any(f["component"] == "MINER" and f["severity"] == "FAIL" for f in 
 MINER_ALIGNMENT = "FAIL" if miner_fail else "PASS"
 
 # ---------------------------------------------------------------------------
-# 5. Pool
+# 5. Pool (skip when the Pool product is not in this tree)
 # ---------------------------------------------------------------------------
-ex_toml = read("pool/config/example.toml") if exists("pool/config/example.toml") else ""
-cfg_rs = read("pool/pilot/src/config.rs") if exists("pool/pilot/src/config.rs") else ""
-pool_readme = read("pool/README.md") if exists("pool/README.md") else ""
-yaamp = (root / "pool/web/yaamp").is_dir()
-stratum_rs = exists("pool/stratum-server/src/protocol.rs") or exists("pool/stratum-server/README.md")
-res_boundary = exists("pool/share-validator/src/res_mint.rs")
+if (root / "pool").is_dir():
+    ex_toml = read("pool/config/example.toml") if exists("pool/config/example.toml") else ""
+    cfg_rs = read("pool/pilot/src/config.rs") if exists("pool/pilot/src/config.rs") else ""
+    pool_readme = read("pool/README.md") if exists("pool/README.md") else ""
+    yaamp = (root / "pool/web/yaamp").is_dir()
+    stratum_rs = exists("pool/stratum-server/src/protocol.rs") or exists("pool/stratum-server/README.md")
+    res_boundary = exists("pool/share-validator/src/res_mint.rs")
 
-if "rpc_port = 8332" in ex_toml:
-    finding(
-        "POOL",
-        "FAIL",
-        "pool example.toml default RPC port is Bitcoin 8332, not RIGOR 8761",
-        "pool/config/example.toml",
-    )
-if "fn default_rpc_port" in cfg_rs and "8332" in cfg_rs:
-    finding(
-        "POOL",
-        "FAIL",
-        "pool pilot default_rpc_port() is 8332, not 8761",
-        "pool/pilot/src/config.rs",
-    )
-if not stratum_rs:
-    finding("POOL", "FAIL", "Rust stratum-server missing", "pool/stratum-server")
-if not res_boundary:
-    finding("POOL", "FAIL", "ORU-only RES mint boundary module missing", "res_mint.rs")
-if yaamp:
-    finding(
-        "POOL",
-        "INFO",
-        "legacy yaamp/yiimp tree still present (documented quarantine)",
-        "pool/web/yaamp",
-    )
+    if "rpc_port = 8332" in ex_toml:
+        finding(
+            "POOL",
+            "FAIL",
+            "pool example.toml default RPC port is Bitcoin 8332, not RIGOR 8761",
+            "pool/config/example.toml",
+        )
+    if "fn default_rpc_port" in cfg_rs and "8332" in cfg_rs:
+        finding(
+            "POOL",
+            "FAIL",
+            "pool pilot default_rpc_port() is 8332, not 8761",
+            "pool/pilot/src/config.rs",
+        )
+    if not stratum_rs:
+        finding("POOL", "FAIL", "Rust stratum-server missing", "pool/stratum-server")
+    if not res_boundary:
+        finding("POOL", "FAIL", "ORU-only RES mint boundary module missing", "res_mint.rs")
+    if yaamp:
+        finding(
+            "POOL",
+            "INFO",
+            "legacy yaamp/yiimp tree still present (documented quarantine)",
+            "pool/web/yaamp",
+        )
+else:
+    finding("POOL", "INFO", "pool/ not in this tree; SOLO mining only", "")
 
 pool_fail = any(f["component"] == "POOL" and f["severity"] == "FAIL" for f in findings)
 POOL_ALIGNMENT = "FAIL" if pool_fail else "PASS"
