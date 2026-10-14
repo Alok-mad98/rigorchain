@@ -101,6 +101,29 @@ protocol and a separate network.
 
 ---
 
+## Core Monetary Parameters
+
+RIGOR monetary behavior is defined by a small set of immutable consensus constants.
+
+| Parameter | Value | Meaning |
+|---|---|---|
+| ORU block subsidy | 2^7 | 128 ORU per block |
+| Initial RES destruction cost | 2^10 | 1024 ORU per RES at initial scale |
+| Convergence scale parameter | 2^25 | Controls RES cost growth |
+| Theoretical maximum RES supply | 2^22 | 4,194,304 RES |
+
+These parameters are consensus constants.
+
+They are not governance parameters.
+
+Changing these values would define a different protocol.
+
+Full specification:
+
+[RIGOR Core Parameters Specification](https://github.com/rigorchain/rigorchain/blob/main/docs/protocol/RIGOR_CORE_PARAMETERS_SPECIFICATION.md)
+
+---
+
 ## Treasury & Market Neutrality
 
 RIGOR is designed to be a protocol and network, not a price-support operation.
@@ -145,6 +168,9 @@ The project's responsibility is to build a network worthy of independent partici
 
 Architecture:
 [`docs/architecture/RIGOR_ARCHITECTURE_PAPER.md`](docs/architecture/RIGOR_ARCHITECTURE_PAPER.md)
+
+Core monetary parameters:
+[`docs/protocol/RIGOR_CORE_PARAMETERS_SPECIFICATION.md`](https://github.com/rigorchain/rigorchain/blob/main/docs/protocol/RIGOR_CORE_PARAMETERS_SPECIFICATION.md)
 
 Protocol specification:
 [`docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md`](docs/whitepaper/RIGOR_PROTOCOL_WHITEPAPER.md)

@@ -26,6 +26,7 @@ documents that describe the current protocol.
 | [`RFC-018.md`](./RFC-018.md) | RES-transfer ORU fee burn (still current) |
 | [`RIGOR_CONSENSUS_INVARIANTS.md`](./RIGOR_CONSENSUS_INVARIANTS.md) | Records frozen Mainnet properties. The reference implementation realizes them |
 | [`MAINNET_PROTOCOL_FREEZE_DECLARATION.md`](./MAINNET_PROTOCOL_FREEZE_DECLARATION.md) | What is frozen |
+| [`RIGOR_CORE_PARAMETERS_SPECIFICATION.md`](./RIGOR_CORE_PARAMETERS_SPECIFICATION.md) | Immutable monetary constants and mathematical boundaries |
 | [`../specification/SPEC-000-CONSENSUS-SPECIFICATION.md`](../specification/SPEC-000-CONSENSUS-SPECIFICATION.md) | What production consensus does |
 | [`../specification/SPEC-003-CONSENSUS-RULES.md`](../specification/SPEC-003-CONSENSUS-RULES.md) | Validation predicates |
 | [`../specification/SPEC-008-PROOF-OF-WORK.md`](../specification/SPEC-008-PROOF-OF-WORK.md) | OpuHash = SHA3-256(`RGRPOW01` \|\| header_80) |
