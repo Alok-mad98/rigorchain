@@ -260,7 +260,6 @@ BASE_SCRIPTS = [
     'p2p_leak_tx.py',
     'p2p_eviction.py',
     'p2p_ibd_stalling.py',
-    'wallet_signmessagewithaddress.py',
     'rpc_signmessagewithprivkey.py',
     'rpc_generate.py',
     'wallet_balance.py --descriptors',

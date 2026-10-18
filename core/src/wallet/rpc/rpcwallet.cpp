@@ -506,7 +506,7 @@ RPCHelpMan simulaterawtransaction()
             },
             {"options", RPCArg::Type::OBJ_USER_KEYS, RPCArg::Optional::OMITTED, "Options",
                 {
-                    {"include_watchonly", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Whether to include watch-only addresses (see RPC importaddress)"},
+                    {"include_watchonly", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Whether to include watch-only addresses (see RPC importdescriptors)"},
                 },
             },
         },
@@ -660,9 +660,6 @@ RPCHelpMan walletprocesspsbt();
 RPCHelpMan walletcreatefundedpsbt();
 RPCHelpMan signrawtransactionwithwallet();
 
-// signmessage
-RPCHelpMan signmessage();
-
 // transactions
 RPCHelpMan listreceivedbyaddress();
 RPCHelpMan listreceivedbylabel();
@@ -727,7 +724,6 @@ Span<const CRPCCommand> GetWalletRPCCommands()
         {"wallet", &setlabel},
         {"wallet", &settxfee},
         {"wallet", &setwalletflag},
-        {"wallet", &signmessage},
         {"wallet", &signrawtransactionwithwallet},
         {"wallet", &simulaterawtransaction},
         {"wallet", &sendall},

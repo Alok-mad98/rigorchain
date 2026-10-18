@@ -538,7 +538,6 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpc/coins.cpp \
   wallet/rpc/encrypt.cpp \
   wallet/rpc/rpcspend.cpp \
-  wallet/rpc/signmessage.cpp \
   wallet/rpc/transactions.cpp \
   wallet/rpc/util.cpp \
   wallet/rpc/rpcwallet.cpp \

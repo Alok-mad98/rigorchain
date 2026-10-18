@@ -6,7 +6,6 @@
 """
 
 from test_framework.address import key_to_p2wpkh
-from test_framework.authproxy import JSONRPCException
 from test_framework.descriptors import descsum_create
 from test_framework.key import ECKey
 from test_framework.test_framework import BitcoinTestFramework
@@ -145,7 +144,7 @@ class CreateWalletTest(BitcoinTestFramework):
         self.log.info('New blank and encrypted wallets can be created')
         self.nodes[0].createwallet(wallet_name='wblank', disable_private_keys=False, blank=True, passphrase='thisisapassphrase')
         wblank = node.get_wallet_rpc('wblank')
-        assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", wblank.signmessage, "needanargument", "test")
+        assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", wblank.listdescriptors, True)
         wblank.walletpassphrase('thisisapassphrase', 60)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", wblank.getnewaddress)
         assert_raises_rpc_error(-4, "Error: This wallet has no available keys", wblank.getrawchangeaddress)
@@ -154,14 +153,9 @@ class CreateWalletTest(BitcoinTestFramework):
         # Born encrypted wallet is created (has keys)
         self.nodes[0].createwallet(wallet_name='w6', disable_private_keys=False, blank=False, passphrase='thisisapassphrase')
         w6 = node.get_wallet_rpc('w6')
-        assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", w6.signmessage, "needanargument", "test")
+        assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", w6.listdescriptors, True)
         w6.walletpassphrase('thisisapassphrase', 60)
-        try:
-            w6.signmessage(w6.getnewaddress('', "bech32"), "test")
-        except JSONRPCException as e:
-            # signmessage RPC only accepts legacy P2PKH (PKHash); witness addresses are rejected.
-            if e.error['code'] != -3:
-                raise
+        assert "descriptors" in w6.listdescriptors(True)
         w6.keypoolrefill(1)
         # Descriptor wallet keypool sizes (Rigor counts differ from upstream 4-key default)
         walletinfo = w6.getwalletinfo()

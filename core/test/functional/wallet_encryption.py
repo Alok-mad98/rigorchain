@@ -28,11 +28,9 @@ class WalletEncryptionTest(BitcoinTestFramework):
         passphrase = "WalletPassphrase"
         passphrase2 = "SecondWalletPassphrase"
 
-        # Make sure the wallet isn't encrypted first
-        msg = "test message"
-        address = self.nodes[0].getnewaddress(address_type='bech32m')
-        sig = self.nodes[0].signmessage(address, msg)
-        assert self.nodes[0].verifymessage(address, sig, msg)
+        # Make sure the wallet isn't encrypted first. Private descriptor export is the
+        # unlock probe: signmessage only accepted legacy PKHash, which RIGOR does not encode.
+        assert "descriptors" in self.nodes[0].listdescriptors(True)
         assert_raises_rpc_error(-15, "Error: running with an unencrypted wallet, but walletpassphrase was called", self.nodes[0].walletpassphrase, 'ff', 1)
         assert_raises_rpc_error(-15, "Error: running with an unencrypted wallet, but walletpassphrasechange was called.", self.nodes[0].walletpassphrasechange, 'ff', 'ff')
 
@@ -41,36 +39,33 @@ class WalletEncryptionTest(BitcoinTestFramework):
         self.nodes[0].encryptwallet(passphrase)
 
         # Test that the wallet is encrypted
-        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].signmessage, address, msg)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].listdescriptors, True)
         assert_raises_rpc_error(-15, "Error: running with an encrypted wallet, but encryptwallet was called.", self.nodes[0].encryptwallet, 'ff')
         assert_raises_rpc_error(-8, "passphrase cannot be empty", self.nodes[0].walletpassphrase, '', 1)
         assert_raises_rpc_error(-8, "passphrase cannot be empty", self.nodes[0].walletpassphrasechange, '', 'ff')
 
         # Check that walletpassphrase works
         self.nodes[0].walletpassphrase(passphrase, 2)
-        sig = self.nodes[0].signmessage(address, msg)
-        assert self.nodes[0].verifymessage(address, sig, msg)
+        assert "descriptors" in self.nodes[0].listdescriptors(True)
 
         # Check that the timeout is right
         time.sleep(3)
-        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].signmessage, address, msg)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].listdescriptors, True)
 
         # Test wrong passphrase
         assert_raises_rpc_error(-14, "wallet passphrase entered was incorrect", self.nodes[0].walletpassphrase, passphrase + "wrong", 10)
 
         # Test walletlock
         self.nodes[0].walletpassphrase(passphrase, 84600)
-        sig = self.nodes[0].signmessage(address, msg)
-        assert self.nodes[0].verifymessage(address, sig, msg)
+        assert "descriptors" in self.nodes[0].listdescriptors(True)
         self.nodes[0].walletlock()
-        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].signmessage, address, msg)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].listdescriptors, True)
 
         # Test passphrase changes
         self.nodes[0].walletpassphrasechange(passphrase, passphrase2)
         assert_raises_rpc_error(-14, "wallet passphrase entered was incorrect", self.nodes[0].walletpassphrase, passphrase, 10)
         self.nodes[0].walletpassphrase(passphrase2, 10)
-        sig = self.nodes[0].signmessage(address, msg)
-        assert self.nodes[0].verifymessage(address, sig, msg)
+        assert "descriptors" in self.nodes[0].listdescriptors(True)
         self.nodes[0].walletlock()
 
         # Test timeout bounds
@@ -98,8 +93,7 @@ class WalletEncryptionTest(BitcoinTestFramework):
         # walletpassphrasechange should not stop at null characters
         assert_raises_rpc_error(-14, "wallet passphrase entered was incorrect", self.nodes[0].walletpassphrase, passphrase_with_nulls.partition("\0")[0], 10)
         self.nodes[0].walletpassphrase(passphrase_with_nulls, 10)
-        sig = self.nodes[0].signmessage(address, msg)
-        assert self.nodes[0].verifymessage(address, sig, msg)
+        assert "descriptors" in self.nodes[0].listdescriptors(True)
         self.nodes[0].walletlock()
 
 

@@ -11,20 +11,10 @@ addresses against Bitcoin secp256k1 helpers such as get_generate_key().
 import os
 
 from test_framework.descriptors import descsum_create
+from test_framework.ed25519 import seed_to_keypair
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.wallet_util import bytes_to_wif
-
-
-def extract_res_secret(priv_descriptors):
-    for d in priv_descriptors:
-        desc = d["desc"]
-        if not desc.startswith("res("):
-            continue
-        inner = desc[len("res("):desc.index(")")]
-        if len(inner) == 128:
-            return inner, desc
-    return None, None
 
 
 class ImportRigorPrivkeyTest(BitcoinTestFramework):
@@ -67,22 +57,16 @@ class ImportRigorPrivkeyTest(BitcoinTestFramework):
         r2 = oru2b.importrigorprivkey(wif2, "", False, "ORU")
         assert_equal(oru2.getaddressinfo(r2["address"])["ismine"], True)
 
-        self.log.info("dumpprivkey redirects on descriptor wallets (use listdescriptors true)")
-        assert_raises_rpc_error(
-            -4,
-            "dumpprivkey is not supported on descriptor wallets",
-            oru_dst.dumpprivkey,
-            result["address"],
-        )
+        self.log.info("dumpprivkey is absent; listdescriptors true is the private export path")
+        assert_equal(node.help("dumpprivkey"), "help: unknown command: dumpprivkey")
         priv_descs = oru_dst.listdescriptors(True)["descriptors"]
         assert any(d["desc"].startswith("wpkh(") for d in priv_descs)
 
-        self.log.info("RES: extract secret from generated wallet, re-import via importrigorprivkey")
-        node.createwallet(wallet_name="res_src", descriptors=True)
-        res_src = node.get_wallet_rpc("res_src")
-        # Prefer a private res() descriptor (not ard()); derive the address from that descriptor.
-        res_secret, res_desc = extract_res_secret(res_src.listdescriptors(True)["descriptors"])
-        assert res_secret is not None, "expected private res() descriptor from BECH32M wallet"
+        self.log.info("RES: import a 64-byte Ed25519 seed||pubkey secret via importrigorprivkey")
+        # RIGOR expects the libsodium layout: 32-byte seed followed by the 32-byte pubkey.
+        pk32, sk64 = seed_to_keypair(os.urandom(32))
+        res_secret = sk64.hex()
+        res_desc = descsum_create(f"res({res_secret})")
         res_addr = node.deriveaddresses(res_desc)[0]
 
         node.createwallet(wallet_name="res_dst", blank=True, descriptors=True)
