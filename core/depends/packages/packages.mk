@@ -1,4 +1,4 @@
-packages:=
+packages:=libsodium
 
 boost_packages = boost
 

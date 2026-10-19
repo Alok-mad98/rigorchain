@@ -1621,13 +1621,33 @@ fi
 
 dnl libsodium check (required for Ed25519 support)
 dnl F-10: prefer static linkage so consensus verify is not a runtime shared-library lottery.
+dnl Release builds use the pinned static build (tools/release/libsodium.lock, depends/packages/libsodium.mk)
+dnl and pass --enable-static-libsodium so a shared system copy can never be picked up silently.
+AC_ARG_ENABLE([static-libsodium],
+  [AS_HELP_STRING([--enable-static-libsodium],
+  [fail unless libsodium resolves to a static archive only (required for release builds)])],
+  [require_static_sodium=$enableval],
+  [require_static_sodium=no])
 PKG_CHECK_MODULES([SODIUM], [libsodium >= 1.0.18], [
   SODIUM_STATIC_LIBS=`$PKG_CONFIG --static --libs libsodium 2>/dev/null`
   if test "x$SODIUM_STATIC_LIBS" != x; then
     SODIUM_LIBS="$SODIUM_STATIC_LIBS"
-    AC_MSG_NOTICE([linking libsodium statically into the consensus binary])
-  else
-    AC_MSG_WARN([pkg-config --static --libs libsodium failed; falling back to dynamic SODIUM_LIBS])
+  fi
+  SODIUM_LIBDIR=`$PKG_CONFIG --variable=libdir libsodium 2>/dev/null`
+  SODIUM_VERSION=`$PKG_CONFIG --modversion libsodium 2>/dev/null`
+  sodium_linkage=static
+  for sodium_shared in "$SODIUM_LIBDIR"/libsodium.so* "$SODIUM_LIBDIR"/libsodium*.dylib "$SODIUM_LIBDIR"/libsodium.dll.a; do
+    if test -e "$sodium_shared"; then sodium_linkage=dynamic; fi
+  done
+  if test "$sodium_linkage" = static && test ! -e "$SODIUM_LIBDIR/libsodium.a"; then
+    sodium_linkage=dynamic
+  fi
+  AC_MSG_NOTICE([libsodium $SODIUM_VERSION from $SODIUM_LIBDIR will be linked $sodium_linkage])
+  if test "$sodium_linkage" = dynamic; then
+    if test "$require_static_sodium" = yes; then
+      AC_MSG_ERROR([--enable-static-libsodium: $SODIUM_LIBDIR provides a shared libsodium; build the pinned static copy with tools/release/fetch-libsodium.sh or depends])
+    fi
+    AC_MSG_WARN([libsodium will be linked dynamically; the Ed25519 consensus verifier then depends on the runtime library version])
   fi
 ], [AC_MSG_ERROR([libsodium version 1.0.18 or greater not found.])])
 dnl H-1: the Ed25519 verifier is a consensus rule. Nodes MUST run libsodium >= 1.0.18

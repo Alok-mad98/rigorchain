@@ -10,6 +10,8 @@
 #include <pubkey.h>
 #include <random.h>
 
+#include <sodium.h>
+
 #include <string>
 
 
@@ -21,6 +23,7 @@ Context::Context()
     LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
     RandomInit();
     ECC_Start();
+    LogPrintf("Using libsodium %s for Ed25519 verification\n", sodium_version_string());
 }
 
 Context::~Context()

@@ -1,0 +1,8 @@
+# libsodium pin for every RIGOR build (Ed25519 verification is consensus).
+# Keep in sync with core/depends/packages/libsodium.mk.
+# Changing the version requires re-running the Ed25519 vector harness and a
+# source review of crypto_sign/ed25519/ref10/open.c and ed25519_ref10.c.
+LIBSODIUM_VERSION=1.0.22
+LIBSODIUM_SHA256=adbdd8f16149e81ac6078a03aca6fc03b592b89ef7b5ed83841c086191be3349
+LIBSODIUM_MINISIGN_PUBKEY=RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3
+LIBSODIUM_URLS="https://download.libsodium.org/libsodium/releases/libsodium-1.0.22.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.22-RELEASE/libsodium-1.0.22.tar.gz"
