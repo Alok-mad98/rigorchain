@@ -1441,8 +1441,9 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
 int CWallet::AbandonHeightInvalidMints()
 {
     AssertLockHeld(cs_wallet);
-    const int spendheight = GetLastBlockHeight() + 1;
-    if (spendheight < 1) return 0;
+    // -1 while the chain has no tip yet (e.g. during -reindex); GetLastBlockHeight() asserts on it.
+    if (m_last_block_processed_height < 0) return 0;
+    const int spendheight = m_last_block_processed_height + 1;
 
     std::vector<uint256> dead;
     dead.reserve(8);

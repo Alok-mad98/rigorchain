@@ -281,6 +281,19 @@ BOOST_AUTO_TEST_CASE(test_d_wallet_reports_height_pad_and_survives_delay)
     }
 }
 
+// R2A-M01: with no processed tip (height -1, as during -reindex) the mint sweep
+// and the startup resubmit must be no-ops instead of tripping GetLastBlockHeight().
+BOOST_AUTO_TEST_CASE(abandon_height_invalid_mints_without_tip_is_noop)
+{
+    auto wallet = CreateSyncedWallet(*m_node.chain, WITH_LOCK(Assert(m_node.chainman)->GetMutex(), return m_node.chainman->ActiveChain()), coinbaseKey);
+    {
+        LOCK(wallet->cs_wallet);
+        wallet->SetLastBlockProcessed(-1, uint256());
+        BOOST_CHECK_EQUAL(wallet->AbandonHeightInvalidMints(), 0);
+    }
+    wallet->ResubmitWalletTransactions(/*relay=*/false, /*force=*/true);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
 
 } // namespace wallet

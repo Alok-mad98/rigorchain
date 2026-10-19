@@ -268,6 +268,7 @@ BASE_SCRIPTS = [
     'mempool_expiry.py',
     'wallet_importdescriptors.py --descriptors',
     'wallet_importrigorprivkey.py --descriptors',
+    'wallet_reindex_startup.py --descriptors',
     'wallet_exportprivkey.py --descriptors',
     'wallet_cold_storage_uat.py --descriptors',
     'wallet_crosschain.py',
