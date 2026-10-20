@@ -121,6 +121,7 @@ BITCOIN_TESTS =\
   test/merkle_tests.cpp \
   test/merkleblock_tests.cpp \
   test/miner_tests.cpp \
+  test/gbt_startup_policy_tests.cpp \
   test/minisketch_tests.cpp \
   test/net_peer_eviction_tests.cpp \
   test/net_tests.cpp \

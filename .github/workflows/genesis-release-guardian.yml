@@ -55,7 +55,7 @@ jobs:
             libevent-dev \
             libboost-dev \
             libsqlite3-dev \
-            libsodium-dev
+            curl
       - name: Setup pinned Coq 8.15.0
         uses: ./.github/actions/setup-coq
       # Produce gitignored core/src/rigord on a clean runner. Guardian is

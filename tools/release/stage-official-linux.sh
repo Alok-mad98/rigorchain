@@ -26,12 +26,16 @@ if [[ "${FORCE:-0}" != "1" ]] && need_built; then
 else
   [[ ! -f "${CORE}/config.status" ]] || die "in-tree core/config.status present; refuse to fight mingw. Use out-of-tree ${BUILD} only."
   mkdir -p "${BUILD}"
+  SODIUM_PREFIX="${BUILD}/libsodium-pinned"
+  bash "${ROOT}/tools/release/fetch-libsodium.sh" --prefix "${SODIUM_PREFIX}" || die "pinned libsodium build failed"
+  export PKG_CONFIG_PATH="${SODIUM_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
   if [[ ! -f "${BUILD}/config.status" ]]; then
     log "configuring native Linux at ${BUILD}"
     (
       cd "${BUILD}"
       env -u CONFIG_SITE CXXFLAGS="${CXXFLAGS:-} -DRIGOR_PRODUCTION_MAINNET" \
         "${CORE}/configure" \
+        --enable-static-libsodium \
         --enable-production-mainnet \
         --with-gui=qt5 \
         --disable-bench \
@@ -47,6 +51,17 @@ else
 fi
 
 need_built || die "linux bins missing after build"
+# ldd is not usable here: a system libzmq pulls libsodium.so in transitively even when
+# the verifier is embedded statically. Check the direct dependency and the embedded copy.
+for b in rigord rigor-cli qt/rigor-qt; do
+  if readelf -d "${BUILD}/src/${b}" | grep -q 'NEEDED.*libsodium'; then
+    die "${b} links a shared libsodium; rebuild with the pinned static copy (FORCE=1)"
+  fi
+done
+for b in rigord qt/rigor-qt; do
+  nm "${BUILD}/src/${b}" | grep -q ' T sodium_version_string$' \
+    || die "${b} does not embed libsodium; rebuild with the pinned static copy (FORCE=1)"
+done
 cp -a "${BUILD}/src/rigord" "${OUT}/rigord"
 cp -a "${BUILD}/src/rigor-cli" "${OUT}/rigor-cli"
 cp -a "${BUILD}/src/qt/rigor-qt" "${OUT}/rigor-wallet"

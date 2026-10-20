@@ -3476,8 +3476,10 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
         if (peer->m_capabilities.HasCapability(RigorCapability::CAP_COMPACT_BLOCK)) {
             LOCK(cs_main);
             CNodeState* nodestate = State(pfrom.GetId());
+            // Low-bandwidth BIP152 by default: announce via headers/inv and serve cmpctblock on
+            // getdata(MSG_CMPCT_BLOCK). There is no sendcmpct, so a peer cannot ask for
+            // unsolicited cmpctblock pushes.
             nodestate->m_provides_cmpctblocks = true;
-            nodestate->m_requested_hb_cmpctblocks = true;
         }
 
         if (!pfrom.IsInboundConn() && peer->m_capabilities.HasCapability(RigorCapability::CAP_ADDR_RELAY)) {
@@ -4266,6 +4268,22 @@ void PeerManagerImpl::ProcessMessage(CNode& pfrom, const std::string& msg_type, 
             // Doesn't connect (or is genesis), instead of DoSing in AcceptBlockHeader, request deeper headers
             if (!m_chainman.ActiveChainstate().IsInitialBlockDownload()) {
                 MaybeSendGetHeaders(pfrom, GetLocator(m_chainman.m_best_header), *peer);
+            } else {
+                // Peers on older releases push cmpctblock unsolicited, so during IBD this can be
+                // the only announcement we get. Treat it like a block inv: same headers-sync
+                // policy (sync peer, or at most one new peer per block), still rate-limited by
+                // MaybeSendGetHeaders; the reply goes through normal headers processing.
+                CNodeState& state{*Assert(State(pfrom.GetId()))};
+                if (state.fSyncStarted || (!peer->m_inv_triggered_getheaders_before_sync && blockhash != m_last_block_inv_triggering_headers_sync)) {
+                    if (MaybeSendGetHeaders(pfrom, GetLocator(m_chainman.m_best_header), *peer)) {
+                        LogPrint(BCLog::NET, "getheaders (%d) on unconnecting cmpctblock %s during IBD to peer=%d\n",
+                                 m_chainman.m_best_header->nHeight, blockhash.ToString(), pfrom.GetId());
+                    }
+                    if (!state.fSyncStarted) {
+                        peer->m_inv_triggered_getheaders_before_sync = true;
+                        m_last_block_inv_triggering_headers_sync = blockhash;
+                    }
+                }
             }
             return;
         } else if (prev_block->nChainWork + CalculateHeadersWork({cmpctblock.header}) < GetAntiDoSWorkThreshold()) {

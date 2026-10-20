@@ -188,10 +188,13 @@ class WalletTest(BitcoinTestFramework):
             # Amounts derived from subsidy + scaled principal transfers (do not scale pre-combined decimals like 9.99).
             change0_unconfirmed = self.subsidy - sc(40) - Decimal('0.01')
             pending1_untrusted = self.subsidy + sc(40) - sc(60) - fee_node_1
-            # getbalances (Rigor adds per-asset top-level keys; RES buckets must stay zero in this ORU-only test)
+            # getbalances (Rigor adds per-asset top-level keys; RES buckets must stay zero in this ORU-only test).
+            # trusted is depth >= 1. Own unconfirmed change is untrusted_pending
+            # (wallet/rpc/coins.cpp). getbalance below still treats that change
+            # as spendable. Do not "fix" the RPC to match the upstream split.
             expected_balances_0 = {'mine':      {'immature':          Decimal('0E-8'),
-                                                 'trusted':           change0_unconfirmed,
-                                                 'untrusted_pending': sc(60)},
+                                                 'trusted':           Decimal('0E-8'),
+                                                 'untrusted_pending': change0_unconfirmed + sc(60)},
                                    'watchonly': {'immature':          sc(5000),
                                                  'trusted':           self.subsidy,
                                                  'untrusted_pending': Decimal('0E-8')}}

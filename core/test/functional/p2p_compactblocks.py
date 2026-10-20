@@ -182,9 +182,10 @@ class CompactBlocksTest(BitcoinTestFramework):
         self._reserved_utxos = set()
 
 
-    # Compact-block announcements are capability-driven (CAP_COMPACT_BLOCK).
-    # The node never sends sendcmpct. After headers sync, new blocks are
-    # announced with cmpctblock.
+    # Compact-block support is capability-driven (CAP_COMPACT_BLOCK) and the node
+    # never sends sendcmpct. Peers are low-bandwidth (BIP152): new blocks are
+    # announced with inv, or headers after sendheaders, never an unsolicited
+    # cmpctblock; cmpctblock is served on getdata(MSG_CMPCT_BLOCK).
     def test_sendcmpct(self, test_node):
         node = self.nodes[0]
         test_node.sync_with_ping()
@@ -205,10 +206,12 @@ class CompactBlocksTest(BitcoinTestFramework):
                         block_hash, peer.last_message.get("cmpctblock", None), peer.last_message.get("inv", None)))
 
         test_node.request_headers_and_sync(locator=[tip])
-        check_announcement_of_new_block(node, test_node, lambda p: "cmpctblock" in p.last_message)
+        check_announcement_of_new_block(node, test_node, lambda p: "cmpctblock" not in p.last_message and "inv" in p.last_message)
 
         test_node.send_and_ping(msg_sendheaders())
-        check_announcement_of_new_block(node, test_node, lambda p: "cmpctblock" in p.last_message)
+        # Headers announcements need the peer to have the parent header (BIP130).
+        test_node.request_headers_and_sync(locator=[int(node.getbestblockhash(), 16)])
+        check_announcement_of_new_block(node, test_node, lambda p: "cmpctblock" not in p.last_message and "headers" in p.last_message)
 
     # This test actually causes bitcoind to (reasonably!) disconnect us, so do this last.
     def test_invalid_cmpctblock_message(self):
@@ -245,7 +248,7 @@ class CompactBlocksTest(BitcoinTestFramework):
         tip = int(node.getbestblockhash(), 16)
         test_node.wait_for_block_announcement(tip)
 
-        # Make sure we will receive a fast-announce compact block
+        # Sync headers so the node announces the next block to us
         self.request_cb_announcements(test_node)
 
         # Now mine a block, and look at the resulting compact block.
@@ -258,15 +261,11 @@ class CompactBlocksTest(BitcoinTestFramework):
             tx.calc_sha256()
         block.rehash()
 
-        # Wait until the block was announced (via compact blocks)
-        test_node.wait_until(lambda: "cmpctblock" in test_node.last_message, timeout=30)
-
-        # Now fetch and check the compact block
-        header_and_shortids = None
+        # Low-bandwidth peer: the block is announced, not pushed as cmpctblock
+        test_node.wait_for_block_announcement(block_hash)
+        test_node.sync_with_ping()
         with p2p_lock:
-            # Convert the on-the-wire representation to absolute indexes
-            header_and_shortids = HeaderAndShortIDs(test_node.last_message["cmpctblock"].header_and_shortids)
-        self.check_compactblock_construction_from_block(header_and_shortids, block_hash, block)
+            assert "cmpctblock" not in test_node.last_message
 
         # Now fetch the compact block using a normal non-announce getdata
         test_node.clear_block_announcement()
@@ -633,6 +632,12 @@ class CompactBlocksTest(BitcoinTestFramework):
 
         node.submitblock(block.serialize().hex())
 
+        block.rehash()
+        for l in listeners:
+            l.wait_for_block_announcement(block.sha256)
+            with p2p_lock:
+                assert "cmpctblock" not in l.last_message
+            l.send_message(msg_getdata([CInv(MSG_CMPCT_BLOCK, block.sha256)]))
         for l in listeners:
             l.wait_until(lambda: "cmpctblock" in l.last_message, timeout=30)
         with p2p_lock:

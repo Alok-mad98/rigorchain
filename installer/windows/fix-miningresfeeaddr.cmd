@@ -165,7 +165,7 @@ taskkill /IM rigor-wallet.exe /F >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 echo Starting wallet with -miningresfeeaddr...
-start "RIGOR Wallet" /D "%~dp0" "%~dp0rigor-wallet.exe" -datadir="%DATADIR%" -server=1 -solomining=1 -miningresfeeaddr="!ADDR!"
+start "RIGOR Wallet" /D "%~dp0" "%~dp0rigor-wallet.exe" -datadir="%DATADIR%" -server=1 -miningresfeeaddr="!ADDR!"
 
 echo Waiting for RPC...
 set /a N=0

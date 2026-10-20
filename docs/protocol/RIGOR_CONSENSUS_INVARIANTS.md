@@ -196,7 +196,7 @@ RES cannot be:
 
 `GetBlockSubsidy` returns ORU only. Mainnet coinbase RES must be 0 (`bad-cb-res-amount`). A body transaction creates RES only by destroying ORU in the same transaction. The predicate is a pure function of `(R, B, h)`. No key is a mint authority.
 
-The supply boundary is enforced by consensus.
+The supply boundary is enforced by consensus. There is no cumulative RES counter: the cap follows from this per-transaction predicate together with the ORU issuance rule. All ORU comes from the 128 ORU subsidy at heights ≥ 1, and ORU created at height k can only be destroyed at heights ≥ k, where each atom buys at most 2^40 / (2^25 + k)^2 RES atoms. Summing over all heights gives a total strictly below 128·10^8 · 2^40 / 2^25 = 2^22 RES. An exact sum over heights 1 to 2^31 − 1 (audit Round 2A, C11) stays 6,453,855,391,584 atoms below `RES_MAX_SUPPLY`.
 
 Changing:
 

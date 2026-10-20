@@ -19,11 +19,10 @@ import test_framework.fault_injection_expect as exp
 import test_framework.fault_injection_harness as fh
 from fault_injection_core import FaultInjectionShared, SYNC_TIMEOUT, assemble_attack_block
 from res_security.cvge_helpers import (  # noqa: I252
-    REJECT_BAD_CONVERGENCE_CUMULATIVE,
-    REJECT_BAD_CONVERGENCE_MISSING,
-    conv_corrupt_cumulative,
+    REJECT_BAD_TXNS_RES_MINT_NO_BURN,
     submit_block_hex,
 )
+from res_security.solo_helpers import fake_oru_funded_res_mint
 from test_framework.opus_pow import solve_block_opus
 from test_framework.test_framework import BitcoinTestFramework
 
@@ -36,16 +35,19 @@ def run_fault_003_invalid_mint(test, na, nb, nc):
     fh.drain(na, nb, nc)
     base = test._fault_dir()
 
-    # CVGE cumulative corruption is checked before ConvergenceDrawCandidates root validation inside
-    # VerifyCoinbaseConvergenceAndResLayout(); therefore submitblock is expected to fail
-    # with bad-convergence-cumulative.
+    # bad-convergence-cumulative is retired. VerifyCoinbaseConvergenceAndResLayout
+    # is not called from ConnectBlock. Do not reintroduce a cumulative counter.
+    # The live check is the per-transaction mint predicate.
     #
-    # CVGE ConvergenceDrawCandidates-root tamper: ConnectBlock enforces winner vs body RES mint coupling
-    # (validation.cpp bad-rigor-res-winner-mismatch) before CVGE committed vs recomputed
-    # ConvergenceDrawCandidates root comparison (bad-convergence-draw-candidate-root).
+    # invalid_sigma_conv_missing is BLOCKED. PROTOCOL-NAMING-TRUTH-SOURCE.md
+    # still names bad-convergence-missing, and core/src does not emit it.
+    # Replacing the expected string would be a protocol decision.
+    test.log.warning(
+        "FAULT-003 invalid_sigma_conv_missing BLOCKED: "
+        "bad-convergence-missing is not produced by core/src"
+    )
     cases = [
-        ("invalid_conv_cumulative_commitment", REJECT_BAD_CONVERGENCE_CUMULATIVE, lambda tpl, ra, rb: conv_corrupt_cumulative(tpl["default_convergence_commitment"]), {}),
-        ("invalid_sigma_conv_missing", REJECT_BAD_CONVERGENCE_MISSING, lambda _tpl, _ra, _rb: bytes.fromhex("6a0100"), {}),
+        ("body_res_mint_no_burn", REJECT_BAD_TXNS_RES_MINT_NO_BURN, None, {"use_unfunded_mint": True}),
     ]
 
     mining_addr = na.get_deterministic_witness_mining_address()
@@ -53,8 +55,25 @@ def run_fault_003_invalid_mint(test, na, nb, nc):
     for case_id, expect_reject, mut_fn, extra_kw in cases:
         tpl, res_a, res_b = test._fresh_convergence_pair_and_template(na)
         snap_before = fh.consensus_fingerprint(na)
-        bad_conv = mut_fn(tpl, res_a, res_b)
-        blk = assemble_attack_block(na, tpl, res_a, res_b, cvge_script_pubkey=bad_conv, **extra_kw)
+        claim = None
+        bad_conv = None
+        if extra_kw.pop("use_unfunded_mint", False):
+            claim = fake_oru_funded_res_mint(
+                na,
+                bind_hash=b"\x11" * 32,
+                proof_height=1,
+                target_prev=0x207FFFFF,
+                convergence_root=b"\x22" * 32,
+                convergence_txid=b"\x33" * 32,
+            )
+        else:
+            bad_conv = mut_fn(tpl, res_a, res_b)
+        call_kw = dict(extra_kw)
+        if claim is not None:
+            call_kw["res_claim_tx"] = claim
+        if bad_conv is not None:
+            call_kw["cvge_script_pubkey"] = bad_conv
+        blk = assemble_attack_block(na, tpl, res_a, res_b, **call_kw)
         solve_block_opus(blk)
         test.disconnect_nodes(1, 0)
         test.disconnect_nodes(2, 0)

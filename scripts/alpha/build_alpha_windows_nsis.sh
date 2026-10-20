@@ -58,12 +58,11 @@ Note: older Alpha builds mistakenly used %APPDATA%\Bitcoin\bitcoin.conf.
 If you already have chain data there, either move it to RIGOR or start with
   rigor-wallet.exe -datadir="%APPDATA%\Bitcoin"
 
-Persistence: with solomining=1 each new tip is flushed to disk. Still prefer a normal
-wallet quit (wait for shutdown dialog). Ending the process in Task Manager can lose
-unflushed state on older builds.
+Persistence: prefer a normal wallet quit (wait for shutdown dialog). Ending the
+process in Task Manager can lose unflushed state on older builds.
 
 MAINNET DIFFICULTY RESET (genesis nBits 0x1e010000): old datadirs are incompatible.
-Run these in Windows CMD (not WSL), then recreate rigor.conf with solomining=1:
+Run these in Windows CMD (not WSL), then recreate rigor.conf without solomining=1:
   rmdir /s /q "%APPDATA%\RIGOR\blocks"
   rmdir /s /q "%APPDATA%\RIGOR\chainstate"
 Miner log must show: GBT nBits ~0x1e01xxxx (BAD if 0x207fffff)
@@ -117,9 +116,7 @@ listen=1
 # RPC credentials are generated on first mainnet start (rpc-auth.conf).
 # Do not ship default rpcuser/rpcpassword.
 rpcallowip=127.0.0.1
-# Allow getblocktemplate with zero peers (local solo mining).
-# Also forces a full chain flush after every new tip so Task Manager kills do not rewind to genesis.
-solomining=1
+# Do not set solomining=1. Public mining needs a peer on this chain.
 # Mainnet RPC listens on 8761 by default (override with -rpcport=).
 # Always quit via the wallet window (wait for "Rigor Core is shutting down") — do not End Task.
 EOF

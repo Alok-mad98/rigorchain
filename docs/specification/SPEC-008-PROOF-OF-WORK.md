@@ -165,7 +165,7 @@ well-formed `nBits`.
 
 | Symbol | Location |
 |--------|----------|
-| `GetOpusHash`, `GetOpusHashFromBaseHash` | `core/src/pow_opus.{h,cpp}` (files deleted) |
+| `GetOpusHash`, `GetOpusHashFromBaseHash` | `core/src/pow_opus.{h,cpp}` (removed from the consensus path; the files are still in the tree and compiled, but `CheckProofOfWork` does not call them) |
 | `OPUS_POW_BUFFER_SIZE`, `OPUS_POW_MIX_ROUNDS` | `core/src/consensus/rigor_consensus_lock.h` |
 | `CheckProofOfWork(uint256 header_hash, ...)` | `core/src/pow.cpp` — **overload deleted (landed)** |
 
@@ -372,7 +372,7 @@ same factor R, because the wall-clock cost of a hash fell by R.
 |---|---|---|
 | `GenesisLockMainnet::NBITS` | `0x1e010000` (target 2^232, work 2^24) | `0x1d008000` (target 2^223, work 2^33) |
 | `consensus.powLimit` | `0000ffff…` (2^240−1, work 2^16) | `0000007fff…` (2^231−1, work 2^25) |
-| `consensus.nMinimumChainWork` | 2^26 | 2^35 (§8.3) |
+| `consensus.nMinimumChainWork` | 2^26 | 2^33 − 1, genesis work (§8.3.1; was 2^35) |
 
 Expected trials for the first block rise from 1.678e7 to 8.590e9.
 
@@ -392,7 +392,10 @@ Genesis itself is PoW-exempt (`header_hash == params.hashGenesisBlock` returns
 early), and `NONCE = 0`. `NBITS` is therefore the *seed difficulty for block 1*,
 not a mined proof, and no genesis re-mining is required.
 
-ASERT parameters (`spacing = 600s`, `τ = 172800s`) do not change.
+ASERT parameters (`spacing = 600s`, `τ = 43200s`) do not change. The half-life is
+`MAINNET_POW_ASERT_HALF_LIFE` in `core/src/consensus/rigor_consensus_lock.h`
+(static-asserted); an implementation using any other τ computes different `nBits`
+from height 2 onward.
 
 ### 8.3 Headers-sync gate (resolved)
 
@@ -459,6 +462,40 @@ The false clause has been removed from `kernel/chainparams.cpp` ahead of this
 specification, since it misdescribed the *current* OpuHash constants. The
 replacement comment states the work-cost invariant and explicitly warns against
 reintroducing a header-count one.
+
+#### 8.3.1 Launch value amended to genesis work (supersedes the 2^35 adoption)
+
+`nMinimumChainWork` is now the chainwork of the genesis block alone:
+`GetBlockProof(0x1d008000)` = `2^256 / (2^223 + 1)` rounded down = `2^33 − 1` =
+`0x1ffffffff`. This is a header-sync policy parameter, not a consensus rule;
+no block valid before is invalid now or vice versa.
+
+The 2^35 floor was above the work of any chain shorter than height 4
+(`4 × (2^33 − 1) = 2^35 − 4`). A node whose tip is below the floor:
+
+- stays in initial block download regardless of tip age;
+- answers `getheaders` with an empty `headers` message;
+- treats every peer's headers as below the anti-DoS threshold
+  (`max(tip − 144 blocks, nMinimumChainWork)`), so they enter `PRESYNC` or are
+  ignored, and ignores compact blocks below the same threshold;
+- disconnects outbound peers whose headers chain is below the floor while in IBD.
+
+At launch every node is in that state, so heights 1–3 could not propagate:
+each miner extended a private chain under `-solomining`, and the first to reach
+height 4 alone replaced everyone else's blocks. That is a designated-first-miner
+effect created by a parameter, which the launch rules exclude.
+
+At genesis work, a genesis-only node is not below the gate, block 1 already
+carries more work than the gate, and the 144-block tip-relative window becomes
+the binding anti-DoS bound from height 145. Attacker cost is unchanged in kind:
+headers still cost exactly the work they carry; the smallest batch that clears
+the gate drops from 2^35 to 2^33 hashes for the first ~148 blocks only. ASERT
+cannot cheapen headers in that window, because lowering difficulty requires real
+elapsed time behind schedule (half-life 12 hours) and timestamps are bounded by
+`MAX_FUTURE_BLOCK_TIME`.
+
+This is the launch value only. Raise it toward canonical tip chainwork in the
+first release after launch, as the release policy in `chainparams.cpp` requires.
 
 ### 8.4 Gate
 

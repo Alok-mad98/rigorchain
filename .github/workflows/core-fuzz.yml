@@ -1,0 +1,96 @@
+# Core libFuzzer targets (ASan + UBSan). Failures are not suppressed.
+# Stage 1 (smoke): every push/PR touching core sources or regression inputs.
+# Stage 2 (extended): scheduled, one job per target.
+# Reproduce locally: bash tools/ci/build-ci-fuzz.sh && bash fuzz/core_regression/run.sh smoke core/src/test/fuzz/fuzz
+
+name: core-fuzz
+
+on:
+  push:
+    paths:
+      - "core/src/**"
+      - "fuzz/core_regression/**"
+      - "tools/ci/build-ci-fuzz.sh"
+      - ".github/workflows/core-fuzz.yml"
+  pull_request:
+    paths:
+      - "core/src/**"
+      - "fuzz/core_regression/**"
+      - "tools/ci/build-ci-fuzz.sh"
+      - ".github/workflows/core-fuzz.yml"
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang llvm build-essential libtool autotools-dev automake pkg-config \
+            bsdmainutils libevent-dev libboost-dev libsqlite3-dev curl
+      - name: Build fuzz binary
+        run: bash tools/ci/build-ci-fuzz.sh
+      - name: Lower mmap randomisation (ASan aborts at startup above 28 bits)
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Stage 1 smoke (replay regression inputs, 60 s per target)
+        run: bash fuzz/core_regression/run.sh smoke core/src/test/fuzz/fuzz
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: core-fuzz-smoke-artifacts
+          path: /tmp/rigor-core-fuzz/artifacts
+
+  extended:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - pow
+          - pow_transition
+          - rigor_asert
+          - rigor_pow_target
+          - rigor_opuhash_header
+          - rigor_scriptpubkey
+          - rigor_mint
+          - rigor_supply
+          - rigor_reorg
+          - res_checktxinputs
+          - rigor_p2p_capability
+          - process_message_rigorcap
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang llvm build-essential libtool autotools-dev automake pkg-config \
+            bsdmainutils libevent-dev libboost-dev libsqlite3-dev curl
+      - name: Build fuzz binary
+        run: bash tools/ci/build-ci-fuzz.sh
+      - name: Lower mmap randomisation (ASan aborts at startup above 28 bits)
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Stage 2 extended (30 min)
+        env:
+          TARGET: ${{ matrix.target }}
+          EXTENDED_SECONDS: "1800"
+        run: bash fuzz/core_regression/run.sh extended core/src/test/fuzz/fuzz
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: core-fuzz-${{ matrix.target }}-artifacts
+          path: /tmp/rigor-core-fuzz/artifacts

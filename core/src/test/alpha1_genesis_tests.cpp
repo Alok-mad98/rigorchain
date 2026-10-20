@@ -2,6 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <arith_uint256.h>
+#include <chain.h>
 #include <chainparams.h>
 #include <chainparamsbase.h>
 #include <consensus/amount.h>
@@ -99,11 +101,14 @@ BOOST_AUTO_TEST_CASE(alpha1_chainparams_consistency)
     BOOST_CHECK_EQUAL(genesis.hashMerkleRoot, ALPHA1_GENESIS_MERKLE);
     BOOST_CHECK_EQUAL(genesis.GetHash(), consensus.hashGenesisBlock);
     BOOST_CHECK_EQUAL(consensus.defaultAssumeValid, consensus.hashGenesisBlock);
-    // Header-sync bootstrap floor: 2^35. Four genesis-difficulty (0x1d008000 ≈ 2^33)
-    // blocks pass the gate. Header count is not a unit of this invariant (SPEC-008 §8.3).
+    // Launch header-sync gate is exactly the work of genesis alone (SPEC-008 §8.3.1):
+    // a genesis-only node must not be below it, and block 1 must clear it.
     BOOST_CHECK_EQUAL(
         consensus.nMinimumChainWork,
-        uint256S("0x0000000000000000000000000000000000000000000000000000000800000000"));
+        uint256S("0x00000000000000000000000000000000000000000000000000000001ffffffff"));
+    const CBlockIndex genesis_index{genesis};
+    BOOST_CHECK(UintToArith256(consensus.nMinimumChainWork) == GetBlockProof(genesis_index));
+    BOOST_CHECK(GetBlockProof(genesis_index) * 2 > UintToArith256(consensus.nMinimumChainWork));
 
     const auto& checkpoints = chainParams->Checkpoints().mapCheckpoints;
     BOOST_REQUIRE_EQUAL(checkpoints.size(), 1U);

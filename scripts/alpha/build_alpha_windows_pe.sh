@@ -47,12 +47,19 @@ if [[ ! -f "${CONFIG_SITE}" ]]; then
   exit 1
 fi
 
-# libsodium is required by configure.ac but is not a core/depends package.
-# Install a static mingw build into the depends prefix when missing.
+# libsodium is a depends package (depends/packages/libsodium.mk) pinned to
+# tools/release/libsodium.lock. A prefix built before the pin may hold another version.
+# shellcheck source=../../tools/release/libsodium.lock
+source "${REPO_ROOT}/tools/release/libsodium.lock"
 SODIUM_PC="${DEPENDS}/${HOST}/lib/pkgconfig/libsodium.pc"
 if [[ ! -f "${SODIUM_PC}" ]]; then
-  log "ERROR: ${SODIUM_PC} missing — cross-install libsodium into depends prefix first"
-  log "  (see .runtime/alpha-local-stack/libsodium-mingw/ or build_alpha_windows_libsodium.sh)"
+  log "ERROR: ${SODIUM_PC} missing — rebuild depends or run build_alpha_windows_libsodium.sh"
+  exit 1
+fi
+SODIUM_HAVE="$(PKG_CONFIG_PATH="${DEPENDS}/${HOST}/lib/pkgconfig" pkg-config --modversion libsodium)"
+if [[ "${SODIUM_HAVE}" != "${LIBSODIUM_VERSION}" ]]; then
+  log "ERROR: depends prefix has libsodium ${SODIUM_HAVE}; pinned ${LIBSODIUM_VERSION}"
+  log "  remove ${DEPENDS}/${HOST}/lib/libsodium.a and its pkgconfig file, then rebuild depends"
   exit 1
 fi
 
@@ -84,6 +91,7 @@ if [[ "${SKIP_CORE}" != "1" ]]; then
     --prefix=/ \
     --host="${HOST}" \
     "${prod_flag[@]}" \
+    --enable-static-libsodium \
     --with-gui=qt5 \
     --enable-reduce-exports \
     --disable-bench \

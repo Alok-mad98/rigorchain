@@ -165,26 +165,25 @@ public:
          *   2) Subtract safety margin (for example, 2k-10k blocks) and pin that value here.
          *   3) Never set above your own honest tip chainwork.
          *
-         * Bootstrap floor: 2^35, which is four genesis-difficulty blocks (one
-         * 0x1d008000 block is ≈2^33 work). SPEC-008 §8.3.
+         * Launch value: the chainwork of the genesis block alone, 2^33 - 1 = GetBlockProof
+         * of 0x1d008000 (SPEC-008 §8.3.1). It must not exceed genesis work while the
+         * chain is empty: a node whose tip is below this value stays in IBD, answers
+         * getheaders with an empty headers message, routes peers' headers into PRESYNC
+         * and drops their compact blocks, so blocks 1..k below the gate cannot propagate
+         * and the first miner to reach the gate alone wins. At genesis work every
+         * header above genesis carries work, block 1 relays normally, and the
+         * 144-block tip-relative anti-DoS window takes over as the chain grows.
          *
          * What the gate buys: a peer stays in HeadersSyncState::PRESYNC — one bit
-         * of memory per header — until its chain carries this much work, so an
-         * attacker must burn ≈2^35 hashes before we commit storage to their chain.
-         * That bound holds however the attacker splits the work up. A header
+         * of memory per header — until its chain carries this much work. A header
          * counts only for the work it carries, and producing a header that passes
-         * the PoW check at all costs exactly that work, so 1024 powLimit headers
-         * and four genesis-difficulty blocks cost the same 2^35 hashes. Header
-         * count is not a meaningful unit here; only work is.
+         * the PoW check at all costs exactly that work. Header count is not a
+         * meaningful unit here; only work is. Do not reintroduce a header-count
+         * invariant.
          *
-         * An earlier note claimed a 2000-header powLimit batch cannot clear this
-         * gate. It cannot be made to (the scaled figures are 2000 × 2^25 = 2^35.97
-         * against a 2^35 gate), and that is not a weakness for the reason above.
-         * Do not reintroduce a header-count invariant.
-         *
-         * Raise toward canonical tip chainwork before each mainnet release.
+         * Raise toward canonical tip chainwork in the first release after launch.
          */
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000800000000");
+        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000000001ffffffff");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.

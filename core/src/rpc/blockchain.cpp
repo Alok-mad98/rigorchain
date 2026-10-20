@@ -1301,7 +1301,9 @@ static RPCHelpMan getreplaysnapshot()
                 "\nCaptures a diagnostic replay snapshot for divergence triage.\n"
                 "Returns the deterministic state_hash plus derived UTXO-set projections.\n"
                 "STRICTLY DIAGNOSTIC: the authoritative replay artifact is `state_hash`;\n"
-                "all counter fields are non-consensus projections (see RFC notes).\n",
+                "all counter fields are non-consensus projections (see RFC notes).\n"
+                "Expensive: walks the full UTXO set twice in RAM while holding cs_main, which\n"
+                "pauses block validation and relay for the duration.\n",
                 {},
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
@@ -2255,7 +2257,9 @@ RPCHelpMan getdeterministicstatehash()
     return RPCHelpMan{"getdeterministicstatehash",
                 "\nReturns the deterministic hash of the chainstate for replay verification.\n"
                 "This hash is byte-identical across nodes for the same blockchain state,\n"
-                "independent of unordered_map iteration order.\n",
+                "independent of unordered_map iteration order.\n"
+                "Expensive: walks the full UTXO set in RAM while holding cs_main, which\n"
+                "pauses block validation and relay for the duration.\n",
                 {},
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",

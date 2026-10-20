@@ -59,13 +59,16 @@ class P2PIBDTxRelayTest(BitcoinTestFramework):
         self.nodes[0].disconnect_p2ps()
 
         self.log.info("Check that nodes don't process unsolicited transactions while still in IBD")
-        # A transaction hex pulled from tx_valid.json. There are no valid transactions since no UTXOs
-        # exist yet, but it should be a well-formed transaction.
-        rawhex = "0100000001b14bdcbc3e01bdaad36cc08e81e69c82e1060bc14e518db2b49aa43ad90ba260000000004a01ff473" + \
-            "04402203f16c6f40162ab686621ef3000b04e75418a0c0cb2d8aebeac894ae360ac1e780220ddc15ecdfc3507ac48e168" + \
-            "1a33eb60996631bf6bf5bc0a0682c4db743ce7ca2b01ffffffff0140420f00000000001976a914660d4ef3a743e3e696a" + \
-            "d990364e555c271ad504b88ac00000000"
-        assert self.nodes[1].decoderawtransaction(rawhex) # returns a dict, should not throw
+        # Legacy P2PKH does not infer a descriptor here, and the RPC result
+        # requires scriptPubKey.desc. Use a witness v0 output so decoding
+        # succeeds. The transaction is still unspendable: no UTXO exists.
+        # This is only so the IBD relay checks below actually run.
+        rawhex = (
+            "0100000001b14bbdbc3e01bdaad36cc08e81e69c82e1060bc14e518db2b49aa43ad90ba260"
+            "0000000000ffffffff01a086010000000000160014660d4ef3a743e3e696ad990364e555c271ad504b00000000"
+        )
+        decoded = self.nodes[1].decoderawtransaction(rawhex)
+        assert "desc" in decoded["vout"][0]["scriptPubKey"]
         tx = from_hex(CTransaction(), rawhex)
         peer_txer = self.nodes[0].add_p2p_connection(P2PInterface())
         with self.nodes[0].assert_debug_log(expected_msgs=["received: tx"], unexpected_msgs=["was not accepted"]):

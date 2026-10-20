@@ -25,6 +25,12 @@ FUZZ_TARGET(rigor_mint)
 
     int64_t parsed_mat = 0;
     std::vector<unsigned char> parsed_pkh;
+    if (maturity < 0) {
+        // Real maturities (spend height + coinbase maturity) are positive; the parser rejects
+        // a negative one rather than round-tripping it.
+        assert(!ParseResMintScript(canonical, parsed_mat, parsed_pkh));
+        return;
+    }
     assert(ParseResMintScript(canonical, parsed_mat, parsed_pkh));
     assert(parsed_mat == maturity);
     assert(parsed_pkh == pkh);

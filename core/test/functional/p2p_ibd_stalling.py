@@ -10,9 +10,17 @@ import time
 
 from test_framework.blocktools import (
         DEFAULT_COINBASE_SCRIPT_PUBKEY,
-        create_block,
+        add_witness_commitment,
+        create_block as _create_block,
         create_coinbase
 )
+
+
+def create_block(*args, **kwargs):
+    """Regtest block with the witness commitment RIGOR requires before relay."""
+    block = _create_block(*args, **kwargs)
+    add_witness_commitment(block)
+    return block
 from test_framework.messages import (
         MSG_BLOCK,
         MSG_TYPE_MASK,

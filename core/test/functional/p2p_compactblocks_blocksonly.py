@@ -117,9 +117,16 @@ class P2PCompactBlocksBlocksOnly(BitcoinTestFramework):
         p2p_conn_blocksonly.send_message(msg_getdata([CInv(MSG_CMPCT_BLOCK, block0.sha256)]))
         p2p_conn_blocksonly.wait_until(lambda: test_for_cmpctblock(block0))
 
+        # Low-bandwidth BIP152: the new tip is announced, not pushed as cmpctblock;
+        # the compact block is served on request.
         block2 = self.build_block_on_tip()
         self.nodes[0].submitblock(block1.serialize().hex())
         self.nodes[0].submitblock(block2.serialize().hex())
+        p2p_conn_blocksonly.wait_until(lambda: any(
+            i.hash == block2.sha256 for i in getattr(p2p_conn_blocksonly.last_message.get('inv'), 'inv', [])
+        ) or any(h.rehash() == block2.sha256 for h in getattr(p2p_conn_blocksonly.last_message.get('headers'), 'headers', [])))
+        assert not test_for_cmpctblock(block2)
+        p2p_conn_blocksonly.send_message(msg_getdata([CInv(MSG_CMPCT_BLOCK, block2.sha256)]))
         p2p_conn_blocksonly.wait_until(lambda: test_for_cmpctblock(block2))
 
 if __name__ == '__main__':

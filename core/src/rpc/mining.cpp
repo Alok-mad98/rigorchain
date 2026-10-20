@@ -18,6 +18,7 @@
 #include <logging.h>
 #include <net.h>
 #include <node/context.h>
+#include <node/gbt_startup_policy.h>
 #include <node/miner.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
@@ -617,7 +618,9 @@ static RPCHelpMan getblocktemplate()
         "RFC-020: subsidy is 0 at height 0 and 128 ORU for every height >= 1; it does not halve. "
         "It does not mint RES. Field \"coinbasevalue\" is only the ORU amount on coinbase vout[0] (subsidy plus ORU-domain fees), in Tharns. "
         "It does not include RES amounts. "
-        "For coinbase output order, RES witness binding, and pool integration, see doc/mining-pool-gbt.md in the source tree.\n",
+        "For coinbase output order, RES witness binding, and pool integration, see doc/mining-pool-gbt.md in the source tree. "
+        "On mainnet a template is served only when the node is chain main, the active genesis matches the published mainnet genesis, at least one block-relay peer has completed the version handshake, and the node is not in initial block download. "
+        "-solomining (default off) skips only the peer and initial-download refusals for an explicit isolated test. It does not skip the network or genesis checks and it does not change consensus.\n",
         {
             {"template_request", RPCArg::Type::OBJ, RPCArg::Default{UniValue::VOBJ}, "Format of the template",
             {
@@ -790,17 +793,39 @@ static RPCHelpMan getblocktemplate()
     if (strMode != "template")
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
-    if (!chainman.GetParams().IsTestChain()) {
-        const bool solo = gArgs.GetBoolArg("-solomining", false);
-        const CConnman& connman = EnsureConnman(node);
-        // Alpha / local solo: allow GBT with zero peers when -solomining=1 (RPC policy only).
-        if (connman.GetNodeCount(ConnectionDirection::Both) == 0 && !solo) {
-            throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
+    {
+        node::GbtStartupFacts facts;
+        facts.is_test_chain = chainman.GetParams().IsTestChain();
+        facts.solo_mining = gArgs.GetBoolArg("-solomining", false);
+        facts.network_id = chainman.GetParams().NetworkIDString();
+        facts.params_genesis = chainman.GetConsensus().hashGenesisBlock;
+        facts.genesis_block_hash = chainman.GetParams().GenesisBlock().GetHash();
+        if (const CBlockIndex* tip = active_chain.Tip()) {
+            if (const CBlockIndex* genesis = tip->GetAncestor(0)) {
+                facts.have_active_genesis = true;
+                facts.active_genesis = genesis->GetBlockHash();
+            }
         }
-
-        // Fresh Alpha mainnet tip is genesis (below MinimumChainWork) so IBD stays true
-        // until peers sync; solo mining must skip that gate too.
-        if (active_chainstate.IsInitialBlockDownload() && !solo) {
+        facts.initial_block_download = active_chainstate.IsInitialBlockDownload();
+        if (!facts.is_test_chain) {
+            const CConnman& connman = EnsureConnman(node);
+            // Count only peers that finished verack and can relay blocks.
+            // GetNodeCount includes sockets that have not completed the handshake.
+            connman.ForEachNode([&](CNode* peer) {
+                if (peer->IsFeelerConn() || peer->IsAddrFetchConn()) return;
+                ++facts.handshake_peers;
+            });
+        }
+        switch (node::EvaluateGbtStartup(facts)) {
+        case node::GbtStartupStatus::kAllow:
+            break;
+        case node::GbtStartupStatus::kWrongNetwork:
+            throw JSONRPCError(RPC_INVALID_PARAMETER, node::GBT_WRONG_NETWORK);
+        case node::GbtStartupStatus::kGenesisMismatch:
+            throw JSONRPCError(RPC_INVALID_PARAMETER, node::GBT_GENESIS_MISMATCH);
+        case node::GbtStartupStatus::kNoEligiblePeer:
+            throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, PACKAGE_NAME " is not connected!");
+        case node::GbtStartupStatus::kInitialBlockDownload:
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, PACKAGE_NAME " is in initial sync and waiting for blocks...");
         }
     }

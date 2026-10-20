@@ -72,7 +72,9 @@ class RigorAssetMixRejectTest(BitcoinTestFramework):
 
         res = node.testmempoolaccept([signed["hex"]])[0]
         assert_equal(res["allowed"], False)
-        assert_equal(res["reject-reason"], "mixed-asset-output")
+        # ORU inputs with a RES output and no Convergence burn is an unpaid mint
+        # (same case and reason as transaction_tests.cpp, "mixed-asset-output" block).
+        assert_equal(res["reject-reason"], "bad-txns-res-mint-no-burn")
 
 
 if __name__ == "__main__":

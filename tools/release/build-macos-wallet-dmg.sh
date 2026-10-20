@@ -33,7 +33,8 @@ export PYTHON="${VENV}/bin/python3"
 "${PYTHON}" -c "import ds_store, mac_alias"
 
 QT5_PREFIX="$(brew --prefix qt@5 2>/dev/null || true)"
-SODIUM_PREFIX="$(brew --prefix libsodium 2>/dev/null || true)"
+SODIUM_PREFIX="${ROOT}/.runtime/libsodium-pinned-macos-${ARCH}"
+bash "${ROOT}/tools/release/fetch-libsodium.sh" --prefix "${SODIUM_PREFIX}"
 BOOST_PREFIX="$(brew --prefix boost 2>/dev/null || true)"
 if [[ -n "${QT5_PREFIX}" ]]; then
   export PATH="${QT5_PREFIX}/bin:${PATH}"
@@ -127,6 +128,7 @@ if ./configure --help 2>/dev/null | grep -q enable-production-mainnet; then
   prod_flag=(--enable-production-mainnet)
 fi
 ./configure \
+  --enable-static-libsodium \
   --without-bdb \
   --with-sqlite=yes \
   --with-gui=qt5 \

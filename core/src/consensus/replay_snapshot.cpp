@@ -155,8 +155,8 @@ ReplaySnapshot CaptureReplaySnapshot(const CCoinsViewCache& view,
         snap.best_block_hash = pindex->GetBlockHash();
     }
 
-    // Single streaming cursor pass. Diagnostic counters are accumulated
-    // incrementally; the UTXO set is never materialized in RAM.
+    // Single cursor pass; counters are accumulated incrementally. When `view` is a
+    // CCoinsViewCache, Cursor() first copies the whole UTXO set into RAM (O(UTXO)).
     std::unique_ptr<CCoinsViewCursor> pcursor(view.Cursor());
     if (pcursor) {
         while (pcursor->Valid()) {

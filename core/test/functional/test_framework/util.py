@@ -380,6 +380,12 @@ def write_config(config_path, *, n, chain, extra_config="", disable_autoconnect=
     if chain == 'testnet3':
         chain_name_conf_arg = 'testnet'
         chain_name_conf_section = 'test'
+    elif chain == 'main':
+        # Mainnet is the default network. `main=1` is not a parameter, and
+        # settings belong in the default section (the [main] section is not
+        # applied for this network).
+        chain_name_conf_arg = ''
+        chain_name_conf_section = ''
     else:
         chain_name_conf_arg = chain
         chain_name_conf_section = chain
@@ -427,20 +433,40 @@ def append_config(datadir, options):
             f.write(option + "\n")
 
 
+def cookie_path(datadir, chain):
+    """Path of the RPC cookie. Mainnet uses the datadir root; other chains use a subdirectory."""
+    if chain == "main":
+        return os.path.join(datadir, ".cookie")
+    return os.path.join(datadir, chain, ".cookie")
+
+
+def _read_rpc_auth_file(path, user, password, depth=0):
+    """Read rpcuser/rpcpassword, following includeconf once. Mainnet writes credentials into rpc-auth.conf."""
+    if depth > 2 or not os.path.isfile(path):
+        return user, password
+    with open(path, 'r', encoding='utf8') as f:
+        for raw in f:
+            line = raw.strip()
+            if line.startswith("rpcuser="):
+                user = line.split("=", 1)[1]
+            elif line.startswith("rpcpassword="):
+                password = line.split("=", 1)[1]
+            elif line.startswith("includeconf="):
+                included = line.split("=", 1)[1].strip()
+                if not os.path.isabs(included):
+                    included = os.path.join(os.path.dirname(path), included)
+                user, password = _read_rpc_auth_file(included, user, password, depth + 1)
+    return user, password
+
+
 def get_auth_cookie(datadir, chain):
     user = None
     password = None
-    if os.path.isfile(os.path.join(datadir, "rigor.conf")):
-        with open(os.path.join(datadir, "rigor.conf"), 'r', encoding='utf8') as f:
-            for line in f:
-                if line.startswith("rpcuser="):
-                    assert user is None  # Ensure that there is only one rpcuser line
-                    user = line.split("=")[1].strip("\n")
-                if line.startswith("rpcpassword="):
-                    assert password is None  # Ensure that there is only one rpcpassword line
-                    password = line.split("=")[1].strip("\n")
+    conf_path = os.path.join(datadir, "rigor.conf")
+    if os.path.isfile(conf_path):
+        user, password = _read_rpc_auth_file(conf_path, user, password)
     try:
-        with open(os.path.join(datadir, chain, ".cookie"), 'r', encoding="ascii") as f:
+        with open(cookie_path(datadir, chain), 'r', encoding="ascii") as f:
             userpass = f.read()
             split_userpass = userpass.split(':')
             user = split_userpass[0]
@@ -454,9 +480,10 @@ def get_auth_cookie(datadir, chain):
 
 # If a cookie file exists in the given datadir, delete it.
 def delete_cookie_file(datadir, chain):
-    if os.path.isfile(os.path.join(datadir, chain, ".cookie")):
+    path = cookie_path(datadir, chain)
+    if os.path.isfile(path):
         logger.debug("Deleting leftover cookie file")
-        os.remove(os.path.join(datadir, chain, ".cookie"))
+        os.remove(path)
 
 
 def softfork_active(node, key):

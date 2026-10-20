@@ -255,15 +255,24 @@ It becomes unreachable by mathematics.
 
 RIGOR defines an additional boundary for Convergence transaction arithmetic.
 
-The destroyed ORU amount must remain within a bounded integer range:
+The mint predicate shifts the destroyed amount left by 40 bits:
 
 $$
-B \ll 2^{40}
+R \cdot (2^{25} + h)^2 \le B \cdot 2^{40}
 $$
 
 Where:
 
-- $B$ = ORU destroyed in a single Convergence operation.
+- $B$ = ORU atoms destroyed in a single Convergence operation;
+- $R$ = RES atoms created by that operation;
+- $h$ = the height of the block that contains it.
+
+$B$ is **not** required to be below $2^{40}$ atoms. Any $B$ with $0 \le B \le$ `MAX_MONEY` is valid input, and both sides are evaluated in unsigned 128-bit arithmetic (`CheckResMintArithmetic` in `core/src/consensus/res_issuance.h`). The bounds that make this overflow-free are:
+
+- $B \le$ `MAX_MONEY` $< 2^{60}$, so $B \cdot 2^{40} < 2^{100}$;
+- $R \le$ `RES_MAX_SUPPLY` $< 2^{49}$ and $h < 2^{31}$, so $R \cdot (2^{25} + h)^2 < 2^{113}$.
+
+An implementation that rejects $B \ge 2^{40}$ atoms (about 10,995 ORU) would reject valid blocks.
 
 ---
 
@@ -285,7 +294,7 @@ $$
 RES_{max}
 $$
 
-The $2^{40}$ boundary protects transaction validation.
+The $2^{40}$ shift, evaluated in 128-bit arithmetic, protects transaction validation.
 
 The $2^{22}$ boundary describes the long-term theoretical RES supply.
 

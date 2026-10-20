@@ -37,11 +37,13 @@ need make
 need python3
 need pkg-config
 need autoreconf
-pkg-config --exists libsodium || {
+SODIUM_PREFIX="${ROOT}/.runtime/libsodium-pinned-ci"
+bash "${ROOT}/tools/release/fetch-libsodium.sh" --prefix "${SODIUM_PREFIX}" || {
   echo "CI_RIGORD_BUILD=FAIL"
-  echo "FAIL: pkg-config cannot find libsodium (need libsodium-dev)"
+  echo "FAIL: pinned libsodium build failed (tools/release/libsodium.lock)"
   exit 1
 }
+export PKG_CONFIG_PATH="${SODIUM_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
 
 echo "COMPILER=$(command -v g++)"
 echo "COMPILER_VERSION=$(g++ --version | head -n1)"
@@ -57,6 +59,7 @@ echo "== configure (daemon + sqlite wallet, no GUI; not production-mainnet) =="
 # use isolated datadirs and need development networks.
 # CXXFLAGS=-O2 skips -g to keep hosted link memory in range.
 ./configure \
+  --enable-static-libsodium \
   --without-gui \
   --with-sqlite=yes \
   --disable-bench \

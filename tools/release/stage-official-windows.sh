@@ -95,7 +95,6 @@ server=1
 txindex=1
 listen=1
 rpcallowip=127.0.0.1
-solomining=1
 EOF
 
 makensis -V2 \

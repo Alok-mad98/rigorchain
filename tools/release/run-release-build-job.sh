@@ -35,6 +35,8 @@ if [[ -z "${TARGET}" ]]; then
 fi
 
 export RIGOR_RELEASE_TARGET="${TARGET}"
+# shellcheck source=libsodium.lock
+source "${ROOT}/tools/release/libsodium.lock"
 
 OUT="${ROOT}/dist/release/v${RELEASE_VERSION}/${TARGET}"
 PROV="${OUT}/BUILD_PROVENANCE.txt"
@@ -120,6 +122,9 @@ record_phase() {
     echo "CMAKE_TARGET=NOT FOUND IN CURRENT REPOSITORY"
     echo "AUTOTOOLS_DAEMON=src/rigord"
     echo "SOURCE=core/src/rigord.cpp"
+    echo "LIBSODIUM_VERSION=${LIBSODIUM_VERSION}"
+    echo "LIBSODIUM_SHA256=${LIBSODIUM_SHA256}"
+    echo "LIBSODIUM_LINKAGE=static"
     echo "IDENTITY_STUB_FORBIDDEN=TRUE"
     echo "CONSENSUS_CODE_CHANGED=FALSE"
     echo "DATABASE_FORMAT_CHANGED=FALSE"
@@ -149,12 +154,15 @@ build_linux_node() {
   command -v g++ >/dev/null 2>&1 || die "g++ not on PATH"
   command -v make >/dev/null 2>&1 || die "make not on PATH"
   command -v autoreconf >/dev/null 2>&1 || die "autoreconf not on PATH"
-  pkg-config --exists libsodium || die "libsodium-dev / pkg-config libsodium missing"
+  local sodium_prefix="${ROOT}/.runtime/libsodium-${LIBSODIUM_VERSION}-${TARGET}"
+  bash "${ROOT}/tools/release/fetch-libsodium.sh" --prefix "${sodium_prefix}" || die "pinned libsodium build failed"
+  export PKG_CONFIG_PATH="${sodium_prefix}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
 
   cd "${CORE}"
   if [[ ! -f Makefile || ! -f src/Makefile ]]; then
     bash ./autogen.sh
     ./configure \
+      --enable-static-libsodium \
       --without-gui \
       --with-sqlite=yes \
       --disable-bench \
@@ -168,6 +176,14 @@ build_linux_node() {
 
   [[ -x "${CORE}/src/rigord" ]] || die "make did not produce core/src/rigord"
   [[ -x "${CORE}/src/rigor-cli" ]] || die "make did not produce core/src/rigor-cli"
+  # ldd is not usable here: a system libzmq pulls libsodium.so in transitively even when
+  # the verifier is embedded statically. Check the direct dependency and the embedded copy.
+  if readelf -d "${CORE}/src/rigord" | grep -q 'NEEDED.*libsodium'; then
+    die "rigord links a shared libsodium; release builds must embed the pinned static copy"
+  fi
+  nm "${CORE}/src/rigord" | grep -q ' T sodium_version_string$' \
+    || die "rigord does not embed libsodium; release builds must embed the pinned static copy"
+  echo "LIBSODIUM_STATIC_CHECK=PASS"
   copy_bin "${CORE}/src/rigord" "${BIN_DIR}/rigord"
   copy_bin "${CORE}/src/rigor-cli" "${BIN_DIR}/rigor-cli"
   if [[ -x "${CORE}/src/qt/rigor-qt" ]]; then

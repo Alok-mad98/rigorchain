@@ -70,7 +70,9 @@ jobs:
             libevent-dev \
             libboost-dev \
             libsqlite3-dev \
-            libsodium-dev
+            curl
+          # libsodium is not taken from apt: run-release-build-job.sh builds the
+          # pinned, hash-verified static copy (tools/release/libsodium.lock).
 
       - name: Record git commit, compiler, OS, architecture
         env:

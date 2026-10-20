@@ -32,17 +32,23 @@ from test_framework.util import assert_equal
 
 
 class MiningPrevNbitsTest(BitcoinTestFramework):
+    def add_options(self, parser):
+        self.add_wallet_options(parser)
+
     def set_test_params(self):
         self.num_nodes = 1
         self.setup_clean_chain = True
         self.supports_cli = False
+
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
 
     def run_test(self):
         node = self.nodes[0]
 
         # Generate a small chain so getblocktemplate has a non-genesis tip.
         addr = node.getnewaddress()
-        node.generatetoaddress(5, addr)
+        self.generatetoaddress(node, 5, addr)
 
         for height_check in range(3):
             tip_hash = node.getbestblockhash()
@@ -68,7 +74,7 @@ class MiningPrevNbitsTest(BitcoinTestFramework):
             assert_equal(len(tmpl['bits']), 8)
 
             # Advance one block and re-check (Invariant 3).
-            node.generatetoaddress(1, addr)
+            self.generatetoaddress(node, 1, addr)
 
         self.log.info("MINER-BUG-01 closure verified: GBT exposes prev_nbits == pindexPrev->nBits")
 

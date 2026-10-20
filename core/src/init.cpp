@@ -603,7 +603,7 @@ void SetupServerArgs(ArgsManager& argsman)
     argsman.AddArg("-blockmintxfee=<amt>", strprintf("Set lowest fee rate (in %s/kvB) for transactions to be included in block creation. (default: %s)", CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)), ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-miningresfeeaddr=<addr>", "Mockable chains only. Witness-v1 RES address for -reswalletbootstrap coinbase RES (not the draw prize). Rejected on mainnet-shaped chains. Production mint pays the parent-draw winner and is not gated on this flag. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-reswalletbootstrap", "Mockable chains only (e.g. devtest/regtest): at chain construction, set Consensus::Params::res_wallet_bootstrap_coinbase to 1.00000000 RES per coinbase (paid to -miningresfeeaddr). ConnectBlock does not read this flag. Default is false. Network fees remain ORU-only.", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
-    argsman.AddArg("-solomining", "Allow getblocktemplate with zero peers / during IBD on mainnet (local Alpha solo). RPC policy only; does not change consensus. Default false.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
+    argsman.AddArg("-solomining", "Isolated test only (default false). On mainnet, skip the getblocktemplate peer and initial-download refusals. Does not skip network or genesis identity checks and does not change consensus. Not a public-launch setting.", ArgsManager::ALLOW_ANY, OptionsCategory::BLOCK_CREATION);
     argsman.AddArg("-blockversion=<n>", "Override block version to test forking scenarios", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::BLOCK_CREATION);
 
     argsman.AddArg("-rest", strprintf("Accept public REST requests (default: %u)", DEFAULT_REST_ENABLE), ArgsManager::ALLOW_ANY, OptionsCategory::RPC);
@@ -1835,15 +1835,21 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
         }
     }
 
+    // DefaultOnionServiceTarget() is 127.0.0.1 on the chain's onion port
+    // (regtest: 18445). Binding it on every process makes a second local node
+    // fail startup. Only listen there when -listenonion is on, or when the
+    // operator named an onion bind. -listenonion=0 then keeps the per-node
+    // -port and does not open the shared onion port.
     CService onion_service_target;
+    const bool listen_onion = args.GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION);
     if (!connOptions.onion_binds.empty()) {
         onion_service_target = connOptions.onion_binds.front();
-    } else {
+    } else if (listen_onion) {
         onion_service_target = DefaultOnionServiceTarget();
         connOptions.onion_binds.push_back(onion_service_target);
     }
 
-    if (args.GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION)) {
+    if (listen_onion) {
         if (connOptions.onion_binds.size() > 1) {
             InitWarning(strprintf(_("More than one onion bind address is provided. Using %s "
                                     "for the automatically created Tor onion service."),

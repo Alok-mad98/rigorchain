@@ -30,6 +30,9 @@ enum class RigorCapability : uint64_t {
     CAP_TX_RELAY = uint64_t{1} << 0,
     CAP_BLOCK_RELAY = uint64_t{1} << 1,
     CAP_ADDR_RELAY = uint64_t{1} << 2,
+    /** Serves and accepts BIP152 cmpctblock/getblocktxn/blocktxn. Low-bandwidth only: there is
+     *  no sendcmpct, so blocks are announced by inv/headers and cmpctblock is sent on
+     *  getdata(MSG_CMPCT_BLOCK). Unsolicited cmpctblock from older peers is still accepted. */
     CAP_COMPACT_BLOCK = uint64_t{1} << 3,
     /** Named communication slot. Not implemented: no salt transport without a per-feature command. */
     CAP_TX_SYNC = uint64_t{1} << 4,

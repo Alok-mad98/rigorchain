@@ -30,7 +30,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, assert_greater_than, assert_raises_rpc_error
 from test_framework.script import CScript
 
-from res_security.cvge_helpers import REJECT_BAD_CONVERGENCE_CUMULATIVE, conv_corrupt_cumulative
+from res_security.cvge_helpers import REJECT_BAD_TXNS_RES_MINT_NO_BURN
 from res_security.harness import (
     CENSOR_FEE_DELTA,
     COINBASE_MATURITY,
@@ -322,24 +322,39 @@ class ResSoloSecurityTest(BitcoinTestFramework):
 
     # -- A / G / remaining S --------------------------------------------------
 
-    def case_a2_bad_cumulative(self) -> None:
+    def case_a2_mint_no_burn(self) -> None:
+        """Retired: ``bad-convergence-cumulative``.
+
+        That reject left with the CVGE coinbase OP_RETURN. Do not reintroduce
+        it (``core/doc/PROTOCOL-NAMING-TRUTH-SOURCE.md`` section 5). There is
+        no cumulative RES counter. The live rule is the per-transaction mint
+        predicate: a body RES output with no ORU destroyed in the same
+        transaction is ``bad-txns-res-mint-no-burn``.
+        """
         node = self._n()
         try:
-            a = self._broadcast_conv(MIN_CONVERGENCE_ORU)
-            b = self._broadcast_conv(MIN_CONVERGENCE_ORU)
+            fake = fake_oru_funded_res_mint(
+                node,
+                bind_hash=b"\x11" * 32,
+                proof_height=1,
+                target_prev=0x207FFFFF,
+                convergence_root=b"\x22" * 32,
+                convergence_txid=b"\x33" * 32,
+            )
             tpl = self._gbt()
-            bad = conv_corrupt_cumulative(tpl["default_convergence_commitment"])
-            tx_a = tx_from_hex(node.getrawtransaction(a))
-            tx_b = tx_from_hex(node.getrawtransaction(b))
-            blk = self._assemble_from_gbt(tpl, extra_txs=[tx_a, tx_b], cvge_hex=bad.hex())
+            blk = self._assemble_from_gbt(tpl, res_claim=fake)
             solve_block_opus(blk)
             reason = submit_block(node, blk)
-            assert reason == REJECT_BAD_CONVERGENCE_CUMULATIVE, self._dump("A-2", {"got": reason})
+            assert reason == REJECT_BAD_TXNS_RES_MINT_NO_BURN, self._dump("A-2", {"got": reason})
+            assert reason != "bad-convergence-cumulative"
             node.getblockcount()
-            self._censor([a, b])
-            self._record("A-2b", "PASS", {"reject": reason})
+            self._record("A-2b", "PASS", {
+                "reject": reason,
+                "retired": "bad-convergence-cumulative",
+                "invariant": "same-tx ORU destruction required for a body RES mint",
+            })
         except Exception:
-            self.log.error(self._dump("A-2-cumulative"))
+            self.log.error(self._dump("A-2-mint-no-burn"))
             raise
 
     def case_g3_stale_and_wrong_prev(self) -> None:
@@ -485,6 +500,7 @@ class ResSoloSecurityTest(BitcoinTestFramework):
         self.case_l1_reserved_nonce()
         self.case_s3_cap_pin()
         self.case_a1_abort_inventory()
+        self.case_a2_mint_no_burn()
 
         path = os.path.join(self.options.tmpdir, "solo_security_results.json")
         with open(path, "w", encoding="ascii") as f:

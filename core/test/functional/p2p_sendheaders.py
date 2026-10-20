@@ -85,7 +85,19 @@ d. Announce 49 headers that don't connect.
 e. Announce one more that doesn't connect.
    Expect: disconnect.
 """
-from test_framework.blocktools import DEFAULT_COINBASE_SCRIPT_PUBKEY, create_block, create_coinbase
+from test_framework.blocktools import (
+    DEFAULT_COINBASE_SCRIPT_PUBKEY,
+    add_witness_commitment,
+    create_block as _create_block,
+    create_coinbase,
+)
+
+
+def create_block(*args, **kwargs):
+    """Regtest block with the witness commitment RIGOR requires before relay."""
+    block = _create_block(*args, **kwargs)
+    add_witness_commitment(block)
+    return block
 from test_framework.messages import CInv
 from test_framework.p2p import (
     CBlockHeader,

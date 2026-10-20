@@ -417,6 +417,10 @@ class TestNode():
 
     @property
     def chain_path(self) -> Path:
+        # Mainnet DataDir() is empty, so blocks, debug.log, and the cookie
+        # live in the datadir root rather than datadir/main.
+        if self.chain == "main":
+            return Path(self.datadir)
         return Path(self.datadir) / self.chain
 
     @property

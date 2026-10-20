@@ -12,6 +12,7 @@ import copy
 from decimal import Decimal
 
 from test_framework.blocktools import (
+    add_witness_commitment,
     create_coinbase,
     get_regtest_block_subsidy_sats,
     get_witness_script,
@@ -277,6 +278,11 @@ class MiningTest(BitcoinTestFramework):
         bad_block_time.nTime = 1
         bad_block_time.solve()
         assert_raises_rpc_error(-25, 'time-too-old', lambda: node.submitheader(hexdata=CBlockHeader(bad_block_time).serialize().hex()))
+
+        # Relay requires a coinbase witness and a witness commitment. The
+        # proposal checks above used the block without that commitment.
+        add_witness_commitment(block)
+        block.solve()
 
         # Should ask for the block from a p2p node, if they announce the header as well:
         peer = node.add_p2p_connection(P2PDataStore())

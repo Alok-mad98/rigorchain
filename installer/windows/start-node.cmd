@@ -128,7 +128,8 @@ if exist "rigor-cli.exe" (
   if errorlevel 1 (
     echo.
     echo WARNING: getblocktemplate failed. Common causes:
-    echo  - missing solomining=1 while Peers=0
+    echo  - no peers yet. Wait until getpeerinfo shows a peer on mainnet.
+    echo  - do not set solomining=1 to hide this. That mines a private chain.
     echo  - miningresfeeaddr still in rigor.conf ^(mainnet rejects that flag^)
     echo  - RPC auth mismatch
     type "%TEMP%\rigor-start-node-gbt2.txt"
@@ -149,7 +150,6 @@ findstr /i /c:"server=1" "%CONF%" >nul 2>&1 || echo server=1>>"%CONF%"
 findstr /i /c:"includeconf=rpc-auth.conf" "%CONF%" >nul 2>&1 || echo includeconf=rpc-auth.conf>>"%CONF%"
 findstr /i /c:"rpcallowip=" "%CONF%" >nul 2>&1 || echo rpcallowip=127.0.0.1>>"%CONF%"
 findstr /i /c:"rpcbind=" "%CONF%" >nul 2>&1 || echo rpcbind=127.0.0.1>>"%CONF%"
-findstr /i /c:"solomining=1" "%CONF%" >nul 2>&1 || echo solomining=1>>"%CONF%"
 goto :eof
 
 :write_conf
@@ -161,7 +161,6 @@ goto :eof
   echo includeconf=rpc-auth.conf
   echo rpcallowip=127.0.0.1
   echo rpcbind=127.0.0.1
-  echo solomining=1
 ) > "%CONF%"
 echo Wrote %CONF%
 goto :eof
@@ -190,10 +189,10 @@ exit /b 1
 REM %~dp0 ends with \ and breaks start /D "C:\path\"
 set "HERE=%CD%"
 if exist "%HERE%\rigor-wallet.exe" (
-  echo Starting rigor-wallet.exe with -server=1 -solomining=1
-  start "" /D "%HERE%" "%HERE%\rigor-wallet.exe" -datadir="%DATADIR%" -server=1 -solomining=1
+  echo Starting rigor-wallet.exe with -server=1
+  start "" /D "%HERE%" "%HERE%\rigor-wallet.exe" -datadir="%DATADIR%" -server=1
 ) else (
-  echo Starting rigord.exe with -server=1 -solomining=1
-  start "" /D "%HERE%" "%HERE%\rigord.exe" -datadir="%DATADIR%" -server=1 -solomining=1 -printtoconsole
+  echo Starting rigord.exe with -server=1
+  start "" /D "%HERE%" "%HERE%\rigord.exe" -datadir="%DATADIR%" -server=1 -printtoconsole
 )
 goto :eof

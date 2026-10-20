@@ -279,8 +279,12 @@ unsigned int GetNextWorkASERT(const CBlockIndex* pindexLast, const CBlockHeader*
         exp_q = -ASERT_EXP_CLAMP;
     }
 
+    // num_shifts = floor(exp_q / 2^16) in [-64, 64]; exp_rem in [0, 65535]. Left-shifting a
+    // negative num_shifts is undefined in C++17, so the remainder uses multiplication
+    // (|num_shifts * 65536| <= 2^22, no overflow).
+    static_assert((int64_t{-1} >> 1) == -1, "ASERT requires arithmetic right shift of negative int64_t");
     const int64_t num_shifts = exp_q >> 16;
-    const int64_t exp_rem = exp_q - (num_shifts << 16);
+    const int64_t exp_rem = exp_q - num_shifts * 65536;
 
     const __int128 e = static_cast<__int128>(exp_rem);
     const __int128 poly =

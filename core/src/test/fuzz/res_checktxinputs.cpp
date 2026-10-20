@@ -7,6 +7,7 @@
 #include <consensus/amount.h>
 #include <consensus/convergenceres.h>
 #include <consensus/res_amount.h>
+#include <consensus/res_issuance.h>
 #include <consensus/res_proof.h>
 #include <consensus/rigor_consensus_lock.h>
 #include <consensus/tx_check.h>
@@ -196,7 +197,12 @@ FUZZ_TARGET_INIT(res_checktxinputs, initialize_res_checktxinputs)
     if (res_in > 0) {
         assert(res_out <= res_in);
     } else if (res_out > 0) {
-        // Body transactions cannot issue RES. Passing CheckTxInputs here is a consensus leak.
-        assert(false);
+        // RFC-019/020 body mint: the OP_CONVERGE output must pay destroy_cost(h) for every
+        // RES atom created. Cross-checked against the wallet-side inverse.
+        const CAmount burn = Consensus::GetConvergenceAmount(tx);
+        assert(burn > 0);
+        assert(res_out <= Consensus::ResDerivedMaxSupply());
+        assert(Consensus::CheckResMintArithmetic(res_out, burn, spend_height));
+        assert(res_out <= Consensus::ResMintAtomsFromBurn(burn, spend_height));
     }
 }

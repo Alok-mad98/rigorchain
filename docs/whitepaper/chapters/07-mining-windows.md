@@ -90,10 +90,15 @@ Same tx mints RES at destroy_cost(h)
 
 ## Two things that surprise new miners
 
-**While the chain is at genesis, `getblocktemplate` refuses to serve.** Height 0
-is below minimum chain work, so the node reports initial block download and
-returns `-10`. Set `solomining=1` in the wallet's `rigor.conf` to mine height 1.
-That flag is RPC policy only: it changes no consensus rule and exposes no port.
+**Do not mine with an empty peer list.** Mainnet activation is 2026-10-25
+06:00:00 UTC. Confirm the node is on chain `main`, on the published genesis,
+and that `getpeerinfo` lists at least one peer on that same chain before
+calling `getblocktemplate`. One peer does not by itself prove the public
+chain. Do not set `solomining=1` to obtain a height-1 template or to hide
+a "not connected" error. That flag skips template guards only. Blocks
+mined with no peers can be orphaned, and their reward may not be spendable
+on the eventual public chain. There is no designated first miner, no
+premine, and no founder allocation.
 
 **Early blocks arrive faster than the target spacing.** Genesis only seeds a
 difficulty; ASERT anchors at height 1 and then converges, and it may move the

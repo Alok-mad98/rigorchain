@@ -418,8 +418,10 @@ uint32_t GetNextWorkAsertReplica(const AsertState& s, const U256& pow_limit)
     int64_t exp_q = static_cast<int64_t>(numer / denom);
     if (exp_q > ASERT_EXP_CLAMP) exp_q = ASERT_EXP_CLAMP;
     else if (exp_q < -ASERT_EXP_CLAMP) exp_q = -ASERT_EXP_CLAMP;
-    const int64_t num_shifts = exp_q >> 16;
-    const int64_t exp_rem = exp_q - (num_shifts << 16);
+    // Independent of production's shift idiom: floor division by 2^16, non-negative remainder.
+    int64_t num_shifts = exp_q / ASERT_RADIX;
+    if (exp_q % ASERT_RADIX < 0) --num_shifts;
+    const int64_t exp_rem = exp_q - num_shifts * ASERT_RADIX;
     const __int128 e = static_cast<__int128>(exp_rem);
     const __int128 poly =
         static_cast<__int128>(ASERT_POLY_P1) * e +
@@ -763,6 +765,76 @@ BOOST_AUTO_TEST_CASE(production_asert_unique_and_ignores_child_time)
                       GetNextWorkRequired(&genesis, &child_b, consensus));
     BOOST_CHECK_EQUAL(GetNextWorkRequired(&genesis, &child_a, consensus),
                       GetNextWorkRequired(&genesis, &child_a, consensus));
+}
+
+// Production ASERT vs the floor-division replica at every exponent split boundary:
+// exp_q = k * 2^16 + {-2..2} for k in [-65, 65] (both clamps included), with the
+// +-12.5% prev clamp disabled (parent nBits 0) so the exponent path is not masked.
+BOOST_AUTO_TEST_CASE(production_asert_matches_replica_at_exponent_boundaries)
+{
+    const auto chainParams = CreateChainParams(*m_node.args, CBaseChainParams::MAIN);
+    const auto& consensus = chainParams->GetConsensus();
+    BOOST_REQUIRE_EQUAL(consensus.nPowASERTHalfLife, ASERT_HALF_LIFE);
+    BOOST_REQUIRE_EQUAL(consensus.nPowTargetSpacing, ASERT_SPACING);
+
+    U256 limit{};
+    const uint256 pl = consensus.powLimit;
+    for (int i = 0; i < 8; ++i) {
+        limit.pn[i] = static_cast<uint32_t>(pl.begin()[4 * i]) | (static_cast<uint32_t>(pl.begin()[4 * i + 1]) << 8) |
+                      (static_cast<uint32_t>(pl.begin()[4 * i + 2]) << 16) | (static_cast<uint32_t>(pl.begin()[4 * i + 3]) << 24);
+    }
+
+    const uint32_t anchor_bits = chainParams->GenesisBlock().nBits;
+    const int64_t anchor_time = 1'800'000'000;
+    CBlockIndex genesis{};
+    genesis.nHeight = 0;
+    genesis.nBits = anchor_bits;
+    genesis.nTime = static_cast<uint32_t>(anchor_time - 600);
+    CBlockIndex anchor{};
+    anchor.nHeight = 1;
+    anchor.pprev = &genesis;
+    anchor.nBits = anchor_bits;
+    anchor.nTime = static_cast<uint32_t>(anchor_time);
+
+    int checked = 0;
+    int negative_exponents = 0;
+    for (int64_t k = -65; k <= 65; ++k) {
+        for (int64_t d = -2; d <= 2; ++d) {
+            const int64_t want_exp = k * ASERT_RADIX + d;
+            // time_error with trunc(time_error * 65536 / 43200) == want_exp (or nearest, then clamped).
+            const int64_t base = (want_exp * ASERT_HALF_LIFE) / ASERT_RADIX;
+            for (int64_t te = base - 1; te <= base + 1; ++te) {
+                for (const int parent_height : {2, 1000}) {
+                    const int64_t parent_time = anchor_time + te + (parent_height - 1) * ASERT_SPACING;
+                    if (parent_time <= 0 || parent_time > std::numeric_limits<uint32_t>::max()) continue;
+                    CBlockIndex parent{};
+                    parent.nHeight = parent_height;
+                    parent.pprev = &anchor;
+                    parent.nBits = 0;
+                    parent.nTime = static_cast<uint32_t>(parent_time);
+
+                    AsertState s;
+                    s.anchor_nbits = anchor_bits;
+                    s.anchor_time = anchor_time;
+                    s.anchor_height = 1;
+                    s.parent_time = parent_time;
+                    s.parent_height = parent_height;
+                    s.parent_nbits = 0;
+
+                    CBlockHeader child;
+                    child.nTime = parent.nTime + 600;
+                    const uint32_t prod = GetNextWorkRequired(&parent, &child, consensus);
+                    const uint32_t ref = GetNextWorkAsertReplica(s, limit);
+                    BOOST_CHECK_MESSAGE(prod == ref, "exp_q~" << want_exp << " te=" << te << " h=" << parent_height
+                                                              << " prod=" << prod << " ref=" << ref);
+                    ++checked;
+                    if (te < 0) ++negative_exponents;
+                }
+            }
+        }
+    }
+    BOOST_CHECK_GT(checked, 3000);
+    BOOST_CHECK_GT(negative_exponents, 1500);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

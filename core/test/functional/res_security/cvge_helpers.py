@@ -6,8 +6,12 @@
 
 from __future__ import annotations
 
+# Retired with the CVGE coinbase OP_RETURN. The node does not emit this.
+# Do not assert it. See PROTOCOL-NAMING-TRUTH-SOURCE.md section 5.
 REJECT_BAD_CONVERGENCE_CUMULATIVE = "bad-convergence-cumulative"
 REJECT_BAD_CONVERGENCE_MISSING = "bad-convergence-missing"
+# Live per-transaction mint predicate (tx_verify.cpp). Not a cumulative counter.
+REJECT_BAD_TXNS_RES_MINT_NO_BURN = "bad-txns-res-mint-no-burn"
 
 
 def conv_payload_bounds(conv_script_hex: str):

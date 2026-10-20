@@ -12,6 +12,7 @@
 #include <test/fuzz/util/net.h>
 #include <test/util/mining.h>
 #include <test/util/net.h>
+#include <test/util/script.h>
 #include <test/util/setup_common.h>
 #include <test/util/validation.h>
 #include <validation.h>
@@ -28,7 +29,7 @@ void initialize_process_messages()
             /*extra_args=*/{"-txreconciliation"});
     g_setup = testing_setup.get();
     for (int i = 0; i < 2 * COINBASE_MATURITY; i++) {
-        MineBlock(g_setup->m_node, CScript() << RIGOR_PUSH_1);
+        MineBlock(g_setup->m_node, P2WSH_OP_TRUE);
     }
     SyncWithValidationInterfaceQueue();
 }
@@ -39,7 +40,10 @@ FUZZ_TARGET_INIT(process_messages, initialize_process_messages)
 
     ConnmanTestMsg& connman = *static_cast<ConnmanTestMsg*>(g_setup->m_node.connman.get());
     TestChainState& chainstate = *static_cast<TestChainState*>(&g_setup->m_node.chainman->ActiveChainstate());
-    SetMockTime(1610000000); // any time to successfully reset ibd
+    // Any time past the tip by more than max_tip_age resets IBD; a fixed date can
+    // fall before the regtest genesis.
+    const int64_t tip_time{WITH_LOCK(::cs_main, return g_setup->m_node.chainman->ActiveTip()->GetBlockTime())};
+    SetMockTime(tip_time + 2 * 24 * 60 * 60);
     chainstate.ResetIbd();
 
     LOCK(NetEventsInterface::g_msgproc_mutex);

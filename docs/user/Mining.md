@@ -23,4 +23,12 @@ for every height ≥ 1. ORU does not halve.
 
 Miner binary: [`../../miner/README_MINER.md`](../../miner/README_MINER.md).
 
+Mine only after the node has at least one peer and `getblockchaininfo`
+shows chain `main` with the published genesis. A single peer is not proof
+of the public chain: compare block 0 and the tip with that peer.
+`getblocktemplate` returns "not connected" when the peer list is empty.
+Do not set `solomining=1` to bypass that. The flag skips template guards.
+It does not publish a private chain. See
+[`MINER-MAINNET-README.txt`](./MINER-MAINNET-README.txt).
+
 Historical P0 mining notes are in `archive/` and are not operator SSOT.

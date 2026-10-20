@@ -35,6 +35,8 @@ from test_framework.messages import (
     msg_addrv2,
     msg_block,
     MSG_BLOCK,
+    MSG_CMPCT_BLOCK,
+    HeaderAndShortIDs,
     msg_blocktxn,
     msg_cfcheckpt,
     msg_cfheaders,
@@ -137,7 +139,8 @@ MESSAGEMAP = {
 }
 
 MAGIC_BYTES = {
-    "mainnet": b"\xf9\xbe\xb4\xd9",   # mainnet
+    "mainnet": b"\xf9\xbe\xb4\xd9",   # legacy key; RIGOR mainnet magic is "main"
+    "main": b"\xce\xf1\xdb\xfa",       # RIGOR mainnet pchMessageStart
     "testnet3": b"\x0b\x11\x09\x07",  # testnet3
     "regtest": b"\xfa\xbf\xb5\xda",   # regtest
     "signet": b"\x0a\x03\xcf\x40",    # signet
@@ -663,13 +666,29 @@ class P2PDataStore(P2PInterface):
         self.getdata_requests = []
 
     def on_getdata(self, message):
-        """Check for the tx/block in our stores and if found, reply with an inv message."""
+        """Reply to getdata from the local block and transaction stores.
+
+        A default connection advertises CAP_COMPACT_BLOCK, so the node asks for
+        one missing block with MSG_CMPCT_BLOCK (type 4) instead of a full block.
+        Every transaction is prefilled, which is a valid compact block and lets
+        the node reconstruct it without a mempool match.
+        """
         for inv in message.inv:
             self.getdata_requests.append(inv.hash)
-            if (inv.type & MSG_TYPE_MASK) == MSG_TX and inv.hash in self.tx_store.keys():
+            inv_type = inv.type & MSG_TYPE_MASK
+            if inv_type == MSG_TX and inv.hash in self.tx_store:
                 self.send_message(msg_tx(self.tx_store[inv.hash]))
-            elif (inv.type & MSG_TYPE_MASK) == MSG_BLOCK and inv.hash in self.block_store.keys():
+            elif inv_type == MSG_BLOCK and inv.hash in self.block_store:
                 self.send_message(msg_block(self.block_store[inv.hash]))
+            elif inv_type == MSG_CMPCT_BLOCK and inv.hash in self.block_store:
+                block = self.block_store[inv.hash]
+                compact = HeaderAndShortIDs()
+                compact.initialize_from_block(
+                    block,
+                    prefill_list=list(range(len(block.vtx))),
+                    use_witness=True,
+                )
+                self.send_message(msg_cmpctblock(compact.to_p2p()))
             else:
                 logger.debug('getdata message type {} received.'.format(hex(inv.type)))
 
