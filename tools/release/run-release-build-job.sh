@@ -158,10 +158,16 @@ build_linux_node() {
   bash "${ROOT}/tools/release/fetch-libsodium.sh" --prefix "${sodium_prefix}" || die "pinned libsodium build failed"
   export PKG_CONFIG_PATH="${sodium_prefix}/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
 
-  cd "${CORE}"
-  if [[ ! -f Makefile || ! -f src/Makefile ]]; then
-    bash ./autogen.sh
-    ./configure \
+  # Out of tree. In-tree configure rewrites the tracked file
+  # core/contrib/devtools/split-debug.sh (AC_CONFIG_FILES). share/genbuild.sh
+  # then records BUILD_GIT_COMMIT with a -dirty suffix even when HEAD is clean.
+  local builddir="${ROOT}/.runtime/release-node-${TARGET}"
+  mkdir -p "${builddir}"
+  if [[ ! -x "${CORE}/configure" ]]; then
+    (cd "${CORE}" && bash ./autogen.sh)
+  fi
+  if [[ ! -f "${builddir}/Makefile" || ! -f "${builddir}/src/Makefile" ]]; then
+    (cd "${builddir}" && "${CORE}/configure" \
       --enable-static-libsodium \
       --without-gui \
       --with-sqlite=yes \
@@ -169,28 +175,27 @@ build_linux_node() {
       --disable-fuzz-binary \
       --disable-man \
       --disable-usdt \
-      CXXFLAGS="-O2"
+      CXXFLAGS="-O2")
   fi
-  make -j"$(nproc)" src/rigord src/rigor-cli
-  cd "${ROOT}"
+  make -C "${builddir}" -j"$(nproc)" src/rigord src/rigor-cli
 
-  [[ -x "${CORE}/src/rigord" ]] || die "make did not produce core/src/rigord"
-  [[ -x "${CORE}/src/rigor-cli" ]] || die "make did not produce core/src/rigor-cli"
+  [[ -x "${builddir}/src/rigord" ]] || die "make did not produce ${builddir}/src/rigord"
+  [[ -x "${builddir}/src/rigor-cli" ]] || die "make did not produce ${builddir}/src/rigor-cli"
   # ldd is not usable here: a system libzmq pulls libsodium.so in transitively even when
   # the verifier is embedded statically. Check the direct dependency and the embedded copy.
-  if readelf -d "${CORE}/src/rigord" | grep -q 'NEEDED.*libsodium'; then
+  if readelf -d "${builddir}/src/rigord" | grep -q 'NEEDED.*libsodium'; then
     die "rigord links a shared libsodium; release builds must embed the pinned static copy"
   fi
-  nm "${CORE}/src/rigord" | grep -q ' T sodium_version_string$' \
+  nm "${builddir}/src/rigord" | grep -q ' T sodium_version_string$' \
     || die "rigord does not embed libsodium; release builds must embed the pinned static copy"
   echo "LIBSODIUM_STATIC_CHECK=PASS"
-  copy_bin "${CORE}/src/rigord" "${BIN_DIR}/rigord"
-  copy_bin "${CORE}/src/rigor-cli" "${BIN_DIR}/rigor-cli"
-  if [[ -x "${CORE}/src/qt/rigor-qt" ]]; then
-    copy_bin "${CORE}/src/qt/rigor-qt" "${BIN_DIR}/rigor-qt"
+  copy_bin "${builddir}/src/rigord" "${BIN_DIR}/rigord"
+  copy_bin "${builddir}/src/rigor-cli" "${BIN_DIR}/rigor-cli"
+  if [[ -x "${builddir}/src/qt/rigor-qt" ]]; then
+    copy_bin "${builddir}/src/qt/rigor-qt" "${BIN_DIR}/rigor-qt"
     echo "QT_IN_ARTIFACT=YES"
   else
-    echo "QT_IN_ARTIFACT=NO (configure --without-gui; in-tree qt/rigor-qt not part of this package)"
+    echo "QT_IN_ARTIFACT=NO (configure --without-gui; Qt wallet is not part of this package)"
   fi
   echo "OUTPUT=${BIN_DIR}/rigord"
   echo "BUILD_CURRENT_SOURCES=PASS"
@@ -394,7 +399,10 @@ PY
 checksum_phase() {
   echo "SHA256_MANIFEST=START"
   local name
+  # Python on Windows prints CRLF. A trailing CR makes the filename miss.
   while IFS= read -r name; do
+    name="${name%$'\r'}"
+    [[ -n "${name}" ]] || continue
     [[ -f "${OUT}/${name}" ]] || die "checksum: missing ${name}"
     write_sha256 "${OUT}/${name}" "${OUT}/${name}.sha256"
   done < <(expected_names)
@@ -402,6 +410,8 @@ checksum_phase() {
     cd "${OUT}"
     : > SHA256SUMS
     while IFS= read -r name; do
+      name="${name%$'\r'}"
+      [[ -n "${name}" ]] || continue
       cat "${name}.sha256" >> SHA256SUMS
     done < <(expected_names)
   )

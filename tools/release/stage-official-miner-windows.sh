@@ -17,9 +17,12 @@ PE_STAGING="${ROOT}/dist/alpha/windows/staging"
   echo "FAIL: rigor-miner.exe missing after PE build" >&2
   exit 1
 }
-strings "${PE_STAGING}/rigor-miner.exe" | grep -q 'lottery-era GBT field %s is not a shipping template field' \
-  || { echo "FAIL: rigor-miner.exe is stale (RFC-020 lottery string missing)" >&2; exit 1; }
-if strings "${PE_STAGING}/rigor-miner.exe" | grep -q 'is not RFC-019'; then
+# Do not use grep -q here. Under pipefail, grep -q closes the pipe early and
+# strings dies with SIGPIPE, which looks like a missing string.
+lottery_hit="$(strings "${PE_STAGING}/rigor-miner.exe" | grep -F 'lottery-era GBT field %s is not a shipping template field' || true)"
+[[ -n "${lottery_hit}" ]] || { echo "FAIL: rigor-miner.exe is stale (RFC-020 lottery string missing)" >&2; exit 1; }
+rfc019_hit="$(strings "${PE_STAGING}/rigor-miner.exe" | grep -F 'is not RFC-019' || true)"
+if [[ -n "${rfc019_hit}" ]]; then
   echo "FAIL: rigor-miner.exe still contains retired RFC-019 error text" >&2
   exit 1
 fi

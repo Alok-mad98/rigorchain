@@ -8,11 +8,101 @@
 #include <qt/guiutil.h>
 
 #include <interfaces/node.h>
+#include <chainparams.h>
 
 #include <utility>
 
+#include <QAbstractSocket>
+#include <QCoreApplication>
+#include <QHostAddress>
+#include <QHostInfo>
 #include <QList>
 #include <QTimer>
+
+struct SeedCacheRow {
+    QString name;
+    bool finished{false};
+    QStringList addresses;
+};
+static QList<SeedCacheRow> g_seed_rows;
+static QList<std::function<void()>> g_seed_watchers;
+static bool g_seed_lookups_started = false;
+
+static std::vector<ConfiguredSeedLookup> SeedSnapshot()
+{
+    std::vector<ConfiguredSeedLookup> out;
+    out.reserve(static_cast<size_t>(g_seed_rows.size()));
+    for (const SeedCacheRow& row : g_seed_rows) {
+        ConfiguredSeedLookup item;
+        item.name = row.name.toStdString();
+        item.lookup_finished = row.finished;
+        item.addresses.reserve(static_cast<size_t>(row.addresses.size()));
+        for (const QString& address : row.addresses) {
+            item.addresses.push_back(address.toStdString());
+        }
+        out.push_back(std::move(item));
+    }
+    return out;
+}
+
+static void NotifySeedWatchers()
+{
+    const QList<std::function<void()>> watchers = g_seed_watchers;
+    for (const std::function<void()>& watcher : watchers) {
+        if (watcher) watcher();
+    }
+}
+
+void WatchConfiguredSeeds(const std::function<void()>& on_change)
+{
+    if (on_change) g_seed_watchers.append(on_change);
+    if (g_seed_lookups_started || !qApp) {
+        if (on_change) {
+            for (const SeedCacheRow& row : g_seed_rows) {
+                if (row.finished) {
+                    on_change();
+                    break;
+                }
+            }
+        }
+        return;
+    }
+    g_seed_lookups_started = true;
+    for (const std::string& raw : Params().DNSSeeds()) {
+        QString name = QString::fromStdString(raw);
+        if (name.endsWith(QLatin1Char('.'))) name.chop(1);
+        if (name.isEmpty()) continue;
+        g_seed_rows.append(SeedCacheRow{name, false, {}});
+        const int index = g_seed_rows.size() - 1;
+        QHostInfo::lookupHost(name, qApp, [index, name](const QHostInfo& info) {
+            if (index < 0 || index >= g_seed_rows.size() || g_seed_rows.at(index).name != name) return;
+            QStringList addresses;
+            if (info.error() == QHostInfo::NoError) {
+                for (const QHostAddress& address : info.addresses()) {
+                    if (address.protocol() == QAbstractSocket::IPv4Protocol ||
+                        address.protocol() == QAbstractSocket::IPv6Protocol) {
+                        addresses << address.toString();
+                    }
+                }
+            }
+            g_seed_rows[index].addresses = addresses;
+            g_seed_rows[index].finished = true;
+            NotifySeedWatchers();
+        });
+    }
+}
+
+std::vector<ConfiguredSeedLookup> ConfiguredSeedSnapshot()
+{
+    return SeedSnapshot();
+}
+
+QString UniqueSeedLabelForIp(const QString& ip)
+{
+    const SeedNameResult result = UniqueConfiguredSeedName(ip.toStdString(), SeedSnapshot());
+    if (result.match != SeedNameMatch::Unique) return {};
+    return QString::fromStdString(result.name);
+}
 
 PeerTableModel::PeerTableModel(interfaces::Node& node, QObject* parent)
     : QAbstractTableModel(parent),
@@ -25,6 +115,12 @@ PeerTableModel::PeerTableModel(interfaces::Node& node, QObject* parent)
 
     // load initial data
     refresh();
+    WatchConfiguredSeeds([this] {
+        if (rowCount() <= 0) return;
+        const QModelIndex top_left = index(0, Seed);
+        const QModelIndex bottom_right = index(rowCount() - 1, Seed);
+        Q_EMIT dataChanged(top_left, bottom_right);
+    });
 }
 
 PeerTableModel::~PeerTableModel() = default;
@@ -70,7 +166,9 @@ QVariant PeerTableModel::data(const QModelIndex& index, int role) const
         case Age:
             return GUIUtil::FormatPeerAge(rec->nodeStats.m_connected);
         case Address:
-            return QString::fromStdString(rec->nodeStats.m_addr_name);
+            return QString::fromStdString(rec->nodeStats.addr.ToStringAddrPort());
+        case Seed:
+            return UniqueSeedLabelForIp(QString::fromStdString(rec->nodeStats.addr.ToStringAddr()));
         case Direction:
             return QString(rec->nodeStats.fInbound ?
                                //: An Inbound Connection from a Peer.
@@ -97,6 +195,7 @@ QVariant PeerTableModel::data(const QModelIndex& index, int role) const
         case Age:
             return QVariant(Qt::AlignRight | Qt::AlignVCenter);
         case Address:
+        case Seed:
             return {};
         case Direction:
         case ConnectionType:

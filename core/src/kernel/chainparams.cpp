@@ -236,12 +236,14 @@ public:
             }
         };
 
-        // DNS discovery only (not consensus). The only current Mainnet seed
-        // hostname is seed.rigorchain.com. Node addresses come from DNS, not
-        // from compiled vFixedSeeds, so a server can be replaced without a
-        // wallet release. Lookups use nDefaultPort.
+        // DNS discovery only (not consensus). Lookups use nDefaultPort.
+        // seed.rigorchain.com is Node A's published name.
+        // seed1.rigorchain.com is Seed 1's published name.
+        // Neither name is a connection by itself. The fixed-seed list below
+        // remains exactly one IPv4 fallback and does not include Node A.
         vSeeds.clear();
         vSeeds.emplace_back("seed.rigorchain.com.");
+        vSeeds.emplace_back("seed1.rigorchain.com.");
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,5);
@@ -251,8 +253,9 @@ public:
 
         bech32_hrp = "rg";
 
-        // Keep compiled-in pnSeed empty until a signed epoch snapshot is published.
-        vFixedSeeds.clear();
+        // Single approved Mainnet fallback, ADDRv2 IPv4. Not consensus.
+        // Port is nDefaultPort (8760). Exactly one entry.
+        vFixedSeeds = EncodeIPv4FixedSeed(80, 96, 108, 2, nDefaultPort);
         SetSeedManifestFields(m_seed_manifest_pubkey, m_seed_epochs, /*mainnet=*/true);
 
         fDefaultConsistencyChecks = false;
@@ -340,7 +343,8 @@ public:
             }
         };
 
-        // Private-testnet bootstrap. Mainnet still clears vFixedSeeds.
+        // Private-testnet bootstrap (TASK-003). Mainnet's one fallback is set
+        // above; this loopback address is testnet only.
         // EXISTING endpoint: 127.0.0.1:18760 = node-001 when
         // tools/testnet/start-bootstrap.sh is running. No public operator IP
         // is compiled here (none exists). DNS names below are historical

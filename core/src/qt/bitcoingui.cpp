@@ -3,6 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/bitcoingui.h>
+#include <qt/peertablemodel.h>
+#include <qt/seedlabel.h>
 
 #include <qt/rigorwallet/walletidentity.h>
 
@@ -34,11 +36,13 @@
 #include <qt/macdockiconhandler.h>
 #endif
 
+#include <tuple>
 #include <functional>
 #include <chain.h>
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
+#include <net.h>
 #include <node/interface_ui.h>
 #include <util/system.h>
 #include <util/translation.h>
@@ -1038,6 +1042,79 @@ void RigorGUI::gotoLoadPSBT(bool from_clipboard)
 }
 #endif // ENABLE_WALLET
 
+void RigorGUI::requestSeedLookups()
+{
+    if (m_seed_watch_started) return;
+    m_seed_watch_started = true;
+    WatchConfiguredSeeds([this] { updateNetworkState(); });
+}
+
+QString RigorGUI::networkStatusPlain() const
+{
+    QStringList lines;
+    const bool active = m_node.getNetworkActive();
+    const int count = clientModel ? clientModel->getNumConnections() : 0;
+    if (!active) {
+        lines << tr("Network activity disabled.");
+        lines << tr("No peer is connected.");
+    } else {
+        lines << tr("%n active connection(s) to the RIGOR network.", "", count);
+        if (count == 0) {
+            lines << tr("No peer is connected.");
+        }
+    }
+
+    interfaces::Node::NodesStats nodes_stats;
+    const bool have_stats = active && m_node.getNodesStats(nodes_stats);
+    if (have_stats) {
+        for (const auto& row : nodes_stats) {
+            const CNodeStats& stats = std::get<0>(row);
+            const QString endpoint = QString::fromStdString(stats.addr.ToStringAddrPort());
+            const QString ip = QString::fromStdString(stats.addr.ToStringAddr());
+            QString direction = stats.fInbound ? tr("inbound") : tr("outbound");
+            QString line = tr("Connected peer: %1 (%2)").arg(endpoint, direction);
+            const SeedNameResult matched = UniqueConfiguredSeedName(ip.toStdString(), ConfiguredSeedSnapshot());
+            if (matched.match == SeedNameMatch::Unique) {
+                line += tr(" — current DNS address of %1").arg(QString::fromStdString(matched.name));
+            } else if (matched.match == SeedNameMatch::Ambiguous) {
+                line += tr(" — current DNS address of more than one configured seed");
+            }
+            lines << line;
+        }
+    } else if (active && count > 0 && !have_stats) {
+        lines << tr("Connected peer endpoints are not available to this display.");
+    }
+
+    lines << tr("Configured DNS seeds are discovery names, not connections.");
+    for (const ConfiguredSeedLookup& seed : ConfiguredSeedSnapshot()) {
+        const QString name = QString::fromStdString(seed.name);
+        if (!seed.lookup_finished) {
+            lines << tr("Seed %1: Configured, lookup not finished.").arg(name);
+            continue;
+        }
+        QStringList addrs;
+        for (const std::string& address : seed.addresses) addrs << QString::fromStdString(address);
+        if (addrs.isEmpty()) {
+            lines << tr("Seed %1: Configured, lookup returned no address. Disconnected.").arg(name);
+            continue;
+        }
+        bool connected = false;
+        if (active) {
+            for (const auto& row : nodes_stats) {
+                const SeedNameResult matched = UniqueConfiguredSeedName(std::get<0>(row).addr.ToStringAddr(), ConfiguredSeedSnapshot());
+                if (matched.match == SeedNameMatch::Unique && matched.name == seed.name) connected = true;
+            }
+        }
+        if (connected) {
+            lines << tr("Seed %1: Resolved %2. Connected.").arg(name, addrs.join(QLatin1String(", ")));
+        } else {
+            lines << tr("Seed %1: Resolved %2. Not connected.").arg(name, addrs.join(QLatin1String(", ")));
+        }
+    }
+    lines << tr("A seed name is shown as Connected only while a live peer uses that name's current address. Both seeds are not guaranteed to stay connected.");
+    return lines.join(QLatin1Char('\n'));
+}
+
 void RigorGUI::updateNetworkState()
 {
     int count = clientModel->getNumConnections();
@@ -1051,23 +1128,15 @@ void RigorGUI::updateNetworkState()
     default: icon = ":/icons/connect_4"; break;
     }
 
-    QString tooltip;
-
-    if (m_node.getNetworkActive()) {
-        //: A substring of the tooltip.
-        tooltip = tr("%n active connection(s) to RIGOR network.", "", count);
-    } else {
-        //: A substring of the tooltip.
-        tooltip = tr("Network activity disabled.");
+    if (!m_node.getNetworkActive()) {
         icon = ":/icons/network_disabled";
     }
-
-    // Don't word-wrap this (fixed-width) tooltip
-    tooltip = QLatin1String("<nobr>") + tooltip + QLatin1String("<br>") +
-              //: A substring of the tooltip. "More actions" are available via the context menu.
-              tr("Click for more actions.") + QLatin1String("</nobr>");
+    requestSeedLookups();
+    const QString plain = networkStatusPlain();
+    QString tooltip = QLatin1String("<nobr>") + plain.toHtmlEscaped().replace(QLatin1Char('\n'), QLatin1String("<br>")) +
+                      QLatin1String("<br>") + tr("Click for more actions.") + QLatin1String("</nobr>");
     connectionsControl->setToolTip(tooltip);
-
+    if (trayIcon) trayIcon->setToolTip(plain);
     connectionsControl->setThemedPixmap(icon, STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE);
 }
 

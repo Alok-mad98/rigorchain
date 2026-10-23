@@ -43,7 +43,7 @@ VIAddVersionKey ProductName "Rigor Miner"
 VIAddVersionKey ProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey FileVersion "${PRODUCT_VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
-VIAddVersionKey FileDescription "Rigor SOLO miner + local dashboard (unsigned)"
+VIAddVersionKey FileDescription "Rigor SOLO miner (unsigned)"
 VIAddVersionKey LegalCopyright "Copyright (C) 2026 Rigor contributors"
 
 !insertmacro MUI_PAGE_WELCOME
@@ -69,21 +69,14 @@ Section "Rigor Miner (required)" SEC_MAIN
   SetOverwrite on
 
   File "${STAGING_DIR}/rigor-miner.cmd"
-  File "${STAGING_DIR}/start-miner-dashboard.cmd"
-  File "${STAGING_DIR}/load-rpc-auth.cmd"
-  File "${STAGING_DIR}/gen-rpc-auth.ps1"
   File "${STAGING_DIR}/README.txt"
   File /oname=LICENSE.txt "${REPO_ROOT}/installer/windows/RIGOR_LICENSE.txt"
   !include "${STAGING_DIR}/optional-binaries.nsh"
-
-  SetOutPath "$INSTDIR\dashboard"
-  File /r "${STAGING_DIR}/dashboard/"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   SetOutPath "$INSTDIR"
   CreateDirectory "$SMPROGRAMS\Rigor Miner"
   CreateShortcut "$SMPROGRAMS\Rigor Miner\Rigor Miner.lnk" "$INSTDIR\rigor-miner.cmd"
-  CreateShortcut "$SMPROGRAMS\Rigor Miner\Miner Dashboard.lnk" "$INSTDIR\start-miner-dashboard.cmd"
   CreateShortcut "$SMPROGRAMS\Rigor Miner\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKLM "${REGKEY}" "Path" "$INSTDIR"
@@ -97,23 +90,16 @@ SectionEnd
 Section "Desktop shortcut" SEC_DESKTOP
   SetOutPath "$INSTDIR"
   CreateShortcut "$DESKTOP\Rigor Miner.lnk" "$INSTDIR\rigor-miner.cmd"
-  CreateShortcut "$DESKTOP\RIGOR Miner Dashboard.lnk" "$INSTDIR\start-miner-dashboard.cmd"
 SectionEnd
 
 Section "Uninstall"
   Delete "$INSTDIR\rigor-miner.exe"
-  Delete "$INSTDIR\rigor-cli.exe"
   Delete "$INSTDIR\rigor-miner.cmd"
-  Delete "$INSTDIR\start-miner-dashboard.cmd"
-  Delete "$INSTDIR\load-rpc-auth.cmd"
-  Delete "$INSTDIR\gen-rpc-auth.ps1"
   Delete "$INSTDIR\README.txt"
   Delete "$INSTDIR\LICENSE.txt"
   Delete "$INSTDIR\Uninstall.exe"
-  RMDir /r "$INSTDIR\dashboard"
   RMDir /r "$SMPROGRAMS\Rigor Miner"
   Delete "$DESKTOP\Rigor Miner.lnk"
-  Delete "$DESKTOP\RIGOR Miner Dashboard.lnk"
   RMDir "$INSTDIR"
   DeleteRegKey HKLM "${REGKEY}"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\RigorMiner"

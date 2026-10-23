@@ -16,11 +16,14 @@
 
 #include <consensus/amount.h>
 
+#include <QHash>
 #include <QLabel>
 #include <QMainWindow>
 #include <QMap>
 #include <QMenu>
 #include <QPoint>
+#include <QSet>
+#include <QStringList>
 #include <QSystemTrayIcon>
 
 #ifdef Q_OS_MACOS
@@ -211,6 +214,12 @@ private:
 
     /** Update UI with latest network info from model. */
     void updateNetworkState();
+    /** Resolve configured DNS seed names without treating a name as a connection. */
+    void requestSeedLookups();
+    /** Plain-text peer and seed status. Hostnames are attached only to a matching live endpoint. */
+    QString networkStatusPlain() const;
+
+    bool m_seed_watch_started{false};
 
     void updateHeadersSyncProgressLabel();
     void updateHeadersPresyncProgressLabel(int64_t height, const QDateTime& blockDate);

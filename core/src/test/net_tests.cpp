@@ -6,7 +6,9 @@
 #include <clientversion.h>
 #include <compat/compat.h>
 #include <cstdint>
+#include <chainparamsbase.h>
 #include <net.h>
+#include <net_dns_seed.h>
 #include <net_processing.h>
 #include <netaddress.h>
 #include <netbase.h>
@@ -957,6 +959,192 @@ BOOST_AUTO_TEST_CASE(inbound_onion_does_not_inherit_localhost_whitelist)
     NetPermissionFlags explicit_remote = NetPermissionFlags::None;
     NetPermissions::AddFlag(explicit_remote, NetPermissionFlags::NoBan);
     BOOST_CHECK(NetPermissions::HasFlag(explicit_remote, NetPermissionFlags::NoBan));
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+namespace {
+
+CNetAddr NumericAddr(const std::string& ip)
+{
+    CNetAddr addr;
+    BOOST_REQUIRE_MESSAGE(LookupHost(ip, addr, /*fAllowLookup=*/false), ip);
+    return addr;
+}
+
+bool ContainsEndpoint(const std::vector<CAddress>& addrs, const CNetAddr& ip, uint16_t port)
+{
+    for (const CAddress& addr : addrs) {
+        if (addr.GetPort() == port && static_cast<const CNetAddr&>(addr) == ip) return true;
+    }
+    return false;
+}
+
+bool SeedsContain(const std::vector<std::string>& seeds, const std::string& needle)
+{
+    for (const std::string& seed : seeds) {
+        if (seed.find(needle) != std::string::npos) return true;
+    }
+    return false;
+}
+
+std::vector<CService> DecodeFixedSeeds(const std::vector<uint8_t>& raw)
+{
+    std::vector<CService> out;
+    CDataStream s(raw, SER_NETWORK, PROTOCOL_VERSION | ADDRV2_FORMAT);
+    while (!s.eof()) {
+        CService endpoint;
+        s >> endpoint;
+        out.push_back(endpoint);
+    }
+    return out;
+}
+
+void CheckMainnetFixedSeed(const CChainParams& mainnet)
+{
+    const std::vector<CService> seeds = DecodeFixedSeeds(mainnet.FixedSeeds());
+    BOOST_REQUIRE_EQUAL(seeds.size(), 1U);
+    BOOST_CHECK(seeds[0].IsIPv4());
+    BOOST_CHECK_EQUAL(seeds[0].GetPort(), static_cast<uint16_t>(8760));
+    BOOST_CHECK_EQUAL(seeds[0].ToStringAddrPort(), "80.96.108.2:8760");
+    for (const CService& endpoint : seeds) {
+        BOOST_CHECK(endpoint.ToStringAddrPort() != "167.88.172.182:8760");
+    }
+}
+
+} // namespace
+
+BOOST_FIXTURE_TEST_SUITE(dns_seed_discovery_tests, BasicTestingSetup)
+
+BOOST_AUTO_TEST_CASE(mainnet_and_testnet_seeds_are_isolated)
+{
+    const auto mainnet = CChainParams::Main();
+    const auto testnet = CChainParams::TestNet();
+    const auto devtest = CChainParams::DevTest({});
+    const auto regtest = CChainParams::RegTest({});
+    const auto slowtest = CChainParams::SlowTest({});
+
+    const std::vector<std::string>& main_seeds = mainnet->DNSSeeds();
+    const std::vector<std::string>& test_seeds = testnet->DNSSeeds();
+
+    BOOST_REQUIRE(!main_seeds.empty());
+    BOOST_CHECK_EQUAL(main_seeds.size(), 2U);
+    BOOST_CHECK(std::find(main_seeds.begin(), main_seeds.end(), "seed.rigorchain.com.") != main_seeds.end());
+    BOOST_CHECK(std::find(main_seeds.begin(), main_seeds.end(), "seed1.rigorchain.com.") != main_seeds.end());
+    BOOST_CHECK(std::find(main_seeds.begin(), main_seeds.end(), "seed.rigor.network.") == main_seeds.end());
+    BOOST_CHECK(!SeedsContain(main_seeds, "rigor.network"));
+    BOOST_CHECK(!SeedsContain(main_seeds, "testnet"));
+    CheckMainnetFixedSeed(*mainnet);
+
+    BOOST_CHECK(!SeedsContain(test_seeds, "rigorchain.com"));
+    BOOST_CHECK(std::find(test_seeds.begin(), test_seeds.end(), "seed.rigor.network.") == test_seeds.end());
+    BOOST_CHECK(std::find(test_seeds.begin(), test_seeds.end(), "seed1.testnet.rigor.network.") != test_seeds.end());
+    for (const std::string& seed : test_seeds) {
+        BOOST_CHECK(std::find(main_seeds.begin(), main_seeds.end(), seed) == main_seeds.end());
+    }
+
+    BOOST_CHECK(!SeedsContain(devtest->DNSSeeds(), "rigorchain.com"));
+    BOOST_CHECK(!SeedsContain(regtest->DNSSeeds(), "rigorchain.com"));
+    BOOST_CHECK(!SeedsContain(slowtest->DNSSeeds(), "rigorchain.com"));
+
+    const std::vector<CService> test_fixed = DecodeFixedSeeds(testnet->FixedSeeds());
+    BOOST_REQUIRE_EQUAL(test_fixed.size(), 1U);
+    BOOST_CHECK(test_fixed[0].IsLocal());
+    BOOST_CHECK_EQUAL(test_fixed[0].ToStringAddrPort(), "127.0.0.1:18760");
+    BOOST_CHECK(DecodeFixedSeeds(devtest->FixedSeeds()).empty());
+    BOOST_CHECK(DecodeFixedSeeds(regtest->FixedSeeds()).empty());
+    BOOST_CHECK(DecodeFixedSeeds(slowtest->FixedSeeds()).empty());
+
+    BOOST_CHECK_EQUAL(mainnet->GetDefaultPort(), 8760);
+    BOOST_CHECK_EQUAL(testnet->GetDefaultPort(), 18760);
+    BOOST_CHECK_EQUAL(CreateBaseChainParams(CBaseChainParams::MAIN)->RPCPort(), 8761);
+    BOOST_CHECK_EQUAL(CreateBaseChainParams(CBaseChainParams::TESTNET)->RPCPort(), 18761);
+    bool magic_differs = false;
+    for (size_t i = 0; i < CMessageHeader::MESSAGE_START_SIZE; ++i) {
+        if (mainnet->MessageStart()[i] != testnet->MessageStart()[i]) magic_differs = true;
+    }
+    BOOST_CHECK(magic_differs);
+
+    // Discovery edit must not move mainnet identity.
+    BOOST_CHECK_EQUAL(
+        mainnet->GetConsensus().hashGenesisBlock,
+        uint256S("0xe2ce92cfef740f92e8cc84a8541d8e760c776c668afd9b61740b3a4315241468"));
+    BOOST_CHECK_EQUAL(mainnet->Bech32HRP(), "rg");
+    BOOST_CHECK_EQUAL(testnet->Bech32HRP(), "trg");
+}
+
+BOOST_AUTO_TEST_CASE(dns_seed_imports_bare_a_records_on_chain_port)
+{
+    const ServiceFlags services{NODE_NETWORK | NODE_WITNESS};
+    const CNetAddr long_term = NumericAddr("198.51.100.10");
+    const CNetAddr temporary = NumericAddr("198.51.100.20");
+    const CNetAddr future = NumericAddr("203.0.113.10");
+    // Globally valid IPv6 (not 2001:db8, which CNetAddr::IsValid rejects as RFC3849).
+    const CNetAddr future_v6 = NumericAddr("1122:3344:5566:7788:9900:aabb:ccdd:eeff");
+
+    // Test 1 — seed answers with current nodes. Wallet learns both on the P2P port.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({}, {long_term, temporary}, 8760, services);
+        BOOST_CHECK(imported.kind == DnsSeedLookupKind::BARE_NAME);
+        BOOST_CHECK_EQUAL(imported.addresses.size(), 2U);
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, long_term, 8760));
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, temporary, 8760));
+        BOOST_CHECK(imported.addresses[0].nServices == services);
+    }
+
+    // Test 2 — DNS returns nothing. No addresses, no throw; caller uses ADDR_FETCH.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({}, {}, 8760, services);
+        BOOST_CHECK(imported.kind == DnsSeedLookupKind::ADDR_FETCH);
+        BOOST_CHECK(imported.addresses.empty());
+    }
+
+    // Test 3 — temporary node absent. The long-term node is still discovered.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({}, {long_term}, 8760, services);
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, long_term, 8760));
+        BOOST_CHECK(!ContainsEndpoint(imported.addresses, temporary, 8760));
+    }
+
+    // Test 4 — long-term node absent. Another DNS answer is still usable.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({}, {future}, 8760, services);
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, future, 8760));
+        BOOST_CHECK(!ContainsEndpoint(imported.addresses, long_term, 8760));
+        BOOST_CHECK(!ContainsEndpoint(imported.addresses, temporary, 8760));
+    }
+
+    // Test 5 — a new server appears only in DNS. The compiled seed list is unchanged.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({}, {long_term, future, future_v6}, 8760, services);
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, long_term, 8760));
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, future, 8760));
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, future_v6, 8760));
+        const auto mainnet = CChainParams::Main();
+        BOOST_CHECK(!SeedsContain(mainnet->DNSSeeds(), "203.0.113.10"));
+        BOOST_CHECK(!SeedsContain(mainnet->DNSSeeds(), "1122:3344"));
+        CheckMainnetFixedSeed(*mainnet);
+    }
+
+    // Test 6 — the same answers on testnet use the testnet port, not mainnet.
+    {
+        const DnsSeedImport main_import = ResolveDnsSeedImport({}, {long_term}, 8760, services);
+        const DnsSeedImport test_import = ResolveDnsSeedImport({}, {long_term}, 18760, services);
+        BOOST_CHECK(ContainsEndpoint(main_import.addresses, long_term, 8760));
+        BOOST_CHECK(!ContainsEndpoint(main_import.addresses, long_term, 18760));
+        BOOST_CHECK(ContainsEndpoint(test_import.addresses, long_term, 18760));
+        BOOST_CHECK(!ContainsEndpoint(test_import.addresses, long_term, 8761));
+        BOOST_CHECK(!ContainsEndpoint(test_import.addresses, long_term, 18761));
+    }
+
+    // A filtering seeder still wins over the bare name.
+    {
+        const DnsSeedImport imported = ResolveDnsSeedImport({future}, {long_term, temporary}, 8760, services);
+        BOOST_CHECK(imported.kind == DnsSeedLookupKind::SERVICE_FILTERED);
+        BOOST_CHECK(ContainsEndpoint(imported.addresses, future, 8760));
+        BOOST_CHECK(!ContainsEndpoint(imported.addresses, long_term, 8760));
+        BOOST_CHECK(!ContainsEndpoint(imported.addresses, temporary, 8760));
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -18,3 +18,8 @@ bool BCLog::Logger::WillLogCategoryLevel(LogFlags, Level) const
 {
     return false;
 }
+
+bool SuppressRepeatedAttackerLog(const std::string&, size_t)
+{
+    return false;
+}

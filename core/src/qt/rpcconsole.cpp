@@ -1163,7 +1163,10 @@ void RPCConsole::updateDetailWidget()
     }
     const auto stats = selected_peers.first().data(PeerTableModel::StatsRole).value<CNodeCombinedStats*>();
     // update the detail ui with latest node information
-    QString peerAddrDetails(QString::fromStdString(stats->nodeStats.m_addr_name) + " ");
+    const QString endpoint = QString::fromStdString(stats->nodeStats.addr.ToStringAddrPort());
+    const QString seed = UniqueSeedLabelForIp(QString::fromStdString(stats->nodeStats.addr.ToStringAddr()));
+    QString peerAddrDetails(endpoint + " ");
+    if (!seed.isEmpty()) peerAddrDetails += tr("seed %1 ").arg(seed);
     peerAddrDetails += tr("(peer: %1)").arg(QString::number(stats->nodeStats.nodeid));
     if (!stats->nodeStats.addrLocal.empty())
         peerAddrDetails += "<br />" + tr("via %1").arg(QString::fromStdString(stats->nodeStats.addrLocal));

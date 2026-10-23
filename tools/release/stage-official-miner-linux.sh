@@ -12,9 +12,12 @@ die() { echo "FAIL: $*" >&2; exit 1; }
 
 MINER_SRC="${ROOT}/miner"
 [[ -x "${MINER_SRC}/minerd" ]] || die "missing ${MINER_SRC}/minerd (cd miner && make)"
-strings "${MINER_SRC}/minerd" | grep -q 'lottery-era GBT field %s is not a shipping template field' \
-  || die "${MINER_SRC}/minerd is stale (still RFC-019 lottery string or unrebuild)"
-if strings "${MINER_SRC}/minerd" | grep -q 'is not RFC-019'; then
+# Do not use grep -q here. Under pipefail, grep -q closes the pipe early and
+# strings dies with SIGPIPE, which looks like a missing string.
+lottery_hit="$(strings "${MINER_SRC}/minerd" | grep -F 'lottery-era GBT field %s is not a shipping template field' || true)"
+[[ -n "${lottery_hit}" ]] || die "${MINER_SRC}/minerd is stale (still RFC-019 lottery string or unrebuild)"
+rfc019_hit="$(strings "${MINER_SRC}/minerd" | grep -F 'is not RFC-019' || true)"
+if [[ -n "${rfc019_hit}" ]]; then
   die "${MINER_SRC}/minerd still contains retired RFC-019 error text — rebuild"
 fi
 
@@ -25,31 +28,9 @@ cp -a "${MINER_SRC}/minerd" "${OUT}/bin/rigor-miner"
 strip --strip-unneeded "${OUT}/bin/rigor-miner" 2>/dev/null || true
 chmod +x "${OUT}/bin/rigor-miner"
 ln -sfn rigor-miner "${OUT}/bin/minerd"
-
-cat > "${OUT}/README.txt" <<EOF
-RIGOR Miner v${RELEASE_VERSION} Linux x86_64
-Channel: ${CHANNEL}
-
-Official name: ${MINER_LINUX_TAR_NAME}
-This package is the SOLO miner. It is not the wallet.
-
-Start the node / wallet first so RPC is on 127.0.0.1:8761, then:
-
-  ./bin/rigor-miner -a rgrpow01 -o http://127.0.0.1:8761 \\
-    -u RPCUSER -p RPCPASS \\
-    --coinbase-addr=rg1q... \\
-    -t 4
-
-Payout must be ORU witness v0 (rg1q…). RES is not mined.
-The miner copies getblocktemplate coinbase bytes (RFC-020: 128 ORU
-per block for h ≥ 1, no halving) and only searches SHA3-256 RGRPOW01
-nonces.
-
-Packed CLIENT_VERSION remains 25.0.0.
-refinement_proved=false
-LEVEL_5_CLAIMED=false
-CPP_VERIFIED=false
-EOF
+cp -a "${ROOT}/installer/linux/MINER_SOLO_README.txt" "${OUT}/README.txt"
+cp -a "${ROOT}/installer/linux/rigor-miner.sh" "${OUT}/rigor-miner.sh"
+chmod 755 "${OUT}/rigor-miner.sh"
 
 echo "STAGE_MINER_LINUX=PASS"
 ls -la "${OUT}/bin"

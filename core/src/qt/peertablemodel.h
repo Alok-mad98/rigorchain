@@ -8,11 +8,17 @@
 #include <net_processing.h> // For CNodeStateStats
 #include <net.h>
 
+#include <qt/seedlabel.h>
+
 #include <QAbstractTableModel>
 #include <QList>
 #include <QModelIndex>
+#include <QString>
 #include <QStringList>
 #include <QVariant>
+
+#include <functional>
+#include <vector>
 
 class PeerTablePriv;
 
@@ -49,6 +55,7 @@ public:
         NetNodeId = 0,
         Age,
         Address,
+        Seed,
         Direction,
         ConnectionType,
         Network,
@@ -89,6 +96,9 @@ private:
         /*: Title of Peers Table column which contains the
             IP/Onion/I2P address of the connected peer. */
         tr("Address"),
+        /*: Title of Peers Table column which names a configured DNS seed
+            when the peer endpoint is that seed's current address. */
+        tr("Seed"),
         /*: Title of Peers Table column which indicates the direction
             the peer connection was initiated from. */
         tr("Direction"),
@@ -112,5 +122,10 @@ private:
         tr("User Agent")};
     QTimer* timer{nullptr};
 };
+
+/** Start DNS lookups for configured seeds once. on_change runs after each lookup. */
+void WatchConfiguredSeeds(const std::function<void()>& on_change);
+std::vector<ConfiguredSeedLookup> ConfiguredSeedSnapshot();
+QString UniqueSeedLabelForIp(const QString& ip);
 
 #endif // BITCOIN_QT_PEERTABLEMODEL_H

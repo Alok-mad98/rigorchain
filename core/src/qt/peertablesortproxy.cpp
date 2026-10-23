@@ -5,6 +5,7 @@
 #include <qt/peertablesortproxy.h>
 
 #include <qt/peertablemodel.h>
+#include <qt/seedlabel.h>
 #include <util/check.h>
 
 #include <QModelIndex>
@@ -27,7 +28,10 @@ bool PeerTableSortProxy::lessThan(const QModelIndex& left_index, const QModelInd
     case PeerTableModel::Age:
         return left_stats.m_connected > right_stats.m_connected;
     case PeerTableModel::Address:
-        return left_stats.m_addr_name.compare(right_stats.m_addr_name) < 0;
+        return left_stats.addr.ToStringAddrPort().compare(right_stats.addr.ToStringAddrPort()) < 0;
+    case PeerTableModel::Seed:
+        return UniqueSeedLabelForIp(QString::fromStdString(left_stats.addr.ToStringAddr()))
+            < UniqueSeedLabelForIp(QString::fromStdString(right_stats.addr.ToStringAddr()));
     case PeerTableModel::Direction:
         return left_stats.fInbound > right_stats.fInbound; // default sort Inbound, then Outbound
     case PeerTableModel::ConnectionType:

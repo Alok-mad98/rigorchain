@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild docs/security/FORMAL_THEOREM_INVENTORY.json from Coq sources.
+"""Rebuild private_docs/audits/FORMAL_THEOREM_INVENTORY.json from Coq sources.
 
 Scans every `.v` listed in formal_verification/coq/_CoqProject for top-level
 Theorem / Lemma / Corollary names. Slice assignment is path-heuristic and must
@@ -24,7 +24,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 COQ_DIR = ROOT / "formal_verification" / "coq"
 COQ_PROJECT = COQ_DIR / "_CoqProject"
-DEFAULT_OUT = ROOT / "docs" / "security" / "FORMAL_THEOREM_INVENTORY.json"
+# Moved out of docs/security by ccacc451 so the name list stays in the
+# private maintenance tree. The public export allowlist does not include it.
+DEFAULT_OUT = ROOT / "private_docs" / "audits" / "FORMAL_THEOREM_INVENTORY.json"
 
 DECL_RE = re.compile(
     r"^\s*(Theorem|Lemma|Corollary)\s+([A-Za-z_][A-Za-z0-9_']*)",
@@ -113,7 +115,7 @@ def main() -> int:
         "--output",
         type=Path,
         default=DEFAULT_OUT,
-        help="JSON path (default: docs/security/FORMAL_THEOREM_INVENTORY.json)",
+        help="JSON path (default: private_docs/audits/FORMAL_THEOREM_INVENTORY.json)",
     )
     args = parser.parse_args()
     payload = build_inventory()

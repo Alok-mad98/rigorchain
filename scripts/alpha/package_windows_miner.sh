@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Stage and package the Windows SOLO miner + local dashboard.
+# Stage and package the Windows SOLO miner.
+# Dashboard sources stay in the repository and are not part of this package.
 # Does not modify the wallet installer. Wallet packages must stay miner-free.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -13,12 +14,18 @@ log() { echo "[package-windows-miner] $*"; }
 rm -rf "${STAGE}"
 mkdir -p "${STAGE}"
 
-cp -a "${ROOT}/installer/windows/rigor-miner.cmd" "${STAGE}/rigor-miner.cmd"
-cp -a "${ROOT}/installer/windows/load-rpc-auth.cmd" "${STAGE}/load-rpc-auth.cmd"
-if [[ -f "${ROOT}/installer/windows/gen-rpc-auth.ps1" ]]; then
-  cp -a "${ROOT}/installer/windows/gen-rpc-auth.ps1" "${STAGE}/gen-rpc-auth.ps1"
-fi
-bash "${ROOT}/scripts/alpha/stage_windows_miner_dashboard.sh" "${STAGE}"
+python3 - "${ROOT}/installer/windows/rigor-miner.cmd" "${STAGE}/rigor-miner.cmd" <<'PY'
+import pathlib, sys
+src, dest = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+data = src.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+dest.write_bytes(data)
+PY
+python3 - "${ROOT}/installer/windows/MINER_SOLO_README.txt" "${STAGE}/README.txt" <<'PY'
+import pathlib, sys
+src, dest = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+data = src.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+dest.write_bytes(data)
+PY
 
 OPTIONAL_NSH="${STAGE}/optional-binaries.nsh"
 : > "${OPTIONAL_NSH}"
@@ -29,26 +36,9 @@ if [[ -f "${PE_STAGING}/rigor-miner.exe" ]]; then
   HAVE_MINER=1
   log "included rigor-miner.exe"
 else
-  log "WARNING: ${PE_STAGING}/rigor-miner.exe missing; packaging scripts + dashboard only"
+  log "WARNING: ${PE_STAGING}/rigor-miner.exe missing"
 fi
-if [[ -f "${PE_STAGING}/rigor-cli.exe" ]]; then
-  cp -a "${PE_STAGING}/rigor-cli.exe" "${STAGE}/rigor-cli.exe"
-  printf '  File "${STAGING_DIR}/rigor-cli.exe"\n' >> "${OPTIONAL_NSH}"
-  log "included rigor-cli.exe (GBT preflight)"
-fi
-
-cat > "${STAGE}/README.txt" <<EOF
-RIGOR Miner ${VERSION}
-
-This package is the Windows SOLO miner. It is not the wallet installer.
-
-1. Start Rigor Wallet / local rigord so RPC is on 127.0.0.1:8761
-2. Run rigor-miner.cmd and pass your ORU payout address (rg1q…)
-3. Run start-miner-dashboard.cmd and open http://127.0.0.1:18083/
-
-The dashboard is read-only. It does not sign, spend, or mine.
-Python 3 is required for the local dashboard server.
-EOF
+# rigor-cli.exe is not required. rigor-miner.exe has its own RPC client.
 
 ZIP_OUT="${OUT_DIR}/rigor-v${VERSION}-miner-windows-x86_64.zip"
 python3 - <<PY
