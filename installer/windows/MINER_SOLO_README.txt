@@ -1,14 +1,11 @@
 RIGOR MAINNET SOLO mining guide  v0.2
 
-Network: MAINNET
 This is the Windows miner. It is not the wallet installer.
 This is not a pool. There is no stratum+tcp:// address.
 You fill in the RPC username, password, and rg1q payout address.
 
 Do not use a TESTNET wallet, trg1q, 18760, or 18761.
 Do not publish RPC port 8761. Do not mine on a project seed server.
-
-A Windows process test of this package has not been recorded.
 
 ================================================
 Step 1  Start the mainnet wallet and find the data folder
@@ -128,9 +125,15 @@ The script does not print the password.
 Threads: you do not add -t. The miner leaves one logical processor for the
 wallet, or two when the PC has 5 or more. Task Manager -> Performance -> CPU
 shows Logical processors. To override, add this line above the start command
-and save again:
+and save again. Example, 2 threads:
 
 set MINER_THREADS=2
+
+The script then runs with -t 2:
+
+rigor-miner.exe -a rgrpow01 -q -t 2 --no-getwork --coinbase-addr="YOUR_ADDRESS" -o "http://127.0.0.1:8761" -u "YOUR_RPC_USER" -p "YOUR_RPC_PASSWORD"
+
+Change 2 to the thread count you want. Do not type -t onto the start command.
 
 ================================================
 What the window means
@@ -163,7 +166,3 @@ RPC authentication failed
 No peers, or no work
 - Wait until the Nodes tab lists a peer.
 - Do not set -solomining. Do not point the miner at a public seed.
-
-This package contains rigor-miner.exe, rigor-miner.cmd, and README.txt.
-It does not contain a dashboard. Python is not required.
-The Windows package is unsigned.

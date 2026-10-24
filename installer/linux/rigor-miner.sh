@@ -3,11 +3,10 @@ cd "$(dirname "$(readlink -f "$0")")"
 
 echo
 echo "RIGOR v0.2 MAINNET SOLO miner"
-echo "This is not a pool. RPC stays on http://127.0.0.1:8761"
-echo "ORU payout only. Do not use trg1q, rg1p, or port 18761."
+echo "RPC http://127.0.0.1:8761"
 echo
 
-# Edit the three lines below. Do not put a real password in the published package.
+# Edit the three lines below.
 RPC_USER=CHANGE_ME
 RPC_PASS=CHANGE_ME
 COINBASE_ADDR=rg1qCHANGE_ME
@@ -15,7 +14,7 @@ if [ -n "${1:-}" ]; then
   COINBASE_ADDR=$1
 fi
 
-if [ "$RPC_USER" = "CHANGE_ME" ] || [ "$RPC_PASS" = "CHANGE_ME" ] || [ -z "$COINBASE_ADDR" ] || [ "$COINBASE_ADDR" = "rg1qCHANGE_ME" ]; then
+if [ "$RPC_USER" = "CHANGE_ME" ] || [ "$RPC_PASS" = "CHANGE_ME" ] || [ -z "$COINBASE_ADDR" ] || [ "$COINBASE_ADDR" = "rg1qCHANGE_ME" ] || [ "$COINBASE_ADDR" = "rg1qYOURADDRESS" ]; then
   echo "Edit this file and change RPC_USER and RPC_PASS."
   echo "They must match <wallet-dir>/data/rpc-auth.conf or rigor.conf."
   echo "Set COINBASE_ADDR to your rg1q address, or pass that address as the first argument."
@@ -30,9 +29,12 @@ if [ ! -x bin/rigor-miner ]; then
 fi
 
 case $COINBASE_ADDR in
-  rg1p*)
-    echo "WARNING: that looks like a RES address. Payout must be an rg1q address."
+  rg1q*|RG1Q*)
+    ;;
+  *)
+    echo "Payout must be a MAINNET rg1q address."
     echo
+    exit 1
     ;;
 esac
 
@@ -44,9 +46,7 @@ if [ -n "${MINER_THREADS:-}" ]; then
   THREAD_ARG="-t $MINER_THREADS"
 fi
 
-echo "Starting miner."
 echo "Payout: $COINBASE_ADDR"
-echo "The RPC password is not printed."
 echo
 
 # shellcheck disable=SC2086
@@ -54,7 +54,4 @@ bin/rigor-miner -a rgrpow01 -q $THREAD_ARG --no-getwork --coinbase-addr="$COINBA
 EC=$?
 echo
 echo "Miner exited with code $EC."
-echo "\"Block found!\" means the node accepted a block."
-echo "\"is not connected\" means the wallet has no usable peer. Wait. Do not set -solomining."
-echo
 exit "$EC"
