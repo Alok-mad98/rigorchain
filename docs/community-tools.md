@@ -3,6 +3,11 @@
 Third-party tools that work with the RIGOR protocol. These are independent
 projects; they are not operated or endorsed by the RIGOR project.
 
+Listing a tool here means it is provided for community reference only.
+A listing does not imply a security audit, verification of accuracy, or
+endorsement by the RIGOR project. Each tool stands on its own, and users
+should review it themselves before running anything.
+
 ## RIGOR Explorer 98
 
 A community-built, read-only web explorer for the RIGOR mainnet:
